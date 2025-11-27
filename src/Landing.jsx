@@ -1,4 +1,5 @@
 import "./landing.css";
+import { Link } from "react-router-dom";
 
 export default function Landing() {
   return (
@@ -11,8 +12,12 @@ export default function Landing() {
         </p>
 
         <div className="cta-buttons">
-          <a href="/signup" className="btn primary">Get Started</a>
-          <a href="/login" className="btn secondary">Log In</a>
+          <Link to="/signup" className="btn primary">
+            Get Started
+          </Link>
+          <Link to="/login" className="btn secondary">
+            Log In
+          </Link>
         </div>
       </header>
 
@@ -22,44 +27,31 @@ export default function Landing() {
           <div className="feature-card">
             <h3>Step-by-Step Roadmap</h3>
             <p>
-              Learn the Armenian alphabet, pronunciation, vocabulary, and grammar through a structured progression of lessons.
+              Learn the Armenian alphabet, pronunciation, vocabulary, and
+              grammar through a structured progression of lessons.
             </p>
           </div>
 
           <div className="feature-card">
             <h3>Gamified Learning</h3>
             <p>
-              Earn XP, keep your daily streak, climb the leaderboard, and make progress enjoyable.
+              Earn XP, keep your daily streak, climb the leaderboard, and make
+              progress enjoyable.
             </p>
           </div>
 
           <div className="feature-card">
-            <h3>Interactive Exercises</h3>
+            <h3>Mini-Exercises</h3>
             <p>
-              Practice through multiple-choice, typing, pronunciation, and matching exercises designed for fast mastery.
-            </p>
-          </div>
-
-          <div className="feature-card">
-            <h3>Admin Panel & CMS</h3>
-            <p>
-              Manage lessons, track user statistics, and create new exercises from a dedicated control center—no coding required.
+              Practice with short, engaging tasks: letter matching, word
+              building, dictation, grammar challenges, and more.
             </p>
           </div>
         </div>
       </section>
 
-      <section className="info">
-        <h2>Why Armenian?</h2>
-        <p>
-          Armenian is one of the world’s oldest languages, with a rich cultural
-          heritage and a unique alphabet. Whether you're learning for heritage,
-          travel, or curiosity, this platform guides you through every step.
-        </p>
-      </section>
-
       <footer className="footer">
-        <p>© {new Date().getFullYear()} Armenian Learning Platform</p>
+        <p>© 2025 Haylingua — Learn Armenian with confidence.</p>
       </footer>
     </div>
   );
