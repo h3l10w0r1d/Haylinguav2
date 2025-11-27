@@ -4,7 +4,16 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from models import Base, User
 from auth import hash_password, verify_password, create_token
+from pydantic import BaseModel
 
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+    
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -32,25 +41,24 @@ def get_db():
 
 
 @app.post("/signup")
-def signup(email: str, password: str, db: Session = Depends(get_db)):
-    exists = db.query(User).filter(User.email == email).first()
+def signup(user: UserCreate, db: Session = Depends(get_db)):
+    exists = db.query(User).filter(User.email == user.email).first()
     if exists:
         raise HTTPException(status_code=400, detail="Email already exists")
 
-    user = User(email=email, password_hash=hash_password(password))
-    db.add(user)
+    new_user = User(email=user.email, password_hash=hash_password(user.password))
+    db.add(new_user)
     db.commit()
-    db.refresh(user)
+    db.refresh(new_user)
 
     return {"message": "User created"}
 
 
 @app.post("/login")
-def login(email: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(password, user.password_hash):
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+    if not db_user or not verify_password(user.password, db_user.password_hash):
         raise HTTPException(status_code=400, detail="Invalid credentials")
-
-    token = create_token(user.id)
-
+    
+    token = create_token(db_user.id)
     return {"token": token}
