@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 
 export default function Signup() {
   const navigate = useNavigate();
+
+  // Load backend API URL from .env
+  const API = import.meta.env.VITE_API_URL;
+
+  // Component state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,24 +19,29 @@ export default function Signup() {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/signup`, {
+      const res = await fetch(`${API}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          email: email,
+          password: password
+        })
       });
 
       const data = await res.json();
 
+      // If FastAPI returns an error
       if (!res.ok) {
         setError(data.detail || "Signup failed");
         setLoading(false);
         return;
       }
 
-      alert("Account created!");
+      alert("Account created successfully!");
       navigate("/login");
+
     } catch (err) {
-      setError("Server error. Try again.");
+      setError("Server error. Try again later.");
     }
 
     setLoading(false);
@@ -39,9 +49,10 @@ export default function Signup() {
 
   return (
     <div style={{ padding: "40px", textAlign: "center" }}>
-      <h1>Create account</h1>
+      <h1>Create Account</h1>
 
       <form onSubmit={handleSignup} style={{ maxWidth: 300, margin: "auto" }}>
+
         <input
           type="email"
           placeholder="Email"
@@ -65,6 +76,7 @@ export default function Signup() {
         <button disabled={loading} className="btn primary">
           {loading ? "Creating..." : "Sign Up"}
         </button>
+
       </form>
     </div>
   );
