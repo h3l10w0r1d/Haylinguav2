@@ -10,6 +10,12 @@ class UserCreate(BaseModel):
     email: str
     password: str
 
+    @field_validator("password")
+    def check_length(cls, v):
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password must be 72 bytes or less")
+        return v
+
 class UserLogin(BaseModel):
     email: str
     password: str
