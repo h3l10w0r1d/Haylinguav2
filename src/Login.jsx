@@ -8,10 +8,15 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+const API = import.meta.env.VITE_API_URL;
+
+async function handleLogin(e) {
+  const res = await fetch(`${API}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+}
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
