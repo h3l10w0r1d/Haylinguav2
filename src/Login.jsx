@@ -3,26 +3,26 @@ import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const navigate = useNavigate();
+  const API = import.meta.env.VITE_API_URL;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-const API = import.meta.env.VITE_API_URL;
-
-async function handleLogin(e) {
-  const res = await fetch(`${API}/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
-}
+  async function handleLogin(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
+      const res = await fetch(`${API}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({
+          email,
+          password
+        })
       });
 
       const data = await res.json();
@@ -33,13 +33,13 @@ async function handleLogin(e) {
         return;
       }
 
-      // store token
+      // Save JWT token
       localStorage.setItem("token", data.token);
 
-      alert("Logged in!");
-      navigate("/dashboard"); // <-- you will create soon
+      alert("Login successful!");
+      navigate("/dashboard");
     } catch (err) {
-      setError("Server error. Try again.");
+      setError("Server unavailable. Try again later.");
     }
 
     setLoading(false);
@@ -47,7 +47,7 @@ async function handleLogin(e) {
 
   return (
     <div style={{ padding: "40px", textAlign: "center" }}>
-      <h1>Log in</h1>
+      <h1>Log In</h1>
 
       <form onSubmit={handleLogin} style={{ maxWidth: 300, margin: "auto" }}>
         <input
