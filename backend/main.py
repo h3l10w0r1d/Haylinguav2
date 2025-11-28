@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, field_validator
+from typing import List
+import random
+from pydantic import BaseModel, field_validator 
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 from models import User
