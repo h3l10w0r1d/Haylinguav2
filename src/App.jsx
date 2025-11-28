@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Landing from "./Landing.jsx";
-import Login from "./Login.jsx";
-import Signup from "./Signup.jsx";
+import Landing from "./Landing";
+import Login from "./Login";
+import Signup from "./Signup";
+import Dashboard from "./Dashboard"; // ⬅️ NEW
 
 export default function App() {
   return (
@@ -10,6 +11,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/dashboard" element={<Dashboard />} /> {/* ⬅️ NEW */}
       </Routes>
     </BrowserRouter>
   );
