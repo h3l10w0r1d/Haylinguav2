@@ -1,33 +1,46 @@
 // src/Dashboard.jsx
 import React, { useEffect, useState } from "react";
-import "./landing.css";
 
-const API = import.meta.env.VITE_API_URL;
+// You can later move this into a config file or env var.
+// For now this keeps working in dev + prod.
+const API =
+  import.meta.env.VITE_API_URL || "https://haylinguav2.onrender.com";
+
+function classNames(...parts) {
+  return parts.filter(Boolean).join(" ");
+}
 
 export default function Dashboard() {
   const [levels, setLevels] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Hard-coded progress for now (you can connect this to real user data later)
+  const [completedLevels] = useState(0);
 
   useEffect(() => {
     async function loadLevels() {
       try {
+        setLoading(true);
+        setError("");
+
         const res = await fetch(`${API}/levels`);
-        if (!res.ok) throw new Error("Failed to load levels");
+        if (!res.ok) {
+          throw new Error(`Server responded with ${res.status}`);
+        }
+
         const data = await res.json();
-        setLevels(data);
+        setLevels(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to load levels", err);
         setError("Could not load levels from server.");
+      } finally {
+        setLoading(false);
       }
     }
+
     loadLevels();
   }, []);
-
-  // for now: first level = active, the rest = locked
-  const getStatus = (index) => {
-    if (index === 0) return "active";
-    return "locked";
-  };
 
   return (
     <div className="roadmap-page">
@@ -39,48 +52,56 @@ export default function Dashboard() {
         </p>
       </header>
 
-      <section className="roadmap-section">
+      <main className="roadmap-section">
+        {error && <p className="roadmap-error">{error}</p>}
+        {loading && <p className="roadmap-loading">Loading levels…</p>}
+
         <h2 className="roadmap-section-title">Levels</h2>
 
-        {error && <p className="roadmap-error">{error}</p>}
+        <div className="roadmap-track">
+          {levels.map((level, index) => {
+            const isUnlocked = index <= completedLevels;
+            const isActive = index === completedLevels;
 
-        {!error && levels.length === 0 && (
-          <p className="roadmap-loading">Loading levels…</p>
-        )}
-
-        {!error && levels.length > 0 && (
-          <div className="roadmap-track">
-            {levels.map((level, index) => {
-              const status = getStatus(index); // "active" or "locked"
-              return (
-                <div
-                  key={level.id}
-                  className={`roadmap-step roadmap-step--${status}`}
-                >
-                  <div className="roadmap-badge-wrapper">
-                    <div className="roadmap-badge">
-                      {status === "active" && (
-                        <span className="roadmap-badge-label">START</span>
-                      )}
-                      {status === "locked" && (
-                        <span className="roadmap-badge-icon">🔒</span>
-                      )}
-                      {status === "active" && (
-                        <span className="roadmap-badge-icon">★</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="roadmap-info">
-                    <h3>{level.name}</h3>
-                    <p>{level.description}</p>
+            return (
+              <div
+                key={level.id}
+                className={classNames(
+                  "roadmap-step",
+                  isActive && "roadmap-step--active",
+                  !isUnlocked && "roadmap-step--locked"
+                )}
+              >
+                <div className="roadmap-badge-wrapper">
+                  <div className="roadmap-badge">
+                    {isActive && (
+                      <span className="roadmap-badge-label">START</span>
+                    )}
+                    <span className="roadmap-badge-icon">
+                      {isUnlocked ? "⭐" : "🔒"}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+
+                <div className="roadmap-info">
+                  <h3>{level.name}</h3>
+                  <p>{level.description}</p>
+                  <p style={{ marginTop: "0.35rem", fontSize: "0.85rem" }}>
+                    {level.exercises?.length ?? 0} exercises · pronunciation
+                    drills
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+
+          {!loading && !error && levels.length === 0 && (
+            <p className="roadmap-error">
+              No levels available yet. Try again later.
+            </p>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
