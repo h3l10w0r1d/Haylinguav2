@@ -1,82 +1,84 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "./landing.css";
+
+const API = import.meta.env.VITE_API_URL || "https://haylinguav2.onrender.com";
 
 export default function Signup() {
-  const navigate = useNavigate();
-
-  // Load backend API URL from .env
-  const API = import.meta.env.VITE_API_URL;
-
-  // Component state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
-  async function handleSignup(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    setError("");
 
     try {
       const res = await fetch(`${API}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email,
-          password: password
-        })
+        body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
-
-      // If FastAPI returns an error
       if (!res.ok) {
-        setError(data.detail || "Signup failed");
-        setLoading(false);
-        return;
+        const data = await res.json().catch(() => ({}));
+        const msg = data.detail || data.message || "Signup failed";
+        alert(msg);
+      } else {
+        alert("Account created successfully!");
+        // Redirect to dashboard
+        navigate("/dashboard");
       }
-
-      alert("Account created successfully!");
-      navigate("/login");
-
     } catch (err) {
-      setError("Server error. Try again later.");
+      console.error(err);
+      alert("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
-    <div style={{ padding: "40px", textAlign: "center" }}>
-      <h1>Create Account</h1>
+    <div className="landing" style={{ minHeight: "100vh", paddingTop: "4rem" }}>
+      <h1 style={{ textAlign: "center", marginBottom: "2rem" }}>Create Account</h1>
 
-      <form onSubmit={handleSignup} style={{ maxWidth: 300, margin: "auto" }}>
-
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          maxWidth: "420px",
+          margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem",
+        }}
+      >
         <input
           type="email"
           placeholder="Email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{ width: "100%", marginBottom: 10, padding: 8 }}
+          style={{ padding: "0.8rem 1rem", borderRadius: 8, border: "1px solid #ddd" }}
         />
 
         <input
           type="password"
           placeholder="Password"
           required
+          minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={{ width: "100%", marginBottom: 10, padding: 8 }}
+          style={{ padding: "0.8rem 1rem", borderRadius: 8, border: "1px solid #ddd" }}
         />
 
-        {error && <p style={{ color: "red" }}>{error}</p>}
-
-        <button disabled={loading} className="btn primary">
-          {loading ? "Creating..." : "Sign Up"}
+        <button
+          type="submit"
+          className="btn primary"
+          disabled={loading}
+          style={{ width: "100%" }}
+        >
+          {loading ? "Creating..." : "Create account"}
         </button>
-
       </form>
     </div>
   );
