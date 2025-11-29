@@ -1,191 +1,140 @@
 // src/Dashboard.jsx
+import React from 'react';
+import { Lock, Star, Check, Trophy, Flame, Target } from 'lucide-react';
+import characterTeacher from './assets/character-teacher.png';
 
-import { Lock, Star, Check, Trophy, Flame, Target } from "lucide-react";
-import characterTeacher from "./assets/character-teacher.png";
-
-// ---- Helpers to generate lessons & exercises ----
-
-const generateExercises = (lessonId) => {
-  if (lessonId === "lesson-1") {
-    return [
-      {
-        id: "ex-1",
-        type: "multiple-choice",
-        question: 'How do you say "Hello" in Armenian?',
-        options: [
-          "Բարև (Barev)",
-          "Ողջույն (Voghdjuyn)",
-          "Ցտեսություն (Tstesutyun)",
-          "Շնորհակալություն (Shnorhakalutyun)",
-        ],
-        correctAnswer: "Բարև (Barev)",
-      },
-      {
-        id: "ex-2",
-        type: "translate",
-        question: "Translate: Good morning",
-        correctAnswer: "Բարի լույս",
-      },
-      {
-        id: "ex-3",
-        type: "multiple-choice",
-        question: 'What does "Ցտեսություն" mean?',
-        options: ["Hello", "Goodbye", "Thank you", "Please"],
-        correctAnswer: "Goodbye",
-      },
-      {
-        id: "ex-4",
-        type: "fill-blank",
-        question: "Complete: Բարի _____ (Good night)",
-        correctAnswer: "գիշեր",
-      },
-      {
-        id: "ex-5",
-        type: "multiple-choice",
-        question: 'How do you say "Thank you"?',
-        options: ["Խնդրում եմ", "Շնորհակալություն", "Ներողություն", "Բարև"],
-        correctAnswer: "Շնորհակալություն",
-      },
-    ];
-  }
-
-  // default exercises for other lessons
-  return [
-    {
-      id: "ex-1",
-      type: "multiple-choice",
-      question: "Sample question for this lesson",
-      options: ["Option A", "Option B", "Option C", "Option D"],
-      correctAnswer: "Option A",
-    },
-    {
-      id: "ex-2",
-      type: "translate",
-      question: "Translate this phrase",
-      correctAnswer: "Translation",
-    },
-    {
-      id: "ex-3",
-      type: "fill-blank",
-      question: "Fill in the blank: _____",
-      correctAnswer: "answer",
-    },
-  ];
-};
+// -------------------- LESSON DATA & HELPERS --------------------
 
 const getLessons = (completedLessons) => {
+  const safeCompleted = Array.isArray(completedLessons) ? completedLessons : [];
+
   const allLessons = [
     {
-      id: "lesson-1",
-      title: "Greetings",
-      description: "Learn basic Armenian greetings",
+      id: 'lesson-1',
+      title: 'Greetings',
+      description: 'Learn basic Armenian greetings',
       level: 1,
       xp: 50,
+      exercises: [],
     },
     {
-      id: "lesson-2",
-      title: "The Alphabet",
-      description: "Master the Armenian alphabet",
+      id: 'lesson-2',
+      title: 'The Alphabet',
+      description: 'Master the Armenian alphabet',
       level: 1,
       xp: 75,
+      exercises: [],
     },
     {
-      id: "lesson-3",
-      title: "Numbers 1-10",
-      description: "Count from one to ten",
+      id: 'lesson-3',
+      title: 'Numbers 1-10',
+      description: 'Count from one to ten',
       level: 1,
       xp: 60,
+      exercises: [],
     },
     {
-      id: "lesson-4",
-      title: "Basic Phrases",
-      description: "Common everyday expressions",
+      id: 'lesson-4',
+      title: 'Basic Phrases',
+      description: 'Common everyday expressions',
       level: 2,
       xp: 80,
+      exercises: [],
     },
     {
-      id: "lesson-5",
-      title: "Family Members",
-      description: "Words for family relationships",
+      id: 'lesson-5',
+      title: 'Family Members',
+      description: 'Words for family relationships',
       level: 2,
       xp: 70,
+      exercises: [],
     },
     {
-      id: "lesson-6",
-      title: "Food & Drink",
-      description: "Learn food vocabulary",
+      id: 'lesson-6',
+      title: 'Food & Drink',
+      description: 'Learn food vocabulary',
       level: 2,
       xp: 85,
+      exercises: [],
     },
     {
-      id: "lesson-7",
-      title: "Colors",
-      description: "Names of different colors",
+      id: 'lesson-7',
+      title: 'Colors',
+      description: 'Names of different colors',
       level: 3,
       xp: 65,
+      exercises: [],
     },
     {
-      id: "lesson-8",
-      title: "Days & Time",
-      description: "Tell time and days of week",
+      id: 'lesson-8',
+      title: 'Days & Time',
+      description: 'Tell time and days of week',
       level: 3,
       xp: 90,
+      exercises: [],
     },
     {
-      id: "lesson-9",
-      title: "Weather",
-      description: "Describe the weather",
+      id: 'lesson-9',
+      title: 'Weather',
+      description: 'Describe the weather',
       level: 3,
       xp: 70,
+      exercises: [],
     },
     {
-      id: "lesson-10",
-      title: "Directions",
-      description: "Ask for and give directions",
+      id: 'lesson-10',
+      title: 'Directions',
+      description: 'Ask for and give directions',
       level: 4,
       xp: 95,
+      exercises: [],
     },
     {
-      id: "lesson-11",
-      title: "Shopping",
-      description: "Shopping vocabulary and phrases",
+      id: 'lesson-11',
+      title: 'Shopping',
+      description: 'Shopping vocabulary and phrases',
       level: 4,
       xp: 100,
+      exercises: [],
     },
     {
-      id: "lesson-12",
-      title: "At Restaurant",
-      description: "Order food and drinks",
+      id: 'lesson-12',
+      title: 'At Restaurant',
+      description: 'Order food and drinks',
       level: 4,
       xp: 90,
+      exercises: [],
     },
     {
-      id: "lesson-13",
-      title: "Hobbies",
-      description: "Talk about your interests",
+      id: 'lesson-13',
+      title: 'Hobbies',
+      description: 'Talk about your interests',
       level: 5,
       xp: 110,
+      exercises: [],
     },
     {
-      id: "lesson-14",
-      title: "Travel",
-      description: "Essential travel phrases",
+      id: 'lesson-14',
+      title: 'Travel',
+      description: 'Essential travel phrases',
       level: 5,
       xp: 105,
+      exercises: [],
     },
     {
-      id: "lesson-15",
-      title: "Professions",
-      description: "Job titles and occupations",
+      id: 'lesson-15',
+      title: 'Professions',
+      description: 'Job titles and occupations',
       level: 5,
       xp: 95,
+      exercises: [],
     },
   ];
 
   return allLessons.map((lesson, index) => {
-    const isCompleted = completedLessons.includes(lesson.id);
+    const isCompleted = safeCompleted.includes(lesson.id);
     const previousCompleted =
-      index === 0 || completedLessons.includes(allLessons[index - 1].id);
+      index === 0 || safeCompleted.includes(allLessons[index - 1].id);
     const isLocked = !previousCompleted && !isCompleted;
 
     return {
@@ -197,37 +146,97 @@ const getLessons = (completedLessons) => {
   });
 };
 
+const generateExercises = (lessonId) => {
+  // Full custom set for lesson-1
+  if (lessonId === 'lesson-1') {
+    return [
+      {
+        id: 'ex-1',
+        type: 'multiple-choice',
+        question: 'How do you say "Hello" in Armenian?',
+        options: [
+          'Բարև (Barev)',
+          'Ողջույն (Voghdjuyn)',
+          'Ցտեսություն (Tstesutyun)',
+          'Շնորհակալություն (Shnorhakalutyun)',
+        ],
+        correctAnswer: 'Բարև (Barev)',
+      },
+      {
+        id: 'ex-2',
+        type: 'translate',
+        question: 'Translate: Good morning',
+        correctAnswer: 'Բարի լույս',
+      },
+      {
+        id: 'ex-3',
+        type: 'multiple-choice',
+        question: 'What does "Ցտեսություն" mean?',
+        options: ['Hello', 'Goodbye', 'Thank you', 'Please'],
+        correctAnswer: 'Goodbye',
+      },
+      {
+        id: 'ex-4',
+        type: 'fill-blank',
+        question: 'Complete: Բարի _____ (Good night)',
+        correctAnswer: 'գիշեր',
+      },
+      {
+        id: 'ex-5',
+        type: 'multiple-choice',
+        question: 'How do you say "Thank you"?',
+        options: ['Խնդրում եմ', 'Շնորհակալություն', 'Ներողություն', 'Բարև'],
+        correctAnswer: 'Շնորհակալություն',
+      },
+    ];
+  }
+
+  // Default template for all other lessons (so you have something everywhere)
+  return [
+    {
+      id: 'ex-1',
+      type: 'multiple-choice',
+      question: 'Sample question for this lesson',
+      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswer: 'Option A',
+    },
+    {
+      id: 'ex-2',
+      type: 'translate',
+      question: 'Translate this phrase',
+      correctAnswer: 'Translation',
+    },
+    {
+      id: 'ex-3',
+      type: 'fill-blank',
+      question: 'Fill in the blank: _____',
+      correctAnswer: 'answer',
+    },
+  ];
+};
+
+// -------------------- DASHBOARD COMPONENT --------------------
+
 export default function Dashboard({ user, onStartLesson }) {
-  // If user is totally missing, don't crash – show a friendly fallback
+  // Hard guard: if user is missing, show a message instead of crashing
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
         <p className="text-gray-600">
-          Loading your dashboard… If this takes too long, please log in again.
+          No user data loaded. Please go back to the home page and log in again.
         </p>
       </div>
     );
   }
 
-  // Safe defaults so missing fields don't explode
-  const safeUser = {
-    name: user.name || user.email || "Friend",
-    level: user.level || 1,
-    xp: user.xp || 0,
-    streak: user.streak || 0,
-    completedLessons: user.completedLessons || [],
-  };
-
-  const completedLessons = safeUser.completedLessons;
-  const lessons = getLessons(completedLessons);
+  const lessons = getLessons(user.completedLessons);
+  const progress = (user.completedLessons.length / lessons.length) * 100;
 
   const levelGroups = lessons.reduce((acc, lesson) => {
     if (!acc[lesson.level]) acc[lesson.level] = [];
     acc[lesson.level].push(lesson);
     return acc;
   }, {});
-
-  const progress = (completedLessons.length / lessons.length) * 100;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-20">
@@ -236,7 +245,7 @@ export default function Dashboard({ user, onStartLesson }) {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="mb-2">Welcome back, {safeUser.name}! 👋</h1>
+              <h1 className="mb-2">Welcome back, {user.name}! 👋</h1>
               <p className="text-orange-100">Continue your Armenian journey</p>
             </div>
             <div className="hidden md:block">
@@ -255,7 +264,7 @@ export default function Dashboard({ user, onStartLesson }) {
                 <Trophy className="w-5 h-5" />
                 <span className="text-sm text-orange-100">Level</span>
               </div>
-              <div className="text-2xl font-bold">{safeUser.level}</div>
+              <div className="text-2xl font-bold">{user.level}</div>
             </div>
 
             <div className="bg-[rgb(15,204,0)] bg-opacity-20 backdrop-blur-sm rounded-xl p-4">
@@ -263,7 +272,7 @@ export default function Dashboard({ user, onStartLesson }) {
                 <Star className="w-5 h-5" />
                 <span className="text-sm text-orange-100">Total XP</span>
               </div>
-              <div className="text-2xl font-bold">{safeUser.xp}</div>
+              <div className="text-2xl font-bold">{user.xp}</div>
             </div>
 
             <div className="bg-[rgb(15,204,0)] bg-opacity-20 backdrop-blur-sm rounded-xl p-4">
@@ -271,7 +280,7 @@ export default function Dashboard({ user, onStartLesson }) {
                 <Flame className="w-5 h-5" />
                 <span className="text-sm text-orange-100">Day Streak</span>
               </div>
-              <div className="text-2xl font-bold">{safeUser.streak}</div>
+              <div className="text-2xl font-bold">{user.streak}</div>
             </div>
 
             <div className="bg-[rgb(15,204,0)] bg-opacity-20 backdrop-blur-sm rounded-xl p-4">
@@ -280,7 +289,7 @@ export default function Dashboard({ user, onStartLesson }) {
                 <span className="text-sm text-orange-100">Completed</span>
               </div>
               <div className="text-2xl font-bold">
-                {completedLessons.length}/{lessons.length}
+                {user.completedLessons.length}/{lessons.length}
               </div>
             </div>
           </div>
@@ -320,30 +329,28 @@ export default function Dashboard({ user, onStartLesson }) {
                   <div
                     key={lesson.id}
                     className={`relative ${
-                      index % 2 === 0 ? "md:mr-auto" : "md:ml-auto"
+                      index % 2 === 0 ? 'md:mr-auto' : 'md:ml-auto'
                     } w-full md:w-96`}
                   >
                     <button
-                      onClick={() =>
-                        !lesson.isLocked && onStartLesson(lesson)
-                      }
+                      onClick={() => !lesson.isLocked && onStartLesson(lesson)}
                       disabled={lesson.isLocked}
                       className={`w-full p-6 rounded-2xl border-2 transition-all ${
                         lesson.isCompleted
-                          ? "bg-green-50 border-green-500 hover:shadow-lg"
+                          ? 'bg-green-50 border-green-500 hover:shadow-lg'
                           : lesson.isLocked
-                          ? "bg-gray-100 border-gray-300 cursor-not-allowed opacity-60"
-                          : "bg-white border-orange-300 hover:border-orange-500 hover:shadow-lg"
+                          ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60'
+                          : 'bg-white border-orange-300 hover:border-orange-500 hover:shadow-lg'
                       }`}
                     >
                       <div className="flex items-center gap-4">
                         <div
                           className={`w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0 ${
                             lesson.isCompleted
-                              ? "bg-green-500"
+                              ? 'bg-green-500'
                               : lesson.isLocked
-                              ? "bg-gray-400"
-                              : "bg-orange-500"
+                              ? 'bg-gray-400'
+                              : 'bg-orange-500'
                           }`}
                         >
                           {lesson.isCompleted ? (
@@ -356,9 +363,7 @@ export default function Dashboard({ user, onStartLesson }) {
                         </div>
 
                         <div className="flex-1 text-left">
-                          <h3 className="text-gray-900 mb-1">
-                            {lesson.title}
-                          </h3>
+                          <h3 className="text-gray-900 mb-1">{lesson.title}</h3>
                           <p className="text-gray-600 text-sm mb-2">
                             {lesson.description}
                           </p>
@@ -382,6 +387,7 @@ export default function Dashboard({ user, onStartLesson }) {
                       </div>
                     </button>
 
+                    {/* Connecting line between lessons in same level */}
                     {index < levelLessons.length - 1 && (
                       <div className="hidden md:block absolute top-full left-1/2 w-1 h-8 bg-gray-300 transform -translate-x-1/2" />
                     )}
@@ -392,11 +398,12 @@ export default function Dashboard({ user, onStartLesson }) {
           ))}
         </div>
 
+        {/* Motivational Section */}
         <div className="mt-12 bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-8 text-center">
           <h3 className="text-gray-900 mb-2">Keep up the great work! 🎉</h3>
           <p className="text-gray-600">
-            You're making excellent progress. Complete daily lessons to maintain
-            your streak!
+            You&apos;re making excellent progress. Complete daily lessons to
+            maintain your streak!
           </p>
         </div>
       </div>
