@@ -1,105 +1,123 @@
 // src/App.jsx
-import React, { useState } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import LandingPage from "./LandingPage.jsx";
-import Dashboard from "./Dashboard.jsx";
+import { useState } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from 'react-router-dom';
 
-// Backend base URL (from Vite env or fallback)
-const API = import.meta.env.VITE_API_URL ?? "https://haylinguav2.onrender.com";
+import LandingPage from './LandingPage';
+import Dashboard from './Dashboard';
 
-export default function App() {
-  const [user, setUser] = useState(null);
+// You can later move this to env: VITE_API_BASE_URL
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
+
+function AppInner() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
 
-  // --- AUTH HANDLERS ---
+  // -------- AUTH --------
 
-  async function handleSignup(name, email, password) {
+  const handleLogin = async (email, password) => {
     try {
-      const res = await fetch(`${API}/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+      const res = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
-        let msg = "Signup failed";
-        try {
-          const data = await res.json();
-          if (data?.detail) msg = data.detail;
-        } catch (_) {}
-        throw new Error(msg);
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Login failed');
       }
 
-      // For now we fake user profile locally
+      const data = await res.json();
+      console.log('Login OK:', data);
+
+      // Minimal fake user object for the dashboard
       setUser({
-        name,
+        name: email.split('@')[0],
+        email,
         level: 1,
         xp: 0,
         streak: 1,
         completedLessons: [],
       });
 
-      navigate("/dashboard");
+      navigate('/dashboard');
     } catch (err) {
-      console.error(err);
-      alert(err.message || "Signup error");
+      console.error('Login error:', err);
+      alert(err.message || 'Could not log in');
     }
-  }
+  };
 
-  async function handleLogin(email, password) {
+  const handleSignup = async (name, email, password) => {
     try {
-      const res = await fetch(`${API}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch(`${API_BASE_URL}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
-        let msg = "Login failed";
-        try {
-          const data = await res.json();
-          if (data?.detail) msg = data.detail;
-        } catch (_) {}
-        throw new Error(msg);
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Signup failed');
       }
 
-      // If backend returns user data, you can use it here
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (_) {}
+      const data = await res.json();
+      console.log('Signup OK:', data);
 
       setUser({
-        name: data.name || email.split("@")[0],
-        level: data.level ?? 1,
-        xp: data.xp ?? 0,
-        streak: data.streak ?? 1,
-        completedLessons: data.completedLessons ?? [],
+        name: name || email.split('@')[0],
+        email,
+        level: 1,
+        xp: 0,
+        streak: 1,
+        completedLessons: [],
       });
 
-      navigate("/dashboard");
+      navigate('/dashboard');
     } catch (err) {
-      console.error(err);
-      alert(err.message || "Login error");
+      console.error('Signup error:', err);
+      alert(err.message || 'Could not sign up');
     }
-  }
+  };
 
-  function handleStartLesson(lesson) {
-    console.log("Start lesson:", lesson.id);
-    // later: navigate to /lesson/:id or open exercise view
-  }
+  // -------- START LESSON (THIS IS THE IMPORTANT PART) --------
 
-  // --- ROUTES ---
+  const handleStartLesson = async (lesson) => {
+    console.log('Start lesson:', lesson.id);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/lessons/${lesson.id}`, {
+        method: 'GET',
+      });
+
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+
+      const data = await res.json();
+      console.log('Lesson data from API:', data);
+
+      // For now we just log + alert.
+      // Later you’ll navigate to a real LessonPlayer screen.
+      alert(`Loaded lesson "${data.title}" with ${data.exercises.length} exercises`);
+    } catch (err) {
+      console.error('Failed to load lesson data:', err);
+      alert('Could not load this lesson yet. Backend may not be ready.');
+    }
+  };
 
   return (
     <Routes>
       <Route
         path="/"
         element={
-          <LandingPage
-            onLogin={handleLogin}
-            onSignup={handleSignup}
-          />
+          <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
         }
       />
       <Route
@@ -112,8 +130,14 @@ export default function App() {
           )
         }
       />
-      {/* Fallback: anything unknown goes to landing */}
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppInner />
+    </BrowserRouter>
   );
 }
