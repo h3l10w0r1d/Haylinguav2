@@ -1,111 +1,161 @@
-// src/App.jsx
-import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
-import LandingPage from "./LandingPage";
-import Dashboard from "./Dashboard";
+import React, { useState, useEffect } from 'react';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from 'react-router-dom';
 
-function AppRoutes() {
+import LandingPage from './LandingPage';
+import Dashboard from './Dashboard';
+
+// Simple JS shapes (no TS needed here)
+// user = {
+//   name, email, token, level, xp, streak, completedLessons: string[]
+// }
+
+function AppInner() {
   const [user, setUser] = useState(null);
+  const [isHydrating, setIsHydrating] = useState(true);
   const navigate = useNavigate();
 
-  // 🔁 1) HYDRATE USER FROM LOCALSTORAGE ON APP LOAD
+  // --- Hydrate user from localStorage on first load ---
   useEffect(() => {
-    const raw = localStorage.getItem("haylinguaUser");
-    if (raw) {
-      try {
+    try {
+      const raw = localStorage.getItem('haylinguaUser');
+      if (raw) {
         const parsed = JSON.parse(raw);
-        setUser(parsed);
-      } catch (e) {
-        console.error("Failed to parse stored user", e);
-        localStorage.removeItem("haylinguaUser");
+        // very loose sanity check
+        if (parsed && parsed.email) {
+          setUser(parsed);
+        }
       }
+    } catch (err) {
+      console.error('Failed to hydrate user', err);
+      localStorage.removeItem('haylinguaUser');
+    } finally {
+      setIsHydrating(false);
     }
   }, []);
 
-  // 2) LOGIN HANDLER (called from LandingPage modal)
+  // --- Auth handlers used by LandingPage ---
+
   const handleLogin = async (email, password) => {
-    const res = await fetch("https://haylinguav2.onrender.com/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const res = await fetch('https://haylinguav2.onrender.com/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.detail || "Login failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Login failed');
+      }
+
+      const data = await res.json();
+
+      const userData = {
+        name: email.split('@')[0],
+        email,
+        token: data.token, // backend returns { token: "..." }
+        level: 1,
+        xp: 0,
+        streak: 0,
+        completedLessons: [],
+      };
+
+      setUser(userData);
+      localStorage.setItem('haylinguaUser', JSON.stringify(userData));
+      navigate('/dashboard');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Login failed');
     }
-
-    const data = await res.json(); // { token: "...", maybe more }
-
-    const userData = {
-      email,
-      name: email.split("@")[0],
-      token: data.token,
-      level: 1,
-      xp: 0,
-      streak: 0,
-      completedLessons: [],
-    };
-
-    setUser(userData);
-    localStorage.setItem("haylinguaUser", JSON.stringify(userData));
-
-    // ✅ use SPA navigation, no full reload
-    navigate("/dashboard");
   };
 
-  // 3) SIGNUP HANDLER
   const handleSignup = async (name, email, password) => {
-    const res = await fetch("https://haylinguav2.onrender.com/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const res = await fetch('https://haylinguav2.onrender.com/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.detail || "Signup failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Signup failed');
+      }
+
+      // signup endpoint only returns { message }, so we fabricate a user object
+      const userData = {
+        name: name || email.split('@')[0],
+        email,
+        token: null,
+        level: 1,
+        xp: 0,
+        streak: 0,
+        completedLessons: [],
+      };
+
+      setUser(userData);
+      localStorage.setItem('haylinguaUser', JSON.stringify(userData));
+      navigate('/dashboard');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Signup failed');
     }
-
-    // after signup, treat as logged-in
-    const userData = {
-      email,
-      name: name || email.split("@")[0],
-      token: null, // or request a token on signup too
-      level: 1,
-      xp: 0,
-      streak: 0,
-      completedLessons: [],
-    };
-
-    setUser(userData);
-    localStorage.setItem("haylinguaUser", JSON.stringify(userData));
-    navigate("/dashboard");
   };
 
+  // For now we just log when a lesson is started.
   const handleStartLesson = (lesson) => {
-    console.log("Start lesson", lesson.id);
-    // later: navigate to /lesson/:id or open exercise view
+    console.log('Start lesson', lesson);
+    // later you can navigate to /lesson/:id etc.
   };
+
+  if (isHydrating) {
+    // Very simple loading state while we read localStorage
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <Routes>
       <Route
         path="/"
-        element={<LandingPage onLogin={handleLogin} onSignup={handleSignup} />}
+        element={
+          <LandingPage
+            onLogin={handleLogin}
+            onSignup={handleSignup}
+          />
+        }
       />
+
       <Route
         path="/dashboard"
-        element={<Dashboard user={user} onStartLesson={handleStartLesson} />}
+        element={
+          user ? (
+            <Dashboard user={user} onStartLesson={handleStartLesson} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
       />
+
+      {/* catch-all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <Router>
+      <AppInner />
+    </Router>
   );
 }
