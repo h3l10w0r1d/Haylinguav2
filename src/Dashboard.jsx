@@ -1,7 +1,7 @@
 // src/Dashboard.jsx
 
 import { Lock, Star, Check, Trophy, Flame, Target } from "lucide-react";
-import characterTeacher from "./assets/character-teacher.png"; // adjust path if needed
+import characterTeacher from "./assets/character-teacher.png";
 
 // ---- Helpers to generate lessons & exercises ----
 
@@ -197,10 +197,28 @@ const getLessons = (completedLessons) => {
   });
 };
 
-// ---- Component ----
-
 export default function Dashboard({ user, onStartLesson }) {
-  const completedLessons = user.completedLessons || [];
+  // If user is totally missing, don't crash – show a friendly fallback
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
+        <p className="text-gray-600">
+          Loading your dashboard… If this takes too long, please log in again.
+        </p>
+      </div>
+    );
+  }
+
+  // Safe defaults so missing fields don't explode
+  const safeUser = {
+    name: user.name || user.email || "Friend",
+    level: user.level || 1,
+    xp: user.xp || 0,
+    streak: user.streak || 0,
+    completedLessons: user.completedLessons || [],
+  };
+
+  const completedLessons = safeUser.completedLessons;
   const lessons = getLessons(completedLessons);
 
   const levelGroups = lessons.reduce((acc, lesson) => {
@@ -218,7 +236,7 @@ export default function Dashboard({ user, onStartLesson }) {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="mb-2">Welcome back, {user.name}! 👋</h1>
+              <h1 className="mb-2">Welcome back, {safeUser.name}! 👋</h1>
               <p className="text-orange-100">Continue your Armenian journey</p>
             </div>
             <div className="hidden md:block">
@@ -237,7 +255,7 @@ export default function Dashboard({ user, onStartLesson }) {
                 <Trophy className="w-5 h-5" />
                 <span className="text-sm text-orange-100">Level</span>
               </div>
-              <div className="text-2xl font-bold">{user.level}</div>
+              <div className="text-2xl font-bold">{safeUser.level}</div>
             </div>
 
             <div className="bg-[rgb(15,204,0)] bg-opacity-20 backdrop-blur-sm rounded-xl p-4">
@@ -245,7 +263,7 @@ export default function Dashboard({ user, onStartLesson }) {
                 <Star className="w-5 h-5" />
                 <span className="text-sm text-orange-100">Total XP</span>
               </div>
-              <div className="text-2xl font-bold">{user.xp}</div>
+              <div className="text-2xl font-bold">{safeUser.xp}</div>
             </div>
 
             <div className="bg-[rgb(15,204,0)] bg-opacity-20 backdrop-blur-sm rounded-xl p-4">
@@ -253,7 +271,7 @@ export default function Dashboard({ user, onStartLesson }) {
                 <Flame className="w-5 h-5" />
                 <span className="text-sm text-orange-100">Day Streak</span>
               </div>
-              <div className="text-2xl font-bold">{user.streak}</div>
+              <div className="text-2xl font-bold">{safeUser.streak}</div>
             </div>
 
             <div className="bg-[rgb(15,204,0)] bg-opacity-20 backdrop-blur-sm rounded-xl p-4">
@@ -364,7 +382,6 @@ export default function Dashboard({ user, onStartLesson }) {
                       </div>
                     </button>
 
-                    {/* Connecting Line */}
                     {index < levelLessons.length - 1 && (
                       <div className="hidden md:block absolute top-full left-1/2 w-1 h-8 bg-gray-300 transform -translate-x-1/2" />
                     )}
@@ -375,7 +392,6 @@ export default function Dashboard({ user, onStartLesson }) {
           ))}
         </div>
 
-        {/* Motivational Section */}
         <div className="mt-12 bg-gradient-to-r from-orange-100 to-red-100 rounded-2xl p-8 text-center">
           <h3 className="text-gray-900 mb-2">Keep up the great work! 🎉</h3>
           <p className="text-gray-600">
