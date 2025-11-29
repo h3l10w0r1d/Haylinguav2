@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -11,115 +11,135 @@ import {
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
 
-// You can later move this to env: VITE_API_BASE_URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
+const API_BASE = 'https://haylinguav2.onrender.com';
 
-function AppInner() {
-  const navigate = useNavigate();
+function AppShell() {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
-  // -------- AUTH --------
+  const navigate = useNavigate();
+
+  // Load user + token from localStorage on first render
+  useEffect(() => {
+    try {
+      const storedToken = localStorage.getItem('hay_token');
+      const storedUser = localStorage.getItem('hay_user');
+
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (err) {
+      console.error('Error reading saved auth state', err);
+      localStorage.removeItem('hay_token');
+      localStorage.removeItem('hay_user');
+    } finally {
+      setLoadingUser(false);
+    }
+  }, []);
+
+  // Helper: save everything when auth succeeds
+  const handleAuthSuccess = (tokenValue, email) => {
+    const newUser = {
+      id: 1, // we’re not using this yet
+      name: email.split('@')[0],
+      level: 1,
+      xp: 0,
+      streak: 1,
+      completedLessons: [],
+    };
+
+    setToken(tokenValue);
+    setUser(newUser);
+
+    localStorage.setItem('hay_token', tokenValue);
+    localStorage.setItem('hay_user', JSON.stringify(newUser));
+
+    navigate('/dashboard', { replace: true });
+  };
 
   const handleLogin = async (email, password) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/login`, {
+      const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || 'Login failed');
+        const text = await res.text().catch(() => '');
+        console.error('Login failed', res.status, text);
+        alert('Login failed. Please check your email and password.');
+        return;
       }
 
       const data = await res.json();
-      console.log('Login OK:', data);
+      if (!data.token) {
+        console.error('No token in /login response', data);
+        alert('Login failed: invalid response from server.');
+        return;
+      }
 
-      // Minimal fake user object for the dashboard
-      setUser({
-        name: email.split('@')[0],
-        email,
-        level: 1,
-        xp: 0,
-        streak: 1,
-        completedLessons: [],
-      });
-
-      navigate('/dashboard');
+      handleAuthSuccess(data.token, email);
     } catch (err) {
-      console.error('Login error:', err);
-      alert(err.message || 'Could not log in');
+      console.error('Login error', err);
+      alert('Could not reach the server. Please try again.');
     }
   };
 
-  const handleSignup = async (name, email, password) => {
+  const handleSignup = async (_name, email, password) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/signup`, {
+      const res = await fetch(`${API_BASE}/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || 'Signup failed');
+        const text = await res.text().catch(() => '');
+        console.error('Signup failed', res.status, text);
+        alert('Signup failed. Maybe this email is already registered.');
+        return;
       }
 
-      const data = await res.json();
-      console.log('Signup OK:', data);
-
-      setUser({
-        name: name || email.split('@')[0],
-        email,
-        level: 1,
-        xp: 0,
-        streak: 1,
-        completedLessons: [],
-      });
-
-      navigate('/dashboard');
+      // Backend currently just returns { "message": "User created" }
+      // So after success we immediately log the user in:
+      await handleLogin(email, password);
     } catch (err) {
-      console.error('Signup error:', err);
-      alert(err.message || 'Could not sign up');
+      console.error('Signup error', err);
+      alert('Could not reach the server. Please try again.');
     }
   };
 
-  // -------- START LESSON (THIS IS THE IMPORTANT PART) --------
-
-  const handleStartLesson = async (lesson) => {
+  const handleStartLesson = (lesson) => {
     console.log('Start lesson:', lesson.id);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/lessons/${lesson.id}`, {
-        method: 'GET',
-      });
-
-      if (!res.ok) {
-        throw new Error(`API error ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log('Lesson data from API:', data);
-
-      // For now we just log + alert.
-      // Later you’ll navigate to a real LessonPlayer screen.
-      alert(`Loaded lesson "${data.title}" with ${data.exercises.length} exercises`);
-    } catch (err) {
-      console.error('Failed to load lesson data:', err);
-      alert('Could not load this lesson yet. Backend may not be ready.');
-    }
+    // Later we’ll navigate to /lesson/:id and call the backend
   };
+
+  if (loadingUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-orange-50">
+        <p className="text-gray-600">
+          Loading your dashboard… If this takes too long, please refresh.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <Routes>
       <Route
         path="/"
         element={
-          <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
+          user ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
+          )
         }
       />
+
       <Route
         path="/dashboard"
         element={
@@ -130,14 +150,18 @@ function AppInner() {
           )
         }
       />
+
+      {/* Fallback for any weird URL */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
+// Outer wrapper with BrowserRouter
 export default function App() {
   return (
     <BrowserRouter>
-      <AppInner />
+      <AppShell />
     </BrowserRouter>
   );
 }
