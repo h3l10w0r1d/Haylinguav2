@@ -1,12 +1,16 @@
+# main.py
+
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
-import random
-from pydantic import BaseModel, EmailStr, field_validator
+from typing import List, Optional, Dictimport random
+from pydantic import BaseModel, field_validator, EmailStr
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
-from models import User
+from models import User, Lesson, Exercise, ExerciseOption, UserLessonResult
 from auth import hash_password, verify_password, create_token
+import json
+
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
