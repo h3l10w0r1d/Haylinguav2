@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter as Router,
@@ -10,29 +11,42 @@ import {
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
 
-// Simple JS shapes (no TS needed here)
-// user = {
-//   name, email, token, level, xp, streak, completedLessons: string[]
-// }
+// Shape we store in localStorage (plain JS, no TS types)
+/*
+{
+  name: string,
+  email: string,
+  token: string | null,
+  level: number,
+  xp: number,
+  streak: number,
+  completedLessons: string[]
+}
+*/
+
+const API_BASE = 'https://haylinguav2.onrender.com';
 
 function AppInner() {
   const [user, setUser] = useState(null);
   const [isHydrating, setIsHydrating] = useState(true);
   const navigate = useNavigate();
 
-  // --- Hydrate user from localStorage on first load ---
+  // --- Load user from localStorage once on mount ---
   useEffect(() => {
     try {
       const raw = localStorage.getItem('haylinguaUser');
       if (raw) {
         const parsed = JSON.parse(raw);
-        // very loose sanity check
         if (parsed && parsed.email) {
+          // ensure completedLessons is always an array
+          parsed.completedLessons = Array.isArray(parsed.completedLessons)
+            ? parsed.completedLessons
+            : [];
           setUser(parsed);
         }
       }
-    } catch (err) {
-      console.error('Failed to hydrate user', err);
+    } catch (e) {
+      console.error('Failed to read user from localStorage', e);
       localStorage.removeItem('haylinguaUser');
     } finally {
       setIsHydrating(false);
@@ -43,7 +57,7 @@ function AppInner() {
 
   const handleLogin = async (email, password) => {
     try {
-      const res = await fetch('https://haylinguav2.onrender.com/login', {
+      const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -54,12 +68,12 @@ function AppInner() {
         throw new Error(data.detail || 'Login failed');
       }
 
-      const data = await res.json();
+      const data = await res.json(); // expecting { token: "..." }
 
       const userData = {
         name: email.split('@')[0],
         email,
-        token: data.token, // backend returns { token: "..." }
+        token: data.token || null,
         level: 1,
         xp: 0,
         streak: 0,
@@ -77,7 +91,7 @@ function AppInner() {
 
   const handleSignup = async (name, email, password) => {
     try {
-      const res = await fetch('https://haylinguav2.onrender.com/signup', {
+      const res = await fetch(`${API_BASE}/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -88,7 +102,7 @@ function AppInner() {
         throw new Error(data.detail || 'Signup failed');
       }
 
-      // signup endpoint only returns { message }, so we fabricate a user object
+      // backend returns { message: "User created" }, so we fabricate the user
       const userData = {
         name: name || email.split('@')[0],
         email,
@@ -108,17 +122,17 @@ function AppInner() {
     }
   };
 
-  // For now we just log when a lesson is started.
+  // Called when user clicks "Start" on a lesson
   const handleStartLesson = (lesson) => {
-    console.log('Start lesson', lesson);
-    // later you can navigate to /lesson/:id etc.
+    console.log('Starting lesson:', lesson.id, lesson.title);
+    // later you can push to /lesson/:id here
   };
 
   if (isHydrating) {
-    // Very simple loading state while we read localStorage
+    // while we’re reading localStorage, render something simple
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
-        <p className="text-gray-600">Loading...</p>
+        <p className="text-gray-600">Loading…</p>
       </div>
     );
   }
@@ -146,7 +160,7 @@ function AppInner() {
         }
       />
 
-      {/* catch-all */}
+      {/* catch-all → home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
