@@ -20,9 +20,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
 
-    # not used yet, but ready for later
+    # ready for later, but does not touch DB schema for users
     lesson_results = relationship("UserLessonResult", back_populates="user")
 
 
@@ -108,7 +107,6 @@ class ExerciseOption(Base):
 class UserLessonResult(Base):
     """
     Aggregate result per user per lesson.
-    (We don’t fully use it yet, but it’s ready.)
     """
 
     __tablename__ = "user_lesson_results"
