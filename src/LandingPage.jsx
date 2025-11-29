@@ -158,17 +158,17 @@ export default function LandingPage({ onLogin, onSignup }) {
           <div className="grid md:grid-cols-3 gap-8">
             <CharacterCard
               image={characterTeacher}
-              name="Anna"
+              name="Lilit"
               description="Your main teacher who guides you through lessons with patience and expertise."
             />
             <CharacterCard
               image={characterGrandma}
-              name="Nana"
+              name="Grandma Maro"
               description="Shares Armenian culture, traditions, and everyday wisdom through stories."
             />
             <CharacterCard
               image={characterStudent}
-              name="Aram"
+              name="Armen"
               description="A fellow learner who practices with you and shares helpful tips."
             />
           </div>
