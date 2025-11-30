@@ -1,15 +1,8 @@
 # backend/auth.py
-import os
-from datetime import datetime, timedelta, timezone
-
 from passlib.context import CryptContext
-import jwt
+import secrets
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-env")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 
 def _truncate_if_needed(password: str) -> str:
@@ -35,8 +28,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_token(user_id: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-    )
-    payload = {"sub": str(user_id), "exp": expire}
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    """
+    For now we just return a random opaque token.
+
+    Frontend can store it and send it back later if/when we add
+    real auth; the backend isn't validating it yet anyway.
+    """
+    return secrets.token_urlsafe(32)
