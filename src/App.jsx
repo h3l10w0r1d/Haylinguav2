@@ -59,34 +59,37 @@ function AppShell() {
     navigate('/dashboard', { replace: true });
   };
 
-  const handleLogin = async (email, password) => {
-    try {
-      const res = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+async function handleLogin(email, password) {
+  const res = await fetch(`${API_BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Login failed', res.status, text);
-        alert('Login failed. Please check your email and password.');
-        return;
-      }
+  if (!res.ok) {
+    throw new Error(`Login failed: ${res.status}`);
+  }
 
-      const data = await res.json();
-      if (!data.token) {
-        console.error('No token in /login response', data);
-        alert('Login failed: invalid response from server.');
-        return;
-      }
+  const data = await res.json();
 
-      handleAuthSuccess(data.token, email);
-    } catch (err) {
-      console.error('Login error', err);
-      alert('Could not reach the server. Please try again.');
-    }
+  // ✅ support backend shape: { access_token, token_type, email }
+  const token = data.access_token ?? data.token;
+
+  if (!token) {
+    console.error('No token in /login response', data);
+    throw new Error('No token in /login response');
+  }
+
+  // whatever you store as "user"
+  const user = {
+    email: data.email ?? email,
+    token,
   };
+
+  // examples – adjust names to your app
+  localStorage.setItem('haylingua_token', token);
+  setCurrentUser(user);
+}
 
   const handleSignup = async (_name, email, password) => {
     try {
