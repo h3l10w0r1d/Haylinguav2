@@ -1,308 +1,271 @@
 // src/LessonPlayer.jsx
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, X, Loader2 } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 
-const API_BASE = "https://haylinguav2.onrender.com";
+const API_BASE = 'https://haylinguav2.onrender.com';
 
-export default function LessonPlayer({ token }) {
-  const { slug } = useParams();          // e.g. "lesson-1"
+export default function LessonPlayer({ token, onLessonComplete }) {
+  const { slug } = useParams();
   const navigate = useNavigate();
 
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [loadingError, setLoadingError] = useState(null);
+  const [err, setErr] = useState(null);
 
-  const [index, setIndex] = useState(0); // current exercise index
-  const [textAnswer, setTextAnswer] = useState("");
-  const [selectedIds, setSelectedIds] = useState([]); // for multi-select
-  const [submitted, setSubmitted] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState([]);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [finished, setFinished] = useState(false);
 
-  // Fetch lesson from backend
+  // Load lesson + exercises
   useEffect(() => {
     async function loadLesson() {
       try {
         setLoading(true);
-        setLoadingError(null);
+        setErr(null);
 
         const res = await fetch(`${API_BASE}/lessons/${slug}`, {
-          headers: token
-            ? { Authorization: `Bearer ${token}` }
-            : undefined,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         });
 
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          console.error("Failed to load lesson", res.status, data);
-          throw new Error(data.detail || `HTTP ${res.status}`);
+          const text = await res.text().catch(() => '');
+          console.error('Failed to load lesson', res.status, text);
+          setErr('Could not load this lesson from the server.');
+          return;
         }
 
         const data = await res.json();
         setLesson(data);
-        setIndex(0);
-        resetExerciseState();
-      } catch (err) {
-        console.error("Lesson load error", err);
-        setLoadingError(err.message || "Failed to load lesson");
+      } catch (e) {
+        console.error('Error loading lesson', e);
+        setErr('Network error while loading lesson.');
       } finally {
         setLoading(false);
       }
     }
 
     loadLesson();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
-
-  function resetExerciseState() {
-    setTextAnswer("");
-    setSelectedIds([]);
-    setSubmitted(false);
-    setIsCorrect(null);
-  }
+  }, [slug, token]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
-        <div className="flex items-center gap-3 text-gray-700">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span>Loading lesson…</span>
-        </div>
+        <p className="text-gray-600">Loading lesson…</p>
       </div>
     );
   }
 
-  if (loadingError || !lesson) {
+  if (err) {
     return (
-      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
-        <div className="max-w-md bg-white rounded-2xl shadow p-6 text-center">
-          <p className="text-red-600 mb-4">
-            {loadingError || "Lesson not found"}
-          </p>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-600 text-white hover:bg-orange-700 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to dashboard
-          </button>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50">
+        <p className="text-red-600 mb-4">{err}</p>
+        <button
+          className="px-4 py-2 bg-orange-600 text-white rounded-xl"
+          onClick={() => navigate('/dashboard')}
+        >
+          Back to dashboard
+        </button>
       </div>
     );
   }
 
-  const exercises = lesson.exercises || [];
-  const exercise = exercises[index];
-
-  if (!exercise) {
+  if (!lesson || !Array.isArray(lesson.exercises) || lesson.exercises.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-orange-50">
-        <div className="max-w-md bg-white rounded-2xl shadow p-6 text-center">
-          <p className="mb-4">This lesson has no exercises yet.</p>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-600 text-white hover:bg-orange-700 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to dashboard
-          </button>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50">
+        <p className="text-gray-600 mb-4">
+          This lesson has no exercises yet.
+        </p>
+        <button
+          className="px-4 py-2 bg-orange-600 text-white rounded-xl"
+          onClick={() => navigate('/dashboard')}
+        >
+          Back to dashboard
+        </button>
       </div>
     );
   }
 
-  // ---------- answer helpers ----------
+  const exercises = lesson.exercises;
+  const exercise = exercises[currentIndex];
+  const total = exercises.length;
 
-  function handleOptionToggle(id) {
-    if (submitted) return; // lock after submit
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  const xpPerExercise = total > 0 ? Math.round((lesson.xp || 0) / total) : 0;
+
+  const toggleOption = (optionId) => {
+    setSelectedOptions((prev) =>
+      prev.includes(optionId)
+        ? prev.filter((id) => id !== optionId)
+        : [...prev, optionId]
     );
-  }
+  };
 
-  function checkAnswer() {
-    let correct = false;
+  const handleSubmit = () => {
+    if (!exercise) return;
 
-    if (exercise.type === "type-answer" || exercise.type === "fill-blank") {
-      const expected = (exercise.expected_answer || "").trim().toLowerCase();
-      const user = textAnswer.trim().toLowerCase();
-      correct = user === expected;
-    } else if (exercise.type === "multi-select") {
-      const correctIds = (exercise.options || [])
-        .filter((o) => o.is_correct)
-        .map((o) => o.id)
+    let isCorrect = false;
+
+    if (exercise.type === 'type-answer' || exercise.type === 'fill-blank') {
+      const expected = (exercise.expected_answer || '').trim();
+      const given = (userAnswer || '').trim();
+      // can adjust to case-insensitive if you want
+      isCorrect = expected !== '' && given === expected;
+    } else if (exercise.type === 'multi-select') {
+      const correctIds = exercise.options
+        .filter((opt) => opt.is_correct)
+        .map((opt) => opt.id)
         .sort();
+      const chosenIds = [...selectedOptions].sort();
 
-      const chosen = [...selectedIds].sort();
-      correct =
-        correctIds.length === chosen.length &&
-        correctIds.every((id, i) => id === chosen[i]);
+      isCorrect =
+        correctIds.length === chosenIds.length &&
+        correctIds.every((id, i) => id === chosenIds[i]);
     }
 
-    setIsCorrect(correct);
-    setSubmitted(true);
-  }
+    if (isCorrect) {
+      setCorrectCount((c) => c + 1);
+    }
 
-  function handleNext() {
-    const lastIndex = exercises.length - 1;
-    if (index < lastIndex) {
-      setIndex(index + 1);
-      resetExerciseState();
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= total) {
+      // finished all exercises
+      setFinished(true);
+
+      const gainedXp = correctCount * xpPerExercise + (isCorrect ? xpPerExercise : 0);
+
+      // notify parent (App) so it can update dashboard stats
+      if (onLessonComplete) {
+        onLessonComplete(lesson.slug || slug, gainedXp);
+      }
     } else {
-      // finished the lesson – back to dashboard for now
-      navigate("/dashboard");
+      // move to next exercise
+      setCurrentIndex(nextIndex);
+      setUserAnswer('');
+      setSelectedOptions([]);
     }
-  }
+  };
 
-  // ---------- TYPE-SPECIFIC RENDERING ----------
-
-  function renderBody() {
-    if (exercise.type === "type-answer" || exercise.type === "fill-blank") {
-      return (
-        <div className="space-y-4">
-          {exercise.type === "fill-blank" && (
-            <p className="text-gray-700">
-              {exercise.sentence_before}
-              <span className="inline-block min-w-[4rem] border-b border-dashed border-orange-400 mx-1">
-                &nbsp;
-              </span>
-              {exercise.sentence_after}
-            </p>
-          )}
-
-          <input
-            type="text"
-            value={textAnswer}
-            onChange={(e) => setTextAnswer(e.target.value)}
-            disabled={submitted}
-            placeholder="Type your answer in Armenian…"
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
-        </div>
-      );
+  const handleSkip = () => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= total) {
+      setFinished(true);
+      if (onLessonComplete) {
+        const gainedXp = correctCount * xpPerExercise;
+        onLessonComplete(lesson.slug || slug, gainedXp);
+      }
+    } else {
+      setCurrentIndex(nextIndex);
+      setUserAnswer('');
+      setSelectedOptions([]);
     }
+  };
 
-    if (exercise.type === "multi-select") {
-      return (
-        <div className="grid gap-3 mt-2">
-          {(exercise.options || []).map((opt) => {
-            const selected = selectedIds.includes(opt.id);
-            const base =
-              "w-full px-4 py-3 rounded-xl border transition-all text-left";
-
-            let classes = base + " bg-white border-gray-300 hover:border-orange-400";
-            if (submitted) {
-              if (opt.is_correct && selected) {
-                classes = base + " bg-green-50 border-green-500";
-              } else if (!opt.is_correct && selected) {
-                classes = base + " bg-red-50 border-red-500";
-              } else if (opt.is_correct && !selected) {
-                classes = base + " bg-yellow-50 border-yellow-500";
-              }
-            } else if (selected) {
-              classes = base + " bg-orange-50 border-orange-500";
-            }
-
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => handleOptionToggle(opt.id)}
-                className={classes}
-              >
-                {opt.text}
-              </button>
-            );
-          })}
-        </div>
-      );
-    }
-
-    // Fallback for unknown types
-    return (
-      <p className="text-gray-500">
-        This exercise type (&quot;{exercise.type}&quot;) is not implemented yet.
-      </p>
-    );
-  }
+  // If we rely on parent navigation after onLessonComplete, "finished" is basically instant.
+  // But we keep it for potential UI tweaks.
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-16">
-      {/* Top bar */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-4 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="inline-flex items-center gap-1 text-orange-100 hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </button>
-          <div className="text-sm text-orange-100">
-            {index + 1} / {exercises.length} exercises
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white">
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <button
+          className="mb-4 text-orange-600 hover:underline"
+          onClick={() => navigate('/dashboard')}
+        >
+          ← Back to dashboard
+        </button>
 
-      {/* Exercise card */}
-      <div className="max-w-2xl mx-auto px-4 mt-8">
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-          <h1 className="text-xl font-semibold text-gray-900 mb-1">
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">
             {lesson.title}
           </h1>
-          <p className="text-sm text-gray-500 mb-4">
-            Exercise {index + 1} of {exercises.length}
-          </p>
+          <p className="text-gray-600 mb-4">{lesson.description}</p>
 
-          <h2 className="text-lg text-gray-900 mb-4">{exercise.prompt}</h2>
+          <div className="flex justify-between items-center mb-4">
+            <span className="text-sm text-gray-500">
+              Exercise {currentIndex + 1} of {total}
+            </span>
+            <span className="text-sm text-orange-600">
+              {correctCount} correct • {lesson.xp || 0} total XP
+            </span>
+          </div>
 
-          {renderBody()}
+          {/* Exercise UI */}
+          <div className="border border-gray-200 rounded-xl p-4 mb-4">
+            <p className="text-gray-900 font-medium mb-3">{exercise.prompt}</p>
 
-          {/* Feedback */}
-          {submitted && (
-            <div className="mt-4 flex items-center gap-2">
-              {isCorrect ? (
-                <>
-                  <Check className="w-5 h-5 text-green-600" />
-                  <span className="text-green-700 font-medium">
-                    Correct! 🎉
-                  </span>
-                </>
-              ) : (
-                <>
-                  <X className="w-5 h-5 text-red-600" />
-                  <span className="text-red-700 font-medium">
-                    Not quite. Expected answer:&nbsp;
-                    <span className="font-mono">
-                      {exercise.expected_answer || "—"}
-                    </span>
-                  </span>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Buttons */}
-          <div className="mt-6 flex justify-end gap-3">
-            {!submitted && (
-              <button
-                onClick={checkAnswer}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 text-white hover:bg-orange-700 transition-colors"
-              >
-                Check answer
-                <Check className="w-4 h-4" />
-              </button>
+            {exercise.type === 'type-answer' && (
+              <div>
+                <input
+                  type="text"
+                  value={userAnswer}
+                  onChange={(e) => setUserAnswer(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  placeholder="Type your answer..."
+                />
+              </div>
             )}
 
-            {submitted && (
-              <button
-                onClick={handleNext}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white hover:bg-gray-800 transition-colors"
-              >
-                {index === exercises.length - 1 ? "Finish lesson" : "Next"}
-                <ArrowRight className="w-4 h-4" />
-              </button>
+            {exercise.type === 'fill-blank' && (
+              <div className="flex items-center flex-wrap gap-2">
+                {exercise.sentence_before && (
+                  <span className="text-gray-800">
+                    {exercise.sentence_before}
+                  </span>
+                )}
+                <input
+                  type="text"
+                  value={userAnswer}
+                  onChange={(e) => setUserAnswer(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  placeholder="..."
+                />
+                {exercise.sentence_after && (
+                  <span className="text-gray-800">
+                    {exercise.sentence_after}
+                  </span>
+                )}
+              </div>
             )}
+
+            {exercise.type === 'multi-select' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {exercise.options.map((opt) => {
+                  const isSelected = selectedOptions.includes(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => toggleOption(opt.id)}
+                      className={`border rounded-lg px-3 py-2 text-left transition ${
+                        isSelected
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-gray-300 hover:border-orange-300'
+                      }`}
+                    >
+                      {opt.text}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between">
+            <button
+              onClick={handleSkip}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+            >
+              Skip
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+            >
+              {currentIndex + 1 === total ? 'Finish lesson' : 'Check answer'}
+            </button>
           </div>
         </div>
       </div>
