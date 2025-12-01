@@ -1,4 +1,3 @@
-# backend/models.py
 from sqlalchemy import (
     Column,
     Integer,
@@ -6,6 +5,7 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -87,3 +87,27 @@ class ExerciseOption(Base):
     match_key = Column(String)
 
     exercise = relationship("Exercise", back_populates="options")
+
+
+class UserLessonProgress(Base):
+    __tablename__ = "user_lesson_progress"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
+
+    # total XP earned for this lesson (capped by lesson.xp)
+    xp_earned = Column(Integer, nullable=False, default=0)
+
+    # mark if lesson is considered "completed"
+    completed = Column(Boolean, nullable=False, default=False)
+
+    # you can store latest score %, stars, etc later if you want
+    # score_percent = Column(Integer)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "lesson_id", name="uq_user_lesson_progress"),
+    )
+
+    user = relationship("User")
+    lesson = relationship("Lesson")
