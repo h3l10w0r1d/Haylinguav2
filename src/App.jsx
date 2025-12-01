@@ -6,10 +6,12 @@ import {
   Route,
   Navigate,
   useNavigate,
+  useParams,
 } from 'react-router-dom';
 
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
+import LessonPlayer from './LessonPlayer';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -20,11 +22,10 @@ function AppShell() {
 
   const navigate = useNavigate();
 
+  // Load user + token from localStorage on first render
   useEffect(() => {
     try {
-      const storedToken =
-        localStorage.getItem('hay_token') ||
-        localStorage.getItem('haylingua_token');
+      const storedToken = localStorage.getItem('hay_token');
       const storedUser = localStorage.getItem('hay_user');
 
       if (storedToken && storedUser) {
@@ -35,17 +36,17 @@ function AppShell() {
       console.error('Error reading saved auth state', err);
       localStorage.removeItem('hay_token');
       localStorage.removeItem('hay_user');
-      localStorage.removeItem('haylingua_token');
     } finally {
       setLoadingUser(false);
     }
   }, []);
 
+  // Helper: save everything when auth succeeds
   const handleAuthSuccess = (tokenValue, email) => {
-    const baseName = email.split('@')[0];
+    const baseName = email?.split('@')[0] || 'Learner';
 
     const newUser = {
-      id: 1,
+      id: 1, // not using real ids yet
       name: baseName,
       level: 1,
       xp: 0,
@@ -63,28 +64,37 @@ function AppShell() {
     navigate('/dashboard', { replace: true });
   };
 
+  // ---- AUTH: LOGIN / SIGNUP ----
+
   async function handleLogin(email, password) {
-    const res = await fetch(`${API_BASE}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error('Login failed', res.status, text);
-      throw new Error(`Login failed: ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error('Login failed', res.status, text);
+        alert('Login failed. Check your email or password.');
+        return;
+      }
+
+      const data = await res.json();
+      // backend returns: { access_token, token_type, email }
+      const tokenValue = data.access_token || data.token;
+      if (!tokenValue) {
+        console.error('No token in /login response', data);
+        alert('Unexpected server response (no token).');
+        return;
+      }
+
+      handleAuthSuccess(tokenValue, data.email || email);
+    } catch (err) {
+      console.error('Login error', err);
+      alert('Could not reach the server. Please try again.');
     }
-
-    const data = await res.json();
-    const tokenValue = data.access_token ?? data.token;
-
-    if (!tokenValue) {
-      console.error('No token in /login response', data);
-      throw new Error('No token in /login response');
-    }
-
-    handleAuthSuccess(tokenValue, data.email ?? email);
   }
 
   const handleSignup = async (_name, email, password) => {
@@ -102,6 +112,7 @@ function AppShell() {
         return;
       }
 
+      // after successful signup, immediately log them in
       await handleLogin(email, password);
     } catch (err) {
       console.error('Signup error', err);
@@ -109,25 +120,47 @@ function AppShell() {
     }
   };
 
+  // ---- LESSON FLOW ----
+
+  // Called by Dashboard when user clicks a lesson card
   const handleStartLesson = (lesson) => {
-    console.log('Start lesson:', lesson.id);
-    // later: navigate to lesson player
+    const slug = lesson.slug || `lesson-${lesson.id}`;
+    navigate(`/lesson/${slug}`);
   };
 
-  const handleLessonResult = (slug, result) => {
-    if (!user) return;
+  // Called by LessonPlayer when the lesson is fully completed
+  const handleLessonComplete = (slug, gainedXp) => {
+    setUser((prev) => {
+      if (!prev) return prev;
 
-    const updatedUser = {
-      ...user,
-      xp: result.user_total_xp ?? user.xp,
-      level: result.user_level ?? user.level,
-      completedLessons: user.completedLessons.includes(slug)
-        ? user.completedLessons
-        : [...user.completedLessons, slug],
-    };
+      const prevCompleted = Array.isArray(prev.completedLessons)
+        ? prev.completedLessons
+        : [];
 
-    setUser(updatedUser);
-    localStorage.setItem('hay_user', JSON.stringify(updatedUser));
+      const alreadyCompleted = prevCompleted.includes(slug);
+      const updatedCompleted = alreadyCompleted
+        ? prevCompleted
+        : [...prevCompleted, slug];
+
+      const xpGain = gainedXp || 0;
+      const newXp = (prev.xp || 0) + xpGain;
+
+      // simple level formula: every 200 XP => new level
+      const newLevel = Math.floor(newXp / 200) + 1;
+
+      const updatedUser = {
+        ...prev,
+        completedLessons: updatedCompleted,
+        xp: newXp,
+        level: newLevel,
+      };
+
+      localStorage.setItem('hay_user', JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+
+    // Back to roadmap
+    navigate('/dashboard');
   };
 
   if (loadingUser) {
@@ -142,6 +175,7 @@ function AppShell() {
 
   return (
     <Routes>
+      {/* Public landing */}
       <Route
         path="/"
         element={
@@ -152,25 +186,41 @@ function AppShell() {
           )
         }
       />
+
+      {/* Roadmap */}
       <Route
         path="/dashboard"
         element={
           user ? (
-            <Dashboard
-              user={user}
-              onStartLesson={handleStartLesson}
-              onLessonResult={handleLessonResult}
+            <Dashboard user={user} onStartLesson={handleStartLesson} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* Lesson player: exercises */}
+      <Route
+        path="/lesson/:slug"
+        element={
+          user ? (
+            <LessonPlayer
+              token={token}
+              onLessonComplete={handleLessonComplete}
             />
           ) : (
             <Navigate to="/" replace />
           )
         }
       />
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
+// Outer wrapper with BrowserRouter
 export default function App() {
   return (
     <BrowserRouter>
