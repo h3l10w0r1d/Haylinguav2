@@ -1,15 +1,14 @@
 # backend/main.py
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 
-from fastapi import FastAPI, Depends, HTTPException, Header
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator, ConfigDict
 from sqlalchemy.orm import Session
-import jwt
 
 from database import SessionLocal, engine, Base
-from models import User, Lesson, Exercise, ExerciseOption, UserLessonProgress
-from auth import hash_password, verify_password, create_token, SECRET_KEY, ALGORITHM
+from models import User, Lesson, Exercise, ExerciseOption
+from auth import hash_password, verify_password, create_token
 
 
 # ---------- FastAPI APP + CORS ----------
@@ -19,12 +18,14 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "https://haylinguav2.vercel.app",
+    # add preview URLs if needed, e.g.
+    # "https://haylinguav2-*.vercel.app"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials=True,  # frontend does NOT use cookies now, but this is fine
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -49,6 +50,7 @@ class UserCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
+        # bcrypt max 72 bytes – enforced here
         if len(v.encode("utf-8")) > 72:
             raise ValueError("Password must be 72 bytes or less")
         return v
@@ -66,6 +68,18 @@ class AuthResponse(BaseModel):
 
 
 # ---------- LESSON / EXERCISE SCHEMAS ----------
+
+class LessonListItemOut(BaseModel):
+    """Returned by GET /lessons (for the dashboard roadmap)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    slug: str
+    title: str
+    description: str | None = None
+    level: int
+    xp: int
+
 
 class ExerciseOptionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -91,6 +105,7 @@ class ExerciseOut(BaseModel):
 
 
 class LessonWithExercisesOut(BaseModel):
+    """Full lesson with exercises for the exercise screen."""
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -100,18 +115,6 @@ class LessonWithExercisesOut(BaseModel):
     level: int
     xp: int
     exercises: List[ExerciseOut]
-
-
-class LessonResultIn(BaseModel):
-    lesson_slug: str
-    xp_gained: int
-
-
-class LessonResultOut(BaseModel):
-    total_xp_for_lesson: int
-    lesson_completed: bool
-    user_total_xp: int
-    user_level: int
 
 
 # ---------- SEED DATA ----------
@@ -133,8 +136,9 @@ def seed_lessons():
             xp=50,
         )
         db.add(greetings)
-        db.flush()  # greetings.id ready
+        db.flush()  # greetings.id is now available
 
+        # Exercise 1: type-answer
         ex1 = Exercise(
             lesson_id=greetings.id,
             type="type-answer",
@@ -143,6 +147,7 @@ def seed_lessons():
             order=1,
         )
 
+        # Exercise 2: fill-blank
         ex2 = Exercise(
             lesson_id=greetings.id,
             type="fill-blank",
@@ -153,6 +158,7 @@ def seed_lessons():
             order=2,
         )
 
+        # Exercise 3: multi-select
         ex3 = Exercise(
             lesson_id=greetings.id,
             type="multi-select",
@@ -163,6 +169,7 @@ def seed_lessons():
         db.add_all([ex1, ex2, ex3])
         db.flush()
 
+        # Options for multi-select
         db.add_all(
             [
                 ExerciseOption(
@@ -196,27 +203,9 @@ def seed_lessons():
 
 @app.on_event("startup")
 def on_startup():
+    # Create tables and seed exactly once at startup
     Base.metadata.create_all(bind=engine)
     seed_lessons()
-
-
-# ---------- AUTH HELPERS ----------
-
-def get_user_from_token(authorization: str | None, db: Session) -> User:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid token")
-
-    token = authorization.split(" ", 1)[1].strip()
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload["sub"])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
 
 
 # ---------- BASIC ROUTES ----------
@@ -255,66 +244,33 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
     return AuthResponse(access_token=token, email=db_user.email)
 
 
-# ---------- LESSON API ----------
+# ---------- LESSON APIs ----------
+
+@app.get("/lessons", response_model=List[LessonListItemOut])
+def list_lessons(db: Session = Depends(get_db)):
+    """
+    Return all lessons (without exercises) for the dashboard roadmap.
+    Ordered by level then id.
+    """
+    lessons = (
+        db.query(Lesson)
+        .order_by(Lesson.level.asc(), Lesson.id.asc())
+        .all()
+    )
+    return lessons
+
 
 @app.get("/lessons/{slug}", response_model=LessonWithExercisesOut)
 def get_lesson(slug: str, db: Session = Depends(get_db)):
-    lesson = db.query(Lesson).filter(Lesson.slug == slug).first()
+    """
+    Return a single lesson with exercises, used when the user
+    actually opens an exercise.
+    """
+    lesson = (
+        db.query(Lesson)
+        .filter(Lesson.slug == slug)
+        .first()
+    )
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
     return lesson
-
-
-@app.post("/lessons/{slug}/result", response_model=LessonResultOut)
-def submit_lesson_result(
-    slug: str,
-    payload: LessonResultIn,
-    db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None, alias="Authorization"),
-):
-    user = get_user_from_token(authorization, db)
-
-    lesson = db.query(Lesson).filter(Lesson.slug == slug).first()
-    if not lesson:
-        raise HTTPException(status_code=404, detail="Lesson not found")
-
-    gained = max(0, min(payload.xp_gained, lesson.xp))
-
-    progress = (
-        db.query(UserLessonProgress)
-        .filter(
-            UserLessonProgress.user_id == user.id,
-            UserLessonProgress.lesson_id == lesson.id,
-        )
-        .first()
-    )
-
-    if not progress:
-        progress = UserLessonProgress(
-            user_id=user.id,
-            lesson_id=lesson.id,
-            xp_earned=0,
-            completed=False,
-        )
-        db.add(progress)
-        db.flush()
-
-    progress.xp_earned = min(lesson.xp, progress.xp_earned + gained)
-
-    half_xp = lesson.xp // 2
-    if progress.xp_earned >= half_xp:
-        progress.completed = True
-
-    user.xp = (getattr(user, "xp", 0) or 0) + gained
-    user.level = max(1, (user.xp // 200) + 1)
-
-    db.commit()
-    db.refresh(progress)
-    db.refresh(user)
-
-    return LessonResultOut(
-        total_xp_for_lesson=progress.xp_earned,
-        lesson_completed=progress.completed,
-        user_total_xp=user.xp,
-        user_level=user.level,
-    )
