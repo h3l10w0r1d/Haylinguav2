@@ -7,7 +7,7 @@ from pydantic import BaseModel, field_validator, ConfigDict
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine, Base
-from models import User, Lesson, Exercise, ExerciseOption
+from models import User, Lesson
 from auth import hash_password, verify_password, create_token
 
 
@@ -18,17 +18,23 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "https://haylinguav2.vercel.app",
-    # add preview URLs if needed, e.g.
-    # "https://haylinguav2-*.vercel.app"
+    # add more Vercel preview URLs here if you want,
+    # but remember CORS needs exact matches
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,  # frontend does NOT use cookies now, but this is fine
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    # Just ensure tables exist. No seeding here.
+    Base.metadata.create_all(bind=engine)
 
 
 # ---------- DB DEPENDENCY ----------
@@ -50,7 +56,7 @@ class UserCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        # bcrypt max 72 bytes – enforced here
+        # bcrypt limit safety; actual truncation is in auth._truncate_if_needed
         if len(v.encode("utf-8")) > 72:
             raise ValueError("Password must be 72 bytes or less")
         return v
@@ -69,8 +75,7 @@ class AuthResponse(BaseModel):
 
 # ---------- LESSON / EXERCISE SCHEMAS ----------
 
-class LessonListItemOut(BaseModel):
-    """Returned by GET /lessons (for the dashboard roadmap)."""
+class LessonSummaryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -105,7 +110,6 @@ class ExerciseOut(BaseModel):
 
 
 class LessonWithExercisesOut(BaseModel):
-    """Full lesson with exercises for the exercise screen."""
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -115,97 +119,6 @@ class LessonWithExercisesOut(BaseModel):
     level: int
     xp: int
     exercises: List[ExerciseOut]
-
-
-# ---------- SEED DATA ----------
-
-def seed_lessons():
-    """Create a demo 'Greetings' lesson with exercises if that slug doesn't exist."""
-    db = SessionLocal()
-    try:
-        existing = db.query(Lesson).filter(Lesson.slug == "lesson-1").first()
-        if existing:
-            print("Lesson 'lesson-1' already exists, skipping seed.")
-            return
-
-        greetings = Lesson(
-            slug="lesson-1",
-            title="Greetings",
-            description="Learn basic Armenian greetings",
-            level=1,
-            xp=50,
-        )
-        db.add(greetings)
-        db.flush()  # greetings.id is now available
-
-        # Exercise 1: type-answer
-        ex1 = Exercise(
-            lesson_id=greetings.id,
-            type="type-answer",
-            prompt='Type the Armenian word for "Hello".',
-            expected_answer="Բարև",
-            order=1,
-        )
-
-        # Exercise 2: fill-blank
-        ex2 = Exercise(
-            lesson_id=greetings.id,
-            type="fill-blank",
-            prompt='Complete the phrase "Բարի _____" (Good morning).',
-            sentence_before="Բարի ",
-            sentence_after="",
-            expected_answer="լույս",
-            order=2,
-        )
-
-        # Exercise 3: multi-select
-        ex3 = Exercise(
-            lesson_id=greetings.id,
-            type="multi-select",
-            prompt='Select all ways to say "goodbye".',
-            order=3,
-        )
-
-        db.add_all([ex1, ex2, ex3])
-        db.flush()
-
-        # Options for multi-select
-        db.add_all(
-            [
-                ExerciseOption(
-                    exercise_id=ex3.id,
-                    text="Ցտեսություն",
-                    is_correct=True,
-                ),
-                ExerciseOption(
-                    exercise_id=ex3.id,
-                    text="Պայփայի",
-                    is_correct=True,
-                ),
-                ExerciseOption(
-                    exercise_id=ex3.id,
-                    text="Բարև",
-                    is_correct=False,
-                ),
-                ExerciseOption(
-                    exercise_id=ex3.id,
-                    text="Շնորհակալություն",
-                    is_correct=False,
-                ),
-            ]
-        )
-
-        db.commit()
-        print("Seeded demo lesson 'lesson-1' with exercises.")
-    finally:
-        db.close()
-
-
-@app.on_event("startup")
-def on_startup():
-    # Create tables and seed exactly once at startup
-    Base.metadata.create_all(bind=engine)
-    seed_lessons()
 
 
 # ---------- BASIC ROUTES ----------
@@ -229,8 +142,9 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    token = create_token(new_user.id)
-    return {"message": "User created", "access_token": token}
+    # Frontend currently logs in again after signup,
+    # so response body is not critical – keep it simple.
+    return {"message": "User created"}
 
 
 @app.post("/login", response_model=AuthResponse)
@@ -244,28 +158,16 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
     return AuthResponse(access_token=token, email=db_user.email)
 
 
-# ---------- LESSON APIs ----------
+# ---------- LESSON API ----------
 
-@app.get("/lessons", response_model=List[LessonListItemOut])
+@app.get("/lessons", response_model=List[LessonSummaryOut])
 def list_lessons(db: Session = Depends(get_db)):
-    """
-    Return all lessons (without exercises) for the dashboard roadmap.
-    Ordered by level then id.
-    """
-    lessons = (
-        db.query(Lesson)
-        .order_by(Lesson.level.asc(), Lesson.id.asc())
-        .all()
-    )
+    lessons = db.query(Lesson).order_by(Lesson.level, Lesson.id).all()
     return lessons
 
 
 @app.get("/lessons/{slug}", response_model=LessonWithExercisesOut)
 def get_lesson(slug: str, db: Session = Depends(get_db)):
-    """
-    Return a single lesson with exercises, used when the user
-    actually opens an exercise.
-    """
     lesson = (
         db.query(Lesson)
         .filter(Lesson.slug == slug)
