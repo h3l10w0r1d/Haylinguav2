@@ -61,7 +61,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <h1 className="text-4xl sm:text-5xl font-semibold text-gray-900 mb-6">
-              Learn Armenian the fun way!
+              Learn Armenian in the fun way!
             </h1>
             <p className="text-gray-600 mb-8 text-lg">
               Master the Armenian language through interactive lessons,
