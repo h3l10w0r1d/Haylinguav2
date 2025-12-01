@@ -1,242 +1,75 @@
 // src/Dashboard.jsx
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { Lock, Star, Check, Trophy, Flame, Target } from 'lucide-react';
 import characterTeacher from './assets/character-teacher.png';
 
-// -------------------- LESSON DATA & HELPERS --------------------
-
-const getLessons = (completedLessons) => {
-  const safeCompleted = Array.isArray(completedLessons) ? completedLessons : [];
-
-  const allLessons = [
-    {
-      id: 'lesson-1',
-      title: 'Greetings',
-      description: 'Learn basic Armenian greetings',
-      level: 1,
-      xp: 50,
-      exercises: [],
-    },
-    {
-      id: 'lesson-2',
-      title: 'The Alphabet',
-      description: 'Master the Armenian alphabet',
-      level: 1,
-      xp: 75,
-      exercises: [],
-    },
-    {
-      id: 'lesson-3',
-      title: 'Numbers 1-10',
-      description: 'Count from one to ten',
-      level: 1,
-      xp: 60,
-      exercises: [],
-    },
-    {
-      id: 'lesson-4',
-      title: 'Basic Phrases',
-      description: 'Common everyday expressions',
-      level: 2,
-      xp: 80,
-      exercises: [],
-    },
-    {
-      id: 'lesson-5',
-      title: 'Family Members',
-      description: 'Words for family relationships',
-      level: 2,
-      xp: 70,
-      exercises: [],
-    },
-    {
-      id: 'lesson-6',
-      title: 'Food & Drink',
-      description: 'Learn food vocabulary',
-      level: 2,
-      xp: 85,
-      exercises: [],
-    },
-    {
-      id: 'lesson-7',
-      title: 'Colors',
-      description: 'Names of different colors',
-      level: 3,
-      xp: 65,
-      exercises: [],
-    },
-    {
-      id: 'lesson-8',
-      title: 'Days & Time',
-      description: 'Tell time and days of week',
-      level: 3,
-      xp: 90,
-      exercises: [],
-    },
-    {
-      id: 'lesson-9',
-      title: 'Weather',
-      description: 'Describe the weather',
-      level: 3,
-      xp: 70,
-      exercises: [],
-    },
-    {
-      id: 'lesson-10',
-      title: 'Directions',
-      description: 'Ask for and give directions',
-      level: 4,
-      xp: 95,
-      exercises: [],
-    },
-    {
-      id: 'lesson-11',
-      title: 'Shopping',
-      description: 'Shopping vocabulary and phrases',
-      level: 4,
-      xp: 100,
-      exercises: [],
-    },
-    {
-      id: 'lesson-12',
-      title: 'At Restaurant',
-      description: 'Order food and drinks',
-      level: 4,
-      xp: 90,
-      exercises: [],
-    },
-    {
-      id: 'lesson-13',
-      title: 'Hobbies',
-      description: 'Talk about your interests',
-      level: 5,
-      xp: 110,
-      exercises: [],
-    },
-    {
-      id: 'lesson-14',
-      title: 'Travel',
-      description: 'Essential travel phrases',
-      level: 5,
-      xp: 105,
-      exercises: [],
-    },
-    {
-      id: 'lesson-15',
-      title: 'Professions',
-      description: 'Job titles and occupations',
-      level: 5,
-      xp: 95,
-      exercises: [],
-    },
-  ];
-
-  return allLessons.map((lesson, index) => {
-    const isCompleted = safeCompleted.includes(lesson.id);
-    const previousCompleted =
-      index === 0 || safeCompleted.includes(allLessons[index - 1].id);
-    const isLocked = !previousCompleted && !isCompleted;
-
-    return {
-      ...lesson,
-      isCompleted,
-      isLocked,
-      exercises: generateExercises(lesson.id),
-    };
-  });
-};
-
-const generateExercises = (lessonId) => {
-  // Full custom set for lesson-1
-  if (lessonId === 'lesson-1') {
-    return [
-      {
-        id: 'ex-1',
-        type: 'multiple-choice',
-        question: 'How do you say "Hello" in Armenian?',
-        options: [
-          'Բարև (Barev)',
-          'Ողջույն (Voghdjuyn)',
-          'Ցտեսություն (Tstesutyun)',
-          'Շնորհակալություն (Shnorhakalutyun)',
-        ],
-        correctAnswer: 'Բարև (Barev)',
-      },
-      {
-        id: 'ex-2',
-        type: 'translate',
-        question: 'Translate: Good morning',
-        correctAnswer: 'Բարի լույս',
-      },
-      {
-        id: 'ex-3',
-        type: 'multiple-choice',
-        question: 'What does "Ցտեսություն" mean?',
-        options: ['Hello', 'Goodbye', 'Thank you', 'Please'],
-        correctAnswer: 'Goodbye',
-      },
-      {
-        id: 'ex-4',
-        type: 'fill-blank',
-        question: 'Complete: Բարի _____ (Good night)',
-        correctAnswer: 'գիշեր',
-      },
-      {
-        id: 'ex-5',
-        type: 'multiple-choice',
-        question: 'How do you say "Thank you"?',
-        options: ['Խնդրում եմ', 'Շնորհակալություն', 'Ներողություն', 'Բարև'],
-        correctAnswer: 'Շնորհակալություն',
-      },
-    ];
-  }
-
-  // Default template for all other lessons (so you have something everywhere)
-  return [
-    {
-      id: 'ex-1',
-      type: 'multiple-choice',
-      question: 'Sample question for this lesson',
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctAnswer: 'Option A',
-    },
-    {
-      id: 'ex-2',
-      type: 'translate',
-      question: 'Translate this phrase',
-      correctAnswer: 'Translation',
-    },
-    {
-      id: 'ex-3',
-      type: 'fill-blank',
-      question: 'Fill in the blank: _____',
-      correctAnswer: 'answer',
-    },
-  ];
-};
-
-// -------------------- DASHBOARD COMPONENT --------------------
+const API_BASE = 'https://haylinguav2.onrender.com';
 
 export default function Dashboard({ user, onStartLesson }) {
-  // Hard guard: if user is missing, show a message instead of crashing
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-white">
-        <p className="text-gray-600">
-          No user data loaded. Please go back to the home page and log in again.
-        </p>
-      </div>
-    );
-  }
+  const [lessons, setLessons] = useState([]);
+  const [loadingLessons, setLoadingLessons] = useState(true);
+  const [error, setError] = useState(null);
 
-  const lessons = getLessons(user.completedLessons);
-  const progress = (user.completedLessons.length / lessons.length) * 100;
+  // Load lessons list from backend
+  useEffect(() => {
+    let cancelled = false;
 
+    async function fetchLessons() {
+      try {
+        setLoadingLessons(true);
+        setError(null);
+
+        const res = await fetch(`${API_BASE}/lessons`);
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Failed to load lessons: ${res.status} ${text}`);
+        }
+
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        // Enrich with local progress flags (using user.completedLessons)
+        const lessonsWithState = data.map((lesson, index, all) => {
+          const isCompleted = user.completedLessons?.includes(lesson.slug);
+          const previousCompleted =
+            index === 0 ||
+            user.completedLessons?.includes(all[index - 1].slug);
+          const isLocked = !isCompleted && !previousCompleted;
+
+          return {
+            ...lesson,
+            isCompleted,
+            isLocked,
+          };
+        });
+
+        setLessons(lessonsWithState);
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setError('Could not load lessons from server.');
+      } finally {
+        if (!cancelled) setLoadingLessons(false);
+      }
+    }
+
+    fetchLessons();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.completedLessons]);
+
+  // Group lessons by level for the roadmap layout
   const levelGroups = lessons.reduce((acc, lesson) => {
     if (!acc[lesson.level]) acc[lesson.level] = [];
     acc[lesson.level].push(lesson);
     return acc;
   }, {});
+
+  const progress =
+    lessons.length > 0
+      ? (user.completedLessons.length / lessons.length) * 100
+      : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-20">
@@ -289,7 +122,7 @@ export default function Dashboard({ user, onStartLesson }) {
                 <span className="text-sm text-orange-100">Completed</span>
               </div>
               <div className="text-2xl font-bold">
-                {user.completedLessons.length}/{lessons.length}
+                {user.completedLessons.length}/{lessons.length || 0}
               </div>
             </div>
           </div>
@@ -314,6 +147,22 @@ export default function Dashboard({ user, onStartLesson }) {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h2 className="text-gray-900 mb-6">Your Learning Path</h2>
 
+        {loadingLessons && (
+          <p className="text-gray-500">Loading lessons from server…</p>
+        )}
+
+        {error && (
+          <p className="text-red-500 mb-4">
+            {error} Try refreshing the page.
+          </p>
+        )}
+
+        {!loadingLessons && !error && lessons.length === 0 && (
+          <p className="text-gray-500">
+            No lessons available yet. Check back soon!
+          </p>
+        )}
+
         <div className="space-y-12">
           {Object.entries(levelGroups).map(([level, levelLessons]) => (
             <div key={level}>
@@ -327,13 +176,15 @@ export default function Dashboard({ user, onStartLesson }) {
               <div className="grid gap-4">
                 {levelLessons.map((lesson, index) => (
                   <div
-                    key={lesson.id}
+                    key={lesson.slug}
                     className={`relative ${
                       index % 2 === 0 ? 'md:mr-auto' : 'md:ml-auto'
                     } w-full md:w-96`}
                   >
                     <button
-                      onClick={() => !lesson.isLocked && onStartLesson(lesson)}
+                      onClick={() =>
+                        !lesson.isLocked && onStartLesson(lesson)
+                      }
                       disabled={lesson.isLocked}
                       className={`w-full p-6 rounded-2xl border-2 transition-all ${
                         lesson.isCompleted
@@ -363,10 +214,14 @@ export default function Dashboard({ user, onStartLesson }) {
                         </div>
 
                         <div className="flex-1 text-left">
-                          <h3 className="text-gray-900 mb-1">{lesson.title}</h3>
-                          <p className="text-gray-600 text-sm mb-2">
-                            {lesson.description}
-                          </p>
+                          <h3 className="text-gray-900 mb-1">
+                            {lesson.title}
+                          </h3>
+                          {lesson.description && (
+                            <p className="text-gray-600 text-sm mb-2">
+                              {lesson.description}
+                            </p>
+                          )}
                           <div className="flex items-center gap-4">
                             <span className="text-orange-600 text-sm flex items-center gap-1">
                               <Star className="w-4 h-4" />
@@ -387,7 +242,7 @@ export default function Dashboard({ user, onStartLesson }) {
                       </div>
                     </button>
 
-                    {/* Connecting line between lessons in same level */}
+                    {/* Connecting Line */}
                     {index < levelLessons.length - 1 && (
                       <div className="hidden md:block absolute top-full left-1/2 w-1 h-8 bg-gray-300 transform -translate-x-1/2" />
                     )}
