@@ -1,17 +1,18 @@
 // src/App.jsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
   Navigate,
   useNavigate,
-} from 'react-router-dom';
+} from "react-router-dom";
 
-import LandingPage from './LandingPage';
-import Dashboard from './Dashboard';
+import LandingPage from "./LandingPage";
+import Dashboard from "./Dashboard";
+import LessonPlayer from "./LessonPlayer";
 
-const API_BASE = 'https://haylinguav2.onrender.com';
+const API_BASE = "https://haylinguav2.onrender.com";
 
 function AppShell() {
   const [user, setUser] = useState(null);
@@ -23,27 +24,27 @@ function AppShell() {
   // Load user + token from localStorage on first render
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem('hay_token');
-      const storedUser = localStorage.getItem('hay_user');
+      const storedToken = localStorage.getItem("hay_token");
+      const storedUser = localStorage.getItem("hay_user");
 
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
       }
     } catch (err) {
-      console.error('Error reading saved auth state', err);
-      localStorage.removeItem('hay_token');
-      localStorage.removeItem('hay_user');
+      console.error("Error reading saved auth state", err);
+      localStorage.removeItem("hay_token");
+      localStorage.removeItem("hay_user");
     } finally {
       setLoadingUser(false);
     }
   }, []);
 
-  // Helper: save everything when auth succeeds
+  // Save everything when auth succeeds
   const handleAuthSuccess = (tokenValue, email) => {
     const newUser = {
-      id: 1, // placeholder; we don't get ID yet from backend
-      name: email.split('@')[0],
+      id: 1, // we’re not using real IDs yet
+      name: email.split("@")[0],
       level: 1,
       xp: 0,
       streak: 1,
@@ -53,109 +54,62 @@ function AppShell() {
     setToken(tokenValue);
     setUser(newUser);
 
-    localStorage.setItem('hay_token', tokenValue);
-    localStorage.setItem('hay_user', JSON.stringify(newUser));
+    localStorage.setItem("hay_token", tokenValue);
+    localStorage.setItem("hay_user", JSON.stringify(newUser));
 
-    navigate('/dashboard', { replace: true });
+    navigate("/dashboard", { replace: true });
   };
 
-  // ---- LOGIN ----
   async function handleLogin(email, password) {
-    try {
-      const res = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    const res = await fetch(`${API_BASE}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Login failed', res.status, text);
-        alert('Login failed. Please check your email and password.');
-        return;
-      }
-
-      const data = await res.json();
-      // backend: { access_token, token_type, email }
-      const tokenFromApi = data.access_token ?? data.token;
-
-      if (!tokenFromApi) {
-        console.error('No token in /login response', data);
-        alert('Login failed: invalid server response.');
-        return;
-      }
-
-      const effectiveEmail = data.email ?? email;
-      handleAuthSuccess(tokenFromApi, effectiveEmail);
-    } catch (err) {
-      console.error('Login error', err);
-      alert('Could not reach the server. Please try again.');
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error("Login failed", res.status, data);
+      throw new Error(data.detail || `Login failed: ${res.status}`);
     }
+
+    const data = await res.json();
+    const tokenValue = data.access_token ?? data.token;
+
+    if (!tokenValue) {
+      console.error("No token in /login response", data);
+      throw new Error("No token in /login response");
+    }
+
+    handleAuthSuccess(tokenValue, data.email ?? email);
   }
 
-  // ---- SIGNUP ----
   const handleSignup = async (_name, email, password) => {
     try {
       const res = await fetch(`${API_BASE}/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Signup failed', res.status, text);
-        alert('Signup failed. Maybe this email is already registered.');
+        const text = await res.text().catch(() => "");
+        console.error("Signup failed", res.status, text);
+        alert("Signup failed. Maybe this email is already registered.");
         return;
       }
 
-      // backend main.py: { "message": "User created", "access_token": "<token>" }
-      const data = await res.json().catch(() => ({}));
-      const tokenFromSignup = data.access_token ?? data.token;
-
-      if (tokenFromSignup) {
-        // backend already gave us a token
-        handleAuthSuccess(tokenFromSignup, email);
-      } else {
-        // fallback: log in
-        await handleLogin(email, password);
-      }
+      // After successful signup, log the user in
+      await handleLogin(email, password);
     } catch (err) {
-      console.error('Signup error', err);
-      alert('Could not reach the server. Please try again.');
+      console.error("Signup error", err);
+      alert("Could not reach the server. Please try again.");
     }
   };
 
-  // ---- START LESSON (this is the bit that makes the button "do something") ----
-  const handleStartLesson = async (lesson) => {
-    console.log('Start lesson clicked:', lesson.id);
-
-    try {
-      const res = await fetch(`${API_BASE}/lessons/${lesson.id}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          // auth is optional for now; include it if you want later
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Failed to load lesson', res.status, text);
-        alert('Could not load this lesson from the server.');
-        return;
-      }
-
-      const data = await res.json();
-      console.log('Loaded lesson data from backend:', data);
-
-      // Temporary UX: just show a simple alert so you SEE it working.
-      // Later we’ll route to a dedicated LessonPlayer component.
-      alert(`Loaded lesson: ${data.title} (${data.exercises.length} exercises)`);
-    } catch (err) {
-      console.error('Error calling /lessons endpoint', err);
-      alert('Network error while loading the lesson.');
-    }
+  const handleStartLesson = (lesson) => {
+    // lesson.id is like "lesson-1" in Dashboard
+    navigate(`/lesson/${lesson.id}`);
   };
 
   if (loadingUser) {
@@ -192,13 +146,23 @@ function AppShell() {
         }
       />
 
-      {/* Fallback for any weird URL */}
+      <Route
+        path="/lesson/:slug"
+        element={
+          user ? (
+            <LessonPlayer token={token} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
-// Outer wrapper with BrowserRouter
 export default function App() {
   return (
     <BrowserRouter>
