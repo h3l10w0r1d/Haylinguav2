@@ -42,7 +42,7 @@ function AppShell() {
   // Helper: save everything when auth succeeds
   const handleAuthSuccess = (tokenValue, email) => {
     const newUser = {
-      id: 1, // we’re not using this yet
+      id: 1, // placeholder; we don't get ID yet from backend
       name: email.split('@')[0],
       level: 1,
       xp: 0,
@@ -59,38 +59,41 @@ function AppShell() {
     navigate('/dashboard', { replace: true });
   };
 
-async function handleLogin(email, password) {
-  const res = await fetch(`${API_BASE}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
+  // ---- LOGIN ----
+  async function handleLogin(email, password) {
+    try {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-  if (!res.ok) {
-    throw new Error(`Login failed: ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error('Login failed', res.status, text);
+        alert('Login failed. Please check your email and password.');
+        return;
+      }
+
+      const data = await res.json();
+      // backend: { access_token, token_type, email }
+      const tokenFromApi = data.access_token ?? data.token;
+
+      if (!tokenFromApi) {
+        console.error('No token in /login response', data);
+        alert('Login failed: invalid server response.');
+        return;
+      }
+
+      const effectiveEmail = data.email ?? email;
+      handleAuthSuccess(tokenFromApi, effectiveEmail);
+    } catch (err) {
+      console.error('Login error', err);
+      alert('Could not reach the server. Please try again.');
+    }
   }
 
-  const data = await res.json();
-
-  // ✅ support backend shape: { access_token, token_type, email }
-  const token = data.access_token ?? data.token;
-
-  if (!token) {
-    console.error('No token in /login response', data);
-    throw new Error('No token in /login response');
-  }
-
-  // whatever you store as "user"
-  const user = {
-    email: data.email ?? email,
-    token,
-  };
-
-  // examples – adjust names to your app
-  localStorage.setItem('haylingua_token', token);
-  setCurrentUser(user);
-}
-
+  // ---- SIGNUP ----
   const handleSignup = async (_name, email, password) => {
     try {
       const res = await fetch(`${API_BASE}/signup`, {
@@ -106,9 +109,17 @@ async function handleLogin(email, password) {
         return;
       }
 
-      // Backend currently just returns { "message": "User created" }
-      // So after success we immediately log the user in:
-      await handleLogin(email, password);
+      // backend main.py: { "message": "User created", "access_token": "<token>" }
+      const data = await res.json().catch(() => ({}));
+      const tokenFromSignup = data.access_token ?? data.token;
+
+      if (tokenFromSignup) {
+        // nice, backend already gave us a token
+        handleAuthSuccess(tokenFromSignup, email);
+      } else {
+        // fallback: do a normal login
+        await handleLogin(email, password);
+      }
     } catch (err) {
       console.error('Signup error', err);
       alert('Could not reach the server. Please try again.');
@@ -117,7 +128,7 @@ async function handleLogin(email, password) {
 
   const handleStartLesson = (lesson) => {
     console.log('Start lesson:', lesson.id);
-    // Later we’ll navigate to /lesson/:id and call the backend
+    // later: navigate to /lesson/:slug and use `token` to call /lessons/:slug
   };
 
   if (loadingUser) {
