@@ -1,10 +1,10 @@
 # backend/main.py
+from typing import List
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
-import random
 
-from pydantic import BaseModel, field_validator, ConfigDict
+from pydantic import BaseModel, field_validator, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine, Base
@@ -14,12 +14,15 @@ from auth import hash_password, verify_password, create_token
 
 # ---------- FastAPI APP + CORS ----------
 
-app = FastAPI()
+app = FastAPI(
+    title="Haylingua API",
+    version="0.1.0",
+)
 
 origins = [
     "http://localhost:5173",
     "https://haylinguav2.vercel.app",
-    # you can add preview URLs here if needed
+    # add extra preview domains here if needed
 ]
 
 app.add_middleware(
@@ -50,6 +53,7 @@ class UserCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
+        # bcrypt hard limit is 72 bytes
         if len(v.encode("utf-8")) > 72:
             raise ValueError("Password must be 72 bytes or less")
         return v
@@ -88,7 +92,7 @@ class ExerciseOut(BaseModel):
     sentence_before: str | None = None
     sentence_after: str | None = None
     order: int
-    options: List[ExerciseOptionOut] = []
+    options: List[ExerciseOptionOut] = Field(default_factory=list)
 
 
 class LessonWithExercisesOut(BaseModel):
@@ -100,16 +104,21 @@ class LessonWithExercisesOut(BaseModel):
     description: str | None = None
     level: int
     xp: int
-    exercises: List[ExerciseOut]
+    exercises: List[ExerciseOut] = Field(default_factory=list)
 
 
 # ---------- SEED DATA ----------
 
-def seed_lessons():
-    """Create a demo 'Greetings' lesson with exercises if DB is empty."""
+def seed_lessons() -> None:
+    """
+    Create a demo 'Greetings' lesson with exercises
+    if that slug doesn't exist yet.
+    """
     db = SessionLocal()
     try:
-        if db.query(Lesson).count() > 0:
+        existing = db.query(Lesson).filter(Lesson.slug == "lesson-1").first()
+        if existing:
+            print("Lesson 'lesson-1' already exists, skipping seed.")
             return
 
         greetings = Lesson(
@@ -120,7 +129,7 @@ def seed_lessons():
             xp=50,
         )
         db.add(greetings)
-        db.flush()  # greetings.id ready
+        db.flush()  # greetings.id is now available
 
         # Exercise 1: type-answer
         ex1 = Exercise(
@@ -180,14 +189,14 @@ def seed_lessons():
         )
 
         db.commit()
-        print("Seeded demo lessons and exercises.")
+        print("Seeded demo lesson 'lesson-1' with exercises.")
     finally:
         db.close()
 
 
 @app.on_event("startup")
 def on_startup():
-    # Create tables and seed exactly once at startup
+    # Create tables and seed once at startup
     Base.metadata.create_all(bind=engine)
     seed_lessons()
 
@@ -199,7 +208,14 @@ def root():
     return {"status": "Backend is running"}
 
 
-@app.post("/signup")
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+
+# ---------- AUTH ROUTES ----------
+
+@app.post("/signup", response_model=AuthResponse)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     exists = db.query(User).filter(User.email == user.email).first()
     if exists:
@@ -214,7 +230,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     token = create_token(new_user.id)
-    return {"message": "User created", "access_token": token}
+    return AuthResponse(access_token=token, email=new_user.email)
 
 
 @app.post("/login", response_model=AuthResponse)
@@ -230,13 +246,19 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
 # ---------- LESSON API ----------
 
+@app.get("/lessons", response_model=List[LessonWithExercisesOut])
+def list_lessons(db: Session = Depends(get_db)):
+    """
+    List all lessons (mainly for debugging / admin).
+    Frontend can ignore this for now.
+    """
+    lessons = db.query(Lesson).all()
+    return lessons
+
+
 @app.get("/lessons/{slug}", response_model=LessonWithExercisesOut)
 def get_lesson(slug: str, db: Session = Depends(get_db)):
-    lesson = (
-        db.query(Lesson)
-        .filter(Lesson.slug == slug)
-        .first()
-    )
+    lesson = db.query(Lesson).filter(Lesson.slug == slug).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
     return lesson
