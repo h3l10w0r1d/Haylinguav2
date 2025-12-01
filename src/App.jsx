@@ -114,10 +114,10 @@ function AppShell() {
       const tokenFromSignup = data.access_token ?? data.token;
 
       if (tokenFromSignup) {
-        // nice, backend already gave us a token
+        // backend already gave us a token
         handleAuthSuccess(tokenFromSignup, email);
       } else {
-        // fallback: do a normal login
+        // fallback: log in
         await handleLogin(email, password);
       }
     } catch (err) {
@@ -126,9 +126,36 @@ function AppShell() {
     }
   };
 
-  const handleStartLesson = (lesson) => {
-    console.log('Start lesson:', lesson.id);
-    // later: navigate to /lesson/:slug and use `token` to call /lessons/:slug
+  // ---- START LESSON (this is the bit that makes the button "do something") ----
+  const handleStartLesson = async (lesson) => {
+    console.log('Start lesson clicked:', lesson.id);
+
+    try {
+      const res = await fetch(`${API_BASE}/lessons/${lesson.id}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          // auth is optional for now; include it if you want later
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error('Failed to load lesson', res.status, text);
+        alert('Could not load this lesson from the server.');
+        return;
+      }
+
+      const data = await res.json();
+      console.log('Loaded lesson data from backend:', data);
+
+      // Temporary UX: just show a simple alert so you SEE it working.
+      // Later we’ll route to a dedicated LessonPlayer component.
+      alert(`Loaded lesson: ${data.title} (${data.exercises.length} exercises)`);
+    } catch (err) {
+      console.error('Error calling /lessons endpoint', err);
+      alert('Network error while loading the lesson.');
+    }
   };
 
   if (loadingUser) {
