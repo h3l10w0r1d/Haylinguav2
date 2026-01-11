@@ -1,3 +1,4 @@
+# backend/models.py
 from sqlalchemy import (
     Column,
     Integer,
@@ -5,7 +6,7 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     Text,
-    UniqueConstraint,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 
@@ -18,7 +19,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    # IMPORTANT: no created_at here, to avoid the "users.created_at does not exist" error
+    # no created_at on purpose – avoids the old error
 
 
 class Lesson(Base):
@@ -45,18 +46,32 @@ class Exercise(Base):
     id = Column(Integer, primary_key=True, index=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
 
-    # e.g. "type-answer", "fill-blank", "multi-select", "match-pairs"
-    type = Column(String, nullable=False)
+    # New unified "kind" instead of ad-hoc "type"
+    # Examples: "char_intro", "char_mcq_sound", "char_build_word"
+    kind = Column(String, nullable=False, default="legacy")
 
+    # Human-readable prompt/question shown at the top
     prompt = Column(Text, nullable=False)
 
-    # for type-answer / fill-blank
-    expected_answer = Column(Text)
-    sentence_before = Column(Text)
-    sentence_after = Column(Text)
+    # Optional generic answer (for simple text / fill-blank, legacy support)
+    expected_answer = Column(Text, nullable=True)
 
-    # order inside the lesson
+    # Optional sentence fragments for old fill-blank style
+    sentence_before = Column(Text, nullable=True)
+    sentence_after = Column(Text, nullable=True)
+
+    # Order inside the lesson
     order = Column(Integer, nullable=False, default=1)
+
+    # NEW: flexible per-exercise data, stored as JSON
+    # For example, for char_mcq_sound:
+    # {
+    #   "letter": "Ա",
+    #   "options": ["a", "o", "e", "u"],
+    #   "correctIndex": 0,
+    #   "transliteration": "a"
+    # }
+    config = Column(JSON, nullable=False, default=dict)
 
     lesson = relationship("Lesson", back_populates="exercises")
 
@@ -74,40 +89,9 @@ class ExerciseOption(Base):
     id = Column(Integer, primary_key=True, index=True)
     exercise_id = Column(Integer, ForeignKey("exercises.id"), nullable=False)
 
-    # text on the card / button
     text = Column(Text, nullable=False)
-
-    # for multi-select (correct answers)
     is_correct = Column(Boolean, default=None)
-
-    # for match-pairs: "left" or "right"
     side = Column(String)
-
-    # for match-pairs: same match_key = belongs together
     match_key = Column(String)
 
     exercise = relationship("Exercise", back_populates="options")
-
-
-class UserLessonProgress(Base):
-    __tablename__ = "user_lesson_progress"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
-
-    # total XP earned for this lesson (capped by lesson.xp)
-    xp_earned = Column(Integer, nullable=False, default=0)
-
-    # mark if lesson is considered "completed"
-    completed = Column(Boolean, nullable=False, default=False)
-
-    # you can store latest score %, stars, etc later if you want
-    # score_percent = Column(Integer)
-
-    __table_args__ = (
-        UniqueConstraint("user_id", "lesson_id", name="uq_user_lesson_progress"),
-    )
-
-    user = relationship("User")
-    lesson = relationship("Lesson")
