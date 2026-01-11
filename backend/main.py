@@ -331,8 +331,11 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
 @app.get("/lessons", response_model=List[LessonOut])
 def list_lessons(db: Session = Depends(get_db)):
+    # Only expose the alphabet lessons for now,
+    # even if old lessons still exist in the DB.
     lessons = (
         db.query(Lesson)
+        .filter(Lesson.slug.in_(["alphabet-1", "alphabet-2"]))
         .order_by(Lesson.level.asc(), Lesson.id.asc())
         .all()
     )
