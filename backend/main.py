@@ -1,15 +1,37 @@
 # backend/main.py
-
-from typing import List, Dict, Any
+import os
+import httpx
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from typing import List, Dict, Any
 from pydantic import BaseModel, field_validator, ConfigDict
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine, Base
-from models import User, Lesson, Exercise, ExerciseOption  # Exercise has: kind, config
+from models import User, Lesson, Exercise, ExerciseOption
 from auth import hash_password, verify_password, create_token
+
+
+
+
+
+# Try several env var names – you said you used 'eleven_labs.io'
+ELEVEN_API_KEY = (
+    os.getenv("ELEVENLABS_API_KEY")
+    or os.getenv("ELEVEN_LABS_API_KEY")
+    or os.getenv("eleven_labs.io")
+)
+
+# Default ElevenLabs voice – you can swap this for your own voice ID
+DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # example from docs
+
+
+
+class TTSPayload(BaseModel):
+    text: str
+    voice_id: str | None = None
 
 
 # -------------------------------------------------------------------
@@ -31,6 +53,54 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# -------------------------------------------------------------------
+# Text to speech API 
+# -------------------------------------------------------------------
+
+@app.post("/tts", response_class=Response)
+async def tts_speak(payload: TTSPayload):
+    """
+    Proxy to ElevenLabs TTS so the frontend never sees the API key.
+    Returns raw MP3 bytes.
+    """
+    if not ELEVEN_API_KEY:
+        raise HTTPException(status_code=500, detail="TTS not configured on server")
+
+    text = payload.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is empty")
+
+    voice_id = payload.voice_id or DEFAULT_VOICE_ID
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    params = {"output_format": "mp3_44100_128"}
+
+    headers = {
+        "xi-api-key": ELEVEN_API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    body = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(url, params=params, headers=headers, json=body)
+        if r.status_code != 200:
+            # Log r.text on server if you need more detail
+            raise HTTPException(
+                status_code=502,
+                detail=f"ElevenLabs error ({r.status_code})",
+            )
+        audio_bytes = r.content
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"TTS request failed: {e}") from e
+
+    # MP3 back to the browser
+    return Response(content=audio_bytes, media_type="audio/mpeg")
 
 # -------------------------------------------------------------------
 # DB dependency
