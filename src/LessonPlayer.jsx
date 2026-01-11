@@ -5,8 +5,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 const API_BASE = 'https://haylinguav2.onrender.com';
 
 export default function LessonPlayer() {
-  const { slug } = useParams();
+  // raw slug from the URL
+  const { slug: rawSlug } = useParams();
   const navigate = useNavigate();
+
+  // 🔧 TEMP MAPPING: front-end slug -> backend slug
+  // Backend has /lessons/greetings with exercises,
+  // but the card links to /lesson/greetings-basics.
+  const slug =
+    rawSlug === 'greetings-basics'
+      ? 'greetings'
+      : rawSlug;
 
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,7 +23,7 @@ export default function LessonPlayer() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [textAnswer, setTextAnswer] = useState('');
-  const [selectedOptions, setSelectedOptions] = useState([]); // JS array, no types
+  const [selectedOptions, setSelectedOptions] = useState([]);
   const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | null
 
   useEffect(() => {
