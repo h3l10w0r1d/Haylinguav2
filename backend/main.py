@@ -347,6 +347,100 @@ def _reset_alphabet_2(db: Session) -> None:
 
     db.add_all([ex1, ex2, ex3])
 
+# ---------- ALPHABET SEEDING ----------
+
+def _reset_alphabet_1(db: Session) -> Lesson:
+    """
+    Make sure we have a clean 'alphabet-1' lesson
+    and remove any old exercises.
+    """
+    lesson = db.query(Lesson).filter(Lesson.slug == "alphabet-1").first()
+    if not lesson:
+        lesson = Lesson(
+            slug="alphabet-1",
+            title="Armenian Alphabet – Part 1",
+            description="Learn your first Armenian letters with audio.",
+            level=1,
+            xp=30,
+        )
+        db.add(lesson)
+        db.flush()  # lesson.id is now set
+    else:
+        # delete old exercises for this lesson
+        db.query(Exercise).filter(Exercise.lesson_id == lesson.id).delete()
+        db.flush()
+
+    return lesson
+
+
+def seed_alphabet_lessons():
+    """
+    Seed ONLY the alphabet-1 lesson with TTS-enabled exercises.
+    """
+    db = SessionLocal()
+    try:
+        lesson = _reset_alphabet_1(db)
+
+        # Exercise 1: intro to letter Ա
+        ex1 = Exercise(
+            lesson_id=lesson.id,
+            kind="char_intro",
+            prompt="Meet your first Armenian letter!",
+            expected_answer=None,
+            sentence_before=None,
+            sentence_after=None,
+            order=1,
+            config={
+                "letter": "Ա",
+                "lower": "ա",
+                "transliteration": "a",
+                "hint": "Like the 'a' in 'father'.",
+                # This is what we actually send to TTS:
+                "ttsText": "The Armenian letter Ա, pronounced a.",
+            },
+        )
+
+        # Exercise 2: which sound?
+        ex2 = Exercise(
+            lesson_id=lesson.id,
+            kind="char_mcq_sound",
+            prompt="Which sound does this letter make?",
+            expected_answer=None,
+            sentence_before=None,
+            sentence_after=None,
+            order=2,
+            config={
+                "letter": "Ա",
+                "options": ["a", "o", "e", "u"],
+                "correctIndex": 0,
+                "ttsText": "Ա",  # TTS will just say the letter
+            },
+        )
+
+        # Exercise 3: another letter example – Բ
+        ex3 = Exercise(
+            lesson_id=lesson.id,
+            kind="char_intro",
+            prompt="Now meet the letter Բ.",
+            expected_answer=None,
+            sentence_before=None,
+            sentence_after=None,
+            order=3,
+            config={
+                "letter": "Բ",
+                "lower": "բ",
+                "transliteration": "b",
+                "hint": "Like the 'b' in 'book'.",
+                "ttsText": "The Armenian letter Բ, pronounced b.",
+            },
+        )
+
+        db.add_all([ex1, ex2, ex3])
+        db.commit()
+        print("Seeded alphabet-1 with 3 TTS-enabled exercises.")
+    finally:
+        db.close()
+        #  -------------------------------------------
 
 def seed_alphabet_lessons():
     """
