@@ -8,19 +8,18 @@ from pydantic import BaseModel, field_validator, ConfigDict
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine, Base
-from models import User, Lesson, Exercise
+from models import User, Lesson, Exercise, ExerciseOption  # Exercise has: kind, config
 from auth import hash_password, verify_password, create_token
 
 
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
 # FastAPI app + CORS
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
 
 app = FastAPI()
 
 origins = [
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
     "https://haylinguav2.vercel.app",
 ]
 
@@ -33,9 +32,9 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
 # DB dependency
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
 
 def get_db():
     db = SessionLocal()
@@ -45,9 +44,9 @@ def get_db():
         db.close()
 
 
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
 # Auth schemas
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
 
 class UserCreate(BaseModel):
     email: str
@@ -56,7 +55,7 @@ class UserCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        # bcrypt hard limit
+        # bcrypt supports up to 72 bytes
         if len(v.encode("utf-8")) > 72:
             raise ValueError("Password must be 72 bytes or less")
         return v
@@ -73,9 +72,9 @@ class AuthResponse(BaseModel):
     email: str
 
 
-# ---------------------------------------------------------------------
-# Lesson / exercise schemas
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
+# Lesson / Exercise schemas for API
+# -------------------------------------------------------------------
 
 class LessonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -92,8 +91,7 @@ class ExerciseOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    type: str          # generic category, e.g. "alphabet"
-    kind: str          # specific UI type, e.g. "char_intro"
+    kind: str | None = None
     prompt: str
     expected_answer: str | None = None
     sentence_before: str | None = None
@@ -114,42 +112,66 @@ class LessonWithExercisesOut(BaseModel):
     exercises: List[ExerciseOut]
 
 
-# ---------------------------------------------------------------------
-# Seeding – ONLY alphabet lessons
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
+# Seeding helpers – ALPHABET ONLY
+# -------------------------------------------------------------------
 
-def _reset_alphabet_1(db: Session) -> None:
-    """
-    alphabet-1: first letters & one simple word.
-    Kinds used:
-      - char_intro
-      - char_mcq_sound
-      - char_build_word
-    """
-    lesson = db.query(Lesson).filter(Lesson.slug == "alphabet-1").first()
+def _ensure_lesson(
+    db: Session,
+    *,
+    slug: str,
+    title: str,
+    description: str,
+    level: int,
+    xp: int,
+) -> Lesson:
+    """Get or create a lesson by slug, wipe its exercises, and return it."""
+    lesson = db.query(Lesson).filter(Lesson.slug == slug).first()
     if not lesson:
         lesson = Lesson(
-            slug="alphabet-1",
-            title="Armenian Alphabet – Part 1",
-            description="Meet your first Armenian letter and build a simple word.",
-            level=1,
-            xp=30,
+            slug=slug,
+            title=title,
+            description=description,
+            level=level,
+            xp=xp,
         )
         db.add(lesson)
         db.flush()
+    else:
+        # keep metadata up to date
+        lesson.title = title
+        lesson.description = description
+        lesson.level = level
+        lesson.xp = xp
+        db.flush()
 
-    # wipe existing exercises for a clean seed
+    # Clear existing exercises for a clean slate
     db.query(Exercise).filter(Exercise.lesson_id == lesson.id).delete()
+    return lesson
+
+
+def _reset_alphabet_1(db: Session) -> None:
+    """
+    Armenian Alphabet – Part 1
+    Letter: Ա / ա
+    """
+    lesson = _ensure_lesson(
+        db,
+        slug="alphabet-1",
+        title="Armenian Alphabet – Part 1",
+        description="Meet your first Armenian letter Ա and practice simple combinations.",
+        level=1,
+        xp=40,
+    )
 
     ex1 = Exercise(
         lesson_id=lesson.id,
-        type="alphabet",
-        kind="char_intro",
         prompt="Meet your first Armenian letter!",
         expected_answer=None,
         sentence_before=None,
         sentence_after=None,
         order=1,
+        kind="char_intro",
         config={
             "letter": "Ա",
             "lower": "ա",
@@ -160,13 +182,12 @@ def _reset_alphabet_1(db: Session) -> None:
 
     ex2 = Exercise(
         lesson_id=lesson.id,
-        type="alphabet",
-        kind="char_mcq_sound",
         prompt="Which sound does this letter make?",
         expected_answer="a",
         sentence_before=None,
         sentence_after=None,
         order=2,
+        kind="char_mcq_sound",
         config={
             "letter": "Ա",
             "options": ["a", "o", "e", "u"],
@@ -177,16 +198,15 @@ def _reset_alphabet_1(db: Session) -> None:
 
     ex3 = Exercise(
         lesson_id=lesson.id,
-        type="alphabet",
-        kind="char_build_word",
-        prompt="Tap the letters to spell «Արա» (a common Armenian name).",
+        prompt="Tap the letters to spell “Արա” (a common Armenian name).",
         expected_answer="Արա",
         sentence_before=None,
         sentence_after=None,
         order=3,
+        kind="char_build_word",
         config={
             "targetWord": "Արա",
-            "tiles": ["Ա", "Ր", "Ա", "Ն", "Կ"],  # with distractors
+            "tiles": ["Ա", "Ր", "Ա", "Ն", "Կ"],
             "solutionIndices": [0, 1, 2],
         },
     )
@@ -196,87 +216,89 @@ def _reset_alphabet_1(db: Session) -> None:
 
 def _reset_alphabet_2(db: Session) -> None:
     """
-    alphabet-2: second letter, plus another build exercise.
+    Armenian Alphabet – Part 2
+    Letter: Բ / բ
     """
-    lesson = db.query(Lesson).filter(Lesson.slug == "alphabet-2").first()
-    if not lesson:
-        lesson = Lesson(
-            slug="alphabet-2",
-            title="Armenian Alphabet – Part 2",
-            description="Learn the next Armenian letter and build another word.",
-            level=1,
-            xp=40,
-        )
-        db.add(lesson)
-        db.flush()
-
-    db.query(Exercise).filter(Exercise.lesson_id == lesson.id).delete()
+    lesson = _ensure_lesson(
+        db,
+        slug="alphabet-2",
+        title="Armenian Alphabet – Part 2",
+        description="Learn the second Armenian letter Բ and build simple words.",
+        level=1,
+        xp=40,
+    )
 
     ex1 = Exercise(
         lesson_id=lesson.id,
-        type="alphabet",
-        kind="char_intro",
-        prompt="Here is another Armenian letter.",
+        prompt="Here is a new letter!",
         expected_answer=None,
+        sentence_before=None,
+        sentence_after=None,
         order=1,
+        kind="char_intro",
         config={
             "letter": "Բ",
             "lower": "բ",
             "transliteration": "b",
-            "hint": "Like the 'b' in 'book'.",
+            "hint": "Like the 'b' in 'boy'.",
         },
     )
 
     ex2 = Exercise(
         lesson_id=lesson.id,
-        type="alphabet",
-        kind="char_mcq_sound",
-        prompt="Which sound does this letter make?",
+        prompt="Which is the correct sound for Բ?",
         expected_answer="b",
+        sentence_before=None,
+        sentence_after=None,
         order=2,
+        kind="char_mcq_sound",
         config={
             "letter": "Բ",
-            "options": ["b", "v", "p", "g"],
-            "correctIndex": 0,
+            "options": ["p", "b", "v", "m"],
+            "correctIndex": 1,
             "showTransliteration": True,
         },
     )
 
     ex3 = Exercise(
         lesson_id=lesson.id,
-        type="alphabet",
-        kind="char_build_word",
-        prompt="Tap the letters to spell «Բարև» (hello).",
-        expected_answer="Բարև",
+        prompt="Tap the letters to spell “բար”.",
+        expected_answer="բար",
+        sentence_before=None,
+        sentence_after=None,
         order=3,
+        kind="char_build_word",
         config={
-            "targetWord": "Բարև",
-            "tiles": ["Բ", "ա", "ր", "և", "ն", "կ"],
-            "solutionIndices": [0, 1, 2, 3],
+            "targetWord": "բար",
+            "tiles": ["ա", "Բ", "բ", "ր", "ն"],
+            "solutionIndices": [2, 0, 3],
         },
     )
 
     db.add_all([ex1, ex2, ex3])
 
 
-def seed_alphabet_lessons() -> None:
+def seed_alphabet_lessons():
     """
-    Called on startup. Safe to run repeatedly:
-    it only resets the two alphabet lessons.
+    Reset ONLY the alphabet lessons. Other old lessons can stay in DB,
+    but we don't touch them or expose them in /lessons.
     """
     db = SessionLocal()
     try:
         _reset_alphabet_1(db)
         _reset_alphabet_2(db)
         db.commit()
-        print("Seeded alphabet lessons (alphabet-1, alphabet-2).")
+        print("Seeded alphabet-1 and alphabet-2 with exercises.")
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
 
-# ---------------------------------------------------------------------
-# Startup hook
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
+# Startup
+# -------------------------------------------------------------------
 
 @app.on_event("startup")
 def on_startup():
@@ -284,40 +306,37 @@ def on_startup():
     seed_alphabet_lessons()
 
 
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
 # Basic routes
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
 
 @app.get("/")
 def root():
-    return {"status": "Backend is running", "scope": "alphabet-only"}
+    return {"status": "Backend is running"}
 
-
-# ---------------------------------------------------------------------
-# Auth endpoints
-# ---------------------------------------------------------------------
 
 @app.post("/signup")
 def signup(user: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == user.email).first()
-    if existing:
+    exists = db.query(User).filter(User.email == user.email).first()
+    if exists:
         raise HTTPException(status_code=400, detail="Email already exists")
 
-    db_user = User(
+    new_user = User(
         email=user.email,
         password_hash=hash_password(user.password),
     )
-    db.add(db_user)
+    db.add(new_user)
     db.commit()
-    db.refresh(db_user)
+    db.refresh(new_user)
 
-    token = create_token(db_user.id)
+    token = create_token(new_user.id)
     return {"message": "User created", "access_token": token}
 
 
 @app.post("/login", response_model=AuthResponse)
 def login(payload: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == payload.email).first()
+
     if not db_user or not verify_password(payload.password, db_user.password_hash):
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
@@ -325,14 +344,16 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
     return AuthResponse(access_token=token, email=db_user.email)
 
 
-# ---------------------------------------------------------------------
-# Lessons API (alphabet only for now)
-# ---------------------------------------------------------------------
+# -------------------------------------------------------------------
+# Lesson API
+# -------------------------------------------------------------------
 
 @app.get("/lessons", response_model=List[LessonOut])
 def list_lessons(db: Session = Depends(get_db)):
-    # Only expose the alphabet lessons for now,
-    # even if old lessons still exist in the DB.
+    """
+    For now we *only* expose the alphabet lessons,
+    even if the DB contains old “greetings” rows.
+    """
     lessons = (
         db.query(Lesson)
         .filter(Lesson.slug.in_(["alphabet-1", "alphabet-2"]))
@@ -344,6 +365,9 @@ def list_lessons(db: Session = Depends(get_db)):
 
 @app.get("/lessons/{slug}", response_model=LessonWithExercisesOut)
 def get_lesson(slug: str, db: Session = Depends(get_db)):
+    """
+    Return a lesson + its exercises by slug.
+    """
     lesson = (
         db.query(Lesson)
         .filter(Lesson.slug == slug)
@@ -351,5 +375,7 @@ def get_lesson(slug: str, db: Session = Depends(get_db)):
     )
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    # exercises relationship will be serialized via LessonWithExercisesOut
+
+    # Ensure exercises are ordered
+    lesson.exercises.sort(key=lambda e: e.order)
     return lesson
