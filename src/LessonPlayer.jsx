@@ -1,10 +1,10 @@
-// src/LessonPage.jsx
+// src/LessonPlayer.jsx
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
-export default function LessonPage() {
+export default function LessonPlayer() {
   const { slug } = useParams();
   const navigate = useNavigate();
 
@@ -14,8 +14,8 @@ export default function LessonPage() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [textAnswer, setTextAnswer] = useState('');
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [feedback, setFeedback] = useState<null | 'correct' | 'wrong'>(null);
+  const [selectedOptions, setSelectedOptions] = useState([]); // JS array, no types
+  const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | null
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +37,7 @@ export default function LessonPage() {
           setSelectedOptions([]);
           setFeedback(null);
         }
-      } catch (err: any) {
+      } catch (err) {
         if (!cancelled) {
           console.error('Failed to load lesson', err);
           setLoadError(err.message || 'Failed to load lesson');
@@ -94,8 +94,6 @@ export default function LessonPage() {
   const exercises = lesson.exercises || [];
 
   if (exercises.length === 0) {
-    // This is the screen you’re currently seeing.
-    // With the new code + correct backend data, you should NOT hit this anymore.
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 px-4">
         <p className="mb-4 text-gray-700 text-lg">
@@ -112,7 +110,6 @@ export default function LessonPage() {
   }
 
   const current = exercises[currentIndex];
-
   const isLastExercise = currentIndex === exercises.length - 1;
 
   const resetForNext = () => {
@@ -128,7 +125,7 @@ export default function LessonPage() {
     }
   };
 
-  const handleOptionToggle = (id: number) => {
+  const handleOptionToggle = (id) => {
     setSelectedOptions((prev) =>
       prev.includes(String(id))
         ? prev.filter((x) => x !== String(id))
@@ -151,8 +148,8 @@ export default function LessonPage() {
       setFeedback(correct ? 'correct' : 'wrong');
     } else if (current.type === 'multi-select') {
       const correctIds = (current.options || [])
-        .filter((o: any) => o.is_correct)
-        .map((o: any) => String(o.id))
+        .filter((o) => o.is_correct)
+        .map((o) => String(o.id))
         .sort();
       const picked = [...selectedOptions].sort();
       const correct =
@@ -160,7 +157,6 @@ export default function LessonPage() {
         correctIds.every((id, idx) => id === picked[idx]);
       setFeedback(correct ? 'correct' : 'wrong');
     } else {
-      // Unknown type -> we treat it as unsupported but don’t crash
       console.warn('Unknown exercise type:', current.type);
     }
   };
@@ -206,7 +202,7 @@ export default function LessonPage() {
         <div className="space-y-4">
           <p className="text-gray-800 text-lg">{current.prompt}</p>
           <div className="grid md:grid-cols-2 gap-3">
-            {(current.options || []).map((opt: any) => {
+            {(current.options || []).map((opt) => {
               const active = selectedOptions.includes(String(opt.id));
               return (
                 <button
