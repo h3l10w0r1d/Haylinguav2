@@ -1,18 +1,31 @@
 # backend/main.py
-
 import os
 import httpx
+import jwt
+
+from datetime import datetime, timedelta, date
+from typing import List, Dict, Any
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from typing import List, Dict, Any
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 from pydantic import BaseModel, field_validator, ConfigDict
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from database import SessionLocal, engine, Base
-from models import User, Lesson, Exercise, ExerciseOption  # ExerciseOption unused but fine
-from auth import hash_password, verify_password, create_token
+from models import (
+    User,
+    Lesson,
+    Exercise,
+    ExerciseOption,      # unused but fine
+    UserProfile,
+    UserExerciseLog,
+)
+from auth import hash_password, verify_password, create_token, SECRET_KEY, ALGORITHM
+
 
 # -------------------------------------------------------------------
 # ElevenLabs TTS config
@@ -21,11 +34,10 @@ from auth import hash_password, verify_password, create_token
 ELEVEN_API_KEY = (
     os.getenv("ELEVENLABS_API_KEY")
     or os.getenv("ELEVEN_LABS_API_KEY")
-    or os.getenv("eleven_labs.io")  # the name you said you used
+    or os.getenv("eleven_labs.io")  # your Render secret name
 )
 
-# Example voice ID from ElevenLabs docs – swap for your custom voice if you want
-DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
+DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # example voice
 
 
 class TTSPayload(BaseModel):
@@ -134,6 +146,68 @@ class LessonWithExercisesOut(BaseModel):
 
 
 # -------------------------------------------------------------------
+# Profile + stats schemas
+# -------------------------------------------------------------------
+
+class DayStat(BaseModel):
+    date: str              # "YYYY-MM-DD"
+    exercises_completed: int
+    xp_earned: int
+
+
+class UserProfileOut(BaseModel):
+    email: str
+    first_name: str | None
+    last_name: str | None
+    avatar_url: str | None
+    total_xp: int
+    current_streak: int
+    level: int
+    last_30_days: List[DayStat]
+
+
+class UserProfileUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+    email: str | None = None
+    current_password: str | None = None
+    new_password: str | None = None
+
+
+class ExerciseCompletedPayload(BaseModel):
+    lesson_slug: str
+    exercise_id: int
+    xp_earned: int = 10
+    correct: bool = True
+
+
+# -------------------------------------------------------------------
+# Auth: get_current_user from JWT
+# -------------------------------------------------------------------
+
+security = HTTPBearer()
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        user_id = int(sub)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = db.query(User).get(user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+# -------------------------------------------------------------------
 # TTS endpoint (proxy to ElevenLabs)
 # -------------------------------------------------------------------
 
@@ -170,7 +244,7 @@ async def tts_speak(payload: TTSPayload):
             r = await client.post(url, params=params, headers=headers, json=body)
 
         if r.status_code != 200:
-            # log full body in server logs if needed
+            # log partial body for debugging
             print("ElevenLabs error:", r.status_code, r.text[:200])
             raise HTTPException(
                 status_code=502,
@@ -320,7 +394,6 @@ def seed_alphabet_lessons():
             },
         )
 
-        # optional: a “type transliteration” exercise
         ex1_6 = Exercise(
             lesson_id=lesson1.id,
             prompt="Type how you would write this sound in Latin letters.",
@@ -337,7 +410,7 @@ def seed_alphabet_lessons():
         db.add_all([ex1_1, ex1_2, ex1_3, ex1_4, ex1_5, ex1_6])
 
         # ------------------------------------------------------------
-        # alphabet-2 – Բ / բ, similar structure
+        # alphabet-2 – Բ / բ
         # ------------------------------------------------------------
         lesson2 = _ensure_lesson(
             db,
@@ -498,7 +571,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
 
 # -------------------------------------------------------------------
-# Lesson API
+# Lessons API
 # -------------------------------------------------------------------
 
 @app.get("/lessons", response_model=List[LessonOut])
@@ -522,6 +595,203 @@ def get_lesson(slug: str, db: Session = Depends(get_db)):
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    # Ensure exercises are ordered
     lesson.exercises.sort(key=lambda e: e.order)
     return lesson
+
+
+# -------------------------------------------------------------------
+# Progress & profile helpers
+# -------------------------------------------------------------------
+
+def _get_or_create_profile(db: Session, user: User) -> UserProfile:
+    profile = db.query(UserProfile).filter(UserProfile.user_id == user.id).first()
+    if not profile:
+        profile = UserProfile(
+            user_id=user.id,
+            first_name=None,
+            last_name=None,
+            avatar_url=None,
+        )
+        db.add(profile)
+        db.flush()
+    return profile
+
+
+def _compute_stats(db: Session, user: User) -> tuple[int, int, List[DayStat]]:
+    """
+    Returns (total_xp, current_streak, last_30_days_stats)
+    """
+    # total XP
+    total_xp = (
+        db.query(func.coalesce(func.sum(UserExerciseLog.xp_earned), 0))
+        .filter(UserExerciseLog.user_id == user.id)
+        .scalar()
+        or 0
+    )
+
+    # last 30 days (including today)
+    today = date.today()
+    start_date = today - timedelta(days=29)
+
+    rows = (
+        db.query(
+            func.date(UserExerciseLog.completed_at).label("day"),
+            func.count(UserExerciseLog.id).label("count"),
+            func.coalesce(func.sum(UserExerciseLog.xp_earned), 0).label("xp"),
+        )
+        .filter(
+            UserExerciseLog.user_id == user.id,
+            UserExerciseLog.completed_at >= start_date,
+        )
+        .group_by(func.date(UserExerciseLog.completed_at))
+        .all()
+    )
+
+    by_day: Dict[date, Dict[str, int]] = {}
+    for row in rows:
+        day = row.day
+        by_day[day] = {"count": row.count, "xp": row.xp}
+
+    day_stats: List[DayStat] = []
+    for i in range(30):
+        d = start_date + timedelta(days=i)
+        data = by_day.get(d, {"count": 0, "xp": 0})
+        day_stats.append(
+            DayStat(
+                date=d.isoformat(),
+                exercises_completed=data["count"],
+                xp_earned=data["xp"],
+            )
+        )
+
+    # streak: count consecutive days ending at today
+    activity_days = sorted(by_day.keys())
+    activity_set = set(activity_days)
+
+    streak = 0
+    cursor = today
+    while cursor in activity_set:
+        streak += 1
+        cursor = cursor - timedelta(days=1)
+
+    return total_xp, streak, day_stats
+
+
+# -------------------------------------------------------------------
+# Progress & profile endpoints
+# -------------------------------------------------------------------
+
+@app.post("/progress/exercise-completed")
+def exercise_completed(
+    payload: ExerciseCompletedPayload,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    lesson = db.query(Lesson).filter(Lesson.slug == payload.lesson_slug).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    exercise = (
+        db.query(Exercise)
+        .filter(Exercise.id == payload.exercise_id, Exercise.lesson_id == lesson.id)
+        .first()
+    )
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercise not found for this lesson")
+
+    log = UserExerciseLog(
+        user_id=current_user.id,
+        lesson_id=lesson.id,
+        exercise_id=exercise.id,
+        xp_earned=payload.xp_earned,
+        correct=payload.correct,
+    )
+    db.add(log)
+    db.commit()
+
+    return {"status": "ok"}
+
+
+@app.get("/me", response_model=UserProfileOut)
+def get_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    profile = _get_or_create_profile(db, current_user)
+    total_xp, streak, last_30 = _compute_stats(db, current_user)
+
+    # simple level formula: every 100 XP = +1 level
+    level = max(1, total_xp // 100 + 1)
+
+    return UserProfileOut(
+        email=current_user.email,
+        first_name=profile.first_name,
+        last_name=profile.last_name,
+        avatar_url=profile.avatar_url,
+        total_xp=total_xp,
+        current_streak=streak,
+        level=level,
+        last_30_days=last_30,
+    )
+
+
+@app.put("/me", response_model=UserProfileOut)
+def update_me(
+    payload: UserProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    profile = _get_or_create_profile(db, current_user)
+
+    # Basic profile fields
+    if payload.first_name is not None:
+        profile.first_name = payload.first_name.strip() or None
+    if payload.last_name is not None:
+        profile.last_name = payload.last_name.strip() or None
+    if payload.avatar_url is not None:
+        profile.avatar_url = payload.avatar_url.strip() or None
+
+    # Email change
+    if payload.email is not None:
+        new_email = payload.email.strip()
+        if new_email != current_user.email:
+            exists = (
+                db.query(User)
+                .filter(User.email == new_email, User.id != current_user.id)
+                .first()
+            )
+            if exists:
+                raise HTTPException(status_code=400, detail="Email already in use")
+            current_user.email = new_email
+
+    # Password change
+    if payload.new_password:
+        if not payload.current_password:
+            raise HTTPException(
+                status_code=400, detail="Current password is required to change password"
+            )
+        if not verify_password(payload.current_password, current_user.password_hash):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        if len(payload.new_password.encode("utf-8")) > 72:
+            raise HTTPException(status_code=400, detail="Password must be 72 bytes or less")
+
+        current_user.password_hash = hash_password(payload.new_password)
+
+    db.commit()
+    db.refresh(current_user)
+    db.refresh(profile)
+
+    total_xp, streak, last_30 = _compute_stats(db, current_user)
+    level = max(1, total_xp // 100 + 1)
+
+    return UserProfileOut(
+        email=current_user.email,
+        first_name=profile.first_name,
+        last_name=profile.last_name,
+        avatar_url=profile.avatar_url,
+        total_xp=total_xp,
+        current_streak=streak,
+        level=level,
+        last_30_days=last_30,
+    )
