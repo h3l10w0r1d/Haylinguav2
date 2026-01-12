@@ -10,11 +10,10 @@ import {
 
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
+import LessonPlayer from './LessonPlayer';
 import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
-import LessonPlayer from './LessonPlayer';
-import AppHeader from './AppHeader';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -25,9 +24,7 @@ function AppShell() {
 
   const navigate = useNavigate();
 
-  // --------------------------------------------------
-  // Load auth from localStorage on first render
-  // --------------------------------------------------
+  // Load user + token from localStorage on first render
   useEffect(() => {
     try {
       const storedToken = localStorage.getItem('hay_token');
@@ -46,18 +43,20 @@ function AppShell() {
     }
   }, []);
 
-  // --------------------------------------------------
-  // Helpers
-  // --------------------------------------------------
-
+  // Helper: save everything when auth succeeds
   const handleAuthSuccess = (tokenValue, email) => {
+    const baseName = email.split('@')[0];
+
     const newUser = {
-      id: 1, // backend user.id is not used yet on FE
-      name: email.split('@')[0],
+      id: 1, // placeholder until backend profile is used
       email,
+      name: baseName,
+      firstName: '',
+      lastName: '',
+      avatarUrl: '',
       level: 1,
       xp: 0,
-      streak: 1,
+      streak: 0,
       completedLessons: [],
     };
 
@@ -70,92 +69,105 @@ function AppShell() {
     navigate('/dashboard', { replace: true });
   };
 
+  // LOGIN
+  const handleLogin = async (email, password) => {
+    try {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error('Login failed', res.status, text);
+        throw new Error('Invalid email or password');
+      }
+
+      const data = await res.json();
+      const tokenValue = data.access_token;
+
+      if (!tokenValue) {
+        console.error('No token in /login response', data);
+        throw new Error('No token in /login response');
+      }
+
+      handleAuthSuccess(tokenValue, data.email ?? email);
+    } catch (err) {
+      console.error('Login error', err);
+      alert(err.message || 'Login failed. Please try again.');
+    }
+  };
+
+  // SIGNUP
+  const handleSignup = async (_name, email, password) => {
+    try {
+      const res = await fetch(`${API_BASE}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error('Signup failed', res.status, text);
+        alert('Signup failed. Maybe this email is already registered.');
+        return;
+      }
+
+      // after success, log in
+      await handleLogin(email, password);
+    } catch (err) {
+      console.error('Signup error', err);
+      alert('Could not reach the server. Please try again.');
+    }
+  };
+
+  // Called by LessonPlayer when user finishes a lesson
+  const handleLessonComplete = (lesson) => {
+    if (!user || !lesson) return;
+
+    const slug = lesson.slug;
+    const lessonXp = lesson.xp || 0;
+
+    const prevCompleted = Array.isArray(user.completedLessons)
+      ? user.completedLessons
+      : [];
+
+    const alreadyCompleted = prevCompleted.includes(slug);
+
+    // Only award XP first time
+    const gainedXp = alreadyCompleted ? 0 : lessonXp;
+
+    const newCompleted = alreadyCompleted
+      ? prevCompleted
+      : [...prevCompleted, slug];
+
+    const newXp = (user.xp || 0) + gainedXp;
+
+    const updatedUser = {
+      ...user,
+      xp: newXp,
+      completedLessons: newCompleted,
+    };
+
+    setUser(updatedUser);
+    localStorage.setItem('hay_user', JSON.stringify(updatedUser));
+  };
+
+  const handleUpdateUser = (updates) => {
+    if (!user) return;
+    const updated = { ...user, ...updates };
+    setUser(updated);
+    localStorage.setItem('hay_user', JSON.stringify(updated));
+  };
+
   const handleLogout = () => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('hay_token');
     localStorage.removeItem('hay_user');
     navigate('/', { replace: true });
-  };
-
-  // --------------------------------------------------
-  // AUTH CALLS
-  // --------------------------------------------------
-
-  async function handleLogin(email, password) {
-    const res = await fetch(`${API_BASE}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    let data = null;
-    try {
-      data = await res.json();
-    } catch {
-      data = null;
-    }
-
-    if (!res.ok) {
-      const detail =
-        (data && data.detail) ||
-        'Login failed. Please check your email and password.';
-      console.error('Login failed', res.status, data);
-      throw new Error(detail);
-    }
-
-    const token = data.access_token;
-    if (!token) {
-      console.error('No access_token in /login response', data);
-      throw new Error('Server did not return an access token');
-    }
-
-    handleAuthSuccess(token, data.email || email);
-  }
-
-  async function handleSignup(name, email, password) {
-    // name is not used on backend yet but kept for future profile
-    const res = await fetch(`${API_BASE}/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    let data = null;
-    try {
-      data = await res.json();
-    } catch {
-      data = null;
-    }
-
-    if (!res.ok) {
-      const detail =
-        (data && data.detail) ||
-        'Signup failed. This email may already be registered.';
-      console.error('Signup failed', res.status, data);
-      throw new Error(detail);
-    }
-
-    // After successful signup, log in immediately
-    await handleLogin(email, password);
-  }
-
-  // --------------------------------------------------
-  // Lesson handlers
-  // --------------------------------------------------
-
-  const handleStartLesson = (lesson) => {
-    if (!lesson || !lesson.slug) return;
-    navigate(`/lesson/${lesson.slug}`);
-  };
-
-  const handleUpdateUser = (updates) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...updates };
-      localStorage.setItem('hay_user', JSON.stringify(next));
-      return next;
-    });
   };
 
   if (loadingUser) {
@@ -169,101 +181,84 @@ function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-orange-50">
-      {/* Global header on all authenticated pages */}
-      {user && (
-        <AppHeader
-          user={user}
-          onLogout={handleLogout}
-        />
-      )}
+    <Routes>
+      <Route
+        path="/"
+        element={
+          user ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
+          )
+        }
+      />
 
-      <Routes>
-        {/* Landing / Auth */}
-        <Route
-          path="/"
-          element={
-            user ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <LandingPage
-                onLogin={handleLogin}
-                onSignup={handleSignup}
-              />
-            )
-          }
-        />
+      <Route
+        path="/dashboard"
+        element={
+          user ? (
+            <Dashboard
+              user={user}
+              onUpdateUser={handleUpdateUser}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
 
-        {/* Dashboard */}
-        <Route
-          path="/dashboard"
-          element={
-            user ? (
-              <Dashboard
-                user={user}
-                onStartLesson={handleStartLesson}
-              />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+      <Route
+        path="/lesson/:slug"
+        element={
+          user ? (
+            <LessonPlayer user={user} onLessonComplete={handleLessonComplete} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
 
-        {/* Friends */}
-        <Route
-          path="/friends"
-          element={
-            user ? (
-              <Friends user={user} onUpdateUser={handleUpdateUser} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+      <Route
+        path="/friends"
+        element={
+          user ? (
+            <Friends user={user} onUpdateUser={handleUpdateUser} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
 
-        {/* Leaderboard */}
-        <Route
-          path="/leaderboard"
-          element={
-            user ? (
-              <Leaderboard user={user} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+      <Route
+        path="/leaderboard"
+        element={
+          user ? (
+            <Leaderboard user={user} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
 
-        {/* Profile */}
-        <Route
-          path="/profile"
-          element={
-            user ? (
-              <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+      <Route
+        path="/profile"
+        element={
+          user ? (
+            <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
 
-        {/* Lesson player */}
-        <Route
-          path="/lesson/:slug"
-          element={
-            user ? (
-              <LessonPlayer user={user} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </div>
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
+// Outer wrapper with BrowserRouter
 export default function App() {
   return (
     <BrowserRouter>
