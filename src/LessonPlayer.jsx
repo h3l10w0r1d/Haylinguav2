@@ -21,11 +21,10 @@ export default function LessonPlayer({ user, onLessonComplete }) {
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // interaction state
   const [typedAnswer, setTypedAnswer] = useState('');
-  const [selectedIndices, setSelectedIndices] = useState([]); // used for mcq + find-in-grid
-  const [builtIndices, setBuiltIndices] = useState([]); // used for build-word / listen-build
-  const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | null
+  const [selectedIndices, setSelectedIndices] = useState([]);
+  const [builtIndices, setBuiltIndices] = useState([]);
+  const [feedback, setFeedback] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // ----------------------------------------------------
@@ -135,7 +134,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     }
   };
 
-  // auto-play when exercise changes
   useEffect(() => {
     if (!currentExercise) return;
     const text = getAutoSpeakText(currentExercise);
@@ -145,29 +143,24 @@ export default function LessonPlayer({ user, onLessonComplete }) {
   }, [currentExercise, speak]);
 
   // ----------------------------------------------------
-  // Answer logic helpers
+  // Answer helpers (same as you already had)
   // ----------------------------------------------------
-
-  // multiple choice sound (single correct index)
   const handleSelectOption = (index) => {
     if (!currentExercise || currentExercise.kind !== 'char_mcq_sound') return;
     const cfg = currentExercise.config || {};
     const correctIndex = cfg.correctIndex;
-
     const isCorrect = index === correctIndex;
 
     setSelectedIndices([index]);
     setFeedback(isCorrect ? 'correct' : 'wrong');
   };
 
-  // shared toggler for "find" exercises (word/grid)
   const toggleIndexSelection = (idx) => {
     setSelectedIndices((prev) =>
       prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
     );
   };
 
-  // build-word & listen-build tiles
   const handleTapTileForBuild = (tileIndex) => {
     if (!currentExercise) return;
     const cfg = currentExercise.config || {};
@@ -209,7 +202,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     setFeedback(userValue === expected ? 'correct' : 'wrong');
   };
 
-  // for char_find_in_word / char_find_in_grid
   const checkFindSelection = () => {
     if (!currentExercise) return;
     const cfg = currentExercise.config || {};
@@ -257,14 +249,13 @@ export default function LessonPlayer({ user, onLessonComplete }) {
 
   const handleFinishLesson = () => {
     if (lesson && typeof onLessonComplete === 'function') {
-      // pass the full lesson so App can use lesson.xp, slug, etc.
       onLessonComplete(lesson);
     }
     navigate('/dashboard');
   };
 
   // ----------------------------------------------------
-  // Render per-kind bodies
+  // Render per-kind bodies (same as before)
   // ----------------------------------------------------
   const renderExerciseBody = () => {
     if (!currentExercise) return null;
@@ -282,9 +273,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     );
 
     switch (currentExercise.kind) {
-      // ------------------------------------------------
-      // 1) INTRO LETTER
-      // ------------------------------------------------
       case 'char_intro': {
         const letter = cfg.letter || '?';
         const lower = cfg.lower || '';
@@ -335,9 +323,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
         );
       }
 
-      // ------------------------------------------------
-      // 2) WHICH SOUND? (MCQ)
-      // ------------------------------------------------
       case 'char_mcq_sound': {
         const letter = cfg.letter || '?';
         const options = cfg.options || [];
@@ -395,9 +380,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
         );
       }
 
-      // ------------------------------------------------
-      // 3) BUILD WORD (VISUAL TARGET)
-      // ------------------------------------------------
       case 'char_build_word': {
         const tiles = cfg.tiles || [];
         const target = cfg.targetWord || currentExercise.expected_answer || '';
@@ -454,9 +436,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
         );
       }
 
-      // ------------------------------------------------
-      // 4) LISTEN & BUILD (NEW)
-      // ------------------------------------------------
       case 'char_listen_build': {
         const tiles = cfg.tiles || [];
         const target = cfg.targetWord || currentExercise.expected_answer || '';
@@ -528,9 +507,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
         );
       }
 
-      // ------------------------------------------------
-      // 5) FIND LETTER IN GRID (NEW)
-      // ------------------------------------------------
       case 'char_find_in_grid': {
         const grid = cfg.grid || [];
         const targetLetter = cfg.targetLetter || cfg.letter || '?';
@@ -589,9 +565,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
         );
       }
 
-      // ------------------------------------------------
-      // 6) TYPE TRANSLITERATION
-      // ------------------------------------------------
       case 'char_type_translit': {
         const letter = cfg.letter || '?';
 
@@ -626,9 +599,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
         );
       }
 
-      // ------------------------------------------------
-      // DEFAULT / UNKNOWN TYPES
-      // ------------------------------------------------
       default:
         return (
           <div className="flex flex-col items-center gap-4">
@@ -657,7 +627,7 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     if (feedback === 'wrong') {
       return (
         <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 text-red-700 border border-red-200">
-          <XCircle className="w-5 h-5" />
+        <XCircle className="w-5 h-5" />
           Not quite. Try again.
         </div>
       );
@@ -665,9 +635,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     return null;
   };
 
-  // ----------------------------------------------------
-  // Top-level render
-  // ----------------------------------------------------
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
@@ -701,7 +668,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-24">
       <div className="max-w-3xl mx-auto px-4 pt-6">
-        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
@@ -722,7 +688,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="w-full h-2 bg-gray-200 rounded-full mb-6 overflow-hidden">
           <div
             className="h-full bg-orange-500 transition-all"
@@ -730,7 +695,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
           />
         </div>
 
-        {/* Exercise card */}
         <div className="bg-white rounded-3xl shadow-sm border border-orange-100 p-6 md:p-8">
           <div className="flex justify-between items-start mb-4">
             <h1 className="text-xl font-semibold text-gray-900">
@@ -754,7 +718,6 @@ export default function LessonPlayer({ user, onLessonComplete }) {
           </div>
         </div>
 
-        {/* Bottom navigation */}
         <div className="mt-6 flex items-center justify-between">
           <button
             type="button"
