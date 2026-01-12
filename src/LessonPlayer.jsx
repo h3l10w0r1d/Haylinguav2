@@ -11,7 +11,7 @@ import {
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
-export default function LessonPlayer({ user, onLessonComplete }) {
+export default function LessonPlayer() {
   const { slug } = useParams();
   const navigate = useNavigate();
 
@@ -21,15 +21,14 @@ export default function LessonPlayer({ user, onLessonComplete }) {
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // interaction state
   const [typedAnswer, setTypedAnswer] = useState('');
-  const [selectedIndices, setSelectedIndices] = useState([]);
-  const [builtIndices, setBuiltIndices] = useState([]);
-  const [feedback, setFeedback] = useState(null);
+  const [selectedIndices, setSelectedIndices] = useState([]); // mcq + find-in-grid
+  const [builtIndices, setBuiltIndices] = useState([]); // build-word / listen-build
+  const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | null
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // ----------------------------------------------------
   // Fetch lesson
-  // ----------------------------------------------------
   useEffect(() => {
     let isCancelled = false;
 
@@ -74,15 +73,7 @@ export default function LessonPlayer({ user, onLessonComplete }) {
       ? lesson.exercises[currentIndex]
       : null;
 
-  const isLastExercise =
-    !!lesson &&
-    Array.isArray(lesson.exercises) &&
-    lesson.exercises.length > 0 &&
-    currentIndex === lesson.exercises.length - 1;
-
-  // ----------------------------------------------------
-  // TTS logic
-  // ----------------------------------------------------
+  // TTS
   const speak = useCallback(async (text) => {
     const trimmed = (text || '').trim();
     if (!trimmed) return;
@@ -134,6 +125,7 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     }
   };
 
+  // auto-play when exercise changes
   useEffect(() => {
     if (!currentExercise) return;
     const text = getAutoSpeakText(currentExercise);
@@ -142,13 +134,13 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     }
   }, [currentExercise, speak]);
 
-  // ----------------------------------------------------
-  // Answer helpers (same as you already had)
-  // ----------------------------------------------------
+  // ---------- answer logic ----------
+
   const handleSelectOption = (index) => {
     if (!currentExercise || currentExercise.kind !== 'char_mcq_sound') return;
     const cfg = currentExercise.config || {};
     const correctIndex = cfg.correctIndex;
+
     const isCorrect = index === correctIndex;
 
     setSelectedIndices([index]);
@@ -230,9 +222,8 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     setFeedback(isCorrect ? 'correct' : 'wrong');
   };
 
-  // ----------------------------------------------------
-  // Navigation & completion
-  // ----------------------------------------------------
+  // ---------- navigation ----------
+
   const goPrev = () => {
     if (!lesson) return;
     if (currentIndex <= 0) return;
@@ -247,16 +238,8 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     resetExerciseState();
   };
 
-  const handleFinishLesson = () => {
-    if (lesson && typeof onLessonComplete === 'function') {
-      onLessonComplete(lesson);
-    }
-    navigate('/dashboard');
-  };
+  // ---------- render exercise body ----------
 
-  // ----------------------------------------------------
-  // Render per-kind bodies (same as before)
-  // ----------------------------------------------------
   const renderExerciseBody = () => {
     if (!currentExercise) return null;
     const cfg = currentExercise.config || {};
@@ -627,7 +610,7 @@ export default function LessonPlayer({ user, onLessonComplete }) {
     if (feedback === 'wrong') {
       return (
         <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 text-red-700 border border-red-200">
-        <XCircle className="w-5 h-5" />
+          <XCircle className="w-5 h-5" />
           Not quite. Try again.
         </div>
       );
@@ -668,6 +651,7 @@ export default function LessonPlayer({ user, onLessonComplete }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-24">
       <div className="max-w-3xl mx-auto px-4 pt-6">
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
@@ -688,6 +672,7 @@ export default function LessonPlayer({ user, onLessonComplete }) {
           </div>
         </div>
 
+        {/* Progress bar */}
         <div className="w-full h-2 bg-gray-200 rounded-full mb-6 overflow-hidden">
           <div
             className="h-full bg-orange-500 transition-all"
@@ -695,6 +680,7 @@ export default function LessonPlayer({ user, onLessonComplete }) {
           />
         </div>
 
+        {/* Exercise card */}
         <div className="bg-white rounded-3xl shadow-sm border border-orange-100 p-6 md:p-8">
           <div className="flex justify-between items-start mb-4">
             <h1 className="text-xl font-semibold text-gray-900">
@@ -718,6 +704,7 @@ export default function LessonPlayer({ user, onLessonComplete }) {
           </div>
         </div>
 
+        {/* Bottom navigation */}
         <div className="mt-6 flex items-center justify-between">
           <button
             type="button"
@@ -733,30 +720,19 @@ export default function LessonPlayer({ user, onLessonComplete }) {
             Previous
           </button>
 
-          {isLastExercise ? (
-            <button
-              type="button"
-              onClick={handleFinishLesson}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
-            >
-              Finish lesson
-              <CheckCircle2 className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={currentIndex >= lesson.exercises.length - 1}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${
-                currentIndex >= lesson.exercises.length - 1
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-orange-600 text-white hover:bg-orange-700'
-              }`}
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={currentIndex >= lesson.exercises.length - 1}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${
+              currentIndex >= lesson.exercises.length - 1
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-orange-600 text-white hover:bg-orange-700'
+            }`}
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
 
         {isSpeaking && (
