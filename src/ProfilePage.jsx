@@ -1,424 +1,285 @@
 // src/ProfilePage.jsx
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  User,
-  Mail,
-  Image as ImageIcon,
-  Lock,
-  Flame,
-  Star,
-  Trophy,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Trophy, Flame, Star } from 'lucide-react';
 
-const API_BASE = 'https://haylinguav2.onrender.com';
-
-export default function ProfilePage() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+export default function ProfilePage({ user, onUpdateUser }) {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState(user?.email || '');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [profile, setProfile] = useState(null);
 
-  const [form, setForm] = useState({
-    first_name: '',
-    last_name: '',
-    avatar_url: '',
-    email: '',
-    current_password: '',
-    new_password: '',
-  });
-
+  // initialize form from user
   useEffect(() => {
-    const token = localStorage.getItem('hay_token');
-    if (!token) {
-      navigate('/');
-      return;
-    }
+    if (!user) return;
+    const nameParts = (user.name || '').split(' ');
+    setFirstName(nameParts[0] || '');
+    setLastName(nameParts.slice(1).join(' ') || '');
+    setEmail(user.email || '');
+    setAvatarUrl(user.avatarUrl || '');
+  }, [user]);
 
-    async function loadProfile() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const res = await fetch(`${API_BASE}/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to load profile: ${res.status}`);
-        }
-
-        const data = await res.json();
-        setProfile(data);
-        setForm((prev) => ({
-          ...prev,
-          first_name: data.first_name ?? '',
-          last_name: data.last_name ?? '',
-          avatar_url: data.avatar_url ?? '',
-          email: data.email ?? '',
-          current_password: '',
-          new_password: '',
-        }));
-      } catch (err) {
-        console.error(err);
-        setError('Could not load your profile. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadProfile();
-  }, [navigate]);
-
-  const handleChange = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('hay_token');
-    if (!token) {
-      navigate('/');
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setError(null);
-
-      const body = {
-        first_name: form.first_name || null,
-        last_name: form.last_name || null,
-        avatar_url: form.avatar_url || null,
-        email: form.email || null,
-        current_password: form.current_password || null,
-        new_password: form.new_password || null,
-      };
-
-      const res = await fetch(`${API_BASE}/me`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Update failed', res.status, text);
-        throw new Error(text || `Update failed: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setProfile(data);
-
-      // Wipe password fields
-      setForm((prev) => ({
-        ...prev,
-        current_password: '',
-        new_password: '',
-      }));
-
-      // Optionally also update stored user email
-      const storedUser = localStorage.getItem('hay_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          parsed.email = data.email;
-          localStorage.setItem('hay_user', JSON.stringify(parsed));
-        } catch {
-          // ignore
-        }
-      }
-
-      alert('Profile updated!');
-    } catch (err) {
-      console.error(err);
-      setError(
-        'Could not save your changes. Check your current password if you tried to change it.'
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
+  if (!user) {
     return (
-      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
-        <p className="text-gray-600">Loading your profile…</p>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
-        <p className="text-red-600">
-          Something went wrong loading your profile.
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <p className="text-gray-600">
+          You need to be logged in to view your profile.
         </p>
       </div>
     );
   }
 
-  const displayName =
-    (profile.first_name || profile.last_name)
-      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-      : profile.email.split('@')[0];
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
 
-  const avatarLetter = displayName.charAt(0).toUpperCase();
-  const maxXpDay = Math.max(
-    1,
-    ...profile.last_30_days.map((d) => d.xp_earned || 0)
-  );
+    try {
+      const newName =
+        [firstName.trim(), lastName.trim()].filter(Boolean).join(' ') ||
+        user.name;
+
+      onUpdateUser({
+        name: newName,
+        email: email.trim() || user.email,
+        avatarUrl: avatarUrl.trim() || undefined,
+      });
+
+      // When backend profile endpoint exists, call it here.
+      // For now it's local-only.
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const displayName =
+    [firstName || '', lastName || ''].filter(Boolean).join(' ') ||
+    user.name ||
+    'Haylingua learner';
+
+  const initials =
+    (firstName?.[0] || user.name?.[0] || user.email?.[0] || 'U').toUpperCase();
+
+  const level = user.level ?? 1;
+  const xp = user.xp ?? 0;
+  const streak = user.streak ?? 1;
+
+  // Fake tiny “last 7 days” completion data for now
+  const weeklyProgress = [
+    { day: 'M', value: 2 },
+    { day: 'T', value: 3 },
+    { day: 'W', value: 1 },
+    { day: 'T', value: 4 },
+    { day: 'F', value: 0 },
+    { day: 'S', value: 5 },
+    { day: 'S', value: 2 },
+  ];
+
+  const maxVal = Math.max(...weeklyProgress.map((d) => d.value), 1);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pt-20 pb-12">
-      <div className="max-w-5xl mx-auto px-4">
-        {/* Top: Avatar + summary */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              {profile.avatar_url ? (
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      {/* Top section: avatar + basic stats */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white text-2xl font-semibold shadow-md">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={profile.avatar_url}
+                  src={avatarUrl}
                   alt={displayName}
-                  className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
+                  className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white text-3xl font-semibold shadow-lg">
-                  {avatarLetter}
-                </div>
+                initials
               )}
             </div>
+          </div>
+          <div>
+            <h1 className="text-lg md:text-xl font-semibold text-gray-900">
+              {displayName}
+            </h1>
+            <p className="text-sm text-gray-500">{email}</p>
+            <p className="mt-1 text-xs text-orange-600 font-medium">
+              Armenian learner • Level {level}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 md:gap-4">
+          <div className="flex flex-col items-center bg-orange-50 rounded-xl px-3 py-2">
+            <Trophy className="w-4 h-4 text-orange-500 mb-1" />
+            <span className="text-sm font-semibold text-gray-900">
+              Lv {level}
+            </span>
+            <span className="text-[11px] text-gray-500">Level</span>
+          </div>
+          <div className="flex flex-col items-center bg-yellow-50 rounded-xl px-3 py-2">
+            <Star className="w-4 h-4 text-yellow-500 mb-1" />
+            <span className="text-sm font-semibold text-gray-900">
+              {xp}
+            </span>
+            <span className="text-[11px] text-gray-500">XP</span>
+          </div>
+          <div className="flex flex-col items-center bg-red-50 rounded-xl px-3 py-2">
+            <Flame className="w-4 h-4 text-red-500 mb-1" />
+            <span className="text-sm font-semibold text-gray-900">
+              {streak}
+            </span>
+            <span className="text-[11px] text-gray-500">Day streak</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Profile form */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+          Profile details
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                {displayName}
-              </h1>
-              <p className="text-gray-500 flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                <span>{profile.email}</span>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                First name
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Armen"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Last name
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Petrosyan"
+              />
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Email address
+              </label>
+              <input
+                type="email"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+              <p className="mt-1 text-[11px] text-gray-400">
+                Used to log in to Haylingua.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Profile picture URL
+              </label>
+              <input
+                type="url"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                placeholder="https://…/avatar.png"
+              />
+              <p className="mt-1 text-[11px] text-gray-400">
+                Paste a direct image link. We’ll show it in your avatar.
               </p>
             </div>
           </div>
 
-          {/* Stats summary */}
-          <div className="grid grid-cols-3 gap-3 md:w-80">
-            <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-col items-center">
-              <Flame className="w-6 h-6 text-orange-500 mb-1" />
-              <div className="text-xl font-semibold text-gray-900">
-                {profile.current_streak}
-              </div>
-              <div className="text-xs text-gray-500">Day streak</div>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-col items-center">
-              <Star className="w-6 h-6 text-yellow-500 mb-1" />
-              <div className="text-xl font-semibold text-gray-900">
-                {profile.total_xp}
-              </div>
-              <div className="text-xs text-gray-500">Total XP</div>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-col items-center">
-              <Trophy className="w-6 h-6 text-amber-600 mb-1" />
-              <div className="text-xl font-semibold text-gray-900">
-                {profile.level}
-              </div>
-              <div className="text-xs text-gray-500">Level</div>
-            </div>
+          <div className="pt-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"
+            >
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
           </div>
-        </div>
+        </form>
+      </section>
 
-        {/* Error message */}
-        {error && (
-          <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+      {/* Progress overview */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+          Recent learning activity
+        </h2>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Profile form */}
-          <div className="bg-white rounded-3xl shadow-sm p-6 md:p-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Profile details
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  First name
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    value={form.first_name}
-                    onChange={handleChange('first_name')}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                    placeholder="Armen"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Last name
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    value={form.last_name}
-                    onChange={handleChange('last_name')}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                    placeholder="Petrosyan"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Avatar image URL
-                </label>
-                <div className="relative">
-                  <ImageIcon className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                  <input
-                    type="url"
-                    value={form.avatar_url}
-                    onChange={handleChange('avatar_url')}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                    placeholder="https://…"
-                  />
-                </div>
-                <p className="text-xs text-gray-400">
-                  Paste a link to a square image (e.g. from your cloud storage).
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Email address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={handleChange('email')}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                    placeholder="you@example.com"
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-4 mt-2">
-                <h3 className="text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
-                  <Lock className="w-4 h-4" />
-                  Change password
-                </h3>
-                <p className="text-xs text-gray-500 mb-3">
-                  To change your password, enter your current password and a new one.
-                </p>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-600">
-                    Current password
-                  </label>
-                  <input
-                    type="password"
-                    value={form.current_password}
-                    onChange={handleChange('current_password')}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                    placeholder="••••••••"
-                  />
-                </div>
-
-                <div className="space-y-2 mt-2">
-                  <label className="text-xs font-medium text-gray-600">
-                    New password
-                  </label>
-                  <input
-                    type="password"
-                    value={form.new_password}
-                    onChange={handleChange('new_password')}
-                    className="w-full px-3 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-3">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                >
-                  {saving ? 'Saving…' : 'Save changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Activity graph */}
-          <div className="bg-white rounded-3xl shadow-sm p-6 md:p-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Your last 30 days
-            </h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Each bar shows your XP earned per day. Keep the streak burning.
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 mb-2">
+              Exercises completed in the last 7 days
             </p>
-
-            <div className="h-48 flex items-end gap-1 border border-gray-100 rounded-2xl px-3 py-3 bg-gray-50">
-              {profile.last_30_days.map((day) => {
-                const height = (day.xp_earned / maxXpDay) * 100;
-                const isToday = day.date === new Date().toISOString().slice(0, 10);
-                return (
+            <div className="flex items-end gap-2 h-28">
+              {weeklyProgress.map((d) => (
+                <div
+                  key={d.day}
+                  className="flex flex-col items-center justify-end flex-1"
+                >
                   <div
-                    key={day.date}
-                    className="flex-1 flex flex-col items-center justify-end"
+                    className="w-6 rounded-full bg-orange-100 overflow-hidden flex items-end"
+                    style={{ height: '80px' }}
                   >
                     <div
-                      className={`w-2 rounded-full ${
-                        day.xp_earned > 0
-                          ? isToday
-                            ? 'bg-orange-600'
-                            : 'bg-orange-400'
-                          : 'bg-gray-200'
-                      }`}
-                      style={{ height: `${Math.max(6, height)}%` }}
+                      className="w-full bg-gradient-to-t from-orange-600 to-yellow-400"
+                      style={{
+                        height: `${(d.value / maxVal) * 100}%`,
+                      }}
                     />
                   </div>
-                );
-              })}
+                  <span className="mt-1 text-[11px] text-gray-500">
+                    {d.day}
+                  </span>
+                </div>
+              ))}
             </div>
+          </div>
 
-            <div className="mt-3 flex justify-between text-[11px] text-gray-400">
-              <span>{profile.last_30_days[0]?.date}</span>
-              <span>{profile.last_30_days[profile.last_30_days.length - 1]?.date}</span>
+          <div className="w-full md:w-60 space-y-3">
+            <div className="flex justify-between items-center bg-orange-50 rounded-xl px-3 py-2.5">
+              <span className="text-xs text-gray-600">
+                Total lessons completed
+              </span>
+              <span className="text-sm font-semibold text-gray-900">
+                {user.completedLessons?.length || 0}
+              </span>
             </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-              <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4">
-                <p className="text-gray-700 font-medium mb-1">
-                  Keep your streak alive
-                </p>
-                <p className="text-xs text-gray-500">
-                  Do at least one exercise each day to grow your streak and level faster.
-                </p>
-              </div>
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4">
-                <p className="text-gray-700 font-medium mb-1">
-                  XP is your progress fuel
-                </p>
-                <p className="text-xs text-gray-500">
-                  Every completed exercise adds XP. Harder lessons can give more XP later.
-                </p>
-              </div>
+            <div className="flex justify-between items-center bg-green-50 rounded-xl px-3 py-2.5">
+              <span className="text-xs text-gray-600">
+                Best streak
+              </span>
+              <span className="text-sm font-semibold text-gray-900">
+                {streak} days
+              </span>
+            </div>
+            <div className="flex justify-between items-center bg-blue-50 rounded-xl px-3 py-2.5">
+              <span className="text-xs text-gray-600">
+                Lifetime XP
+              </span>
+              <span className="text-sm font-semibold text-gray-900">
+                {xp}
+              </span>
             </div>
           </div>
         </div>
-      </div>
+
+        <p className="mt-3 text-[11px] text-gray-400">
+          Note: these stats are currently stored on this device. Next step is
+          wiring them to the backend&apos;s progress model so they follow you
+          everywhere.
+        </p>
+      </section>
     </div>
   );
 }
