@@ -1,6 +1,7 @@
 # backend/main.py
 import os
 import httpx
+import io
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,20 +14,18 @@ from database import SessionLocal, engine, Base
 from models import User, Lesson, Exercise, ExerciseOption
 from auth import hash_password, verify_password, create_token
 
+# -------------------------------------------------------------------
+# ElevenLabs config
+# -------------------------------------------------------------------
 
-
-
-
-# Try several env var names – you said you used 'eleven_labs.io'
 ELEVEN_API_KEY = (
     os.getenv("ELEVENLABS_API_KEY")
     or os.getenv("ELEVEN_LABS_API_KEY")
-    or os.getenv("eleven_labs.io")
+    or os.getenv("eleven_labs.io")  # you said you used this name on Render
 )
 
-# Default ElevenLabs voice – you can swap this for your own voice ID
-DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"  # example from docs
-
+DEFAULT_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
+DEFAULT_MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
 
 
 class TTSPayload(BaseModel):
@@ -55,52 +54,60 @@ app.add_middleware(
 
 
 # -------------------------------------------------------------------
-# Text to speech API 
+# Text-to-speech helpers + endpoints
 # -------------------------------------------------------------------
 
-@app.post("/tts", response_class=Response)
-async def tts_speak(payload: TTSPayload):
-    """
-    Proxy to ElevenLabs TTS so the frontend never sees the API key.
-    Returns raw MP3 bytes.
-    """
+async def _generate_tts_bytes(text: str, voice_id: str | None = None) -> bytes:
     if not ELEVEN_API_KEY:
         raise HTTPException(status_code=500, detail="TTS not configured on server")
 
-    text = payload.text.strip()
+    text = text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Text is empty")
 
-    voice_id = payload.voice_id or DEFAULT_VOICE_ID
+    voice = voice_id or DEFAULT_VOICE_ID
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice}"
 
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     params = {"output_format": "mp3_44100_128"}
-
     headers = {
         "xi-api-key": ELEVEN_API_KEY,
         "Content-Type": "application/json",
+        "Accept": "audio/mpeg",
     }
-
     body = {
         "text": text,
-        "model_id": "eleven_multilingual_v2",
+        "model_id": DEFAULT_MODEL_ID,
     }
 
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             r = await client.post(url, params=params, headers=headers, json=body)
-        if r.status_code != 200:
-            # Log r.text on server if you need more detail
-            raise HTTPException(
-                status_code=502,
-                detail=f"ElevenLabs error ({r.status_code})",
-            )
-        audio_bytes = r.content
     except httpx.RequestError as e:
         raise HTTPException(status_code=502, detail=f"TTS request failed: {e}") from e
 
-    # MP3 back to the browser
+    if r.status_code != 200:
+        # log r.text on the server for debugging if needed
+        raise HTTPException(
+            status_code=502,
+            detail=f"ElevenLabs error ({r.status_code})",
+        )
+
+    return r.content
+
+
+@app.post("/tts", response_class=Response)
+async def tts_speak(payload: TTSPayload):
+    """POST body {text, voice_id?} → MP3."""
+    audio_bytes = await _generate_tts_bytes(payload.text, payload.voice_id)
     return Response(content=audio_bytes, media_type="audio/mpeg")
+
+
+@app.get("/tts/letter", response_class=Response)
+async def tts_letter(text: str):
+    """GET /tts/letter?text=Ա → MP3 (for the React helper I gave you)."""
+    audio_bytes = await _generate_tts_bytes(text)
+    return Response(content=audio_bytes, media_type="audio/mpeg")
+
 
 # -------------------------------------------------------------------
 # DB dependency
@@ -125,7 +132,6 @@ class UserCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        # bcrypt supports up to 72 bytes
         if len(v.encode("utf-8")) > 72:
             raise ValueError("Password must be 72 bytes or less")
         return v
@@ -183,7 +189,7 @@ class LessonWithExercisesOut(BaseModel):
 
 
 # -------------------------------------------------------------------
-# Seeding helpers – ALPHABET ONLY
+# Seeding helpers – alphabet only
 # -------------------------------------------------------------------
 
 def _ensure_lesson(
@@ -195,7 +201,7 @@ def _ensure_lesson(
     level: int,
     xp: int,
 ) -> Lesson:
-    """Get or create a lesson by slug, wipe its exercises, and return it."""
+    """Get or create a lesson by slug and update metadata."""
     lesson = db.query(Lesson).filter(Lesson.slug == slug).first()
     if not lesson:
         lesson = Lesson(
@@ -208,23 +214,18 @@ def _ensure_lesson(
         db.add(lesson)
         db.flush()
     else:
-        # keep metadata up to date
         lesson.title = title
         lesson.description = description
         lesson.level = level
         lesson.xp = xp
         db.flush()
-
-    # Clear existing exercises for a clean slate
+    # wipe existing exercises so seeding is deterministic
     db.query(Exercise).filter(Exercise.lesson_id == lesson.id).delete()
     return lesson
 
 
 def _reset_alphabet_1(db: Session) -> None:
-    """
-    Armenian Alphabet – Part 1
-    Letter: Ա / ա
-    """
+    """Armenian Alphabet – Part 1: letter Ա."""
     lesson = _ensure_lesson(
         db,
         slug="alphabet-1",
@@ -247,6 +248,7 @@ def _reset_alphabet_1(db: Session) -> None:
             "lower": "ա",
             "transliteration": "a",
             "hint": "Like the 'a' in 'father'.",
+            "ttsText": "The Armenian letter Ա, pronounced a.",
         },
     )
 
@@ -263,6 +265,7 @@ def _reset_alphabet_1(db: Session) -> None:
             "options": ["a", "o", "e", "u"],
             "correctIndex": 0,
             "showTransliteration": True,
+            "ttsText": "Ա",
         },
     )
 
@@ -285,10 +288,7 @@ def _reset_alphabet_1(db: Session) -> None:
 
 
 def _reset_alphabet_2(db: Session) -> None:
-    """
-    Armenian Alphabet – Part 2
-    Letter: Բ / բ
-    """
+    """Armenian Alphabet – Part 2: letter Բ."""
     lesson = _ensure_lesson(
         db,
         slug="alphabet-2",
@@ -311,6 +311,7 @@ def _reset_alphabet_2(db: Session) -> None:
             "lower": "բ",
             "transliteration": "b",
             "hint": "Like the 'b' in 'boy'.",
+            "ttsText": "The Armenian letter Բ, pronounced b.",
         },
     )
 
@@ -327,6 +328,7 @@ def _reset_alphabet_2(db: Session) -> None:
             "options": ["p", "b", "v", "m"],
             "correctIndex": 1,
             "showTransliteration": True,
+            "ttsText": "Բ",
         },
     )
 
@@ -347,106 +349,9 @@ def _reset_alphabet_2(db: Session) -> None:
 
     db.add_all([ex1, ex2, ex3])
 
-# ---------- ALPHABET SEEDING ----------
-
-def _reset_alphabet_1(db: Session) -> Lesson:
-    """
-    Make sure we have a clean 'alphabet-1' lesson
-    and remove any old exercises.
-    """
-    lesson = db.query(Lesson).filter(Lesson.slug == "alphabet-1").first()
-    if not lesson:
-        lesson = Lesson(
-            slug="alphabet-1",
-            title="Armenian Alphabet – Part 1",
-            description="Learn your first Armenian letters with audio.",
-            level=1,
-            xp=30,
-        )
-        db.add(lesson)
-        db.flush()  # lesson.id is now set
-    else:
-        # delete old exercises for this lesson
-        db.query(Exercise).filter(Exercise.lesson_id == lesson.id).delete()
-        db.flush()
-
-    return lesson
-
 
 def seed_alphabet_lessons():
-    """
-    Seed ONLY the alphabet-1 lesson with TTS-enabled exercises.
-    """
-    db = SessionLocal()
-    try:
-        lesson = _reset_alphabet_1(db)
-
-        # Exercise 1: intro to letter Ա
-        ex1 = Exercise(
-            lesson_id=lesson.id,
-            kind="char_intro",
-            prompt="Meet your first Armenian letter!",
-            expected_answer=None,
-            sentence_before=None,
-            sentence_after=None,
-            order=1,
-            config={
-                "letter": "Ա",
-                "lower": "ա",
-                "transliteration": "a",
-                "hint": "Like the 'a' in 'father'.",
-                # This is what we actually send to TTS:
-                "ttsText": "The Armenian letter Ա, pronounced a.",
-            },
-        )
-
-        # Exercise 2: which sound?
-        ex2 = Exercise(
-            lesson_id=lesson.id,
-            kind="char_mcq_sound",
-            prompt="Which sound does this letter make?",
-            expected_answer=None,
-            sentence_before=None,
-            sentence_after=None,
-            order=2,
-            config={
-                "letter": "Ա",
-                "options": ["a", "o", "e", "u"],
-                "correctIndex": 0,
-                "ttsText": "Ա",  # TTS will just say the letter
-            },
-        )
-
-        # Exercise 3: another letter example – Բ
-        ex3 = Exercise(
-            lesson_id=lesson.id,
-            kind="char_intro",
-            prompt="Now meet the letter Բ.",
-            expected_answer=None,
-            sentence_before=None,
-            sentence_after=None,
-            order=3,
-            config={
-                "letter": "Բ",
-                "lower": "բ",
-                "transliteration": "b",
-                "hint": "Like the 'b' in 'book'.",
-                "ttsText": "The Armenian letter Բ, pronounced b.",
-            },
-        )
-
-        db.add_all([ex1, ex2, ex3])
-        db.commit()
-        print("Seeded alphabet-1 with 3 TTS-enabled exercises.")
-    finally:
-        db.close()
-        #  -------------------------------------------
-
-def seed_alphabet_lessons():
-    """
-    Reset ONLY the alphabet lessons. Other old lessons can stay in DB,
-    but we don't touch them or expose them in /lessons.
-    """
+    """Reset ONLY the alphabet lessons."""
     db = SessionLocal()
     try:
         _reset_alphabet_1(db)
@@ -514,10 +419,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
 @app.get("/lessons", response_model=List[LessonOut])
 def list_lessons(db: Session = Depends(get_db)):
-    """
-    For now we *only* expose the alphabet lessons,
-    even if the DB contains old “greetings” rows.
-    """
+    """Expose only the alphabet lessons for now."""
     lessons = (
         db.query(Lesson)
         .filter(Lesson.slug.in_(["alphabet-1", "alphabet-2"]))
@@ -529,17 +431,10 @@ def list_lessons(db: Session = Depends(get_db)):
 
 @app.get("/lessons/{slug}", response_model=LessonWithExercisesOut)
 def get_lesson(slug: str, db: Session = Depends(get_db)):
-    """
-    Return a lesson + its exercises by slug.
-    """
-    lesson = (
-        db.query(Lesson)
-        .filter(Lesson.slug == slug)
-        .first()
-    )
+    """Return a lesson + its exercises by slug."""
+    lesson = db.query(Lesson).filter(Lesson.slug == slug).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    # Ensure exercises are ordered
     lesson.exercises.sort(key=lambda e: e.order)
     return lesson
