@@ -95,19 +95,55 @@ async def _generate_tts_bytes(text: str, voice_id: str | None = None) -> bytes:
     return r.content
 
 
+
 @app.post("/tts", response_class=Response)
 async def tts_speak(payload: TTSPayload):
-    """POST body {text, voice_id?} → MP3."""
-    audio_bytes = await _generate_tts_bytes(payload.text, payload.voice_id)
+    """
+    Proxy to ElevenLabs TTS so the frontend never sees the API key.
+    Returns raw MP3 bytes.
+    """
+    if not ELEVEN_API_KEY:
+        # this will show up as HTTP 500 in the browser
+        raise HTTPException(status_code=500, detail="TTS not configured on server")
+
+    text = (payload.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is empty")
+
+    voice_id = payload.voice_id or DEFAULT_VOICE_ID
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    params = {"output_format": "mp3_44100_128"}
+
+    headers = {
+        "xi-api-key": ELEVEN_API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    body = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(url, params=params, headers=headers, json=body)
+
+        if r.status_code != 200:
+            # This goes into your Render logs and also back to the browser
+            print("ElevenLabs error:", r.status_code, r.text[:300])
+            raise HTTPException(
+                status_code=502,
+                detail=f"ElevenLabs error {r.status_code}: {r.text}",
+            )
+
+        audio_bytes = r.content
+
+    except httpx.RequestError as e:
+        print("TTS request failed:", repr(e))
+        raise HTTPException(status_code=502, detail=f"TTS request failed: {e}") from e
+
     return Response(content=audio_bytes, media_type="audio/mpeg")
-
-
-@app.get("/tts/letter", response_class=Response)
-async def tts_letter(text: str):
-    """GET /tts/letter?text=Ա → MP3 (for the React helper I gave you)."""
-    audio_bytes = await _generate_tts_bytes(text)
-    return Response(content=audio_bytes, media_type="audio/mpeg")
-
 
 # -------------------------------------------------------------------
 # DB dependency
