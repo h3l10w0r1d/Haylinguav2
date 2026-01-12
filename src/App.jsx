@@ -6,7 +6,7 @@ import {
   Route,
   Navigate,
   useNavigate,
-} from 'react-router-dom';
+} from 'react-router-dom'; 
 
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
