@@ -257,7 +257,8 @@ export default function LessonPlayer({ user, onLessonComplete }) {
 
   const handleFinishLesson = () => {
     if (lesson && typeof onLessonComplete === 'function') {
-      onLessonComplete(lesson.slug);
+      // pass the full lesson so App can use lesson.xp, slug, etc.
+      onLessonComplete(lesson);
     }
     navigate('/dashboard');
   };
