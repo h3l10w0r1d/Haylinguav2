@@ -11,7 +11,7 @@ import {
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
-export default function LessonPlayer() {
+export default function LessonPlayer({ user, onLessonComplete }) {
   const { slug } = useParams();
   const navigate = useNavigate();
 
@@ -74,6 +74,12 @@ export default function LessonPlayer() {
     lesson && lesson.exercises && lesson.exercises[currentIndex]
       ? lesson.exercises[currentIndex]
       : null;
+
+  const isLastExercise =
+    !!lesson &&
+    Array.isArray(lesson.exercises) &&
+    lesson.exercises.length > 0 &&
+    currentIndex === lesson.exercises.length - 1;
 
   // ----------------------------------------------------
   // TTS logic
@@ -197,10 +203,10 @@ export default function LessonPlayer() {
     if (!currentExercise) return;
     const expected =
       (currentExercise.expected_answer || '').trim().toLowerCase();
-    const user = (typedAnswer || '').trim().toLowerCase();
+    const userValue = (typedAnswer || '').trim().toLowerCase();
     if (!expected) return;
 
-    setFeedback(user === expected ? 'correct' : 'wrong');
+    setFeedback(userValue === expected ? 'correct' : 'wrong');
   };
 
   // for char_find_in_word / char_find_in_grid
@@ -233,7 +239,7 @@ export default function LessonPlayer() {
   };
 
   // ----------------------------------------------------
-  // Navigation
+  // Navigation & completion
   // ----------------------------------------------------
   const goPrev = () => {
     if (!lesson) return;
@@ -247,6 +253,13 @@ export default function LessonPlayer() {
     if (currentIndex >= lesson.exercises.length - 1) return;
     setCurrentIndex((i) => i + 1);
     resetExerciseState();
+  };
+
+  const handleFinishLesson = () => {
+    if (lesson && typeof onLessonComplete === 'function') {
+      onLessonComplete(lesson.slug);
+    }
+    navigate('/dashboard');
   };
 
   // ----------------------------------------------------
@@ -756,19 +769,30 @@ export default function LessonPlayer() {
             Previous
           </button>
 
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={currentIndex >= lesson.exercises.length - 1}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${
-              currentIndex >= lesson.exercises.length - 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-orange-600 text-white hover:bg-orange-700'
-            }`}
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          {isLastExercise ? (
+            <button
+              type="button"
+              onClick={handleFinishLesson}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              Finish lesson
+              <CheckCircle2 className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={currentIndex >= lesson.exercises.length - 1}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${
+                currentIndex >= lesson.exercises.length - 1
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-orange-600 text-white hover:bg-orange-700'
+              }`}
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {isSpeaking && (
