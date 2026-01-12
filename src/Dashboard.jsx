@@ -1,222 +1,296 @@
 // src/Dashboard.jsx
 import { useEffect, useState } from 'react';
-import { BookOpen, Flame, Star, Lock, Volume2, Loader2 } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Trophy,
+  Flame,
+  CheckCircle2,
+  BookOpen,
+  LogOut,
+  User,
+  Users,
+  Medal,
+} from 'lucide-react';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
-export default function Dashboard({ user, onStartLesson }) {
+export default function Dashboard({ user, onUpdateUser, onLogout }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [lessons, setLessons] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loadingLessons, setLoadingLessons] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
-  // load lessons from backend
+  const completed = Array.isArray(user.completedLessons)
+    ? user.completedLessons
+    : [];
+
+  // Fetch lessons
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
 
-    async function fetchLessons() {
-      setLoading(true);
-      setError('');
+    async function loadLessons() {
+      setLoadingLessons(true);
+      setLoadError(null);
       try {
         const res = await fetch(`${API_BASE}/lessons`);
         if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`Failed to load lessons: ${res.status} ${text}`);
+          throw new Error(`Failed to load lessons: ${res.status}`);
         }
         const data = await res.json();
-        if (isMounted) {
-          setLessons(data || []);
-        }
+        if (!cancelled) setLessons(data);
       } catch (err) {
         console.error('Error loading lessons', err);
-        if (isMounted) {
-          setError(err.message || 'Could not load lessons');
-        }
+        if (!cancelled) setLoadError(err.message || 'Failed to load lessons');
       } finally {
-        if (isMounted) setLoading(false);
+        if (!cancelled) setLoadingLessons(false);
       }
     }
 
-    fetchLessons();
+    loadLessons();
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
   }, []);
 
-  const completedSlugs = user?.completedLessons || [];
+  const totalXp =
+    typeof user.xp === 'number'
+      ? user.xp
+      : lessons
+          .filter((l) => completed.includes(l.slug))
+          .reduce((sum, l) => sum + (l.xp || 0), 0);
 
-  // ✅ FIX: compute total XP from completed lessons
-  const totalXp = lessons.reduce((sum, lesson) => {
-    if (completedSlugs.includes(lesson.slug)) {
-      return sum + (lesson.xp || 0);
+  const streak = user.streak || 0;
+
+  // Navigation header
+  const navItems = [
+    { key: 'dashboard', label: 'Exercises', icon: BookOpen, path: '/dashboard' },
+    { key: 'friends', label: 'Friends', icon: Users, path: '/friends' },
+    { key: 'leaderboard', label: 'Leaderboard', icon: Medal, path: '/leaderboard' },
+    { key: 'profile', label: 'Profile', icon: User, path: '/profile' },
+  ];
+
+  const currentPath = location.pathname;
+
+  const isActive = (path) => {
+    if (path === '/dashboard') {
+      return currentPath === '/dashboard';
     }
-    return sum;
-  }, 0);
-
-  // simple “level” approximation from XP if you want
-  const level = user?.level ?? Math.max(1, Math.floor(totalXp / 40));
-  const streak = user?.streak ?? 1;
-
-  const getLessonStatus = (lesson, index) => {
-    if (completedSlugs.includes(lesson.slug)) return 'completed';
-    // unlock the first lesson, or the next one after a completed one
-    if (index === 0) return 'unlocked';
-    const previous = lessons[index - 1];
-    if (previous && completedSlugs.includes(previous.slug)) return 'unlocked';
-    return 'locked';
+    return currentPath.startsWith(path);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-amber-50 pb-16 pt-20 px-4">
-      <div className="max-w-5xl mx-auto space-y-6">
-        {/* Top summary card */}
-        <div className="bg-white rounded-3xl shadow-md border border-orange-100 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-              Barev, {user?.name || 'learner'} 👋
-            </h1>
-            <p className="text-sm text-gray-500">
-              Keep building your Armenian skills one bite-sized lesson at a time.
-            </p>
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-24">
+      {/* Header */}
+      <header className="border-b border-orange-100 bg-white/80 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => navigate('/dashboard')}
+          >
+            <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center text-white font-bold text-lg">
+              Հ
+            </div>
+            <span className="font-semibold text-gray-800">Haylingua</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 sm:gap-4 w-full sm:w-auto">
-            <div className="bg-orange-50 rounded-2xl px-3 py-2 text-center">
-              <div className="flex items-center justify-center gap-1 text-xs text-orange-600 mb-1">
-                <Star className="w-3 h-3" />
-                Level
-              </div>
-              <div className="text-lg font-semibold text-gray-900">
-                {level}
-              </div>
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.path);
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => navigate(item.path)}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition ${
+                    active
+                      ? 'bg-orange-600 text-white'
+                      : 'text-gray-700 hover:bg-orange-50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Profile / logout */}
+          <div className="flex items-center gap-3">
+            <div
+              className="hidden sm:flex flex-col items-end text-xs text-gray-600 cursor-pointer"
+              onClick={() => navigate('/profile')}
+            >
+              <span className="font-medium text-gray-800">
+                {user.firstName || user.name || user.email}
+              </span>
+              <span>
+                {totalXp} XP · lvl {user.level ?? 1}
+              </span>
             </div>
-            <div className="bg-orange-50 rounded-2xl px-3 py-2 text-center">
-              <div className="flex items-center justify-center gap-1 text-xs text-orange-600 mb-1">
-                <BookOpen className="w-3 h-3" />
-                XP
-              </div>
-              <div className="text-lg font-semibold text-gray-900">
-                {totalXp}
-              </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-orange-50 text-orange-700 hover:bg-orange-100"
+              title="Log out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile bottom nav */}
+        <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-orange-100 z-30">
+          <div className="max-w-md mx-auto flex justify-around py-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.path);
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => navigate(item.path)}
+                  className="flex flex-col items-center text-xs"
+                >
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center mb-1 ${
+                      active
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-orange-50 text-orange-700'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span
+                    className={active ? 'text-orange-700' : 'text-gray-500'}
+                  >
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      </header>
+
+      {/* Content */}
+      <main className="max-w-5xl mx-auto px-4 pt-6 pb-24 md:pb-8">
+        {/* Stats */}
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-orange-500 to-red-500 text-white rounded-2xl p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-orange-100">Total XP</span>
+              <Trophy className="w-5 h-5" />
             </div>
-            <div className="bg-orange-50 rounded-2xl px-3 py-2 text-center">
-              <div className="flex items-center justify-center gap-1 text-xs text-orange-600 mb-1">
-                <Flame className="w-3 h-3" />
-                Streak
-              </div>
-              <div className="text-lg font-semibold text-gray-900">
-                {streak}d
-              </div>
+            <div className="mt-2 text-3xl font-semibold">{totalXp}</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-2xl p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-orange-100">Daily streak</span>
+              <Flame className="w-5 h-5" />
+            </div>
+            <div className="mt-2 text-3xl font-semibold">
+              {user.streak || 0}
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-500 text-white rounded-2xl p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-emerald-100">
+                Lessons completed
+              </span>
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div className="mt-2 text-3xl font-semibold">
+              {completed.length}
             </div>
           </div>
         </div>
 
-        {/* Error / loading */}
-        {error && (
-          <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl px-4 py-3 text-sm">
-            {error}
-          </div>
-        )}
+        {/* Lessons */}
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
+            Alphabet path
+          </h2>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="flex flex-col items-center gap-2 text-gray-500">
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span className="text-sm">Loading lessons…</span>
+          {loadingLessons && (
+            <div className="rounded-2xl bg-white border border-orange-100 p-6 text-gray-600">
+              Loading lessons…
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-              Alphabet path
-            </h2>
+          )}
 
+          {loadError && !loadingLessons && (
+            <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-red-700">
+              {loadError}
+            </div>
+          )}
+
+          {!loadingLessons && !loadError && (
             <div className="grid md:grid-cols-2 gap-4">
-              {lessons.map((lesson, idx) => {
-                const status = getLessonStatus(lesson, idx);
-                const isCompleted = status === 'completed';
-                const isLocked = status === 'locked';
+              {lessons.map((lesson) => {
+                const isCompleted = completed.includes(lesson.slug);
 
                 return (
                   <button
-                    key={lesson.id}
+                    key={lesson.slug}
                     type="button"
-                    disabled={isLocked}
-                    onClick={() => {
-                      if (!isLocked) {
-                        onStartLesson(lesson);
-                      }
-                    }}
-                    className={[
-                      'relative flex items-center gap-4 w-full text-left rounded-3xl border px-4 py-4 sm:px-5 sm:py-5 transition shadow-sm',
-                      isLocked
-                        ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-70'
-                        : isCompleted
-                        ? 'bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200 hover:shadow-md'
-                        : 'bg-white border-orange-100 hover:shadow-md hover:border-orange-200',
-                    ].join(' ')}
+                    onClick={() => navigate(`/lesson/${lesson.slug}`)}
+                    className="relative text-left rounded-2xl border p-4 bg-white transition hover:shadow-sm border-orange-200 hover:border-orange-400 cursor-pointer"
                   >
-                    {/* Status icon */}
-                    <div
-                      className={[
-                        'w-12 h-12 rounded-2xl flex items-center justify-center',
-                        isLocked
-                          ? 'bg-gray-200 text-gray-500'
-                          : isCompleted
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-orange-500 text-white',
-                      ].join(' ')}
-                    >
-                      {isLocked ? (
-                        <Lock className="w-6 h-6" />
-                      ) : isCompleted ? (
-                        <Star className="w-6 h-6" />
-                      ) : (
-                        <BookOpen className="w-6 h-6" />
-                      )}
-                    </div>
-
-                    {/* Lesson info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          Lesson {idx + 1}
-                        </span>
-                        {isCompleted && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-medium">
-                            Completed
-                          </span>
-                        )}
-                        {!isLocked && !isCompleted && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[11px] font-medium">
-                            New
-                          </span>
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`mt-1 w-9 h-9 rounded-xl flex items-center justify-center text-white ${
+                          isCompleted ? 'bg-emerald-500' : 'bg-orange-500'
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          <BookOpen className="w-4 h-4" />
                         )}
                       </div>
-                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
-                        {lesson.title}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-gray-500 line-clamp-2">
-                        {lesson.description}
-                      </p>
 
-                      <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                        <span className="inline-flex items-center gap-1">
-                          <Star className="w-3 h-3 text-orange-500" />
-                          {lesson.xp || 0} XP
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <Volume2 className="w-3 h-3 text-orange-500" />
-                          Audio alphabet
-                        </span>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">
+                          {lesson.title}
+                        </h3>
+                        {lesson.description && (
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                            {lesson.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span>Level {lesson.level}</span>
+                          <span>·</span>
+                          <span>{lesson.xp} XP</span>
+                          {isCompleted && (
+                            <>
+                              <span>·</span>
+                              <span className="text-emerald-600 font-medium">
+                                Completed
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </button>
                 );
               })}
+
+              {lessons.length === 0 && (
+                <div className="rounded-2xl bg-white border border-orange-100 p-6 text-gray-600">
+                  No lessons available yet.
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
