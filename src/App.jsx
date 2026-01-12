@@ -48,7 +48,7 @@ function AppShell() {
     const baseName = email.split('@')[0];
 
     const newUser = {
-      id: 1, // placeholder until backend profile is used
+      id: 1, // placeholder until backend profile endpoint exists
       email,
       name: baseName,
       firstName: '',
@@ -136,7 +136,7 @@ function AppShell() {
 
     const alreadyCompleted = prevCompleted.includes(slug);
 
-    // Only award XP first time
+    // Only award XP the first time
     const gainedXp = alreadyCompleted ? 0 : lessonXp;
 
     const newCompleted = alreadyCompleted
@@ -174,7 +174,7 @@ function AppShell() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
         <p className="text-gray-600">
-          Loading your dashboard… If this takes too long, please refresh.
+          Loading your dashboard… If this takes too long, refresh.
         </p>
       </div>
     );
@@ -212,7 +212,10 @@ function AppShell() {
         path="/lesson/:slug"
         element={
           user ? (
-            <LessonPlayer user={user} onLessonComplete={handleLessonComplete} />
+            <LessonPlayer
+              user={user}
+              onLessonComplete={handleLessonComplete}
+            />
           ) : (
             <Navigate to="/" replace />
           )
@@ -258,7 +261,6 @@ function AppShell() {
   );
 }
 
-// Outer wrapper with BrowserRouter
 export default function App() {
   return (
     <BrowserRouter>
