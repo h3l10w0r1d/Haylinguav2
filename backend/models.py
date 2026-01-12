@@ -7,8 +7,10 @@ from sqlalchemy import (
     ForeignKey,
     Text,
     JSON,
+    DateTime,
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from database import Base
 
@@ -46,8 +48,9 @@ class Exercise(Base):
     id = Column(Integer, primary_key=True, index=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
 
-    # New unified "kind" instead of ad-hoc "type"
-    # Examples: "char_intro", "char_mcq_sound", "char_build_word"
+    # Unified kind instead of the old "type"
+    # Examples: "char_intro", "char_mcq_sound", "char_build_word",
+    #           "char_listen_build", "char_find_in_grid", "char_type_translit"
     kind = Column(String, nullable=False, default="legacy")
 
     # Human-readable prompt/question shown at the top
@@ -63,13 +66,13 @@ class Exercise(Base):
     # Order inside the lesson
     order = Column(Integer, nullable=False, default=1)
 
-    # NEW: flexible per-exercise data, stored as JSON
+    # Flexible per-exercise data, stored as JSON.
     # For example, for char_mcq_sound:
     # {
     #   "letter": "Ա",
     #   "options": ["a", "o", "e", "u"],
     #   "correctIndex": 0,
-    #   "transliteration": "a"
+    #   "showTransliteration": true
     # }
     config = Column(JSON, nullable=False, default=dict)
 
@@ -95,3 +98,36 @@ class ExerciseOption(Base):
     match_key = Column(String)
 
     exercise = relationship("Exercise", back_populates="options")
+
+
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    # 1-to-1 with User
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    first_name = Column(String)
+    last_name = Column(String)
+    avatar_url = Column(String)
+
+    user = relationship("User", backref="profile_rel", uselist=False)
+
+
+class UserExerciseLog(Base):
+    __tablename__ = "user_exercise_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
+    exercise_id = Column(Integer, ForeignKey("exercises.id"), nullable=False)
+
+    completed_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    xp_earned = Column(Integer, nullable=False, default=0)
+    correct = Column(Boolean, nullable=False, default=True)
+
+    user = relationship("User", backref="exercise_logs")
+    lesson = relationship("Lesson")
+    exercise = relationship("Exercise")
