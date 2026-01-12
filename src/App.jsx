@@ -10,11 +10,11 @@ import {
 
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
-import LessonPlayer from './LessonPlayer';
 import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
-import HeaderLayout from './HeaderLayout';
+import LessonPlayer from './LessonPlayer';
+import AppHeader from './AppHeader';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -25,7 +25,9 @@ function AppShell() {
 
   const navigate = useNavigate();
 
-  // Load user + token from localStorage on first render
+  // --------------------------------------------------
+  // Load auth from localStorage on first render
+  // --------------------------------------------------
   useEffect(() => {
     try {
       const storedToken = localStorage.getItem('hay_token');
@@ -44,13 +46,14 @@ function AppShell() {
     }
   }, []);
 
-  // Central helper to set user + token + localStorage
-  const applyAuthState = (tokenValue, email) => {
-    const baseName = email?.split('@')[0] || 'Learner';
+  // --------------------------------------------------
+  // Helpers
+  // --------------------------------------------------
 
+  const handleAuthSuccess = (tokenValue, email) => {
     const newUser = {
-      id: 1, // backend doesn’t return id yet, so we fake it
-      name: baseName,
+      id: 1, // backend user.id is not used yet on FE
+      name: email.split('@')[0],
       email,
       level: 1,
       xp: 0,
@@ -63,54 +66,8 @@ function AppShell() {
 
     localStorage.setItem('hay_token', tokenValue);
     localStorage.setItem('hay_user', JSON.stringify(newUser));
-  };
 
-  const handleLogin = async (email, password) => {
-    const res = await fetch(`${API_BASE}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error('Login failed', res.status, text);
-      throw new Error(`Login failed: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const tokenValue = data.access_token ?? data.token;
-
-    if (!tokenValue) {
-      console.error('No token in /login response', data);
-      throw new Error('No token in /login response');
-    }
-
-    applyAuthState(tokenValue, data.email ?? email);
     navigate('/dashboard', { replace: true });
-  };
-
-  const handleSignup = async (_name, email, password) => {
-    try {
-      const res = await fetch(`${API_BASE}/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Signup failed', res.status, text);
-        alert('Signup failed. Maybe this email is already registered.');
-        return;
-      }
-
-      // After successful signup, log in immediately
-      await handleLogin(email, password);
-    } catch (err) {
-      console.error('Signup error', err);
-      alert('Could not reach the server. Please try again.');
-    }
   };
 
   const handleLogout = () => {
@@ -121,101 +78,189 @@ function AppShell() {
     navigate('/', { replace: true });
   };
 
-  // Allow profile page (and later dashboard) to update user
-  const handleUserUpdate = (patch) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const updated = { ...prev, ...patch };
-      try {
-        localStorage.setItem('hay_user', JSON.stringify(updated));
-      } catch (err) {
-        console.error('Failed to write hay_user to localStorage', err);
-      }
-      return updated;
+  // --------------------------------------------------
+  // AUTH CALLS
+  // --------------------------------------------------
+
+  async function handleLogin(email, password) {
+    const res = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
-  };
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+
+    if (!res.ok) {
+      const detail =
+        (data && data.detail) ||
+        'Login failed. Please check your email and password.';
+      console.error('Login failed', res.status, data);
+      throw new Error(detail);
+    }
+
+    const token = data.access_token;
+    if (!token) {
+      console.error('No access_token in /login response', data);
+      throw new Error('Server did not return an access token');
+    }
+
+    handleAuthSuccess(token, data.email || email);
+  }
+
+  async function handleSignup(name, email, password) {
+    // name is not used on backend yet but kept for future profile
+    const res = await fetch(`${API_BASE}/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+
+    if (!res.ok) {
+      const detail =
+        (data && data.detail) ||
+        'Signup failed. This email may already be registered.';
+      console.error('Signup failed', res.status, data);
+      throw new Error(detail);
+    }
+
+    // After successful signup, log in immediately
+    await handleLogin(email, password);
+  }
+
+  // --------------------------------------------------
+  // Lesson handlers
+  // --------------------------------------------------
 
   const handleStartLesson = (lesson) => {
-    // Expect lesson.slug from /lessons API
-    if (lesson?.slug) {
-      navigate(`/lesson/${lesson.slug}`);
-    } else if (lesson?.id) {
-      navigate(`/lesson/${lesson.id}`);
-    } else {
-      console.warn('handleStartLesson called without slug or id', lesson);
-    }
+    if (!lesson || !lesson.slug) return;
+    navigate(`/lesson/${lesson.slug}`);
+  };
+
+  const handleUpdateUser = (updates) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...updates };
+      localStorage.setItem('hay_user', JSON.stringify(next));
+      return next;
+    });
   };
 
   if (loadingUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
         <p className="text-gray-600">
-          Loading your Haylingua journey…
+          Loading your dashboard… If this takes too long, please refresh.
         </p>
       </div>
     );
   }
 
   return (
-    <Routes>
-      {/* Public landing */}
-      <Route
-        path="/"
-        element={
-          user ? (
-            <Navigate to="/dashboard" replace />
-          ) : (
-            <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
-          )
-        }
-      />
+    <div className="min-h-screen bg-orange-50">
+      {/* Global header on all authenticated pages */}
+      {user && (
+        <AppHeader
+          user={user}
+          onLogout={handleLogout}
+        />
+      )}
 
-      {/* All logged-in pages share the header layout */}
-      <Route
-        element={
-          user ? (
-            <HeaderLayout user={user} onLogout={handleLogout} />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      >
+      <Routes>
+        {/* Landing / Auth */}
+        <Route
+          path="/"
+          element={
+            user ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <LandingPage
+                onLogin={handleLogin}
+                onSignup={handleSignup}
+              />
+            )
+          }
+        />
+
+        {/* Dashboard */}
         <Route
           path="/dashboard"
           element={
-            <Dashboard
-              user={user}
-              token={token}
-              onStartLesson={handleStartLesson}
-            />
+            user ? (
+              <Dashboard
+                user={user}
+                onStartLesson={handleStartLesson}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
           }
         />
+
+        {/* Friends */}
         <Route
           path="/friends"
-          element={<Friends user={user} onUpdateUser={handleUserUpdate} />}
+          element={
+            user ? (
+              <Friends user={user} onUpdateUser={handleUpdateUser} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
         />
+
+        {/* Leaderboard */}
         <Route
           path="/leaderboard"
-          element={<Leaderboard user={user} />}
+          element={
+            user ? (
+              <Leaderboard user={user} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
         />
+
+        {/* Profile */}
         <Route
           path="/profile"
           element={
-            <ProfilePage
-              user={user}
-              onUpdateUser={handleUserUpdate}
-            />
+            user ? (
+              <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
+            ) : (
+              <Navigate to="/" replace />
+            )
           }
         />
+
+        {/* Lesson player */}
         <Route
           path="/lesson/:slug"
-          element={<LessonPlayer token={token} />}
+          element={
+            user ? (
+              <LessonPlayer user={user} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
         />
-      </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   );
 }
 
