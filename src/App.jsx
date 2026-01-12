@@ -6,7 +6,7 @@ import {
   Route,
   Navigate,
   useNavigate,
-} from 'react-router-dom'; 
+} from 'react-router-dom';
 
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
@@ -24,7 +24,7 @@ function AppShell() {
 
   const navigate = useNavigate();
 
-  // Load user + token from localStorage on first render
+  // Load auth state from localStorage
   useEffect(() => {
     try {
       const storedToken = localStorage.getItem('hay_token');
@@ -43,7 +43,6 @@ function AppShell() {
     }
   }, []);
 
-  // Helper: save everything when auth succeeds
   const handleAuthSuccess = (tokenValue, email) => {
     const baseName = email.split('@')[0];
 
@@ -115,44 +114,12 @@ function AppShell() {
         return;
       }
 
-      // after success, log in
+      // auto-login after signup
       await handleLogin(email, password);
     } catch (err) {
       console.error('Signup error', err);
       alert('Could not reach the server. Please try again.');
     }
-  };
-
-  // Called by LessonPlayer when user finishes a lesson
-  const handleLessonComplete = (lesson) => {
-    if (!user || !lesson) return;
-
-    const slug = lesson.slug;
-    const lessonXp = lesson.xp || 0;
-
-    const prevCompleted = Array.isArray(user.completedLessons)
-      ? user.completedLessons
-      : [];
-
-    const alreadyCompleted = prevCompleted.includes(slug);
-
-    // Only award XP the first time
-    const gainedXp = alreadyCompleted ? 0 : lessonXp;
-
-    const newCompleted = alreadyCompleted
-      ? prevCompleted
-      : [...prevCompleted, slug];
-
-    const newXp = (user.xp || 0) + gainedXp;
-
-    const updatedUser = {
-      ...user,
-      xp: newXp,
-      completedLessons: newCompleted,
-    };
-
-    setUser(updatedUser);
-    localStorage.setItem('hay_user', JSON.stringify(updatedUser));
   };
 
   const handleUpdateUser = (updates) => {
@@ -173,9 +140,7 @@ function AppShell() {
   if (loadingUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
-        <p className="text-gray-600">
-          Loading your dashboard… If this takes too long, refresh.
-        </p>
+        <p className="text-gray-600">Loading your dashboard…</p>
       </div>
     );
   }
@@ -210,16 +175,7 @@ function AppShell() {
 
       <Route
         path="/lesson/:slug"
-        element={
-          user ? (
-            <LessonPlayer
-              user={user}
-              onLessonComplete={handleLessonComplete}
-            />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
+        element={user ? <LessonPlayer /> : <Navigate to="/" replace />}
       />
 
       <Route
@@ -235,13 +191,7 @@ function AppShell() {
 
       <Route
         path="/leaderboard"
-        element={
-          user ? (
-            <Leaderboard user={user} />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
+        element={user ? <Leaderboard user={user} /> : <Navigate to="/" replace />}
       />
 
       <Route
@@ -255,7 +205,6 @@ function AppShell() {
         }
       />
 
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
