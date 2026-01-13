@@ -28,7 +28,9 @@ export default function LessonPlayer() {
   const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | null
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  // ----------------------------------------------------
   // Fetch lesson
+  // ----------------------------------------------------
   useEffect(() => {
     let isCancelled = false;
 
@@ -73,7 +75,9 @@ export default function LessonPlayer() {
       ? lesson.exercises[currentIndex]
       : null;
 
-  // TTS
+  // ----------------------------------------------------
+  // TTS logic
+  // ----------------------------------------------------
   const speak = useCallback(async (text) => {
     const trimmed = (text || '').trim();
     if (!trimmed) return;
@@ -134,8 +138,11 @@ export default function LessonPlayer() {
     }
   }, [currentExercise, speak]);
 
-  // ---------- answer logic ----------
+  // ----------------------------------------------------
+  // Answer logic helpers
+  // ----------------------------------------------------
 
+  // multiple choice sound (single correct index)
   const handleSelectOption = (index) => {
     if (!currentExercise || currentExercise.kind !== 'char_mcq_sound') return;
     const cfg = currentExercise.config || {};
@@ -147,12 +154,14 @@ export default function LessonPlayer() {
     setFeedback(isCorrect ? 'correct' : 'wrong');
   };
 
+  // shared toggler for "find" exercises (word/grid)
   const toggleIndexSelection = (idx) => {
     setSelectedIndices((prev) =>
       prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
     );
   };
 
+  // build-word & listen-build tiles
   const handleTapTileForBuild = (tileIndex) => {
     if (!currentExercise) return;
     const cfg = currentExercise.config || {};
@@ -188,12 +197,13 @@ export default function LessonPlayer() {
     if (!currentExercise) return;
     const expected =
       (currentExercise.expected_answer || '').trim().toLowerCase();
-    const userValue = (typedAnswer || '').trim().toLowerCase();
+    const user = (typedAnswer || '').trim().toLowerCase();
     if (!expected) return;
 
-    setFeedback(userValue === expected ? 'correct' : 'wrong');
+    setFeedback(user === expected ? 'correct' : 'wrong');
   };
 
+  // for char_find_in_word / char_find_in_grid
   const checkFindSelection = () => {
     if (!currentExercise) return;
     const cfg = currentExercise.config || {};
@@ -222,8 +232,9 @@ export default function LessonPlayer() {
     setFeedback(isCorrect ? 'correct' : 'wrong');
   };
 
-  // ---------- navigation ----------
-
+  // ----------------------------------------------------
+  // Navigation
+  // ----------------------------------------------------
   const goPrev = () => {
     if (!lesson) return;
     if (currentIndex <= 0) return;
@@ -238,8 +249,51 @@ export default function LessonPlayer() {
     resetExerciseState();
   };
 
-  // ---------- render exercise body ----------
+  // ----------------------------------------------------
+  // DONE: finish lesson early or at end
+  // ----------------------------------------------------
+  const handleDone = async () => {
+    if (!lesson) {
+      navigate('/dashboard');
+      return;
+    }
 
+    const token = localStorage.getItem('access_token');
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/lessons/${lesson.slug}/complete`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({}),
+        }
+      );
+
+      if (!res.ok) {
+        console.error('Failed to complete lesson', res.status);
+      } else {
+        const data = await res.json();
+        // cache latest stats so dashboard can show instantly (optional)
+        try {
+          localStorage.setItem('haylingua_stats', JSON.stringify(data));
+        } catch {
+          // ignore storage errors
+        }
+      }
+    } catch (err) {
+      console.error('Error completing lesson', err);
+    } finally {
+      navigate('/dashboard');
+    }
+  };
+
+  // ----------------------------------------------------
+  // Render per-kind bodies
+  // ----------------------------------------------------
   const renderExerciseBody = () => {
     if (!currentExercise) return null;
     const cfg = currentExercise.config || {};
@@ -256,6 +310,9 @@ export default function LessonPlayer() {
     );
 
     switch (currentExercise.kind) {
+      // ------------------------------------------------
+      // 1) INTRO LETTER
+      // ------------------------------------------------
       case 'char_intro': {
         const letter = cfg.letter || '?';
         const lower = cfg.lower || '';
@@ -306,6 +363,9 @@ export default function LessonPlayer() {
         );
       }
 
+      // ------------------------------------------------
+      // 2) WHICH SOUND? (MCQ)
+      // ------------------------------------------------
       case 'char_mcq_sound': {
         const letter = cfg.letter || '?';
         const options = cfg.options || [];
@@ -363,6 +423,9 @@ export default function LessonPlayer() {
         );
       }
 
+      // ------------------------------------------------
+      // 3) BUILD WORD (VISUAL TARGET)
+      // ------------------------------------------------
       case 'char_build_word': {
         const tiles = cfg.tiles || [];
         const target = cfg.targetWord || currentExercise.expected_answer || '';
@@ -419,6 +482,9 @@ export default function LessonPlayer() {
         );
       }
 
+      // ------------------------------------------------
+      // 4) LISTEN & BUILD
+      // ------------------------------------------------
       case 'char_listen_build': {
         const tiles = cfg.tiles || [];
         const target = cfg.targetWord || currentExercise.expected_answer || '';
@@ -490,6 +556,9 @@ export default function LessonPlayer() {
         );
       }
 
+      // ------------------------------------------------
+      // 5) FIND LETTER IN GRID
+      // ------------------------------------------------
       case 'char_find_in_grid': {
         const grid = cfg.grid || [];
         const targetLetter = cfg.targetLetter || cfg.letter || '?';
@@ -548,6 +617,9 @@ export default function LessonPlayer() {
         );
       }
 
+      // ------------------------------------------------
+      // 6) TYPE TRANSLITERATION
+      // ------------------------------------------------
       case 'char_type_translit': {
         const letter = cfg.letter || '?';
 
@@ -582,6 +654,9 @@ export default function LessonPlayer() {
         );
       }
 
+      // ------------------------------------------------
+      // DEFAULT / UNKNOWN TYPES
+      // ------------------------------------------------
       default:
         return (
           <div className="flex flex-col items-center gap-4">
@@ -618,6 +693,9 @@ export default function LessonPlayer() {
     return null;
   };
 
+  // ----------------------------------------------------
+  // Top-level render
+  // ----------------------------------------------------
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
@@ -704,8 +782,8 @@ export default function LessonPlayer() {
           </div>
         </div>
 
-        {/* Bottom navigation */}
-        <div className="mt-6 flex items-center justify-between">
+        {/* Bottom navigation with Done */}
+        <div className="mt-6 flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={goPrev}
@@ -718,6 +796,15 @@ export default function LessonPlayer() {
           >
             <ChevronLeft className="w-4 h-4" />
             Previous
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDone}
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-green-500 bg-green-50 text-green-700 hover:bg-green-100 transition"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            Done
           </button>
 
           <button
