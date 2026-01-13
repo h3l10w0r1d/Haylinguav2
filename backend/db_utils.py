@@ -169,7 +169,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
     # 3) Build word "Արա"
     ex3_config: Dict[str, Any] = {
         "targetWord": "Արա",
-        "tiles": ["Ա", "Ր", "Ա", "Ն", "Կ"],
+        "tiles": ["Ա", "Ր", "ա", "Ն", "Կ"],
         "solutionIndices": [0, 1, 2],
     }
     conn.execute(
@@ -199,7 +199,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
     # 4) Listen & build "Արա"
     ex4_config: Dict[str, Any] = {
         "targetWord": "Արա",
-        "tiles": ["Ա", "Ր", "Ա", "Ն", "Կ"],
+        "tiles": ["Ա", "Ր", "ա", "Ն", "Կ"],
         "solutionIndices": [0, 1, 2],
         "hint": "Listen to the word, then build it from the letters.",
     }
@@ -400,7 +400,7 @@ def _reset_alphabet_2(conn: Connection) -> None:
     # 4) Listen & build "բար"
     ex4_config: Dict[str, Any] = {
         "targetWord": "բար",
-        "tiles": ["ա", "Բ", "բ", "ր", "ն"],
+        "tiles": ["ա", "բ", "գ", "ր", "ն"],
         "solutionIndices": [2, 0, 3],
         "hint": "Listen to the word, then build it from the letters.",
     }
