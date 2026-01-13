@@ -2,9 +2,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import Base, engine, SessionLocal
+from database import Base, engine
+from models import *  # noqa: F401, ensures all tables are registered
+from seed_data import seed_alphabet_lessons  # or from db_utils import seed_alphabet_lessons
 from routes import router as api_router
-from seed_data import seed_alphabet_lessons  # <- NOTE: from seed_data, not db_utils
 
 
 app = FastAPI()
@@ -22,18 +23,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(api_router)
-
 
 @app.on_event("startup")
-def on_startup():
+def on_startup() -> None:
     # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
+    # Seed alphabet lessons only (idempotent)
+    seed_alphabet_lessons()
 
-    # Seed alphabet lessons
-    db = SessionLocal()
-    try:
-        seed_alphabet_lessons(db)
-        db.commit()
-    finally:
-        db.close()
+
+# Mount all API routes
+app.include_router(api_router)
