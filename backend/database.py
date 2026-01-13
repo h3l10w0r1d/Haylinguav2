@@ -3,15 +3,19 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Render uses HAY_DB_URL – locally you can set the same
+DATABASE_URL = os.getenv("HAY_DB_URL")
 
 if not DATABASE_URL:
-    # Local dev fallback – adjust as you like
-    # Example: "postgresql+psycopg2://user:password@localhost:5432/haylingua"
-    raise RuntimeError("DATABASE_URL environment variable is not set")
+    # Fallback for local dev – adjust if needed
+    DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/haylingua"
 
-engine = create_engine(DATABASE_URL, future=True)
+engine = create_engine(
+    DATABASE_URL,
+    future=True,
+    pool_pre_ping=True,
+)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 Base = declarative_base()
