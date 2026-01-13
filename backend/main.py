@@ -2,12 +2,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import engine, Base
-from db_utils import seed_alphabet_lessons
+from database import Base, engine, SessionLocal
 from routes import router as api_router
-
-# Import models so SQLAlchemy knows about the tables before create_all
-from models import User, Lesson, Exercise, ExerciseOption  # noqa: F401
+from seed_data import seed_alphabet_lessons  # <- NOTE: from seed_data, not db_utils
 
 
 app = FastAPI()
@@ -25,18 +22,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Attach all API routes (tts, auth, lessons, etc.)
 app.include_router(api_router)
 
 
 @app.on_event("startup")
 def on_startup():
-    # make sure all tables exist
+    # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
-    # seed alphabet lessons
-    seed_alphabet_lessons()
 
-
-@app.get("/")
-def root():
-    return {"status": "Backend is running"}
+    # Seed alphabet lessons
+    db = SessionLocal()
+    try:
+        seed_alphabet_lessons(db)
+        db.commit()
+    finally:
+        db.close()
