@@ -27,11 +27,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
-def create_token(user_id: int) -> str:
+def create_token() -> str:
     """
-    For now we just return a random opaque token.
-
-    Frontend can store it and send it back later if/when we add
-    real auth; the backend isn't validating it yet anyway.
+    Simple opaque token – frontend stores this and sends it back as Authorization.
+    We don't decode it, just look it up in the DB.
     """
     return secrets.token_urlsafe(32)
