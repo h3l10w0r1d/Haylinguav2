@@ -1,6 +1,4 @@
 # backend/models.py
-from datetime import datetime
-
 from sqlalchemy import (
     Column,
     Integer,
@@ -24,18 +22,28 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
 
-    # relationships
-    profile = relationship("UserProfile", back_populates="user", uselist=False)
-    progresses = relationship("LessonProgress", back_populates="user")
+    # profile: 1–1
+    profile = relationship(
+        "UserProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    # progress: 1–many
+    lesson_progress = relationship(
+        "LessonProgress",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class UserProfile(Base):
-    """
-    Separate table so we don't have to migrate the old users table columns.
-    """
     __tablename__ = "user_profiles"
 
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
@@ -60,7 +68,11 @@ class Lesson(Base):
         order_by="Exercise.order",
     )
 
-    progresses = relationship("LessonProgress", back_populates="lesson")
+    progress = relationship(
+        "LessonProgress",
+        back_populates="lesson",
+        cascade="all, delete-orphan",
+    )
 
 
 class Exercise(Base):
@@ -69,11 +81,10 @@ class Exercise(Base):
     id = Column(Integer, primary_key=True, index=True)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
 
-    # Kept for legacy: some old data might still have "type"
+    # legacy + new: we keep both `type` and `kind` so old rows don't break
     type = Column(String, nullable=True)
 
-    # Unified "kind" used by new frontend:
-    # "char_intro", "char_mcq_sound", "char_build_word", etc.
+    # unified "kind" – e.g. "char_intro", "char_mcq_sound", "char_build_word"
     kind = Column(String, nullable=False, default="legacy")
 
     # Human-readable prompt/question shown at the top
@@ -90,6 +101,11 @@ class Exercise(Base):
     order = Column(Integer, nullable=False, default=1)
 
     # Flexible per-exercise data, stored as JSON
+    # Examples:
+    #  - char_mcq_sound:
+    #      { "letter": "Ա", "options": ["a","o","e","u"], "correctIndex": 0 }
+    #  - char_build_word:
+    #      { "targetWord": "Արա", "tiles": ["Ա","Ր","Ա","Ն","Կ"] }
     config = Column(JSON, nullable=False, default=dict)
 
     lesson = relationship("Lesson", back_populates="exercises")
@@ -110,27 +126,29 @@ class ExerciseOption(Base):
 
     text = Column(Text, nullable=False)
     is_correct = Column(Boolean, default=None)
-    side = Column(String)        # for match-style exercises
-    match_key = Column(String)   # for match-style exercises
+    side = Column(String)       # for matching / pairing
+    match_key = Column(String)  # for matching / pairing
 
     exercise = relationship("Exercise", back_populates="options")
 
 
 class LessonProgress(Base):
-    """
-    Single row per (user, lesson). We just store how much XP they got and when.
-    """
     __tablename__ = "lesson_progress"
+
+    # IMPORTANT: no explicit name= on UniqueConstraint, to avoid your error
+    __table_args__ = (
+        UniqueConstraint("user_id", "lesson_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
+
+    # XP earned for that lesson completion (from lesson.xp at the time)
     xp_earned = Column(Integer, nullable=False, default=0)
-    completed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="progresses")
-    lesson = relationship("Lesson", back_populates="progresses")
+    # when the user clicked "Done"
+    completed_at = Column(DateTime, nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "lesson_id", name="uq_user_lesson_progress"),
-    )
+    user = relationship("User", back_populates="lesson_progress")
+    lesson = relationship("Lesson", back_populates="progress")
