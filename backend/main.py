@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from database import engine, Base
-from models import User, Lesson, Exercise, ExerciseOption  # ensure tables are registered
+from models import User, Lesson, Exercise, ExerciseOption  # ensure tables are known
 from auth import hash_password, verify_password, create_token
 
 
@@ -26,7 +26,7 @@ ELEVEN_API_KEY = (
     or os.getenv("eleven_labs.io")
 )
 
-# Example default voice – swap for your own if you want
+# Example default voice – swap for your own voice ID if you want
 DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
 
 
@@ -56,16 +56,15 @@ app.add_middleware(
 
 
 # -------------------------------------------------------------------
-# DB dependency – RAW SQL via SQLAlchemy engine
+# DB dependency – RAW SQL via engine.begin
 # -------------------------------------------------------------------
 
 def get_db():
     """
-    Provide a SQLAlchemy Connection inside a transaction.
+    Provide a Connection with an automatic transaction.
 
-    Every request that depends on this runs inside a transaction:
-    - On success: commit
-    - On error: rollback
+    Every request using this dependency runs inside a transaction.
+    On success, it's committed; on error, it's rolled back.
     """
     with engine.begin() as conn:
         yield conn
@@ -175,7 +174,7 @@ async def tts_speak(payload: TTSPayload):
         async with httpx.AsyncClient(timeout=20.0) as client:
             r = await client.post(url, params=params, headers=headers, json=body)
         if r.status_code != 200:
-            # useful debug log on server
+            # log body server-side if needed
             print("ElevenLabs error:", r.status_code, r.text)
             raise HTTPException(
                 status_code=502,
@@ -292,7 +291,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -323,7 +322,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -353,7 +352,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -384,7 +383,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -414,7 +413,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -431,7 +430,9 @@ def _reset_alphabet_1(conn: Connection) -> None:
     )
 
     # 6) Type transliteration
-    ex6_config = {"letter": "Ա"}
+    ex6_config = {
+        "letter": "Ա",
+    }
     conn.execute(
         text(
             """
@@ -440,7 +441,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -491,7 +492,7 @@ def _reset_alphabet_2(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -522,7 +523,7 @@ def _reset_alphabet_2(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -552,7 +553,7 @@ def _reset_alphabet_2(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -583,7 +584,7 @@ def _reset_alphabet_2(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -613,7 +614,7 @@ def _reset_alphabet_2(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -630,7 +631,9 @@ def _reset_alphabet_2(conn: Connection) -> None:
     )
 
     # 6) Type transliteration
-    ex6_config = {"letter": "Բ"}
+    ex6_config = {
+        "letter": "Բ",
+    }
     conn.execute(
         text(
             """
@@ -639,7 +642,7 @@ def _reset_alphabet_2(conn: Connection) -> None:
              sentence_before, sentence_after, "order", config)
             VALUES
             (:lesson_id, :type, :kind, :prompt, :expected_answer,
-             :sentence_before, :sentence_after, :order, :config::jsonb)
+             :sentence_before, :sentence_after, :order, :config)
             """
         ),
         {
@@ -673,8 +676,9 @@ def seed_alphabet_lessons():
 
 @app.on_event("startup")
 def on_startup():
-    # make sure all tables exist (ORM only used for schema)
+    # Make sure all tables exist
     Base.metadata.create_all(bind=engine)
+    # Seed alphabet lessons
     seed_alphabet_lessons()
 
 
