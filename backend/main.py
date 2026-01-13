@@ -2,7 +2,6 @@
 import os
 import json
 import httpx
-from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from database import engine, Base
-from models import User, Lesson, Exercise, ExerciseOption  # imported so Base has all tables
+from models import User, Lesson, Exercise, ExerciseOption  # ensure tables are registered
 from auth import hash_password, verify_password, create_token
 
 
@@ -27,7 +26,7 @@ ELEVEN_API_KEY = (
     or os.getenv("eleven_labs.io")
 )
 
-# Example default voice – swap for your own voice ID if you want
+# Example default voice – swap for your own if you want
 DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
 
 
@@ -57,22 +56,23 @@ app.add_middleware(
 
 
 # -------------------------------------------------------------------
-# DB dependency – RAW SQL, but still using SQLAlchemy engine
+# DB dependency – RAW SQL via SQLAlchemy engine
 # -------------------------------------------------------------------
 
 def get_db():
     """
-    Provide a Connection with an automatic transaction.
+    Provide a SQLAlchemy Connection inside a transaction.
 
-    - Every request using this dependency runs inside a transaction.
-    - On success, it's committed; on error, it's rolled back.
+    Every request that depends on this runs inside a transaction:
+    - On success: commit
+    - On error: rollback
     """
     with engine.begin() as conn:
         yield conn
 
 
 # -------------------------------------------------------------------
-# Auth + Profile schemas
+# Auth schemas
 # -------------------------------------------------------------------
 
 class UserCreate(BaseModel):
@@ -97,27 +97,6 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     email: str
-
-
-class ProfileOut(BaseModel):
-    email: str
-    first_name: str | None = None
-    last_name: str | None = None
-    avatar_url: str | None = None
-    xp_total: int = 0
-    streak_days: int = 0
-
-
-class ProfileUpdate(BaseModel):
-    first_name: str | None = None
-    last_name: str | None = None
-    avatar_url: str | None = None
-    new_email: str | None = None
-    new_password: str | None = None
-
-
-class XPUpdate(BaseModel):
-    xp: int
 
 
 # -------------------------------------------------------------------
@@ -196,7 +175,7 @@ async def tts_speak(payload: TTSPayload):
         async with httpx.AsyncClient(timeout=20.0) as client:
             r = await client.post(url, params=params, headers=headers, json=body)
         if r.status_code != 200:
-            # log body server-side if needed
+            # useful debug log on server
             print("ElevenLabs error:", r.status_code, r.text)
             raise HTTPException(
                 status_code=502,
@@ -207,66 +186,6 @@ async def tts_speak(payload: TTSPayload):
         raise HTTPException(status_code=502, detail=f"TTS request failed: {e}") from e
 
     return Response(content=audio_bytes, media_type="audio/mpeg")
-
-
-# -------------------------------------------------------------------
-# Schema tweaks for profile / xp (RAW SQL)
-# -------------------------------------------------------------------
-
-def ensure_user_profile_columns():
-    """
-    Add profile/xp columns to users if they don't exist.
-    This runs on startup, safe to call multiple times.
-    """
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS first_name VARCHAR;
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS last_name VARCHAR;
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS xp_total INTEGER NOT NULL DEFAULT 0;
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS streak_days INTEGER NOT NULL DEFAULT 0;
-                """
-            )
-        )
-        conn.execute(
-            text(
-                """
-                ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
-                """
-            )
-        )
 
 
 # -------------------------------------------------------------------
@@ -512,9 +431,7 @@ def _reset_alphabet_1(conn: Connection) -> None:
     )
 
     # 6) Type transliteration
-    ex6_config = {
-        "letter": "Ա",
-    }
+    ex6_config = {"letter": "Ա"}
     conn.execute(
         text(
             """
@@ -713,9 +630,7 @@ def _reset_alphabet_2(conn: Connection) -> None:
     )
 
     # 6) Type transliteration
-    ex6_config = {
-        "letter": "Բ",
-    }
+    ex6_config = {"letter": "Բ"}
     conn.execute(
         text(
             """
@@ -758,11 +673,8 @@ def seed_alphabet_lessons():
 
 @app.on_event("startup")
 def on_startup():
-    # make sure all tables exist (uses ORM metadata only for schema)
+    # make sure all tables exist (ORM only used for schema)
     Base.metadata.create_all(bind=engine)
-    # patch schema with profile/xp columns
-    ensure_user_profile_columns()
-    # seed alphabet lessons
     seed_alphabet_lessons()
 
 
@@ -774,10 +686,6 @@ def on_startup():
 def root():
     return {"status": "Backend is running"}
 
-
-# -------------------------------------------------------------------
-# Auth endpoints (RAW SQL)
-# -------------------------------------------------------------------
 
 @app.post("/signup")
 def signup(user: UserCreate, db: Connection = Depends(get_db)):
@@ -835,157 +743,6 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
 
     token = create_token(row["id"])
     return AuthResponse(access_token=token, email=row["email"])
-
-
-# -------------------------------------------------------------------
-# Profile endpoints (RAW SQL)
-# NOTE: not "secure" auth – uses email directly.
-# -------------------------------------------------------------------
-
-@app.get("/profile/{email}", response_model=ProfileOut)
-def get_profile(email: str, db: Connection = Depends(get_db)):
-    row = db.execute(
-        text(
-            """
-            SELECT
-              email,
-              first_name,
-              last_name,
-              avatar_url,
-              COALESCE(xp_total, 0) AS xp_total,
-              COALESCE(streak_days, 0) AS streak_days
-            FROM users
-            WHERE email = :email
-            """
-        ),
-        {"email": email},
-    ).mappings().first()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return ProfileOut(**dict(row))
-
-
-@app.patch("/profile/{email}", response_model=ProfileOut)
-def update_profile(
-    email: str,
-    payload: ProfileUpdate,
-    db: Connection = Depends(get_db),
-):
-    # fetch user
-    row = db.execute(
-        text(
-            """
-            SELECT id, email
-            FROM users
-            WHERE email = :email
-            """
-        ),
-        {"email": email},
-    ).mappings().first()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # build update set dynamically
-    fields: Dict[str, Any] = {}
-
-    if payload.first_name is not None:
-        fields["first_name"] = payload.first_name
-    if payload.last_name is not None:
-        fields["last_name"] = payload.last_name
-    if payload.avatar_url is not None:
-        fields["avatar_url"] = payload.avatar_url
-    if payload.new_email is not None:
-        fields["email"] = payload.new_email
-    if payload.new_password is not None:
-        fields["password_hash"] = hash_password(payload.new_password)
-
-    if not fields:
-        # nothing to update
-        pass
-    else:
-        sets = ", ".join(f"{k} = :{k}" for k in fields.keys())
-        params = dict(fields)
-        params["id"] = row["id"]
-        db.execute(
-            text(f"UPDATE users SET {sets} WHERE id = :id"),
-            params,
-        )
-
-    # return fresh profile
-    final_email = payload.new_email or email
-    return get_profile(final_email, db)
-
-
-@app.post("/profile/{email}/add-xp")
-def add_xp(email: str, payload: XPUpdate, db: Connection = Depends(get_db)):
-    """
-    Simple XP + streak update. Intended to be called when a lesson is completed.
-    """
-    if payload.xp <= 0:
-        raise HTTPException(status_code=400, detail="xp must be positive")
-
-    row = db.execute(
-        text(
-            """
-            SELECT id, COALESCE(xp_total, 0) AS xp_total,
-                   COALESCE(streak_days, 0) AS streak_days,
-                   last_active_at
-            FROM users
-            WHERE email = :email
-            """
-        ),
-        {"email": email},
-    ).mappings().first()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    now = datetime.now(timezone.utc)
-    xp_total = row["xp_total"] + payload.xp
-    streak_days = row["streak_days"]
-    last_active_at = row["last_active_at"]
-
-    # naive streak logic: new day -> +1; skip >1 day -> reset to 1
-    if last_active_at is None:
-        streak_days = 1
-    else:
-        last_date = last_active_at.date()
-        today = now.date()
-        delta_days = (today - last_date).days
-        if delta_days == 0:
-            # same day, streak unchanged
-            pass
-        elif delta_days == 1:
-            streak_days += 1
-        elif delta_days > 1:
-            streak_days = 1
-
-    db.execute(
-        text(
-            """
-            UPDATE users
-            SET xp_total = :xp_total,
-                streak_days = :streak_days,
-                last_active_at = :last_active_at
-            WHERE id = :id
-            """
-        ),
-        {
-            "xp_total": xp_total,
-            "streak_days": streak_days,
-            "last_active_at": now,
-            "id": row["id"],
-        },
-    )
-
-    return {
-        "xp_total": xp_total,
-        "streak_days": streak_days,
-        "last_active_at": now.isoformat(),
-    }
 
 
 # -------------------------------------------------------------------
