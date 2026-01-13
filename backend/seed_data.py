@@ -1,453 +1,240 @@
 # backend/seed_data.py
+from sqlalchemy.orm import Session
 
-from database import SessionLocal, engine, Base
-from models import Lesson, Exercise, ExerciseOption
+from models import Lesson, Exercise
 
 
-def get_or_create_lesson(
-    db,
+def _ensure_lesson(
+    db: Session,
+    *,
     slug: str,
     title: str,
     description: str,
     level: int,
     xp: int,
 ) -> Lesson:
-    """Get lesson by slug, or create it if it doesn't exist."""
+    """
+    ORM-based helper: get or create lesson, keep metadata updated,
+    and wipe its exercises for a clean slate.
+    """
     lesson = db.query(Lesson).filter(Lesson.slug == slug).first()
-    if lesson:
-        print(f"Lesson '{slug}' already exists (id={lesson.id}).")
-        return lesson
 
-    lesson = Lesson(
-        slug=slug,
-        title=title,
-        description=description,
-        level=level,
-        xp=xp,
-    )
-    db.add(lesson)
-    db.flush()  # lesson.id is now available
-    print(f"Created lesson '{slug}' (id={lesson.id}).")
+    if not lesson:
+        lesson = Lesson(
+            slug=slug,
+            title=title,
+            description=description,
+            level=level,
+            xp=xp,
+        )
+        db.add(lesson)
+        db.flush()
+    else:
+        lesson.title = title
+        lesson.description = description
+        lesson.level = level
+        lesson.xp = xp
+        db.flush()
+
+    db.query(Exercise).filter(Exercise.lesson_id == lesson.id).delete()
+    db.flush()
     return lesson
 
 
-def seed_lesson_1_greetings(db, lesson: Lesson):
-    """Greetings – type-answer, fill-blank, multi-select."""
-    if lesson.exercises:
-        print("Lesson-1 already has exercises, skipping.")
-        return
-
-    # Ex 1: type-answer
-    ex1 = Exercise(
-        lesson_id=lesson.id,
-        type="type-answer",
-        prompt='Type the Armenian word for "Hello".',
-        expected_answer="Բարև",
-        order=1,
+def _seed_alphabet_1(db: Session) -> None:
+    # Armenian Alphabet – Part 1 (Ա)
+    lesson = _ensure_lesson(
+        db,
+        slug="alphabet-1",
+        title="Armenian Alphabet – Part 1",
+        description="Meet your first Armenian letter Ա and practice simple combinations.",
+        level=1,
+        xp=40,
     )
-
-    # Ex 2: fill-blank
-    ex2 = Exercise(
-        lesson_id=lesson.id,
-        type="fill-blank",
-        prompt='Complete the phrase "Բարի _____" (Good morning).',
-        sentence_before="Բարի ",
-        sentence_after="",
-        expected_answer="լույս",
-        order=2,
-    )
-
-    # Ex 3: multi-select
-    ex3 = Exercise(
-        lesson_id=lesson.id,
-        type="multi-select",
-        prompt='Select all ways to say "goodbye".',
-        order=3,
-    )
-
-    db.add_all([ex1, ex2, ex3])
-    db.flush()
-
-    db.add_all(
-        [
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="Ցտեսություն",
-                is_correct=True,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="Պայփայի",
-                is_correct=True,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="Բարև",
-                is_correct=False,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="Շնորհակալություն",
-                is_correct=False,
-            ),
-        ]
-    )
-
-    print("Seeded exercises for lesson-1 (Greetings).")
-
-
-def seed_lesson_2_alphabet(db, lesson: Lesson):
-    """Alphabet – type-answer, fill-blank, match-pairs."""
-    if lesson.exercises:
-        print("Lesson-2 already has exercises, skipping.")
-        return
-
-    # Ex 1: type-answer
-    ex1 = Exercise(
-        lesson_id=lesson.id,
-        type="type-answer",
-        prompt='Type the Armenian letter "Ա" (just the Armenian character).',
-        expected_answer="Ա",
-        order=1,
-    )
-
-    # Ex 2: fill-blank
-    ex2 = Exercise(
-        lesson_id=lesson.id,
-        type="fill-blank",
-        prompt='Complete: "Ա, Բ, __" (first three Armenian letters).',
-        sentence_before="Ա, Բ, ",
-        sentence_after="",
-        expected_answer="Գ",
-        order=2,
-    )
-
-    # Ex 3: match-pairs – Armenian letter ↔ Latin transcription
-    ex3 = Exercise(
-        lesson_id=lesson.id,
-        type="match-pairs",
-        prompt="Match the Armenian letters with their Latin equivalents.",
-        order=3,
-    )
-
-    db.add_all([ex1, ex2, ex3])
-    db.flush()
-
-    pairs = [
-        ("Ա", "A", "A"),
-        ("Բ", "B", "B"),
-        ("Գ", "G", "G"),
-        ("Դ", "D", "D"),
-    ]
-
-    options = []
-    for armenian, latin, key in pairs:
-        options.append(
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text=armenian,
-                side="left",
-                match_key=key,
-            )
-        )
-        options.append(
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text=latin,
-                side="right",
-                match_key=key,
-            )
-        )
-
-    db.add_all(options)
-    print("Seeded exercises for lesson-2 (Alphabet).")
-
-
-def seed_lesson_3_numbers(db, lesson: Lesson):
-    """Numbers 1–10 – type-answer, match-pairs, multi-select."""
-    if lesson.exercises:
-        print("Lesson-3 already has exercises, skipping.")
-        return
-
-    # Ex 1: type-answer
-    ex1 = Exercise(
-        lesson_id=lesson.id,
-        type="type-answer",
-        prompt='Type the Armenian word for "one".',
-        expected_answer="մեկ",
-        order=1,
-    )
-
-    # Ex 2: match-pairs – digit ↔ Armenian word
-    ex2 = Exercise(
-        lesson_id=lesson.id,
-        type="match-pairs",
-        prompt="Match the numbers with their Armenian words.",
-        order=2,
-    )
-
-    # Ex 3: multi-select – select even numbers
-    ex3 = Exercise(
-        lesson_id=lesson.id,
-        type="multi-select",
-        prompt="Select all even numbers.",
-        order=3,
-    )
-
-    db.add_all([ex1, ex2, ex3])
-    db.flush()
-
-    number_pairs = [
-        ("1", "մեկ", "1"),
-        ("2", "երկու", "2"),
-        ("3", "երեք", "3"),
-        ("4", "չորս", "4"),
-    ]
-
-    options = []
-    for digit, armenian, key in number_pairs:
-        options.append(
-            ExerciseOption(
-                exercise_id=ex2.id,
-                text=digit,
-                side="left",
-                match_key=key,
-            )
-        )
-        options.append(
-            ExerciseOption(
-                exercise_id=ex2.id,
-                text=armenian,
-                side="right",
-                match_key=key,
-            )
-        )
-
-    db.add_all(options)
-
-    # Even numbers multi-select options
-    db.add_all(
-        [
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="2 (երկու)",
-                is_correct=True,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="3 (երեք)",
-                is_correct=False,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="4 (չորս)",
-                is_correct=True,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="5 (հինք)",
-                is_correct=False,
-            ),
-        ]
-    )
-
-    print("Seeded exercises for lesson-3 (Numbers).")
-
-
-def seed_lesson_4_basic_phrases(db, lesson: Lesson):
-    """Basic phrases – type-answer, fill-blank, multi-select."""
-    if lesson.exercises:
-        print("Lesson-4 already has exercises, skipping.")
-        return
 
     ex1 = Exercise(
         lesson_id=lesson.id,
-        type="type-answer",
-        prompt='Type the Armenian for "Thank you".',
-        expected_answer="Շնորհակալություն",
+        type="char_intro",
+        kind="char_intro",
+        prompt="Meet your first Armenian letter!",
+        expected_answer=None,
         order=1,
+        config={
+            "letter": "Ա",
+            "lower": "ա",
+            "transliteration": "a",
+            "hint": "Like the 'a' in 'father'.",
+        },
     )
 
     ex2 = Exercise(
         lesson_id=lesson.id,
-        type="fill-blank",
-        prompt='Complete: "Ինչպե՞ս _____?" (How are you?).',
-        sentence_before="Ինչպե՞ս ",
-        sentence_after="?",
-        expected_answer="ես",
+        type="char_mcq_sound",
+        kind="char_mcq_sound",
+        prompt="Which sound does this letter make?",
+        expected_answer="a",
         order=2,
+        config={
+            "letter": "Ա",
+            "options": ["a", "o", "e", "u"],
+            "correctIndex": 0,
+            "showTransliteration": True,
+        },
     )
 
     ex3 = Exercise(
         lesson_id=lesson.id,
-        type="multi-select",
-        prompt="Select all polite Armenian expressions.",
+        type="char_build_word",
+        kind="char_build_word",
+        prompt='Tap the letters to spell “Արա” (a common Armenian name).',
+        expected_answer="Արա",
         order=3,
+        config={
+            "targetWord": "Արա",
+            "tiles": ["Ա", "Ր", "Ա", "Ն", "Կ"],
+            "solutionIndices": [0, 1, 2],
+        },
     )
 
-    db.add_all([ex1, ex2, ex3])
-    db.flush()
-
-    db.add_all(
-        [
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="Խնդրում եմ",
-                is_correct=True,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="Շնորհակալություն",
-                is_correct=True,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="Հանգիստ թող ինձ",
-                is_correct=False,
-            ),
-            ExerciseOption(
-                exercise_id=ex3.id,
-                text="Բարև",
-                is_correct=True,
-            ),
-        ]
+    ex4 = Exercise(
+        lesson_id=lesson.id,
+        type="char_listen_build",
+        kind="char_listen_build",
+        prompt="Listen and build the word you hear.",
+        expected_answer="Արա",
+        order=4,
+        config={
+            "targetWord": "Արա",
+            "tiles": ["Ա", "Ր", "Ա", "Ն", "Կ"],
+            "solutionIndices": [0, 1, 2],
+            "hint": "Listen to the word, then build it from the letters.",
+        },
     )
 
-    print("Seeded exercises for lesson-4 (Basic Phrases).")
+    ex5 = Exercise(
+        lesson_id=lesson.id,
+        type="char_find_in_grid",
+        kind="char_find_in_grid",
+        prompt="Tap every Ա in the grid.",
+        expected_answer=None,
+        order=5,
+        config={
+            "targetLetter": "Ա",
+            "grid": ["Ա", "Բ", "Ա", "Դ", "Ե", "Ա", "Զ", "Թ", "Ա", "Գ", "Ա", "Խ"],
+            "columns": 4,
+        },
+    )
+
+    ex6 = Exercise(
+        lesson_id=lesson.id,
+        type="char_type_translit",
+        kind="char_type_translit",
+        prompt="Type the Latin sound for this letter.",
+        expected_answer="a",
+        order=6,
+        config={"letter": "Ա"},
+    )
+
+    db.add_all([ex1, ex2, ex3, ex4, ex5, ex6])
 
 
-def seed_lesson_5_family(db, lesson: Lesson):
-    """Family – type-answer, match-pairs, fill-blank."""
-    if lesson.exercises:
-        print("Lesson-5 already has exercises, skipping.")
-        return
+def _seed_alphabet_2(db: Session) -> None:
+    # Armenian Alphabet – Part 2 (Բ)
+    lesson = _ensure_lesson(
+        db,
+        slug="alphabet-2",
+        title="Armenian Alphabet – Part 2",
+        description="Meet the letter Բ and build simple words.",
+        level=1,
+        xp=40,
+    )
 
     ex1 = Exercise(
         lesson_id=lesson.id,
-        type="type-answer",
-        prompt='Type the Armenian for "mother".',
-        expected_answer="մայր",
+        type="char_intro",
+        kind="char_intro",
+        prompt="Here is a new letter!",
+        expected_answer=None,
         order=1,
+        config={
+            "letter": "Բ",
+            "lower": "բ",
+            "transliteration": "b",
+            "hint": "Like the 'b' in 'book'.",
+        },
     )
 
     ex2 = Exercise(
         lesson_id=lesson.id,
-        type="match-pairs",
-        prompt="Match the family members with their Armenian words.",
+        type="char_mcq_sound",
+        kind="char_mcq_sound",
+        prompt="Which is the correct sound for Բ?",
+        expected_answer="b",
         order=2,
+        config={
+            "letter": "Բ",
+            "options": ["p", "b", "v", "m"],
+            "correctIndex": 1,
+            "showTransliteration": True,
+        },
     )
 
     ex3 = Exercise(
         lesson_id=lesson.id,
-        type="fill-blank",
-        prompt='Complete: "Նա իմ _____ է" (She is my sister).',
-        sentence_before="Նա իմ ",
-        sentence_after=" է",
-        expected_answer="քույրը",
+        type="char_build_word",
+        kind="char_build_word",
+        prompt="Tap the letters to spell “բար”.",
+        expected_answer="բար",
         order=3,
+        config={
+            "targetWord": "բար",
+            "tiles": ["ա", "Բ", "բ", "ր", "ն"],
+            "solutionIndices": [2, 0, 3],
+        },
     )
 
-    db.add_all([ex1, ex2, ex3])
-    db.flush()
+    ex4 = Exercise(
+        lesson_id=lesson.id,
+        type="char_listen_build",
+        kind="char_listen_build",
+        prompt="Listen and build the word you hear.",
+        expected_answer="բար",
+        order=4,
+        config={
+            "targetWord": "բար",
+            "tiles": ["ա", "Բ", "բ", "ր", "ն"],
+            "solutionIndices": [2, 0, 3],
+            "hint": "Listen to the word, then build it from the letters.",
+        },
+    )
 
-    pairs = [
-        ("father", "հայր", "father"),
-        ("mother", "մայր", "mother"),
-        ("brother", "եղբայր", "brother"),
-        ("sister", "քույր", "sister"),
-    ]
+    ex5 = Exercise(
+        lesson_id=lesson.id,
+        type="char_find_in_grid",
+        kind="char_find_in_grid",
+        prompt="Tap every Բ in the grid.",
+        expected_answer=None,
+        order=5,
+        config={
+            "targetLetter": "Բ",
+            "grid": ["Բ", "Ա", "Գ", "Բ", "Դ", "Բ", "Ե", "Զ", "Բ", "Թ", "Բ", "Կ"],
+            "columns": 4,
+        },
+    )
 
-    options = []
-    for en, hy, key in pairs:
-        options.append(
-            ExerciseOption(
-                exercise_id=ex2.id,
-                text=en,
-                side="left",
-                match_key=key,
-            )
-        )
-        options.append(
-            ExerciseOption(
-                exercise_id=ex2.id,
-                text=hy,
-                side="right",
-                match_key=key,
-            )
-        )
+    ex6 = Exercise(
+        lesson_id=lesson.id,
+        type="char_type_translit",
+        kind="char_type_translit",
+        prompt="Type the Latin sound for this letter.",
+        expected_answer="b",
+        order=6,
+        config={"letter": "Բ"},
+    )
 
-    db.add_all(options)
-
-    print("Seeded exercises for lesson-5 (Family).")
-
-
-def seed_all():
-    """Entry point for seeding all demo lessons + exercises."""
-    db = SessionLocal()
-    try:
-        # Make sure tables exist
-        Base.metadata.create_all(bind=engine)
-
-        # ---- define lessons that match your roadmap-ish ----
-        l1 = get_or_create_lesson(
-            db,
-            slug="lesson-1",
-            title="Greetings",
-            description="Learn basic Armenian greetings.",
-            level=1,
-            xp=50,
-        )
-        seed_lesson_1_greetings(db, l1)
-
-        l2 = get_or_create_lesson(
-            db,
-            slug="lesson-2",
-            title="The Alphabet",
-            description="Master the Armenian alphabet basics.",
-            level=1,
-            xp=75,
-        )
-        seed_lesson_2_alphabet(db, l2)
-
-        l3 = get_or_create_lesson(
-            db,
-            slug="lesson-3",
-            title="Numbers 1–10",
-            description="Count from one to ten in Armenian.",
-            level=1,
-            xp=60,
-        )
-        seed_lesson_3_numbers(db, l3)
-
-        l4 = get_or_create_lesson(
-            db,
-            slug="lesson-4",
-            title="Basic Phrases",
-            description="Common everyday expressions.",
-            level=2,
-            xp=80,
-        )
-        seed_lesson_4_basic_phrases(db, l4)
-
-        l5 = get_or_create_lesson(
-            db,
-            slug="lesson-5",
-            title="Family Members",
-            description="Words for family relationships.",
-            level=2,
-            xp=70,
-        )
-        seed_lesson_5_family(db, l5)
-
-        db.commit()
-        print("✅ Seeding completed.")
-    except Exception as e:
-        db.rollback()
-        print("❌ Error during seeding:", e)
-        raise
-    finally:
-        db.close()
+    db.add_all([ex1, ex2, ex3, ex4, ex5, ex6])
 
 
-if __name__ == "__main__":
-    seed_all()
+def seed_alphabet_lessons(db: Session) -> None:
+    _seed_alphabet_1(db)
+    _seed_alphabet_2(db)
