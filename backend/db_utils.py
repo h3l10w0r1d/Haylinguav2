@@ -15,7 +15,19 @@ def seed_alphabet_lessons() -> None:
     every environment (local, Render, etc.).
     """
     with engine.begin() as conn:
-        # 1) Clean out any previous version of these lessons + exercises
+        # --- 0) Ensure schema matches what our code expects -------------------
+        # Add xp_reward column if it doesn't exist yet (Render DB currently
+        # doesn't have it, which caused the UndefinedColumn error).
+        conn.execute(
+            text(
+                """
+                ALTER TABLE lessons
+                ADD COLUMN IF NOT EXISTS xp_reward INTEGER NOT NULL DEFAULT 40
+                """
+            )
+        )
+
+        # --- 1) Clean out any previous version of these lessons + exercises ---
         conn.execute(
             text(
                 """
@@ -52,9 +64,8 @@ def seed_alphabet_lessons() -> None:
             {"slug1": "alphabet-1", "slug2": "alphabet-2"},
         )
 
-        # 2) Insert fresh lessons
-        # NOTE: "level" is an INTEGER column in the DB, so we pass 1/2/etc.,
-        # NOT strings like "beginner" – that was the cause of the last error.
+        # --- 2) Insert fresh lessons -----------------------------------------
+        # NOTE: level is an INTEGER column -> we pass numbers, not strings.
         lesson1_id = conn.execute(
             text(
                 """
@@ -84,12 +95,12 @@ def seed_alphabet_lessons() -> None:
                 "slug": "alphabet-2",
                 "title": "Alphabet 2: More Letters",
                 "description": "Continue with more letters and simple words.",
-                "level": 1,   # or 2 if you want to mark it as the next level
+                "level": 1,  # or 2 if you want a higher level
                 "xp_reward": 40,
             },
         ).scalar_one()
 
-        # 3) Create exercises for each lesson
+        # --- 3) Create exercises for each lesson -----------------------------
         _create_alphabet_1_exercises(conn, lesson1_id)
         _create_alphabet_2_exercises(conn, lesson2_id)
 
@@ -110,9 +121,7 @@ def _insert_exercise(
     """
     Helper to insert a single exercise row.
 
-    The `config` dict is stored as JSONB. We use CAST(:config AS jsonb)
-    so Postgres sees it as proper JSON, and we avoid the `:config::jsonb`
-    syntax that previously caused errors.
+    The `config` dict is stored as JSONB.
     """
     conn.execute(
         text(
@@ -237,7 +246,7 @@ def _create_alphabet_2_exercises(conn, lesson_id: int) -> None:
         order=3,
         type_="fill_in",
         kind="word_spelling",
-        prompt="Complete the word for 'film' in Armenian: Ֆի__",
+        prompt="Complete the word for 'film' in Armenian: Ֆি__",
         expected_answer="Ֆիլմ",
         sentence_before=None,
         sentence_after=None,
