@@ -14,10 +14,33 @@ def seed_alphabet_lessons() -> None:
     This is called from main.on_startup() so the data is present in
     every environment (local, Render, etc.).
     """
+    print("[seed_alphabet_lessons] Starting seeding...")
+
     with engine.begin() as conn:
         # --- 0) Ensure schema matches what our code expects -------------------
-        # Add xp_reward column if it doesn't exist yet (Render DB currently
-        # doesn't have it, which caused the UndefinedColumn error).
+        # Make sure xp column exists and has a default.
+        print("[seed_alphabet_lessons] Ensuring xp/xp_reward columns exist")
+
+        conn.execute(
+            text(
+                """
+                ALTER TABLE lessons
+                ADD COLUMN IF NOT EXISTS xp INTEGER
+                """
+            )
+        )
+
+        # Give xp a default so future inserts that omit it won't fail.
+        conn.execute(
+            text(
+                """
+                ALTER TABLE lessons
+                ALTER COLUMN xp SET DEFAULT 40
+                """
+            )
+        )
+
+        # Add xp_reward if missing.
         conn.execute(
             text(
                 """
@@ -28,6 +51,8 @@ def seed_alphabet_lessons() -> None:
         )
 
         # --- 1) Clean out any previous version of these lessons + exercises ---
+        print("[seed_alphabet_lessons] Deleting old alphabet lessons")
+
         conn.execute(
             text(
                 """
@@ -65,12 +90,15 @@ def seed_alphabet_lessons() -> None:
         )
 
         # --- 2) Insert fresh lessons -----------------------------------------
-        # NOTE: level is an INTEGER column -> we pass numbers, not strings.
+        # NOTE: level is an INTEGER column.
+        # IMPORTANT: we now also insert xp explicitly so it is never NULL.
+        print("[seed_alphabet_lessons] Inserting fresh lessons")
+
         lesson1_id = conn.execute(
             text(
                 """
-                INSERT INTO lessons (slug, title, description, level, xp_reward)
-                VALUES (:slug, :title, :description, :level, :xp_reward)
+                INSERT INTO lessons (slug, title, description, level, xp, xp_reward)
+                VALUES (:slug, :title, :description, :level, :xp, :xp_reward)
                 RETURNING id
                 """
             ),
@@ -79,15 +107,17 @@ def seed_alphabet_lessons() -> None:
                 "title": "Alphabet 1: First Letters",
                 "description": "Start learning the Armenian alphabet with your first letters.",
                 "level": 1,
+                "xp": 40,
                 "xp_reward": 40,
             },
         ).scalar_one()
+        print(f"[seed_alphabet_lessons] Inserted lesson1 with id={lesson1_id}")
 
         lesson2_id = conn.execute(
             text(
                 """
-                INSERT INTO lessons (slug, title, description, level, xp_reward)
-                VALUES (:slug, :title, :description, :level, :xp_reward)
+                INSERT INTO lessons (slug, title, description, level, xp, xp_reward)
+                VALUES (:slug, :title, :description, :level, :xp, :xp_reward)
                 RETURNING id
                 """
             ),
@@ -96,13 +126,18 @@ def seed_alphabet_lessons() -> None:
                 "title": "Alphabet 2: More Letters",
                 "description": "Continue with more letters and simple words.",
                 "level": 1,  # or 2 if you want a higher level
+                "xp": 40,
                 "xp_reward": 40,
             },
         ).scalar_one()
+        print(f"[seed_alphabet_lessons] Inserted lesson2 with id={lesson2_id}")
 
         # --- 3) Create exercises for each lesson -----------------------------
+        print("[seed_alphabet_lessons] Creating exercises for Alphabet 1 & 2")
         _create_alphabet_1_exercises(conn, lesson1_id)
         _create_alphabet_2_exercises(conn, lesson2_id)
+
+    print("[seed_alphabet_lessons] Done seeding.")
 
 
 def _insert_exercise(
@@ -152,7 +187,6 @@ def _insert_exercise(
 def _create_alphabet_1_exercises(conn, lesson_id: int) -> None:
     """
     Seed a minimal but working set of exercises for Alphabet 1.
-    Adjust/expand these as your frontend grows.
     """
 
     # 1. Intro to letter Լ
@@ -246,7 +280,7 @@ def _create_alphabet_2_exercises(conn, lesson_id: int) -> None:
         order=3,
         type_="fill_in",
         kind="word_spelling",
-        prompt="Complete the word for 'film' in Armenian: Ֆি__",
+        prompt="Complete the word for 'film' in Armenian: Ֆի__",
         expected_answer="Ֆիլմ",
         sentence_before=None,
         sentence_after=None,
