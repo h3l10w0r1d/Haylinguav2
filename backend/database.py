@@ -1,23 +1,30 @@
 # backend/database.py
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.engine import Connection
 
-# Try all the usual suspects Render might use
-DATABASE_URL = (
-    os.getenv("DATABASE_URL")
-    or os.getenv("POSTGRES_URL")
-    or os.getenv("POSTGRESQL_URL")
-    # fallback ONLY for local dev
-    or "postgresql://postgres:postgres@localhost:5432/postgres"
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./haylingua.db")
 
-# echo=False so logs don’t explode on Render
+# Handle sqlite vs postgres automatically
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
+    future=True,
+    echo=False,
+    connect_args=connect_args,
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
+
+
+def get_db():
+    """
+    Dependency that yields a SQLAlchemy Connection inside a transaction.
+    We use raw SQL on this connection.
+    """
+    with engine.begin() as conn:  # implicit commit / rollback
+        yield conn  # type: Connection
