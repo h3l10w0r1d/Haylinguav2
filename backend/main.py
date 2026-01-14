@@ -2,24 +2,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import engine, Base
-from seed_data import seed_alphabet_lessons, ensure_lesson_progress_table
+from database import Base, engine
+from db_utils import seed_alphabet_lessons
 from routes import router as api_router
 
-app = FastAPI(
-    title="Haylingua API",
-    version="1.0.0",
-)
+app = FastAPI()
 
-origins = [
-    "http://localhost:5173",
-    "https://haylinguav2.vercel.app",
-]
-
+# be generous during development – avoids CORS hell
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],           # or ["http://localhost:5173", "https://haylinguav2.vercel.app"]
+    allow_credentials=False,       # keep False if using "*"
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -27,17 +20,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    # Create ORM tables if they don't exist (users, lessons, exercises, etc.)
+    # create tables
     Base.metadata.create_all(bind=engine)
-
-    # Raw-sql tables + seeding
-    ensure_lesson_progress_table(engine)
-    seed_alphabet_lessons(engine)
+    # seed sample alphabet lessons
+    seed_alphabet_lessons()
 
 
+# all API routes live in routes.py
 app.include_router(api_router)
-
-
-@app.get("/")
-def root():
-    return {"status": "Backend is running"}
