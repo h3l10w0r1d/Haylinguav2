@@ -12,6 +12,8 @@ const XP_VALUES = {
   char_intro: 5,
   char_mcq_sound: 10,
   char_build_word: 15,
+  // NEW:
+  letter_recognition: 10,
 };
 
 function ResultBanner({ isCorrect, xp, onContinue }) {
@@ -225,7 +227,112 @@ function CharMcqSoundExercise({ exercise, onAnswer }) {
 }
 
 /* ------------------------------------------------------
-   3) BUILD WORD – "char_build_word"
+   3) LETTER RECOGNITION – "letter_recognition"
+------------------------------------------------------ */
+
+function LetterRecognitionExercise({ exercise, onAnswer }) {
+  const cfg = exercise.config || {};
+
+  // support several possible backend shapes
+  const rawOptions = cfg.variants || cfg.options || [];
+  const options = rawOptions.map((opt) =>
+    typeof opt === 'string'
+      ? { id: opt, label: opt }
+      : {
+          id: opt.id ?? opt.value ?? opt.text,
+          label: opt.text ?? opt.label ?? String(opt.id ?? opt.value ?? '?'),
+          is_correct: opt.is_correct ?? opt.correct ?? false,
+        }
+  );
+
+  let correctIndex = options.findIndex((o) => o.is_correct);
+  if (correctIndex < 0) correctIndex = 0;
+
+  const [selected, setSelected] = useState(null);
+  const [result, setResult] = useState(null); // true | false | null
+
+  const hasAnswered = result !== null;
+
+  const handleOptionClick = (idx) => {
+    if (hasAnswered) return;
+    setSelected(idx);
+    const isCorrect = idx === correctIndex;
+    setResult(isCorrect);
+  };
+
+  const handleContinue = () => {
+    if (!hasAnswered) return;
+    const xp = result ? XP_VALUES.letter_recognition : 0;
+    onAnswer({ isCorrect: !!result, xpEarned: xp });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
+      <p className="text-gray-700 font-medium text-center mb-6">
+        {exercise.prompt}
+      </p>
+
+      <div className="flex justify-center mb-6">
+        {cfg.targetLetter && (
+          <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-md">
+            <span className="text-5xl font-semibold text-white">
+              {cfg.targetLetter}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-3">
+        {options.length === 0 && (
+          <p className="text-sm text-red-500">
+            No variants configured for this exercise (config.variants is empty).
+          </p>
+        )}
+
+        {options.map((opt, idx) => {
+          const isSelected = idx === selected;
+          const isCorrect = idx === correctIndex;
+
+          let border = 'border-gray-200';
+          let bg = 'bg-white';
+          let text = 'text-gray-900';
+
+          if (hasAnswered && isSelected && result) {
+            border = 'border-green-500';
+            bg = 'bg-green-50';
+          } else if (hasAnswered && isSelected && !result) {
+            border = 'border-red-500';
+            bg = 'bg-red-50';
+          } else if (hasAnswered && isCorrect) {
+            border = 'border-green-400';
+            bg = 'bg-green-50';
+          }
+
+          return (
+            <button
+              key={opt.id ?? idx}
+              onClick={() => handleOptionClick(idx)}
+              className={`min-w-[72px] px-4 py-3 rounded-2xl border ${border} ${bg} ${text} text-xl font-semibold transition-all hover:shadow-sm ${
+                hasAnswered ? 'cursor-default' : 'hover:-translate-y-0.5'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <ResultBanner
+        isCorrect={result}
+        xp={result ? XP_VALUES.letter_recognition : 0}
+        onContinue={handleContinue}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------
+   4) BUILD WORD – "char_build_word"
 ------------------------------------------------------ */
 
 function CharBuildWordExercise({ exercise, onAnswer }) {
@@ -360,6 +467,10 @@ export default function ExerciseRenderer({ exercise, onAnswer }) {
       return <CharIntroExercise exercise={exercise} onAnswer={onAnswer} />;
     case 'char_mcq_sound':
       return <CharMcqSoundExercise exercise={exercise} onAnswer={onAnswer} />;
+    case 'letter_recognition': // NEW
+      return (
+        <LetterRecognitionExercise exercise={exercise} onAnswer={onAnswer} />
+      );
     case 'char_build_word':
       return <CharBuildWordExercise exercise={exercise} onAnswer={onAnswer} />;
     default:
