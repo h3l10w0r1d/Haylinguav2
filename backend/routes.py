@@ -329,7 +329,7 @@ async def tts_speak(payload: TTSPayload):
     if not ELEVEN_API_KEY:
         raise HTTPException(status_code=500, detail="TTS not configured on server")
 
-    text_value = (payload.text or "").trim()
+    text_value = (payload.text or "").strip()
     if not text_value:
         raise HTTPException(status_code=400, detail="Text is empty")
 
