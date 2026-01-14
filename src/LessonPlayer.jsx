@@ -23,14 +23,22 @@ export default function LessonPlayer() {
 
   // interaction state
   const [typedAnswer, setTypedAnswer] = useState('');
-  const [selectedIndices, setSelectedIndices] = useState([]); // mcq + find-in-grid
-  const [builtIndices, setBuiltIndices] = useState([]); // build-word / listen-build
+  const [selectedIndices, setSelectedIndices] = useState([]); // used for mcq + find-in-grid
+  const [builtIndices, setBuiltIndices] = useState([]); // used for build-word / listen-build
   const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | null
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
 
   // ----------------------------------------------------
   // Fetch lesson
   // ----------------------------------------------------
+  const resetExerciseState = () => {
+    setTypedAnswer('');
+    setSelectedIndices([]);
+    setBuiltIndices([]);
+    setFeedback(null);
+  };
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -60,15 +68,7 @@ export default function LessonPlayer() {
     return () => {
       isCancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
-
-  const resetExerciseState = () => {
-    setTypedAnswer('');
-    setSelectedIndices([]);
-    setBuiltIndices([]);
-    setFeedback(null);
-  };
 
   const currentExercise =
     lesson && lesson.exercises && lesson.exercises[currentIndex]
@@ -250,44 +250,40 @@ export default function LessonPlayer() {
   };
 
   // ----------------------------------------------------
-  // DONE: finish lesson early or at end
+  // Complete lesson -> XP
   // ----------------------------------------------------
   const handleDone = async () => {
-    if (!lesson) {
-      navigate('/dashboard');
+    const email = localStorage.getItem('user_email');
+    if (!email) {
+      alert('Session expired. Please log in again.');
+      navigate('/login');
       return;
     }
 
-    const token = localStorage.getItem('access_token');
-
     try {
-      const res = await fetch(
-        `${API_BASE}/lessons/${lesson.slug}/complete`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({}),
-        }
-      );
+      setIsCompleting(true);
+      const res = await fetch(`${API_BASE}/lessons/${slug}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
 
       if (!res.ok) {
         console.error('Failed to complete lesson', res.status);
-      } else {
-        const data = await res.json();
-        // cache latest stats so dashboard can show instantly (optional)
-        try {
-          localStorage.setItem('haylingua_stats', JSON.stringify(data));
-        } catch {
-          // ignore storage errors
-        }
+        alert('Could not complete lesson. Please try again.');
+        return;
       }
-    } catch (err) {
-      console.error('Error completing lesson', err);
-    } finally {
+
+      // If backend returns XP payload, you can inspect it:
+      // const data = await res.json();
+      // console.log('Lesson completed, XP payload:', data);
+
       navigate('/dashboard');
+    } catch (e) {
+      console.error('Complete lesson error', e);
+      alert('Could not complete lesson. Network error.');
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -310,9 +306,7 @@ export default function LessonPlayer() {
     );
 
     switch (currentExercise.kind) {
-      // ------------------------------------------------
       // 1) INTRO LETTER
-      // ------------------------------------------------
       case 'char_intro': {
         const letter = cfg.letter || '?';
         const lower = cfg.lower || '';
@@ -363,9 +357,7 @@ export default function LessonPlayer() {
         );
       }
 
-      // ------------------------------------------------
       // 2) WHICH SOUND? (MCQ)
-      // ------------------------------------------------
       case 'char_mcq_sound': {
         const letter = cfg.letter || '?';
         const options = cfg.options || [];
@@ -423,9 +415,7 @@ export default function LessonPlayer() {
         );
       }
 
-      // ------------------------------------------------
       // 3) BUILD WORD (VISUAL TARGET)
-      // ------------------------------------------------
       case 'char_build_word': {
         const tiles = cfg.tiles || [];
         const target = cfg.targetWord || currentExercise.expected_answer || '';
@@ -482,9 +472,7 @@ export default function LessonPlayer() {
         );
       }
 
-      // ------------------------------------------------
       // 4) LISTEN & BUILD
-      // ------------------------------------------------
       case 'char_listen_build': {
         const tiles = cfg.tiles || [];
         const target = cfg.targetWord || currentExercise.expected_answer || '';
@@ -556,9 +544,7 @@ export default function LessonPlayer() {
         );
       }
 
-      // ------------------------------------------------
       // 5) FIND LETTER IN GRID
-      // ------------------------------------------------
       case 'char_find_in_grid': {
         const grid = cfg.grid || [];
         const targetLetter = cfg.targetLetter || cfg.letter || '?';
@@ -617,9 +603,7 @@ export default function LessonPlayer() {
         );
       }
 
-      // ------------------------------------------------
       // 6) TYPE TRANSLITERATION
-      // ------------------------------------------------
       case 'char_type_translit': {
         const letter = cfg.letter || '?';
 
@@ -654,9 +638,7 @@ export default function LessonPlayer() {
         );
       }
 
-      // ------------------------------------------------
       // DEFAULT / UNKNOWN TYPES
-      // ------------------------------------------------
       default:
         return (
           <div className="flex flex-col items-center gap-4">
@@ -782,8 +764,8 @@ export default function LessonPlayer() {
           </div>
         </div>
 
-        {/* Bottom navigation with Done */}
-        <div className="mt-6 flex items-center justify-between gap-4">
+        {/* Bottom navigation + Done */}
+        <div className="mt-6 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={goPrev}
@@ -798,28 +780,30 @@ export default function LessonPlayer() {
             Previous
           </button>
 
-          <button
-            type="button"
-            onClick={handleDone}
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-green-500 bg-green-50 text-green-700 hover:bg-green-100 transition"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Done
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={currentIndex >= lesson.exercises.length - 1}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${
+                currentIndex >= lesson.exercises.length - 1
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-orange-600 text-white hover:bg-orange-700'
+              }`}
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
 
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={currentIndex >= lesson.exercises.length - 1}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl ${
-              currentIndex >= lesson.exercises.length - 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-orange-600 text-white hover:bg-orange-700'
-            }`}
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </button>
+            <button
+              type="button"
+              onClick={handleDone}
+              disabled={isCompleting}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed"
+            >
+              {isCompleting ? 'Saving…' : 'Done'}
+            </button>
+          </div>
         </div>
 
         {isSpeaking && (
