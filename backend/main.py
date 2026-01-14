@@ -2,13 +2,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import Base, engine
-from models import *  # noqa: F401, ensures all tables are registered
-from seed_data import seed_alphabet_lessons  # or from db_utils import seed_alphabet_lessons
+from database import engine, Base
+from seed_data import seed_alphabet_lessons, ensure_lesson_progress_table
 from routes import router as api_router
 
-
-app = FastAPI()
+app = FastAPI(
+    title="Haylingua API",
+    version="1.0.0",
+)
 
 origins = [
     "http://localhost:5173",
@@ -25,12 +26,18 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-def on_startup() -> None:
-    # Create tables if they don't exist
+def on_startup():
+    # Create ORM tables if they don't exist (users, lessons, exercises, etc.)
     Base.metadata.create_all(bind=engine)
-    # Seed alphabet lessons only (idempotent)
-    seed_alphabet_lessons()
+
+    # Raw-sql tables + seeding
+    ensure_lesson_progress_table(engine)
+    seed_alphabet_lessons(engine)
 
 
-# Mount all API routes
 app.include_router(api_router)
+
+
+@app.get("/")
+def root():
+    return {"status": "Backend is running"}
