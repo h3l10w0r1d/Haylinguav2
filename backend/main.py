@@ -1,42 +1,52 @@
-<file name=db_utils.py path=/Users/armen/Desktop/Haylingua/Haylinguav2/backend>
-def seed_alphabet_lessons():
-    print("[db_utils] Seeding alphabet lessons...")
-    with engine.connect() as conn:
-        lesson1_id = conn.execute(
-            text(
-                """
-                    INSERT INTO lessons (slug, title, description, level, xp, xp_reward)
-                    VALUES (:slug, :title, :description, :level, :xp, :xp_reward)
-                    RETURNING id
-                """
-            ),
-            {
-                "slug": "alphabet-1",
-                "title": "Alphabet 1: First Letters",
-                "description": "Start learning the Armenian alphabet with your first letters.",
-                "level": 1,
-                "xp": 40,
-                "xp_reward": 40,
-            },
-        ).scalar_one()
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-        lesson2_id = conn.execute(
-            text(
-                """
-                    INSERT INTO lessons (slug, title, description, level, xp, xp_reward)
-                    VALUES (:slug, :title, :description, :level, :xp, :xp_reward)
-                    RETURNING id
-                """
-            ),
-            {
-                "slug": "alphabet-2",
-                "title": "Alphabet 2: Next Letters",
-                "description": "Continue learning the Armenian alphabet with the next letters.",
-                "level": 2,
-                "xp": 50,
-                "xp_reward": 50,
-            },
-        ).scalar_one()
+from routes import router as api_router
+from db_utils import seed_alphabet_lessons
 
-        # ... other inserts follow the same pattern ...
-</file>
+
+app = FastAPI(title="Haylingua API")
+
+# CORS settings – update this list if you add more frontends
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://haylingua-frontend.onrender.com",
+    "https://haylinguav2.vercel.app",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    """Run once on app startup.
+
+    We seed the alphabet lessons if they are missing. There are debug prints
+    so you can see this in the Render logs.
+    """
+    print("[main] FastAPI startup…")
+    try:
+        seed_alphabet_lessons()
+        print("[main] seed_alphabet_lessons() completed successfully")
+    except Exception as e:
+        # This will show full traceback in logs, which is what we want for now
+        import traceback
+
+        print("[main] ERROR while seeding lessons:", e)
+        traceback.print_exc()
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+
+# Mount all API routes under the main app
+app.include_router(api_router)
