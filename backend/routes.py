@@ -13,6 +13,13 @@ from sqlalchemy.engine import Connection
 from database import get_db
 from auth import hash_password, verify_password, create_token
 
+# Optional auth helper – if not present, we fall back to email-based lookups
+try:
+    from auth import get_current_user  # type: ignore
+except ImportError:  # pragma: no cover
+    def get_current_user():
+        return None
+
 router = APIRouter()
 
 # ---------- Auth schemas ----------
@@ -217,15 +224,42 @@ def get_lesson(slug: str, db: Connection = Depends(get_db)):
 # --------- "Done" button: complete lesson & earn XP ---------
 
 class LessonCompletePayload(BaseModel):
-    email: str  # frontend sends the logged-in user's email
+    # Optional: kept for backwards compatibility if the frontend sends it
+    email: str | None = None
 
 
 @router.post("/lessons/{slug}/complete", response_model=StatsOut)
-def complete_lesson(slug: str, payload: LessonCompletePayload, db: Connection = Depends(get_db)):
+def complete_lesson(
+    slug: str,
+    payload: LessonCompletePayload | None = None,
+    db: Connection = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """
+    Mark a lesson as completed and award XP.
+
+    Backwards compatible:
+    - If `payload.email` is provided, use that (old behaviour).
+    - Otherwise, try to use `current_user` from auth (JWT-based).
+    """
+    # Determine which email to use
+    email: str | None = None
+    if payload and payload.email:
+        email = payload.email
+    elif current_user is not None:
+        # Support either an object with attributes or a dict-like user
+        email = getattr(current_user, "email", None)
+        if email is None and isinstance(current_user, dict):
+            email = current_user.get("email")
+
+    if not email:
+        # Frontend usually treats 401 as "session expired"
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     # find user
     user_row = db.execute(
         text("SELECT id FROM users WHERE email = :email"),
-        {"email": payload.email},
+        {"email": email},
     ).mappings().first()
 
     if user_row is None:
@@ -292,10 +326,30 @@ def complete_lesson(slug: str, payload: LessonCompletePayload, db: Connection = 
 
 
 @router.get("/me/stats", response_model=StatsOut)
-def get_stats(email: str, db: Connection = Depends(get_db)):
+def get_stats(
+    email: str | None = None,
+    db: Connection = Depends(get_db),
+    current_user: Any = Depends(get_current_user),
+):
+    """
+    Return aggregate stats for the current user.
+
+    Backwards compatible:
+    - If `email` query param is provided, use it.
+    - Otherwise, fall back to the authenticated user from get_current_user.
+    """
+    selected_email = email
+    if selected_email is None and current_user is not None:
+        selected_email = getattr(current_user, "email", None)
+        if selected_email is None and isinstance(current_user, dict):
+            selected_email = current_user.get("email")
+
+    if not selected_email:
+        return StatsOut(total_xp=0, lessons_completed=0)
+
     user_row = db.execute(
         text("SELECT id FROM users WHERE email = :email"),
-        {"email": email},
+        {"email": selected_email},
     ).mappings().first()
 
     if user_row is None:
