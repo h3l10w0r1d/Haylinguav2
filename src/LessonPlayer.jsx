@@ -15,33 +15,21 @@ export default function LessonPlayer() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // ----- Load lesson -----
   useEffect(() => {
     async function loadLesson() {
       try {
         setLoading(true);
-        const url = `${API_BASE}/lessons/${slug}`;
-        console.log("[LessonPlayer] Fetching lesson:", url);
-
-        const res = await fetch(url);
-        const text = await res.text();
-        console.log(
-          "[LessonPlayer] /lessons response",
-          res.status,
-          text.slice(0, 200)
-        );
-
+        const res = await fetch(`${API_BASE}/lessons/${slug}`);
         if (!res.ok) {
-          alert(`Failed to load lesson (${res.status}). See console for details.`);
+          alert(`Failed to load lesson (${res.status})`);
           return;
         }
-
-        const data = JSON.parse(text);
+        const data = await res.json();
         setLesson(data);
         setCurrentIndex(0);
       } catch (err) {
-        console.error("[LessonPlayer] Error loading lesson", err);
-        alert("Error loading lesson. Open the console for details.");
+        console.error("Error loading lesson", err);
+        alert("Error loading lesson");
       } finally {
         setLoading(false);
       }
@@ -52,7 +40,6 @@ export default function LessonPlayer() {
     }
   }, [slug]);
 
-  // ----- Step navigation -----
   const goNext = () => {
     if (!lesson) return;
     setCurrentIndex((idx) =>
@@ -65,70 +52,51 @@ export default function LessonPlayer() {
     setCurrentIndex((idx) => Math.max(idx - 1, 0));
   };
 
-  // ----- Done button: call backend + debug -----
   const handleDone = async () => {
     if (!lesson) return;
 
     const email = window.localStorage.getItem("userEmail");
     const token = window.localStorage.getItem("token");
 
-    console.log("[LessonPlayer] Done clicked", {
-      slug,
-      email,
-      hasToken: !!token,
-      apiBase: API_BASE,
-    });
-
-    const url = `${API_BASE}/lessons/${slug}/complete`;
-    const body = JSON.stringify({ email });
-
-    console.log("[LessonPlayer] Calling complete endpoint:", url, "body=", body);
+    if (!email) {
+      alert("Session expired. Please log in again.");
+      navigate("/login");
+      return;
+    }
 
     try {
       setSaving(true);
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_BASE}/lessons/${slug}/complete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body,
+        body: JSON.stringify({ email }),
       });
 
-      const text = await res.text();
-      console.log(
-        "[LessonPlayer] /complete response",
-        res.status,
-        text.slice(0, 300)
-      );
-
       if (res.status === 401) {
-        alert("Session expired (401 from backend). Please log in again.");
+        // generic 'session expired' handling
+        alert("Session expired. Please log in again.");
         navigate("/login");
         return;
       }
 
       if (!res.ok) {
-        alert(
-          `Lesson completion failed (${res.status}). Check console/network tab for details.`
-        );
+        console.error("Complete lesson failed", res.status);
+        alert("Could not complete lesson.");
         return;
       }
 
-      let stats = null;
-      try {
-        stats = JSON.parse(text);
-      } catch (e) {
-        console.warn("[LessonPlayer] Could not parse stats JSON", e);
-      }
-      console.log("[LessonPlayer] Stats after completion:", stats);
+      // Optionally read stats:
+      // const stats = await res.json();
+      // console.log("Updated stats:", stats);
 
-      // Navigate back to dashboard as before
       navigate("/dashboard");
     } catch (err) {
-      console.error("[LessonPlayer] Error completing lesson", err);
-      alert("Error completing lesson. See console for details.");
+      console.error("Error completing lesson", err);
+      alert("Error completing lesson.");
     } finally {
       setSaving(false);
     }
@@ -181,13 +149,8 @@ export default function LessonPlayer() {
         {currentExercise ? (
           <ExerciseRenderer
             exercise={currentExercise}
-            onAnswer={(result) => {
-              console.log(
-                "[LessonPlayer] Answer result for exercise",
-                currentExercise.id,
-                result
-              );
-              // You can later use result.xpEarned etc. if you want per-step XP UI.
+            onAnswer={() => {
+              // we’re not doing per-step XP here, just showing UI
             }}
           />
         ) : (
