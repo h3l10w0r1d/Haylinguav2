@@ -15,7 +15,7 @@ import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
 
-const API_BASE = 'https://haylinguav2.onrender.com';
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 function AppShell() {
   const [user, setUser] = useState(null);
