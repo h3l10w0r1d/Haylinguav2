@@ -199,7 +199,9 @@ def _create_alphabet_1_exercises(conn, lesson_id: int) -> None:
         prompt="Meet your first Armenian letter Լ!",
         config={
             "letter": "Լ",
-            "transliteration": "L",
+            "lower": "լ",
+            "transliteration": "l",
+            "hint": "Like the English sound 'l'",
             "examples": [
                 {"hy": "Լուսին", "en": "Moon"},
                 {"hy": "Լեռն", "en": "Mountain"},
@@ -251,7 +253,9 @@ def _create_alphabet_2_exercises(conn, lesson_id: int) -> None:
         prompt="Meet the Armenian letter Ֆ!",
         config={
             "letter": "Ֆ",
-            "transliteration": "F",
+            "lower": "ֆ",
+            "transliteration": "f",
+            "hint": "Like the English sound 'f'",
             "examples": [
                 {"hy": "Ֆիլմ", "en": "Film"},
                 {"hy": "Ֆուտբոլ", "en": "Football"},

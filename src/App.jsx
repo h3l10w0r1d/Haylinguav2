@@ -63,6 +63,8 @@ function AppShell() {
     setUser(newUser);
 
     localStorage.setItem('hay_token', tokenValue);
+    // compatibility with older components
+    localStorage.setItem('access_token', tokenValue);
     localStorage.setItem('hay_user', JSON.stringify(newUser));
 
     navigate('/dashboard', { replace: true });
@@ -133,6 +135,7 @@ function AppShell() {
     setUser(null);
     setToken(null);
     localStorage.removeItem('hay_token');
+    localStorage.removeItem('access_token');
     localStorage.removeItem('hay_user');
     navigate('/', { replace: true });
   };

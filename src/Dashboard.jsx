@@ -16,7 +16,9 @@ export default function Dashboard() {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem("access_token");
+        const token =
+          localStorage.getItem("hay_token") ||
+          localStorage.getItem("access_token");
         console.log("[Dashboard] token:", token);
 
         const url = `${API_BASE_URL}/lessons`;
