@@ -1,10 +1,10 @@
 # backend/routes.py
 import os
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body, Header
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
@@ -12,6 +12,9 @@ from sqlalchemy.engine import Connection
 
 from database import get_db
 from auth import hash_password, verify_password, create_token
+
+# JWT decode (for Bearer auth on /complete)
+from jose import jwt, JWTError
 
 router = APIRouter()
 
@@ -96,6 +99,42 @@ DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
 class TTSPayload(BaseModel):
     text: str
     voice_id: str | None = None
+
+
+# ---------- JWT helpers (for /complete) ----------
+
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or ""
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM") or "HS256"
+
+
+def _get_user_id_from_bearer(authorization: Optional[str]) -> Optional[int]:
+    """
+    Reads Authorization: Bearer <token>, decodes JWT, returns user_id from 'sub'.
+    Returns None if header missing.
+    Raises 401 if header present but invalid.
+    """
+    if not authorization:
+        return None
+
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid Authorization header format")
+
+    token = parts[1].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Empty bearer token")
+
+    if not JWT_SECRET_KEY:
+        raise HTTPException(status_code=500, detail="JWT secret not configured on server")
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        sub = payload.get("sub")
+        if sub is None:
+            raise HTTPException(status_code=401, detail="Token missing 'sub'")
+        return int(sub)
+    except (JWTError, ValueError):
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
 # ---------- Routes ----------
@@ -217,23 +256,42 @@ def get_lesson(slug: str, db: Connection = Depends(get_db)):
 # --------- "Done" button: complete lesson & earn XP ---------
 
 class LessonCompletePayload(BaseModel):
-    email: str  # frontend sends the logged-in user's email
+    # Keep this for backward compatibility (older FE might send email)
+    email: str
 
 
 @router.post("/lessons/{slug}/complete", response_model=StatsOut)
-def complete_lesson(slug: str, payload: LessonCompletePayload, db: Connection = Depends(get_db)):
-    # find user
-    user_row = db.execute(
-        text("SELECT id FROM users WHERE email = :email"),
-        {"email": payload.email},
-    ).mappings().first()
+def complete_lesson(
+    slug: str,
+    payload: Optional[LessonCompletePayload] = Body(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """
+    Supports BOTH:
+    - New FE: Authorization: Bearer <token>, empty body
+    - Old FE: JSON body { "email": "..." }
+    """
 
-    if user_row is None:
-        raise HTTPException(status_code=400, detail="User not found")
+    # 1) Determine user_id (prefer JWT if present)
+    user_id = _get_user_id_from_bearer(authorization)
 
-    user_id = user_row["id"]
+    if user_id is None:
+        # fallback to email payload
+        if payload is None or not payload.email:
+            raise HTTPException(status_code=401, detail="Missing credentials (token or email)")
 
-    # find lesson
+        user_row = db.execute(
+            text("SELECT id FROM users WHERE email = :email"),
+            {"email": payload.email},
+        ).mappings().first()
+
+        if user_row is None:
+            raise HTTPException(status_code=400, detail="User not found")
+
+        user_id = user_row["id"]
+
+    # 2) Find lesson
     lesson_row = db.execute(
         text(
             """
@@ -249,9 +307,9 @@ def complete_lesson(slug: str, payload: LessonCompletePayload, db: Connection = 
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     lesson_id = lesson_row["id"]
-    xp_value = lesson_row["xp"]
+    xp_value = int(lesson_row["xp"] or 0)
 
-    # upsert into lesson_progress
+    # 3) Upsert into lesson_progress (no double-count protection here; your schema updates the same row)
     db.execute(
         text(
             """
@@ -271,7 +329,7 @@ def complete_lesson(slug: str, payload: LessonCompletePayload, db: Connection = 
         },
     )
 
-    # recompute stats
+    # 4) Recompute stats
     stats_row = db.execute(
         text(
             """
@@ -286,8 +344,8 @@ def complete_lesson(slug: str, payload: LessonCompletePayload, db: Connection = 
     ).mappings().first()
 
     return StatsOut(
-        total_xp=stats_row["total_xp"],
-        lessons_completed=stats_row["lessons_completed"],
+        total_xp=int(stats_row["total_xp"]),
+        lessons_completed=int(stats_row["lessons_completed"]),
     )
 
 
@@ -317,8 +375,8 @@ def get_stats(email: str, db: Connection = Depends(get_db)):
     ).mappings().first()
 
     return StatsOut(
-        total_xp=stats_row["total_xp"],
-        lessons_completed=stats_row["lessons_completed"],
+        total_xp=int(stats_row["total_xp"]),
+        lessons_completed=int(stats_row["lessons_completed"]),
     )
 
 
