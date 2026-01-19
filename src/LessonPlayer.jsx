@@ -4,16 +4,22 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 
 import ExerciseRenderer from "./ExerciseRenderer";
-import { useUser } from "./UserContext"; // assuming you already have this
 
 // 🔧 Make sure this matches your backend URL
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
+function getToken() {
+  return (
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("hay_token") ||
+    ""
+  );
+}
+
 export default function LessonPlayer() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user, refreshStats } = useUser(); // user.email used for XP/lesson completion
 
   const [lesson, setLesson] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -42,9 +48,7 @@ export default function LessonPlayer() {
       try {
         const res = await fetch(url, {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
 
         console.log(
@@ -57,7 +61,7 @@ export default function LessonPlayer() {
           const text = await res.text();
           console.error("[LessonPlayer] Failed to load lesson:", res.status, text);
           setLoadError(
-            `Failed to load lesson (${res.status}). Check backend logs and CORS.`
+            `Failed to load lesson (${res.status}). Check backend logs / URL / CORS.`
           );
           return;
         }
@@ -110,7 +114,6 @@ export default function LessonPlayer() {
         "[LessonPlayer] Reached last exercise, showing Done state. XP earned in session:",
         lessonXpEarned + (xpEarned || 0)
       );
-      // We just stay on this view, and the UI will show the "Done" panel.
     }
   };
 
@@ -118,28 +121,28 @@ export default function LessonPlayer() {
 
   const handleCompleteLesson = async () => {
     if (!lesson || !slug) return;
-    if (!user || !user.email) {
-      alert("You need to be logged in to save XP. (No user email available.)");
-      console.warn("[LessonPlayer] No user email found when completing lesson.");
+
+    const token = getToken();
+    if (!token) {
+      alert("You need to be logged in. (No token found.)");
+      console.warn("[LessonPlayer] No token found when completing lesson.");
+      navigate("/login");
       return;
     }
 
     setIsCompleting(true);
-    const url = `${API_BASE}/lessons/${slug}/complete`;
-    const body = { email: user.email };
 
-    console.log("[LessonPlayer] Completing lesson with:", {
-      url,
-      body,
-    });
+    const url = `${API_BASE}/lessons/${slug}/complete`;
+    console.log("[LessonPlayer] Completing lesson with:", { url });
 
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body),
+        // body not required — backend should infer user from JWT
       });
 
       console.log(
@@ -152,13 +155,13 @@ export default function LessonPlayer() {
         const text = await res.text();
         console.error("[LessonPlayer] Error completing lesson:", res.status, text);
 
-        // If your old code showed "session expired", keep that behavior here:
         if (res.status === 401 || res.status === 403) {
           alert("Session expired or unauthorized. Please log in again.");
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("hay_token");
+          navigate("/login");
         } else {
-          alert(
-            `Could not complete lesson (status ${res.status}). Check backend logs.`
-          );
+          alert(`Could not complete lesson (status ${res.status}). Check backend logs.`);
         }
         return;
       }
@@ -166,11 +169,7 @@ export default function LessonPlayer() {
       const stats = await res.json();
       console.log("[LessonPlayer] Updated stats from backend:", stats);
 
-      // If you had a global stats store / context:
-      if (typeof refreshStats === "function") {
-        await refreshStats();
-      }
-
+      // Simple approach: go back to dashboard (Dashboard should refetch /me)
       navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error("[LessonPlayer] Network error completing lesson:", err);
@@ -260,9 +259,7 @@ export default function LessonPlayer() {
             <div
               className="h-2 bg-orange-500 transition-all"
               style={{
-                width: `${
-                  ((currentIndex + 1) / lesson.exercises.length) * 100
-                }%`,
+                width: `${((currentIndex + 1) / lesson.exercises.length) * 100}%`,
               }}
             />
           </div>
@@ -270,7 +267,10 @@ export default function LessonPlayer() {
 
         {/* Current exercise */}
         {currentExercise ? (
-          <ExerciseRenderer exercise={currentExercise} onAnswer={handleStepAnswer} />
+          <ExerciseRenderer
+            exercise={currentExercise}
+            onAnswer={handleStepAnswer}
+          />
         ) : (
           <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
             <p className="text-slate-700 mb-4">
