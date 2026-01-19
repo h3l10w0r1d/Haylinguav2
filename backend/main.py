@@ -7,10 +7,15 @@ from db_utils import seed_alphabet_lessons
 
 app = FastAPI()
 
-# 🔧 CORS – make sure these match your real frontend URLs
+# 🔧 CORS – include your real frontend URLs (Vercel)
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+
+    # Vercel production
+    "https://haylinguav2.vercel.app",
+
+    # (optional) your domains if you also use them
     "https://haylingua.netlify.app",
     "https://www.haylingua.netlify.app",
     "https://haylingua.com",
@@ -19,10 +24,11 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # during dev you *can* temporarily use ["*"]
+    allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # ✅ allows Vercel preview URLs too
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"],  # ✅ needed for Authorization header preflight
 )
 
 
@@ -30,25 +36,20 @@ app.add_middleware(
 def on_startup() -> None:
     """
     Runs once when the app starts.
-
     We seed the alphabet lessons into the DB.
-    This keeps all the old functionality that depended on seeded lessons.
     """
     try:
         print("[startup] Seeding alphabet lessons…")
         seed_alphabet_lessons()
         print("[startup] Seeding complete.")
-    except Exception as exc:  # basic debug logging so you can see failures in Render logs
+    except Exception as exc:
         print("[startup] Error while seeding lessons:", repr(exc))
-        # Let it raise so you actually see the crash in logs instead of silently failing
         raise
 
 
-# All routes are defined in backend/routes.py
 app.include_router(api_router)
 
 
-# Optional simple root for quick health checks
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
