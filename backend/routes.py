@@ -105,10 +105,16 @@ class TTSPayload(BaseModel):
 
 class LeaderboardEntryOut(BaseModel):
     user_id: int
+    email: str | None = None
     name: str
-    total_xp: int
-    lessons_completed: int
+    xp: int
+    streak: int
+    level: int
     rank: int
+
+
+
+
 
 # ---------- JWT helpers (for /complete) ----------
 
@@ -391,41 +397,50 @@ def get_stats(email: str, db: Connection = Depends(get_db)):
 
 
 @router.get("/leaderboard", response_model=List[LeaderboardEntryOut])
-def leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
-    # Safety clamp
+def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
     if limit < 1:
         limit = 1
     if limit > 200:
         limit = 200
 
+    # Real XP from lesson_progress
     rows = db.execute(
         text(
             """
             SELECT
                 u.id AS user_id,
                 u.email AS email,
-                COALESCE(SUM(lp.xp_earned), 0) AS total_xp,
-                COALESCE(COUNT(lp.lesson_id), 0) AS lessons_completed
+                COALESCE(SUM(lp.xp_earned), 0) AS total_xp
             FROM users u
             LEFT JOIN lesson_progress lp ON lp.user_id = u.id
             GROUP BY u.id, u.email
-            ORDER BY total_xp DESC, lessons_completed DESC, u.id ASC
+            ORDER BY total_xp DESC, u.id ASC
             LIMIT :limit
             """
         ),
         {"limit": limit},
     ).mappings().all()
 
-    out = []
+    out: List[LeaderboardEntryOut] = []
     for i, r in enumerate(rows, start=1):
         email = r["email"] or ""
         name = email.split("@")[0] if "@" in email else (email or "User")
+        xp = int(r["total_xp"] or 0)
+
+        # Derive level from XP (simple & stable for now)
+        level = max(1, (xp // 500) + 1)
+
+        # Streak not tracked in DB yet in this version -> return 0
+        streak = 0
+
         out.append(
             LeaderboardEntryOut(
-                user_id=r["user_id"],
+                user_id=int(r["user_id"]),
+                email=email,
                 name=name,
-                total_xp=int(r["total_xp"] or 0),
-                lessons_completed=int(r["lessons_completed"] or 0),
+                xp=xp,
+                streak=streak,
+                level=level,
                 rank=i,
             )
         )
