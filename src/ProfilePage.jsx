@@ -2,72 +2,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { Trophy, Flame, Star } from "lucide-react";
 
-// Adjust if you already have a centralized api client.
-// This works with VITE_API_BASE_URL or defaults to your Render URL.
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") ||
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_URL ||
   "https://haylinguav2.onrender.com";
 
 function getToken() {
   return (
     localStorage.getItem("access_token") ||
     localStorage.getItem("hay_token") ||
-    localStorage.getItem("token") ||
     ""
   );
 }
 
-async function apiGetMe() {
-  const token = getToken();
-  if (!token) throw new Error("Missing auth token");
+async function apiFetch(path, { token, ...opts } = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(opts.headers || {}),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}/me`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(t || "Failed to load profile");
-  }
-  return await res.json();
-}
-
-async function apiUpdateMe({ name, avatar_url }) {
-  const token = getToken();
-  if (!token) throw new Error("Missing auth token");
-
-  const res = await fetch(`${API_BASE}/me`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ name, avatar_url }),
-  });
-
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(t || "Failed to save profile");
-  }
-  return await res.json();
-}
-
-async function apiGetStatsByEmail(email) {
-  const token = getToken();
-  const res = await fetch(
-    `${API_BASE}/me/stats?email=${encodeURIComponent(email || "")}`,
-    {
-      method: "GET",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    }
-  );
-
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(t || "Failed to load stats");
-  }
-  return await res.json();
+  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+  return res;
 }
 
 export default function ProfilePage({ user, onUpdateUser }) {
@@ -77,86 +33,155 @@ export default function ProfilePage({ user, onUpdateUser }) {
   const [avatarUrl, setAvatarUrl] = useState("");
 
   const [saving, setSaving] = useState(false);
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
-  // Stats (keep UI, but load from backend)
+  // Backend-driven stats (keep UI the same)
   const [stats, setStats] = useState({
-    total_xp: user?.xp ?? 0,
-    lessons_completed: user?.completedLessons?.length ?? 0,
+    total_xp: null,
+    lessons_completed: null,
   });
 
-  // initialize form from user prop
+  // Optional backend-driven last-7-days activity (UI stays even without endpoint)
+  const [weeklyProgress, setWeeklyProgress] = useState([
+    { day: "M", value: 0 },
+    { day: "T", value: 0 },
+    { day: "W", value: 0 },
+    { day: "T", value: 0 },
+    { day: "F", value: 0 },
+    { day: "S", value: 0 },
+    { day: "S", value: 0 },
+  ]);
+
+  // Initialize from current user (local)
   useEffect(() => {
     if (!user) return;
-    const nameParts = String(user.name || "").split(" ");
+    const nameParts = (user.name || "").split(" ");
     setFirstName(nameParts[0] || "");
     setLastName(nameParts.slice(1).join(" ") || "");
     setEmail(user.email || "");
-    setAvatarUrl(user.avatarUrl || user.avatar_url || "");
+    setAvatarUrl(user.avatarUrl || "");
   }, [user]);
 
-  // load profile from backend to ensure DB is source-of-truth
+  // Load profile from backend (if endpoint exists)
   useEffect(() => {
-    let mounted = true;
+    if (!user?.email) return;
+    const token = getToken();
+    if (!token) return;
 
     (async () => {
       try {
-        setErrorMsg("");
-        setLoadingProfile(true);
+        const res = await apiFetch("/me/profile", { token, method: "GET" });
+        if (!res.ok) return; // If you haven't added the endpoint yet, ignore quietly.
+        const data = await res.json();
 
-        const token = getToken();
-        if (!token) return; // not logged in; rely on prop user
+        // Accept flexible backend shapes:
+        // { first_name, last_name, email, avatar_url } OR { name, email, avatarUrl }
+        const fn = data.first_name ?? "";
+        const ln = data.last_name ?? "";
+        const av = data.avatar_url ?? data.avatarUrl ?? "";
+        const em = data.email ?? user.email;
 
-        const me = await apiGetMe();
-
-        if (!mounted) return;
-
-        // Update local form fields
-        const nameParts = String(me.name || "").split(" ");
-        setFirstName(nameParts[0] || "");
-        setLastName(nameParts.slice(1).join(" ") || "");
-        setEmail(me.email || email);
-        setAvatarUrl(me.avatar_url || "");
-
-        // Update parent user state (keep compat keys)
-        onUpdateUser?.({
-          ...user,
-          id: me.id,
-          email: me.email,
-          name: me.name,
-          avatarUrl: me.avatar_url,
-          avatar_url: me.avatar_url,
-        });
-
-        // Load stats after we know email
-        if (me.email) {
-          setLoadingStats(true);
-          const st = await apiGetStatsByEmail(me.email);
-          if (!mounted) return;
-          setStats({
-            total_xp: Number(st.total_xp || 0),
-            lessons_completed: Number(st.lessons_completed || 0),
-          });
+        if (fn || ln) {
+          setFirstName(fn);
+          setLastName(ln);
+        } else if (data.name) {
+          const parts = String(data.name).split(" ");
+          setFirstName(parts[0] || "");
+          setLastName(parts.slice(1).join(" ") || "");
         }
+
+        if (typeof em === "string") setEmail(em);
+        if (typeof av === "string") setAvatarUrl(av);
+
+        // keep app user in sync
+        const mergedName =
+          [fn?.trim(), ln?.trim()].filter(Boolean).join(" ") ||
+          data.name ||
+          user.name;
+
+        onUpdateUser?.({
+          name: mergedName,
+          email: em,
+          avatarUrl: av || undefined,
+        });
       } catch (e) {
-        if (!mounted) return;
-        setErrorMsg(e?.message || "Failed to load profile");
-      } finally {
-        if (!mounted) return;
-        setLoadingProfile(false);
-        setLoadingStats(false);
+        console.error("[Profile] load /me/profile failed:", e);
       }
     })();
-
-    return () => {
-      mounted = false;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.email]);
 
-  // If not logged in
+  // Load stats from backend (existing endpoint in your backend: /me/stats?email=...)
+  useEffect(() => {
+    if (!user?.email) return;
+
+    (async () => {
+      try {
+        const token = getToken();
+        const res = await apiFetch(
+          `/me/stats?email=${encodeURIComponent(user.email)}`,
+          { token, method: "GET" }
+        );
+
+        if (!res.ok) {
+          const t = await res.text().catch(() => "");
+          console.warn("[Profile] /me/stats not ok:", res.status, t);
+          return;
+        }
+
+        const data = await res.json();
+        setStats({
+          total_xp: Number.isFinite(Number(data.total_xp))
+            ? Number(data.total_xp)
+            : 0,
+          lessons_completed: Number.isFinite(Number(data.lessons_completed))
+            ? Number(data.lessons_completed)
+            : 0,
+        });
+
+        // Keep app user consistent for UI elsewhere
+        onUpdateUser?.({
+          xp: Number(data.total_xp) || 0,
+          completedLessonsCount: Number(data.lessons_completed) || 0,
+        });
+      } catch (e) {
+        console.error("[Profile] load /me/stats failed:", e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
+
+  // Optional: load real last-7-days bars if you add backend endpoint later
+  useEffect(() => {
+    if (!user?.email) return;
+
+    (async () => {
+      try {
+        const token = getToken();
+        const res = await apiFetch("/me/activity/last7days", {
+          token,
+          method: "GET",
+        });
+
+        if (!res.ok) return; // endpoint not there yet -> keep zeros
+        const data = await res.json();
+
+        // Expected shape example:
+        // { days: [{ day: "M", value: 2 }, ...] }
+        const days = Array.isArray(data?.days) ? data.days : null;
+        if (!days) return;
+
+        const normalized = ["M", "T", "W", "T", "F", "S", "S"].map((d, i) => {
+          const match = days[i] || days.find((x) => x?.day === d);
+          return { day: d, value: Number(match?.value || 0) };
+        });
+
+        setWeeklyProgress(normalized);
+      } catch (e) {
+        // ignore (endpoint optional)
+      }
+    })();
+  }, [user?.email]);
+
   if (!user) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
@@ -168,84 +193,72 @@ export default function ProfilePage({ user, onUpdateUser }) {
   }
 
   const displayName = useMemo(() => {
-    const composed = [firstName || "", lastName || ""]
-      .map((x) => String(x).trim())
-      .filter(Boolean)
-      .join(" ");
+    const composed = [firstName, lastName].map((s) => s?.trim()).filter(Boolean).join(" ");
     return composed || user.name || "Haylingua learner";
   }, [firstName, lastName, user.name]);
 
   const initials = useMemo(() => {
     const c =
-      (firstName?.[0] ||
-        user.name?.[0] ||
-        user.email?.[0] ||
-        "U") + "";
-    return c.toUpperCase();
-  }, [firstName, user.name, user.email]);
+      firstName?.[0] ||
+      user?.name?.[0] ||
+      user?.email?.[0] ||
+      "U";
+    return String(c).toUpperCase();
+  }, [firstName, user?.name, user?.email]);
 
-  // Derive level from XP (same logic as backend leaderboard: level = xp//500 + 1)
-  const xp = Number(stats.total_xp ?? user.xp ?? 0);
-  const level = Math.max(1, Math.floor(xp / 500) + 1);
-  const streak = user.streak ?? 1;
+  // Use backend stats if available; fallback to local
+  const xp = stats.total_xp ?? (user.xp ?? 0);
+  const lessonsCompleted =
+    stats.lessons_completed ??
+    user.completedLessonsCount ??
+    (Array.isArray(user.completedLessons) ? user.completedLessons.length : 0);
 
-  // Keep same UI for the chart; if you want it real later, we can compute from lesson_progress
-  const weeklyProgress = [
-    { day: "M", value: 2 },
-    { day: "T", value: 3 },
-    { day: "W", value: 1 },
-    { day: "T", value: 4 },
-    { day: "F", value: 0 },
-    { day: "S", value: 5 },
-    { day: "S", value: 2 },
-  ];
+  // derive level from XP (same logic as backend leaderboard)
+  const level = Math.max(1, Math.floor((Number(xp) || 0) / 500) + 1);
+
+  // streak still local unless you add backend tracking
+  const streak = user.streak ?? 0;
+
   const maxVal = Math.max(...weeklyProgress.map((d) => d.value), 1);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setErrorMsg("");
 
     try {
-      const newName = [firstName.trim(), lastName.trim()]
-        .filter(Boolean)
-        .join(" ");
+      const token = getToken();
 
-      const saved = await apiUpdateMe({
-        name: newName || null,
+      const payload = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim() || user.email,
         avatar_url: avatarUrl.trim() || null,
-      });
+      };
 
-      // Keep local state consistent with backend response
-      const savedParts = String(saved.name || "").split(" ");
-      setFirstName(savedParts[0] || "");
-      setLastName(savedParts.slice(1).join(" ") || "");
-      setEmail(saved.email || email);
-      setAvatarUrl(saved.avatar_url || "");
-
-      // Update parent
-      onUpdateUser?.({
-        ...user,
-        id: saved.id,
-        email: saved.email,
-        name: saved.name,
-        avatarUrl: saved.avatar_url,
-        avatar_url: saved.avatar_url,
-      });
-
-      // Reload stats (email should not change here, but keep robust)
-      try {
-        setLoadingStats(true);
-        const st = await apiGetStatsByEmail(saved.email || email);
-        setStats({
-          total_xp: Number(st.total_xp || 0),
-          lessons_completed: Number(st.lessons_completed || 0),
+      // If backend exists, this persists to DB.
+      // If not yet, it will fail silently but we still update local state.
+      if (token) {
+        const res = await apiFetch("/me/profile", {
+          token,
+          method: "PUT",
+          body: JSON.stringify(payload),
         });
-      } finally {
-        setLoadingStats(false);
+
+        if (!res.ok) {
+          const t = await res.text().catch(() => "");
+          console.warn("[Profile] PUT /me/profile failed:", res.status, t);
+        }
       }
-    } catch (e2) {
-      setErrorMsg(e2?.message || "Save failed");
+
+      const newName =
+        [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
+        user.name;
+
+      onUpdateUser?.({
+        name: newName,
+        email: payload.email,
+        avatarUrl: payload.avatar_url || undefined,
+      });
     } finally {
       setSaving(false);
     }
@@ -253,13 +266,6 @@ export default function ProfilePage({ user, onUpdateUser }) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      {/* Error banner */}
-      {errorMsg ? (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-2xl px-4 py-3 text-sm">
-          {errorMsg}
-        </div>
-      ) : null}
-
       {/* Top section: avatar + basic stats */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -276,7 +282,6 @@ export default function ProfilePage({ user, onUpdateUser }) {
               )}
             </div>
           </div>
-
           <div>
             <h1 className="text-lg md:text-xl font-semibold text-gray-900">
               {displayName}
@@ -284,9 +289,6 @@ export default function ProfilePage({ user, onUpdateUser }) {
             <p className="text-sm text-gray-500">{email}</p>
             <p className="mt-1 text-xs text-orange-600 font-medium">
               Armenian learner • Level {level}
-              {loadingProfile ? (
-                <span className="ml-2 text-gray-400">Loading…</span>
-              ) : null}
             </p>
           </div>
         </div>
@@ -301,9 +303,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
           </div>
           <div className="flex flex-col items-center bg-yellow-50 rounded-xl px-3 py-2">
             <Star className="w-4 h-4 text-yellow-500 mb-1" />
-            <span className="text-sm font-semibold text-gray-900">
-              {loadingStats ? "…" : xp}
-            </span>
+            <span className="text-sm font-semibold text-gray-900">{xp}</span>
             <span className="text-[11px] text-gray-500">XP</span>
           </div>
           <div className="flex flex-col items-center bg-red-50 rounded-xl px-3 py-2">
@@ -321,7 +321,6 @@ export default function ProfilePage({ user, onUpdateUser }) {
         <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
           Profile details
         </h2>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
@@ -334,6 +333,8 @@ export default function ProfilePage({ user, onUpdateUser }) {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Armen"
+                name="firstName"
+                id="firstName"
               />
             </div>
             <div>
@@ -346,6 +347,8 @@ export default function ProfilePage({ user, onUpdateUser }) {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Petrosyan"
+                name="lastName"
+                id="lastName"
               />
             </div>
           </div>
@@ -357,14 +360,15 @@ export default function ProfilePage({ user, onUpdateUser }) {
               </label>
               <input
                 type="email"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                disabled
+                name="email"
+                id="email"
               />
               <p className="mt-1 text-[11px] text-gray-400">
-                Email is used to log in. (Changing it needs a dedicated flow.)
+                Used to log in to Haylingua.
               </p>
             </div>
 
@@ -378,6 +382,8 @@ export default function ProfilePage({ user, onUpdateUser }) {
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
                 placeholder="https://…/avatar.png"
+                name="avatarUrl"
+                id="avatarUrl"
               />
               <p className="mt-1 text-[11px] text-gray-400">
                 Paste a direct image link. We’ll show it in your avatar.
@@ -410,9 +416,9 @@ export default function ProfilePage({ user, onUpdateUser }) {
             </p>
 
             <div className="flex items-end gap-2 h-28">
-              {weeklyProgress.map((d) => (
+              {weeklyProgress.map((d, idx) => (
                 <div
-                  key={d.day}
+                  key={`${d.day}-${idx}`}
                   className="flex flex-col items-center justify-end flex-1"
                 >
                   <div
@@ -421,12 +427,12 @@ export default function ProfilePage({ user, onUpdateUser }) {
                   >
                     <div
                       className="w-full bg-gradient-to-t from-orange-600 to-yellow-400"
-                      style={{ height: `${(d.value / maxVal) * 100}%` }}
+                      style={{
+                        height: `${(d.value / maxVal) * 100}%`,
+                      }}
                     />
                   </div>
-                  <span className="mt-1 text-[11px] text-gray-500">
-                    {d.day}
-                  </span>
+                  <span className="mt-1 text-[11px] text-gray-500">{d.day}</span>
                 </div>
               ))}
             </div>
@@ -434,9 +440,11 @@ export default function ProfilePage({ user, onUpdateUser }) {
 
           <div className="w-full md:w-60 space-y-3">
             <div className="flex justify-between items-center bg-orange-50 rounded-xl px-3 py-2.5">
-              <span className="text-xs text-gray-600">Lessons completed</span>
+              <span className="text-xs text-gray-600">
+                Total lessons completed
+              </span>
               <span className="text-sm font-semibold text-gray-900">
-                {loadingStats ? "…" : stats.lessons_completed}
+                {lessonsCompleted}
               </span>
             </div>
 
@@ -449,16 +457,15 @@ export default function ProfilePage({ user, onUpdateUser }) {
 
             <div className="flex justify-between items-center bg-blue-50 rounded-xl px-3 py-2.5">
               <span className="text-xs text-gray-600">Lifetime XP</span>
-              <span className="text-sm font-semibold text-gray-900">
-                {loadingStats ? "…" : xp}
-              </span>
+              <span className="text-sm font-semibold text-gray-900">{xp}</span>
             </div>
           </div>
         </div>
 
         <p className="mt-3 text-[11px] text-gray-400">
-          Stats are now loaded from the backend (lesson_progress). The 7-day
-          chart is still a UI placeholder — we can make it real next.
+          Stats are now loaded from the backend (<code>/me/stats</code>). The
+          “last 7 days” chart will become real once you add{" "}
+          <code>/me/activity/last7days</code>.
         </p>
       </section>
     </div>
