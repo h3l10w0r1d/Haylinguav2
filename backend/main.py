@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes import router as api_router
 from db_utils import seed_alphabet_lessons
+# I need os for getting free from seeding and relying only on the DB!!
+import os
+
 
 app = FastAPI()
 
@@ -32,19 +35,11 @@ app.add_middleware(
 )
 
 
+
 @app.on_event("startup")
-def on_startup() -> None:
-    """
-    Runs once when the app starts.
-    We seed the alphabet lessons into the DB.
-    """
-    try:
-        print("[startup] Seeding alphabet lessons…")
+def on_startup():
+    if os.getenv("SEED_ON_STARTUP", "false").lower() == "true":
         seed_alphabet_lessons()
-        print("[startup] Seeding complete.")
-    except Exception as exc:
-        print("[startup] Error while seeding lessons:", repr(exc))
-        raise
 
 
 app.include_router(api_router)
