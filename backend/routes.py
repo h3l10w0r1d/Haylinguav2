@@ -222,7 +222,7 @@ def list_lessons(db: Connection = Depends(get_db)):
             """
             SELECT id, slug, title, description, level, xp
             FROM lessons
-            WHERE slug IN ('alphabet-1', 'alphabet-2')
+            WHERE is_published = true
             ORDER BY level ASC, id ASC
             """
         )
