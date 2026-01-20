@@ -1,18 +1,22 @@
 // src/ExerciseRenderer.jsx
-import { useState } from 'react';
+import { useState } from "react";
 import {
   CheckCircle2,
   XCircle,
   Volume2,
   Sparkles,
   RefreshCw,
-} from 'lucide-react';
+} from "lucide-react";
 
 const XP_VALUES = {
   char_intro: 5,
   char_mcq_sound: 10,
   char_build_word: 15,
   letter_typing: 10,
+
+  // ✅ legacy/backend-seeded kinds
+  letter_recognition: 10,
+  word_spelling: 15,
 };
 
 function ResultBanner({ isCorrect, xp, onContinue }) {
@@ -28,12 +32,12 @@ function ResultBanner({ isCorrect, xp, onContinue }) {
         )}
         <div>
           <p className="text-sm font-semibold text-gray-900">
-            {isCorrect ? 'Nice job!' : 'Not quite.'}
+            {isCorrect ? "Nice job!" : "Not quite."}
           </p>
           <p className="text-xs text-gray-500">
             {isCorrect
               ? `You earned ${xp} XP for this step.`
-              : 'You’ll get another chance in future exercises.'}
+              : "You’ll get another chance in future exercises."}
           </p>
         </div>
       </div>
@@ -53,10 +57,10 @@ function ResultBanner({ isCorrect, xp, onContinue }) {
 
 function CharIntroExercise({ exercise, onAnswer }) {
   const cfg = exercise.config || {};
-  const letter = cfg.letter || 'Ա';
-  const lower = cfg.lower || 'ա';
-  const translit = cfg.transliteration || '';
-  const hint = cfg.hint || '';
+  const letter = cfg.letter || "Ա";
+  const lower = cfg.lower || "ա";
+  const translit = cfg.transliteration || "";
+  const hint = cfg.hint || "";
 
   const [answered, setAnswered] = useState(false);
 
@@ -104,11 +108,7 @@ function CharIntroExercise({ exercise, onAnswer }) {
             </div>
           )}
 
-          {hint && (
-            <p className="text-xs text-gray-500 max-w-xs">
-              {hint}
-            </p>
-          )}
+          {hint && <p className="text-xs text-gray-500 max-w-xs">{hint}</p>}
         </div>
       </div>
 
@@ -128,13 +128,13 @@ function CharIntroExercise({ exercise, onAnswer }) {
 
 function CharMcqSoundExercise({ exercise, onAnswer }) {
   const cfg = exercise.config || {};
-  const letter = cfg.letter || '?';
+  const letter = cfg.letter || "?";
   const options = cfg.options || [];
   const correctIndex =
-    typeof cfg.correctIndex === 'number' ? cfg.correctIndex : 0;
+    typeof cfg.correctIndex === "number" ? cfg.correctIndex : 0;
 
   const [selected, setSelected] = useState(null);
-  const [result, setResult] = useState(null); // true | false | null
+  const [result, setResult] = useState(null);
 
   const hasAnswered = result !== null;
 
@@ -166,13 +166,9 @@ function CharMcqSoundExercise({ exercise, onAnswer }) {
 
       <div className="flex flex-col items-center mb-6">
         <div className="w-32 h-32 rounded-3xl bg-gradient-to-tl from-orange-500 to-red-500 flex items-center justify-center shadow-md mb-3">
-          <span className="text-6xl font-semibold text-white">
-            {letter}
-          </span>
+          <span className="text-6xl font-semibold text-white">{letter}</span>
         </div>
-        <p className="text-xs text-gray-500">
-          Tap the correct pronunciation below
-        </p>
+        <p className="text-xs text-gray-500">Tap the correct pronunciation below</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -180,19 +176,19 @@ function CharMcqSoundExercise({ exercise, onAnswer }) {
           const isSelected = idx === selected;
           const isCorrect = idx === correctIndex;
 
-          let border = 'border-gray-200';
-          let bg = 'bg-white';
-          let text = 'text-gray-800';
+          let border = "border-gray-200";
+          let bg = "bg-white";
+          let text = "text-gray-800";
 
           if (hasAnswered && isSelected && result) {
-            border = 'border-green-500';
-            bg = 'bg-green-50';
+            border = "border-green-500";
+            bg = "bg-green-50";
           } else if (hasAnswered && isSelected && !result) {
-            border = 'border-red-500';
-            bg = 'bg-red-50';
+            border = "border-red-500";
+            bg = "bg-red-50";
           } else if (hasAnswered && isCorrect) {
-            border = 'border-green-400';
-            bg = 'bg-green-50';
+            border = "border-green-400";
+            bg = "bg-green-50";
           }
 
           return (
@@ -200,7 +196,7 @@ function CharMcqSoundExercise({ exercise, onAnswer }) {
               key={idx}
               onClick={() => handleOptionClick(idx)}
               className={`relative px-4 py-3 rounded-2xl border ${border} ${bg} ${text} text-base font-medium transition-all hover:shadow-sm ${
-                hasAnswered ? 'cursor-default' : 'hover:-translate-y-0.5'
+                hasAnswered ? "cursor-default" : "hover:-translate-y-0.5"
               }`}
             >
               {opt}
@@ -222,27 +218,101 @@ function CharMcqSoundExercise({ exercise, onAnswer }) {
 }
 
 /* ------------------------------------------------------
+   2B) LETTER RECOGNITION – "letter_recognition"
+   (backend seeds: config.choices + expected_answer)
+------------------------------------------------------ */
+
+function LetterRecognitionExercise({ exercise, onAnswer }) {
+  const cfg = exercise.config || {};
+  const choices = cfg.choices || cfg.options || [];
+  const expected = (exercise.expected_answer || cfg.answer || "").trim();
+
+  const [selected, setSelected] = useState(null);
+  const [result, setResult] = useState(null);
+
+  const hasAnswered = result !== null;
+
+  const handlePick = (value) => {
+    if (hasAnswered) return;
+    setSelected(value);
+    setResult(value === expected);
+  };
+
+  const handleContinue = () => {
+    if (!hasAnswered) return;
+    const xp = result ? XP_VALUES.letter_recognition : 0;
+    onAnswer({ isCorrect: !!result, xpEarned: xp });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
+      <p className="text-gray-700 font-medium mb-4">{exercise.prompt}</p>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {choices.map((c, idx) => {
+          const isSelected = c === selected;
+          const isCorrect = c === expected;
+
+          let border = "border-gray-200";
+          let bg = "bg-white";
+
+          if (hasAnswered && isSelected && result) {
+            border = "border-green-500";
+            bg = "bg-green-50";
+          } else if (hasAnswered && isSelected && !result) {
+            border = "border-red-500";
+            bg = "bg-red-50";
+          } else if (hasAnswered && isCorrect) {
+            border = "border-green-400";
+            bg = "bg-green-50";
+          }
+
+          return (
+            <button
+              key={`${c}-${idx}`}
+              onClick={() => handlePick(c)}
+              className={`relative h-16 rounded-2xl border ${border} ${bg} text-2xl font-semibold text-gray-900 transition-all ${
+                hasAnswered ? "cursor-default" : "hover:-translate-y-0.5 hover:shadow-sm"
+              }`}
+            >
+              {c}
+              {hasAnswered && isCorrect && (
+                <CheckCircle2 className="w-5 h-5 text-green-500 absolute top-2 right-2" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <ResultBanner
+        isCorrect={result}
+        xp={result ? XP_VALUES.letter_recognition : 0}
+        onContinue={handleContinue}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------
    3) BUILD WORD – "char_build_word"
 ------------------------------------------------------ */
 
 function CharBuildWordExercise({ exercise, onAnswer }) {
   const cfg = exercise.config || {};
-  const targetWord = cfg.targetWord || '';
+  const targetWord = cfg.targetWord || "";
   const tiles = cfg.tiles || [];
   const solutionIndices = cfg.solutionIndices || [];
 
   const [selectedIndices, setSelectedIndices] = useState([]);
-  const [result, setResult] = useState(null); // true | false | null
+  const [result, setResult] = useState(null);
 
-  const currentWord = selectedIndices.map((i) => tiles[i]).join('');
+  const currentWord = selectedIndices.map((i) => tiles[i]).join("");
   const hasAnswered = result !== null;
 
   const handleTileClick = (idx) => {
     if (hasAnswered) return;
     setSelectedIndices((prev) => {
-      if (prev.includes(idx)) {
-        return prev.filter((i) => i !== idx);
-      }
+      if (prev.includes(idx)) return prev.filter((i) => i !== idx);
       return [...prev, idx];
     });
   };
@@ -250,7 +320,7 @@ function CharBuildWordExercise({ exercise, onAnswer }) {
   const handleCheck = () => {
     if (!selectedIndices.length || hasAnswered) return;
 
-    const correctWord = solutionIndices.map((i) => tiles[i]).join('');
+    const correctWord = solutionIndices.map((i) => tiles[i]).join("");
     const isCorrect = currentWord === correctWord;
     setResult(isCorrect);
   };
@@ -280,9 +350,7 @@ function CharBuildWordExercise({ exercise, onAnswer }) {
 
       <div className="min-h-[4rem] mb-4 flex items-center justify-center border border-dashed border-orange-300 rounded-2xl px-4 py-3 bg-orange-50/60">
         {currentWord ? (
-          <span className="text-3xl text-orange-800 tracking-wide">
-            {currentWord}
-          </span>
+          <span className="text-3xl text-orange-800 tracking-wide">{currentWord}</span>
         ) : (
           <span className="text-sm text-gray-400">
             Tap letters below to build the word
@@ -294,12 +362,12 @@ function CharBuildWordExercise({ exercise, onAnswer }) {
         {tiles.map((tile, idx) => {
           const isSelected = selectedIndices.includes(idx);
           const baseClasses =
-            'w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-2xl font-semibold border transition-all shadow-sm';
+            "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-2xl font-semibold border transition-all shadow-sm";
 
           const selectedClasses =
-            'bg-orange-600 border-orange-700 text-white scale-105 shadow-md';
+            "bg-orange-600 border-orange-700 text-white scale-105 shadow-md";
           const unselectedClasses =
-            'bg-white border-gray-200 text-gray-900 hover:bg-orange-50 hover:-translate-y-0.5';
+            "bg-white border-gray-200 text-gray-900 hover:bg-orange-50 hover:-translate-y-0.5";
 
           return (
             <button
@@ -307,7 +375,7 @@ function CharBuildWordExercise({ exercise, onAnswer }) {
               onClick={() => handleTileClick(idx)}
               className={`${baseClasses} ${
                 isSelected ? selectedClasses : unselectedClasses
-              } ${hasAnswered ? 'cursor-default hover:translate-y-0' : ''}`}
+              } ${hasAnswered ? "cursor-default hover:translate-y-0" : ""}`}
             >
               {tile}
             </button>
@@ -349,20 +417,18 @@ function CharBuildWordExercise({ exercise, onAnswer }) {
 
 function LetterTypingExercise({ exercise, onAnswer }) {
   const cfg = exercise.config || {};
-  const expected =
-    (exercise.expected_answer || cfg.answer || '').trim();
+  const expected = (exercise.expected_answer || cfg.answer || "").trim();
 
-  const [value, setValue] = useState('');
-  const [result, setResult] = useState(null); // true | false | null
+  const [value, setValue] = useState("");
+  const [result, setResult] = useState(null);
 
   const hasAnswered = result !== null;
 
+  const normalize = (s) => (s || "").normalize("NFC").trim();
+
   const handleCheck = () => {
     if (!value.trim() || hasAnswered) return;
-
-    const normalize = (s) => s.normalize('NFC').trim();
     const isCorrect = normalize(value) === normalize(expected);
-
     setResult(isCorrect);
   };
 
@@ -374,9 +440,7 @@ function LetterTypingExercise({ exercise, onAnswer }) {
 
   return (
     <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
-      <p className="text-gray-700 font-medium mb-4">
-        {exercise.prompt}
-      </p>
+      <p className="text-gray-700 font-medium mb-4">{exercise.prompt}</p>
 
       <div className="flex flex-col items-center gap-4 mb-2">
         <input
@@ -385,7 +449,7 @@ function LetterTypingExercise({ exercise, onAnswer }) {
           onChange={(e) => setValue(e.target.value)}
           disabled={hasAnswered}
           className="w-full max-w-sm px-4 py-3 rounded-2xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 text-center text-2xl"
-          placeholder="Type the letter here…"
+          placeholder="Type here…"
         />
       </div>
 
@@ -409,6 +473,70 @@ function LetterTypingExercise({ exercise, onAnswer }) {
 }
 
 /* ------------------------------------------------------
+   4B) WORD SPELLING – "word_spelling"
+   (backend seeds: expected_answer is the full word, prompt is "Complete ...")
+------------------------------------------------------ */
+
+function WordSpellingExercise({ exercise, onAnswer }) {
+  const cfg = exercise.config || {};
+  const expected = (exercise.expected_answer || cfg.answer || "").trim();
+  const hint = cfg.hint || "";
+
+  const [value, setValue] = useState("");
+  const [result, setResult] = useState(null);
+
+  const hasAnswered = result !== null;
+
+  const normalize = (s) => (s || "").normalize("NFC").trim();
+
+  const handleCheck = () => {
+    if (!value.trim() || hasAnswered) return;
+    const isCorrect = normalize(value) === normalize(expected);
+    setResult(isCorrect);
+  };
+
+  const handleContinue = () => {
+    if (!hasAnswered) return;
+    const xp = result ? XP_VALUES.word_spelling : 0;
+    onAnswer({ isCorrect: !!result, xpEarned: xp });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
+      <p className="text-gray-700 font-medium mb-2">{exercise.prompt}</p>
+      {hint && <p className="text-xs text-gray-500 mb-4">{hint}</p>}
+
+      <div className="flex flex-col items-center gap-4 mb-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={hasAnswered}
+          className="w-full max-w-md px-4 py-3 rounded-2xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 text-center text-xl"
+          placeholder="Type the full word…"
+        />
+      </div>
+
+      <div className="flex justify-center gap-3">
+        <button
+          onClick={handleCheck}
+          disabled={hasAnswered || !value.trim()}
+          className="px-6 py-2 rounded-xl bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-default"
+        >
+          Check
+        </button>
+      </div>
+
+      <ResultBanner
+        isCorrect={result}
+        xp={result ? XP_VALUES.word_spelling : 0}
+        onContinue={handleContinue}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------
    MAIN RENDERER
 ------------------------------------------------------ */
 
@@ -416,19 +544,30 @@ export default function ExerciseRenderer({ exercise, onAnswer }) {
   if (!exercise) return null;
 
   switch (exercise.kind) {
-    case 'char_intro':
+    case "char_intro":
       return <CharIntroExercise exercise={exercise} onAnswer={onAnswer} />;
-    case 'char_mcq_sound':
+
+    case "char_mcq_sound":
       return <CharMcqSoundExercise exercise={exercise} onAnswer={onAnswer} />;
-    case 'char_build_word':
+
+    case "char_build_word":
       return <CharBuildWordExercise exercise={exercise} onAnswer={onAnswer} />;
-    case 'letter_typing':
+
+    case "letter_typing":
       return <LetterTypingExercise exercise={exercise} onAnswer={onAnswer} />;
+
+    // ✅ backend-seeded kinds
+    case "letter_recognition":
+      return <LetterRecognitionExercise exercise={exercise} onAnswer={onAnswer} />;
+
+    case "word_spelling":
+      return <WordSpellingExercise exercise={exercise} onAnswer={onAnswer} />;
+
     default:
       return (
         <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
           <p className="text-gray-700 mb-2">
-            Unknown exercise type:{' '}
+            Unknown exercise type:{" "}
             <code className="bg-gray-100 px-1 rounded">{exercise.kind}</code>
           </p>
           <p className="text-sm text-gray-500 mb-4">
