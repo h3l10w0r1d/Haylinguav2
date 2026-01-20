@@ -13,6 +13,7 @@ import Dashboard from "./Dashboard";
 import LessonPlayer from "./LessonPlayer";
 import Friends from "./Friends";
 import Leaderboard from "./Leaderboard";
+import HeaderLayout from "./HeaderLayout";
 import ProfilePage from "./ProfilePage";
   // CMS Imports 
 import CmsShell from "./cms/CmsShell";
@@ -227,11 +228,13 @@ function AppShell() {
 />
 
       <Route
-        path="/profile"
-        element={user ? <ProfilePage user={user} onUpdateUser={handleUpdateUser} /> : <Navigate to="/" replace />}
-      />
-
-      <Route path="*" element={<Navigate to="/" replace />} />
+  path="/profile"
+  element={
+    <HeaderLayout user={user} onLogout={handleLogout}>
+      <ProfilePage user={user} onUserUpdate={setUser} />
+    </HeaderLayout>
+  }
+/>
 
 
 //CMS Routes
