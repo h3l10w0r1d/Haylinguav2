@@ -19,7 +19,7 @@ from jose import jwt, JWTError
 #CMS
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import text
-from .database import get_db
+from database import get_db
 
 router = APIRouter()
 
