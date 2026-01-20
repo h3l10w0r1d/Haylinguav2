@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { cmsApi } from "./api";
+import { useParams } from "react-router-dom";
+import { createCmsApi, setCmsApiClient, cmsApi } from "./api";
 import { BookOpen, Plus, Search, Settings2 } from "lucide-react";
 import LessonEditor from "./LessonEditor";
 import ExerciseEditor from "./ExerciseEditor";
 
-function cx(...a) { return a.filter(Boolean).join(" "); }
+function cx(...a) {
+  return a.filter(Boolean).join(" ");
+}
 
 function TopBar({ query, setQuery }) {
   return (
@@ -16,7 +19,9 @@ function TopBar({ query, setQuery }) {
           </div>
           <div>
             <div className="text-sm">Haylingua CMS</div>
-            <div className="text-xs text-slate-500 -mt-0.5">Lessons & exercises</div>
+            <div className="text-xs text-slate-500 -mt-0.5">
+              Lessons & exercises
+            </div>
           </div>
         </div>
 
@@ -52,7 +57,8 @@ function LessonRow({ lesson, active, onClick }) {
         <div>
           <div className="font-semibold text-slate-900">{lesson.title}</div>
           <div className="text-xs text-slate-500 mt-0.5">
-            slug: <span className="font-mono">{lesson.slug}</span> · level {lesson.level} · xp {lesson.xp}
+            slug: <span className="font-mono">{lesson.slug}</span> · level{" "}
+            {lesson.level} · xp {lesson.xp}
           </div>
         </div>
         <BookOpen className="w-4 h-4 text-slate-400 mt-1" />
@@ -62,6 +68,16 @@ function LessonRow({ lesson, active, onClick }) {
 }
 
 export default function CmsShell() {
+  const { cmsKey } = useParams();
+
+  // Create a token-bound api client
+  const api = useMemo(() => createCmsApi(cmsKey), [cmsKey]);
+
+  // For compatibility with LessonEditor/ExerciseEditor that import { cmsApi } from "./api"
+  useEffect(() => {
+    setCmsApiClient(api);
+  }, [api]);
+
   const [lessons, setLessons] = useState([]);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState(null);
@@ -80,7 +96,7 @@ export default function CmsShell() {
   }
 
   async function refreshLessons(preserveSelection = true) {
-    const data = await cmsApi.listLessons();
+    const data = await api.listLessons();
     setLessons(Array.isArray(data) ? data : []);
     if (!preserveSelection) setSelectedLessonId(null);
   }
@@ -90,7 +106,7 @@ export default function CmsShell() {
       setExercises([]);
       return;
     }
-    const data = await cmsApi.listExercises(lessonId);
+    const data = await api.listExercises(lessonId);
     setExercises(Array.isArray(data) ? data : []);
   }
 
@@ -105,7 +121,8 @@ export default function CmsShell() {
         setLoading(false);
       }
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cmsKey]);
 
   useEffect(() => {
     (async () => {
@@ -115,13 +132,16 @@ export default function CmsShell() {
         showToast(e.message || "Failed to load exercises", "err");
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLessonId]);
 
   const filteredLessons = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return lessons;
     return lessons.filter((l) =>
-      [l.title, l.slug, l.description].some((x) => String(x || "").toLowerCase().includes(q))
+      [l.title, l.slug, l.description].some((x) =>
+        String(x || "").toLowerCase().includes(q)
+      )
     );
   }, [lessons, query]);
 
@@ -137,8 +157,12 @@ export default function CmsShell() {
 
   const rightTitle =
     mode === "lesson"
-      ? selectedLessonId ? "Edit lesson" : "Create lesson"
-      : selectedExerciseId ? "Edit exercise" : "Create exercise";
+      ? selectedLessonId
+        ? "Edit lesson"
+        : "Create lesson"
+      : selectedExerciseId
+      ? "Edit exercise"
+      : "Create exercise";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -188,12 +212,16 @@ export default function CmsShell() {
           <div className="bg-white rounded-2xl border border-slate-200 p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm font-semibold text-slate-900">
-                Exercises {selectedLesson ? <span className="text-slate-400">· {selectedLesson.slug}</span> : null}
+                Exercises{" "}
+                {selectedLesson ? (
+                  <span className="text-slate-400">· {selectedLesson.slug}</span>
+                ) : null}
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  if (!selectedLessonId) return showToast("Select a lesson first", "err");
+                  if (!selectedLessonId)
+                    return showToast("Select a lesson first", "err");
                   setSelectedExerciseId(null);
                   setMode("exercise");
                 }}
@@ -209,7 +237,9 @@ export default function CmsShell() {
             </div>
 
             {!selectedLessonId ? (
-              <div className="text-sm text-slate-500">Pick a lesson to view exercises.</div>
+              <div className="text-sm text-slate-500">
+                Pick a lesson to view exercises.
+              </div>
             ) : exercises.length === 0 ? (
               <div className="text-sm text-slate-500">No exercises yet.</div>
             ) : (
@@ -235,11 +265,16 @@ export default function CmsShell() {
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <div className="text-sm font-semibold text-slate-900">
-                            #{ex.order ?? "?"} · <span className="font-mono">{ex.kind}</span>
+                            #{ex.order ?? "?"} ·{" "}
+                            <span className="font-mono">{ex.kind}</span>
                           </div>
-                          <div className="text-xs text-slate-500 line-clamp-1">{ex.prompt}</div>
+                          <div className="text-xs text-slate-500 line-clamp-1">
+                            {ex.prompt}
+                          </div>
                         </div>
-                        <div className="text-xs text-slate-400 font-mono">id:{ex.id}</div>
+                        <div className="text-xs text-slate-400 font-mono">
+                          id:{ex.id}
+                        </div>
                       </div>
                     </button>
                   ))}
@@ -252,7 +287,9 @@ export default function CmsShell() {
         <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-lg font-semibold text-slate-900">{rightTitle}</div>
+              <div className="text-lg font-semibold text-slate-900">
+                {rightTitle}
+              </div>
               <div className="text-xs text-slate-500 mt-0.5">
                 {mode === "lesson"
                   ? "Manage lesson metadata shown in the learning path."
