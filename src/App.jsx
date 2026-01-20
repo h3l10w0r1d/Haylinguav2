@@ -1,21 +1,24 @@
 // src/App.jsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
   Navigate,
   useNavigate,
-} from 'react-router-dom';
+} from "react-router-dom";
 
-import LandingPage from './LandingPage';
-import Dashboard from './Dashboard';
-import LessonPlayer from './LessonPlayer';
-import Friends from './Friends';
-import Leaderboard from './Leaderboard';
-import ProfilePage from './ProfilePage';
+import LandingPage from "./LandingPage";
+import Dashboard from "./Dashboard";
+import LessonPlayer from "./LessonPlayer";
+import Friends from "./Friends";
+import Leaderboard from "./Leaderboard";
+import ProfilePage from "./ProfilePage";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+// ✅ Always have a working backend URL even if Vercel env vars are missing
+const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
+const API_BASE =
+  (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
 
 function AppShell() {
   const [user, setUser] = useState(null);
@@ -24,35 +27,45 @@ function AppShell() {
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    console.log("[App] API_BASE =", API_BASE);
+  }, []);
+
   // Load auth state from localStorage
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem('hay_token');
-      const storedUser = localStorage.getItem('hay_user');
+      const storedToken =
+        localStorage.getItem("hay_token") || localStorage.getItem("access_token");
+      const storedUser = localStorage.getItem("hay_user");
 
-      if (storedToken && storedUser) {
-        setToken(storedToken);
+      if (storedToken) setToken(storedToken);
+
+      if (storedUser) {
         setUser(JSON.parse(storedUser));
+      } else {
+        // If we only have token (older / alternative flow), keep user null
+        // so LandingPage shows; it will be re-created after login.
       }
     } catch (err) {
-      console.error('Error reading saved auth state', err);
-      localStorage.removeItem('hay_token');
-      localStorage.removeItem('hay_user');
+      console.error("Error reading saved auth state", err);
+      localStorage.removeItem("hay_token");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("hay_user");
     } finally {
       setLoadingUser(false);
     }
   }, []);
 
   const handleAuthSuccess = (tokenValue, email) => {
-    const baseName = email.split('@')[0];
+    const baseName = (email || "user").split("@")[0];
 
     const newUser = {
       id: 1, // placeholder until backend profile endpoint exists
       email,
       name: baseName,
-      firstName: '',
-      lastName: '',
-      avatarUrl: '',
+      firstName: "",
+      lastName: "",
+      avatarUrl: "",
       level: 1,
       xp: 0,
       streak: 0,
@@ -62,65 +75,71 @@ function AppShell() {
     setToken(tokenValue);
     setUser(newUser);
 
-    localStorage.setItem('hay_token', tokenValue);
-    // compatibility with older components
-    localStorage.setItem('access_token', tokenValue);
-    localStorage.setItem('hay_user', JSON.stringify(newUser));
+    // ✅ keep both keys for compatibility
+    localStorage.setItem("hay_token", tokenValue);
+    localStorage.setItem("access_token", tokenValue);
+    localStorage.setItem("hay_user", JSON.stringify(newUser));
 
-    navigate('/dashboard', { replace: true });
+    navigate("/dashboard", { replace: true });
   };
 
   // LOGIN
   const handleLogin = async (email, password) => {
     try {
-      const res = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const url = `${API_BASE}/login`;
+      console.log("[App] POST", url);
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Login failed', res.status, text);
-        throw new Error('Invalid email or password');
+        const text = await res.text().catch(() => "");
+        console.error("Login failed", res.status, text);
+        throw new Error("Invalid email or password");
       }
 
       const data = await res.json();
       const tokenValue = data.access_token;
 
       if (!tokenValue) {
-        console.error('No token in /login response', data);
-        throw new Error('No token in /login response');
+        console.error("No token in /login response", data);
+        throw new Error("No token in /login response");
       }
 
       handleAuthSuccess(tokenValue, data.email ?? email);
     } catch (err) {
-      console.error('Login error', err);
-      alert(err.message || 'Login failed. Please try again.');
+      console.error("Login error", err);
+      alert(err.message || "Login failed. Please try again.");
     }
   };
 
   // SIGNUP
   const handleSignup = async (_name, email, password) => {
     try {
-      const res = await fetch(`${API_BASE}/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const url = `${API_BASE}/signup`;
+      console.log("[App] POST", url);
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Signup failed', res.status, text);
-        alert('Signup failed. Maybe this email is already registered.');
+        const text = await res.text().catch(() => "");
+        console.error("Signup failed", res.status, text);
+        alert("Signup failed. Maybe this email is already registered.");
         return;
       }
 
       // auto-login after signup
       await handleLogin(email, password);
     } catch (err) {
-      console.error('Signup error', err);
-      alert('Could not reach the server. Please try again.');
+      console.error("Signup error", err);
+      alert("Could not reach the server. Please try again.");
     }
   };
 
@@ -128,16 +147,16 @@ function AppShell() {
     if (!user) return;
     const updated = { ...user, ...updates };
     setUser(updated);
-    localStorage.setItem('hay_user', JSON.stringify(updated));
+    localStorage.setItem("hay_user", JSON.stringify(updated));
   };
 
   const handleLogout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('hay_token');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('hay_user');
-    navigate('/', { replace: true });
+    localStorage.removeItem("hay_token");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("hay_user");
+    navigate("/", { replace: true });
   };
 
   if (loadingUser) {
@@ -165,11 +184,7 @@ function AppShell() {
         path="/dashboard"
         element={
           user ? (
-            <Dashboard
-              user={user}
-              onUpdateUser={handleUpdateUser}
-              onLogout={handleLogout}
-            />
+            <Dashboard user={user} onUpdateUser={handleUpdateUser} onLogout={handleLogout} />
           ) : (
             <Navigate to="/" replace />
           )
@@ -199,13 +214,7 @@ function AppShell() {
 
       <Route
         path="/profile"
-        element={
-          user ? (
-            <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
+        element={user ? <ProfilePage user={user} onUpdateUser={handleUpdateUser} /> : <Navigate to="/" replace />}
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />
