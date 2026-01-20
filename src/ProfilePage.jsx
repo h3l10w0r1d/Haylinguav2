@@ -217,7 +217,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
   const level = Math.max(1, Math.floor((Number(xp) || 0) / 500) + 1);
 
   // streak still local unless you add backend tracking
-  const streak = user.streak ?? 0;
+  const streak = Math.max(1, Number(user?.streak ?? 1) || 1);;
 
   const maxVal = Math.max(...weeklyProgress.map((d) => d.value), 1);
 
