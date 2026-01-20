@@ -1,20 +1,22 @@
 // src/HeaderLayout.jsx
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Home, Users, Trophy, User, LogOut } from 'lucide-react';
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Home, Users, Trophy, User, LogOut } from "lucide-react";
 
-export default function HeaderLayout({ user, onLogout }) {
+export default function HeaderLayout({ user, onLogout, children }) {
   const navigate = useNavigate();
 
   const linkBase =
-    'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors';
-  const activeClass = 'bg-orange-600 text-white shadow-sm';
-  const inactiveClass =
-    'text-gray-600 hover:bg-orange-50 hover:text-orange-700';
+    "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors";
+  const activeClass = "bg-orange-600 text-white shadow-sm";
+  const inactiveClass = "text-gray-600 hover:bg-orange-50 hover:text-orange-700";
 
   const navLinkClass = ({ isActive }) =>
     `${linkBase} ${isActive ? activeClass : inactiveClass}`;
 
-  const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? 'U';
+  const initial =
+    user?.name?.[0]?.toUpperCase() ??
+    user?.email?.[0]?.toUpperCase() ??
+    "U";
 
   return (
     <div className="min-h-screen bg-orange-50">
@@ -23,16 +25,14 @@ export default function HeaderLayout({ user, onLogout }) {
         <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
           {/* Logo / home */}
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate("/dashboard")}
             className="flex items-center gap-2"
           >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg">
               Հ
             </div>
             <div className="flex flex-col items-start">
-              <span className="font-bold text-lg text-gray-900">
-                Haylingua
-              </span>
+              <span className="font-bold text-lg text-gray-900">Haylingua</span>
               <span className="text-[11px] text-gray-500 leading-tight">
                 Armenian made playful
               </span>
@@ -62,12 +62,13 @@ export default function HeaderLayout({ user, onLogout }) {
           {/* Right side: avatar + logout */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate("/profile")}
               className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm"
               title="Your profile"
             >
               {initial}
             </button>
+
             <button
               onClick={onLogout}
               className="hidden md:inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-full transition-colors"
@@ -86,7 +87,7 @@ export default function HeaderLayout({ user, onLogout }) {
             to="/dashboard"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? 'text-orange-600' : 'text-gray-500'
+                isActive ? "text-orange-600" : "text-gray-500"
               }`
             }
           >
@@ -98,7 +99,7 @@ export default function HeaderLayout({ user, onLogout }) {
             to="/friends"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? 'text-orange-600' : 'text-gray-500'
+                isActive ? "text-orange-600" : "text-gray-500"
               }`
             }
           >
@@ -110,7 +111,7 @@ export default function HeaderLayout({ user, onLogout }) {
             to="/leaderboard"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? 'text-orange-600' : 'text-gray-500'
+                isActive ? "text-orange-600" : "text-gray-500"
               }`
             }
           >
@@ -122,7 +123,7 @@ export default function HeaderLayout({ user, onLogout }) {
             to="/profile"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? 'text-orange-600' : 'text-gray-500'
+                isActive ? "text-orange-600" : "text-gray-500"
               }`
             }
           >
@@ -134,7 +135,8 @@ export default function HeaderLayout({ user, onLogout }) {
 
       {/* Main content under header, above mobile nav */}
       <main className="pt-16 pb-14 md:pb-0">
-        <Outlet />
+        {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
+        {children ?? <Outlet />}
       </main>
     </div>
   );
