@@ -1,6 +1,6 @@
 # backend/routes.py
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 import httpx
@@ -17,7 +17,7 @@ from auth import hash_password, verify_password, create_token
 from jose import jwt, JWTError
 
 #CMS
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy import text
 from database import get_db
 import json
@@ -410,6 +410,62 @@ class MeUpdateIn(BaseModel):
     name: str | None = None
     avatar_url: str | None = None
 
+
+
+@router.get("/me/activity")
+def me_activity(
+    days: int = 7,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """
+    Returns daily counts for the last N days (default 7).
+    Currently counts LESSON completions (lesson_progress rows).
+    Output:
+      [{"day":"M","value":2}, ...]
+    """
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing credentials")
+
+    if days < 1:
+        days = 1
+    if days > 30:
+        days = 30
+
+    # Build a date series in Python to keep it simple and stable
+    today = datetime.utcnow().date()
+    start = today - timedelta(days=days - 1)
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+              DATE(completed_at) AS d,
+              COUNT(*)::int AS c
+            FROM lesson_progress
+            WHERE user_id = :user_id
+              AND completed_at >= :start_dt
+            GROUP BY DATE(completed_at)
+            ORDER BY d ASC
+            """
+        ),
+        {"user_id": user_id, "start_dt": start},
+    ).mappings().all()
+
+    counts_by_date = {r["d"]: int(r["c"]) for r in rows}
+
+    # Map to your UI labels M T W T F S S
+    # (Monday=0 ... Sunday=6)
+    labels = ["M", "T", "W", "T", "F", "S", "S"]
+
+    out: List[Dict[str, int | str]] = []
+    for i in range(days):
+        d = start + timedelta(days=i)
+        label = labels[d.weekday()]
+        out.append({"day": label, "value": counts_by_date.get(d, 0)})
+
+    return out
 
 @router.get("/me", response_model=MeOut)
 def me_get(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
