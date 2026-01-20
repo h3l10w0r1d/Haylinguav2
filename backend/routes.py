@@ -20,6 +20,7 @@ from jose import jwt, JWTError
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import text
 from database import get_db
+import json
 
 router = APIRouter()
 
@@ -579,6 +580,7 @@ def cms_get_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
         raise HTTPException(404, detail="Exercise not found")
     return dict(row)
 
+
 @router.post("/cms/exercises")
 async def cms_create_exercise(request: Request, db=Depends(get_db)):
     require_cms(request)
@@ -595,15 +597,35 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
         raise HTTPException(400, detail="lesson_id and kind are required")
 
     q = text("""
-        INSERT INTO exercises (lesson_id, kind, prompt, expected_answer, "order", config)
-        VALUES (:lesson_id, :kind, :prompt, :expected_answer, :order, :config::jsonb)
+        INSERT INTO exercises (
+            lesson_id,
+            kind,
+            prompt,
+            expected_answer,
+            "order",
+            config
+        )
+        VALUES (
+            :lesson_id,
+            :kind,
+            :prompt,
+            :expected_answer,
+            :order,
+            CAST(:config AS jsonb)
+        )
         RETURNING id
     """)
-    new_id = db.execute(q, {
-        "lesson_id": lesson_id, "kind": kind, "prompt": prompt,
-        "expected_answer": expected_answer, "order": order,
-        "config": __import__("json").dumps(config)
-    }).scalar_one()
+
+    params = {
+        "lesson_id": lesson_id,
+        "kind": kind,
+        "prompt": prompt,
+        "expected_answer": expected_answer,
+        "order": order,
+        "config": json.dumps(config),
+    }
+
+    new_id = db.execute(q, params).scalar_one()
     return {"id": new_id}
 
 @router.put("/cms/exercises/{exercise_id}")
