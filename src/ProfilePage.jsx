@@ -26,6 +26,10 @@ async function apiFetch(path, { token, ...opts } = {}) {
   return res;
 }
 
+function safeJsonParse(res) {
+  return res.json().catch(() => null);
+}
+
 export default function ProfilePage({ user, onUpdateUser }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -40,7 +44,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
     lessons_completed: null,
   });
 
-  // Optional backend-driven last-7-days activity (UI stays even without endpoint)
+  // Backend-driven last-7-days activity
   const [weeklyProgress, setWeeklyProgress] = useState([
     { day: "M", value: 0 },
     { day: "T", value: 0 },
@@ -61,56 +65,66 @@ export default function ProfilePage({ user, onUpdateUser }) {
     setAvatarUrl(user.avatarUrl || "");
   }, [user]);
 
-  // Load profile from backend (if endpoint exists)
+  // Load profile from backend (prefer /me/profile, fallback to /me)
   useEffect(() => {
-    if (!user?.email) return;
     const token = getToken();
     if (!token) return;
 
     (async () => {
       try {
-        const res = await apiFetch("/me/profile", { token, method: "GET" });
-        if (!res.ok) return; // If you haven't added the endpoint yet, ignore quietly.
-        const data = await res.json();
+        // 1) Try /me/profile
+        let res = await apiFetch("/me/profile", { token, method: "GET" });
+
+        // 2) Fallback to /me (because your backend already has it)
+        if (!res.ok) {
+          res = await apiFetch("/me", { token, method: "GET" });
+        }
+
+        if (!res.ok) return;
+
+        const data = await safeJsonParse(res);
+        if (!data) return;
 
         // Accept flexible backend shapes:
-        // { first_name, last_name, email, avatar_url } OR { name, email, avatarUrl }
+        // { first_name, last_name, email, avatar_url }
+        // OR { name, email, avatar_url } OR { name, email, avatarUrl }
         const fn = data.first_name ?? "";
         const ln = data.last_name ?? "";
         const av = data.avatar_url ?? data.avatarUrl ?? "";
-        const em = data.email ?? user.email;
+        const em = data.email ?? user?.email ?? "";
 
         if (fn || ln) {
-          setFirstName(fn);
-          setLastName(ln);
+          setFirstName(String(fn || ""));
+          setLastName(String(ln || ""));
         } else if (data.name) {
           const parts = String(data.name).split(" ");
           setFirstName(parts[0] || "");
           setLastName(parts.slice(1).join(" ") || "");
         }
 
-        if (typeof em === "string") setEmail(em);
+        if (typeof em === "string" && em) setEmail(em);
         if (typeof av === "string") setAvatarUrl(av);
 
-        // keep app user in sync
         const mergedName =
-          [fn?.trim(), ln?.trim()].filter(Boolean).join(" ") ||
+          [String(fn || "").trim(), String(ln || "").trim()]
+            .filter(Boolean)
+            .join(" ") ||
           data.name ||
-          user.name;
+          user?.name;
 
         onUpdateUser?.({
           name: mergedName,
-          email: em,
+          email: em || user?.email,
           avatarUrl: av || undefined,
         });
       } catch (e) {
-        console.error("[Profile] load /me/profile failed:", e);
+        console.error("[Profile] load profile failed:", e);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
 
-  // Load stats from backend (existing endpoint in your backend: /me/stats?email=...)
+  // Load stats from backend (/me/stats?email=...)
   useEffect(() => {
     if (!user?.email) return;
 
@@ -128,20 +142,20 @@ export default function ProfilePage({ user, onUpdateUser }) {
           return;
         }
 
-        const data = await res.json();
+        const data = await safeJsonParse(res);
+        if (!data) return;
+
+        const totalXp = Number(data.total_xp);
+        const lessonsDone = Number(data.lessons_completed);
+
         setStats({
-          total_xp: Number.isFinite(Number(data.total_xp))
-            ? Number(data.total_xp)
-            : 0,
-          lessons_completed: Number.isFinite(Number(data.lessons_completed))
-            ? Number(data.lessons_completed)
-            : 0,
+          total_xp: Number.isFinite(totalXp) ? totalXp : 0,
+          lessons_completed: Number.isFinite(lessonsDone) ? lessonsDone : 0,
         });
 
-        // Keep app user consistent for UI elsewhere
         onUpdateUser?.({
-          xp: Number(data.total_xp) || 0,
-          completedLessonsCount: Number(data.lessons_completed) || 0,
+          xp: Number.isFinite(totalXp) ? totalXp : 0,
+          completedLessonsCount: Number.isFinite(lessonsDone) ? lessonsDone : 0,
         });
       } catch (e) {
         console.error("[Profile] load /me/stats failed:", e);
@@ -150,34 +164,56 @@ export default function ProfilePage({ user, onUpdateUser }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
 
-  // Optional: load real last-7-days bars if you add backend endpoint later
+  // Load real last-7-days activity
   useEffect(() => {
-    if (!user?.email) return;
+    const token = getToken();
+    if (!token) return;
 
     (async () => {
       try {
-        const token = getToken();
+        // Your FE calls /me/activity/last7days — keep that.
         const res = await apiFetch("/me/activity/last7days", {
           token,
           method: "GET",
         });
 
-        if (!res.ok) return; // endpoint not there yet -> keep zeros
-        const data = await res.json();
+        if (!res.ok) {
+          // If you only have /me/activity (days=7) on backend, fallback:
+          const res2 = await apiFetch("/me/activity?days=7", {
+            token,
+            method: "GET",
+          });
+          if (!res2.ok) return;
 
-        // Expected shape example:
-        // { days: [{ day: "M", value: 2 }, ...] }
-        const days = Array.isArray(data?.days) ? data.days : null;
-        if (!days) return;
+          const data2 = await safeJsonParse(res2);
+          if (Array.isArray(data2)) setWeeklyProgress(data2);
+          return;
+        }
 
-        const normalized = ["M", "T", "W", "T", "F", "S", "S"].map((d, i) => {
-          const match = days[i] || days.find((x) => x?.day === d);
-          return { day: d, value: Number(match?.value || 0) };
-        });
+        const data = await safeJsonParse(res);
 
-        setWeeklyProgress(normalized);
+        // ✅ FIX: backend returns an ARRAY directly (not {days: [...]})
+        if (Array.isArray(data)) {
+          setWeeklyProgress(
+            data.map((x) => ({
+              day: String(x?.day ?? ""),
+              value: Number(x?.value ?? 0),
+            }))
+          );
+          return;
+        }
+
+        // If backend ever returns {days:[...]} support it too
+        if (Array.isArray(data?.days)) {
+          setWeeklyProgress(
+            data.days.map((x) => ({
+              day: String(x?.day ?? ""),
+              value: Number(x?.value ?? 0),
+            }))
+          );
+        }
       } catch (e) {
-        // ignore (endpoint optional)
+        // ignore
       }
     })();
   }, [user?.email]);
@@ -185,29 +221,27 @@ export default function ProfilePage({ user, onUpdateUser }) {
   if (!user) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-gray-600">
-          You need to be logged in to view your profile.
-        </p>
+        <p className="text-gray-600">You need to be logged in to view your profile.</p>
       </div>
     );
   }
 
   const displayName = useMemo(() => {
-    const composed = [firstName, lastName].map((s) => s?.trim()).filter(Boolean).join(" ");
+    const composed = [firstName, lastName]
+      .map((s) => s?.trim())
+      .filter(Boolean)
+      .join(" ");
     return composed || user.name || "Haylingua learner";
   }, [firstName, lastName, user.name]);
 
   const initials = useMemo(() => {
-    const c =
-      firstName?.[0] ||
-      user?.name?.[0] ||
-      user?.email?.[0] ||
-      "U";
+    const c = firstName?.[0] || user?.name?.[0] || user?.email?.[0] || "U";
     return String(c).toUpperCase();
   }, [firstName, user?.name, user?.email]);
 
   // Use backend stats if available; fallback to local
   const xp = stats.total_xp ?? (user.xp ?? 0);
+
   const lessonsCompleted =
     stats.lessons_completed ??
     user.completedLessonsCount ??
@@ -216,10 +250,10 @@ export default function ProfilePage({ user, onUpdateUser }) {
   // derive level from XP (same logic as backend leaderboard)
   const level = Math.max(1, Math.floor((Number(xp) || 0) / 500) + 1);
 
-  // streak still local unless you add backend tracking
-  const streak = Math.max(1, Number(user?.streak ?? 1) || 1);;
+  // ✅ Fix: streak should never show 0
+  const streak = Math.max(1, Number(user?.streak ?? 1) || 1);
 
-  const maxVal = Math.max(...weeklyProgress.map((d) => d.value), 1);
+  const maxVal = Math.max(...weeklyProgress.map((d) => Number(d.value) || 0), 1);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -235,18 +269,34 @@ export default function ProfilePage({ user, onUpdateUser }) {
         avatar_url: avatarUrl.trim() || null,
       };
 
-      // If backend exists, this persists to DB.
-      // If not yet, it will fail silently but we still update local state.
+      // Persist to backend:
+      // Prefer /me/profile, fallback to /me
       if (token) {
-        const res = await apiFetch("/me/profile", {
+        let res = await apiFetch("/me/profile", {
           token,
           method: "PUT",
           body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
+          // fallback: your backend already supports PUT /me with {name, avatar_url}
+          const mergedName =
+            [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
+            user.name;
+
+          res = await apiFetch("/me", {
+            token,
+            method: "PUT",
+            body: JSON.stringify({
+              name: mergedName,
+              avatar_url: payload.avatar_url,
+            }),
+          });
+        }
+
+        if (!res.ok) {
           const t = await res.text().catch(() => "");
-          console.warn("[Profile] PUT /me/profile failed:", res.status, t);
+          console.warn("[Profile] profile save failed:", res.status, t);
         }
       }
 
@@ -296,9 +346,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
         <div className="flex gap-3 md:gap-4">
           <div className="flex flex-col items-center bg-orange-50 rounded-xl px-3 py-2">
             <Trophy className="w-4 h-4 text-orange-500 mb-1" />
-            <span className="text-sm font-semibold text-gray-900">
-              Lv {level}
-            </span>
+            <span className="text-sm font-semibold text-gray-900">Lv {level}</span>
             <span className="text-[11px] text-gray-500">Level</span>
           </div>
           <div className="flex flex-col items-center bg-yellow-50 rounded-xl px-3 py-2">
@@ -308,9 +356,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
           </div>
           <div className="flex flex-col items-center bg-red-50 rounded-xl px-3 py-2">
             <Flame className="w-4 h-4 text-red-500 mb-1" />
-            <span className="text-sm font-semibold text-gray-900">
-              {streak}
-            </span>
+            <span className="text-sm font-semibold text-gray-900">{streak}</span>
             <span className="text-[11px] text-gray-500">Day streak</span>
           </div>
         </div>
@@ -324,48 +370,60 @@ export default function ProfilePage({ user, onUpdateUser }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label
+                htmlFor="firstName"
+                className="block text-xs font-medium text-gray-600 mb-1.5"
+              >
                 First name
               </label>
               <input
+                id="firstName"
+                name="firstName"
                 type="text"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Armen"
-                name="firstName"
-                id="firstName"
+                autoComplete="given-name"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label
+                htmlFor="lastName"
+                className="block text-xs font-medium text-gray-600 mb-1.5"
+              >
                 Last name
               </label>
               <input
+                id="lastName"
+                name="lastName"
                 type="text"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Petrosyan"
-                name="lastName"
-                id="lastName"
+                autoComplete="family-name"
               />
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label
+                htmlFor="email"
+                className="block text-xs font-medium text-gray-600 mb-1.5"
+              >
                 Email address
               </label>
               <input
+                id="email"
+                name="email"
                 type="email"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                name="email"
-                id="email"
+                autoComplete="email"
               />
               <p className="mt-1 text-[11px] text-gray-400">
                 Used to log in to Haylingua.
@@ -373,17 +431,21 @@ export default function ProfilePage({ user, onUpdateUser }) {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label
+                htmlFor="avatarUrl"
+                className="block text-xs font-medium text-gray-600 mb-1.5"
+              >
                 Profile picture URL
               </label>
               <input
+                id="avatarUrl"
+                name="avatarUrl"
                 type="url"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
                 placeholder="https://…/avatar.png"
-                name="avatarUrl"
-                id="avatarUrl"
+                autoComplete="url"
               />
               <p className="mt-1 text-[11px] text-gray-400">
                 Paste a direct image link. We’ll show it in your avatar.
@@ -428,7 +490,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
                     <div
                       className="w-full bg-gradient-to-t from-orange-600 to-yellow-400"
                       style={{
-                        height: `${(d.value / maxVal) * 100}%`,
+                        height: `${((Number(d.value) || 0) / maxVal) * 100}%`,
                       }}
                     />
                   </div>
@@ -463,9 +525,9 @@ export default function ProfilePage({ user, onUpdateUser }) {
         </div>
 
         <p className="mt-3 text-[11px] text-gray-400">
-          Stats are now loaded from the backend (<code>/me/stats</code>). The
-          “last 7 days” chart will become real once you add{" "}
-          <code>/me/activity/last7days</code>.
+          Stats are loaded from the backend (<code>/me/stats</code>). The “last 7 days”
+          chart is loaded from <code>/me/activity/last7days</code> (or falls back to
+          <code>/me/activity?days=7</code>).
         </p>
       </section>
     </div>
