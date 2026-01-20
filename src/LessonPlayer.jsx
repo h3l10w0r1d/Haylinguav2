@@ -126,7 +126,7 @@ export default function LessonPlayer() {
     if (!token) {
       alert("You need to be logged in. (No token found.)");
       console.warn("[LessonPlayer] No token found when completing lesson.");
-      navigate("/login");
+      navigate("/");
       return;
     }
 
@@ -159,7 +159,7 @@ export default function LessonPlayer() {
           alert("Session expired or unauthorized. Please log in again.");
           localStorage.removeItem("access_token");
           localStorage.removeItem("hay_token");
-          navigate("/login");
+          navigate("/");
         } else {
           alert(`Could not complete lesson (status ${res.status}). Check backend logs.`);
         }
@@ -269,7 +269,15 @@ export default function LessonPlayer() {
         {currentExercise ? (
           <ExerciseRenderer
             exercise={currentExercise}
+            apiBaseUrl={API_BASE}
+
+            // New-style callback
             onAnswer={handleStepAnswer}
+
+            // Old-style compatibility callbacks
+            onCorrect={() => handleStepAnswer({ isCorrect: true, xpEarned: 0 })}
+            onWrong={(message) => handleStepAnswer({ isCorrect: false, xpEarned: 0, message })}
+            onSkip={() => handleStepAnswer({ skipped: true, isCorrect: true, xpEarned: 0 })}
           />
         ) : (
           <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
