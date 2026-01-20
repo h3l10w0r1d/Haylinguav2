@@ -207,10 +207,16 @@ function AppShell() {
         }
       />
 
-      <Route
-        path="/leaderboard"
-        element={user ? <Leaderboard user={user} /> : <Navigate to="/" replace />}
-      />
+<Route
+  path="/leaderboard"
+  element={
+    user ? (
+      <Leaderboard user={user} onLogout={handleLogout} />
+    ) : (
+      <Navigate to="/" replace />
+    )
+  }
+/>
 
       <Route
         path="/profile"
