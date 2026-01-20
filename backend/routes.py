@@ -624,7 +624,7 @@ async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get
     params = {"id": exercise_id}
     for k, v in updates.items():
         if k == "config":
-            set_parts.append("config = :config::jsonb")
+            params["config"] = json.dumps(v or {})
             params["config"] = __import__("json").dumps(v or {})
         elif k == "order":
             set_parts.append("\"order\" = :order")
