@@ -38,6 +38,20 @@ function cx(...parts) {
   return parts.filter(Boolean).join(" ");
 }
 
+/** Wrap presses to make them robust + always log */
+function pressWrap(handler, label) {
+  return (e) => {
+    try {
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      console.log(`[UI] press: ${label}`);
+      handler?.(e);
+    } catch (err) {
+      console.error(`[UI] press error: ${label}`, err);
+    }
+  };
+}
+
 function Card({ children, className }) {
   return (
     <div
@@ -52,18 +66,31 @@ function Card({ children, className }) {
 }
 
 function Title({ children }) {
-  return <div className="text-lg md:text-xl font-semibold text-slate-900">{children}</div>;
+  return (
+    <div className="text-lg md:text-xl font-semibold text-slate-900">{children}</div>
+  );
 }
 
 function Muted({ children, className }) {
   return <div className={cx("text-sm text-slate-600", className)}>{children}</div>;
 }
 
-function PrimaryButton({ children, onClick, disabled, className, type = "button" }) {
+function PrimaryButton({
+  children,
+  onClick,
+  disabled,
+  className,
+  type = "button",
+  debugName,
+}) {
+  const label = debugName || (typeof children === "string" ? children : "PrimaryButton");
+  const onPress = pressWrap(onClick, label);
+
   return (
     <button
       type={type}
-      onClick={onClick}
+      onPointerUp={onPress}
+      onClick={onPress}
       disabled={disabled}
       className={cx(
         "w-full rounded-xl px-4 py-3 font-semibold transition",
@@ -78,11 +105,23 @@ function PrimaryButton({ children, onClick, disabled, className, type = "button"
   );
 }
 
-function SecondaryButton({ children, onClick, disabled, className, type = "button" }) {
+function SecondaryButton({
+  children,
+  onClick,
+  disabled,
+  className,
+  type = "button",
+  debugName,
+}) {
+  const label =
+    debugName || (typeof children === "string" ? children : "SecondaryButton");
+  const onPress = pressWrap(onClick, label);
+
   return (
     <button
       type={type}
-      onClick={onClick}
+      onPointerUp={onPress}
+      onClick={onPress}
       disabled={disabled}
       className={cx(
         "w-full rounded-xl px-4 py-3 font-semibold transition ring-1 ring-slate-200",
@@ -112,7 +151,9 @@ function ChoiceGrid({ choices, selected, onSelect, columns = 2 }) {
         return (
           <button
             key={idx}
-            onClick={() => onSelect(idx)}
+            type="button"
+            onPointerUp={pressWrap(() => onSelect(idx), `Choice:${idx}`)}
+            onClick={pressWrap(() => onSelect(idx), `Choice:${idx}`)}
             className={cx(
               "rounded-xl px-4 py-3 text-left font-semibold transition ring-1",
               isSelected
@@ -131,7 +172,9 @@ function ChoiceGrid({ choices, selected, onSelect, columns = 2 }) {
 function Pill({ children, onClick, disabled, active = false }) {
   return (
     <button
-      onClick={onClick}
+      type="button"
+      onPointerUp={pressWrap(onClick, "Pill")}
+      onClick={pressWrap(onClick, "Pill")}
       disabled={disabled}
       className={cx(
         "rounded-full px-4 py-2 text-sm font-semibold ring-1 transition",
@@ -159,7 +202,10 @@ function InlineInput({ value, onChange, placeholder }) {
 }
 
 async function ttsFetch(apiBaseUrl, text) {
-  const base = apiBaseUrl || import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+  const base =
+    apiBaseUrl ||
+    import.meta.env.VITE_API_BASE_URL ||
+    "https://haylinguav2.onrender.com";
   const res = await fetch(`${base}/tts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -228,13 +274,22 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
         </div>
 
         <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-          {transliteration && <Muted>Sounds like: <span className="font-semibold text-slate-800">{transliteration}</span></Muted>}
+          {transliteration && (
+            <Muted>
+              Sounds like:{" "}
+              <span className="font-semibold text-slate-800">{transliteration}</span>
+            </Muted>
+          )}
           {hint && <Muted className="mt-2">{hint}</Muted>}
         </div>
 
         <div className="mt-6 space-y-3">
-          <PrimaryButton onClick={correct}>Continue</PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <PrimaryButton debugName="CharIntro:Continue" onClick={correct}>
+            Continue
+          </PrimaryButton>
+          <SecondaryButton debugName="CharIntro:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
@@ -256,7 +311,10 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-4">
           <SecondaryButton
-            onClick={() => wrong("Sound playback is not wired for this kind. Use audio_choice_tts for real TTS.")}
+            debugName="CharMcqSound:PlaySound"
+            onClick={() =>
+              wrong("Sound playback is not wired for this kind. Use audio_choice_tts for real TTS.")
+            }
           >
             🔊 Play sound
           </SecondaryButton>
@@ -273,6 +331,7 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="CharMcqSound:Check"
             disabled={!canCheck}
             onClick={() => {
               if (selectedIndex === correctIndex) correct();
@@ -281,7 +340,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="CharMcqSound:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
@@ -309,6 +370,7 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="LetterRecognition:Check"
             disabled={!canCheck}
             onClick={() => {
               const pick = choices[selectedIndex] ?? "";
@@ -318,7 +380,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="LetterRecognition:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
@@ -351,12 +415,18 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
     return (
       <Card>
         <Title>{prompt || "Build the word"}</Title>
-        {targetWord && <Muted className="mt-2">Target: <span className="font-semibold text-slate-800">{targetWord}</span></Muted>}
+        {targetWord && (
+          <Muted className="mt-2">
+            Target: <span className="font-semibold text-slate-800">{targetWord}</span>
+          </Muted>
+        )}
 
         <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-          <div className="text-2xl font-extrabold text-slate-900 min-h-[2.5rem]">{built || "…"}</div>
+          <div className="text-2xl font-extrabold text-slate-900 min-h-[2.5rem]">
+            {built || "…"}
+          </div>
           <div className="mt-3 flex gap-2">
-            <SecondaryButton onClick={reset} disabled={chosen.length === 0}>
+            <SecondaryButton debugName="BuildWord:Reset" onClick={reset} disabled={chosen.length === 0}>
               Reset
             </SecondaryButton>
           </div>
@@ -385,6 +455,7 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="BuildWord:Check"
             disabled={!canCheck}
             onClick={() => {
               const ok =
@@ -396,7 +467,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="BuildWord:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
@@ -418,6 +491,7 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="LetterTyping:Check"
             disabled={!canCheck}
             onClick={() => {
               if (normalizeText(inputValue) === normalizeText(answer)) correct();
@@ -426,7 +500,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="LetterTyping:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
@@ -450,6 +526,7 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="WordSpelling:Check"
             disabled={!canCheck}
             onClick={() => {
               if (normalizeText(inputValue) === normalizeText(answer)) correct();
@@ -458,7 +535,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="WordSpelling:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
@@ -469,11 +548,6 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
   // -------------------------
 
   // A) fill_blank
-  // config:
-  //  - before: "Ես ___ եմ"
-  //  - after: "" (optional)
-  //  - placeholder: "..." (optional)
-  // expected_answer: "ուսանող"
   if (exercise?.kind === "fill_blank") {
     const before = cfg.before ?? exercise?.sentence_before ?? "";
     const after = cfg.after ?? exercise?.sentence_after ?? "";
@@ -488,16 +562,25 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
           <div className="text-lg md:text-xl font-semibold text-slate-900">
-            {before} <span className="px-2 py-1 rounded-lg bg-white ring-1 ring-slate-200">{placeholder}</span> {after}
+            {before}{" "}
+            <span className="px-2 py-1 rounded-lg bg-white ring-1 ring-slate-200">
+              {placeholder}
+            </span>{" "}
+            {after}
           </div>
         </div>
 
         <div className="mt-4">
-          <InlineInput value={inputValue} onChange={setInputValue} placeholder="Type the missing word…" />
+          <InlineInput
+            value={inputValue}
+            onChange={setInputValue}
+            placeholder="Type the missing word…"
+          />
         </div>
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="FillBlank:Check"
             disabled={!canCheck}
             onClick={() => {
               if (normalizeText(inputValue) === normalizeText(answer)) correct();
@@ -506,17 +589,15 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="FillBlank:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
   }
 
   // B) translate_mcq
-  // config:
-  //  - sentence: "Hello"
-  //  - choices: ["Բարև", "Ցտեսություն", ...]
-  //  - answerIndex: 0  (or use expected_answer matching)
   if (exercise?.kind === "translate_mcq") {
     const sentence = cfg.sentence ?? "";
     const choices = cfg.choices ?? cfg.options ?? [];
@@ -536,11 +617,17 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
         )}
 
         <div className="mt-4">
-          <ChoiceGrid choices={choices} selected={selectedIndex} onSelect={setSelectedIndex} columns={2} />
+          <ChoiceGrid
+            choices={choices}
+            selected={selectedIndex}
+            onSelect={setSelectedIndex}
+            columns={2}
+          />
         </div>
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="TranslateMCQ:Check"
             disabled={!canCheck}
             onClick={() => {
               if (answerIndex !== null) {
@@ -555,16 +642,15 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="TranslateMCQ:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
   }
 
   // C) true_false
-  // config:
-  //  - statement: "Բարև means Hello"
-  //  - correct: true
   if (exercise?.kind === "true_false") {
     const statement = cfg.statement ?? "";
     const correctBool = Boolean(cfg.correct);
@@ -583,19 +669,27 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
-            onClick={() => setSelectedIndex(0)}
+            type="button"
+            onPointerUp={pressWrap(() => setSelectedIndex(0), "TrueFalse:False")}
+            onClick={pressWrap(() => setSelectedIndex(0), "TrueFalse:False")}
             className={cx(
               "rounded-xl px-4 py-3 font-semibold ring-1 transition",
-              selectedIndex === 0 ? "bg-orange-50 ring-orange-300 text-orange-800" : "bg-white ring-slate-200 hover:bg-slate-50"
+              selectedIndex === 0
+                ? "bg-orange-50 ring-orange-300 text-orange-800"
+                : "bg-white ring-slate-200 hover:bg-slate-50"
             )}
           >
             False
           </button>
           <button
-            onClick={() => setSelectedIndex(1)}
+            type="button"
+            onPointerUp={pressWrap(() => setSelectedIndex(1), "TrueFalse:True")}
+            onClick={pressWrap(() => setSelectedIndex(1), "TrueFalse:True")}
             className={cx(
               "rounded-xl px-4 py-3 font-semibold ring-1 transition",
-              selectedIndex === 1 ? "bg-orange-50 ring-orange-300 text-orange-800" : "bg-white ring-slate-200 hover:bg-slate-50"
+              selectedIndex === 1
+                ? "bg-orange-50 ring-orange-300 text-orange-800"
+                : "bg-white ring-slate-200 hover:bg-slate-50"
             )}
           >
             True
@@ -604,6 +698,7 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="TrueFalse:Check"
             disabled={!canCheck}
             onClick={() => {
               const pick = selectedIndex === 1;
@@ -613,16 +708,15 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="TrueFalse:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
   }
 
   // D) sentence_order
-  // config:
-  //  - tokens: ["Ես", "ուսանող", "եմ"]
-  //  - solution: ["Ես", "ուսանող", "եմ"]  (or solutionIndices)
   if (exercise?.kind === "sentence_order") {
     const tokens = cfg.tokens ?? [];
     const solution = cfg.solution ?? null;
@@ -679,9 +773,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="SentenceOrder:Check"
             disabled={!canCheck}
             onClick={() => {
-              // check via solution tokens or indices
               if (Array.isArray(solution)) {
                 const ok =
                   solution.length === picked.length &&
@@ -699,7 +793,6 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
                 return;
               }
 
-              // fallback: compare to expected_answer as full sentence
               const builtSentence = picked.join(" ");
               const answer = expected ?? cfg.answer ?? "";
               if (normalizeText(builtSentence) === normalizeText(answer)) correct();
@@ -708,22 +801,20 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="SentenceOrder:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
   }
 
   // E) match_pairs
-  // config:
-  //  - pairs: [{ left:"Բարև", right:"Hello" }, ...]
-  // Behavior: tap left then right to make a pair. Wrong pair shakes (message).
   if (exercise?.kind === "match_pairs") {
     const pairs = Array.isArray(cfg.pairs) ? cfg.pairs : [];
     const left = pairs.map((p) => p.left);
     const right = pairs.map((p) => p.right);
 
-    // Shuffle right side for a nicer game feel
     const shuffledRight = useMemo(() => {
       const arr = [...right];
       for (let i = arr.length - 1; i > 0; i--) {
@@ -767,11 +858,11 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
       <Card>
         <Title>{prompt || "Match the pairs"}</Title>
         <Muted className="mt-2">
-          Matched: <span className="font-semibold text-slate-800">{currentMatches}</span> / {totalMatches}
+          Matched: <span className="font-semibold text-slate-800">{currentMatches}</span> /{" "}
+          {totalMatches}
         </Muted>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Left column */}
           <div className="space-y-2">
             {left.map((t, idx) => {
               const done = matchedLeft.has(idx);
@@ -779,8 +870,10 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
               return (
                 <button
                   key={idx}
+                  type="button"
                   disabled={done}
-                  onClick={() => setSelectedLeft(idx)}
+                  onPointerUp={pressWrap(() => setSelectedLeft(idx), `MatchPairs:Left:${idx}`)}
+                  onClick={pressWrap(() => setSelectedLeft(idx), `MatchPairs:Left:${idx}`)}
                   className={cx(
                     "w-full rounded-xl px-4 py-3 font-semibold text-left ring-1 transition",
                     done
@@ -796,18 +889,22 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
             })}
           </div>
 
-          {/* Right column */}
           <div className="space-y-2">
             {shuffledRight.map((t, idx) => {
               const done = matchedRight.has(idx);
               return (
                 <button
                   key={idx}
+                  type="button"
                   disabled={done || selectedLeft === null}
-                  onClick={() => {
+                  onPointerUp={pressWrap(() => {
                     if (selectedLeft === null) return;
                     tryMatch(selectedLeft, idx);
-                  }}
+                  }, `MatchPairs:Right:${idx}`)}
+                  onClick={pressWrap(() => {
+                    if (selectedLeft === null) return;
+                    tryMatch(selectedLeft, idx);
+                  }, `MatchPairs:Right:${idx}`)}
                   className={cx(
                     "w-full rounded-xl px-4 py-3 font-semibold text-left ring-1 transition",
                     done
@@ -825,18 +922,15 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
         </div>
 
         <div className="mt-6 space-y-3">
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="MatchPairs:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
   }
 
   // F) audio_choice_tts
-  // config:
-  //  - ttsText: "Բարև"
-  //  - promptText: "Pick what you heard"
-  //  - choices: ["Բարև", "Շնորհակալություն", ...]
-  //  - answerIndex: 0  OR expected_answer matching
   if (exercise?.kind === "audio_choice_tts") {
     const ttsText = cfg.ttsText ?? cfg.text ?? "";
     const promptText = cfg.promptText ?? prompt ?? "Listen and choose";
@@ -868,18 +962,24 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
         <Muted className="mt-2">Tap play, then choose the correct option.</Muted>
 
         <div className="mt-4">
-          <PrimaryButton onClick={play} disabled={busy || !ttsText}>
+          <PrimaryButton debugName="AudioChoiceTTS:Play" onClick={play} disabled={busy || !ttsText}>
             {busy ? "Loading audio…" : "🔊 Play"}
           </PrimaryButton>
           {!ttsText && <Muted className="mt-2">Missing config.ttsText</Muted>}
         </div>
 
         <div className="mt-4">
-          <ChoiceGrid choices={choices} selected={selectedIndex} onSelect={setSelectedIndex} columns={2} />
+          <ChoiceGrid
+            choices={choices}
+            selected={selectedIndex}
+            onSelect={setSelectedIndex}
+            columns={2}
+          />
         </div>
 
         <div className="mt-6 space-y-3">
           <PrimaryButton
+            debugName="AudioChoiceTTS:Check"
             disabled={!canCheck}
             onClick={() => {
               if (answerIndex !== null) {
@@ -893,7 +993,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
           >
             Check
           </PrimaryButton>
-          <SecondaryButton onClick={onSkip}>Skip</SecondaryButton>
+          <SecondaryButton debugName="AudioChoiceTTS:Skip" onClick={onSkip}>
+            Skip
+          </SecondaryButton>
         </div>
       </Card>
     );
@@ -910,7 +1012,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
       </Muted>
       {prompt && <Muted className="mt-2">{prompt}</Muted>}
       <div className="mt-6 space-y-3">
-        <PrimaryButton onClick={onSkip}>Skip</PrimaryButton>
+        <PrimaryButton debugName="UnknownKind:Skip" onClick={onSkip}>
+          Skip
+        </PrimaryButton>
       </div>
     </Card>
   );
