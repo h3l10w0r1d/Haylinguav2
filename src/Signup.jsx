@@ -1,38 +1,55 @@
+// src/Signup.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./landing.css";
 
-const API = import.meta.env.VITE_API_URL || "https://haylinguav2.onrender.com";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
-      const res = await fetch(`${API}/signup`, {
+      const res = await fetch(`${API_BASE}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const msg = data.detail || data.message || "Signup failed";
-        alert(msg);
-      } else {
-        alert("Account created successfully!");
-        // Redirect to dashboard
-        navigate("/dashboard");
+        const msg = data?.detail || data?.message || "Signup failed";
+        setError(msg);
+        setLoading(false);
+        return;
       }
+
+      // backend returns { message, access_token }
+      const token = data?.access_token;
+      if (!token) {
+        setError("Signup succeeded but server returned no token.");
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem("access_token", token);
+      localStorage.setItem("user_email", email.trim());
+
+      navigate("/dashboard");
     } catch (err) {
       console.error(err);
-      alert("Network error. Please try again.");
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -58,7 +75,11 @@ export default function Signup() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{ padding: "0.8rem 1rem", borderRadius: 8, border: "1px solid #ddd" }}
+          style={{
+            padding: "0.8rem 1rem",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
         />
 
         <input
@@ -68,8 +89,27 @@ export default function Signup() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={{ padding: "0.8rem 1rem", borderRadius: 8, border: "1px solid #ddd" }}
+          style={{
+            padding: "0.8rem 1rem",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
         />
+
+        {error && (
+          <div
+            style={{
+              background: "#fee2e2",
+              color: "#991b1b",
+              border: "1px solid #fecaca",
+              padding: "0.75rem 1rem",
+              borderRadius: 8,
+              fontSize: 14,
+            }}
+          >
+            {error}
+          </div>
+        )}
 
         <button
           type="submit"
