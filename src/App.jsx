@@ -11,7 +11,7 @@ import {
 import LandingPage from "./LandingPage";
 import Dashboard from "./Dashboard";
 import LessonPlayer from "./LessonPlayer";
-import Friends from "./Friends";
+import Friends from "./friends";
 import Leaderboard from "./Leaderboard";
 import HeaderLayout from "./HeaderLayout";
 import ProfilePage from "./ProfilePage";
