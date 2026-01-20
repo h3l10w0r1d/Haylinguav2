@@ -14,6 +14,10 @@ import LessonPlayer from "./LessonPlayer";
 import Friends from "./Friends";
 import Leaderboard from "./Leaderboard";
 import ProfilePage from "./ProfilePage";
+  // CMS Imports 
+import CmsShell from "./cms/CmsShell";
+import CmsLessons from "./cms/CmsLessons";
+import CmsLessonEditor from "./cms/CmsLessonEditor";
 
 //  Always have a working backend URL even if Vercel env vars are missing
 const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
@@ -29,10 +33,7 @@ function AppShell() {
 
 
 
-  // CMS Imports 
-import CmsShell from "./cms/CmsShell";
-import CmsLessons from "./cms/CmsLessons";
-import CmsLessonEditor from "./cms/CmsLessonEditor";
+
 
   useEffect(() => {
     console.log("[App] API_BASE =", API_BASE);
