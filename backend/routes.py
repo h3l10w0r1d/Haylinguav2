@@ -400,7 +400,73 @@ def get_stats(email: str, db: Connection = Depends(get_db)):
         lessons_completed=int(stats_row["lessons_completed"]),
     )
 
+class MeOut(BaseModel):
+    id: int
+    email: str
+    name: str | None = None
+    avatar_url: str | None = None
 
+class MeUpdateIn(BaseModel):
+    name: str | None = None
+    avatar_url: str | None = None
+
+
+@router.get("/me", response_model=MeOut)
+def me_get(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    row = db.execute(
+        text("SELECT id, email, name, avatar_url FROM users WHERE id = :id"),
+        {"id": user_id},
+    ).mappings().first()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return MeOut(**dict(row))
+
+
+@router.put("/me", response_model=MeOut)
+def me_update(
+    payload: MeUpdateIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    # Build dynamic update (loops/ifs as you like)
+    updates = {}
+    if payload.name is not None:
+        updates["name"] = payload.name.strip() or None
+    if payload.avatar_url is not None:
+        updates["avatar_url"] = payload.avatar_url.strip() or None
+
+    if len(updates) == 0:
+        # nothing to update → just return current
+        row = db.execute(
+            text("SELECT id, email, name, avatar_url FROM users WHERE id = :id"),
+            {"id": user_id},
+        ).mappings().first()
+        return MeOut(**dict(row))
+
+    set_parts = []
+    params = {"id": user_id}
+    for k, v in updates.items():
+        set_parts.append(f"{k} = :{k}")
+        params[k] = v
+
+    db.execute(text(f"UPDATE users SET {', '.join(set_parts)} WHERE id = :id"), params)
+
+    row = db.execute(
+        text("SELECT id, email, name, avatar_url FROM users WHERE id = :id"),
+        {"id": user_id},
+    ).mappings().first()
+
+    return MeOut(**dict(row))
 
 @router.get("/leaderboard", response_model=List[LeaderboardEntryOut])
 def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
