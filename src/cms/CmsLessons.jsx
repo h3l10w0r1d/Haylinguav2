@@ -1,38 +1,28 @@
 // src/cms/CmsLessons.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Plus, Search, Loader2 } from "lucide-react";
-import { cmsCreateLesson, cmsListLessons } from "./cmsApi";
+import { createCmsApi } from "./api";
+import { Loader2, Plus, Search, RefreshCcw } from "lucide-react";
 
-function TextInput({ value, onChange, placeholder }) {
-  return (
-    <div className="flex items-center gap-2 bg-white rounded-2xl ring-1 ring-slate-200 px-3 py-2">
-      <Search className="w-4 h-4 text-slate-400" />
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full outline-none text-sm"
-      />
-    </div>
-  );
+function cx(...a) {
+  return a.filter(Boolean).join(" ");
 }
 
 export default function CmsLessons() {
   const { cmsKey } = useParams();
-  const base = `/${cmsKey}/cms`;
+  const api = useMemo(() => createCmsApi(cmsKey), [cmsKey]);
 
-  const [items, setItems] = useState([]);
-  const [q, setQ] = useState("");
+  const [lessons, setLessons] = useState([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   async function load() {
-    setLoading(true);
     setErr("");
+    setLoading(true);
     try {
-      const data = await cmsListLessons();
-      setItems(Array.isArray(data) ? data : []);
+      const data = await api.listLessons();
+      setLessons(Array.isArray(data) ? data : []);
     } catch (e) {
       setErr(e.message || "Failed to load lessons");
     } finally {
@@ -42,21 +32,23 @@ export default function CmsLessons() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cmsKey]);
 
   const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    if (!query) return items;
+    const q = query.trim().toLowerCase();
+    if (!q) return lessons;
+
     const out = [];
-    for (let i = 0; i < items.length; i++) {
-      const x = items[i];
-      const hay = `${x.title || ""} ${x.slug || ""} ${x.description || ""}`.toLowerCase();
-      if (hay.includes(query)) out.push(x);
+    for (let i = 0; i < lessons.length; i++) {
+      const l = lessons[i];
+      const hay = `${l.title || ""} ${l.slug || ""} ${l.description || ""}`.toLowerCase();
+      if (hay.includes(q)) out.push(l);
     }
     return out;
-  }, [items, q]);
+  }, [lessons, query]);
 
-  async function createQuickLesson() {
+  async function createNewLesson() {
     const now = Date.now();
     const payload = {
       slug: `new-lesson-${now}`,
@@ -68,15 +60,14 @@ export default function CmsLessons() {
     };
 
     try {
-      const created = await cmsCreateLesson(payload);
-      // reload list
+      await api.createLesson(payload);
       await load();
-      // Optionally navigate after you add routing
-      alert(`Created lesson id=${created?.id}`);
     } catch (e) {
       alert(e.message || "Create failed");
     }
   }
+
+  const base = `/${cmsKey}/cms`;
 
   return (
     <div className="space-y-5">
@@ -84,13 +75,13 @@ export default function CmsLessons() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Lessons</h1>
           <p className="text-sm text-slate-600 mt-1">
-            Create and edit lessons. Each lesson contains exercises.
+            Create and edit lessons stored in SQL.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={createQuickLesson}
+          onClick={createNewLesson}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition"
         >
           <Plus className="w-4 h-4" />
@@ -99,18 +90,28 @@ export default function CmsLessons() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <TextInput value={q} onChange={setQ} placeholder="Search by title or slug…" />
+        <div className="relative w-full">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by title / slug / description…"
+            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
+          />
+        </div>
+
         <button
           type="button"
           onClick={load}
-          className="px-4 py-2 rounded-2xl bg-white ring-1 ring-slate-200 text-sm font-semibold hover:bg-slate-50"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold hover:bg-slate-50"
         >
+          <RefreshCcw className="w-4 h-4" />
           Refresh
         </button>
       </div>
 
       {err ? (
-        <div className="bg-red-50 text-red-700 ring-1 ring-red-200 rounded-2xl p-4 text-sm">
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-2xl p-4 text-sm font-semibold">
           {err}
         </div>
       ) : null}
@@ -123,7 +124,7 @@ export default function CmsLessons() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.length === 0 ? (
-            <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-5 text-sm text-slate-600">
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-600">
               No lessons found.
             </div>
           ) : null}
@@ -132,16 +133,14 @@ export default function CmsLessons() {
             <Link
               key={l.id}
               to={`${base}/lessons/${l.id}`}
-              className="group bg-white rounded-2xl ring-1 ring-slate-200 p-5 hover:shadow-sm transition"
+              className="group bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-sm transition"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="text-sm text-slate-500">slug</div>
-                  <div className="font-semibold text-slate-900 truncate">
-                    {l.slug}
-                  </div>
+                  <div className="text-xs text-slate-500">slug</div>
+                  <div className="font-semibold text-slate-900 truncate">{l.slug}</div>
 
-                  <div className="mt-3 text-sm text-slate-500">title</div>
+                  <div className="mt-3 text-xs text-slate-500">title</div>
                   <div className="text-lg font-semibold text-slate-900 truncate">
                     {l.title || "(untitled)"}
                   </div>
@@ -151,21 +150,15 @@ export default function CmsLessons() {
                       {l.description}
                     </div>
                   ) : (
-                    <div className="mt-2 text-sm text-slate-400">
-                      No description
-                    </div>
+                    <div className="mt-2 text-sm text-slate-400">No description</div>
                   )}
                 </div>
 
                 <div className="shrink-0 text-right">
                   <div className="text-xs text-slate-500">Level</div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {l.level ?? 1}
-                  </div>
+                  <div className="text-sm font-semibold text-slate-900">{l.level ?? 1}</div>
                   <div className="mt-2 text-xs text-slate-500">XP</div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    {l.xp ?? 0}
-                  </div>
+                  <div className="text-sm font-semibold text-slate-900">{l.xp ?? 0}</div>
                 </div>
               </div>
 
