@@ -91,6 +91,231 @@ class StatsOut(BaseModel):
     total_xp: int
     lessons_completed: int
 
+# ---------- Friends schemas + API ----------
+class FriendOut(BaseModel):
+    id: int
+    email: str
+    name: str | None = None
+    avatar_url: str | None = None
+
+class FriendRequestOut(BaseModel):
+    id: int
+    requester_id: int
+    requester_email: str
+    requester_name: str | None = None
+    created_at: datetime
+
+class FriendRequestCreateIn(BaseModel):
+    email: str  # add friend by email
+
+@router.get("/friends", response_model=list[FriendOut])
+def friends_list(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    rows = db.execute(
+        text("""
+            SELECT u.id, u.email, u.name, u.avatar_url
+            FROM friends f
+            JOIN users u ON u.id = f.friend_id
+            WHERE f.user_id = :uid
+            ORDER BY COALESCE(u.name, u.email) ASC
+        """),
+        {"uid": user_id},
+    ).mappings().all()
+
+    return [FriendOut(**dict(r)) for r in rows]
+
+@router.get("/friends/requests", response_model=list[FriendRequestOut])
+def friends_requests_incoming(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    rows = db.execute(
+        text("""
+            SELECT
+              fr.id,
+              fr.requester_id,
+              u.email AS requester_email,
+              u.name AS requester_name,
+              fr.created_at
+            FROM friend_requests fr
+            JOIN users u ON u.id = fr.requester_id
+            WHERE fr.addressee_id = :uid AND fr.status = 'pending'
+            ORDER BY fr.created_at DESC
+        """),
+        {"uid": user_id},
+    ).mappings().all()
+
+    return [FriendRequestOut(**dict(r)) for r in rows]
+
+@router.post("/friends/request")
+def friends_request_create(
+    payload: FriendRequestCreateIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    requester_id = _get_user_id_from_bearer(authorization)
+    if requester_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    email = (payload.email or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    addressee = db.execute(
+        text("SELECT id FROM users WHERE lower(email) = :email"),
+        {"email": email},
+    ).mappings().first()
+
+    if not addressee:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    addressee_id = int(addressee["id"])
+    if addressee_id == requester_id:
+        raise HTTPException(status_code=400, detail="You cannot add yourself")
+
+    # already friends?
+    existing_friend = db.execute(
+        text("""
+            SELECT 1 FROM friends
+            WHERE user_id = :a AND friend_id = :b
+        """),
+        {"a": requester_id, "b": addressee_id},
+    ).first()
+    if existing_friend:
+        return {"ok": True, "status": "already_friends"}
+
+    # existing request either direction?
+    existing_req = db.execute(
+        text("""
+            SELECT id, status, requester_id, addressee_id
+            FROM friend_requests
+            WHERE (requester_id = :a AND addressee_id = :b)
+               OR (requester_id = :b AND addressee_id = :a)
+            LIMIT 1
+        """),
+        {"a": requester_id, "b": addressee_id},
+    ).mappings().first()
+
+    if existing_req:
+        # if the other person already requested you, you can accept instead
+        return {"ok": True, "status": "request_exists", "request_id": existing_req["id"]}
+
+    db.execute(
+        text("""
+            INSERT INTO friend_requests (requester_id, addressee_id, status)
+            VALUES (:r, :a, 'pending')
+        """),
+        {"r": requester_id, "a": addressee_id},
+    )
+    return {"ok": True, "status": "requested"}
+
+@router.post("/friends/requests/{request_id}/accept")
+def friends_request_accept(
+    request_id: int,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    fr = db.execute(
+        text("""
+            SELECT id, requester_id, addressee_id, status
+            FROM friend_requests
+            WHERE id = :id
+        """),
+        {"id": request_id},
+    ).mappings().first()
+
+    if not fr:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if int(fr["addressee_id"]) != user_id:
+        raise HTTPException(status_code=403, detail="Not your request")
+
+    if fr["status"] != "pending":
+        return {"ok": True, "status": fr["status"]}
+
+    requester_id = int(fr["requester_id"])
+
+    # mark accepted
+    db.execute(
+        text("""
+            UPDATE friend_requests
+            SET status='accepted', responded_at=NOW()
+            WHERE id = :id
+        """),
+        {"id": request_id},
+    )
+
+    # create bidirectional friendship
+    db.execute(
+        text("""
+            INSERT INTO friends (user_id, friend_id)
+            VALUES (:a, :b)
+            ON CONFLICT DO NOTHING
+        """),
+        {"a": user_id, "b": requester_id},
+    )
+    db.execute(
+        text("""
+            INSERT INTO friends (user_id, friend_id)
+            VALUES (:a, :b)
+            ON CONFLICT DO NOTHING
+        """),
+        {"a": requester_id, "b": user_id},
+    )
+
+    return {"ok": True, "status": "accepted"}
+
+@router.post("/friends/requests/{request_id}/reject")
+def friends_request_reject(
+    request_id: int,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    fr = db.execute(
+        text("""
+            SELECT id, addressee_id, status
+            FROM friend_requests
+            WHERE id = :id
+        """),
+        {"id": request_id},
+    ).mappings().first()
+
+    if not fr:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if int(fr["addressee_id"]) != user_id:
+        raise HTTPException(status_code=403, detail="Not your request")
+
+    if fr["status"] != "pending":
+        return {"ok": True, "status": fr["status"]}
+
+    db.execute(
+        text("""
+            UPDATE friend_requests
+            SET status='rejected', responded_at=NOW()
+            WHERE id = :id
+        """),
+        {"id": request_id},
+    )
+    return {"ok": True, "status": "rejected"}
 
 # ---------- TTS schema ----------
 
