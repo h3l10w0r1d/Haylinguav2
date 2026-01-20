@@ -16,6 +16,11 @@ from auth import hash_password, verify_password, create_token
 # JWT decode (for Bearer auth on /complete)
 from jose import jwt, JWTError
 
+CMS
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import text
+from .database import get_db
+
 router = APIRouter()
 
 # ---------- Auth schemas ----------
@@ -446,6 +451,265 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
         )
 
     return out
+
+
+
+# --------- CMS Main ----------
+
+
+router = APIRouter()
+
+CMS_TOKENS = {
+    "c5fe8f3d5aa14af2b7ddfbd22cc72d94",
+    "d7c88020e1ea95dd060d90414b4da77e",
+    "07112370d92c4301262c47d0d9f4096d",
+    "f63b4c0e48b3abfc4e898de035655bab",
+    "e1d7a392d68e2e8290ac3cd06a0884aa",
+    "42ddc20c92e70d4398b55e30fe1c765e",
+    "b0440e852e0e5455b1917bfcaedf31cf",
+    "d207f151bdfdb299700ee3b201b71f1e",
+    "387d06eb745fbf1c88d5533dc4aad2f5",
+    "aa835a34b64a318f39ce9e34ee374c3b",
+}
+
+def require_cms(request: Request):
+    token = request.headers.get("X-CMS-Token", "")
+    ok = False
+    for t in CMS_TOKENS:
+        if token == t:
+            ok = True
+            break
+    if not ok:
+        raise HTTPException(status_code=401, detail="Unauthorized CMS token")
+
+# -------------------- LESSONS --------------------
+
+@router.get("/cms/lessons")
+def cms_list_lessons(request: Request, db=Depends(get_db)):
+    require_cms(request)
+    q = text("""
+        SELECT id, slug, title, description, level, xp, xp_reward
+        FROM lessons
+        ORDER BY level ASC, id ASC
+    """)
+    rows = db.execute(q).mappings().all()
+    return [dict(r) for r in rows]
+
+@router.post("/cms/lessons")
+async def cms_create_lesson(request: Request, db=Depends(get_db)):
+    require_cms(request)
+    body = await request.json()
+    slug = (body.get("slug") or "").strip()
+    title = (body.get("title") or "").strip()
+    description = (body.get("description") or "").strip()
+    level = int(body.get("level") or 1)
+    xp = int(body.get("xp") or 40)
+    xp_reward = int(body.get("xp_reward") or xp)
+
+    if not slug or not title:
+        raise HTTPException(400, detail="slug and title are required")
+
+    q = text("""
+        INSERT INTO lessons (slug, title, description, level, xp, xp_reward)
+        VALUES (:slug, :title, :description, :level, :xp, :xp_reward)
+        RETURNING id
+    """)
+    new_id = db.execute(q, {
+        "slug": slug, "title": title, "description": description,
+        "level": level, "xp": xp, "xp_reward": xp_reward
+    }).scalar_one()
+    return {"id": new_id}
+
+@router.put("/cms/lessons/{lesson_id}")
+async def cms_update_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    body = await request.json()
+
+    fields = ["slug", "title", "description", "level", "xp", "xp_reward"]
+    updates = {}
+    for f in fields:
+        if f in body:
+            updates[f] = body[f]
+
+    if len(updates) == 0:
+        return {"ok": True}
+
+    # build SQL with loops/ifs (minimal helpers)
+    set_parts = []
+    params = {"id": lesson_id}
+    for k, v in updates.items():
+        set_parts.append(f"{k} = :{k}")
+        params[k] = v
+
+    q = text(f"UPDATE lessons SET {', '.join(set_parts)} WHERE id = :id")
+    db.execute(q, params)
+    return {"ok": True}
+
+@router.delete("/cms/lessons/{lesson_id}")
+def cms_delete_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    # delete exercises/options first if you don’t have CASCADE
+    db.execute(text("DELETE FROM exercise_options WHERE exercise_id IN (SELECT id FROM exercises WHERE lesson_id = :id)"), {"id": lesson_id})
+    db.execute(text("DELETE FROM exercises WHERE lesson_id = :id"), {"id": lesson_id})
+    db.execute(text("DELETE FROM lessons WHERE id = :id"), {"id": lesson_id})
+    return {"ok": True}
+
+# -------------------- EXERCISES --------------------
+
+@router.get("/cms/lessons/{lesson_id}/exercises")
+def cms_list_exercises(lesson_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    q = text("""
+        SELECT id, lesson_id, kind, type, prompt, expected_answer, sentence_before, sentence_after, "order", config
+        FROM exercises
+        WHERE lesson_id = :lesson_id
+        ORDER BY "order" ASC, id ASC
+    """)
+    rows = db.execute(q, {"lesson_id": lesson_id}).mappings().all()
+    return [dict(r) for r in rows]
+
+@router.get("/cms/exercises/{exercise_id}")
+def cms_get_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    row = db.execute(text("""
+        SELECT id, lesson_id, kind, type, prompt, expected_answer, sentence_before, sentence_after, "order", config
+        FROM exercises
+        WHERE id = :id
+    """), {"id": exercise_id}).mappings().first()
+    if not row:
+        raise HTTPException(404, detail="Exercise not found")
+    return dict(row)
+
+@router.post("/cms/exercises")
+async def cms_create_exercise(request: Request, db=Depends(get_db)):
+    require_cms(request)
+    body = await request.json()
+
+    lesson_id = int(body.get("lesson_id") or 0)
+    kind = (body.get("kind") or "").strip()
+    prompt = (body.get("prompt") or "").strip()
+    expected_answer = body.get("expected_answer")
+    order = int(body.get("order") or 1)
+    config = body.get("config") or {}
+
+    if not lesson_id or not kind:
+        raise HTTPException(400, detail="lesson_id and kind are required")
+
+    q = text("""
+        INSERT INTO exercises (lesson_id, kind, prompt, expected_answer, "order", config)
+        VALUES (:lesson_id, :kind, :prompt, :expected_answer, :order, :config::jsonb)
+        RETURNING id
+    """)
+    new_id = db.execute(q, {
+        "lesson_id": lesson_id, "kind": kind, "prompt": prompt,
+        "expected_answer": expected_answer, "order": order,
+        "config": __import__("json").dumps(config)
+    }).scalar_one()
+    return {"id": new_id}
+
+@router.put("/cms/exercises/{exercise_id}")
+async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    body = await request.json()
+
+    allowed = ["kind", "type", "prompt", "expected_answer", "sentence_before", "sentence_after", "order", "config"]
+    updates = {}
+    for f in allowed:
+        if f in body:
+            updates[f] = body[f]
+
+    if len(updates) == 0:
+        return {"ok": True}
+
+    set_parts = []
+    params = {"id": exercise_id}
+    for k, v in updates.items():
+        if k == "config":
+            set_parts.append("config = :config::jsonb")
+            params["config"] = __import__("json").dumps(v or {})
+        elif k == "order":
+            set_parts.append("\"order\" = :order")
+            params["order"] = int(v or 1)
+        else:
+            set_parts.append(f"{k} = :{k}")
+            params[k] = v
+
+    q = text(f"UPDATE exercises SET {', '.join(set_parts)} WHERE id = :id")
+    db.execute(q, params)
+    return {"ok": True}
+
+@router.delete("/cms/exercises/{exercise_id}")
+def cms_delete_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    db.execute(text("DELETE FROM exercise_options WHERE exercise_id = :id"), {"id": exercise_id})
+    db.execute(text("DELETE FROM exercises WHERE id = :id"), {"id": exercise_id})
+    return {"ok": True}
+
+# -------------------- OPTIONS --------------------
+
+@router.get("/cms/exercises/{exercise_id}/options")
+def cms_list_options(exercise_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    rows = db.execute(text("""
+        SELECT id, exercise_id, text, is_correct, side, match_key
+        FROM exercise_options
+        WHERE exercise_id = :id
+        ORDER BY id ASC
+    """), {"id": exercise_id}).mappings().all()
+    return [dict(r) for r in rows]
+
+@router.post("/cms/options")
+async def cms_create_option(request: Request, db=Depends(get_db)):
+    require_cms(request)
+    body = await request.json()
+
+    exercise_id = int(body.get("exercise_id") or 0)
+    text_val = (body.get("text") or "").strip()
+    is_correct = bool(body.get("is_correct") or False)
+    side = body.get("side")
+    match_key = body.get("match_key")
+
+    if not exercise_id or not text_val:
+        raise HTTPException(400, detail="exercise_id and text are required")
+
+    new_id = db.execute(text("""
+        INSERT INTO exercise_options (exercise_id, text, is_correct, side, match_key)
+        VALUES (:exercise_id, :text, :is_correct, :side, :match_key)
+        RETURNING id
+    """), {
+        "exercise_id": exercise_id, "text": text_val,
+        "is_correct": is_correct, "side": side, "match_key": match_key
+    }).scalar_one()
+    return {"id": new_id}
+
+@router.put("/cms/options/{option_id}")
+async def cms_update_option(option_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    body = await request.json()
+
+    allowed = ["text", "is_correct", "side", "match_key"]
+    updates = {}
+    for f in allowed:
+        if f in body:
+            updates[f] = body[f]
+
+    if len(updates) == 0:
+        return {"ok": True}
+
+    set_parts = []
+    params = {"id": option_id}
+    for k, v in updates.items():
+        set_parts.append(f"{k} = :{k}")
+        params[k] = v
+
+    db.execute(text(f"UPDATE exercise_options SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/options/{option_id}")
+def cms_delete_option(option_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    db.execute(text("DELETE FROM exercise_options WHERE id = :id"), {"id": option_id})
+    return {"ok": True}
     
 # --------- ElevenLabs TTS ----------
 
