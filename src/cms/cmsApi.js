@@ -2,39 +2,79 @@
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
-async function req(path, opts = {}) {
+async function reqCms(cmsKey, path, opts = {}) {
   const url = `${API_BASE}${path}`;
+
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-    ...opts,
+    method: opts.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CMS-Token": cmsKey, // ✅ REQUIRED by your backend
+      ...(opts.headers || {}),
+    },
+    body: opts.body,
   });
 
   const text = await res.text();
   let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
 
   if (!res.ok) {
-    const msg = (data && data.detail) || (typeof data === "string" ? data : "Request failed");
+    const msg =
+      (data && data.detail) ||
+      (typeof data === "string" ? data : `Request failed (${res.status})`);
     throw new Error(msg);
   }
+
   return data;
 }
 
 // LESSONS
-export const cmsListLessons = () => req("/cms/lessons");
-export const cmsGetLesson = (id) => req(`/cms/lessons/${id}`);
-export const cmsCreateLesson = (payload) =>
-  req("/cms/lessons", { method: "POST", body: JSON.stringify(payload) });
-export const cmsUpdateLesson = (id, payload) =>
-  req(`/cms/lessons/${id}`, { method: "PUT", body: JSON.stringify(payload) });
-export const cmsDeleteLesson = (id) =>
-  req(`/cms/lessons/${id}`, { method: "DELETE" });
+export function cmsListLessons(cmsKey) {
+  return reqCms(cmsKey, "/cms/lessons");
+}
+export function cmsGetLesson(cmsKey, id) {
+  return reqCms(cmsKey, `/cms/lessons/${id}`);
+}
+export function cmsCreateLesson(cmsKey, payload) {
+  return reqCms(cmsKey, "/cms/lessons", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+export function cmsUpdateLesson(cmsKey, id, payload) {
+  return reqCms(cmsKey, `/cms/lessons/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+export function cmsDeleteLesson(cmsKey, id) {
+  return reqCms(cmsKey, `/cms/lessons/${id}`, { method: "DELETE" });
+}
 
 // EXERCISES
-export const cmsListExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);
-export const cmsCreateExercise = (lessonId, payload) =>
-  req(`/cms/lessons/${lessonId}/exercises`, { method: "POST", body: JSON.stringify(payload) });
-export const cmsUpdateExercise = (exerciseId, payload) =>
-  req(`/cms/exercises/${exerciseId}`, { method: "PUT", body: JSON.stringify(payload) });
-export const cmsDeleteExercise = (exerciseId) =>
-  req(`/cms/exercises/${exerciseId}`, { method: "DELETE" });
+export function cmsListExercises(cmsKey, lessonId) {
+  return reqCms(cmsKey, `/cms/lessons/${lessonId}/exercises`);
+}
+
+// ✅ Your backend creates exercise via POST /cms/exercises with lesson_id in body
+export function cmsCreateExercise(cmsKey, lessonId, payload) {
+  return reqCms(cmsKey, "/cms/exercises", {
+    method: "POST",
+    body: JSON.stringify({ ...payload, lesson_id: Number(lessonId) }),
+  });
+}
+
+export function cmsUpdateExercise(cmsKey, exerciseId, payload) {
+  return reqCms(cmsKey, `/cms/exercises/${exerciseId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+export function cmsDeleteExercise(cmsKey, exerciseId) {
+  return reqCms(cmsKey, `/cms/exercises/${exerciseId}`, { method: "DELETE" });
+}
