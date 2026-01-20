@@ -120,7 +120,20 @@ class LeaderboardEntryOut(BaseModel):
 
 
 
+# ---------- Profile data changing schemas ----------
 
+class MeProfileOut(BaseModel):
+    id: int
+    email: str
+    name: str | None = None
+    avatar_url: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+
+class MeProfileUpdateIn(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
 
 # ---------- JWT helpers (for /complete) ----------
 
@@ -487,9 +500,14 @@ def me_profile_get(
     return MeOut(**dict(row))
 
 
+class MeProfileUpdateIn(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+
 @router.put("/me/profile", response_model=MeOut)
 def me_profile_put(
-    payload: MeUpdateIn,
+    payload: MeProfileUpdateIn,
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
@@ -497,9 +515,15 @@ def me_profile_put(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
+    fn = (payload.first_name or "").strip()
+    ln = (payload.last_name or "").strip()
+    new_name = " ".join([x for x in [fn, ln] if x]) or None
+
     updates = {}
-    if payload.name is not None:
-        updates["name"] = payload.name.strip() or None
+    # if user is trying to update name (even empty strings), update name
+    if payload.first_name is not None or payload.last_name is not None:
+        updates["name"] = new_name
+
     if payload.avatar_url is not None:
         updates["avatar_url"] = payload.avatar_url.strip() or None
 
@@ -518,13 +542,6 @@ def me_profile_put(
     ).mappings().first()
 
     return MeOut(**dict(row))
-@router.put("/me/profile", response_model=MeOut)
-def me_profile_put(
-    payload: MeUpdateIn,
-    authorization: Optional[str] = Header(default=None),
-    db: Connection = Depends(get_db),
-):
-    return me_update(payload=payload, authorization=authorization, db=db)
 
 
 @router.get("/me/activity/last7days")
