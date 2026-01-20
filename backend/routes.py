@@ -457,7 +457,6 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
 # --------- CMS Main ----------
 
 
-router = APIRouter()
 
 CMS_TOKENS = {
     "c5fe8f3d5aa14af2b7ddfbd22cc72d94",
