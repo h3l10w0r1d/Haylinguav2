@@ -15,7 +15,7 @@ import Friends from "./Friends";
 import Leaderboard from "./Leaderboard";
 import ProfilePage from "./ProfilePage";
 
-// ✅ Always have a working backend URL even if Vercel env vars are missing
+//  Always have a working backend URL even if Vercel env vars are missing
 const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
 const API_BASE =
   (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
@@ -26,6 +26,13 @@ function AppShell() {
   const [loadingUser, setLoadingUser] = useState(true);
 
   const navigate = useNavigate();
+
+
+
+  // CMS Imports 
+import CmsShell from "./cms/CmsShell";
+import CmsLessons from "./cms/CmsLessons";
+import CmsLessonEditor from "./cms/CmsLessonEditor";
 
   useEffect(() => {
     console.log("[App] API_BASE =", API_BASE);
@@ -224,6 +231,16 @@ function AppShell() {
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />
+
+
+//CMS Routes
+  <Route path="/:cmsKey/cms" element={<CmsShell />}>
+  <Route index element={<CmsLessons />} />
+  <Route path="lessons" element={<CmsLessons />} />
+  <Route path="lessons/:lessonId" element={<CmsLessonEditor />} />
+</Route>
+
+      
     </Routes>
   );
 }
