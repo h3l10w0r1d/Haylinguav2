@@ -28,7 +28,7 @@ export default function Dashboard({ user, onLogout }) {
   const email = user?.email || "";
 
   // backend doesn't provide streak yet → use the user object (your AppShell stores it)
-  const streak = Number(user?.streak || 0);
+  const streak = Math.max(1, Number(user?.streak ?? 1) || 1);
 
   useEffect(() => {
     const fetchLessons = async () => {
