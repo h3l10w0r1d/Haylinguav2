@@ -3,17 +3,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Users,
+  Search,
   UserPlus,
   UserCheck,
   UserX,
-  Mail,
-  Search,
   MessageCircle,
+  Mail,
+  Inbox,
+  Send,
   Trophy,
   Star,
   Flame,
-  Inbox,
-  Send,
 } from "lucide-react";
 
 const API_BASE =
@@ -38,81 +38,49 @@ async function apiFetch(path, { token, ...opts } = {}) {
   return fetch(`${API_BASE}${path}`, { ...opts, headers });
 }
 
-/**
- * Local friend request storage (MVP)
- * Stored PER USER:
- *  - friends: number[]
- *  - sent: number[]       (requests I've sent)
- *
- * Incoming requests are derived by scanning OTHER users' sent[] lists:
- *  - if other.sent includes myId => it's incoming to me
- *
- * That means incoming works if multiple accounts use the same browser/localStorage
- * (useful for testing).
- */
-function lsKeyFor(userId) {
-  return `hay_friends_state_v1_user_${userId}`;
-}
-
-function readState(userId) {
+// Fallback cache for SENT requests (only used if backend doesn't provide /friends/requests/sent yet)
+const SENT_CACHE_KEY = "hay_friends_sent_cache_v1";
+function readSentCache() {
   try {
-    const raw = localStorage.getItem(lsKeyFor(userId));
-    const obj = JSON.parse(raw || "{}");
-    return {
-      friends: Array.isArray(obj.friends) ? obj.friends.map(Number) : [],
-      sent: Array.isArray(obj.sent) ? obj.sent.map(Number) : [],
-    };
+    const raw = localStorage.getItem(SENT_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return { friends: [], sent: [] };
+    return [];
   }
 }
-
-function writeState(userId, state) {
-  localStorage.setItem(
-    lsKeyFor(userId),
-    JSON.stringify({
-      friends: Array.from(new Set((state.friends || []).map(Number))).filter(
-        (x) => Number.isFinite(x)
-      ),
-      sent: Array.from(new Set((state.sent || []).map(Number))).filter((x) =>
-        Number.isFinite(x)
-      ),
-    })
-  );
-}
-
-function getAllStoredUserIds() {
-  const ids = [];
-  for (const k of Object.keys(localStorage)) {
-    if (k.startsWith("hay_friends_state_v1_user_")) {
-      const part = k.replace("hay_friends_state_v1_user_", "");
-      const id = Number(part);
-      if (Number.isFinite(id)) ids.push(id);
-    }
+function writeSentCache(arr) {
+  try {
+    localStorage.setItem(SENT_CACHE_KEY, JSON.stringify(arr));
+  } catch {
+    // ignore
   }
-  return ids;
 }
 
 export default function Friends() {
   const location = useLocation();
 
-  const [activeTab, setActiveTab] = useState("friends"); // 'friends' | 'pending' | 'discover'
+  const [activeTab, setActiveTab] = useState("friends"); // friends | pending | discover
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [me, setMe] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // local state derived from storage (once me.id is known)
-  const [friends, setFriends] = useState([]);
-  const [sent, setSent] = useState([]);
+  // Discover data (leaderboard)
+  const [people, setPeople] = useState([]);
 
-  // derived incoming (computed)
-  const [incoming, setIncoming] = useState([]);
+  // Friends from backend
+  const [friends, setFriends] = useState([]); // array of FriendOut: {id,email,name,avatar_url}
 
-  // Load me + leaderboard
+  // Incoming requests from backend
+  const [incoming, setIncoming] = useState([]); // array of FriendRequestOut
+
+  // Sent requests (best effort)
+  const [sent, setSent] = useState([]); // array of {id, email, name?, created_at?}
+
+  const token = getToken();
+
+  // --- load everything ---
   useEffect(() => {
-    const token = getToken();
     if (!token) {
       setLoading(false);
       return;
@@ -121,204 +89,257 @@ export default function Friends() {
     (async () => {
       setLoading(true);
       try {
-        const meRes = await apiFetch("/me", { token, method: "GET" });
-        if (meRes.ok) {
-          const meData = await meRes.json();
-          setMe(meData);
-        }
-
-        const lbRes = await apiFetch("/leaderboard?limit=50", {
-          token,
-          method: "GET",
-        });
+        // 1) Discover list (leaderboard)
+        const lbRes = await apiFetch("/leaderboard?limit=200", { token, method: "GET" });
         if (lbRes.ok) {
           const lb = await lbRes.json();
-          setLeaderboard(Array.isArray(lb) ? lb : []);
+          setPeople(Array.isArray(lb) ? lb : []);
         } else {
-          setLeaderboard([]);
+          setPeople([]);
         }
-      } catch (e) {
-        console.error("[Friends] load failed:", e);
-        setLeaderboard([]);
+
+        // 2) Friends
+        const frRes = await apiFetch("/friends", { token, method: "GET" });
+        if (frRes.ok) {
+          const fr = await frRes.json();
+          setFriends(Array.isArray(fr) ? fr : []);
+        } else {
+          setFriends([]);
+        }
+
+        // 3) Incoming pending requests
+        const inRes = await apiFetch("/friends/requests", { token, method: "GET" });
+        if (inRes.ok) {
+          const inc = await inRes.json();
+          setIncoming(Array.isArray(inc) ? inc : []);
+        } else {
+          setIncoming([]);
+        }
+
+        // 4) Sent requests (optional endpoint; fallback to cache if missing)
+        // If you add this later, FE will instantly start using it:
+        //   GET /friends/requests/sent
+        const sentRes = await apiFetch("/friends/requests/sent", { token, method: "GET" });
+        if (sentRes.ok) {
+          const s = await sentRes.json();
+          // expected: [{id, addressee_id, addressee_email, addressee_name, created_at}, ...]
+          const normalized = Array.isArray(s)
+            ? s.map((x) => ({
+                id: x.id,
+                email: x.addressee_email || x.email || "",
+                name: x.addressee_name || x.name || null,
+                created_at: x.created_at || null,
+              }))
+            : [];
+          setSent(normalized);
+        } else {
+          // fallback cache
+          setSent(readSentCache());
+        }
       } finally {
         setLoading(false);
       }
     })();
+  }, [token]);
+
+  const refreshFriendsData = async () => {
+    if (!token) return;
+    try {
+      const [frRes, inRes, sentRes] = await Promise.all([
+        apiFetch("/friends", { token, method: "GET" }),
+        apiFetch("/friends/requests", { token, method: "GET" }),
+        apiFetch("/friends/requests/sent", { token, method: "GET" }),
+      ]);
+
+      if (frRes.ok) {
+        const fr = await frRes.json();
+        setFriends(Array.isArray(fr) ? fr : []);
+      }
+
+      if (inRes.ok) {
+        const inc = await inRes.json();
+        setIncoming(Array.isArray(inc) ? inc : []);
+      }
+
+      if (sentRes.ok) {
+        const s = await sentRes.json();
+        const normalized = Array.isArray(s)
+          ? s.map((x) => ({
+              id: x.id,
+              email: x.addressee_email || x.email || "",
+              name: x.addressee_name || x.name || null,
+              created_at: x.created_at || null,
+            }))
+          : [];
+        setSent(normalized);
+      } else {
+        setSent(readSentCache());
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // --- derived lists ---
+  const friendsById = useMemo(() => new Map(friends.map((f) => [Number(f.id), f])), [friends]);
+
+  const myEmail = useMemo(() => {
+    // token-based only; we don't need /me here
+    return "";
   }, []);
 
-  // Load local state once we know me.id
-  useEffect(() => {
-    const myId = Number(me?.id);
-    if (!Number.isFinite(myId)) return;
-
-    const s = readState(myId);
-    setFriends(s.friends);
-    setSent(s.sent);
-  }, [me?.id]);
-
-  // Derive incoming by scanning other users’ sent[]
-  useEffect(() => {
-    const myId = Number(me?.id);
-    if (!Number.isFinite(myId)) return;
-
-    const allUserIds = getAllStoredUserIds().filter((id) => id !== myId);
-
-    const incomingFrom = [];
-    for (const otherId of allUserIds) {
-      const st = readState(otherId);
-      if (st.sent.includes(myId)) {
-        // if already friends, ignore (accepted)
-        if (friends.includes(otherId)) continue;
-        incomingFrom.push(otherId);
-      }
-    }
-
-    setIncoming(Array.from(new Set(incomingFrom)));
-  }, [me?.id, friends]);
-
-  // Persist state when friends/sent change
-  useEffect(() => {
-    const myId = Number(me?.id);
-    if (!Number.isFinite(myId)) return;
-
-    writeState(myId, { friends, sent });
-  }, [me?.id, friends, sent]);
-
-  const myId = Number(me?.id);
-
-  const people = useMemo(() => {
-    return (leaderboard || [])
-      .map((u) => {
-        const id = Number(u.user_id ?? u.id);
-        if (!Number.isFinite(id)) return null;
-        if (id === myId) return null;
-
-        const email = u.email || "";
-        const name =
-          (u.name && String(u.name).trim()) ||
-          (email.includes("@") ? email.split("@")[0] : "User");
-
-        const xp = Number(u.xp ?? u.total_xp ?? 0) || 0;
-        const level = Math.max(1, Number(u.level ?? 1) || 1);
-        const streak = Math.max(1, Number(u.streak ?? 0) || 0); // never 0
-
-        const isFriend = friends.includes(id);
-        const isSent = sent.includes(id);
-        const isIncoming = incoming.includes(id);
-
-        return {
-          id,
-          name,
-          email,
-          xp,
-          level,
-          streak,
-          isFriend,
-          isSent,
-          isIncoming,
-        };
-      })
-      .filter(Boolean);
-  }, [leaderboard, myId, friends, sent, incoming]);
-
-  const byId = useMemo(() => {
-    const m = new Map();
-    for (const p of people) m.set(p.id, p);
-    return m;
-  }, [people]);
-
-  const friendsList = useMemo(
-    () => people.filter((p) => p.isFriend),
-    [people]
-  );
-
-  const discoverList = useMemo(() => {
-    return people.filter((p) => {
-      // show in discover if not friend
-      // (even if pending, we can still show but button will be disabled)
-      return !p.isFriend;
-    });
-  }, [people]);
+  const friendsList = useMemo(() => {
+    // friends already in correct shape
+    return friends
+      .map((f) => ({
+        id: Number(f.id),
+        name: f.name || (f.email ? f.email.split("@")[0] : "User"),
+        email: f.email || "",
+        avatar_url: f.avatar_url || null,
+        // optional display stats placeholders (not in FriendOut)
+        level: 1,
+        xp: 0,
+        streak: 1,
+      }))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [friends]);
 
   const incomingList = useMemo(() => {
-    // incoming ids might not all be in leaderboard (but likely yes)
-    const arr = incoming
-      .map((id) => byId.get(id))
-      .filter(Boolean)
-      .map((p) => ({ ...p, isIncoming: true }));
-    return arr;
-  }, [incoming, byId]);
+    // incoming: FriendRequestOut has requester_* fields
+    return (incoming || []).map((r) => ({
+      request_id: r.id,
+      id: Number(r.requester_id),
+      name: r.requester_name || (r.requester_email ? r.requester_email.split("@")[0] : "User"),
+      email: r.requester_email || "",
+      avatar_url: null,
+      level: 1,
+      xp: 0,
+      streak: 1,
+      created_at: r.created_at,
+    }));
+  }, [incoming]);
 
   const sentList = useMemo(() => {
-    const arr = sent
-      .map((id) => byId.get(id))
-      .filter(Boolean)
-      .map((p) => ({ ...p, isSent: true }));
-    return arr;
-  }, [sent, byId]);
+    // normalized: {id,email,name,created_at}
+    return (sent || [])
+      .filter((x) => x?.email)
+      .map((x) => ({
+        request_id: x.id || null,
+        id: x.email, // use email as stable key if no id
+        name: x.name || x.email.split("@")[0],
+        email: x.email,
+        avatar_url: null,
+        level: 1,
+        xp: 0,
+        streak: 1,
+        created_at: x.created_at || null,
+      }));
+  }, [sent]);
+
+  // Discover comes from leaderboard (people)
+  const discoverList = useMemo(() => {
+    // leaderboard rows: {user_id,email,name,xp,streak,level,rank}
+    const myToken = getToken();
+    const raw = Array.isArray(people) ? people : [];
+    const normalized = raw
+      .map((p) => ({
+        id: Number(p.user_id ?? p.id),
+        name: p.name || (p.email ? p.email.split("@")[0] : "User"),
+        email: p.email || "",
+        level: Number(p.level ?? 1) || 1,
+        xp: Number(p.xp ?? 0) || 0,
+        streak: Math.max(1, Number(p.streak ?? 1) || 1),
+      }))
+      .filter((p) => Number.isFinite(p.id) && p.email);
+
+    // remove yourself if /me isn't wired—best effort: keep as-is
+    // (once you add /me, you can filter by id)
+    return normalized;
+  }, [people]);
 
   const applySearch = (list) => {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return list;
     return list.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.email || "").toLowerCase().includes(q)
     );
   };
 
-  // --- Actions (MVP local) ---
-  const sendRequest = (targetId) => {
-    if (!Number.isFinite(myId)) return;
+  // --- Actions (backend) ---
+  const sendRequestByEmail = async (email) => {
+    if (!token) return;
 
-    // if already friend -> no
-    if (friends.includes(targetId)) return;
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    if (!cleanEmail) return;
 
-    // if incoming from them -> accepting is more logical, but allow send? no.
-    if (incoming.includes(targetId)) return;
+    // If you already have them as friend — no-op
+    if (friendsList.some((f) => f.email.toLowerCase() === cleanEmail)) return;
 
-    // if already sent -> no
-    if (sent.includes(targetId)) return;
+    // If already in incoming — better accept instead
+    if (incomingList.some((r) => r.email.toLowerCase() === cleanEmail)) return;
 
-    setSent((prev) => [...prev, targetId]);
+    // If already in sent cache/list — no-op
+    if (sentList.some((r) => r.email.toLowerCase() === cleanEmail)) return;
+
+    const res = await apiFetch("/friends/request", {
+      token,
+      method: "POST",
+      body: JSON.stringify({ email: cleanEmail }),
+    });
+
+    if (res.ok) {
+      // if backend doesn't have "sent endpoint", keep local cache so UI still shows it
+      const cached = readSentCache();
+      const next = [{ id: null, email: cleanEmail, name: null, created_at: new Date().toISOString() }, ...cached]
+        .slice(0, 100);
+      writeSentCache(next);
+      setSent(next);
+      await refreshFriendsData();
+      setActiveTab("pending");
+    } else {
+      const t = await res.text().catch(() => "");
+      console.warn("[Friends] POST /friends/request failed:", res.status, t);
+    }
   };
 
-  const cancelRequest = (targetId) => {
-    setSent((prev) => prev.filter((x) => x !== targetId));
+  const acceptRequest = async (requestId) => {
+    if (!token) return;
+    const res = await apiFetch(`/friends/requests/${requestId}/accept`, {
+      token,
+      method: "POST",
+    });
+    if (res.ok) {
+      await refreshFriendsData();
+      setActiveTab("friends");
+    } else {
+      const t = await res.text().catch(() => "");
+      console.warn("[Friends] accept failed:", res.status, t);
+    }
   };
 
-  const acceptRequest = (fromId) => {
-    // accept means: add to friends, and remove their request (incoming)
-    // We also should remove from their "sent" if they are in same localStorage world (testing scenario).
-    if (!Number.isFinite(myId)) return;
-
-    // add friend
-    setFriends((prev) => (prev.includes(fromId) ? prev : [...prev, fromId]));
-
-    // remove any "sent" to them (edge case)
-    setSent((prev) => prev.filter((x) => x !== fromId));
-
-    // remove from other user's sent list (so it no longer shows as incoming after refresh)
-    const other = readState(fromId);
-    const cleaned = { ...other, sent: other.sent.filter((x) => x !== myId) };
-    writeState(fromId, cleaned);
-
-    // recompute incoming will happen automatically due to effect
+  const rejectRequest = async (requestId) => {
+    if (!token) return;
+    const res = await apiFetch(`/friends/requests/${requestId}/reject`, {
+      token,
+      method: "POST",
+    });
+    if (res.ok) {
+      await refreshFriendsData();
+    } else {
+      const t = await res.text().catch(() => "");
+      console.warn("[Friends] reject failed:", res.status, t);
+    }
   };
 
-  const declineRequest = (fromId) => {
-    // remove their request (incoming) by cleaning their "sent" list (local test mode)
-    if (!Number.isFinite(myId)) return;
-
-    const other = readState(fromId);
-    const cleaned = { ...other, sent: other.sent.filter((x) => x !== myId) };
-    writeState(fromId, cleaned);
-
-    // force refresh incoming
-    setIncoming((prev) => prev.filter((x) => x !== fromId));
-  };
-
-  const removeFriend = (friendId) => {
-    setFriends((prev) => prev.filter((x) => x !== friendId));
+  const cancelSentRequest = (email) => {
+    // Backend cancellation endpoint not implemented in your routes yet.
+    // So we remove it from cache so the UI behaves correctly for now.
+    const clean = String(email || "").trim().toLowerCase();
+    const cached = readSentCache().filter((x) => (x.email || "").toLowerCase() !== clean);
+    writeSentCache(cached);
+    setSent(cached);
   };
 
   const handleMessage = (friend) => {
@@ -327,16 +348,14 @@ export default function Friends() {
     }
   };
 
-  // --- Header nav (embedded to fix “no navigation” on this page) ---
+  // --- Header nav (embedded) ---
   const NavLink = ({ to, children }) => {
     const active = location.pathname === to;
     return (
       <Link
         to={to}
         className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-          active
-            ? "bg-orange-600 text-white"
-            : "text-gray-700 hover:bg-gray-100"
+          active ? "bg-orange-600 text-white" : "text-gray-700 hover:bg-gray-100"
         }`}
       >
         {children}
@@ -346,7 +365,7 @@ export default function Friends() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      {/* Embedded Header / Navigation (so you can navigate even if layout header is missing) */}
+      {/* Embedded Header / Navigation */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-semibold">
@@ -436,7 +455,7 @@ export default function Friends() {
 
       {/* Main card */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
-        {!getToken() ? (
+        {!token ? (
           <div className="text-center py-10">
             <p className="text-gray-600 mb-2">
               You need to be logged in to use Friends.
@@ -476,7 +495,8 @@ export default function Friends() {
                         person={p}
                         mode="friend"
                         onMessage={() => handleMessage(p)}
-                        onRemove={() => removeFriend(p.id)}
+                        // remove not implemented in backend yet
+                        onRemove={null}
                       />
                     ))}
                   </div>
@@ -509,11 +529,11 @@ export default function Friends() {
                     <div className="grid gap-4">
                       {applySearch(incomingList).map((p) => (
                         <PersonCard
-                          key={p.id}
+                          key={p.request_id}
                           person={p}
                           mode="incoming"
-                          onAccept={() => acceptRequest(p.id)}
-                          onDecline={() => declineRequest(p.id)}
+                          onAccept={() => acceptRequest(p.request_id)}
+                          onDecline={() => rejectRequest(p.request_id)}
                         />
                       ))}
                     </div>
@@ -542,10 +562,10 @@ export default function Friends() {
                     <div className="grid gap-4">
                       {applySearch(sentList).map((p) => (
                         <PersonCard
-                          key={p.id}
+                          key={`${p.email}-${p.request_id ?? "x"}`}
                           person={p}
                           mode="sent"
-                          onCancel={() => cancelRequest(p.id)}
+                          onCancel={() => cancelSentRequest(p.email)}
                         />
                       ))}
                     </div>
@@ -553,8 +573,10 @@ export default function Friends() {
                 </div>
 
                 <p className="mt-5 text-[11px] text-gray-400">
-                  This “requests” system is frontend-only for now. Once you add
-                  a DB table + endpoints, we’ll wire it properly.
+                  Incoming requests are real from the backend. “Sent” requests
+                  will become fully real once you add <code>/friends/requests/sent</code>{" "}
+                  (optional). Until then, the UI keeps a local cache so you can still
+                  see what you requested.
                 </p>
               </>
             ) : null}
@@ -573,28 +595,42 @@ export default function Friends() {
                 ) : (
                   <div className="grid gap-4">
                     {applySearch(discoverList).map((p) => {
-                      // IFs for button state
-                      const isFriend = friends.includes(p.id);
-                      const isSent = sent.includes(p.id);
-                      const isIncoming = incoming.includes(p.id);
+                      const isFriend = friendsList.some((f) => f.email === p.email);
+                      const isIncoming = incomingList.some((r) => r.email === p.email);
+                      const isSent = sentList.some((r) => r.email === p.email);
 
                       return (
                         <PersonCard
                           key={p.id}
                           person={p}
                           mode="discover"
-                          // If incoming exists -> show Accept/Decline instead of Send
+                          isFriend={isFriend}
+                          isIncoming={isIncoming}
+                          isSent={isSent}
                           onSend={
-                            !isFriend && !isSent && !isIncoming
-                              ? () => sendRequest(p.id)
+                            !isFriend && !isIncoming && !isSent
+                              ? () => sendRequestByEmail(p.email)
                               : null
                           }
-                          onAccept={isIncoming ? () => acceptRequest(p.id) : null}
-                          onDecline={isIncoming ? () => declineRequest(p.id) : null}
-                          onCancel={isSent ? () => cancelRequest(p.id) : null}
-                          isFriend={isFriend}
-                          isSent={isSent}
-                          isIncoming={isIncoming}
+                          // If incoming exists in discover, user should go to pending to accept;
+                          // but we can still show the accept/decline buttons if we find the request_id.
+                          onAccept={
+                            isIncoming
+                              ? () => {
+                                  const req = incomingList.find((r) => r.email === p.email);
+                                  if (req?.request_id) acceptRequest(req.request_id);
+                                }
+                              : null
+                          }
+                          onDecline={
+                            isIncoming
+                              ? () => {
+                                  const req = incomingList.find((r) => r.email === p.email);
+                                  if (req?.request_id) rejectRequest(req.request_id);
+                                }
+                              : null
+                          }
+                          onCancel={isSent ? () => cancelSentRequest(p.email) : null}
                         />
                       );
                     })}
@@ -609,7 +645,7 @@ export default function Friends() {
   );
 }
 
-/* ---------- UI Card (keeps your nice layout) ---------- */
+/* ---------- UI Card ---------- */
 
 function PersonCard({
   person,
@@ -654,13 +690,17 @@ function PersonCard({
               >
                 <MessageCircle className="w-5 h-5" />
               </button>
-              <button
-                onClick={onRemove}
-                className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
-              >
-                <UserX className="w-4 h-4" />
-                <span>Remove</span>
-              </button>
+
+              {/* backend remove not implemented -> hide button unless provided */}
+              {onRemove ? (
+                <button
+                  onClick={onRemove}
+                  className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                >
+                  <UserX className="w-4 h-4" />
+                  <span>Remove</span>
+                </button>
+              ) : null}
             </>
           ) : null}
 
@@ -695,7 +735,6 @@ function PersonCard({
 
           {mode === "discover" ? (
             <>
-              {/* If friend */}
               {isFriend ? (
                 <div className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 inline-flex items-center gap-2">
                   <UserCheck className="w-4 h-4" />
@@ -703,7 +742,6 @@ function PersonCard({
                 </div>
               ) : null}
 
-              {/* If incoming request -> accept/decline */}
               {!isFriend && isIncoming ? (
                 <>
                   <button
@@ -723,7 +761,6 @@ function PersonCard({
                 </>
               ) : null}
 
-              {/* If sent already -> cancel */}
               {!isFriend && !isIncoming && isSent ? (
                 <button
                   onClick={onCancel}
@@ -734,7 +771,6 @@ function PersonCard({
                 </button>
               ) : null}
 
-              {/* Otherwise -> send request */}
               {!isFriend && !isIncoming && !isSent ? (
                 <button
                   onClick={onSend}
@@ -749,18 +785,18 @@ function PersonCard({
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats (from leaderboard when in discover; placeholders elsewhere) */}
       <div className="mt-4 flex flex-wrap gap-3">
         <div className="flex items-center gap-2 bg-orange-50 px-3 py-2 rounded-xl">
           <Trophy className="w-4 h-4 text-orange-600" />
           <span className="text-sm font-medium text-gray-900">
-            Lv {person.level}
+            Lv {Number(person.level ?? 1) || 1}
           </span>
         </div>
         <div className="flex items-center gap-2 bg-yellow-50 px-3 py-2 rounded-xl">
           <Star className="w-4 h-4 text-yellow-600" />
           <span className="text-sm font-medium text-gray-900">
-            {person.xp} XP
+            {Number(person.xp ?? 0) || 0} XP
           </span>
         </div>
         <div className="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-xl">
