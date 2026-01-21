@@ -64,6 +64,19 @@ export function createCmsApi(cmsKey) {
 
   const deleteExercise = (exerciseId) =>
     req(`/cms/exercises/${exerciseId}`, { method: "DELETE" });
+  
+    // Options (exercise_options table)
+  const listOptions = (exerciseId) => req(`/cms/exercises/${exerciseId}/options`);
+
+  const createOption = (payload) =>
+    req(`/cms/options`, { method: "POST", body: JSON.stringify(payload) });
+
+  const updateOption = (optionId, payload) =>
+    req(`/cms/options/${optionId}`, { method: "PUT", body: JSON.stringify(payload) });
+
+  const deleteOption = (optionId) =>
+    req(`/cms/options/${optionId}`, { method: "DELETE" });
+
 
   return {
     listLessons,
@@ -76,6 +89,10 @@ export function createCmsApi(cmsKey) {
     createExercise,
     updateExercise,
     deleteExercise,
+    listOptions,
+    createOption,
+    updateOption,
+    deleteOption
   };
 }
 
