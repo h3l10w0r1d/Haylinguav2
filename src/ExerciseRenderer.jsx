@@ -627,7 +627,117 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
       </Card>
     );
   }
+  // ✅ G) multi_select
+// config:
+//  - choices: ["Բարև", "Ցտեսություն", ...]
+//  - correctIndices: [0, 2]   (preferred)
+// OR
+//  - correctAnswers: ["Բարև", ...] (fallback)
+//
+// Behavior: user can select multiple options, then Check validates set equality.
+if (exercise?.kind === "multi_select") {
+  const choices = cfg.choices ?? cfg.options ?? [];
+  const correctIndices = Array.isArray(cfg.correctIndices) ? cfg.correctIndices : null;
+  const correctAnswers = Array.isArray(cfg.correctAnswers) ? cfg.correctAnswers : null;
 
+  const [selectedSet, setSelectedSet] = useState(() => new Set());
+
+  useEffect(() => {
+    setSelectedSet(new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id, exercise?.kind]);
+
+  function toggle(idx) {
+    setSelectedSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }
+
+  const canCheck = selectedSet.size > 0;
+
+  function isCorrect() {
+    const selectedIndices = Array.from(selectedSet).sort((a, b) => a - b);
+
+    // Validate by indices first (best)
+    if (correctIndices) {
+      const sortedCorrect = [...correctIndices].sort((a, b) => a - b);
+      if (sortedCorrect.length !== selectedIndices.length) return false;
+      return sortedCorrect.every((v, i) => Number(v) === Number(selectedIndices[i]));
+    }
+
+    // Fallback: validate by answers
+    if (correctAnswers) {
+      const selectedTexts = selectedIndices.map((i) => choices[i]).map(normalizeText).sort();
+      const correctTexts = correctAnswers.map(normalizeText).sort();
+      if (correctTexts.length !== selectedTexts.length) return false;
+      return correctTexts.every((v, i) => v === selectedTexts[i]);
+    }
+
+    // Last fallback: compare to expected_answer as comma separated text list
+    const answer = expected ?? cfg.answer ?? "";
+    const expectedParts = String(answer)
+      .split(",")
+      .map((x) => normalizeText(x))
+      .filter(Boolean)
+      .sort();
+
+    const selectedTexts = selectedIndices.map((i) => normalizeText(choices[i])).sort();
+    if (expectedParts.length === 0) return false;
+    if (expectedParts.length !== selectedTexts.length) return false;
+    return expectedParts.every((v, i) => v === selectedTexts[i]);
+  }
+
+  return (
+    <Card>
+      <Title>{prompt || "Select all correct answers"}</Title>
+      <Muted className="mt-2">You can pick more than one option.</Muted>
+
+      <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-2">
+        {choices.map((c, idx) => {
+          const active = selectedSet.has(idx);
+          return (
+            <button
+              key={idx}
+              onClick={() => toggle(idx)}
+              className={cx(
+                "rounded-xl px-4 py-3 text-left font-semibold transition ring-1",
+                active
+                  ? "bg-orange-50 ring-orange-300 text-orange-800"
+                  : "bg-white ring-slate-200 hover:bg-slate-50"
+              )}
+            >
+              {c}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <PrimaryButton
+          disabled={!canCheck}
+          onClick={() => {
+            if (isCorrect()) correct();
+            else wrong("Not quite. Try selecting a different combination.");
+          }}
+        >
+          Check
+        </PrimaryButton>
+
+        <SecondaryButton
+          onClick={() => {
+            onSkip?.();
+            onAnswer?.({ skipped: true, isCorrect: true, xpEarned: 0 });
+          }}
+        >
+          Skip
+        </SecondaryButton>
+      </div>
+    </Card>
+  );
+}
   // C) true_false
   // config:
   //  - statement: "Բարև means Hello"
