@@ -51,6 +51,13 @@ class AuthResponse(BaseModel):
 
 # ---------- Lesson schemas ----------
 
+class ExerciseOptionOut(BaseModel):
+    id: int
+    text: str
+    is_correct: bool | None = None
+    side: str | None = None
+    match_key: str | None = None
+
 class LessonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,6 +80,7 @@ class ExerciseOut(BaseModel):
     sentence_after: str | None = None
     order: int
     config: Dict[str, Any]
+    options: List[ExerciseOptionOut] = []
 
 
 class LessonWithExercisesOut(BaseModel):
@@ -564,13 +572,11 @@ def list_lessons(db: Connection = Depends(get_db)):
 @router.get("/lessons/{slug}", response_model=LessonWithExercisesOut)
 def get_lesson(slug: str, db: Connection = Depends(get_db)):
     lesson_row = db.execute(
-        text(
-            """
+        text("""
             SELECT id, slug, title, description, level, xp
             FROM lessons
             WHERE slug = :slug
-            """
-        ),
+        """),
         {"slug": slug},
     ).mappings().first()
 
@@ -578,8 +584,7 @@ def get_lesson(slug: str, db: Connection = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     exercises_rows = db.execute(
-        text(
-            """
+        text("""
             SELECT
                 id,
                 kind,
@@ -592,14 +597,35 @@ def get_lesson(slug: str, db: Connection = Depends(get_db)):
             FROM exercises
             WHERE lesson_id = :lesson_id
             ORDER BY "order" ASC, id ASC
-            """
-        ),
+        """),
         {"lesson_id": lesson_row["id"]},
     ).mappings().all()
 
-    lesson_dict: Dict[str, Any] = dict(lesson_row)
-    lesson_dict["exercises"] = [ExerciseOut(**dict(r)) for r in exercises_rows]
+    ex_ids = [int(r["id"]) for r in exercises_rows]
+    options_by_ex: dict[int, list[dict]] = {eid: [] for eid in ex_ids}
 
+    if ex_ids:
+        opt_rows = db.execute(
+            text("""
+                SELECT id, exercise_id, text, is_correct, side, match_key
+                FROM exercise_options
+                WHERE exercise_id = ANY(:ids)
+                ORDER BY exercise_id ASC, id ASC
+            """),
+            {"ids": ex_ids},
+        ).mappings().all()
+
+        for o in opt_rows:
+            options_by_ex[int(o["exercise_id"])].append(dict(o))
+
+    lesson_dict: Dict[str, Any] = dict(lesson_row)
+    exercises_out: list[dict] = []
+    for r in exercises_rows:
+        d = dict(r)
+        d["options"] = options_by_ex.get(int(r["id"]), [])
+        exercises_out.append(d)
+
+    lesson_dict["exercises"] = [ExerciseOut(**e) for e in exercises_out]
     return LessonWithExercisesOut(**lesson_dict)
 
 
