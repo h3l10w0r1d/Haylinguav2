@@ -450,15 +450,7 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
     </Card>
   );
 }
-// example: after user answers
-await postAttempt({
-  exerciseId: currentExercise.id,
-  kind: currentExercise.kind,
-  isCorrect: true,              // or false
-  answerText: "Բարև",           // optional
-  selectedIndices: [0, 2],      // optional
-  msSpent: timeSpentMs,         // optional
-});
+
 
 await postExerciseLog({
   exerciseId: currentExercise.id,
@@ -1269,9 +1261,36 @@ export default function ExerciseRenderer({
   onAnswer,
   apiBaseUrl,
 }) {
+  
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
+const exerciseStartRef = useRef(Date.now());
 
+async function handleAnswer(payload) {
+  const timeSpentMs = Date.now() - exerciseStartRef.current;
+
+  // Reset timer for next exercise
+  exerciseStartRef.current = Date.now();
+
+  await postAttempt({
+    exerciseId: currentExercise.id,
+    kind: currentExercise.kind,
+    isCorrect: payload?.isCorrect ?? false,
+    answerText: payload?.answerText ?? null,
+    selectedIndices: payload?.selectedIndices ?? null,
+    msSpent: timeSpentMs,
+  });
+
+  await postExerciseLog({
+    exerciseId: currentExercise.id,
+    event: payload?.skipped ? "skip" : "check",
+    payload: {
+      kind: currentExercise.kind,
+      isCorrect: payload?.isCorrect ?? false,
+      msSpent: timeSpentMs,
+    },
+  });
+}
   if (kind === "char_intro") {
     return (
       <ExCharIntro
