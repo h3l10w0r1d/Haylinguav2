@@ -6,7 +6,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  * each exercise kind into its own component.
  *
  * Props:
- *  - exercise: { id, kind, prompt, expected_answer, sentence_before, sentence_after, config }
+ *  - exercise: {
+ *      id, kind, prompt, expected_answer, sentence_before, sentence_after, config,
+ *      options?: [{ id, text, is_correct, side, match_key }]
+ *    }
  *  - onCorrect: () => void
  *  - onWrong: (msg?: string) => void
  *  - onSkip: () => void
@@ -60,10 +63,18 @@ function Title({ children }) {
 }
 
 function Muted({ children, className }) {
-  return <div className={cx("text-sm text-slate-600", className)}>{children}</div>;
+  return (
+    <div className={cx("text-sm text-slate-600", className)}>{children}</div>
+  );
 }
 
-function PrimaryButton({ children, onClick, disabled, className, type = "button" }) {
+function PrimaryButton({
+  children,
+  onClick,
+  disabled,
+  className,
+  type = "button",
+}) {
   return (
     <button
       type={type}
@@ -82,7 +93,13 @@ function PrimaryButton({ children, onClick, disabled, className, type = "button"
   );
 }
 
-function SecondaryButton({ children, onClick, disabled, className, type = "button" }) {
+function SecondaryButton({
+  children,
+  onClick,
+  disabled,
+  className,
+  type = "button",
+}) {
   return (
     <button
       type={type}
@@ -200,6 +217,72 @@ function useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer }) {
   return { wrong, correct, skip };
 }
 
+/* -------------------------------------------------------
+   NEW helpers: DB-backed exercise_options compatibility
+-------------------------------------------------------- */
+
+// Prefer DB-backed options (exercise.options) if present; fallback to cfg
+function getChoices(exercise, cfg) {
+  const opts = Array.isArray(exercise?.options) ? exercise.options : [];
+  if (opts.length) return opts.map((o) => String(o?.text ?? ""));
+  const fromCfg = cfg.choices ?? cfg.options ?? [];
+  return Array.isArray(fromCfg) ? fromCfg.map((x) => String(x ?? "")) : [];
+}
+
+// For MCQ: get correct index from DB options if available, else cfg.answerIndex or expected_answer
+function getSingleCorrectIndex(exercise, cfg, choices) {
+  const opts = Array.isArray(exercise?.options) ? exercise.options : [];
+  if (opts.length) {
+    const i = opts.findIndex((o) => !!o?.is_correct);
+    return i >= 0 ? i : null;
+  }
+  if (Number.isFinite(cfg.answerIndex)) return Number(cfg.answerIndex);
+  // If expected_answer matches one choice, accept that
+  const expected = exercise?.expected_answer;
+  if (expected != null) {
+    const j = choices.findIndex((c) => normalizeText(c) === normalizeText(expected));
+    return j >= 0 ? j : null;
+  }
+  return null;
+}
+
+// For multi-select: read correct indices from DB options OR cfg
+function getCorrectIndices(exercise, cfg, choices) {
+  const opts = Array.isArray(exercise?.options) ? exercise.options : [];
+  if (opts.length) {
+    const idxs = [];
+    opts.forEach((o, i) => {
+      if (o?.is_correct) idxs.push(i);
+    });
+    return idxs;
+  }
+
+  if (Array.isArray(cfg.correctIndices)) return cfg.correctIndices.map((n) => Number(n));
+
+  if (Array.isArray(cfg.correctAnswers)) {
+    return cfg.correctAnswers
+      .map((ans) => choices.findIndex((c) => normalizeText(c) === normalizeText(ans)))
+      .filter((i) => i >= 0);
+  }
+
+  // fallback: if expected_answer is a JSON array string, support it
+  const expected = exercise?.expected_answer;
+  if (typeof expected === "string" && expected.trim().startsWith("[")) {
+    try {
+      const arr = JSON.parse(expected);
+      if (Array.isArray(arr)) {
+        return arr
+          .map((ans) => choices.findIndex((c) => normalizeText(c) === normalizeText(ans)))
+          .filter((i) => i >= 0);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return [];
+}
+
 /* -------------------------
    Individual Kind Components
 -------------------------- */
@@ -218,12 +301,8 @@ function ExCharIntro({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
       <Title>{prompt || "New letter"}</Title>
 
       <div className="mt-4 flex items-center justify-between gap-4">
-        <div className="text-5xl md:text-6xl font-black text-slate-900">
-          {letter}
-        </div>
-        <div className="text-3xl md:text-4xl font-extrabold text-slate-700">
-          {lower}
-        </div>
+        <div className="text-5xl md:text-6xl font-black text-slate-900">{letter}</div>
+        <div className="text-3xl md:text-4xl font-extrabold text-slate-700">{lower}</div>
       </div>
 
       <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
@@ -262,8 +341,7 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
     <Card>
       <Title>{prompt || "Pick the correct sound"}</Title>
       <Muted className="mt-2">
-        Letter:{" "}
-        <span className="font-semibold text-slate-800">{cfg.letter ?? ""}</span>
+        Letter: <span className="font-semibold text-slate-800">{cfg.letter ?? ""}</span>
       </Muted>
 
       <div className="mt-4">
@@ -277,7 +355,12 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
       </div>
 
       <div className="mt-4">
-        <ChoiceGrid choices={options} selected={selectedIndex} onSelect={setSelectedIndex} columns={2} />
+        <ChoiceGrid
+          choices={options}
+          selected={selectedIndex}
+          onSelect={setSelectedIndex}
+          columns={2}
+        />
       </div>
 
       <div className="mt-6 space-y-3">
@@ -316,7 +399,12 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
       <Title>{prompt || "Choose the correct letter"}</Title>
 
       <div className="mt-4">
-        <ChoiceGrid choices={choices} selected={selectedIndex} onSelect={setSelectedIndex} columns={2} />
+        <ChoiceGrid
+          choices={choices}
+          selected={selectedIndex}
+          onSelect={setSelectedIndex}
+          columns={2}
+        />
       </div>
 
       <div className="mt-6 space-y-3">
@@ -526,7 +614,11 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
       </div>
 
       <div className="mt-4">
-        <InlineInput value={inputValue} onChange={setInputValue} placeholder="Type the missing word…" />
+        <InlineInput
+          value={inputValue}
+          onChange={setInputValue}
+          placeholder="Type the missing word…"
+        />
       </div>
 
       <div className="mt-6 space-y-3">
@@ -545,15 +637,15 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
   );
 }
 
-// B) translate_mcq
+// B) translate_mcq (now supports exercise.options DB-backed)
 function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
   const sentence = cfg.sentence ?? "";
-  const choices = cfg.choices ?? cfg.options ?? [];
-  const answerIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : null;
+  const choices = getChoices(exercise, cfg);
+  const correctIndexFromDbOrCfg = getSingleCorrectIndex(exercise, cfg, choices);
   const answerText = expected ?? cfg.answer ?? null;
 
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -572,18 +664,24 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
       )}
 
       <div className="mt-4">
-        <ChoiceGrid choices={choices} selected={selectedIndex} onSelect={setSelectedIndex} columns={2} />
+        <ChoiceGrid
+          choices={choices}
+          selected={selectedIndex}
+          onSelect={setSelectedIndex}
+          columns={2}
+        />
       </div>
 
       <div className="mt-6 space-y-3">
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            if (answerIndex !== null) {
-              if (selectedIndex === answerIndex) correct();
+            if (correctIndexFromDbOrCfg !== null) {
+              if (selectedIndex === correctIndexFromDbOrCfg) correct();
               else wrong("Wrong choice. Try again.");
               return;
             }
+            // fallback text compare
             const pick = choices[selectedIndex] ?? "";
             if (answerText && normalizeText(pick) === normalizeText(answerText)) correct();
             else wrong("Wrong choice. Try again.");
@@ -813,7 +911,9 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
     <Card>
       <Title>{prompt || "Match the pairs"}</Title>
       <Muted className="mt-2">
-        Matched: <span className="font-semibold text-slate-800">{currentMatches}</span> / {totalMatches}
+        Matched:{" "}
+        <span className="font-semibold text-slate-800">{currentMatches}</span> /{" "}
+        {totalMatches}
       </Muted>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -875,16 +975,24 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
   );
 }
 
-// F) audio_choice_tts
-function ExAudioChoiceTts({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl }) {
+// F) audio_choice_tts (now supports exercise.options DB-backed)
+function ExAudioChoiceTts({
+  exercise,
+  cfg,
+  onCorrect,
+  onWrong,
+  onSkip,
+  onAnswer,
+  apiBaseUrl,
+}) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
   const ttsText = cfg.ttsText ?? cfg.text ?? "";
   const promptText = cfg.promptText ?? prompt ?? "Listen and choose";
-  const choices = cfg.choices ?? cfg.options ?? [];
-  const answerIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : null;
+  const choices = getChoices(exercise, cfg);
+  const correctIndexFromDbOrCfg = getSingleCorrectIndex(exercise, cfg, choices);
   const answerText = expected ?? cfg.answer ?? null;
 
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -937,15 +1045,20 @@ function ExAudioChoiceTts({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
       </div>
 
       <div className="mt-4">
-        <ChoiceGrid choices={choices} selected={selectedIndex} onSelect={setSelectedIndex} columns={2} />
+        <ChoiceGrid
+          choices={choices}
+          selected={selectedIndex}
+          onSelect={setSelectedIndex}
+          columns={2}
+        />
       </div>
 
       <div className="mt-6 space-y-3">
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            if (answerIndex !== null) {
-              selectedIndex === answerIndex ? correct() : wrong("Wrong choice. Try again.");
+            if (correctIndexFromDbOrCfg !== null) {
+              selectedIndex === correctIndexFromDbOrCfg ? correct() : wrong("Wrong choice. Try again.");
               return;
             }
             const pick = choices[selectedIndex] ?? "";
@@ -962,24 +1075,24 @@ function ExAudioChoiceTts({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
 }
 
 /**
- * NEW: multi_select
- * config:
- *  - choices: ["A", "B", "C"]
- *  - correctIndices: [0,2]   OR
- *  - correctAnswers: ["A","C"]
- * optional:
- *  - minSelect, maxSelect
+ * multi_select
+ * Supports BOTH:
+ *  - DB options: exercise.options with is_correct flags (best for CMS)
+ *  - JSON config: { choices/options, correctIndices/correctAnswers, minSelect/maxSelect }
+ *  - fallback: expected_answer as JSON array string
  */
 function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
 
   const prompt = exercise?.prompt || "Select all correct answers";
-  const choices = cfg.choices ?? cfg.options ?? [];
-  const correctIndices = Array.isArray(cfg.correctIndices) ? cfg.correctIndices : null;
-  const correctAnswers = Array.isArray(cfg.correctAnswers) ? cfg.correctAnswers : null;
+
+  const choices = getChoices(exercise, cfg);
+  const correctIdxs = getCorrectIndices(exercise, cfg, choices);
 
   const minSelect = Number.isFinite(cfg.minSelect) ? Number(cfg.minSelect) : 1;
-  const maxSelect = Number.isFinite(cfg.maxSelect) ? Number(cfg.maxSelect) : choices.length;
+  const maxSelect = Number.isFinite(cfg.maxSelect)
+    ? Number(cfg.maxSelect)
+    : choices.length;
 
   const [selectedSet, setSelectedSet] = useState(() => new Set());
 
@@ -1003,34 +1116,10 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) 
   const canCheck = selectedArray.length >= minSelect;
 
   function isCorrectSelection() {
-    if (correctIndices) {
-      const target = [...correctIndices].sort((a, b) => a - b);
-      if (target.length !== selectedArray.length) return false;
-      return target.every((v, idx) => Number(v) === Number(selectedArray[idx]));
-    }
-    if (correctAnswers) {
-      const selectedTexts = selectedArray.map((i) => choices[i] ?? "");
-      const target = correctAnswers.map((x) => normalizeText(x)).sort();
-      const got = selectedTexts.map((x) => normalizeText(x)).sort();
-      if (target.length !== got.length) return false;
-      return target.every((v, idx) => v === got[idx]);
-    }
-    // fallback: if expected_answer is a JSON array string, support it
-    const expected = exercise?.expected_answer;
-    if (typeof expected === "string" && expected.trim().startsWith("[")) {
-      try {
-        const arr = JSON.parse(expected);
-        if (Array.isArray(arr)) {
-          const target = arr.map((x) => normalizeText(x)).sort();
-          const got = selectedArray.map((i) => normalizeText(choices[i] ?? "")).sort();
-          if (target.length !== got.length) return false;
-          return target.every((v, idx) => v === got[idx]);
-        }
-      } catch {
-        return false;
-      }
-    }
-    return false;
+    const target = [...correctIdxs].sort((a, b) => a - b);
+    if (target.length === 0) return false;
+    if (target.length !== selectedArray.length) return false;
+    return target.every((v, idx) => Number(v) === Number(selectedArray[idx]));
   }
 
   return (
@@ -1055,7 +1144,8 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) 
                   : "bg-white ring-slate-200 hover:bg-slate-50"
               )}
             >
-              {active ? "✅ " : ""}{c}
+              {active ? "✅ " : ""}
+              {c}
             </button>
           );
         })}
@@ -1093,47 +1183,146 @@ export default function ExerciseRenderer({
   const kind = String(exercise?.kind || "").trim();
 
   if (kind === "char_intro") {
-    return <ExCharIntro exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExCharIntro
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "char_mcq_sound") {
-    return <ExCharMcqSound exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExCharMcqSound
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "letter_recognition") {
-    return <ExLetterRecognition exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExLetterRecognition
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "char_build_word") {
-    return <ExCharBuildWord exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExCharBuildWord
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "letter_typing") {
-    return <ExLetterTyping exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExLetterTyping
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "word_spelling") {
-    return <ExWordSpelling exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExWordSpelling
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "fill_blank") {
-    return <ExFillBlank exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExFillBlank
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "translate_mcq") {
-    return <ExTranslateMcq exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExTranslateMcq
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "true_false") {
-    return <ExTrueFalse exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExTrueFalse
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "sentence_order") {
-    return <ExSentenceOrder exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExSentenceOrder
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "match_pairs") {
-    return <ExMatchPairs exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExMatchPairs
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   if (kind === "audio_choice_tts") {
@@ -1151,7 +1340,16 @@ export default function ExerciseRenderer({
   }
 
   if (kind === "multi_select") {
-    return <ExMultiSelect exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} />;
+    return (
+      <ExMultiSelect
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+      />
+    );
   }
 
   // Fallback
