@@ -1172,6 +1172,8 @@ async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get
     if len(updates) == 0:
         return {"ok": True}
 
+    
+
     set_parts = []
     params = {"id": exercise_id}
 
@@ -1186,7 +1188,16 @@ async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get
         else:
             set_parts.append(f"{k} = :{k}")
             params[k] = v
+    # Normalize kind if it's being updated
+    if "kind" in updates:
+    updates["kind"] = normalize_kind(updates["kind"])
 
+    # Validate multi_select config if config is updated (or kind becomes multi_select)
+    kind_for_validation = updates.get("kind") or None
+    config_for_validation = updates.get("config") if "config" in updates else None
+
+if config_for_validation is not None:
+    validate_exercise_config(kind_for_validation or "", config_for_validation)
     q = text(f"UPDATE exercises SET {', '.join(set_parts)} WHERE id = :id")
     db.execute(q, params)
     return {"ok": True}
