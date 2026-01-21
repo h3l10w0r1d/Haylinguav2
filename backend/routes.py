@@ -16,6 +16,11 @@ from auth import hash_password, verify_password, create_token
 # JWT decode (for Bearer auth on /complete)
 from jose import jwt, JWTError
 
+
+
+import math
+
+
 #CMS
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy import text
@@ -83,6 +88,110 @@ def validate_exercise_config(kind: str, config: dict):
         if not isinstance(correct_answers, list) or len(correct_answers) < 1:
             raise HTTPException(400, detail="correctAnswers must be a list with at least 1 item")
 
+
+
+
+
+def _now_utc():
+    return datetime.utcnow()
+
+def _clamp(x: float, a: float, b: float) -> float:
+    return max(a, min(b, x))
+
+def _json_default_list(v):
+    return v if isinstance(v, list) else []
+
+def _compute_spaced_interval_days(prev_interval: int | None, ease: float, is_correct: bool) -> tuple[int, float]:
+    """
+    Simple SM-2-ish logic:
+    - If wrong -> interval back to 1 day, ease decreases
+    - If correct -> interval grows, ease slightly increases
+    """
+    ease = float(ease or 2.3)
+    prev_interval = int(prev_interval or 0)
+
+    if not is_correct:
+        ease = max(1.3, ease - 0.2)
+        return 1, ease
+
+    # correct
+    ease = min(3.0, ease + 0.05)
+
+    if prev_interval <= 0:
+        return 1, ease
+    if prev_interval == 1:
+        return 3, ease
+
+    # grow multiplicatively
+    next_interval = int(math.ceil(prev_interval * ease))
+    next_interval = max(next_interval, prev_interval + 1)
+    return next_interval, ease
+
+def _update_review_queue(db: Connection, user_id: int, lesson_id: int, exercise_id: int, is_correct: bool):
+    """
+    Reads review_queue JSON, updates entry for exercise_id, writes back.
+    """
+    row = db.execute(
+        text("""
+            SELECT review_queue
+            FROM user_lesson_progress
+            WHERE user_id = :u AND lesson_id = :l
+        """),
+        {"u": user_id, "l": lesson_id},
+    ).mappings().first()
+
+    queue = _json_default_list(row["review_queue"] if row else [])
+
+    # find existing entry
+    idx = None
+    for i, item in enumerate(queue):
+        if int(item.get("exercise_id", -1)) == int(exercise_id):
+            idx = i
+            break
+
+    if idx is None:
+        # create new entry
+        interval_days, ease = _compute_spaced_interval_days(None, 2.3, is_correct)
+        due_at = _now_utc() + timedelta(days=interval_days)
+        queue.append({
+            "exercise_id": int(exercise_id),
+            "interval_days": int(interval_days),
+            "ease": float(ease),
+            "due_at": due_at.isoformat() + "Z",
+        })
+    else:
+        item = queue[idx]
+        interval_days, ease = _compute_spaced_interval_days(
+            item.get("interval_days"), item.get("ease"), is_correct
+        )
+        due_at = _now_utc() + timedelta(days=interval_days)
+        item["interval_days"] = int(interval_days)
+        item["ease"] = float(ease)
+        item["due_at"] = due_at.isoformat() + "Z"
+        queue[idx] = item
+
+    # keep queue sorted by due_at (earliest first)
+    def _due_key(it):
+        s = it.get("due_at") or ""
+        return s
+    queue.sort(key=_due_key)
+
+    db.execute(
+        text("""
+            UPDATE user_lesson_progress
+            SET review_queue = CAST(:q AS jsonb)
+            WHERE user_id = :u AND lesson_id = :l
+        """),
+        {"q": json.dumps(queue), "u": user_id, "l": lesson_id},
+    )
+
+def _pick_due_review(queue: list[dict]) -> int | None:
+    now = _now_utc().isoformat() + "Z"
+    for it in queue:
+        due = it.get("due_at")
+        if due and due <= now:
+            return int(it.get("exercise_id"))
+    return None
 # ---------- Auth schemas ----------
 
 class UserCreate(BaseModel):
@@ -948,7 +1057,7 @@ def record_exercise_attempt(
         exercise_id=exercise_id,
         is_correct=bool(payload.is_correct),
     )
-
+    _update_review_queue(db, user_id, payload.lesson_id, exercise_id, bool(payload.is_correct))
     acc = _get_accuracy(db, user_id, payload.lesson_id)
 
     return AttemptOut(ok=True, attempt_id=int(attempt_id), accuracy=acc)
@@ -1044,7 +1153,94 @@ class MeUpdateIn(BaseModel):
     name: str | None = None
     avatar_url: str | None = None
 
+def _recommend_next_exercise(db: Connection, user_id: int, lesson_id: int) -> dict:
+    """
+    Priority:
+      1) Due review exercise from review_queue
+      2) Weakest exercise by attempt accuracy/recency
+      3) If none, lesson_complete
+    Returns dict { status, exercise_id? }
+    """
+    # Load review queue
+    progress = db.execute(
+        text("""
+            SELECT review_queue
+            FROM user_lesson_progress
+            WHERE user_id = :u AND lesson_id = :l
+        """),
+        {"u": user_id, "l": lesson_id},
+    ).mappings().first()
 
+    queue = _json_default_list(progress["review_queue"] if progress else [])
+    due_id = _pick_due_review(queue)
+    if due_id:
+        return {"status": "review_due", "exercise_id": due_id}
+
+    # Compute "need_score" for exercises in this lesson
+    rows = db.execute(
+        text("""
+            WITH stats AS (
+              SELECT
+                e.id AS exercise_id,
+                COUNT(a.id)::int AS attempts,
+                COALESCE(SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END), 0)::int AS correct,
+                MAX(a.created_at) AS last_attempt_at
+              FROM exercises e
+              LEFT JOIN user_exercise_attempts a
+                ON a.exercise_id = e.id
+               AND a.user_id = :u
+               AND a.lesson_id = :l
+              WHERE e.lesson_id = :l
+              GROUP BY e.id
+            )
+            SELECT
+              exercise_id,
+              attempts,
+              correct,
+              last_attempt_at
+            FROM stats
+        """),
+        {"u": user_id, "l": lesson_id},
+    ).mappings().all()
+
+    if not rows:
+        return {"status": "lesson_empty"}
+
+    # Score in Python (adds complexity + readable)
+    now = _now_utc()
+    scored = []
+    for r in rows:
+        attempts = int(r["attempts"] or 0)
+        correct = int(r["correct"] or 0)
+        accuracy = (correct / attempts) if attempts > 0 else 0.0
+
+        last = r["last_attempt_at"]
+        if last is None:
+            days_since = 999
+        else:
+            days_since = (now - last).total_seconds() / 86400.0
+
+        recency_factor = _clamp(days_since / 7.0, 0.0, 1.0)
+        low_attempts_bonus = 1.0 if attempts < 2 else 0.0
+
+        need_score = ((1 - accuracy) * 0.65) + (recency_factor * 0.25) + (low_attempts_bonus * 0.10)
+
+        scored.append({
+            "exercise_id": int(r["exercise_id"]),
+            "need_score": float(need_score),
+            "attempts": attempts,
+            "accuracy": accuracy,
+        })
+
+    scored.sort(key=lambda x: x["need_score"], reverse=True)
+    best = scored[0]
+
+    # If everything mastered (high accuracy & enough attempts), declare complete
+    # tweakable threshold
+    if best["attempts"] >= 3 and best["accuracy"] >= 0.9:
+        return {"status": "lesson_complete"}
+
+    return {"status": "practice", "exercise_id": best["exercise_id"]}
 
 @router.get("/me/activity")
 def me_activity(
@@ -1172,7 +1368,43 @@ def me_activity_last7days(
 ):
     return me_activity(days=7, authorization=authorization, db=db)
     
+@router.get("/me/lessons/{lesson_id}/next")
+def me_next_exercise(
+    lesson_id: int,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
 
+    # Ensure progress row
+    _ensure_user_lesson_progress(db, user_id, lesson_id)
+
+    rec = _recommend_next_exercise(db, user_id, lesson_id)
+
+    # store next_exercise_id (optional but useful)
+    if rec.get("exercise_id"):
+        db.execute(
+            text("""
+                UPDATE user_lesson_progress
+                SET next_exercise_id = :ex, last_seen_at = NOW()
+                WHERE user_id = :u AND lesson_id = :l
+            """),
+            {"ex": int(rec["exercise_id"]), "u": user_id, "l": lesson_id},
+        )
+    else:
+        db.execute(
+            text("""
+                UPDATE user_lesson_progress
+                SET next_exercise_id = NULL, last_seen_at = NOW()
+                WHERE user_id = :u AND lesson_id = :l
+            """),
+            {"u": user_id, "l": lesson_id},
+        )
+
+    return rec
+    
 @router.get("/leaderboard", response_model=List[LeaderboardEntryOut])
 def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
     if limit < 1:
