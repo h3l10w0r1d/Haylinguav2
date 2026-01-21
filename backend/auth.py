@@ -74,3 +74,108 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
     return dict(user)
+
+
+
+
+# ----------------------------
+# Email and pasword validation functions
+# ----------------------------
+
+def validate_email_simple(email: str):
+    errors = []
+
+    if email is None:
+        errors.append("Email is required")
+        return errors
+
+    email = email.strip()
+
+    if email == "":
+        errors.append("Email is required")
+        return errors
+
+    # No spaces
+    for ch in email:
+        if ch == " ":
+            errors.append("Email must not contain spaces")
+            break
+
+    # Exactly one @
+    at_count = 0
+    for ch in email:
+        if ch == "@":
+            at_count += 1
+
+    if at_count != 1:
+        errors.append("Email must contain exactly one '@'")
+        return errors
+
+    parts = email.split("@")
+    local = parts[0]
+    domain = parts[1]
+
+    if local == "" or domain == "":
+        errors.append("Email must have text before and after '@'")
+        return errors
+
+    # Domain must contain a dot (.)
+    dot_found = False
+    for ch in domain:
+        if ch == ".":
+            dot_found = True
+            break
+
+    if not dot_found:
+        errors.append("Email domain must contain a '.' (example: gmail.com)")
+        return errors
+
+    # Very simple domain end check: last part length >= 2
+    domain_parts = domain.split(".")
+    tld = domain_parts[-1]
+    if len(tld) < 2:
+        errors.append("Email domain ending is not valid (example: .com)")
+        return errors
+
+    return errors
+
+
+def validate_password_simple(password: str):
+    errors = []
+
+    if password is None:
+        errors.append("Password is required")
+        return errors
+
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters")
+
+    # No spaces
+    for ch in password:
+        if ch == " ":
+            errors.append("Password must not contain spaces")
+            break
+
+    has_upper = False
+    has_lower = False
+    has_digit = False
+
+    for ch in password:
+        # uppercase
+        if "A" <= ch <= "Z":
+            has_upper = True
+        # lowercase
+        elif "a" <= ch <= "z":
+            has_lower = True
+        # digit
+        elif "0" <= ch <= "9":
+            has_digit = True
+
+    if not has_upper:
+        errors.append("Password must contain at least 1 uppercase letter (A-Z)")
+    if not has_lower:
+        errors.append("Password must contain at least 1 lowercase letter (a-z)")
+    if not has_digit:
+        errors.append("Password must contain at least 1 number (0-9)")
+
+    return errors
