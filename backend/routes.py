@@ -1039,9 +1039,9 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
         raise HTTPException(400, detail="slug and title are required")
 
     q = text("""
-        INSERT INTO lessons (slug, title, description, level, xp, xp_reward)
-        VALUES (:slug, :title, :description, :level, :xp, :xp_reward)
-        RETURNING id
+    INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published)
+    VALUES (:slug, :title, :description, :level, :xp, :xp_reward, true)
+    RETURNING id
     """)
     new_id = db.execute(q, {
         "slug": slug, "title": title, "description": description,
