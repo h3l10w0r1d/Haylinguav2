@@ -185,10 +185,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           </form>
 
           {mode === 'login' && (
-            <p className="mt-4 text-xs text-gray-400">
-              Tip: If login keeps failing, try creating a new account with a fresh email.
-              Old users from earlier backend versions may not be compatible.
-            </p>
+            
           )}
         </div>
       </div>
