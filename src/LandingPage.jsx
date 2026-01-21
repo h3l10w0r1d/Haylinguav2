@@ -113,7 +113,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'signup' && (
+           
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   First name
@@ -163,9 +163,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                   required
                 />
               </div>
-              {mode === 'signup' && (
-                
-              )}
+              
             </div>
 
             <button
