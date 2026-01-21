@@ -747,6 +747,17 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
         {"email": user.email},
     ).mappings().first()
 
+    email = (payload.email or "").strip()
+    password = payload.password
+
+    email_errors = validate_email_simple(email)
+    if len(email_errors) > 0:
+        raise HTTPException(status_code=400, detail={"field": "email", "errors": email_errors})
+
+    password_errors = validate_password_simple(password)
+    if len(password_errors) > 0:
+        raise HTTPException(status_code=400, detail={"field": "password", "errors": password_errors})
+
     if existing is not None:
         raise HTTPException(status_code=400, detail="Email already exists")
 
@@ -780,6 +791,16 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
         ),
         {"email": payload.email},
     ).mappings().first()
+
+    email = (payload.email or "").strip()
+    password = payload.password
+
+    email_errors = validate_email_simple(email)
+    if len(email_errors) > 0:
+        raise HTTPException(status_code=400, detail={"field": "email", "errors": email_errors})
+
+    if password is None or password.strip() == "":
+        raise HTTPException(status_code=400, detail={"field": "password", "errors": ["Password is required"]})
 
     if row is None:
         raise HTTPException(status_code=400, detail="Invalid email or password")
