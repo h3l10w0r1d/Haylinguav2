@@ -1172,14 +1172,35 @@ async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get
     if len(updates) == 0:
         return {"ok": True}
 
-    
+    # 1) Normalize kind early (so validation + DB write use the same string)
+    if "kind" in updates and updates["kind"] is not None:
+        updates["kind"] = normalize_kind(str(updates["kind"]))
 
+    # 2) Validate multi_select when config is provided OR kind becomes multi_select
+    if "config" in updates:
+        cfg = updates["config"] or {}
+        if not isinstance(cfg, dict):
+            raise HTTPException(400, detail="config must be an object")
+
+        kind_for_validation = updates.get("kind")  # new kind if updated
+        if kind_for_validation is None:
+            # kind not updated -> fetch current kind from DB
+            row = db.execute(
+                text("SELECT kind FROM exercises WHERE id = :id"),
+                {"id": exercise_id},
+            ).mappings().first()
+            if not row:
+                raise HTTPException(404, detail="Exercise not found")
+            kind_for_validation = str(row["kind"] or "")
+
+        validate_exercise_config(kind_for_validation, cfg)
+
+    # 3) Build SQL + params
     set_parts = []
     params = {"id": exercise_id}
 
     for k, v in updates.items():
         if k == "config":
-            # IMPORTANT: CAST style that won't break SQLAlchemy param parsing
             set_parts.append("config = CAST(:config AS jsonb)")
             params["config"] = json.dumps(v or {})
         elif k == "order":
@@ -1188,18 +1209,10 @@ async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get
         else:
             set_parts.append(f"{k} = :{k}")
             params[k] = v
-    # Normalize kind if it's being updated
-    if "kind" in updates:
-    updates["kind"] = normalize_kind(updates["kind"])
 
-    # Validate multi_select config if config is updated (or kind becomes multi_select)
-    kind_for_validation = updates.get("kind") or None
-    config_for_validation = updates.get("config") if "config" in updates else None
-
-if config_for_validation is not None:
-    validate_exercise_config(kind_for_validation or "", config_for_validation)
     q = text(f"UPDATE exercises SET {', '.join(set_parts)} WHERE id = :id")
     db.execute(q, params)
+
     return {"ok": True}
 
 @router.delete("/cms/exercises/{exercise_id}")
