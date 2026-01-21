@@ -1509,7 +1509,9 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
     level = int(body.get("level") or 1)
     xp = int(body.get("xp") or 40)
     xp_reward = int(body.get("xp_reward") or xp)
-    is_published = bool(body.get("is_published", True))  # ✅ default published
+
+    # publish by default so it appears in /lessons
+    is_published = bool(body.get("is_published", True))
 
     if not slug or not title:
         raise HTTPException(400, detail="slug and title are required")
