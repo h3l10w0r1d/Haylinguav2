@@ -1,12 +1,6 @@
 // src/App.jsx
 import { useEffect, useState } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useNavigate,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 import LandingPage from "./LandingPage";
 import Dashboard from "./Dashboard";
@@ -15,15 +9,15 @@ import Friends from "./Friends";
 import Leaderboard from "./Leaderboard";
 import HeaderLayout from "./HeaderLayout";
 import ProfilePage from "./ProfilePage";
-  // CMS Imports 
+
+// CMS Imports
 import CmsShell from "./cms/CmsShell";
 import CmsLessons from "./cms/CmsLessons";
 import CmsLessonEditor from "./cms/CmsLessonEditor";
 
-//  Always have a working backend URL even if Vercel env vars are missing
+// Always have a working backend URL even if Vercel env vars are missing
 const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
-const API_BASE =
-  (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
 
 function AppShell() {
   const [user, setUser] = useState(null);
@@ -31,10 +25,6 @@ function AppShell() {
   const [loadingUser, setLoadingUser] = useState(true);
 
   const navigate = useNavigate();
-
-
-
-
 
   useEffect(() => {
     console.log("[App] API_BASE =", API_BASE);
@@ -48,13 +38,7 @@ function AppShell() {
       const storedUser = localStorage.getItem("hay_user");
 
       if (storedToken) setToken(storedToken);
-
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      } else {
-        // If we only have token (older / alternative flow), keep user null
-        // so LandingPage shows; it will be re-created after login.
-      }
+      if (storedUser) setUser(JSON.parse(storedUser));
     } catch (err) {
       console.error("Error reading saved auth state", err);
       localStorage.removeItem("hay_token");
@@ -65,11 +49,18 @@ function AppShell() {
     }
   }, []);
 
+  const handleUpdateUser = (updates) => {
+    if (!user) return;
+    const updated = { ...user, ...updates };
+    setUser(updated);
+    localStorage.setItem("hay_user", JSON.stringify(updated));
+  };
+
   const handleAuthSuccess = (tokenValue, email) => {
     const baseName = (email || "user").split("@")[0];
 
     const newUser = {
-      id: 1, // placeholder until backend profile endpoint exists
+      id: 1, // placeholder until you hydrate from /me/profile if you want
       email,
       name: baseName,
       firstName: "",
@@ -77,14 +68,14 @@ function AppShell() {
       avatarUrl: "",
       level: 1,
       xp: 0,
-      streak: 0,
+      streak: 1, // ✅ never start at 0
       completedLessons: [],
     };
 
     setToken(tokenValue);
     setUser(newUser);
 
-    // ✅ keep both keys for compatibility
+    // keep both keys for compatibility
     localStorage.setItem("hay_token", tokenValue);
     localStorage.setItem("access_token", tokenValue);
     localStorage.setItem("hay_user", JSON.stringify(newUser));
@@ -152,13 +143,6 @@ function AppShell() {
     }
   };
 
-  const handleUpdateUser = (updates) => {
-    if (!user) return;
-    const updated = { ...user, ...updates };
-    setUser(updated);
-    localStorage.setItem("hay_user", JSON.stringify(updated));
-  };
-
   const handleLogout = () => {
     setUser(null);
     setToken(null);
@@ -175,6 +159,13 @@ function AppShell() {
       </div>
     );
   }
+
+  // Helper to ensure header is present on app pages
+  const withHeader = (pageEl) => (
+    <HeaderLayout user={user} onLogout={handleLogout}>
+      {pageEl}
+    </HeaderLayout>
+  );
 
   return (
     <Routes>
@@ -193,7 +184,9 @@ function AppShell() {
         path="/dashboard"
         element={
           user ? (
-            <Dashboard user={user} onUpdateUser={handleUpdateUser} onLogout={handleLogout} />
+            withHeader(
+              <Dashboard user={user} onUpdateUser={handleUpdateUser} onLogout={handleLogout} />
+            )
           ) : (
             <Navigate to="/" replace />
           )
@@ -202,49 +195,53 @@ function AppShell() {
 
       <Route
         path="/lesson/:slug"
-        element={user ? <LessonPlayer /> : <Navigate to="/" replace />}
+        element={user ? withHeader(<LessonPlayer />) : <Navigate to="/" replace />}
       />
 
       <Route
         path="/friends"
         element={
           user ? (
-            <Friends user={user} onUpdateUser={handleUpdateUser} />
+            withHeader(<Friends user={user} onUpdateUser={handleUpdateUser} />)
           ) : (
             <Navigate to="/" replace />
           )
         }
       />
 
-<Route
-  path="/leaderboard"
-  element={
-    user ? (
-      <Leaderboard user={user} onLogout={handleLogout} />
-    ) : (
-      <Navigate to="/" replace />
-    )
-  }
-/>
+      <Route
+        path="/leaderboard"
+        element={
+          user ? (
+            withHeader(<Leaderboard user={user} onLogout={handleLogout} />)
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
 
       <Route
-  path="/profile"
-  element={
-    <HeaderLayout user={user} onLogout={handleLogout}>
-      <ProfilePage user={user} onUserUpdate={setUser} />
-    </HeaderLayout>
-  }
-/>
+        path="/profile"
+        element={
+          user ? (
+            withHeader(
+              <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
+            )
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
 
+      {/* CMS Routes (no header) */}
+      <Route path="/:cmsKey/cms" element={<CmsShell />}>
+        <Route index element={<CmsLessons />} />
+        <Route path="lessons" element={<CmsLessons />} />
+        <Route path="lessons/:lessonId" element={<CmsLessonEditor />} />
+      </Route>
 
-//CMS Routes
-  <Route path="/:cmsKey/cms" element={<CmsShell />}>
-  <Route index element={<CmsLessons />} />
-  <Route path="lessons" element={<CmsLessons />} />
-  <Route path="lessons/:lessonId" element={<CmsLessonEditor />} />
-</Route>
-
-      
+      {/* fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
