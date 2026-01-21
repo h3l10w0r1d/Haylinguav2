@@ -1116,11 +1116,12 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
     body = await request.json()
 
     lesson_id = int(body.get("lesson_id") or 0)
-    kind = (body.get("kind") or "").strip()
+    kind = normalize_kind((body.get("kind") or "").strip())
     prompt = (body.get("prompt") or "").strip()
     expected_answer = body.get("expected_answer")
     order = int(body.get("order") or 1)
     config = body.get("config") or {}
+    validate_exercise_config(kind, config)
 
     if not lesson_id or not kind:
         raise HTTPException(400, detail="lesson_id and kind are required")
