@@ -68,7 +68,7 @@ export default function Leaderboard({ user, onLogout }) {
               id: r.user_id ?? r.id,
               name: r.name ?? r.email?.split("@")[0] ?? "User",
               xp: Number(r.xp ?? r.total_xp ?? 0),
-              streak: Number(r.streak ?? 0),
+              streak: Number(r.streak ?? 1),
               level: Number(r.level ?? 1),
               isYou: user?.email ? r.email === user.email : false,
               rank: r.rank,
