@@ -30,6 +30,28 @@ KIND_MAP = {
     "multi-select": "multi_select",
 }
 
+class AttemptIn(BaseModel):
+    lesson_id: int
+    attempt_no: int = 1
+    is_correct: bool
+    answer_text: Optional[str] = None
+    selected_indices: Optional[list[int]] = None  # for multiselect
+    time_ms: Optional[int] = None
+
+class AttemptOut(BaseModel):
+    ok: bool
+    attempt_id: int
+    accuracy: float
+
+class LogIn(BaseModel):
+    lesson_id: int
+    event_type: str               # opened | hint | tts | skip | next | etc.
+    meta: Optional[dict[str, Any]] = None
+
+class LogOut(BaseModel):
+    ok: bool
+    log_id: int
+
 def normalize_kind(kind: str) -> str:
     k = (kind or "").strip()
     return KIND_MAP.get(k, k)
@@ -532,6 +554,76 @@ def _get_user_id_from_bearer(authorization: Optional[str]) -> Optional[int]:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
+
+def _ensure_user_lesson_progress(db: Connection, user_id: int, lesson_id: int):
+    # Create progress row if missing (safe upsert)
+    db.execute(
+        text("""
+            INSERT INTO user_lesson_progress (user_id, lesson_id, started_at, last_seen_at)
+            VALUES (:u, :l, NOW(), NOW())
+            ON CONFLICT (user_id, lesson_id) DO NOTHING
+        """),
+        {"u": user_id, "l": lesson_id},
+    )
+
+def _update_progress_after_attempt(
+    db: Connection,
+    user_id: int,
+    lesson_id: int,
+    exercise_id: int,
+    is_correct: bool,
+):
+    # Update counters + accuracy in one statement
+    db.execute(
+        text("""
+            UPDATE user_lesson_progress
+            SET
+              last_seen_at = NOW(),
+              last_exercise_id = :ex,
+              total_attempts = total_attempts + 1,
+              correct_attempts = correct_attempts + CASE WHEN :ok THEN 1 ELSE 0 END,
+              accuracy =
+                ROUND(
+                  (
+                    (correct_attempts + CASE WHEN :ok THEN 1 ELSE 0 END)::numeric
+                    /
+                    NULLIF((total_attempts + 1), 0)
+                  ) * 100
+                , 2)
+            WHERE user_id = :u AND lesson_id = :l
+        """),
+        {"u": user_id, "l": lesson_id, "ex": exercise_id, "ok": is_correct},
+    )
+
+def _touch_progress_after_log(
+    db: Connection,
+    user_id: int,
+    lesson_id: int,
+    exercise_id: int,
+):
+    db.execute(
+        text("""
+            UPDATE user_lesson_progress
+            SET last_seen_at = NOW(),
+                last_exercise_id = :ex
+            WHERE user_id = :u AND lesson_id = :l
+        """),
+        {"u": user_id, "l": lesson_id, "ex": exercise_id},
+    )
+
+def _get_accuracy(db: Connection, user_id: int, lesson_id: int) -> float:
+    row = db.execute(
+        text("""
+            SELECT accuracy
+            FROM user_lesson_progress
+            WHERE user_id = :u AND lesson_id = :l
+        """),
+        {"u": user_id, "l": lesson_id},
+    ).mappings().first()
+    if not row:
+        return 0.0
+    return float(row["accuracy"] or 0.0)
+
 # ---------- Routes ----------
 
 @router.get("/")
@@ -792,6 +884,156 @@ def get_stats(email: str, db: Connection = Depends(get_db)):
         lessons_completed=int(stats_row["lessons_completed"]),
     )
 
+@router.post("/me/exercises/{exercise_id}/attempt", response_model=AttemptOut)
+def record_exercise_attempt(
+    exercise_id: int,
+    payload: AttemptIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    # Ensure lesson exists
+    lesson = db.execute(
+        text("SELECT id FROM lessons WHERE id = :id"),
+        {"id": payload.lesson_id},
+    ).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Ensure exercise belongs to lesson (prevents garbage writes)
+    ex = db.execute(
+        text("SELECT id FROM exercises WHERE id = :ex AND lesson_id = :lesson_id"),
+        {"ex": exercise_id, "lesson_id": payload.lesson_id},
+    ).first()
+    if not ex:
+        raise HTTPException(status_code=404, detail="Exercise not found for this lesson")
+
+    _ensure_user_lesson_progress(db, user_id, payload.lesson_id)
+
+    # Insert attempt
+    attempt_id = db.execute(
+        text("""
+            INSERT INTO user_exercise_attempts (
+              user_id, lesson_id, exercise_id,
+              attempt_no, is_correct,
+              answer_text, selected_indices, time_ms
+            )
+            VALUES (
+              :u, :l, :ex,
+              :attempt_no, :ok,
+              :answer_text, CAST(:selected_indices AS jsonb), :time_ms
+            )
+            RETURNING id
+        """),
+        {
+            "u": user_id,
+            "l": payload.lesson_id,
+            "ex": exercise_id,
+            "attempt_no": int(payload.attempt_no or 1),
+            "ok": bool(payload.is_correct),
+            "answer_text": payload.answer_text,
+            "selected_indices": json.dumps(payload.selected_indices or []),
+            "time_ms": payload.time_ms,
+        },
+    ).scalar_one()
+
+    # Update progress counters + accuracy
+    _update_progress_after_attempt(
+        db=db,
+        user_id=user_id,
+        lesson_id=payload.lesson_id,
+        exercise_id=exercise_id,
+        is_correct=bool(payload.is_correct),
+    )
+
+    acc = _get_accuracy(db, user_id, payload.lesson_id)
+
+    return AttemptOut(ok=True, attempt_id=int(attempt_id), accuracy=acc)
+
+
+@router.post("/me/exercises/{exercise_id}/log", response_model=LogOut)
+def record_exercise_log(
+    exercise_id: int,
+    payload: LogIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    # Ensure exercise belongs to lesson
+    ex = db.execute(
+        text("SELECT id FROM exercises WHERE id = :ex AND lesson_id = :lesson_id"),
+        {"ex": exercise_id, "lesson_id": payload.lesson_id},
+    ).first()
+    if not ex:
+        raise HTTPException(status_code=404, detail="Exercise not found for this lesson")
+
+    _ensure_user_lesson_progress(db, user_id, payload.lesson_id)
+
+    log_id = db.execute(
+        text("""
+            INSERT INTO user_exercise_logs (
+              user_id, lesson_id, exercise_id,
+              event_type, meta
+            )
+            VALUES (
+              :u, :l, :ex,
+              :event_type, CAST(:meta AS jsonb)
+            )
+            RETURNING id
+        """),
+        {
+            "u": user_id,
+            "l": payload.lesson_id,
+            "ex": exercise_id,
+            "event_type": (payload.event_type or "").strip()[:64],
+            "meta": json.dumps(payload.meta or {}),
+        },
+    ).scalar_one()
+
+    _touch_progress_after_log(db, user_id, payload.lesson_id, exercise_id)
+
+    return LogOut(ok=True, log_id=int(log_id))
+
+
+
+@router.get("/me/learning/summary")
+def me_learning_summary(
+    days: int = 14,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    if days < 1: days = 1
+    if days > 90: days = 90
+
+    row = db.execute(
+        text("""
+            SELECT
+              COUNT(*)::int AS attempts,
+              SUM(CASE WHEN is_correct THEN 1 ELSE 0 END)::int AS correct,
+              ROUND( (SUM(CASE WHEN is_correct THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*),0)) * 100, 2) AS accuracy
+            FROM user_exercise_attempts
+            WHERE user_id = :u
+              AND created_at >= NOW() - (:days || ' days')::interval
+        """),
+        {"u": user_id, "days": days},
+    ).mappings().first()
+
+    return {
+        "days": days,
+        "attempts": int(row["attempts"] or 0),
+        "correct": int(row["correct"] or 0),
+        "accuracy": float(row["accuracy"] or 0.0),
+    }
 class MeOut(BaseModel):
     id: int
     email: str
