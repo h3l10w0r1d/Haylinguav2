@@ -14,6 +14,38 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  *  - We keep UX consistent: prompt -> interaction -> Check button -> feedback.
  */
 
+function optionsText(exercise) {
+  const opts = exercise?.options;
+  if (!Array.isArray(opts)) return [];
+  return opts.map((o) => String(o?.text ?? "")).filter(Boolean);
+}
+
+function optionsAsMcq(exercise) {
+  const opts = exercise?.options;
+  if (!Array.isArray(opts)) return [];
+  return opts.map((o, idx) => ({
+    text: String(o?.text ?? ""),
+    is_correct: Boolean(o?.is_correct),
+    idx,
+  }));
+}
+
+function optionsAsPairs(exercise) {
+  const opts = exercise?.options;
+  if (!Array.isArray(opts)) return { left: [], right: [], map: {} };
+
+  const left = opts.filter((o) => o.side === "left");
+  const right = opts.filter((o) => o.side === "right");
+
+  // match_key links
+  const map = {};
+  for (const l of left) {
+    const r = right.find((x) => x.match_key && x.match_key === l.match_key);
+    if (r) map[l.id] = r.id;
+  }
+  return { left, right, map };
+}
+
 function normalizeConfig(config) {
   if (!config) return {};
   if (typeof config === "string") {
@@ -301,8 +333,12 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
 
   // 3) letter_recognition
   if (exercise?.kind === "letter_recognition") {
-    const choices = cfg.choices ?? cfg.options ?? [];
-    const answer = expected ?? cfg.answer ?? "";
+    const choices = optionsText(exercise).length ? optionsText(exercise) : (cfg.choices ?? cfg.options ?? []);
+    const answer =
+    expected ??
+    cfg.answer ??
+    (Array.isArray(exercise?.options) ? exercise.options.find((o) => o.is_correct)?.text : "") ??
+    "";
 
     const canCheck = selectedIndex !== null;
 
@@ -546,8 +582,9 @@ export default function ExerciseRenderer({ exercise, onCorrect, onWrong, onSkip,
   //  - answerIndex: 0  (or use expected_answer matching)
   if (exercise?.kind === "translate_mcq") {
     const sentence = cfg.sentence ?? "";
-    const choices = cfg.choices ?? cfg.options ?? [];
-    const answerIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : null;
+    const mcq = optionsAsMcq(exercise);
+    const choices = mcq.length ? mcq.map((x) => x.text) : (cfg.choices ?? cfg.options ?? []);
+    const answerIndex = mcq.length ? mcq.findIndex((x) => x.is_correct) : (Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : null);
     const answerText = expected ?? cfg.answer ?? null;
 
     const canCheck = selectedIndex !== null;
