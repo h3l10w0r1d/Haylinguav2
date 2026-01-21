@@ -739,6 +739,11 @@ def _get_accuracy(db: Connection, user_id: int, lesson_id: int) -> float:
 def root():
     return {"status": "Backend is running"}
 
+class SignupPayload(BaseModel):
+    name: str | None = None
+    email: str
+    password: str
+
 
 @router.post("/signup")
 def signup(user: UserCreate, db: Connection = Depends(get_db)):
