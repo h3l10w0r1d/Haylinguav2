@@ -130,6 +130,46 @@ def friends_list(
 
     return [FriendOut(**dict(r)) for r in rows]
 
+
+@router.get("/friends/requests/outgoing", response_model=list[FriendRequestOut])
+def friends_requests_outgoing(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    rows = db.execute(
+        text("""
+            SELECT
+              fr.id,
+              fr.requester_id,
+              u.email AS requester_email,
+              u.name AS requester_name,
+              fr.created_at
+            FROM friend_requests fr
+            JOIN users u ON u.id = fr.addressee_id
+            WHERE fr.requester_id = :uid AND fr.status = 'pending'
+            ORDER BY fr.created_at DESC
+        """),
+        {"uid": user_id},
+    ).mappings().all()
+
+    # NOTE: FriendRequestOut fields are named requester_*
+    # For outgoing, it might be better to create a separate schema.
+    # Quick hack: reuse but store the OTHER user as "requester_*".
+    return [
+        FriendRequestOut(
+            id=r["id"],
+            requester_id=user_id,
+            requester_email=r["requester_email"],
+            requester_name=r["requester_name"],
+            created_at=r["created_at"],
+        )
+        for r in rows
+    ]
+
 @router.get("/friends/requests", response_model=list[FriendRequestOut])
 def friends_requests_incoming(
     authorization: Optional[str] = Header(default=None),
@@ -188,6 +228,7 @@ def friends_request_create(
         text("""
             SELECT 1 FROM friends
             WHERE user_id = :a AND friend_id = :b
+            LIMIT 1
         """),
         {"a": requester_id, "b": addressee_id},
     ).first()
@@ -201,24 +242,35 @@ def friends_request_create(
             FROM friend_requests
             WHERE (requester_id = :a AND addressee_id = :b)
                OR (requester_id = :b AND addressee_id = :a)
+            ORDER BY id DESC
             LIMIT 1
         """),
         {"a": requester_id, "b": addressee_id},
     ).mappings().first()
 
     if existing_req:
-        # if the other person already requested you, you can accept instead
-        return {"ok": True, "status": "request_exists", "request_id": existing_req["id"]}
+        # If there's already a pending/accepted/rejected request between the two users,
+        # just return it so FE can react (e.g. show "Pending", or allow accept).
+        return {
+            "ok": True,
+            "status": "request_exists",
+            "request_id": int(existing_req["id"]),
+            "request_status": existing_req["status"],
+            "requester_id": int(existing_req["requester_id"]),
+            "addressee_id": int(existing_req["addressee_id"]),
+        }
 
-    db.execute(
+    # Create new pending request and RETURN id so FE can update UI immediately
+    new_id = db.execute(
         text("""
             INSERT INTO friend_requests (requester_id, addressee_id, status)
             VALUES (:r, :a, 'pending')
+            RETURNING id
         """),
         {"r": requester_id, "a": addressee_id},
-    )
-    return {"ok": True, "status": "requested"}
+    ).scalar_one()
 
+    return {"ok": True, "status": "requested", "request_id": int(new_id)}
 @router.post("/friends/requests/{request_id}/accept")
 def friends_request_accept(
     request_id: int,
