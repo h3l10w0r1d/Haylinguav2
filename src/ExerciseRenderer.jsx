@@ -216,7 +216,79 @@ function useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer }) {
 
   return { wrong, correct, skip };
 }
+const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
+const API_BASE =
+  (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
 
+function getToken() {
+  return (
+    localStorage.getItem("hay_token") ||
+    localStorage.getItem("access_token") ||
+    null
+  );
+}
+
+async function postAttempt({
+  exerciseId,
+  kind,
+  isCorrect,
+  answerText = null,
+  selectedIndices = null,
+  msSpent = null,
+}) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/me/exercises/${exerciseId}/attempt`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        kind: kind ?? null,
+        is_correct: !!isCorrect,
+        answer_text: answerText,
+        selected_indices: Array.isArray(selectedIndices) ? selectedIndices : null,
+        ms_spent: Number.isFinite(msSpent) ? Math.max(0, Math.floor(msSpent)) : null,
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.warn("[postAttempt] failed:", res.status, txt);
+    }
+  } catch (e) {
+    console.warn("[postAttempt] error:", e);
+  }
+}
+
+async function postExerciseLog({ exerciseId, event, payload = {} }) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/me/exercises/${exerciseId}/log`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        event: event || "client_event",
+        payload: payload || {},
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.warn("[postExerciseLog] failed:", res.status, txt);
+    }
+  } catch (e) {
+    console.warn("[postExerciseLog] error:", e);
+  }
+}
 /* -------------------------------------------------------
    NEW helpers: DB-backed exercise_options compatibility
 -------------------------------------------------------- */
@@ -378,7 +450,25 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
     </Card>
   );
 }
+// example: after user answers
+await postAttempt({
+  exerciseId: currentExercise.id,
+  kind: currentExercise.kind,
+  isCorrect: true,              // or false
+  answerText: "Բարև",           // optional
+  selectedIndices: [0, 2],      // optional
+  msSpent: timeSpentMs,         // optional
+});
 
+await postExerciseLog({
+  exerciseId: currentExercise.id,
+  event: "check",
+  payload: {
+    kind: currentExercise.kind,
+    isCorrect: true,
+    msSpent: timeSpentMs,
+  },
+});
 // 3) letter_recognition
 function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
