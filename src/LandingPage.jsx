@@ -1,31 +1,30 @@
 // src/LandingPage.jsx
-import { useState } from 'react';
-import { Lock, Mail, User, Sparkles } from 'lucide-react';
+import { useState } from "react";
+import { Lock, Mail, User, Sparkles } from "lucide-react";
 
 export default function LandingPage({ onLogin, onSignup }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState("login"); // 'login' | 'signup'
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
-      if (mode === 'login') {
+      if (mode === "login") {
         await onLogin(email.trim(), password);
       } else {
-        // signup
         await onSignup(name.trim(), email.trim(), password);
       }
     } catch (err) {
-      console.error('Auth error', err);
-      setError(err.message || 'Something went wrong');
+      console.error("Auth error", err);
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -47,8 +46,8 @@ export default function LandingPage({ onLogin, onSignup }) {
             Welcome to <span className="text-orange-600">Haylingua</span>
           </h1>
           <p className="text-gray-600 text-lg mb-8">
-            Bite-sized lessons, friendly characters, and a touch of Armenian culture.
-            Start from the alphabet and build your skills step by step.
+            Bite-sized lessons, friendly characters, and a touch of Armenian
+            culture. Start from the alphabet and build your skills step by step.
           </p>
 
           <div className="flex items-center gap-6 text-sm text-gray-600">
@@ -70,13 +69,13 @@ export default function LandingPage({ onLogin, onSignup }) {
             <button
               type="button"
               onClick={() => {
-                setMode('login');
-                setError('');
+                setMode("login");
+                setError("");
               }}
               className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
-                mode === 'login'
-                  ? 'bg-white shadow text-orange-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                mode === "login"
+                  ? "bg-white shadow text-orange-600"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Log in
@@ -84,13 +83,13 @@ export default function LandingPage({ onLogin, onSignup }) {
             <button
               type="button"
               onClick={() => {
-                setMode('signup');
-                setError('');
+                setMode("signup");
+                setError("");
               }}
               className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
-                mode === 'signup'
-                  ? 'bg-white shadow text-orange-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                mode === "signup"
+                  ? "bg-white shadow text-orange-600"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Create account
@@ -98,12 +97,12 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
 
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            {mode === 'login' ? 'Welcome back 👋' : 'Get started for free 🎉'}
+            {mode === "login" ? "Welcome back 👋" : "Get started for free 🎉"}
           </h2>
           <p className="text-sm text-gray-500 mb-6">
-            {mode === 'login'
-              ? 'Log in to continue your Armenian learning journey.'
-              : 'Create an account to save your progress and streaks.'}
+            {mode === "login"
+              ? "Log in to continue your Armenian learning journey."
+              : "Create an account to save your progress and streaks."}
           </p>
 
           {error && (
@@ -113,7 +112,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-           
+            {mode === "signup" && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   First name
@@ -158,12 +157,11 @@ export default function LandingPage({ onLogin, onSignup }) {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={mode === 'login' ? 'Your password' : 'Min 6 characters'}
+                  placeholder={mode === "login" ? "Your password" : "Min 6 characters"}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   required
                 />
               </div>
-              
             </div>
 
             <button
@@ -174,17 +172,13 @@ export default function LandingPage({ onLogin, onSignup }) {
               {loading ? (
                 <>
                   <span className="h-4 w-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
-                  {mode === 'login' ? 'Logging in…' : 'Creating account…'}
+                  {mode === "login" ? "Logging in…" : "Creating account…"}
                 </>
               ) : (
-                <>{mode === 'login' ? 'Log in' : 'Create account'}</>
+                <>{mode === "login" ? "Log in" : "Create account"}</>
               )}
             </button>
           </form>
-
-          {mode === 'login' && (
-            
-          )}
         </div>
       </div>
     </div>
