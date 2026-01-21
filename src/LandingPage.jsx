@@ -164,9 +164,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                 />
               </div>
               {mode === 'signup' && (
-                <p className="mt-1 text-xs text-gray-400">
-                  For now, keep it under 72 characters (bcrypt limit).
-                </p>
+                
               )}
             </div>
 
