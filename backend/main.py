@@ -12,18 +12,7 @@ app = FastAPI()
 
 # 🔧 CORS – include your real frontend URLs (Vercel)
 origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    # Prod Domain
-    "https://haylingua.am",
-    # Vercel production
-    "https://haylinguav2.vercel.app",
-
-    # (optional) your domains if you also use them
-    "https://haylingua.netlify.app",
-    "https://www.haylingua.netlify.app",
-    "https://haylingua.com",
-    "https://www.haylingua.com",
+    'haylinguav2.vercel.app
 ]
 
 app.add_middleware(
