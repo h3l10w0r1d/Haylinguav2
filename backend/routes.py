@@ -1491,9 +1491,9 @@ def require_cms(request: Request):
 def cms_list_lessons(request: Request, db=Depends(get_db)):
     require_cms(request)
     q = text("""
-        SELECT id, slug, title, description, level, xp, xp_reward
-        FROM lessons
-        ORDER BY level ASC, id ASC
+    SELECT id, slug, title, description, level, xp, xp_reward, is_published
+    FROM lessons
+    ORDER BY level ASC, id ASC
     """)
     rows = db.execute(q).mappings().all()
     return [dict(r) for r in rows]
@@ -1502,33 +1502,43 @@ def cms_list_lessons(request: Request, db=Depends(get_db)):
 async def cms_create_lesson(request: Request, db=Depends(get_db)):
     require_cms(request)
     body = await request.json()
+
     slug = (body.get("slug") or "").strip()
     title = (body.get("title") or "").strip()
     description = (body.get("description") or "").strip()
     level = int(body.get("level") or 1)
     xp = int(body.get("xp") or 40)
     xp_reward = int(body.get("xp_reward") or xp)
+    is_published = bool(body.get("is_published", True))  # ✅ default published
 
     if not slug or not title:
         raise HTTPException(400, detail="slug and title are required")
 
-    q = text("""
-    INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published)
-    VALUES (:slug, :title, :description, :level, :xp, :xp_reward, true)
-    RETURNING id
-    """)
-    new_id = db.execute(q, {
-        "slug": slug, "title": title, "description": description,
-        "level": level, "xp": xp, "xp_reward": xp_reward
-    }).scalar_one()
-    return {"id": new_id}
+    new_id = db.execute(
+        text("""
+            INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published)
+            VALUES (:slug, :title, :description, :level, :xp, :xp_reward, :is_published)
+            RETURNING id
+        """),
+        {
+            "slug": slug,
+            "title": title,
+            "description": description,
+            "level": level,
+            "xp": xp,
+            "xp_reward": xp_reward,
+            "is_published": is_published,
+        },
+    ).scalar_one()
+
+    return {"id": int(new_id)}
 
 @router.put("/cms/lessons/{lesson_id}")
 async def cms_update_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
     require_cms(request)
     body = await request.json()
 
-    fields = ["slug", "title", "description", "level", "xp", "xp_reward"]
+    fields = ["slug", "title", "description", "level", "xp", "xp_reward","is_published"]
     updates = {}
     for f in fields:
         if f in body:
@@ -1556,7 +1566,24 @@ def cms_delete_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
     db.execute(text("DELETE FROM exercises WHERE lesson_id = :id"), {"id": lesson_id})
     db.execute(text("DELETE FROM lessons WHERE id = :id"), {"id": lesson_id})
     return {"ok": True}
+    
+@router.post("/cms/lessons/{lesson_id}/publish")
+def cms_publish_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    db.execute(
+        text("UPDATE lessons SET is_published = true WHERE id = :id"),
+        {"id": lesson_id},
+    )
+    return {"ok": True, "is_published": True}
 
+@router.post("/cms/lessons/{lesson_id}/unpublish")
+def cms_unpublish_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request)
+    db.execute(
+        text("UPDATE lessons SET is_published = false WHERE id = :id"),
+        {"id": lesson_id},
+    )
+    return {"ok": True, "is_published": False}
 # -------------------- EXERCISES --------------------
 
 @router.get("/cms/lessons/{lesson_id}/exercises")
