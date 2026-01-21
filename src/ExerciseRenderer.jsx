@@ -452,15 +452,7 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
 }
 
 
-await postExerciseLog({
-  exerciseId: currentExercise.id,
-  event: "check",
-  payload: {
-    kind: currentExercise.kind,
-    isCorrect: true,
-    msSpent: timeSpentMs,
-  },
-});
+
 // 3) letter_recognition
 function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
@@ -1273,8 +1265,8 @@ async function handleAnswer(payload) {
   exerciseStartRef.current = Date.now();
 
   await postAttempt({
-    exerciseId: currentExercise.id,
-    kind: currentExercise.kind,
+    exerciseId: exercise.id,
+    kind: exercise.kind,
     isCorrect: payload?.isCorrect ?? false,
     answerText: payload?.answerText ?? null,
     selectedIndices: payload?.selectedIndices ?? null,
@@ -1282,10 +1274,10 @@ async function handleAnswer(payload) {
   });
 
   await postExerciseLog({
-    exerciseId: currentExercise.id,
+    exerciseId: exercise.id,
     event: payload?.skipped ? "skip" : "check",
     payload: {
-      kind: currentExercise.kind,
+      kind: exercise.kind,
       isCorrect: payload?.isCorrect ?? false,
       msSpent: timeSpentMs,
     },
