@@ -24,6 +24,43 @@ import json
 
 router = APIRouter()
 
+KIND_MAP = {
+    "fill-blank": "fill_blank",
+    "multiple_choice": "translate_mcq",  # change if you want a different mapping
+    "multi-select": "multi_select",
+}
+
+def normalize_kind(kind: str) -> str:
+    k = (kind or "").strip()
+    return KIND_MAP.get(k, k)
+
+def validate_exercise_config(kind: str, config: dict):
+    if kind != "multi_select":
+        return
+
+    choices = config.get("choices") or config.get("options") or []
+    if not isinstance(choices, list) or len(choices) < 2:
+        raise HTTPException(400, detail="multi_select requires config.choices (>=2 items)")
+
+    correct_indices = config.get("correctIndices")
+    correct_answers = config.get("correctAnswers")
+
+    if correct_indices is None and correct_answers is None:
+        raise HTTPException(400, detail="multi_select requires correctIndices or correctAnswers")
+
+    if correct_indices is not None:
+        if not isinstance(correct_indices, list) or len(correct_indices) < 1:
+            raise HTTPException(400, detail="correctIndices must be a list with at least 1 item")
+        for x in correct_indices:
+            if not isinstance(x, int):
+                raise HTTPException(400, detail="correctIndices must contain integers")
+            if x < 0 or x >= len(choices):
+                raise HTTPException(400, detail="correctIndices contains out-of-range index")
+
+    if correct_answers is not None:
+        if not isinstance(correct_answers, list) or len(correct_answers) < 1:
+            raise HTTPException(400, detail="correctAnswers must be a list with at least 1 item")
+
 # ---------- Auth schemas ----------
 
 class UserCreate(BaseModel):
