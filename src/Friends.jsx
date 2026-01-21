@@ -364,26 +364,7 @@ export default function Friends() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      {/* Embedded Header / Navigation */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-semibold">
-            H
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-gray-900">Haylingua</div>
-            <div className="text-xs text-gray-500">Friends</div>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <NavLink to="/">Lessons</NavLink>
-          <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/profile">Profile</NavLink>
-          <NavLink to="/friends">Friends</NavLink>
-        </div>
-      </div>
 
       {/* Title */}
       <div className="mb-6 flex items-center justify-between">
