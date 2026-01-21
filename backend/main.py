@@ -12,7 +12,8 @@ app = FastAPI()
 
 # 🔧 CORS – include your real frontend URLs (Vercel)
 origins = [
-    'haylinguav2.vercel.app
+    "https://haylinguav2.vercel.app",
+    "https://haylingua.am"
 ]
 
 app.add_middleware(
