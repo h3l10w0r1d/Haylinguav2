@@ -197,6 +197,45 @@ def friends_requests_incoming(
 
     return [FriendRequestOut(**dict(r)) for r in rows]
 
+
+@router.get("/friends/requests/sent")
+def friends_requests_sent(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    requester_id = _get_user_id_from_bearer(authorization)
+    if requester_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    rows = db.execute(
+        text("""
+            SELECT
+              fr.id,
+              fr.addressee_id,
+              u.email AS addressee_email,
+              u.name AS addressee_name,
+              fr.created_at
+            FROM friend_requests fr
+            JOIN users u ON u.id = fr.addressee_id
+            WHERE fr.requester_id = :uid
+              AND fr.status = 'pending'
+            ORDER BY fr.created_at DESC
+        """),
+        {"uid": requester_id},
+    ).mappings().all()
+
+    # Keep it simple JSON (no schema needed unless you want response_model)
+    return [
+        {
+            "id": int(r["id"]),
+            "addressee_id": int(r["addressee_id"]),
+            "addressee_email": r["addressee_email"],
+            "addressee_name": r["addressee_name"],
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+
 @router.post("/friends/request")
 def friends_request_create(
     payload: FriendRequestCreateIn,
