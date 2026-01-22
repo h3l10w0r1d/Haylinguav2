@@ -11,8 +11,14 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from database import get_db
-from auth import hash_password, verify_password, create_token
-
+from auth import (
+    hash_password,
+    verify_password,
+    create_token,
+    get_current_user,
+    validate_email_simple,
+    validate_password_simple,
+)
 # JWT decode (for Bearer auth on /complete)
 from jose import jwt, JWTError
 
