@@ -744,29 +744,39 @@ class SignupPayload(BaseModel):
     email: str
     password: str
 
-
 @router.post("/signup")
 def signup(user: UserCreate, db: Connection = Depends(get_db)):
-    existing = db.execute(
-        text("SELECT id FROM users WHERE email = :email"),
-        {"email": user.email},
-    ).mappings().first()
+    # 1) clean inputs
+    email = (user.email or "").strip()
+    password = (user.password or "")
 
-    email = (payload.email or "").strip()
-    password = payload.password
-
+    # 2) validate email
     email_errors = validate_email_simple(email)
     if len(email_errors) > 0:
-        raise HTTPException(status_code=400, detail={"field": "email", "errors": email_errors})
+        raise HTTPException(
+            status_code=400,
+            detail={"field": "email", "errors": email_errors},
+        )
 
+    # 3) validate password
     password_errors = validate_password_simple(password)
     if len(password_errors) > 0:
-        raise HTTPException(status_code=400, detail={"field": "password", "errors": password_errors})
+        raise HTTPException(
+            status_code=400,
+            detail={"field": "password", "errors": password_errors},
+        )
+
+    # 4) check if email already exists (use the cleaned email!)
+    existing = db.execute(
+        text("SELECT id FROM users WHERE email = :email"),
+        {"email": email},
+    ).mappings().first()
 
     if existing is not None:
         raise HTTPException(status_code=400, detail="Email already exists")
 
-    password_hash = hash_password(user.password)
+    # 5) hash password and insert
+    password_hash = hash_password(password)
 
     row = db.execute(
         text(
@@ -776,16 +786,47 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
             RETURNING id
             """
         ),
-        {"email": user.email, "password_hash": password_hash},
+        {"email": email, "password_hash": password_hash},
     ).mappings().first()
 
+    if row is None:
+        # very rare, but just in case insert failed
+        raise HTTPException(status_code=500, detail="Could not create user")
+
     user_id = row["id"]
+
+    # 6) create token
     token = create_token(user_id)
-    return {"message": "User created", "access_token": token}
+
+    return {
+        "message": "User created",
+        "access_token": token,
+        "email": email,
+    }
 
 
 @router.post("/login", response_model=AuthResponse)
 def login(payload: UserLogin, db: Connection = Depends(get_db)):
+    # 1) clean inputs
+    email = (payload.email or "").strip()
+    password = (payload.password or "")
+
+    # 2) validate email
+    email_errors = validate_email_simple(email)
+    if len(email_errors) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail={"field": "email", "errors": email_errors},
+        )
+
+    # 3) validate password (simple)
+    if password.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail={"field": "password", "errors": ["Password is required"]},
+        )
+
+    # 4) load user from DB using cleaned email
     row = db.execute(
         text(
             """
@@ -794,29 +835,20 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
             WHERE email = :email
             """
         ),
-        {"email": payload.email},
+        {"email": email},
     ).mappings().first()
-
-    email = (payload.email or "").strip()
-    password = payload.password
-
-    email_errors = validate_email_simple(email)
-    if len(email_errors) > 0:
-        raise HTTPException(status_code=400, detail={"field": "email", "errors": email_errors})
-
-    if password is None or password.strip() == "":
-        raise HTTPException(status_code=400, detail={"field": "password", "errors": ["Password is required"]})
 
     if row is None:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    if not verify_password(payload.password, row["password_hash"]):
+    # 5) check password
+    ok = verify_password(password, row["password_hash"])
+    if not ok:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
+    # 6) token
     token = create_token(row["id"])
     return AuthResponse(access_token=token, email=row["email"])
-
-
 @router.get("/lessons", response_model=List[LessonOut])
 def list_lessons(db: Connection = Depends(get_db)):
     rows = db.execute(
