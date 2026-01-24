@@ -1124,6 +1124,9 @@ def record_exercise_attempt(
     _update_review_queue(db, user_id, payload.lesson_id, exercise_id, bool(payload.is_correct))
     acc = _get_accuracy(db, user_id, payload.lesson_id)
 
+     # ✅ NEW: recompute lesson completion / xp-based progress
+    recompute_lesson_progress(db, user_id, payload.lesson_id)
+
     return AttemptOut(ok=True, attempt_id=int(attempt_id), accuracy=acc)
 
 
@@ -1688,6 +1691,7 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
     expected_answer = body.get("expected_answer")
     order = int(body.get("order") or 1)
     config = body.get("config") or {}
+    xp = int(body.get("xp") or 10)
     validate_exercise_config(kind, config)
 
     if not lesson_id or not kind:
@@ -1789,6 +1793,95 @@ def cms_delete_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
     db.execute(text("DELETE FROM exercises WHERE id = :id"), {"id": exercise_id})
     return {"ok": True}
 
+
+
+
+
+def recompute_lesson_progress(db, user_id: int, lesson_id: int):
+    # 1) total exercises in lesson
+    total_row = db.execute(
+        text("SELECT COUNT(*) AS c FROM exercises WHERE lesson_id = :lid"),
+        {"lid": lesson_id},
+    ).mappings().first()
+
+    total_ex = int(total_row["c"] or 0)
+
+    # avoid division by zero
+    if total_ex == 0:
+        total_ex = 1
+
+    # 2) how many exercises user has correct at least once
+    correct_row = db.execute(
+        text("""
+            SELECT COUNT(DISTINCT uea.exercise_id) AS c
+            FROM user_exercise_attempts uea
+            JOIN exercises e ON e.id = uea.exercise_id
+            WHERE uea.user_id = :uid
+              AND e.lesson_id = :lid
+              AND uea.is_correct = TRUE
+        """),
+        {"uid": user_id, "lid": lesson_id},
+    ).mappings().first()
+
+    correct_ex = int(correct_row["c"] or 0)
+
+    # 3) earned XP = sum XP of DISTINCT correct exercises
+    xp_row = db.execute(
+        text("""
+            SELECT COALESCE(SUM(t.xp), 0) AS xp
+            FROM (
+                SELECT DISTINCT e.id, e.xp
+                FROM user_exercise_attempts uea
+                JOIN exercises e ON e.id = uea.exercise_id
+                WHERE uea.user_id = :uid
+                  AND e.lesson_id = :lid
+                  AND uea.is_correct = TRUE
+            ) t
+        """),
+        {"uid": user_id, "lid": lesson_id},
+    ).mappings().first()
+
+    earned_xp = int(xp_row["xp"] or 0)
+
+    # 4) completion
+    completion_ratio = correct_ex / total_ex
+    is_completed = completion_ratio >= 0.70
+
+    # 5) store progress (use your existing table)
+    # If your table is user_lesson_progress and it has these columns, do:
+    db.execute(
+        text("""
+            INSERT INTO user_lesson_progress (
+                user_id, lesson_id, exercises_total, exercises_completed, xp_earned, last_seen_at, completed_at
+            )
+            VALUES (
+                :uid, :lid, :total, :completed, :xp, NOW(), CASE WHEN :done THEN NOW() ELSE NULL END
+            )
+            ON CONFLICT (user_id, lesson_id)
+            DO UPDATE SET
+                exercises_total = EXCLUDED.exercises_total,
+                exercises_completed = EXCLUDED.exercises_completed,
+                xp_earned = EXCLUDED.xp_earned,
+                last_seen_at = NOW(),
+                completed_at = CASE WHEN :done THEN COALESCE(user_lesson_progress.completed_at, NOW()) ELSE NULL END
+        """),
+        {
+            "uid": user_id,
+            "lid": lesson_id,
+            "total": total_ex,
+            "completed": correct_ex,
+            "xp": earned_xp,
+            "done": is_completed,
+        },
+    )
+
+    return {
+        "total_exercises": total_ex,
+        "correct_exercises": correct_ex,
+        "earned_xp": earned_xp,
+        "completion_ratio": completion_ratio,
+        "completed": is_completed,
+    }
 # -------------------- OPTIONS --------------------
 
 @router.get("/cms/exercises/{exercise_id}/options")
