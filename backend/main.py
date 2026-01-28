@@ -7,7 +7,7 @@ from db_utils import seed_alphabet_lessons
 # I need os for getting free from seeding and relying only on the DB!!
 import os
 
-from backend.lesson_analytics import router as lesson_analytics_router
+from .lesson_analytics import router as lesson_analytics_router
 app.include_router(lesson_analytics_router)
 
 
