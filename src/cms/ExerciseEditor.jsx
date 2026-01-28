@@ -241,7 +241,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onCancel }
   const [prompt, setPrompt] = useState(exercise?.prompt || "");
   const [expectedAnswer, setExpectedAnswer] = useState(exercise?.expected_answer || "");
   const [order, setOrder] = useState(exercise?.order ?? 1);
-
+  const [xp, setXp] = useState(exercise?.xp ?? 10);
   const initialCfgObj = useMemo(() => {
     const c = exercise?.config ?? {};
     return typeof c === "string" ? safeParseJson(c) || {} : c;
@@ -250,6 +250,22 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onCancel }
   const [configText, setConfigText] = useState(jsonPretty(initialCfgObj || defaultConfigForKind(kind)));
   const [saving, setSaving] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Re-sync editor state when switching between exercises (or when lesson changes)
+  useEffect(() => {
+    setKind(exercise?.kind || "char_intro");
+    setPrompt(exercise?.prompt || "");
+    setExpectedAnswer(exercise?.expected_answer || "");
+    setOrder(exercise?.order ?? 1);
+    setXp(exercise?.xp ?? 10);
+
+    const c = exercise?.config ?? {};
+    const obj = typeof c === "string" ? safeParseJson(c) || {} : c;
+    setConfigText(jsonPretty(obj || defaultConfigForKind(exercise?.kind || "char_intro")));
+
+    setShowAdvanced(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id, lessonId]);
 
   // when kind changes on NEW exercise, reset config to a friendly template
   useEffect(() => {
@@ -288,6 +304,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onCancel }
         prompt: prompt || "",
         expected_answer: expectedAnswer || null,
         order: Number(order) || 1,
+        xp: Number(xp) || 0,
         config: cfg || {},
       };
 
@@ -721,7 +738,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onCancel }
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Field label="Type (kind)">
           <select
             value={kind}
@@ -742,6 +759,14 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onCancel }
             value={order}
             onChange={(e) => setOrder(e.target.value)}
             min={1}
+          />
+        </Field>
+        <Field label="XP" hint="XP granted for this exercise">
+          <Input
+            type="number"
+            value={xp}
+            onChange={(e) => setXp(e.target.value)}
+            min={0}
           />
         </Field>
 
