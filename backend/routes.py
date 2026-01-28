@@ -53,6 +53,10 @@ class AttemptOut(BaseModel):
     ok: bool
     attempt_id: int
     accuracy: float
+    earned_xp: int
+    completion_ratio: float
+    completed: bool
+
 
 class LogIn(BaseModel):
     lesson_id: int
@@ -905,7 +909,8 @@ def get_lesson(slug: str, db: Connection = Depends(get_db)):
 
     ex_ids = [int(r["id"]) for r in exercises_rows]
     options_by_ex: dict[int, list[dict]] = {eid: [] for eid in ex_ids}
-
+    lesson_dict["xp"] = sum(int(r.get("xp") or 0) for r in exercises_rows)
+    
     if ex_ids:
         opt_rows = db.execute(
             text("""
@@ -954,6 +959,8 @@ def complete_lesson(
     # 1) Determine user_id (prefer JWT if present)
     user_id = _get_user_id_from_bearer(authorization)
 
+    xp_value = 0
+    
     if user_id is None:
         # fallback to email payload
         if payload is None or not payload.email:
@@ -968,7 +975,7 @@ def complete_lesson(
             raise HTTPException(status_code=400, detail="User not found")
 
         user_id = user_row["id"]
-
+        
     # 2) Find lesson
     lesson_row = db.execute(
         text(
@@ -1125,9 +1132,16 @@ def record_exercise_attempt(
     acc = _get_accuracy(db, user_id, payload.lesson_id)
 
      # ✅ NEW: recompute lesson completion / xp-based progress
-    recompute_lesson_progress(db, user_id, payload.lesson_id)
+    progress = recompute_lesson_progress(db, user_id, payload.lesson_id)
 
-    return AttemptOut(ok=True, attempt_id=int(attempt_id), accuracy=acc)
+    return AttemptOut(
+        ok=True,
+        attempt_id=int(attempt_id),
+        accuracy=acc,
+        earned_xp=int(progress["earned_xp"]),
+        completion_ratio=float(progress["completion_ratio"]),
+        completed=bool(progress["completed"]),
+        )
 
 
 @router.post("/me/exercises/{exercise_id}/log", response_model=LogOut)
@@ -1659,7 +1673,7 @@ def cms_unpublish_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
 def cms_list_exercises(lesson_id: int, request: Request, db=Depends(get_db)):
     require_cms(request)
     q = text("""
-        SELECT id, lesson_id, kind, type, prompt, expected_answer, sentence_before, sentence_after, "order", config
+        SELECT id, lesson_id, kind, type, prompt, expected_answer, sentence_before, sentence_after, "order", xp, config
         FROM exercises
         WHERE lesson_id = :lesson_id
         ORDER BY "order" ASC, id ASC
@@ -1671,7 +1685,7 @@ def cms_list_exercises(lesson_id: int, request: Request, db=Depends(get_db)):
 def cms_get_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
     require_cms(request)
     row = db.execute(text("""
-        SELECT id, lesson_id, kind, type, prompt, expected_answer, sentence_before, sentence_after, "order", config
+        SELECT id, lesson_id, kind, type, prompt, expected_answer, sentence_before, sentence_after, "order", xp, config
         FROM exercises
         WHERE id = :id
     """), {"id": exercise_id}).mappings().first()
@@ -1704,6 +1718,7 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
             prompt,
             expected_answer,
             "order",
+            xp,
             config
         )
         VALUES (
@@ -1712,6 +1727,7 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
             :prompt,
             :expected_answer,
             :order,
+            xp:
             CAST(:config AS jsonb)
         )
         RETURNING id
@@ -1734,7 +1750,7 @@ async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get
     require_cms(request)
     body = await request.json()
 
-    allowed = ["kind", "type", "prompt", "expected_answer", "sentence_before", "sentence_after", "order", "config"]
+    allowed = ["kind", "type", "prompt", "expected_answer", "sentence_before", "sentence_after", "order", "xp", "config"]
     updates = {}
     for f in allowed:
         if f in body:
@@ -1777,6 +1793,9 @@ async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get
         elif k == "order":
             set_parts.append("\"order\" = :order")
             params["order"] = int(v or 1)
+        elif k == "xp":
+            set_parts.append("xp = :xp")
+            params["xp"] = int(v or 0)
         else:
             set_parts.append(f"{k} = :{k}")
             params[k] = v
