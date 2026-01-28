@@ -198,19 +198,21 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
           />
         </Field>
 
-        <Field label="XP">
+        <Field label="XP" hint="Auto-calculated from the XP of exercises in this lesson (read-only)">
           <Input
             type="number"
             value={form.xp}
             onChange={(e) => setForm({ ...form, xp: e.target.value })}
+            disabled
           />
         </Field>
 
-        <Field label="XP Reward">
+        <Field label="XP Reward" hint="Optional (legacy). Prefer setting XP on each exercise.">
           <Input
             type="number"
             value={form.xp_reward}
             onChange={(e) => setForm({ ...form, xp_reward: e.target.value })}
+            disabled
           />
         </Field>
 
