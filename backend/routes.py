@@ -909,6 +909,7 @@ def get_lesson(slug: str, db: Connection = Depends(get_db)):
 
     ex_ids = [int(r["id"]) for r in exercises_rows]
     options_by_ex: dict[int, list[dict]] = {eid: [] for eid in ex_ids}
+    lesson_dict: Dict[str, Any] = dict(lesson_row)
     lesson_dict["xp"] = sum(int(r.get("xp") or 0) for r in exercises_rows)
     
     if ex_ids:
@@ -925,7 +926,7 @@ def get_lesson(slug: str, db: Connection = Depends(get_db)):
         for o in opt_rows:
             options_by_ex[int(o["exercise_id"])].append(dict(o))
 
-    lesson_dict: Dict[str, Any] = dict(lesson_row)
+    
     exercises_out: list[dict] = []
     for r in exercises_rows:
         d = dict(r)
@@ -959,7 +960,7 @@ def complete_lesson(
     # 1) Determine user_id (prefer JWT if present)
     user_id = _get_user_id_from_bearer(authorization)
 
-    xp_value = 0
+    xp_value = int(lesson_row["xp"] or 0)
     
     if user_id is None:
         # fallback to email payload
@@ -1727,7 +1728,7 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
             :prompt,
             :expected_answer,
             :order,
-            xp:
+            :xp:
             CAST(:config AS jsonb)
         )
         RETURNING id
@@ -1739,6 +1740,7 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
         "prompt": prompt,
         "expected_answer": expected_answer,
         "order": order,
+        "xp": xp,
         "config": json.dumps(config),
     }
 
