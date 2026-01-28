@@ -8,11 +8,12 @@ from db_utils import seed_alphabet_lessons
 import os
 
 from lesson_analytics import router as lesson_analytics_router
-app.include_router(lesson_analytics_router)
+
 
 
 app = FastAPI()
 
+app.include_router(lesson_analytics_router)
 # 🔧 CORS – include your real frontend URLs (Vercel)
 origins = [
     "https://haylinguav2.vercel.app",
