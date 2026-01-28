@@ -316,6 +316,10 @@ export default function CmsShell() {
             </div>
           </div>
 
+
+          const lessonXpTotal = useMemo(() => {
+          return exercises.reduce((sum, e) => sum + Number(e.xp || 0), 0);
+          }, [exercises]);
           {mode === "lesson" ? (
             <LessonEditor
               lesson={selectedLesson}
