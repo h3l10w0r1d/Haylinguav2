@@ -1,6 +1,7 @@
+// src/cms/CmsShell.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { createCmsApi, setCmsApiClient, cmsApi } from "./api";
+import { createCmsApi, setCmsApiClient } from "./api";
 import { BookOpen, Plus, Search, Settings2 } from "lucide-react";
 import LessonEditor from "./LessonEditor";
 import ExerciseEditor from "./ExerciseEditor";
@@ -155,6 +156,11 @@ export default function CmsShell() {
     [exercises, selectedExerciseId]
   );
 
+  // ✅ NEW: total XP for current lesson, derived from exercises
+  const lessonXpTotal = useMemo(() => {
+    return exercises.reduce((sum, e) => sum + Number(e.xp || 0), 0);
+  }, [exercises]);
+
   const rightTitle =
     mode === "lesson"
       ? selectedLessonId
@@ -236,6 +242,18 @@ export default function CmsShell() {
               </button>
             </div>
 
+            {/* ✅ NEW: lesson XP info */}
+            {selectedLessonId ? (
+              <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="text-xs text-slate-500">
+                  Total lesson XP (auto)
+                </div>
+                <div className="text-sm font-semibold text-slate-900">
+                  {lessonXpTotal} XP
+                </div>
+              </div>
+            ) : null}
+
             {!selectedLessonId ? (
               <div className="text-sm text-slate-500">
                 Pick a lesson to view exercises.
@@ -267,6 +285,9 @@ export default function CmsShell() {
                           <div className="text-sm font-semibold text-slate-900">
                             #{ex.order ?? "?"} ·{" "}
                             <span className="font-mono">{ex.kind}</span>
+                            <span className="ml-2 text-slate-400 font-mono">
+                              ({Number(ex.xp || 0)}xp)
+                            </span>
                           </div>
                           <div className="text-xs text-slate-500 line-clamp-1">
                             {ex.prompt}
@@ -316,13 +337,11 @@ export default function CmsShell() {
             </div>
           </div>
 
-
-          const lessonXpTotal = useMemo(() => {
-          return exercises.reduce((sum, e) => sum + Number(e.xp || 0), 0);
-          }, [exercises]);
           {mode === "lesson" ? (
             <LessonEditor
               lesson={selectedLesson}
+              // ✅ NEW: send computed XP into editor so it can show read-only XP
+              lessonXpTotal={lessonXpTotal}
               onSaved={async (msg) => {
                 await refreshLessons(true);
                 showToast(msg || "Saved");
