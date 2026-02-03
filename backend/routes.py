@@ -205,6 +205,8 @@ def _pick_due_review(queue: list[dict]) -> int | None:
 # ---------- Auth schemas ----------
 
 class UserCreate(BaseModel):
+    # Optional display name (used by signup UI). Stored in users.name.
+    name: str | None = None
     email: str
     password: str
 
@@ -757,6 +759,7 @@ class SignupPayload(BaseModel):
 @router.post("/signup")
 def signup(user: UserCreate, db: Connection = Depends(get_db)):
     # 1) clean inputs
+    name = (user.name or "").strip() or None
     email = (user.email or "").strip()
     password = (user.password or "")
 
@@ -791,12 +794,12 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
     row = db.execute(
         text(
             """
-            INSERT INTO users (email, password_hash)
-            VALUES (:email, :password_hash)
+            INSERT INTO users (email, password_hash, name)
+            VALUES (:email, :password_hash, :name)
             RETURNING id
             """
         ),
-        {"email": email, "password_hash": password_hash},
+        {"email": email, "password_hash": password_hash, "name": name},
     ).mappings().first()
 
     if row is None:
