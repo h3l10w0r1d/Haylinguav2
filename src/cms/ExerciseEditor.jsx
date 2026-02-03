@@ -1,6 +1,7 @@
 // src/cms/ExerciseEditor.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { cmsApi } from "./api";
+import AudioManager from "./AudioManager";
 
 /**
  * Teacher-friendly Exercise Editor
