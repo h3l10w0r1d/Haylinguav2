@@ -1976,24 +1976,24 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
 
     q = text("""
         INSERT INTO exercises (
-            lesson_id,
-            kind,
-            prompt,
-            expected_answer,
-            "order",
-            xp,
-            config
-        )
-        VALUES (
-            :lesson_id,
-            :kind,
-            :prompt,
-            :expected_answer,
-            :order,
-            :xp:
-            CAST(:config AS jsonb)
-        )
-        RETURNING id
+    lesson_id,
+    kind,
+    prompt,
+    expected_answer,
+    "order",
+    xp,
+    config
+)
+VALUES (
+    %(lesson_id)s,
+    %(kind)s,
+    %(prompt)s,
+    %(expected_answer)s,
+    %(order)s,
+    %(xp)s,
+    CAST(%(config)s AS jsonb)
+)
+RETURNING id
     """)
 
     params = {
