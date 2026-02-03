@@ -29,13 +29,19 @@ export default function Signup() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const msg = data?.detail || data?.message || "Signup failed";
-        setError(msg);
+        // Handle field-specific errors
+        if (data?.detail?.field) {
+          const fieldErrors = data.detail.errors || [];
+          setError(fieldErrors.join(". "));
+        } else {
+          const msg = data?.detail || data?.message || "Signup failed";
+          setError(typeof msg === "string" ? msg : JSON.stringify(msg));
+        }
         setLoading(false);
         return;
       }
 
-      // backend returns { message, access_token }
+      // backend returns { message, access_token, email_verified, verification_code (dev only) }
       const token = data?.access_token;
       if (!token) {
         setError("Signup succeeded but server returned no token.");
@@ -43,10 +49,21 @@ export default function Signup() {
         return;
       }
 
+      // Store auth data
       localStorage.setItem("access_token", token);
+      localStorage.setItem("hay_token", token);
       localStorage.setItem("user_email", email.trim());
 
-      navigate("/dashboard");
+      // Store verification code if in dev mode (backend only sends this if SMTP not configured)
+      if (data.verification_code) {
+        sessionStorage.setItem("dev_verification_code", data.verification_code);
+        sessionStorage.setItem("email_sent", "false");
+      } else {
+        sessionStorage.setItem("email_sent", "true");
+      }
+
+      // Navigate to verify page (CHANGED from /dashboard)
+      navigate("/verify");
     } catch (err) {
       console.error(err);
       setError("Network error. Please try again.");
@@ -86,7 +103,7 @@ export default function Signup() {
           type="password"
           placeholder="Password"
           required
-          minLength={6}
+          minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={{
@@ -95,6 +112,10 @@ export default function Signup() {
             border: "1px solid #ddd",
           }}
         />
+
+        <div style={{ fontSize: "12px", color: "#666", marginTop: "-0.5rem" }}>
+          Password must be at least 8 characters with uppercase, lowercase, and a number.
+        </div>
 
         {error && (
           <div
@@ -119,6 +140,16 @@ export default function Signup() {
         >
           {loading ? "Creating..." : "Create account"}
         </button>
+
+        <div style={{ textAlign: "center", fontSize: "14px", color: "#666" }}>
+          Already have an account?{" "}
+          <a
+            href="/"
+            style={{ color: "#ff6b35", textDecoration: "none", fontWeight: 500 }}
+          >
+            Sign in
+          </a>
+        </div>
       </form>
     </div>
   );
