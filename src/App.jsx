@@ -16,6 +16,7 @@ import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
 import CmsShell from './cms/CmsShell';
+import VerifyEmail from './VerifyEmail';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -80,7 +81,7 @@ function AppShell() {
     const baseName = email.split('@')[0];
 
     const newUser = {
-      id: 1, // placeholder until backend profile endpoint exists
+      id: 1, // placeholder; replaced by /me/profile if available
       email,
       name: (nameOverride || '').trim() || baseName,
       firstName: '',
@@ -90,6 +91,7 @@ function AppShell() {
       xp: 0,
       streak: 0,
       completedLessons: [],
+      email_verified: false,
     };
 
     setToken(tokenValue);
@@ -101,6 +103,33 @@ function AppShell() {
     localStorage.setItem('hay_user', JSON.stringify(newUser));
 
     navigate('/dashboard', { replace: true });
+  };
+
+  const refreshProfile = async (tokenValue) => {
+    const t = tokenValue || token;
+    if (!t) return;
+    try {
+      const meRes = await fetch(`${API_BASE}/me/profile`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      if (!meRes.ok) return;
+      const me = await meRes.json().catch(() => null);
+      if (!me) return;
+
+      const updated = {
+        ...(user || {}),
+        id: me.id,
+        email: me.email,
+        name: me.name || me.email?.split('@')?.[0] || 'User',
+        avatarUrl: me.avatar_url || '',
+        email_verified: Boolean(me.email_verified),
+      };
+      setUser(updated);
+      localStorage.setItem('hay_user', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
   };
 
   // LOGIN
@@ -126,22 +155,8 @@ function AppShell() {
         throw new Error('No token in /login response');
       }
 
-      // Prefer backend profile name if available
-      let nameOverride = '';
-      try {
-        const meRes = await fetch(`${API_BASE}/me/profile`, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${tokenValue}` },
-        });
-        if (meRes.ok) {
-          const me = await meRes.json().catch(() => null);
-          if (me?.name) nameOverride = String(me.name);
-        }
-      } catch (e) {
-        // ignore profile fetch errors; fallback to email prefix
-      }
-
-      handleAuthSuccess(tokenValue, data.email ?? email, nameOverride);
+      handleAuthSuccess(tokenValue, data.email ?? email, '');
+      await refreshProfile(tokenValue);
     } catch (err) {
       console.error('Login error', err);
       alert(err.message || 'Login failed. Please try again.');
@@ -170,6 +185,20 @@ function AppShell() {
       console.error('Signup error', err);
       alert('Could not reach the server. Please try again.');
     }
+  };
+
+  // On first load (or token restore), refresh profile so email_verified and name are correct
+  useEffect(() => {
+    if (!loadingUser && token) {
+      refreshProfile(token);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingUser, token]);
+
+  const RequireVerified = ({ children }) => {
+    if (!user) return <Navigate to="/" replace />;
+    if (user.email_verified === false) return <Navigate to="/verify" replace />;
+    return children;
   };
 
   const handleUpdateUser = (updates) => {
@@ -213,11 +242,13 @@ function AppShell() {
         path="/dashboard"
         element={
           user ? (
-            <Dashboard
-              user={user}
-              onUpdateUser={handleUpdateUser}
-              onLogout={handleLogout}
-            />
+            <RequireVerified>
+              <Dashboard
+                user={user}
+                onUpdateUser={handleUpdateUser}
+                onLogout={handleLogout}
+              />
+            </RequireVerified>
           ) : (
             <Navigate to="/" replace />
           )
@@ -226,14 +257,16 @@ function AppShell() {
 
       <Route
         path="/lesson/:slug"
-        element={user ? <LessonPlayer /> : <Navigate to="/" replace />}
+        element={user ? <RequireVerified><LessonPlayer /></RequireVerified> : <Navigate to="/" replace />}
       />
 
       <Route
         path="/friends"
         element={
           user ? (
-            <Friends user={user} onUpdateUser={handleUpdateUser} />
+            <RequireVerified>
+              <Friends user={user} onUpdateUser={handleUpdateUser} />
+            </RequireVerified>
           ) : (
             <Navigate to="/" replace />
           )
@@ -242,14 +275,27 @@ function AppShell() {
 
       <Route
         path="/leaderboard"
-        element={user ? <Leaderboard user={user} /> : <Navigate to="/" replace />}
+        element={user ? <RequireVerified><Leaderboard user={user} /></RequireVerified> : <Navigate to="/" replace />}
       />
 
       <Route
         path="/profile"
         element={
           user ? (
-            <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
+            <RequireVerified>
+              <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/verify"
+        element={
+          user ? (
+            <VerifyEmail onVerified={() => refreshProfile(token)} />
           ) : (
             <Navigate to="/" replace />
           )
