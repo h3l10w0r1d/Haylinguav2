@@ -28,9 +28,6 @@ function AppShell() {
   const navigate = useNavigate();
 
   // --- CMS routing helpers ---
-  // CMS URLs:
-  //   /:cmsKey/cms   (primary)
-  //   /cms/:cmsKey   (alias -> redirects to /:cmsKey/cms)
   const ALLOWED_KEYS = new Set([
     'c5fe8f3d5aa14af2b7ddfbd22cc72d94',
     'd7c88020e1ea95dd060d90414b4da77e',
@@ -48,7 +45,6 @@ function AppShell() {
     const { cmsKey } = useParams();
     const ok = cmsKey && ALLOWED_KEYS.has(String(cmsKey).trim());
     if (!ok) return <Navigate to="/" replace />;
-    // CmsShell reads cmsKey from the URL via useParams()
     return <CmsShell />;
   }
 
@@ -77,7 +73,7 @@ function AppShell() {
     }
   }, []);
 
-  const handleAuthSuccess = (tokenValue, email, nameOverride) => {
+  const handleAuthSuccess = (tokenValue, email, nameOverride, emailVerified = false) => {
     const baseName = email.split('@')[0];
 
     const newUser = {
@@ -91,18 +87,22 @@ function AppShell() {
       xp: 0,
       streak: 0,
       completedLessons: [],
-      email_verified: false,
+      email_verified: emailVerified,
     };
 
     setToken(tokenValue);
     setUser(newUser);
 
     localStorage.setItem('hay_token', tokenValue);
-    // compatibility with older components
     localStorage.setItem('access_token', tokenValue);
     localStorage.setItem('hay_user', JSON.stringify(newUser));
 
-    navigate('/dashboard', { replace: true });
+    // Navigate based on email verification status
+    if (emailVerified) {
+      navigate('/dashboard', { replace: true });
+    } else {
+      navigate('/verify', { replace: true });
+    }
   };
 
   const refreshProfile = async (tokenValue) => {
@@ -155,7 +155,8 @@ function AppShell() {
         throw new Error('No token in /login response');
       }
 
-      handleAuthSuccess(tokenValue, data.email ?? email, '');
+      // Check email_verified status from login response or fetch profile
+      handleAuthSuccess(tokenValue, data.email ?? email, '', data.email_verified || false);
       await refreshProfile(tokenValue);
     } catch (err) {
       console.error('Login error', err);
@@ -163,7 +164,7 @@ function AppShell() {
     }
   };
 
-  // SIGNUP
+  // SIGNUP - Updated to handle verification flow properly
   const handleSignup = async (_name, email, password) => {
     try {
       const res = await fetch(`${API_BASE}/signup`, {
@@ -179,8 +180,25 @@ function AppShell() {
         return;
       }
 
-      // auto-login after signup
-      await handleLogin(email, password);
+      const data = await res.json();
+      const tokenValue = data.access_token;
+
+      if (!tokenValue) {
+        console.error('No token in /signup response', data);
+        alert('Signup succeeded but server returned no token.');
+        return;
+      }
+
+      // Store verification code if in dev mode
+      if (data.verification_code) {
+        sessionStorage.setItem("dev_verification_code", data.verification_code);
+        sessionStorage.setItem("email_sent", "false");
+      } else {
+        sessionStorage.setItem("email_sent", "true");
+      }
+
+      // Set user with email_verified = false and navigate to /verify
+      handleAuthSuccess(tokenValue, email, _name, false);
     } catch (err) {
       console.error('Signup error', err);
       alert('Could not reach the server. Please try again.');
@@ -214,6 +232,8 @@ function AppShell() {
     localStorage.removeItem('hay_token');
     localStorage.removeItem('access_token');
     localStorage.removeItem('hay_user');
+    sessionStorage.removeItem('dev_verification_code');
+    sessionStorage.removeItem('email_sent');
     navigate('/', { replace: true });
   };
 
@@ -231,7 +251,11 @@ function AppShell() {
         path="/"
         element={
           user ? (
-            <Navigate to="/dashboard" replace />
+            user.email_verified === false ? (
+              <Navigate to="/verify" replace />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
           ) : (
             <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
           )
