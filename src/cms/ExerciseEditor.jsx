@@ -181,7 +181,10 @@ function OptionsEditor({ choices, setChoices, correctIndices, setCorrectIndices,
         {(choices || []).map((c, i) => {
           const checked = (correctIndices || []).includes(i);
           return (
-            <div key={`${c}-${i}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <div
+              key={`${c}-${i}`}
+              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
+            >
               <input
                 type={mode === "single" ? "radio" : "checkbox"}
                 checked={checked}
@@ -215,7 +218,7 @@ function defaultConfigForKind(kind) {
       return { hint: "Meaning / hint (optional)" };
 
     case "fill_blank":
-      return { before: "Ես", after: "եմ", placeholder: "…"};
+      return { before: "Ես", after: "եմ", placeholder: "…" };
     case "translate_mcq":
       return { sentence: "Hello", choices: ["Բարև", "Ցտեսություն"], answerIndex: 0 };
     case "true_false":
@@ -243,6 +246,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
   const [expectedAnswer, setExpectedAnswer] = useState(exercise?.expected_answer || "");
   const [order, setOrder] = useState(exercise?.order ?? 1);
   const [xp, setXp] = useState(exercise?.xp ?? 10);
+
   const initialCfgObj = useMemo(() => {
     const c = exercise?.config ?? {};
     return typeof c === "string" ? safeParseJson(c) || {} : c;
@@ -323,7 +327,6 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
     }
   }
 
-
   async function handleDelete() {
     if (!exercise?.id) return;
     if (!cmsApi) {
@@ -342,7 +345,6 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
       setSaving(false);
     }
   }
-
 
   // -------------------------
   // Teacher UI per kind
@@ -369,10 +371,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
             <Input value={cfg.lower ?? ""} onChange={(e) => patchConfig({ lower: e.target.value })} />
           </Field>
           <Field label="Transliteration" hint="Example: a, b, ch...">
-            <Input
-              value={cfg.transliteration ?? ""}
-              onChange={(e) => patchConfig({ transliteration: e.target.value })}
-            />
+            <Input value={cfg.transliteration ?? ""} onChange={(e) => patchConfig({ transliteration: e.target.value })} />
           </Field>
           <Field label="Hint" hint="Short teacher note for the student">
             <Input value={cfg.hint ?? ""} onChange={(e) => patchConfig({ hint: e.target.value })} />
@@ -417,10 +416,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
             </Field>
           </div>
           <Field label="Blank placeholder" hint="What student sees in the gap">
-            <Input
-              value={cfg.placeholder ?? "…"}
-              onChange={(e) => patchConfig({ placeholder: e.target.value })}
-            />
+            <Input value={cfg.placeholder ?? "…"} onChange={(e) => patchConfig({ placeholder: e.target.value })} />
           </Field>
           <Field label="Correct answer (missing word)">
             <Input value={expectedAnswer} onChange={(e) => setExpectedAnswer(e.target.value)} />
@@ -435,11 +431,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
       return (
         <div className="space-y-4">
           <Field label="Choices">
-            <ChipsEditor
-              items={choices}
-              onChange={(next) => patchConfig({ choices: next })}
-              placeholder="Add a letter..."
-            />
+            <ChipsEditor items={choices} onChange={(next) => patchConfig({ choices: next })} placeholder="Add a letter..." />
           </Field>
           <Field label="Correct answer (must match one of choices)">
             <Input
@@ -450,9 +442,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
               }}
             />
           </Field>
-          <div className="text-xs text-slate-500">
-            Tip: keep answer identical to a choice (same letter).
-          </div>
+          <div className="text-xs text-slate-500">Tip: keep answer identical to a choice (same letter).</div>
         </div>
       );
     }
@@ -516,19 +506,11 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           <Field label="Correct answer">
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  checked={cfg.correct === true}
-                  onChange={() => patchConfig({ correct: true })}
-                />
+                <input type="radio" checked={cfg.correct === true} onChange={() => patchConfig({ correct: true })} />
                 True
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  checked={cfg.correct === false}
-                  onChange={() => patchConfig({ correct: false })}
-                />
+                <input type="radio" checked={cfg.correct === false} onChange={() => patchConfig({ correct: false })} />
                 False
               </label>
             </div>
@@ -545,17 +527,10 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
       return (
         <div className="space-y-4">
           <Field label="Tokens (words student will arrange)">
-            <ChipsEditor
-              items={tokens}
-              onChange={(next) => patchConfig({ tokens: next })}
-              placeholder="Add token..."
-            />
+            <ChipsEditor items={tokens} onChange={(next) => patchConfig({ tokens: next })} placeholder="Add token..." />
           </Field>
 
-          <Field
-            label="Correct order (solution)"
-            hint="Add tokens in the correct sequence (must match tokens)"
-          >
+          <Field label="Correct order (solution)" hint="Add tokens in the correct sequence (must match tokens)">
             <ChipsEditor
               items={solution}
               onChange={(next) => patchConfig({ solution: next })}
@@ -593,12 +568,11 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           <Field label="Pairs" hint="Left = Armenian, Right = Translation (or vice versa)">
             <div className="space-y-2">
               {pairs.map((p, i) => (
-                <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-3">
-                  <Input
-                    value={p.left ?? ""}
-                    onChange={(e) => updatePair(i, { left: e.target.value })}
-                    placeholder="Left"
-                  />
+                <div
+                  key={i}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-3"
+                >
+                  <Input value={p.left ?? ""} onChange={(e) => updatePair(i, { left: e.target.value })} placeholder="Left" />
                   <div className="flex gap-2">
                     <Input
                       value={p.right ?? ""}
@@ -638,11 +612,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           </Field>
 
           <Field label="Text that will be spoken (TTS)">
-            <Input
-              value={cfg.ttsText ?? ""}
-              onChange={(e) => patchConfig({ ttsText: e.target.value })}
-              placeholder="Բարև"
-            />
+            <Input value={cfg.ttsText ?? ""} onChange={(e) => patchConfig({ ttsText: e.target.value })} placeholder="Բարև" />
           </Field>
 
           <Field label="Choices + correct answer">
@@ -665,25 +635,14 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
       return (
         <div className="space-y-4">
           <Field label="Tiles (letters student clicks)">
-            <ChipsEditor
-              items={tiles}
-              onChange={(next) => patchConfig({ tiles: next })}
-              placeholder="Add tile..."
-            />
+            <ChipsEditor items={tiles} onChange={(next) => patchConfig({ tiles: next })} placeholder="Add tile..." />
           </Field>
 
           <Field label="Target word (optional)">
-            <Input
-              value={cfg.targetWord ?? ""}
-              onChange={(e) => patchConfig({ targetWord: e.target.value })}
-              placeholder="ԱՐՄԵՆ"
-            />
+            <Input value={cfg.targetWord ?? ""} onChange={(e) => patchConfig({ targetWord: e.target.value })} placeholder="ԱՐՄԵՆ" />
           </Field>
 
-          <Field
-            label="Solution indices"
-            hint="Indices into tiles array (example: 0,1,2...). Use commas."
-          >
+          <Field label="Solution indices" hint="Indices into tiles array (example: 0,1,2...). Use commas.">
             <Input
               value={(solutionIndices || []).join(",")}
               onChange={(e) => {
@@ -783,20 +742,11 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
         </Field>
 
         <Field label="Order" hint="Position inside the lesson">
-          <Input
-            type="number"
-            value={order}
-            onChange={(e) => setOrder(e.target.value)}
-            min={1}
-          />
+          <Input type="number" value={order} onChange={(e) => setOrder(e.target.value)} min={1} />
         </Field>
+
         <Field label="XP" hint="XP granted for this exercise">
-          <Input
-            type="number"
-            value={xp}
-            onChange={(e) => setXp(e.target.value)}
-            min={0}
-          />
+          <Input type="number" value={xp} onChange={(e) => setXp(e.target.value)} min={0} />
         </Field>
 
         <Field label="Prompt" hint="Short instruction (optional, but recommended)">
@@ -808,6 +758,25 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
       <div className="space-y-3">
         <div className="text-sm font-extrabold text-slate-900">Exercise setup</div>
         {renderKindUI()}
+      </div>
+
+      {/* Pronunciation / Audio (NEW) */}
+      <div className="space-y-3">
+        <div className="text-sm font-extrabold text-slate-900">Pronunciation (Audio)</div>
+
+        {isNew ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            Save the exercise first, then you can add recordings (male/female) or generate AI audio.
+          </div>
+        ) : (
+          <AudioManager
+            exerciseId={exercise.id}
+            kind={kind}
+            prompt={prompt}
+            expectedAnswer={expectedAnswer}
+            configText={configText}
+          />
+        )}
       </div>
 
       {/* Advanced JSON */}
@@ -822,27 +791,15 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
         {showAdvanced ? (
           <div className="mt-3 space-y-2">
             {!cfgValid ? (
-              <div className="text-sm text-rose-700">
-                Invalid JSON. Fix it below or switch kind to reset template.
-              </div>
+              <div className="text-sm text-rose-700">Invalid JSON. Fix it below or switch kind to reset template.</div>
             ) : (
-              <div className="text-xs text-slate-500">
-                You usually don’t need this. It exists for edge-cases.
-              </div>
+              <div className="text-xs text-slate-500">You usually don’t need this. It exists for edge-cases.</div>
             )}
 
-            <Textarea
-              rows={12}
-              value={configText}
-              onChange={(e) => setConfigText(e.target.value)}
-            />
+            <Textarea rows={12} value={configText} onChange={(e) => setConfigText(e.target.value)} />
 
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setConfigText(jsonPretty(defaultConfigForKind(kind)))}
-              >
+              <Button type="button" variant="secondary" onClick={() => setConfigText(jsonPretty(defaultConfigForKind(kind)))}>
                 Reset template
               </Button>
               <Button
