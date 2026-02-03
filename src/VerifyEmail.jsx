@@ -1,6 +1,7 @@
 // src/VerifyEmail.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "./landing.css";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -26,9 +27,16 @@ export default function VerifyEmail({ onVerified }) {
   const userEmail = localStorage.getItem("user_email") || "your email";
 
   useEffect(() => {
+    console.log("VerifyEmail mounted");
+    console.log("Token:", token ? "present" : "missing");
+    console.log("Email:", userEmail);
+    
     // Check if we're in dev mode (email not actually sent)
     const emailSent = sessionStorage.getItem("email_sent");
     const storedDevCode = sessionStorage.getItem("dev_verification_code");
+    
+    console.log("Email sent:", emailSent);
+    console.log("Dev code:", storedDevCode);
     
     if (emailSent === "false" && storedDevCode) {
       setShowDevMode(true);
@@ -43,7 +51,7 @@ export default function VerifyEmail({ onVerified }) {
       const left = Math.max(0, Math.ceil((until - Date.now()) / 1000));
       setCooldown(left);
     }
-  }, []);
+  }, [token, userEmail]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -177,11 +185,28 @@ export default function VerifyEmail({ onVerified }) {
   }
 
   return (
-    <div className="landing" style={{ minHeight: "100vh", paddingTop: "4rem" }}>
-      <h1 style={{ textAlign: "center", marginBottom: "0.75rem" }}>
+    <div style={{ 
+      minHeight: "100vh", 
+      paddingTop: "4rem",
+      background: "linear-gradient(180deg, #fff7ec 0%, #ffffff 55%, #f9fafb 100%)",
+      fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    }}>
+      <h1 style={{ 
+        textAlign: "center", 
+        marginBottom: "0.75rem",
+        fontSize: "2rem",
+        fontWeight: "700",
+        color: "#111827"
+      }}>
         Verify your email
       </h1>
-      <p style={{ textAlign: "center", marginBottom: "2rem", opacity: 0.8 }}>
+      <p style={{ 
+        textAlign: "center", 
+        marginBottom: "2rem", 
+        opacity: 0.8,
+        color: "#4b5563",
+        fontSize: "0.95rem"
+      }}>
         We sent a 6-digit code to <strong>{userEmail}</strong>
       </p>
 
@@ -192,6 +217,7 @@ export default function VerifyEmail({ onVerified }) {
           display: "flex",
           flexDirection: "column",
           gap: "1rem",
+          padding: "0 1rem"
         }}
       >
         {/* Dev Mode Alert */}
@@ -200,29 +226,30 @@ export default function VerifyEmail({ onVerified }) {
             style={{
               background: "#fef3c7",
               color: "#92400e",
-              border: "1px solid #fde68a",
-              padding: "1rem",
-              borderRadius: 8,
+              border: "2px solid #fde68a",
+              padding: "1.5rem",
+              borderRadius: 12,
               fontSize: 14,
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+            <div style={{ fontWeight: 700, marginBottom: "0.75rem", fontSize: "16px" }}>
               🔧 Development Mode
             </div>
-            <div style={{ marginBottom: "0.5rem" }}>
-              Email sending is not configured on the server.
+            <div style={{ marginBottom: "1rem", lineHeight: "1.5" }}>
+              Email sending is not configured on the server. Use the code below to verify.
             </div>
             <div
               style={{
                 background: "#fff",
-                padding: "0.75rem",
-                borderRadius: 6,
+                padding: "1rem",
+                borderRadius: 8,
                 fontFamily: "monospace",
-                fontSize: 20,
+                fontSize: 28,
                 letterSpacing: "0.3em",
                 textAlign: "center",
-                fontWeight: 600,
-                marginBottom: "0.5rem",
+                fontWeight: 700,
+                marginBottom: "1rem",
+                border: "2px solid #fbbf24",
               }}
             >
               {devCode}
@@ -233,10 +260,11 @@ export default function VerifyEmail({ onVerified }) {
                 background: "#92400e",
                 color: "#fff",
                 border: "none",
-                padding: "0.5rem 1rem",
-                borderRadius: 6,
+                padding: "0.75rem 1.5rem",
+                borderRadius: 8,
                 cursor: "pointer",
-                fontSize: 13,
+                fontSize: 14,
+                fontWeight: 600,
                 width: "100%",
               }}
             >
@@ -256,15 +284,18 @@ export default function VerifyEmail({ onVerified }) {
           inputMode="numeric"
           maxLength={6}
           style={{
-            padding: "0.8rem 1rem",
-            borderRadius: 8,
+            padding: "1rem",
+            borderRadius: 12,
             border: error && !error.includes("Development") 
               ? "2px solid #ef4444" 
-              : "1px solid #ddd",
-            letterSpacing: "0.25em",
+              : "2px solid #e5e7eb",
+            letterSpacing: "0.3em",
             textAlign: "center",
-            fontSize: 18,
+            fontSize: 24,
             fontFamily: "monospace",
+            fontWeight: "600",
+            background: "#fff",
+            outline: "none",
           }}
         />
 
@@ -274,11 +305,12 @@ export default function VerifyEmail({ onVerified }) {
               background: error.includes("Development") ? "#fef3c7" : "#fee2e2",
               color: error.includes("Development") ? "#92400e" : "#991b1b",
               border: error.includes("Development") 
-                ? "1px solid #fde68a" 
-                : "1px solid #fecaca",
+                ? "2px solid #fde68a" 
+                : "2px solid #fecaca",
               padding: "0.75rem 1rem",
               borderRadius: 8,
               fontSize: 14,
+              lineHeight: "1.5"
             }}
           >
             {error}
@@ -287,31 +319,39 @@ export default function VerifyEmail({ onVerified }) {
 
         <button
           onClick={verify}
-          className="btn primary"
           disabled={loading || code.trim().length !== 6}
+          className="btn btn-primary"
           style={{
+            width: "100%",
+            padding: "0.75rem 1.5rem",
+            fontSize: "16px",
             opacity: loading || code.trim().length !== 6 ? 0.5 : 1,
+            cursor: loading || code.trim().length !== 6 ? "not-allowed" : "pointer",
           }}
         >
           {loading ? "Verifying..." : "Verify Email"}
         </button>
 
-        <div style={{ textAlign: "center", fontSize: "14px", color: "#666" }}>
+        <div style={{ textAlign: "center", fontSize: "14px", color: "#6b7280", margin: "0.5rem 0" }}>
           Didn't receive the code?
         </div>
 
         <button
           onClick={resend}
-          className="btn"
           disabled={loading || cooldown > 0}
+          className="btn btn-secondary"
           style={{
+            width: "100%",
+            padding: "0.75rem 1.5rem",
+            fontSize: "16px",
             opacity: loading || cooldown > 0 ? 0.5 : 1,
+            cursor: loading || cooldown > 0 ? "not-allowed" : "pointer",
           }}
         >
           {cooldown > 0 ? `Resend code (${cooldown}s)` : "Resend code"}
         </button>
 
-        <div style={{ textAlign: "center", fontSize: "13px", color: "#999", marginTop: "1rem" }}>
+        <div style={{ textAlign: "center", fontSize: "13px", color: "#9ca3af", marginTop: "1rem" }}>
           The code expires in 10 minutes
         </div>
       </div>
