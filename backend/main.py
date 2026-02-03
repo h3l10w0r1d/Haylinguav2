@@ -3,21 +3,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes import router as api_router
+from routes_audio import router as audio_router  # NEW: Audio management
 from db_utils import seed_alphabet_lessons
-# I need os for getting free from seeding and relying only on the DB!!
 import os
 
 from lesson_analytics import router as lesson_analytics_router
 
 
-
 app = FastAPI()
 
+# Register all routers
 app.include_router(lesson_analytics_router)
+app.include_router(api_router)
+app.include_router(audio_router)  # NEW: Audio routes
+
 # 🔧 CORS – include your real frontend URLs (Vercel)
 origins = [
     "https://haylinguav2.vercel.app",
-    "https://haylingua.am"
+    "https://haylingua.am",
+    "http://localhost:5173",  # Added for local development
+    "http://localhost:3000"    # Added for local development
 ]
 
 app.add_middleware(
@@ -30,16 +35,27 @@ app.add_middleware(
 )
 
 
-
 @app.on_event("startup")
 def on_startup():
     if os.getenv("SEED_ON_STARTUP", "false").lower() == "true":
         seed_alphabet_lessons()
 
 
-app.include_router(api_router)
-
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/")
+def root():
+    return {
+        "message": "Haylingua API",
+        "version": "2.0",
+        "features": [
+            "User authentication with email verification",
+            "Lesson management",
+            "Exercise audio with TTS caching",
+            "Progress tracking",
+            "Social features"
+        ]
+    }
