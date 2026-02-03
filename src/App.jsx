@@ -1,6 +1,4 @@
-// src/App.jsx - SECURE VERSION
-// This approach passes the dev code as React state, not sessionStorage
-
+// src/App.jsx - Simplified without separate /verify route
 import { useEffect, useState } from 'react';
 import {
   BrowserRouter,
@@ -18,7 +16,6 @@ import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
 import CmsShell from './cms/CmsShell';
-import VerifyEmail from './VerifyEmail';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -26,7 +23,6 @@ function AppShell() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [devVerificationCode, setDevVerificationCode] = useState(null); // NEW: Store in React state, not sessionStorage
 
   const navigate = useNavigate();
 
@@ -102,8 +98,6 @@ function AppShell() {
 
     if (emailVerified) {
       navigate('/dashboard', { replace: true });
-    } else {
-      navigate('/verify', { replace: true });
     }
   };
 
@@ -165,8 +159,10 @@ function AppShell() {
     }
   };
 
-  // SIGNUP - Store dev code in React state, not sessionStorage
+  // SIGNUP - handled by Signup component now
   const handleSignup = async (_name, email, password) => {
+    // This is just for LandingPage compatibility
+    // The standalone Signup component handles its own flow
     try {
       const res = await fetch(`${API_BASE}/signup`, {
         method: 'POST',
@@ -190,15 +186,6 @@ function AppShell() {
         return;
       }
 
-      // SECURE: Store dev code in React state, not sessionStorage
-      // It will be cleared when user closes tab or navigates away
-      if (data.verification_code) {
-        setDevVerificationCode(data.verification_code);
-        console.warn('🔧 DEV MODE: Verification code received:', data.verification_code);
-      } else {
-        setDevVerificationCode(null);
-      }
-
       handleAuthSuccess(tokenValue, email, _name, false);
     } catch (err) {
       console.error('Signup error', err);
@@ -215,7 +202,25 @@ function AppShell() {
 
   const RequireVerified = ({ children }) => {
     if (!user) return <Navigate to="/" replace />;
-    if (user.email_verified === false) return <Navigate to="/verify" replace />;
+    if (user.email_verified === false) {
+      // If user is not verified, show them an alert and keep them on current page
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-orange-50">
+          <div className="max-w-md mx-auto p-8 bg-white rounded-lg shadow-lg text-center">
+            <h2 className="text-2xl font-bold mb-4">Email Verification Required</h2>
+            <p className="text-gray-600 mb-6">
+              Please verify your email address to continue. Check your inbox for the verification code.
+            </p>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="bg-orange-600 text-white px-6 py-2 rounded-lg"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      );
+    }
     return children;
   };
 
@@ -229,7 +234,6 @@ function AppShell() {
   const handleLogout = () => {
     setUser(null);
     setToken(null);
-    setDevVerificationCode(null); // Clear dev code
     localStorage.removeItem('hay_token');
     localStorage.removeItem('access_token');
     localStorage.removeItem('hay_user');
@@ -249,12 +253,8 @@ function AppShell() {
       <Route
         path="/"
         element={
-          user ? (
-            user.email_verified === false ? (
-              <Navigate to="/verify" replace />
-            ) : (
-              <Navigate to="/dashboard" replace />
-            )
+          user?.email_verified === true ? (
+            <Navigate to="/dashboard" replace />
           ) : (
             <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
           )
@@ -313,25 +313,8 @@ function AppShell() {
           )
         }
       />
-
-      <Route
-        path="/verify"
-        element={
-          user ? (
-            // Pass dev code as prop, it's only in memory
-            <VerifyEmail 
-              onVerified={() => {
-                setDevVerificationCode(null); // Clear after verification
-                refreshProfile(token);
-              }}
-              devCode={devVerificationCode} // Pass as prop, not from storage
-            />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
       
+      {/* CMS (no user auth required; gated by cmsKey) */}
       <Route path="/:cmsKey/cms" element={<CmsGate />} />
       <Route path="/cms/:cmsKey" element={<CmsRedirect />} />
       <Route path="/cms/:cmsKey/*" element={<CmsRedirect />} />
