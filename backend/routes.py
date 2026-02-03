@@ -35,6 +35,61 @@ import json
 
 router = APIRouter()
 
+# ---------------- Email verification (6-digit code) ----------------
+# Important: this project uses INTEGER user ids (users.id).
+
+import hashlib
+import random
+import smtplib
+from email.message import EmailMessage
+
+EMAIL_CODE_PEPPER = os.getenv("EMAIL_CODE_PEPPER", "change_me")
+
+def _gen_6digit_code() -> str:
+    return f"{random.randint(0, 999999):06d}"
+
+def _hash_code(code: str) -> str:
+    # 6-digit codes are low entropy; pepper prevents offline brute-force if DB leaks.
+    return hashlib.sha256(f"{code}{EMAIL_CODE_PEPPER}".encode("utf-8")).hexdigest()
+
+def _send_email(to_email: str, subject: str, body: str):
+    """Send email via SMTP if configured; otherwise log to server console."""
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+    email_from = os.getenv("EMAIL_FROM", smtp_user or "no-reply@haylingua.local")
+
+    if not (smtp_host and smtp_user and smtp_pass):
+        # Dev-safe fallback
+        print("\n--- EMAIL (dev mode) ---")
+        print("To:", to_email)
+        print("Subject:", subject)
+        print(body)
+        print("--- END EMAIL ---\n")
+        return
+
+    msg = EmailMessage()
+    msg["From"] = email_from
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.set_content(body)
+
+    with smtplib.SMTP(smtp_host, smtp_port) as s:
+        s.starttls()
+        s.login(smtp_user, smtp_pass)
+        s.send_message(msg)
+
+def _require_verified(db: Connection, user_id: int):
+    row = db.execute(
+        text("SELECT email_verified FROM users WHERE id = :id"),
+        {"id": user_id},
+    ).mappings().first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not bool(row.get("email_verified")):
+        raise HTTPException(status_code=403, detail="EMAIL_NOT_VERIFIED")
+
 KIND_MAP = {
     "fill-blank": "fill_blank",
     "multiple_choice": "translate_mcq",  # change if you want a different mapping
@@ -229,6 +284,15 @@ class AuthResponse(BaseModel):
     email: str
 
 
+class VerifyEmailIn(BaseModel):
+    code: str
+
+
+class ResendOut(BaseModel):
+    ok: bool
+    retry_after_s: int
+
+
 # ---------- Lesson schemas ----------
 
 class ExerciseOptionOut(BaseModel):
@@ -304,6 +368,9 @@ def friends_list(
     user_id = _get_user_id_from_bearer(authorization)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    # Gate exercise attempts for unverified accounts
+    _require_verified(db, int(user_id))
 
     rows = db.execute(
         text("""
@@ -808,6 +875,35 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
 
     user_id = row["id"]
 
+    # 6.5) Generate email verification code (6 digits) and store it.
+    # NOTE: users.id is INTEGER in this project, so email_verification_codes.user_id is INTEGER.
+    code = _gen_6digit_code()
+    code_hash = _hash_code(code)
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    db.execute(
+        text(
+            """
+            INSERT INTO email_verification_codes (user_id, code_hash, expires_at, last_sent_at)
+            VALUES (:uid, :code_hash, :expires_at, NOW())
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                code_hash = EXCLUDED.code_hash,
+                expires_at = EXCLUDED.expires_at,
+                last_sent_at = NOW(),
+                attempts = 0
+            """
+        ),
+        {"uid": int(user_id), "code_hash": code_hash, "expires_at": expires_at},
+    )
+
+    # Send the code via email (SMTP if configured; otherwise log to console).
+    _send_email(
+        to_email=email,
+        subject="Your Haylingua verification code",
+        body=f"Your verification code is: {code}\n\nIt expires in 10 minutes.",
+    )
+
     # 6) create token
     token = create_token(user_id)
 
@@ -815,6 +911,7 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
         "message": "User created",
         "access_token": token,
         "email": email,
+        "email_verified": False,
     }
 
 
@@ -862,6 +959,124 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
     # 6) token
     token = create_token(row["id"])
     return AuthResponse(access_token=token, email=row["email"])
+
+
+@router.post("/auth/verify-email")
+def verify_email(
+    payload: VerifyEmailIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    code = (payload.code or "").strip()
+    if len(code) != 6 or not code.isdigit():
+        raise HTTPException(status_code=400, detail="INVALID_CODE")
+
+    row = db.execute(
+        text(
+            """
+            SELECT code_hash, expires_at, attempts
+            FROM email_verification_codes
+            WHERE user_id = :uid
+            """
+        ),
+        {"uid": int(user_id)},
+    ).mappings().first()
+
+    if row is None:
+        raise HTTPException(status_code=400, detail="NO_CODE")
+
+    if row["expires_at"] < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="CODE_EXPIRED")
+
+    # Optional brute-force protection
+    if int(row.get("attempts") or 0) >= 10:
+        raise HTTPException(status_code=429, detail="TOO_MANY_ATTEMPTS")
+
+    if _hash_code(code) != row["code_hash"]:
+        db.execute(
+            text("UPDATE email_verification_codes SET attempts = attempts + 1 WHERE user_id = :uid"),
+            {"uid": int(user_id)},
+        )
+        raise HTTPException(status_code=400, detail="INVALID_CODE")
+
+    db.execute(
+        text("UPDATE users SET email_verified = TRUE, email_verified_at = NOW() WHERE id = :uid"),
+        {"uid": int(user_id)},
+    )
+    db.execute(
+        text("DELETE FROM email_verification_codes WHERE user_id = :uid"),
+        {"uid": int(user_id)},
+    )
+
+    return {"ok": True}
+
+
+@router.post("/auth/resend-verification", response_model=ResendOut)
+def resend_verification(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    user_row = db.execute(
+        text("SELECT email, email_verified FROM users WHERE id = :uid"),
+        {"uid": int(user_id)},
+    ).mappings().first()
+    if user_row is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if bool(user_row.get("email_verified")):
+        raise HTTPException(status_code=400, detail="ALREADY_VERIFIED")
+
+    code_row = db.execute(
+        text("SELECT last_sent_at FROM email_verification_codes WHERE user_id = :uid"),
+        {"uid": int(user_id)},
+    ).mappings().first()
+
+    if code_row is None:
+        # If the user somehow has no code row, create one.
+        last_sent_at = None
+    else:
+        last_sent_at = code_row["last_sent_at"]
+
+    if last_sent_at is not None:
+        delta_s = (datetime.utcnow() - last_sent_at).total_seconds()
+        if delta_s < 60:
+            retry_after = int(60 - delta_s)
+            raise HTTPException(status_code=429, detail={"code": "RESEND_COOLDOWN", "retry_after_s": retry_after})
+
+    code = _gen_6digit_code()
+    code_hash = _hash_code(code)
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    db.execute(
+        text(
+            """
+            INSERT INTO email_verification_codes (user_id, code_hash, expires_at, last_sent_at)
+            VALUES (:uid, :code_hash, :expires_at, NOW())
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                code_hash = EXCLUDED.code_hash,
+                expires_at = EXCLUDED.expires_at,
+                last_sent_at = NOW(),
+                attempts = 0
+            """
+        ),
+        {"uid": int(user_id), "code_hash": code_hash, "expires_at": expires_at},
+    )
+
+    _send_email(
+        to_email=user_row["email"],
+        subject="Your Haylingua verification code",
+        body=f"Your verification code is: {code}\n\nIt expires in 10 minutes.",
+    )
+
+    return ResendOut(ok=True, retry_after_s=60)
 @router.get("/lessons", response_model=List[LessonOut])
 def list_lessons(db: Connection = Depends(get_db)):
     rows = db.execute(
@@ -963,8 +1178,6 @@ def complete_lesson(
     # 1) Determine user_id (prefer JWT if present)
     user_id = _get_user_id_from_bearer(authorization)
 
-    xp_value = int(lesson_row["xp"] or 0)
-    
     if user_id is None:
         # fallback to email payload
         if payload is None or not payload.email:
@@ -979,6 +1192,12 @@ def complete_lesson(
             raise HTTPException(status_code=400, detail="User not found")
 
         user_id = user_row["id"]
+
+    # Gate lesson completion for unverified accounts
+    _require_verified(db, int(user_id))
+
+    # Require email verification for awarding XP / completing lessons
+    _require_verified(db, int(user_id))
         
     # 2) Find lesson
     lesson_row = db.execute(
@@ -1233,6 +1452,7 @@ class MeOut(BaseModel):
     email: str
     name: str | None = None
     avatar_url: str | None = None
+    email_verified: bool = False
 
 class MeUpdateIn(BaseModel):
     name: str | None = None
@@ -1392,7 +1612,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, name, avatar_url FROM users WHERE id = :id"),
+        text("SELECT id, email, name, avatar_url, email_verified FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -1439,7 +1659,7 @@ def me_profile_put(
         db.execute(text(f"UPDATE users SET {', '.join(set_parts)} WHERE id = :id"), params)
 
     row = db.execute(
-        text("SELECT id, email, name, avatar_url FROM users WHERE id = :id"),
+        text("SELECT id, email, name, avatar_url, email_verified FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -1462,6 +1682,8 @@ def me_next_exercise(
     user_id = _get_user_id_from_bearer(authorization)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
 
     # Ensure progress row
     _ensure_user_lesson_progress(db, user_id, lesson_id)
