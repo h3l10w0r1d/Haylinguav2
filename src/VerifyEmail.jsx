@@ -1,5 +1,7 @@
-// src/VerifyEmail.jsx
-import { useEffect, useMemo, useState } from "react";
+// src/VerifyEmail.jsx - SECURE VERSION
+// Receives devCode as prop instead of reading from sessionStorage
+
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./landing.css";
 
@@ -14,33 +16,20 @@ function getToken() {
   );
 }
 
-export default function VerifyEmail({ onVerified }) {
+export default function VerifyEmail({ onVerified, devCode = null }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [devCode, setDevCode] = useState("");
-  const [showDevMode, setShowDevMode] = useState(false);
   const navigate = useNavigate();
 
-  const token = useMemo(() => getToken(), []);
+  const token = getToken();
   const userEmail = localStorage.getItem("user_email") || "your email";
+  const showDevMode = !!devCode; // Dev mode if code is passed as prop
 
   useEffect(() => {
-    console.log("VerifyEmail mounted");
-    console.log("Token:", token ? "present" : "missing");
-    console.log("Email:", userEmail);
-    
-    // Check if we're in dev mode (email not actually sent)
-    const emailSent = sessionStorage.getItem("email_sent");
-    const storedDevCode = sessionStorage.getItem("dev_verification_code");
-    
-    console.log("Email sent:", emailSent);
-    console.log("Dev code:", storedDevCode);
-    
-    if (emailSent === "false" && storedDevCode) {
-      setShowDevMode(true);
-      setDevCode(storedDevCode);
+    if (showDevMode) {
+      console.warn('🔧 DEV MODE: Email sending not configured');
       setError("⚠️ Development Mode: Email sending not configured. Use the code below.");
     }
 
@@ -51,7 +40,7 @@ export default function VerifyEmail({ onVerified }) {
       const left = Math.max(0, Math.ceil((until - Date.now()) / 1000));
       setCooldown(left);
     }
-  }, [token, userEmail]);
+  }, [showDevMode]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -63,7 +52,6 @@ export default function VerifyEmail({ onVerified }) {
     setLoading(true);
     setError("");
     
-    // Validate code format before sending
     const trimmedCode = code.trim();
     if (trimmedCode.length !== 6) {
       setError("Please enter a 6-digit code");
@@ -91,7 +79,6 @@ export default function VerifyEmail({ onVerified }) {
       if (!res.ok) {
         const detail = data?.detail || "Verification failed";
         
-        // Handle specific error codes
         if (detail === "INVALID_CODE") {
           setError("Invalid code. Please check and try again.");
         } else if (detail === "CODE_EXPIRED") {
@@ -106,11 +93,6 @@ export default function VerifyEmail({ onVerified }) {
         return;
       }
 
-      // Clear dev mode data
-      sessionStorage.removeItem("dev_verification_code");
-      sessionStorage.removeItem("email_sent");
-
-      // Re-fetch profile so the app unlocks
       if (onVerified) await onVerified();
       navigate("/dashboard", { replace: true });
     } catch (e) {
@@ -134,7 +116,6 @@ export default function VerifyEmail({ onVerified }) {
       if (!res.ok) {
         const detail = data?.detail;
         
-        // Backend uses 429 + { code, retry_after_s }
         if (res.status === 429 && detail?.retry_after_s) {
           const seconds = Number(detail.retry_after_s) || 60;
           const until = Date.now() + seconds * 1000;
@@ -155,14 +136,10 @@ export default function VerifyEmail({ onVerified }) {
         return;
       }
 
-      // Check if we got a dev code back
+      // In dev mode, new code will be in console logs only
       if (data.verification_code) {
-        setDevCode(data.verification_code);
-        setShowDevMode(true);
-        setError("⚠️ Development Mode: Check the code below.");
-        sessionStorage.setItem("dev_verification_code", data.verification_code);
-      } else {
-        setError("");
+        console.warn('🔧 DEV MODE: New verification code:', data.verification_code);
+        alert(`DEV MODE: Check console for new code: ${data.verification_code}`);
       }
 
       const seconds = Number(data?.retry_after_s) || 60;
@@ -220,7 +197,7 @@ export default function VerifyEmail({ onVerified }) {
           padding: "0 1rem"
         }}
       >
-        {/* Dev Mode Alert */}
+        {/* Dev Mode Alert - Only shown if devCode prop is provided */}
         {showDevMode && devCode && (
           <div
             style={{
@@ -236,7 +213,7 @@ export default function VerifyEmail({ onVerified }) {
               🔧 Development Mode
             </div>
             <div style={{ marginBottom: "1rem", lineHeight: "1.5" }}>
-              Email sending is not configured on the server. Use the code below to verify.
+              Email sending is not configured on the server. This code is only shown in development.
             </div>
             <div
               style={{
@@ -270,13 +247,16 @@ export default function VerifyEmail({ onVerified }) {
             >
               Use this code
             </button>
+            <div style={{ marginTop: "1rem", fontSize: "12px", opacity: 0.8 }}>
+              ⚠️ In production, users will receive this code via email
+            </div>
           </div>
         )}
 
         <input
           value={code}
           onChange={(e) => {
-            const val = e.target.value.replace(/\D/g, ""); // Only digits
+            const val = e.target.value.replace(/\D/g, "");
             setCode(val);
             if (error && val.length === 6) setError("");
           }}
