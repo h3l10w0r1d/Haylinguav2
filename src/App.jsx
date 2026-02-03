@@ -76,13 +76,13 @@ function AppShell() {
     }
   }, []);
 
-  const handleAuthSuccess = (tokenValue, email) => {
+  const handleAuthSuccess = (tokenValue, email, nameOverride) => {
     const baseName = email.split('@')[0];
 
     const newUser = {
       id: 1, // placeholder until backend profile endpoint exists
       email,
-      name: baseName,
+      name: (nameOverride || '').trim() || baseName,
       firstName: '',
       lastName: '',
       avatarUrl: '',
@@ -126,7 +126,22 @@ function AppShell() {
         throw new Error('No token in /login response');
       }
 
-      handleAuthSuccess(tokenValue, data.email ?? email);
+      // Prefer backend profile name if available
+      let nameOverride = '';
+      try {
+        const meRes = await fetch(`${API_BASE}/me/profile`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${tokenValue}` },
+        });
+        if (meRes.ok) {
+          const me = await meRes.json().catch(() => null);
+          if (me?.name) nameOverride = String(me.name);
+        }
+      } catch (e) {
+        // ignore profile fetch errors; fallback to email prefix
+      }
+
+      handleAuthSuccess(tokenValue, data.email ?? email, nameOverride);
     } catch (err) {
       console.error('Login error', err);
       alert(err.message || 'Login failed. Please try again.');
@@ -139,7 +154,7 @@ function AppShell() {
       const res = await fetch(`${API_BASE}/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name: (_name || '').trim() || null, email, password }),
       });
 
       if (!res.ok) {
