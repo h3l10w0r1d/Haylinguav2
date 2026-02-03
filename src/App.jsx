@@ -1,4 +1,6 @@
-// src/App.jsx
+// src/App.jsx - SECURE VERSION
+// This approach passes the dev code as React state, not sessionStorage
+
 import { useEffect, useState } from 'react';
 import {
   BrowserRouter,
@@ -24,6 +26,7 @@ function AppShell() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [devVerificationCode, setDevVerificationCode] = useState(null); // NEW: Store in React state, not sessionStorage
 
   const navigate = useNavigate();
 
@@ -77,7 +80,7 @@ function AppShell() {
     const baseName = email.split('@')[0];
 
     const newUser = {
-      id: 1, // placeholder; replaced by /me/profile if available
+      id: 1,
       email,
       name: (nameOverride || '').trim() || baseName,
       firstName: '',
@@ -97,7 +100,6 @@ function AppShell() {
     localStorage.setItem('access_token', tokenValue);
     localStorage.setItem('hay_user', JSON.stringify(newUser));
 
-    // Navigate based on email verification status
     if (emailVerified) {
       navigate('/dashboard', { replace: true });
     } else {
@@ -155,7 +157,6 @@ function AppShell() {
         throw new Error('No token in /login response');
       }
 
-      // Check email_verified status from login response or fetch profile
       handleAuthSuccess(tokenValue, data.email ?? email, '', data.email_verified || false);
       await refreshProfile(tokenValue);
     } catch (err) {
@@ -164,7 +165,7 @@ function AppShell() {
     }
   };
 
-  // SIGNUP - Updated to handle verification flow properly
+  // SIGNUP - Store dev code in React state, not sessionStorage
   const handleSignup = async (_name, email, password) => {
     try {
       const res = await fetch(`${API_BASE}/signup`, {
@@ -189,15 +190,15 @@ function AppShell() {
         return;
       }
 
-      // Store verification code if in dev mode
+      // SECURE: Store dev code in React state, not sessionStorage
+      // It will be cleared when user closes tab or navigates away
       if (data.verification_code) {
-        sessionStorage.setItem("dev_verification_code", data.verification_code);
-        sessionStorage.setItem("email_sent", "false");
+        setDevVerificationCode(data.verification_code);
+        console.warn('🔧 DEV MODE: Verification code received:', data.verification_code);
       } else {
-        sessionStorage.setItem("email_sent", "true");
+        setDevVerificationCode(null);
       }
 
-      // Set user with email_verified = false and navigate to /verify
       handleAuthSuccess(tokenValue, email, _name, false);
     } catch (err) {
       console.error('Signup error', err);
@@ -205,7 +206,6 @@ function AppShell() {
     }
   };
 
-  // On first load (or token restore), refresh profile so email_verified and name are correct
   useEffect(() => {
     if (!loadingUser && token) {
       refreshProfile(token);
@@ -229,11 +229,10 @@ function AppShell() {
   const handleLogout = () => {
     setUser(null);
     setToken(null);
+    setDevVerificationCode(null); // Clear dev code
     localStorage.removeItem('hay_token');
     localStorage.removeItem('access_token');
     localStorage.removeItem('hay_user');
-    sessionStorage.removeItem('dev_verification_code');
-    sessionStorage.removeItem('email_sent');
     navigate('/', { replace: true });
   };
 
@@ -319,14 +318,20 @@ function AppShell() {
         path="/verify"
         element={
           user ? (
-            <VerifyEmail onVerified={() => refreshProfile(token)} />
+            // Pass dev code as prop, it's only in memory
+            <VerifyEmail 
+              onVerified={() => {
+                setDevVerificationCode(null); // Clear after verification
+                refreshProfile(token);
+              }}
+              devCode={devVerificationCode} // Pass as prop, not from storage
+            />
           ) : (
             <Navigate to="/" replace />
           )
         }
       />
       
-      {/* CMS (no user auth required; gated by cmsKey) */}
       <Route path="/:cmsKey/cms" element={<CmsGate />} />
       <Route path="/cms/:cmsKey" element={<CmsRedirect />} />
       <Route path="/cms/:cmsKey/*" element={<CmsRedirect />} />
