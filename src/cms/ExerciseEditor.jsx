@@ -234,7 +234,7 @@ function defaultConfigForKind(kind) {
   }
 }
 
-export default function ExerciseEditor({ lessonId, exercise, onSaved, onCancel }) {
+export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted, onCancel }) {
   const isNew = !exercise?.id;
 
   const [kind, setKind] = useState(exercise?.kind || "char_intro");
@@ -321,6 +321,27 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onCancel }
       setSaving(false);
     }
   }
+
+
+  async function handleDelete() {
+    if (!exercise?.id) return;
+    if (!cmsApi) {
+      alert("CMS API is not initialized. Open the CMS through the token route so X-CMS-Token is attached.");
+      return;
+    }
+    if (!confirm("Delete this exercise? This cannot be undone.")) return;
+
+    setSaving(true);
+    try {
+      await cmsApi.deleteExercise(exercise.id);
+      onDeleted?.("Exercise deleted");
+    } catch (e) {
+      alert(e?.message || "Delete failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
 
   // -------------------------
   // Teacher UI per kind
@@ -729,9 +750,16 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onCancel }
         </div>
 
         <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
+          {!isNew ? (
+            <Button type="button" variant="danger" onClick={handleDelete} disabled={saving}>
+              Delete
+            </Button>
+          ) : null}
+          {onCancel ? (
+            <Button type="button" variant="secondary" onClick={() => onCancel?.()} disabled={saving}>
+              Cancel
+            </Button>
+          ) : null}
           <Button type="button" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save"}
           </Button>
