@@ -52,8 +52,12 @@ def _hash_code(code: str) -> str:
     # 6-digit codes are low entropy; pepper prevents offline brute-force if DB leaks.
     return hashlib.sha256(f"{code}{EMAIL_CODE_PEPPER}".encode("utf-8")).hexdigest()
 
-def _send_email(to_email: str, subject: str, body: str):
-    """Send email via SMTP if configured; otherwise log to server console."""
+def _send_email(to_email: str, subject: str, body: str) -> bool:
+    """Send email via SMTP if configured; otherwise log to server console.
+    
+    Returns:
+        bool: True if email was sent via SMTP, False if only logged to console
+    """
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
     smtp_user = os.getenv("SMTP_USER")
@@ -67,18 +71,31 @@ def _send_email(to_email: str, subject: str, body: str):
         print("Subject:", subject)
         print(body)
         print("--- END EMAIL ---\n")
-        return
+        return False  # Email not sent, only logged
 
-    msg = EmailMessage()
-    msg["From"] = email_from
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.set_content(body)
+    try:
+        msg = EmailMessage()
+        msg["From"] = email_from
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.set_content(body)
 
-    with smtplib.SMTP(smtp_host, smtp_port) as s:
-        s.starttls()
-        s.login(smtp_user, smtp_pass)
-        s.send_message(msg)
+        with smtplib.SMTP(smtp_host, smtp_port) as s:
+            s.starttls()
+            s.login(smtp_user, smtp_pass)
+            s.send_message(msg)
+        
+        print(f"✅ Email sent successfully to {to_email}")
+        return True  # Email sent successfully
+    except Exception as e:
+        print(f"❌ Email sending failed: {e}")
+        # Still log to console in case of failure
+        print("\n--- EMAIL (fallback after error) ---")
+        print("To:", to_email)
+        print("Subject:", subject)
+        print(body)
+        print("--- END EMAIL ---\n")
+        return False
 
 def _require_verified(db: Connection, user_id: int):
     row = db.execute(
@@ -291,6 +308,7 @@ class VerifyEmailIn(BaseModel):
 class ResendOut(BaseModel):
     ok: bool
     retry_after_s: int
+    verification_code: Optional[str] = None  # Added for dev mode
 
 
 # ---------- Lesson schemas ----------
@@ -897,8 +915,8 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
         {"uid": int(user_id), "code_hash": code_hash, "expires_at": expires_at},
     )
 
-    # Send the code via email (SMTP if configured; otherwise log to console).
-    _send_email(
+    # Send the code via email and track if it was actually sent
+    email_sent = _send_email(
         to_email=email,
         subject="Your Haylingua verification code",
         body=f"Your verification code is: {code}\n\nIt expires in 10 minutes.",
@@ -907,12 +925,21 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
     # 6) create token
     token = create_token(user_id)
 
-    return {
+    # 7) Build response
+    response_data = {
         "message": "User created",
         "access_token": token,
         "email": email,
         "email_verified": False,
     }
+    
+    # In dev mode (when email wasn't actually sent), include the code in response
+    # This allows the frontend to display it to the user
+    if not email_sent:
+        response_data["verification_code"] = code
+        print(f"⚠️  DEV MODE: Including verification code in response: {code}")
+
+    return response_data
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -1070,13 +1097,23 @@ def resend_verification(
         {"uid": int(user_id), "code_hash": code_hash, "expires_at": expires_at},
     )
 
-    _send_email(
+    email_sent = _send_email(
         to_email=user_row["email"],
         subject="Your Haylingua verification code",
         body=f"Your verification code is: {code}\n\nIt expires in 10 minutes.",
     )
 
-    return ResendOut(ok=True, retry_after_s=60)
+    response_data = ResendOut(ok=True, retry_after_s=60)
+    
+    # In dev mode, add the code to the response
+    if not email_sent:
+        # Need to return dict instead of model to include verification_code
+        response_data_dict = response_data.dict()
+        response_data_dict["verification_code"] = code
+        print(f"⚠️  DEV MODE: Including verification code in resend response: {code}")
+        return response_data_dict
+
+    return response_data
 @router.get("/lessons", response_model=List[LessonOut])
 def list_lessons(db: Connection = Depends(get_db)):
     rows = db.execute(
