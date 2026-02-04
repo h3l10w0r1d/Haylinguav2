@@ -1,5 +1,5 @@
 // src/ProfilePage.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Trophy, Flame, Star } from "lucide-react";
 
 const API_BASE =
@@ -16,10 +16,8 @@ function getToken() {
 }
 
 /**
- * ✅ FIX: Avoid sending "Content-Type: application/json" on GET/HEAD.
- * That header triggers CORS preflight (OPTIONS) on cross-origin requests,
- * doubling traffic and causing overload.
- *
+ * ✅ FIX #1: Avoid sending "Content-Type: application/json" on GET/HEAD.
+ * That header triggers CORS preflight on cross-origin requests and doubles traffic.
  * We only set Content-Type when sending a JSON body (POST/PUT/PATCH).
  */
 async function apiFetch(path, { token, ...opts } = {}) {
@@ -32,9 +30,7 @@ async function apiFetch(path, { token, ...opts } = {}) {
 
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  // Only set JSON content-type when we actually send JSON
   if (hasBody && method !== "GET" && method !== "HEAD") {
-    // Don't overwrite if caller explicitly set something else
     if (!headers["Content-Type"] && !headers["content-type"]) {
       headers["Content-Type"] = "application/json";
     }
@@ -73,6 +69,15 @@ export default function ProfilePage({ user, onUpdateUser }) {
     { day: "S", value: 0 },
   ]);
 
+  /**
+   * ✅ FIX #2: Prevent endless re-fetch loops.
+   * This happens when onUpdateUser triggers parent state updates that cause remount/re-render cascades.
+   * Guards ensure each fetch group runs once per mount.
+   */
+  const didLoadProfileRef = useRef(false);
+  const didLoadStatsRef = useRef(false);
+  const didLoadActivityRef = useRef(false);
+
   // Initialize from current user (local)
   useEffect(() => {
     if (!user) return;
@@ -87,13 +92,15 @@ export default function ProfilePage({ user, onUpdateUser }) {
   useEffect(() => {
     const token = getToken();
     if (!token) return;
+    if (didLoadProfileRef.current) return;
+    didLoadProfileRef.current = true;
 
     (async () => {
       try {
         // 1) Try /me/profile
         let res = await apiFetch("/me/profile", { token, method: "GET" });
 
-        // 2) Fallback to /me (because your backend already has it)
+        // 2) Fallback to /me
         if (!res.ok) {
           res = await apiFetch("/me", { token, method: "GET" });
         }
@@ -130,21 +137,31 @@ export default function ProfilePage({ user, onUpdateUser }) {
           data.name ||
           user?.name;
 
-        onUpdateUser?.({
+        const next = {
           name: mergedName,
           email: em || user?.email,
           avatarUrl: av || undefined,
-        });
+        };
+
+        // ✅ Only update parent if something actually changed
+        const same =
+          String(next.name || "") === String(user?.name || "") &&
+          String(next.email || "") === String(user?.email || "") &&
+          String(next.avatarUrl || "") === String(user?.avatarUrl || "");
+
+        if (!same) onUpdateUser?.(next);
       } catch (e) {
         console.error("[Profile] load profile failed:", e);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.email]);
+  }, []);
 
   // Load stats from backend (/me/stats?email=...)
   useEffect(() => {
     if (!user?.email) return;
+    if (didLoadStatsRef.current) return;
+    didLoadStatsRef.current = true;
 
     (async () => {
       try {
@@ -166,37 +183,47 @@ export default function ProfilePage({ user, onUpdateUser }) {
         const totalXp = Number(data.total_xp);
         const lessonsDone = Number(data.lessons_completed);
 
-        setStats({
+        const nextStats = {
           total_xp: Number.isFinite(totalXp) ? totalXp : 0,
           lessons_completed: Number.isFinite(lessonsDone) ? lessonsDone : 0,
-        });
+        };
 
-        onUpdateUser?.({
-          xp: Number.isFinite(totalXp) ? totalXp : 0,
-          completedLessonsCount: Number.isFinite(lessonsDone) ? lessonsDone : 0,
-        });
+        setStats(nextStats);
+
+        // ✅ Only update parent if it actually changes
+        const nextPatch = {
+          xp: nextStats.total_xp,
+          completedLessonsCount: nextStats.lessons_completed,
+        };
+
+        const same =
+          Number(user?.xp ?? 0) === Number(nextPatch.xp ?? 0) &&
+          Number(user?.completedLessonsCount ?? 0) ===
+            Number(nextPatch.completedLessonsCount ?? 0);
+
+        if (!same) onUpdateUser?.(nextPatch);
       } catch (e) {
         console.error("[Profile] load /me/stats failed:", e);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.email]);
+  }, []);
 
   // Load real last-7-days activity
   useEffect(() => {
     const token = getToken();
     if (!token) return;
+    if (didLoadActivityRef.current) return;
+    didLoadActivityRef.current = true;
 
     (async () => {
       try {
-        // Your FE calls /me/activity/last7days — keep that.
         const res = await apiFetch("/me/activity/last7days", {
           token,
           method: "GET",
         });
 
         if (!res.ok) {
-          // If you only have /me/activity (days=7) on backend, fallback:
           const res2 = await apiFetch("/me/activity?days=7", {
             token,
             method: "GET",
@@ -210,7 +237,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
 
         const data = await safeJsonParse(res);
 
-        // ✅ FIX: backend returns an ARRAY directly (not {days: [...]})
+        // backend may return ARRAY directly
         if (Array.isArray(data)) {
           setWeeklyProgress(
             data.map((x) => ({
@@ -221,7 +248,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
           return;
         }
 
-        // If backend ever returns {days:[...]} support it too
+        // or { days: [...] }
         if (Array.isArray(data?.days)) {
           setWeeklyProgress(
             data.days.map((x) => ({
@@ -230,16 +257,18 @@ export default function ProfilePage({ user, onUpdateUser }) {
             }))
           );
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     })();
-  }, [user?.email]);
+  }, []);
 
   if (!user) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-gray-600">You need to be logged in to view your profile.</p>
+        <p className="text-gray-600">
+          You need to be logged in to view your profile.
+        </p>
       </div>
     );
   }
@@ -265,10 +294,10 @@ export default function ProfilePage({ user, onUpdateUser }) {
     user.completedLessonsCount ??
     (Array.isArray(user.completedLessons) ? user.completedLessons.length : 0);
 
-  // derive level from XP (same logic as backend leaderboard)
+  // derive level from XP
   const level = Math.max(1, Math.floor((Number(xp) || 0) / 500) + 1);
 
-  // ✅ Fix: streak should never show 0
+  // streak should never show 0
   const streak = Math.max(1, Number(user?.streak ?? 1) || 1);
 
   const maxVal = Math.max(...weeklyProgress.map((d) => Number(d.value) || 0), 1);
@@ -287,8 +316,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
         avatar_url: avatarUrl.trim() || null,
       };
 
-      // Persist to backend:
-      // Prefer /me/profile, fallback to /me
+      // Persist to backend: prefer /me/profile, fallback to /me
       if (token) {
         let res = await apiFetch("/me/profile", {
           token,
@@ -297,7 +325,6 @@ export default function ProfilePage({ user, onUpdateUser }) {
         });
 
         if (!res.ok) {
-          // fallback: your backend already supports PUT /me with {name, avatar_url}
           const mergedName =
             [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
             user.name;
@@ -364,7 +391,9 @@ export default function ProfilePage({ user, onUpdateUser }) {
         <div className="flex gap-3 md:gap-4">
           <div className="flex flex-col items-center bg-orange-50 rounded-xl px-3 py-2">
             <Trophy className="w-4 h-4 text-orange-500 mb-1" />
-            <span className="text-sm font-semibold text-gray-900">Lv {level}</span>
+            <span className="text-sm font-semibold text-gray-900">
+              Lv {level}
+            </span>
             <span className="text-[11px] text-gray-500">Level</span>
           </div>
           <div className="flex flex-col items-center bg-yellow-50 rounded-xl px-3 py-2">
@@ -374,7 +403,9 @@ export default function ProfilePage({ user, onUpdateUser }) {
           </div>
           <div className="flex flex-col items-center bg-red-50 rounded-xl px-3 py-2">
             <Flame className="w-4 h-4 text-red-500 mb-1" />
-            <span className="text-sm font-semibold text-gray-900">{streak}</span>
+            <span className="text-sm font-semibold text-gray-900">
+              {streak}
+            </span>
             <span className="text-[11px] text-gray-500">Day streak</span>
           </div>
         </div>
@@ -543,9 +574,9 @@ export default function ProfilePage({ user, onUpdateUser }) {
         </div>
 
         <p className="mt-3 text-[11px] text-gray-400">
-          Stats are loaded from the backend (<code>/me/stats</code>). The “last 7 days”
-          chart is loaded from <code>/me/activity/last7days</code> (or falls back to
-          <code>/me/activity?days=7</code>).
+          Stats are loaded from the backend (<code>/me/stats</code>). The “last 7
+          days” chart is loaded from <code>/me/activity/last7days</code> (or falls
+          back to <code>/me/activity?days=7</code>).
         </p>
       </section>
     </div>
