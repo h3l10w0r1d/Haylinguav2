@@ -52,6 +52,14 @@ export default function ProfilePage({ user, onUpdateUser }) {
 
   const [saving, setSaving] = useState(false);
 
+  // Guard against repeated network calls if parent state updates recreate the
+  // `user` object or if multiple effects race each other.
+  const loadOnceRef = useRef({
+    profileEmail: null,
+    statsEmail: null,
+    activityEmail: null,
+  });
+
   // Backend-driven stats (keep UI the same)
   const [stats, setStats] = useState({
     total_xp: null,
