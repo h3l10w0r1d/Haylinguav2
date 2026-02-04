@@ -21,6 +21,7 @@ app.include_router(audio_router)  # NEW: Audio routes
 origins = [
     "https://haylinguav2.vercel.app",
     "https://haylingua.am",
+    "https://www.haylingua.am",
     "http://localhost:5173",  # Added for local development
     "http://localhost:3000"    # Added for local development
 ]
