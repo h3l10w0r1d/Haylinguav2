@@ -114,7 +114,8 @@ KIND_MAP = {
 }
 
 class AttemptIn(BaseModel):
-    lesson_id: int
+    # FE historically sent no lesson_id. We can reliably derive it from exercise_id.
+    lesson_id: Optional[int] = None
     attempt_no: int = 1
     is_correct: bool
     answer_text: Optional[str] = None
@@ -128,12 +129,22 @@ class AttemptOut(BaseModel):
     earned_xp: int
     completion_ratio: float
     completed: bool
+    # Hearts system (lives)
+    hearts_current: Optional[int] = None
+    hearts_max: Optional[int] = None
 
 
 class LogIn(BaseModel):
-    lesson_id: int
-    event_type: str               # opened | hint | tts | skip | next | etc.
+    # Keep compatibility with older FE payloads:
+    #  - new style: {"lesson_id": 1, "event_type": "opened", "meta": {...}}
+    #  - old style: {"event": "opened", "payload": {...}}
+    lesson_id: Optional[int] = None
+    event_type: Optional[str] = None
     meta: Optional[dict[str, Any]] = None
+
+    # legacy aliases
+    event: Optional[str] = None
+    payload: Optional[dict[str, Any]] = None
 
 class LogOut(BaseModel):
     ok: bool
@@ -830,6 +841,46 @@ def _get_accuracy(db: Connection, user_id: int, lesson_id: int) -> float:
         return 0.0
     return float(row["accuracy"] or 0.0)
 
+
+# -------------------------
+# Hearts (lives)
+# -------------------------
+
+DEFAULT_HEARTS_MAX = 5
+
+
+def _ensure_hearts_initialized(db: Connection, user_id: int) -> None:
+    """Make sure hearts_current/hearts_max are not NULL for the user.
+
+    This assumes the DB migration added these columns. We keep this as a safe
+    no-op for existing users by filling NULLs.
+    """
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET
+              hearts_max = COALESCE(hearts_max, :mx),
+              hearts_current = COALESCE(hearts_current, hearts_max, :mx)
+            WHERE id = :u
+            """
+        ),
+        {"u": user_id, "mx": DEFAULT_HEARTS_MAX},
+    )
+
+
+def _get_hearts(db: Connection, user_id: int) -> tuple[int, int]:
+    _ensure_hearts_initialized(db, user_id)
+    row = db.execute(
+        text("SELECT hearts_current, hearts_max FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first()
+    if not row:
+        return (DEFAULT_HEARTS_MAX, DEFAULT_HEARTS_MAX)
+    cur = int(row.get("hearts_current") or DEFAULT_HEARTS_MAX)
+    mx = int(row.get("hearts_max") or DEFAULT_HEARTS_MAX)
+    return (cur, mx)
+
 # ---------- Routes ----------
 
 @router.get("/")
@@ -1335,23 +1386,24 @@ def record_exercise_attempt(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    # Ensure lesson exists
-    lesson = db.execute(
-        text("SELECT id FROM lessons WHERE id = :id"),
-        {"id": payload.lesson_id},
-    ).first()
+    # Derive lesson_id from the exercise (FE historically didn't send it)
+    ex_row = db.execute(
+        text("SELECT lesson_id FROM exercises WHERE id = :ex"),
+        {"ex": exercise_id},
+    ).mappings().first()
+    if not ex_row:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    lesson_id = int(ex_row["lesson_id"])
+    if payload.lesson_id is not None and int(payload.lesson_id) != lesson_id:
+        raise HTTPException(status_code=400, detail="lesson_id does not match exercise")
+
+    # Ensure lesson exists (sanity)
+    lesson = db.execute(text("SELECT id FROM lessons WHERE id = :id"), {"id": lesson_id}).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    # Ensure exercise belongs to lesson (prevents garbage writes)
-    ex = db.execute(
-        text("SELECT id FROM exercises WHERE id = :ex AND lesson_id = :lesson_id"),
-        {"ex": exercise_id, "lesson_id": payload.lesson_id},
-    ).first()
-    if not ex:
-        raise HTTPException(status_code=404, detail="Exercise not found for this lesson")
-
-    _ensure_user_lesson_progress(db, user_id, payload.lesson_id)
+    _ensure_user_lesson_progress(db, user_id, lesson_id)
 
     # Insert attempt
     attempt_id = db.execute(
@@ -1370,7 +1422,7 @@ def record_exercise_attempt(
         """),
         {
             "u": user_id,
-            "l": payload.lesson_id,
+            "l": lesson_id,
             "ex": exercise_id,
             "attempt_no": int(payload.attempt_no or 1),
             "ok": bool(payload.is_correct),
@@ -1384,15 +1436,34 @@ def record_exercise_attempt(
     _update_progress_after_attempt(
         db=db,
         user_id=user_id,
-        lesson_id=payload.lesson_id,
+        lesson_id=lesson_id,
         exercise_id=exercise_id,
         is_correct=bool(payload.is_correct),
     )
-    _update_review_queue(db, user_id, payload.lesson_id, exercise_id, bool(payload.is_correct))
-    acc = _get_accuracy(db, user_id, payload.lesson_id)
+    _update_review_queue(db, user_id, lesson_id, exercise_id, bool(payload.is_correct))
+    acc = _get_accuracy(db, user_id, lesson_id)
 
      # ✅ NEW: recompute lesson completion / xp-based progress
-    progress = recompute_lesson_progress(db, user_id, payload.lesson_id)
+    progress = recompute_lesson_progress(db, user_id, lesson_id)
+
+    # Hearts: decrement on wrong answers (keep DB as source of truth)
+    _ensure_hearts_initialized(db, user_id)
+    if not bool(payload.is_correct):
+        db.execute(
+            text(
+                """
+                UPDATE users
+                SET hearts_current = GREATEST(COALESCE(hearts_current, hearts_max, :mx) - 1, 0)
+                WHERE id = :uid
+                """
+            ),
+            {"uid": user_id, "mx": DEFAULT_HEARTS_MAX},
+        )
+
+    hearts = db.execute(
+        text("SELECT COALESCE(hearts_current, :mx) AS hearts_current, COALESCE(hearts_max, :mx) AS hearts_max FROM users WHERE id = :uid"),
+        {"uid": user_id, "mx": DEFAULT_HEARTS_MAX},
+    ).mappings().first() or {"hearts_current": DEFAULT_HEARTS_MAX, "hearts_max": DEFAULT_HEARTS_MAX}
 
     return AttemptOut(
         ok=True,
@@ -1401,6 +1472,8 @@ def record_exercise_attempt(
         earned_xp=int(progress["earned_xp"]),
         completion_ratio=float(progress["completion_ratio"]),
         completed=bool(progress["completed"]),
+        hearts_current=int(hearts["hearts_current"]),
+        hearts_max=int(hearts["hearts_max"]),
         )
 
 
@@ -1415,15 +1488,19 @@ def record_exercise_log(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    # Ensure exercise belongs to lesson
-    ex = db.execute(
-        text("SELECT id FROM exercises WHERE id = :ex AND lesson_id = :lesson_id"),
-        {"ex": exercise_id, "lesson_id": payload.lesson_id},
-    ).first()
-    if not ex:
-        raise HTTPException(status_code=404, detail="Exercise not found for this lesson")
+    # Derive lesson_id from DB when not provided by FE
+    ex_row = db.execute(
+        text("SELECT lesson_id FROM exercises WHERE id = :ex"),
+        {"ex": exercise_id},
+    ).mappings().first()
+    if not ex_row:
+        raise HTTPException(status_code=404, detail="Exercise not found")
 
-    _ensure_user_lesson_progress(db, user_id, payload.lesson_id)
+    lesson_id = int(ex_row["lesson_id"])
+    if payload.lesson_id is not None and int(payload.lesson_id) != lesson_id:
+        raise HTTPException(status_code=400, detail="lesson_id mismatch")
+
+    _ensure_user_lesson_progress(db, user_id, lesson_id)
 
     log_id = db.execute(
         text("""
@@ -1439,14 +1516,14 @@ def record_exercise_log(
         """),
         {
             "u": user_id,
-            "l": payload.lesson_id,
+            "l": lesson_id,
             "ex": exercise_id,
-            "event_type": (payload.event_type or "").strip()[:64],
-            "meta": json.dumps(payload.meta or {}),
+            "event_type": ((payload.event_type or payload.event or "").strip()[:64]),
+            "meta": json.dumps(payload.meta or payload.payload or {}),
         },
     ).scalar_one()
 
-    _touch_progress_after_log(db, user_id, payload.lesson_id, exercise_id)
+    _touch_progress_after_log(db, user_id, lesson_id, exercise_id)
 
     return LogOut(ok=True, log_id=int(log_id))
 
@@ -1657,6 +1734,20 @@ def me_profile_get(
         raise HTTPException(status_code=404, detail="User not found")
 
     return MeOut(**dict(row))
+
+
+@router.get("/me/hearts")
+def me_hearts(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Returns the current hearts (lives) state for the logged-in user."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    cur, mx = _get_hearts(db, user_id)
+    return {"hearts_current": cur, "hearts_max": mx}
 
 
 class MeProfileUpdateIn(BaseModel):
