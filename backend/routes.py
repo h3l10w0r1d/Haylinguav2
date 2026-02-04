@@ -127,6 +127,7 @@ class AttemptOut(BaseModel):
     attempt_id: int
     accuracy: float
     earned_xp: int
+    earned_xp_delta: Optional[int] = None  # XP gained from this attempt
     completion_ratio: float
     completed: bool
     # Hearts system (lives)
@@ -1443,8 +1444,19 @@ def record_exercise_attempt(
     _update_review_queue(db, user_id, lesson_id, exercise_id, bool(payload.is_correct))
     acc = _get_accuracy(db, user_id, lesson_id)
 
-     # ✅ NEW: recompute lesson completion / xp-based progress
+    # Snapshot XP before recompute so we can return per-attempt delta
+    prev_xp = db.execute(
+        text("SELECT xp_earned FROM user_lesson_progress WHERE user_id = :uid AND lesson_id = :lid"),
+        {"uid": user_id, "lid": lesson_id},
+    ).scalar_one_or_none()
+    prev_xp = int(prev_xp or 0)
+
+    # ✅ NEW: recompute lesson completion / xp-based progress
     progress = recompute_lesson_progress(db, user_id, lesson_id)
+
+    earned_xp_delta = int(progress.get("earned_xp", 0)) - prev_xp
+    if earned_xp_delta < 0:
+        earned_xp_delta = 0
 
     # Hearts: decrement on wrong answers (keep DB as source of truth)
     _ensure_hearts_initialized(db, user_id)
@@ -1470,6 +1482,7 @@ def record_exercise_attempt(
         attempt_id=int(attempt_id),
         accuracy=acc,
         earned_xp=int(progress["earned_xp"]),
+        earned_xp_delta=int(earned_xp_delta),
         completion_ratio=float(progress["completion_ratio"]),
         completed=bool(progress["completed"]),
         hearts_current=int(hearts["hearts_current"]),
