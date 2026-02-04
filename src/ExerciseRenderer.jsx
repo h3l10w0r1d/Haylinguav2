@@ -230,7 +230,6 @@ function getToken() {
 
 async function postAttempt({
   exerciseId,
-  kind,
   isCorrect,
   answerText = null,
   selectedIndices = null,
@@ -247,17 +246,32 @@ async function postAttempt({
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        kind: kind ?? null,
         is_correct: !!isCorrect,
         answer_text: answerText,
         selected_indices: Array.isArray(selectedIndices) ? selectedIndices : null,
-        ms_spent: Number.isFinite(msSpent) ? Math.max(0, Math.floor(msSpent)) : null,
+        attempt_no: 1,
+        time_ms: Number.isFinite(msSpent) ? Math.max(0, Math.floor(msSpent)) : null,
       }),
     });
 
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
       console.warn("[postAttempt] failed:", res.status, txt);
+      return;
+    }
+
+    // Update hearts in header if backend returns them
+    const data = await res.json().catch(() => null);
+    if (data && typeof data === "object") {
+      const hc = data.hearts_current;
+      const hm = data.hearts_max;
+      if (Number.isFinite(hc) && Number.isFinite(hm)) {
+        const next = { current: Number(hc), max: Number(hm) };
+        try {
+          localStorage.setItem("hay_hearts", JSON.stringify(next));
+        } catch {}
+        window.dispatchEvent(new CustomEvent("hay_hearts", { detail: next }));
+      }
     }
   } catch (e) {
     console.warn("[postAttempt] error:", e);
