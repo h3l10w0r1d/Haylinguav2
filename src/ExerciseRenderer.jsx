@@ -198,20 +198,22 @@ async function ttsFetch(apiBaseUrl, text) {
 }
 
 /** Shared helper so all components keep exact behavior */
-function useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer }) {
+function useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  // NOTE: we do NOT advance to the next exercise immediately.
+  // We first persist the attempt, show a Result screen, and only then call onAnswer() from ExerciseRenderer.
   function wrong(msg) {
     onWrong?.(msg);
-    onAnswer?.({ isCorrect: false, xpEarned: 0, message: msg });
+    submit?.({ isCorrect: false, message: msg });
   }
 
-  function correct(xpEarned = 0) {
+  function correct() {
     onCorrect?.();
-    onAnswer?.({ isCorrect: true, xpEarned });
+    submit?.({ isCorrect: true });
   }
 
   function skip() {
     onSkip?.();
-    onAnswer?.({ skipped: true, isCorrect: true, xpEarned: 0 });
+    submit?.({ skipped: true, isCorrect: true });
   }
 
   return { wrong, correct, skip };
@@ -271,10 +273,12 @@ async function postAttempt({
           localStorage.setItem("hay_hearts", JSON.stringify(next));
         } catch {}
         window.dispatchEvent(new CustomEvent("hay_hearts", { detail: next }));
-      }
+          return data;
+  }
     }
   } catch (e) {
     console.warn("[postAttempt] error:", e);
+    return null;
   }
 }
 
@@ -374,8 +378,8 @@ function getCorrectIndices(exercise, cfg, choices) {
 -------------------------- */
 
 // 1) char_intro
-function ExCharIntro({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExCharIntro({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const letter = cfg.letter ?? "";
   const lower = cfg.lower ?? "";
@@ -410,8 +414,8 @@ function ExCharIntro({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
 }
 
 // 2) char_mcq_sound (UI-only play button — preserved)
-function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const options = cfg.options ?? [];
   const correctIndex = Number(cfg.correctIndex ?? -1);
@@ -468,8 +472,8 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
 
 
 // 3) letter_recognition
-function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
@@ -513,8 +517,8 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
 }
 
 // 4) char_build_word
-function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
 
   const tiles = cfg.tiles ?? [];
@@ -598,8 +602,8 @@ function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }
 }
 
 // 5) letter_typing
-function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
   const answer = expected ?? cfg.answer ?? "";
@@ -634,8 +638,8 @@ function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
 }
 
 // 6) word_spelling
-function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
   const answer = expected ?? cfg.answer ?? "";
@@ -672,8 +676,8 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
 }
 
 // A) fill_blank
-function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
@@ -726,8 +730,8 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
 }
 
 // B) translate_mcq (now supports exercise.options DB-backed)
-function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
@@ -784,8 +788,8 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer })
 }
 
 // C) true_false
-function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const statement = cfg.statement ?? "";
   const correctBool = Boolean(cfg.correct);
@@ -848,8 +852,8 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
 }
 
 // D) sentence_order
-function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
@@ -942,8 +946,8 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }
 }
 
 // E) match_pairs
-function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
 
   const pairs = Array.isArray(cfg.pairs) ? cfg.pairs : [];
@@ -1072,8 +1076,8 @@ function ExAudioChoiceTts({
   onSkip,
   onAnswer,
   apiBaseUrl,
-}) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+, submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
@@ -1169,8 +1173,8 @@ function ExAudioChoiceTts({
  *  - JSON config: { choices/options, correctIndices/correctAnswers, minSelect/maxSelect }
  *  - fallback: expected_answer as JSON array string
  */
-function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer }) {
-  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
 
   const prompt = exercise?.prompt || "Select all correct answers";
 
@@ -1266,49 +1270,61 @@ export default function ExerciseRenderer({
   onSkip,
   onAnswer,
   apiBaseUrl,
-}) {
+, submit}) {
   
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
 const exerciseStartRef = useRef(Date.now());
 
+  // Per-exercise result screen
+  const [phase, setPhase] = useState("question");
+  const [lastResult, setLastResult] = useState(null);
+
+  useEffect(() => {
+    setPhase("question");
+    setLastResult(null);
+    exerciseStartRef.current = Date.now();
+  }, [exercise?.id]);
+
 async function handleAnswer(payload) {
   const timeSpentMs = Date.now() - exerciseStartRef.current;
 
-  // Reset timer for next exercise
-  exerciseStartRef.current = Date.now();
-
-  await postAttempt({
+  // Persist attempt + log
+  const attempt = await postAttempt({
     exerciseId: exercise.id,
-    kind: exercise.kind,
-    isCorrect: payload?.isCorrect ?? false,
-    answerText: payload?.answerText ?? null,
-    selectedIndices: payload?.selectedIndices ?? null,
-    msSpent: timeSpentMs,
+    isCorrect: !!payload?.is_correct,
+    chosenAnswer: payload?.chosen_answer ?? null,
+    studentAnswer: payload?.student_answer ?? null,
+    timeSpentMs,
   });
 
   await postExerciseLog({
+    lessonId: exercise.lesson_id,
     exerciseId: exercise.id,
-    event: payload?.skipped ? "skip" : "check",
-    payload: {
-      kind: exercise.kind,
-      isCorrect: payload?.isCorrect ?? false,
-      msSpent: timeSpentMs,
-    },
+    kind: exercise.kind,
+    isCorrect: !!payload?.is_correct,
+    timeSpentMs,
   });
+
+  // Prepare result data (prefer backend-provided delta)
+  const earnedDelta =
+    Number(attempt?.earned_xp_delta ?? attempt?.earned_xp_delta) ||
+    (payload?.is_correct ? Number(exercise?.xp ?? 0) : 0);
+
+  setLastResult({
+    isCorrect: !!payload?.is_correct,
+    message: payload?.result_message || null,
+    earnedXpDelta: Math.max(0, Math.floor(earnedDelta)),
+    hearts_current: attempt?.hearts_current ?? null,
+    hearts_max: attempt?.hearts_max ?? null,
+    accuracy: attempt?.accuracy ?? null,
+    completion_ratio: attempt?.completion_ratio ?? null,
+    attempt_id: attempt?.attempt_id ?? null,
+  });
+
+  setPhase("result");
 }
-  if (kind === "char_intro") {
-    return (
-      <ExCharIntro
-        exercise={exercise}
-        cfg={cfg}
-        onCorrect={onCorrect}
-        onWrong={onWrong}
-        onSkip={onSkip}
-        onAnswer={onAnswer}
-      />
-    );
-  }
+
 
   if (kind === "char_mcq_sound") {
     return (
@@ -1319,6 +1335,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1332,6 +1349,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1345,6 +1363,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1358,6 +1377,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1371,6 +1391,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1384,6 +1405,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1397,6 +1419,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1410,6 +1433,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1423,6 +1447,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1436,6 +1461,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
@@ -1449,8 +1475,7 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
-        apiBaseUrl={apiBaseUrl}
-      />
+        apiBaseUrl={apiBaseUrl} submit={handleAnswer} />
     );
   }
 
@@ -1463,12 +1488,13 @@ async function handleAnswer(payload) {
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
       />
     );
   }
 
   // Fallback
-  const { skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer });
+  const { skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   return (
     <Card>
       <Title>Unknown exercise type</Title>
