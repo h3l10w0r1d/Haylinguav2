@@ -12,9 +12,9 @@ engine = create_engine(
     DATABASE_URL,
     future=True,
     poolclass=QueuePool,
-    pool_size=10,              # Increased from default 5
-    max_overflow=20,           # Increased from default 10
-    pool_timeout=30,           # Keep at 30 seconds
+    pool_size=20,              # Increased from default 5
+    max_overflow=40,           # Increased from default 10
+    pool_timeout=15,           # Keep at 30 seconds
     pool_recycle=3600,         # Recycle connections after 1 hour
     pool_pre_ping=True,        # Test connections before using them
     echo_pool=False,           # Set to True for debugging connection issues
