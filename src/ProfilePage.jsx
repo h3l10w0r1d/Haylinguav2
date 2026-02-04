@@ -15,12 +15,30 @@ function getToken() {
   );
 }
 
+/**
+ * ✅ FIX: Avoid sending "Content-Type: application/json" on GET/HEAD.
+ * That header triggers CORS preflight (OPTIONS) on cross-origin requests,
+ * doubling traffic and causing overload.
+ *
+ * We only set Content-Type when sending a JSON body (POST/PUT/PATCH).
+ */
 async function apiFetch(path, { token, ...opts } = {}) {
+  const method = String(opts.method || "GET").toUpperCase();
+  const hasBody = opts.body != null;
+
   const headers = {
-    "Content-Type": "application/json",
     ...(opts.headers || {}),
   };
+
   if (token) headers.Authorization = `Bearer ${token}`;
+
+  // Only set JSON content-type when we actually send JSON
+  if (hasBody && method !== "GET" && method !== "HEAD") {
+    // Don't overwrite if caller explicitly set something else
+    if (!headers["Content-Type"] && !headers["content-type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+  }
 
   const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
   return res;
