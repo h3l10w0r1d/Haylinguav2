@@ -296,21 +296,44 @@ export default function LessonPlayer() {
 
         {/* If finished, show a clean completion card (no interactive exercise behind it) */}
         {showDoneFooter ? (
-          <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8 border border-slate-200">
-            <div className="flex items-center gap-2 text-emerald-700">
-              <CheckCircle2 className="w-6 h-6" />
-              <div className="text-lg font-extrabold text-slate-900">Lesson complete</div>
-            </div>
-            <p className="mt-2 text-sm text-slate-600">
-              XP earned in this session: <span className="font-semibold">{lessonXpEarned}</span>
-            </p>
-            <div className="mt-6">
+          <div className="w-full max-w-3xl mx-auto px-4 py-10">
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
+              <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-white shadow-md">
+                <span className="text-4xl">🏆</span>
+              </div>
+
+              <h1 className="mt-5 text-3xl font-extrabold text-slate-900">Lesson Complete!</h1>
+              <p className="mt-1 text-slate-500">Great job! You're making amazing progress.</p>
+
+              <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="text-2xl font-extrabold text-orange-600">+{lessonXpEarned}</div>
+                  <div className="text-xs text-slate-500 mt-1">XP earned</div>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="text-2xl font-extrabold text-slate-900">
+                    {attemptedCount ? Math.round((correctCount / attemptedCount) * 100) : 0}%
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">Accuracy</div>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="text-2xl font-extrabold text-slate-900">
+                    {correctCount}/{attemptedCount || 0}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">Correct</div>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-emerald-700 text-sm font-semibold">
+                ✨ Keep it up — you're getting better every lesson!
+              </div>
+
               <button
                 onClick={handleCompleteLesson}
                 disabled={isCompleting}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-60 disabled:cursor-wait transition-colors"
+                className="mt-7 w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 rounded-2xl text-sm md:text-base font-extrabold text-white bg-gradient-to-r from-orange-500 to-rose-500 hover:opacity-95 shadow-md disabled:opacity-60 disabled:cursor-wait"
               >
-                {isCompleting ? "Saving…" : "Done"}
+                {isCompleting ? "Saving…" : "Continue Learning →"}
               </button>
             </div>
           </div>
