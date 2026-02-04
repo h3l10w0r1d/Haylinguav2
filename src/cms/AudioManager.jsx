@@ -1,18 +1,47 @@
 // src/cms/AudioManager.jsx
-import { useState, useEffect, useRef } from 'react';
-import { Mic, Square, Upload, Play, Pause, Trash2, Loader, Check, AlertCircle, X } from 'lucide-react';
+import { useState, useEffect, useRef } from "react";
+import { Mic, Square, Upload, Play, Pause, Trash2, Loader, Check, AlertCircle, X } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+
+function getCmsToken() {
+  // adjust if you store it elsewhere
+  return localStorage.getItem("cms_token") || localStorage.getItem("CMS_TOKEN") || "";
+}
+
+function cmsHeaders(extra = {}) {
+  const t = getCmsToken();
+  return {
+    ...(t ? { "X-CMS-Token": t } : {}),
+    ...extra,
+  };
+}
+
+// Avoid dynamic tailwind class names (Tailwind purge will remove them in prod).
+const STYLE = {
+  female: {
+    panel: "border-2 border-pink-200 rounded-lg p-4 bg-pink-50",
+    title: "text-lg font-bold text-pink-900 mb-4",
+    primaryBtn: "bg-pink-600 hover:bg-pink-700",
+  },
+  male: {
+    panel: "border-2 border-blue-200 rounded-lg p-4 bg-blue-50",
+    title: "text-lg font-bold text-blue-900 mb-4",
+    primaryBtn: "bg-blue-600 hover:bg-blue-700",
+  },
+};
 
 export default function AudioManager({ exerciseId, exerciseText, onClose }) {
   const [audio, setAudio] = useState({ male: null, female: null });
   const [loading, setLoading] = useState(true);
+
   const [generating, setGenerating] = useState({ male: false, female: false });
   const [uploading, setUploading] = useState({ male: false, female: false });
   const [recording, setRecording] = useState({ male: false, female: false });
+
   const [playing, setPlaying] = useState(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const mediaRecorderRef = useRef({});
   const audioChunksRef = useRef({});
@@ -21,109 +50,150 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
   useEffect(() => {
     loadAudio();
     return () => {
-      Object.values(mediaRecorderRef.current).forEach(recorder => {
-        if (recorder && recorder.state !== 'inactive') recorder.stop();
+      Object.values(mediaRecorderRef.current).forEach((recorder) => {
+        if (recorder && recorder.state !== "inactive") recorder.stop();
       });
-      Object.values(audioPlayerRef.current).forEach(player => {
+      Object.values(audioPlayerRef.current).forEach((player) => {
         if (player) player.pause();
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId]);
 
   async function loadAudio() {
+    setLoading(true);
+    setError("");
     try {
-      const res = await fetch(`${API_BASE}/cms/exercises/${exerciseId}/audio`);
-      const data = await res.json();
-      const recordings = data.audio_recordings || [];
-      
+      const res = await fetch(`${API_BASE}/cms/exercises/${exerciseId}/audio`, {
+        headers: cmsHeaders(),
+      });
+
+      // If backend returns non-json error, guard it:
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const msg = data?.detail || `Failed to load audio (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+
+      const recordings = data?.audio_recordings || [];
       setAudio({
-        male: recordings.find(r => r.voice_type === 'male') || null,
-        female: recordings.find(r => r.voice_type === 'female') || null
+        male: recordings.find((r) => r.voice_type === "male") || null,
+        female: recordings.find((r) => r.voice_type === "female") || null,
       });
     } catch (err) {
-      setError('Failed to load audio');
+      setError(err?.message || "Failed to load audio");
     } finally {
       setLoading(false);
     }
   }
 
   async function generateTTS(voiceType) {
-    if (!exerciseText) {
-      setError('No text available for TTS generation');
+    if (!exerciseText || !String(exerciseText).trim()) {
+      setError("No text available for TTS generation (exerciseText is empty).");
       return;
     }
 
-    setGenerating(prev => ({ ...prev, [voiceType]: true }));
-    setError('');
+    setGenerating((prev) => ({ ...prev, [voiceType]: true }));
+    setError("");
+    setSuccess("");
 
     try {
       const res = await fetch(`${API_BASE}/cms/audio/generate-tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: cmsHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           exercise_id: exerciseId,
           text: exerciseText,
-          voice_type: voiceType
-        })
+          voice_type: voiceType,
+        }),
       });
 
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Generation failed');
+        const msg = data?.detail || `Generation failed (HTTP ${res.status})`;
+        throw new Error(msg);
       }
 
       setSuccess(`${voiceType} AI voice generated!`);
       await loadAudio();
     } catch (err) {
-      setError(err.message);
+      setError(err?.message || "Generation failed");
     } finally {
-      setGenerating(prev => ({ ...prev, [voiceType]: false }));
+      setGenerating((prev) => ({ ...prev, [voiceType]: false }));
     }
   }
 
   async function uploadFile(voiceType, file) {
     if (!file) return;
 
-    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm'];
+    const allowedTypes = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/webm"];
     if (!allowedTypes.includes(file.type)) {
-      setError('Invalid file type. Use MP3, WAV, or OGG');
+      setError("Invalid file type. Use MP3, WAV, OGG, or WEBM.");
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setError('File too large. Max 10MB');
+      setError("File too large. Max 10MB.");
       return;
     }
 
-    setUploading(prev => ({ ...prev, [voiceType]: true }));
-    setError('');
+    setUploading((prev) => ({ ...prev, [voiceType]: true }));
+    setError("");
+    setSuccess("");
 
     try {
       const formData = new FormData();
-      formData.append('exercise_id', exerciseId);
-      formData.append('voice_type', voiceType);
-      formData.append('audio_file', file);
+      formData.append("exercise_id", String(exerciseId));
+      formData.append("voice_type", voiceType);
+      formData.append("audio_file", file);
 
       const res = await fetch(`${API_BASE}/cms/audio/upload`, {
-        method: 'POST',
-        body: formData
+        method: "POST",
+        headers: cmsHeaders(), // token only, do NOT set Content-Type for FormData
+        body: formData,
       });
 
-      if (!res.ok) throw new Error('Upload failed');
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const msg = data?.detail || `Upload failed (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
 
       setSuccess(`${voiceType} audio uploaded!`);
       await loadAudio();
     } catch (err) {
-      setError(err.message);
+      setError(err?.message || "Upload failed");
     } finally {
-      setUploading(prev => ({ ...prev, [voiceType]: false }));
+      setUploading((prev) => ({ ...prev, [voiceType]: false }));
     }
   }
 
   async function startRecording(voiceType) {
+    setError("");
+    setSuccess("");
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
+
       audioChunksRef.current[voiceType] = [];
 
       mediaRecorder.ondataavailable = (event) => {
@@ -133,49 +203,65 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current[voiceType], { type: 'audio/webm' });
-        await saveRecording(voiceType, audioBlob);
-        stream.getTracks().forEach(track => track.stop());
+        try {
+          const audioBlob = new Blob(audioChunksRef.current[voiceType], { type: "audio/webm" });
+          await saveRecording(voiceType, audioBlob);
+        } finally {
+          stream.getTracks().forEach((track) => track.stop());
+        }
       };
 
       mediaRecorder.start();
       mediaRecorderRef.current[voiceType] = mediaRecorder;
-      setRecording(prev => ({ ...prev, [voiceType]: true }));
-    } catch (err) {
-      setError('Microphone access denied or not available');
+      setRecording((prev) => ({ ...prev, [voiceType]: true }));
+    } catch {
+      setError("Microphone access denied or not available.");
     }
   }
 
   function stopRecording(voiceType) {
     const recorder = mediaRecorderRef.current[voiceType];
-    if (recorder && recorder.state !== 'inactive') {
+    if (recorder && recorder.state !== "inactive") {
       recorder.stop();
-      setRecording(prev => ({ ...prev, [voiceType]: false }));
+      setRecording((prev) => ({ ...prev, [voiceType]: false }));
     }
   }
 
   async function saveRecording(voiceType, audioBlob) {
-    setUploading(prev => ({ ...prev, [voiceType]: true }));
+    setUploading((prev) => ({ ...prev, [voiceType]: true }));
+    setError("");
+    setSuccess("");
 
     try {
       const formData = new FormData();
-      formData.append('exercise_id', exerciseId);
-      formData.append('voice_type', voiceType);
-      formData.append('audio_file', audioBlob, 'recording.webm');
+      formData.append("exercise_id", String(exerciseId));
+      formData.append("voice_type", voiceType);
+      formData.append("audio_file", audioBlob, "recording.webm");
 
       const res = await fetch(`${API_BASE}/cms/audio/save-recording`, {
-        method: 'POST',
-        body: formData
+        method: "POST",
+        headers: cmsHeaders(),
+        body: formData,
       });
 
-      if (!res.ok) throw new Error('Save failed');
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const msg = data?.detail || `Save failed (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
 
       setSuccess(`${voiceType} recording saved!`);
       await loadAudio();
     } catch (err) {
-      setError(err.message);
+      setError(err?.message || "Save failed");
     } finally {
-      setUploading(prev => ({ ...prev, [voiceType]: false }));
+      setUploading((prev) => ({ ...prev, [voiceType]: false }));
     }
   }
 
@@ -186,27 +272,45 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
       return;
     }
 
-    Object.values(audioPlayerRef.current).forEach(p => p?.pause());
+    Object.values(audioPlayerRef.current).forEach((p) => p?.pause());
 
     const player = new Audio(`${API_BASE}/cms/audio/${audioId}/preview`);
     player.onended = () => setPlaying(null);
-    player.onerror = () => setError('Playback failed');
-    
+    player.onerror = () => setError("Playback failed.");
+
     audioPlayerRef.current[voiceType] = player;
     setPlaying(audioId);
     player.play();
   }
 
   async function deleteAudio(audioId) {
-    if (!confirm('Delete this audio?')) return;
+    if (!confirm("Delete this audio?")) return;
+
+    setError("");
+    setSuccess("");
 
     try {
-      const res = await fetch(`${API_BASE}/cms/audio/${audioId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
-      setSuccess('Audio deleted');
+      const res = await fetch(`${API_BASE}/cms/audio/${audioId}`, {
+        method: "DELETE",
+        headers: cmsHeaders(),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const msg = data?.detail || `Delete failed (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+
+      setSuccess("Audio deleted");
       await loadAudio();
     } catch (err) {
-      setError('Failed to delete');
+      setError(err?.message || "Failed to delete");
     }
   }
 
@@ -233,7 +337,7 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded flex items-start gap-2">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <span className="text-sm text-red-700">{error}</span>
-          <button onClick={() => setError('')} className="ml-auto">
+          <button onClick={() => setError("")} className="ml-auto">
             <X className="w-4 h-4 text-red-600" />
           </button>
         </div>
@@ -243,16 +347,23 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded flex items-start gap-2">
           <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
           <span className="text-sm text-green-700">{success}</span>
-          <button onClick={() => setSuccess('')} className="ml-auto">
+          <button onClick={() => setSuccess("")} className="ml-auto">
             <X className="w-4 h-4 text-green-600" />
           </button>
         </div>
       )}
 
-      {exerciseText && (
+      {exerciseText ? (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
           <div className="text-xs font-bold text-blue-700 mb-1">EXERCISE TEXT FOR TTS:</div>
           <div className="text-sm text-blue-900">{exerciseText}</div>
+        </div>
+      ) : (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded">
+          <div className="text-xs font-bold text-amber-700 mb-1">WARNING:</div>
+          <div className="text-sm text-amber-900">
+            exerciseText is empty → AI generation is disabled. Make sure you pass the text into AudioManager.
+          </div>
         </div>
       )}
 
@@ -264,11 +375,12 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
           uploading={uploading.female}
           recording={recording.female}
           playing={playing}
-          onGenerateTTS={() => generateTTS('female')}
-          onUpload={(e) => uploadFile('female', e.target.files[0])}
-          onStartRecord={() => startRecording('female')}
-          onStopRecord={() => stopRecording('female')}
-          onPlay={(id) => playAudio(id, 'female')}
+          canGenerate={!!String(exerciseText || "").trim()}
+          onGenerateTTS={() => generateTTS("female")}
+          onUpload={(e) => uploadFile("female", e.target.files?.[0])}
+          onStartRecord={() => startRecording("female")}
+          onStopRecord={() => stopRecording("female")}
+          onPlay={(id) => playAudio(id, "female")}
           onDelete={deleteAudio}
         />
 
@@ -279,11 +391,12 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
           uploading={uploading.male}
           recording={recording.male}
           playing={playing}
-          onGenerateTTS={() => generateTTS('male')}
-          onUpload={(e) => uploadFile('male', e.target.files[0])}
-          onStartRecord={() => startRecording('male')}
-          onStopRecord={() => stopRecording('male')}
-          onPlay={(id) => playAudio(id, 'male')}
+          canGenerate={!!String(exerciseText || "").trim()}
+          onGenerateTTS={() => generateTTS("male")}
+          onUpload={(e) => uploadFile("male", e.target.files?.[0])}
+          onStartRecord={() => startRecording("male")}
+          onStopRecord={() => stopRecording("male")}
+          onPlay={(id) => playAudio(id, "male")}
           onDelete={deleteAudio}
         />
       </div>
@@ -298,39 +411,43 @@ function VoicePanel({
   uploading,
   recording,
   playing,
+  canGenerate,
   onGenerateTTS,
   onUpload,
   onStartRecord,
   onStopRecord,
   onPlay,
-  onDelete
+  onDelete,
 }) {
-  const color = voiceType === 'female' ? 'pink' : 'blue';
+  const s = STYLE[voiceType];
   const label = voiceType.charAt(0).toUpperCase() + voiceType.slice(1);
 
   return (
-    <div className={`border-2 border-${color}-200 rounded-lg p-4 bg-${color}-50`}>
-      <h3 className={`text-lg font-bold text-${color}-900 mb-4`}>{label} Voice</h3>
+    <div className={s.panel}>
+      <h3 className={s.title}>{label} Voice</h3>
 
       {audio && (
         <div className="mb-4 p-3 bg-white rounded border">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs font-semibold text-gray-700">
-              {audio.source_type === 'tts' ? '🤖 AI Generated' : 
-               audio.source_type === 'recording' ? '🎙️ Recorded' : '📁 Uploaded'}
+              {audio.source_type === "tts"
+                ? "🤖 AI Generated"
+                : audio.source_type === "recording"
+                ? "🎙️ Recorded"
+                : "📁 Uploaded"}
             </div>
-            <div className="text-xs text-gray-500">
-              {(audio.audio_size / 1024).toFixed(1)} KB
-            </div>
+            <div className="text-xs text-gray-500">{(audio.audio_size / 1024).toFixed(1)} KB</div>
           </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => onPlay(audio.id)}
-              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-${color}-600 text-white rounded hover:bg-${color}-700`}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 ${s.primaryBtn} text-white rounded disabled:opacity-50`}
             >
               {playing === audio.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              {playing === audio.id ? 'Stop' : 'Play'}
+              {playing === audio.id ? "Stop" : "Play"}
             </button>
+
             <button
               onClick={() => onDelete(audio.id)}
               className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"
@@ -344,8 +461,9 @@ function VoicePanel({
       <div className="space-y-2">
         <button
           onClick={onGenerateTTS}
-          disabled={generating}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-${color}-600 text-white rounded hover:bg-${color}-700 disabled:opacity-50`}
+          disabled={generating || !canGenerate}
+          className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${s.primaryBtn} text-white rounded disabled:opacity-50`}
+          title={!canGenerate ? "exerciseText is empty" : ""}
         >
           {generating ? (
             <>
@@ -364,7 +482,7 @@ function VoicePanel({
           onClick={recording ? onStopRecord : onStartRecord}
           disabled={uploading}
           className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${
-            recording ? 'bg-red-600 hover:bg-red-700' : `bg-${color}-600 hover:bg-${color}-700`
+            recording ? "bg-red-600 hover:bg-red-700" : s.primaryBtn
           } text-white rounded disabled:opacity-50`}
         >
           {recording ? (
@@ -380,7 +498,9 @@ function VoicePanel({
           )}
         </button>
 
-        <label className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-${color}-600 text-white rounded hover:bg-${color}-700 cursor-pointer`}>
+        <label
+          className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${s.primaryBtn} text-white rounded cursor-pointer disabled:opacity-50`}
+        >
           {uploading ? (
             <>
               <Loader className="w-4 h-4 animate-spin" />
@@ -392,13 +512,8 @@ function VoicePanel({
               Upload Audio File
             </>
           )}
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={onUpload}
-            disabled={uploading}
-            className="hidden"
-          />
+
+          <input type="file" accept="audio/*" onChange={onUpload} disabled={uploading} className="hidden" />
         </label>
       </div>
     </div>
