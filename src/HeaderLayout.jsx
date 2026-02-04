@@ -1,9 +1,89 @@
 // src/HeaderLayout.jsx
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut } from "lucide-react";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap } from "lucide-react";
+
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_URL ||
+  "https://haylinguav2.onrender.com";
+
+function getToken() {
+  return (
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("hay_token") ||
+    ""
+  );
+}
+
+async function apiFetch(path, { token, ...opts } = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(opts.headers || {}),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return fetch(`${API_BASE}${path}`, { ...opts, headers });
+}
 
 export default function HeaderLayout({ user, onLogout, children }) {
   const navigate = useNavigate();
+
+  const [hearts, setHearts] = useState(() => {
+    try {
+      const raw = localStorage.getItem("hay_hearts");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const xp = useMemo(() => Number(user?.xp ?? 0) || 0, [user?.xp]);
+  const streak = useMemo(() => Math.max(1, Number(user?.streak ?? 1) || 1), [user?.streak]);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await apiFetch("/me/hearts", { token, method: "GET" });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (!data || cancelled) return;
+        const next = {
+          current: Number(data.current ?? data.hearts_current ?? 0),
+          max: Number(data.max ?? data.hearts_max ?? 0),
+        };
+        setHearts(next);
+        try {
+          localStorage.setItem("hay_hearts", JSON.stringify(next));
+        } catch {}
+      } catch {
+        // ignore
+      }
+    })();
+
+    const onHearts = (ev) => {
+      const detail = ev?.detail;
+      if (!detail) return;
+      const next = {
+        current: Number(detail.current ?? detail.hearts_current ?? 0),
+        max: Number(detail.max ?? detail.hearts_max ?? 0),
+      };
+      setHearts(next);
+      try {
+        localStorage.setItem("hay_hearts", JSON.stringify(next));
+      } catch {}
+    };
+    window.addEventListener("haylingua:hearts", onHearts);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("haylingua:hearts", onHearts);
+    };
+  }, []);
 
   const linkBase =
     "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors";
@@ -61,6 +141,21 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
           {/* Right side: avatar + logout */}
           <div className="flex items-center gap-3">
+            {/* Quick stats */}
+            <div className="hidden md:flex items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                <Heart className="w-4 h-4" />
+                <span>{hearts ? `${hearts.current}/${hearts.max}` : "–"}</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700">
+                <Flame className="w-4 h-4" />
+                <span>{streak}</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-yellow-700">
+                <Zap className="w-4 h-4" />
+                <span>{xp}</span>
+              </div>
+            </div>
             <button
               onClick={() => navigate("/profile")}
               className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm"
