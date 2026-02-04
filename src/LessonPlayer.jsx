@@ -27,6 +27,9 @@ export default function LessonPlayer() {
   const [loadError, setLoadError] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [lessonXpEarned, setLessonXpEarned] = useState(0);
+  // True only AFTER the user submits an answer for the LAST exercise.
+  // This prevents showing the "Done" state just because we are viewing the last step.
+  const [hasFinishedAll, setHasFinishedAll] = useState(false);
 
   const currentExercise = useMemo(() => {
     if (!lesson || !lesson.exercises || lesson.exercises.length === 0) return null;
@@ -71,6 +74,10 @@ export default function LessonPlayer() {
 
         setLesson(data);
         setCurrentIndex(0);
+        setHasFinishedAll(false);
+        setLessonXpEarned(0);
+        setHasFinishedAll(false);
+        setLessonXpEarned(0);
 
         if (!data.exercises || data.exercises.length === 0) {
           console.warn("[LessonPlayer] Lesson has no exercises array or it's empty.");
@@ -110,6 +117,8 @@ export default function LessonPlayer() {
     if (nextIndex < lesson.exercises.length) {
       setCurrentIndex(nextIndex);
     } else {
+      // The last exercise was just answered.
+      setHasFinishedAll(true);
       console.log(
         "[LessonPlayer] Reached last exercise, showing Done state. XP earned in session:",
         lessonXpEarned + (xpEarned || 0)
@@ -222,8 +231,8 @@ export default function LessonPlayer() {
     );
   }
 
-  const isLastStep =
-    lesson.exercises && currentIndex >= lesson.exercises.length - 1;
+  // "Done" state should appear only after the last exercise is answered.
+  const showDoneFooter = !!hasFinishedAll;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -266,7 +275,7 @@ export default function LessonPlayer() {
         )}
 
         {/* Current exercise */}
-        {currentExercise ? (
+        {!showDoneFooter && currentExercise ? (
           <ExerciseRenderer
             exercise={currentExercise}
             apiBaseUrl={API_BASE}
@@ -276,10 +285,39 @@ export default function LessonPlayer() {
 
             // Old-style compatibility callbacks
             onCorrect={() => handleStepAnswer({ isCorrect: true, xpEarned: 0 })}
-            onWrong={(message) => handleStepAnswer({ isCorrect: false, xpEarned: 0, message })}
-            onSkip={() => handleStepAnswer({ skipped: true, isCorrect: true, xpEarned: 0 })}
+            onWrong={(message) =>
+              handleStepAnswer({ isCorrect: false, xpEarned: 0, message })
+            }
+            onSkip={() =>
+              handleStepAnswer({ skipped: true, isCorrect: true, xpEarned: 0 })
+            }
           />
-        ) : (
+        ) : null}
+
+        {/* If finished, show a clean completion card (no interactive exercise behind it) */}
+        {showDoneFooter ? (
+          <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8 border border-slate-200">
+            <div className="flex items-center gap-2 text-emerald-700">
+              <CheckCircle2 className="w-6 h-6" />
+              <div className="text-lg font-extrabold text-slate-900">Lesson complete</div>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">
+              XP earned in this session: <span className="font-semibold">{lessonXpEarned}</span>
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={handleCompleteLesson}
+                disabled={isCompleting}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-60 disabled:cursor-wait transition-colors"
+              >
+                {isCompleting ? "Saving…" : "Done"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Fallback if something is wrong with the lesson data */}
+        {!showDoneFooter && !currentExercise ? (
           <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
             <p className="text-slate-700 mb-4">
               No exercise found for index {currentIndex}. Check console logs for
@@ -292,31 +330,7 @@ export default function LessonPlayer() {
               Back to dashboard
             </button>
           </div>
-        )}
-
-        {/* Done footer when at last step */}
-        {isLastStep && (
-          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              <div>
-                <p className="text-sm font-semibold text-emerald-900">
-                  You reached the end!
-                </p>
-                <p className="text-xs text-emerald-700">
-                  XP this session (from individual steps): {lessonXpEarned}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleCompleteLesson}
-              disabled={isCompleting}
-              className="w-full sm:w-auto px-5 py-2 rounded-xl bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 disabled:opacity-60 disabled:cursor-wait transition-colors"
-            >
-              {isCompleting ? "Saving…" : "Done"}
-            </button>
-          </div>
-        )}
+        ) : null}
       </main>
     </div>
   );
