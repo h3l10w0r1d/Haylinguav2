@@ -1076,7 +1076,8 @@ function ExAudioChoiceTts({
   onSkip,
   onAnswer,
   apiBaseUrl,
-, submit}) {
+  submit,
+}) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
