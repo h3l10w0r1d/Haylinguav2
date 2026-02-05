@@ -1271,7 +1271,8 @@ export default function ExerciseRenderer({
   onSkip,
   onAnswer,
   apiBaseUrl,
-, submit}) {
+  submit,
+}) {
   
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
