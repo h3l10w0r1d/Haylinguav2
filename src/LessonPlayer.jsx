@@ -27,6 +27,10 @@ export default function LessonPlayer() {
   const [loadError, setLoadError] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [lessonXpEarned, setLessonXpEarned] = useState(0);
+  // Per-exercise result modal (Duolingo-style)
+  const [resultOpen, setResultOpen] = useState(false);
+  const [resultData, setResultData] = useState(null);
+  const [pendingNext, setPendingNext] = useState(null);
   // True only AFTER the user submits an answer for the LAST exercise.
   // This prevents showing the "Done" state just because we are viewing the last step.
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
@@ -100,30 +104,53 @@ export default function LessonPlayer() {
 
   // ---------- Handling answers from ExerciseRenderer ----------
 
-  const handleStepAnswer = ({ isCorrect, xpEarned }) => {
+  const handleStepAnswer = (payload) => {
+    const isCorrect = payload?.isCorrect === true;
+    const skipped = payload?.skipped === true;
+    const xpEarned = Number(payload?.xpEarned ?? 0) || 0;
+
     console.log("[LessonPlayer] Step answered:", {
       index: currentIndex,
       isCorrect,
+      skipped,
       xpEarned,
+      payload,
     });
 
-    if (xpEarned && xpEarned > 0) {
+    if (xpEarned > 0) {
       setLessonXpEarned((prev) => prev + xpEarned);
     }
 
     if (!lesson || !lesson.exercises) return;
 
     const nextIndex = currentIndex + 1;
-    if (nextIndex < lesson.exercises.length) {
-      setCurrentIndex(nextIndex);
-    } else {
-      // The last exercise was just answered.
-      setHasFinishedAll(true);
-      console.log(
-        "[LessonPlayer] Reached last exercise, showing Done state. XP earned in session:",
-        lessonXpEarned + (xpEarned || 0)
-      );
+    const isLast = nextIndex >= lesson.exercises.length;
+
+    // Show the result overlay first, then proceed on user action.
+    setResultData({
+      isCorrect,
+      skipped,
+      xpEarned,
+      message: payload?.message,
+      hearts: payload?.hearts,
+    });
+    setPendingNext(isLast ? { type: "finish" } : { type: "next", index: nextIndex });
+    setResultOpen(true);
+  };
+
+  const proceedAfterResult = () => {
+    const pn = pendingNext;
+    setResultOpen(false);
+    setResultData(null);
+    setPendingNext(null);
+
+    if (!pn || !lesson || !lesson.exercises) return;
+    if (pn.type === "next") {
+      setCurrentIndex(pn.index);
+      return;
     }
+    // finish
+    setHasFinishedAll(true);
   };
 
   // ---------- Complete lesson ("Done" button) ----------
@@ -253,6 +280,58 @@ export default function LessonPlayer() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+        {/* Per-exercise result panel (shown after each answer) */}
+        {resultOpen && resultData ? (
+          <div className="fixed inset-x-0 bottom-0 z-50">
+            <div className="max-w-4xl mx-auto px-4 pb-4">
+              <div
+                className={
+                  "rounded-2xl border p-4 shadow-xl " +
+                  (resultData.correct
+                    ? "border-emerald-200 bg-emerald-50"
+                    : resultData.skipped
+                    ? "border-slate-200 bg-slate-50"
+                    : "border-rose-200 bg-rose-50")
+                }
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="text-base font-extrabold text-slate-900">
+                      {resultData.correct
+                        ? "Correct!"
+                        : resultData.skipped
+                        ? "Skipped"
+                        : "Not quite"}
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {resultData.correct
+                        ? `+${Number(resultData.xpEarned || 0)} XP`
+                        : resultData.skipped
+                        ? "No XP gained"
+                        : "Try the next one — you can retry later."}
+                    </div>
+                    {Number.isFinite(resultData.hearts) ? (
+                      <div className="text-xs text-slate-500">Hearts left: {resultData.hearts}</div>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={proceedAfterResult}
+                    className={
+                      "rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition " +
+                      (pendingNext?.type === "finish"
+                        ? "bg-orange-600 hover:bg-orange-700"
+                        : "bg-slate-900 hover:bg-slate-950")
+                    }
+                  >
+                    {pendingNext?.type === "finish" ? "Done" : "Continue"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 mb-1">
             {lesson.title}
@@ -279,61 +358,27 @@ export default function LessonPlayer() {
           <ExerciseRenderer
             exercise={currentExercise}
             apiBaseUrl={API_BASE}
-
-            // New-style callback
             onAnswer={handleStepAnswer}
-
-            // Old-style compatibility callbacks
-            onCorrect={() => handleStepAnswer({ isCorrect: true, xpEarned: 0 })}
-            onWrong={(message) =>
-              handleStepAnswer({ isCorrect: false, xpEarned: 0, message })
-            }
-            onSkip={() =>
-              handleStepAnswer({ skipped: true, isCorrect: true, xpEarned: 0 })
-            }
           />
         ) : null}
 
         {/* If finished, show a clean completion card (no interactive exercise behind it) */}
         {showDoneFooter ? (
-          <div className="w-full max-w-3xl mx-auto px-4 py-10">
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center">
-              <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-white shadow-md">
-                <span className="text-4xl">🏆</span>
-              </div>
-
-              <h1 className="mt-5 text-3xl font-extrabold text-slate-900">Lesson Complete!</h1>
-              <p className="mt-1 text-slate-500">Great job! You're making amazing progress.</p>
-
-              <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="text-2xl font-extrabold text-orange-600">+{lessonXpEarned}</div>
-                  <div className="text-xs text-slate-500 mt-1">XP earned</div>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="text-2xl font-extrabold text-slate-900">
-                    {attemptedCount ? Math.round((correctCount / attemptedCount) * 100) : 0}%
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">Accuracy</div>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="text-2xl font-extrabold text-slate-900">
-                    {correctCount}/{attemptedCount || 0}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">Correct</div>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-emerald-700 text-sm font-semibold">
-                ✨ Keep it up — you're getting better every lesson!
-              </div>
-
+          <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8 border border-slate-200">
+            <div className="flex items-center gap-2 text-emerald-700">
+              <CheckCircle2 className="w-6 h-6" />
+              <div className="text-lg font-extrabold text-slate-900">Lesson complete</div>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">
+              XP earned in this session: <span className="font-semibold">{lessonXpEarned}</span>
+            </p>
+            <div className="mt-6">
               <button
                 onClick={handleCompleteLesson}
                 disabled={isCompleting}
-                className="mt-7 w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 rounded-2xl text-sm md:text-base font-extrabold text-white bg-gradient-to-r from-orange-500 to-rose-500 hover:opacity-95 shadow-md disabled:opacity-60 disabled:cursor-wait"
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-60 disabled:cursor-wait transition-colors"
               >
-                {isCompleting ? "Saving…" : "Continue Learning →"}
+                {isCompleting ? "Saving…" : "Done"}
               </button>
             </div>
           </div>
