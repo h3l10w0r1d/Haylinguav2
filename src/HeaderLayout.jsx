@@ -77,11 +77,16 @@ export default function HeaderLayout({ user, onLogout, children }) {
         localStorage.setItem("hay_hearts", JSON.stringify(next));
       } catch {}
     };
+    // Support both event names:
+    // - "haylingua:hearts" (older FE)
+    // - "hay_hearts" (newer ExerciseRenderer postAttempt)
     window.addEventListener("haylingua:hearts", onHearts);
+    window.addEventListener("hay_hearts", onHearts);
 
     return () => {
       cancelled = true;
       window.removeEventListener("haylingua:hearts", onHearts);
+      window.removeEventListener("hay_hearts", onHearts);
     };
   }, []);
 
