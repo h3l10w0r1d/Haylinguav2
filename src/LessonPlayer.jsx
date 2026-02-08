@@ -80,8 +80,6 @@ export default function LessonPlayer() {
         setCurrentIndex(0);
         setHasFinishedAll(false);
         setLessonXpEarned(0);
-        setHasFinishedAll(false);
-        setLessonXpEarned(0);
 
         if (!data.exercises || data.exercises.length === 0) {
           console.warn("[LessonPlayer] Lesson has no exercises array or it's empty.");

@@ -1,4 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  normalizeConfig,
+  normalizeText,
+  cx,
+  Card,
+  Title,
+  Muted,
+  PrimaryButton,
+  SecondaryButton,
+  ChoiceGrid,
+  Pill,
+  InlineInput,
+} from "./exercises/ui";
+import { ttsFetch } from "./exercises/tts";
 
 /**
  * Variant A: component-per-kind.
@@ -13,189 +27,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  *  - onCorrect: () => void
  *  - onWrong: (msg?: string) => void
  *  - onSkip: () => void
- *  - onAnswer: (payload) => void   // legacy/compat
+ *  - onAnswer: (payload) => void   // parent receives result and advances
  *  - apiBaseUrl?: string
  */
 
-function normalizeConfig(config) {
-  if (!config) return {};
-  if (typeof config === "string") {
-    try {
-      return JSON.parse(config);
-    } catch {
-      return {};
-    }
-  }
-  if (typeof config === "object") return config;
-  return {};
-}
-
-function normalizeText(s) {
-  return String(s ?? "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
-}
-
-function cx(...parts) {
-  return parts.filter(Boolean).join(" ");
-}
-
-function Card({ children, className }) {
-  return (
-    <div
-      className={cx(
-        "rounded-2xl bg-white/90 shadow-sm ring-1 ring-black/5 p-4 md:p-6",
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Title({ children }) {
-  return (
-    <div className="text-lg md:text-xl font-semibold text-slate-900">
-      {children}
-    </div>
-  );
-}
-
-function Muted({ children, className }) {
-  return (
-    <div className={cx("text-sm text-slate-600", className)}>{children}</div>
-  );
-}
-
-function PrimaryButton({
-  children,
-  onClick,
-  disabled,
-  className,
-  type = "button",
-}) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={cx(
-        "w-full rounded-xl px-4 py-3 font-semibold transition",
-        disabled
-          ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-          : "bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700",
-        className
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function SecondaryButton({
-  children,
-  onClick,
-  disabled,
-  className,
-  type = "button",
-}) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={cx(
-        "w-full rounded-xl px-4 py-3 font-semibold transition ring-1 ring-slate-200",
-        disabled
-          ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-          : "bg-white text-slate-800 hover:bg-slate-50 active:bg-slate-100",
-        className
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ChoiceGrid({ choices, selected, onSelect, columns = 2 }) {
-  const colClass =
-    columns === 1
-      ? "grid-cols-1"
-      : columns === 3
-      ? "grid-cols-1 sm:grid-cols-3"
-      : "grid-cols-1 sm:grid-cols-2";
-
-  return (
-    <div className={cx("grid gap-3", colClass)}>
-      {choices.map((c, idx) => {
-        const isSelected = selected === idx;
-        return (
-          <button
-            key={idx}
-            onClick={() => onSelect(idx)}
-            className={cx(
-              "rounded-xl px-4 py-3 text-left font-semibold transition ring-1",
-              isSelected
-                ? "bg-orange-50 ring-orange-300 text-orange-800"
-                : "bg-white ring-slate-200 hover:bg-slate-50"
-            )}
-          >
-            {c}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Pill({ children, onClick, disabled, active = false }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cx(
-        "rounded-full px-4 py-2 text-sm font-semibold ring-1 transition",
-        disabled
-          ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed"
-          : active
-          ? "bg-orange-50 text-orange-800 ring-orange-300"
-          : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function InlineInput({ value, onChange, placeholder }) {
-  return (
-    <input
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-xl px-4 py-3 ring-1 ring-slate-200 focus:outline-none focus:ring-orange-300"
-    />
-  );
-}
-
-async function ttsFetch(apiBaseUrl, text) {
-  const base =
-    apiBaseUrl ||
-    import.meta.env.VITE_API_BASE_URL ||
-    "https://haylinguav2.onrender.com";
-
-  const res = await fetch(`${base}/tts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-
-  if (!res.ok) throw new Error("TTS failed");
-
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-}
 
 /** Shared helper so all components keep exact behavior */
 function useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit }) {
@@ -273,9 +108,9 @@ async function postAttempt({
           localStorage.setItem("hay_hearts", JSON.stringify(next));
         } catch {}
         window.dispatchEvent(new CustomEvent("hay_hearts", { detail: next }));
-          return data;
-  }
+      }
     }
+    return data;
   } catch (e) {
     console.warn("[postAttempt] error:", e);
     return null;
@@ -1273,60 +1108,85 @@ export default function ExerciseRenderer({
   apiBaseUrl,
   submit,
 }) {
-  
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
-const exerciseStartRef = useRef(Date.now());
-
-  // Per-exercise result screen
-  const [phase, setPhase] = useState("question");
-  const [lastResult, setLastResult] = useState(null);
+  const exerciseStartRef = useRef(Date.now());
 
   useEffect(() => {
-    setPhase("question");
-    setLastResult(null);
     exerciseStartRef.current = Date.now();
   }, [exercise?.id]);
 
-async function handleAnswer(payload) {
-  const timeSpentMs = Date.now() - exerciseStartRef.current;
+  async function handleAnswer(payload) {
+    const timeSpentMs = Date.now() - exerciseStartRef.current;
+    const isCorrect = payload?.isCorrect === true || payload?.is_correct === true;
+    const skipped = payload?.skipped === true;
 
-  // Persist attempt + log
-  const attempt = await postAttempt({
-    exerciseId: exercise.id,
-    isCorrect: !!payload?.is_correct,
-    chosenAnswer: payload?.chosen_answer ?? null,
-    studentAnswer: payload?.student_answer ?? null,
-    timeSpentMs,
+    const answerText =
+      payload?.answerText ??
+      payload?.answer_text ??
+      payload?.chosen_answer ??
+      payload?.student_answer ??
+      null;
+    const selectedIndices =
+      payload?.selectedIndices ?? payload?.selected_indices ?? null;
+
+    const attempt = await postAttempt({
+      exerciseId: exercise.id,
+      isCorrect,
+      answerText,
+      selectedIndices,
+      msSpent: timeSpentMs,
+    });
+
+    await postExerciseLog({
+      exerciseId: exercise.id,
+      event: "answered",
+      payload: {
+        lesson_id: exercise.lesson_id,
+        kind: exercise.kind,
+        is_correct: isCorrect,
+        time_ms: timeSpentMs,
+      },
+    });
+
+    const earnedDelta =
+      Number(attempt?.earned_xp_delta ?? 0) ||
+      (isCorrect && !skipped ? Number(exercise?.xp ?? 0) : 0);
+
+    const resultPayload = {
+      isCorrect,
+      skipped,
+      xpEarned: Math.max(0, Math.floor(earnedDelta)),
+      message: payload?.message ?? null,
+      hearts:
+        Number.isFinite(attempt?.hearts_current) ? attempt.hearts_current : undefined,
+    };
+
+    onAnswer?.(resultPayload);
+  }
+
+  const internalSubmit = submit ?? handleAnswer;
+  const fallbackHelpers = useAnswerHelpers({
+    onCorrect,
+    onWrong,
+    onSkip,
+    onAnswer,
+    submit: internalSubmit,
   });
 
-  await postExerciseLog({
-    lessonId: exercise.lesson_id,
-    exerciseId: exercise.id,
-    kind: exercise.kind,
-    isCorrect: !!payload?.is_correct,
-    timeSpentMs,
-  });
-
-  // Prepare result data (prefer backend-provided delta)
-  const earnedDelta =
-    Number(attempt?.earned_xp_delta ?? attempt?.earned_xp_delta) ||
-    (payload?.is_correct ? Number(exercise?.xp ?? 0) : 0);
-
-  setLastResult({
-    isCorrect: !!payload?.is_correct,
-    message: payload?.result_message || null,
-    earnedXpDelta: Math.max(0, Math.floor(earnedDelta)),
-    hearts_current: attempt?.hearts_current ?? null,
-    hearts_max: attempt?.hearts_max ?? null,
-    accuracy: attempt?.accuracy ?? null,
-    completion_ratio: attempt?.completion_ratio ?? null,
-    attempt_id: attempt?.attempt_id ?? null,
-  });
-
-  setPhase("result");
-}
-
+  if (kind === "char_intro") {
+    return (
+      <ExCharIntro
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+        submit={handleAnswer}
+      />
+    );
+  }
 
   if (kind === "char_mcq_sound") {
     return (
@@ -1495,8 +1355,7 @@ async function handleAnswer(payload) {
     );
   }
 
-  // Fallback
-  const { skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  // Fallback for unknown exercise kinds
   return (
     <Card>
       <Title>Unknown exercise type</Title>
@@ -1505,7 +1364,7 @@ async function handleAnswer(payload) {
       </Muted>
       {exercise?.prompt && <Muted className="mt-2">{exercise.prompt}</Muted>}
       <div className="mt-6 space-y-3">
-        <PrimaryButton onClick={skip}>Skip</PrimaryButton>
+        <PrimaryButton onClick={fallbackHelpers.skip}>Skip</PrimaryButton>
       </div>
     </Card>
   );
