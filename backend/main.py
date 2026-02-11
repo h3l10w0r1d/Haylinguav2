@@ -13,6 +13,8 @@ from lesson_analytics import router as lesson_analytics_router
 
 app = FastAPI()
 
+ensure_schema()
+
 # Register all routers
 app.include_router(lesson_analytics_router)
 app.include_router(api_router)
