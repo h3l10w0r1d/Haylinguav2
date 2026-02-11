@@ -3,7 +3,7 @@ from sqlalchemy import text
 
 # Import your SQLAlchemy engine from wherever you define it.
 # Common names: engine in backend/database.py or backend/db.py
-from backend.database import engine  # <-- adjust this import if needed
+from database import engine  # <-- adjust this import if needed
 
 
 def ensure_schema() -> None:
