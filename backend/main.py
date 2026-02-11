@@ -6,6 +6,7 @@ from routes import router as api_router
 from routes_audio import router as audio_router  # NEW: Audio management
 from db_utils import seed_alphabet_lessons
 import os
+from backend.ensure_schema import ensure_schema
 
 from lesson_analytics import router as lesson_analytics_router
 
