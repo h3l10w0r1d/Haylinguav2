@@ -1,9 +1,10 @@
 // src/LessonPlayer.jsx
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 import ExerciseRenderer from "./ExerciseRenderer";
+import Phase2Exercise from "./Phase2Exercise";
 import LessonCompletionScreen from "./LessonCompletionScreen";
 import ExerciseAnalyticsModal from "./ExerciseAnalyticsModal";
 import ExerciseShell from "./ExerciseShell";
@@ -39,6 +40,11 @@ export default function LessonPlayer() {
   // This prevents showing the "Done" state just because we are viewing the last step.
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
 
+  // Phase 2: unified bottom bar controls (provided by Phase2Exercise)
+  const [phase2Actions, setPhase2Actions] = useState(null);
+
+  const exerciseStartRef = useRef(Date.now());
+
   // Lesson analytics (shown after finishing all exercises)
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState(null);
@@ -55,6 +61,87 @@ export default function LessonPlayer() {
     if (!lesson || !lesson.exercises || lesson.exercises.length === 0) return null;
     return lesson.exercises[currentIndex] || null;
   }, [lesson, currentIndex]);
+
+  const PHASE2_KINDS = useMemo(
+    () =>
+      new Set([
+        "translate_mcq",
+        "true_false",
+        "fill_blank",
+        "letter_typing",
+        "word_spelling",
+        "sentence_order",
+        "char_build_word",
+        "letter_recognition",
+        "char_mcq_sound",
+      ]),
+    []
+  );
+
+  const isPhase2 = !!currentExercise && PHASE2_KINDS.has(String(currentExercise.kind || "").trim());
+
+  useEffect(() => {
+    // reset timer + actions on exercise change
+    exerciseStartRef.current = Date.now();
+    setPhase2Actions(null);
+  }, [currentExercise?.id]);
+
+  async function submitPhase2(payload) {
+    // payload: { isCorrect, skipped, answerText, selectedIndices }
+    if (!currentExercise?.id) return;
+    const token = getToken();
+    const timeSpentMs = Date.now() - exerciseStartRef.current;
+    const isCorrect = payload?.isCorrect === true;
+    const skipped = payload?.skipped === true;
+    const answerText = payload?.answerText ?? null;
+    const selectedIndices = payload?.selectedIndices ?? null;
+
+    let earnedDelta = 0;
+    let hearts = undefined;
+
+    if (token) {
+      try {
+        const res = await fetch(`${API_BASE}/me/exercises/${currentExercise.id}/attempt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            is_correct: isCorrect,
+            skipped,
+            answer_text: answerText,
+            selected_indices: selectedIndices,
+            ms_spent: timeSpentMs,
+          }),
+        });
+
+        if (res.ok) {
+          const attempt = await res.json();
+          earnedDelta = Number(attempt?.earned_xp_delta ?? 0) || 0;
+          hearts = Number.isFinite(attempt?.hearts_current)
+            ? attempt.hearts_current
+            : undefined;
+        } else {
+          // fallback when backend doesn't respond with delta
+          earnedDelta = isCorrect && !skipped ? Number(currentExercise?.xp ?? 0) : 0;
+        }
+      } catch (e) {
+        earnedDelta = isCorrect && !skipped ? Number(currentExercise?.xp ?? 0) : 0;
+      }
+    } else {
+      earnedDelta = isCorrect && !skipped ? Number(currentExercise?.xp ?? 0) : 0;
+    }
+
+    handleStepAnswer({
+      isCorrect,
+      skipped,
+      xpEarned: Math.max(0, Math.floor(earnedDelta)),
+      hearts,
+    });
+  }
+
+  // isPhase2 decides if we render the Phase2Exercise (unified bottom bar).
 
   // ---------- Load lesson ----------
 
@@ -383,6 +470,12 @@ export default function LessonPlayer() {
       step={Math.min(currentIndex + 1, totalSteps)}
       total={totalSteps}
       onBack={() => navigate("/dashboard")}
+      primaryLabel={!showDoneFooter && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
+      primaryDisabled={!showDoneFooter && isPhase2 && !resultOpen ? !phase2Actions?.canCheck : null}
+      onPrimary={!showDoneFooter && isPhase2 && !resultOpen ? phase2Actions?.onCheck : null}
+      secondaryLabel={!showDoneFooter && isPhase2 && !resultOpen ? (phase2Actions?.secondaryLabel ?? "Skip") : null}
+      secondaryDisabled={!showDoneFooter && isPhase2 && !resultOpen ? false : null}
+      onSecondary={!showDoneFooter && isPhase2 && !resultOpen ? phase2Actions?.onSkip : null}
     >
         {/* Per-exercise result panel (shown after each answer) */}
         {resultOpen && resultData ? (
@@ -446,11 +539,19 @@ export default function LessonPlayer() {
 
         {/* Current exercise */}
         {!showDoneFooter && currentExercise ? (
-          <ExerciseRenderer
-            exercise={currentExercise}
-            apiBaseUrl={API_BASE}
-            onAnswer={handleStepAnswer}
-          />
+          isPhase2 ? (
+            <Phase2Exercise
+              exercise={currentExercise}
+              registerActions={setPhase2Actions}
+              submit={submitPhase2}
+            />
+          ) : (
+            <ExerciseRenderer
+              exercise={currentExercise}
+              apiBaseUrl={API_BASE}
+              onAnswer={handleStepAnswer}
+            />
+          )
         ) : null}
 
         {/* If finished, show a clean completion card (no interactive exercise behind it) */}
