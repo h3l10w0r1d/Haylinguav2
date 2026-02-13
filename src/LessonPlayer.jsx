@@ -36,6 +36,7 @@ export default function LessonPlayer() {
   const [resultOpen, setResultOpen] = useState(false);
   const [resultData, setResultData] = useState(null);
   const [pendingNext, setPendingNext] = useState(null);
+  const [renderNonce, setRenderNonce] = useState(0);
   // True only AFTER the user submits an answer for the LAST exercise.
   // This prevents showing the "Done" state just because we are viewing the last step.
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
@@ -236,7 +237,10 @@ export default function LessonPlayer() {
       else sfx.wrong();
     }
 
-    // Show the result overlay first, then proceed on user action.
+    // Phase 2.5: unified result sheet
+    // - correct: continue/finish
+    // - skipped: continue/finish
+    // - wrong: retry same exercise
     setResultData({
       isCorrect,
       skipped,
@@ -244,7 +248,12 @@ export default function LessonPlayer() {
       message: payload?.message,
       hearts: payload?.hearts,
     });
-    setPendingNext(isLast ? { type: "finish" } : { type: "next", index: nextIndex });
+
+    if (!skipped && !isCorrect) {
+      setPendingNext({ type: "retry" });
+    } else {
+      setPendingNext(isLast ? { type: "finish" } : { type: "next", index: nextIndex });
+    }
     setResultOpen(true);
   };
 
@@ -257,6 +266,13 @@ export default function LessonPlayer() {
     if (!pn || !lesson || !lesson.exercises) return;
     if (pn.type === "next") {
       setCurrentIndex(pn.index);
+      return;
+    }
+    if (pn.type === "retry") {
+      // Re-mount the exercise component so local selection/input state resets.
+      exerciseStartRef.current = Date.now();
+      setPhase2Actions(null);
+      setRenderNonce((n) => n + 1);
       return;
     }
     // finish
@@ -476,71 +492,36 @@ export default function LessonPlayer() {
       secondaryLabel={!showDoneFooter && isPhase2 && !resultOpen ? (phase2Actions?.secondaryLabel ?? "Skip") : null}
       secondaryDisabled={!showDoneFooter && isPhase2 && !resultOpen ? false : null}
       onSecondary={!showDoneFooter && isPhase2 && !resultOpen ? phase2Actions?.onSkip : null}
+      result={
+        resultOpen && resultData
+          ? {
+              variant: resultData.isCorrect
+                ? "correct"
+                : resultData.skipped
+                ? "skipped"
+                : "wrong",
+              xpEarned: resultData.xpEarned,
+              subtext:
+                Number.isFinite(resultData.hearts)
+                  ? `Hearts left: ${resultData.hearts}`
+                  : null,
+              detail: resultData.message || null,
+              primaryLabel:
+                pendingNext?.type === "finish"
+                  ? "Finish"
+                  : pendingNext?.type === "retry"
+                  ? "Try again"
+                  : "Continue",
+            }
+          : null
+      }
+      onResultPrimary={proceedAfterResult}
     >
-        {/* Per-exercise result panel (shown after each answer) */}
-        {resultOpen && resultData ? (
-          <div className="fixed inset-x-0 bottom-0 z-50">
-            <div className="max-w-3xl mx-auto px-4 pb-4">
-              <div
-                className={
-                  "rounded-3xl border p-4 sm:p-5 shadow-xl " +
-                  (resultData.isCorrect
-                    ? "border-emerald-200 bg-emerald-50"
-                    : resultData.skipped
-                    ? "border-slate-200 bg-white"
-                    : "border-rose-200 bg-rose-50")
-                }
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="text-2xl" aria-hidden>
-                        {resultData.isCorrect ? "✅" : resultData.skipped ? "⏭️" : "❌"}
-                      </div>
-                      <div className="text-lg font-extrabold text-slate-900">
-                        {resultData.isCorrect
-                          ? "Correct!"
-                          : resultData.skipped
-                          ? "Skipped"
-                          : "Not quite"}
-                      </div>
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      {resultData.isCorrect
-                        ? `+${Number(resultData.xpEarned || 0)} XP`
-                        : resultData.skipped
-                        ? "No XP gained"
-                        : "Keep going — you can retry later."}
-                    </div>
-                    {Number.isFinite(resultData.hearts) ? (
-                      <div className="text-xs text-slate-500">
-                        Hearts left: {resultData.hearts}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={proceedAfterResult}
-                    className={
-                      "cta-float relative overflow-hidden rounded-2xl px-5 py-3 text-sm font-extrabold text-white shadow-md transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] " +
-                      (pendingNext?.type === "finish"
-                        ? "bg-gradient-to-r from-orange-500 to-pink-500"
-                        : "bg-gradient-to-r from-slate-900 to-slate-800")
-                    }
-                  >
-                    {pendingNext?.type === "finish" ? "Finish" : "Continue"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
         {/* Current exercise */}
         {!showDoneFooter && currentExercise ? (
           isPhase2 ? (
             <Phase2Exercise
+              key={`${currentExercise.id}:${renderNonce}`}
               exercise={currentExercise}
               registerActions={setPhase2Actions}
               submit={submitPhase2}
