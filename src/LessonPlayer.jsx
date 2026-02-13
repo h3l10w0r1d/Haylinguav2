@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import ExerciseRenderer from "./ExerciseRenderer";
 import LessonCompletionScreen from "./LessonCompletionScreen";
 import ExerciseAnalyticsModal from "./ExerciseAnalyticsModal";
+import ExerciseShell from "./ExerciseShell";
 import { sfx } from "./lib/sfx";
 
 // 🔧 Make sure this matches your backend URL
@@ -374,58 +375,54 @@ export default function LessonPlayer() {
 
   // "Done" state should appear only after the last exercise is answered.
   const showDoneFooter = !!hasFinishedAll;
+  const totalSteps = lesson.exercises?.length || 1;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur border-b border-slate-200">
-        <div className="max-w-4xl mx-auto flex items-center justify-between px-4 py-3">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="inline-flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </button>
-          <div className="text-sm text-slate-600">
-            {lesson.title} · Step {currentIndex + 1} of{" "}
-            {lesson.exercises?.length || 1}
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+    <ExerciseShell
+      title={lesson.title}
+      step={Math.min(currentIndex + 1, totalSteps)}
+      total={totalSteps}
+      onBack={() => navigate("/dashboard")}
+    >
         {/* Per-exercise result panel (shown after each answer) */}
         {resultOpen && resultData ? (
           <div className="fixed inset-x-0 bottom-0 z-50">
-            <div className="max-w-4xl mx-auto px-4 pb-4">
+            <div className="max-w-3xl mx-auto px-4 pb-4">
               <div
                 className={
-                  "rounded-2xl border p-4 shadow-xl " +
+                  "rounded-3xl border p-4 sm:p-5 shadow-xl " +
                   (resultData.isCorrect
                     ? "border-emerald-200 bg-emerald-50"
                     : resultData.skipped
-                    ? "border-slate-200 bg-slate-50"
+                    ? "border-slate-200 bg-white"
                     : "border-rose-200 bg-rose-50")
                 }
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <div className="text-base font-extrabold text-slate-900">
-                      {resultData.isCorrect
-                        ? "Correct!"
-                        : resultData.skipped
-                        ? "Skipped"
-                        : "Not quite"}
+                    <div className="flex items-center gap-2">
+                      <div className="text-2xl" aria-hidden>
+                        {resultData.isCorrect ? "✅" : resultData.skipped ? "⏭️" : "❌"}
+                      </div>
+                      <div className="text-lg font-extrabold text-slate-900">
+                        {resultData.isCorrect
+                          ? "Correct!"
+                          : resultData.skipped
+                          ? "Skipped"
+                          : "Not quite"}
+                      </div>
                     </div>
                     <div className="text-sm text-slate-600">
                       {resultData.isCorrect
                         ? `+${Number(resultData.xpEarned || 0)} XP`
                         : resultData.skipped
                         ? "No XP gained"
-                        : "Try the next one — you can retry later."}
+                        : "Keep going — you can retry later."}
                     </div>
                     {Number.isFinite(resultData.hearts) ? (
-                      <div className="text-xs text-slate-500">Hearts left: {resultData.hearts}</div>
+                      <div className="text-xs text-slate-500">
+                        Hearts left: {resultData.hearts}
+                      </div>
                     ) : null}
                   </div>
 
@@ -433,39 +430,19 @@ export default function LessonPlayer() {
                     type="button"
                     onClick={proceedAfterResult}
                     className={
-                      "rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition " +
+                      "cta-float relative overflow-hidden rounded-2xl px-5 py-3 text-sm font-extrabold text-white shadow-md transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] " +
                       (pendingNext?.type === "finish"
-                        ? "bg-orange-600 hover:bg-orange-700"
-                        : "bg-slate-900 hover:bg-slate-950")
+                        ? "bg-gradient-to-r from-orange-500 to-pink-500"
+                        : "bg-gradient-to-r from-slate-900 to-slate-800")
                     }
                   >
-                    {pendingNext?.type === "finish" ? "Done" : "Continue"}
+                    {pendingNext?.type === "finish" ? "Finish" : "Continue"}
                   </button>
                 </div>
               </div>
             </div>
           </div>
         ) : null}
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 mb-1">
-            {lesson.title}
-          </h1>
-          {lesson.description && (
-            <p className="text-sm text-slate-600">{lesson.description}</p>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        {lesson.exercises && lesson.exercises.length > 0 && (
-          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-            <div
-              className="h-2 bg-orange-500 transition-all"
-              style={{
-                width: `${((currentIndex + 1) / lesson.exercises.length) * 100}%`,
-              }}
-            />
-          </div>
-        )}
 
         {/* Current exercise */}
         {!showDoneFooter && currentExercise ? (
@@ -550,7 +527,6 @@ export default function LessonPlayer() {
           data={exModalData}
           onRetry={() => fetchExerciseAnalytics(exModalExerciseId)}
         />
-      </main>
-    </div>
+    </ExerciseShell>
   );
 }
