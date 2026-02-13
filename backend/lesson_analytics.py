@@ -77,6 +77,36 @@ class LessonAnalyticsOut(BaseModel):
     exercises: list[ExerciseAnalyticsOut]
 
 
+class ExerciseAttemptOut(BaseModel):
+    id: int
+    attempt_no: int
+    is_correct: bool
+    answer_text: Optional[str] = None
+    selected_indices: list[int] = []
+    time_ms: Optional[int] = None
+    created_at: datetime
+    xp_earned: int
+
+
+class ExerciseSummaryOut(BaseModel):
+    attempts: int
+    correct: int
+    wrong: int
+    accuracy: float
+
+
+class ExerciseAnalyticsDetailOut(BaseModel):
+    exercise_id: int
+    lesson_id: int
+    order: int
+    kind: Optional[str] = None
+    prompt: str
+    xp: int
+
+    summary: ExerciseSummaryOut
+    attempts: list[ExerciseAttemptOut]
+
+
 def _stars_from_ratio(r: float) -> int:
     # tweak however you want
     # - 70% completed -> pass lesson (green)
@@ -220,6 +250,108 @@ def lesson_analytics(
 
         stars=int(stars),
         exercises=exercises,
+    )
+
+
+@router.get("/me/exercises/{exercise_id}/analytics", response_model=ExerciseAnalyticsDetailOut)
+def exercise_analytics(
+    exercise_id: int,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    ex = db.execute(
+        text("""
+            SELECT
+              e.id AS exercise_id,
+              e.lesson_id,
+              COALESCE(e."order", 0)::int AS ord,
+              e.kind,
+              COALESCE(e.prompt, '') AS prompt,
+              COALESCE(e.xp, 0)::int AS xp
+            FROM exercises e
+            WHERE e.id = :eid
+        """),
+        {"eid": exercise_id},
+    ).mappings().first()
+
+    if not ex:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    # Pull attempt history for this user/exercise
+    rows = db.execute(
+        text("""
+            SELECT
+              id,
+              attempt_no,
+              is_correct,
+              answer_text,
+              selected_indices,
+              time_ms,
+              created_at,
+              xp_earned
+            FROM user_exercise_attempts
+            WHERE user_id = :uid
+              AND exercise_id = :eid
+              AND lesson_id = :lid
+            ORDER BY created_at DESC, id DESC
+            LIMIT 50
+        """),
+        {"uid": user_id, "eid": exercise_id, "lid": int(ex["lesson_id"])},
+    ).mappings().all()
+
+    attempts = int(len(rows))
+    correct = sum(1 for r in rows if bool(r["is_correct"]))
+    wrong = attempts - correct
+    accuracy = round((correct / attempts) * 100.0, 2) if attempts > 0 else 0.0
+
+    attempts_out: list[ExerciseAttemptOut] = []
+    for r in rows:
+        sel = r.get("selected_indices")
+        # selected_indices stored as jsonb array; driver may return list already
+        if sel is None:
+            sel_list = []
+        elif isinstance(sel, list):
+            sel_list = [int(x) for x in sel]
+        else:
+            # fallback string -> try parse
+            try:
+                import json
+
+                sel_list = [int(x) for x in json.loads(sel)]
+            except Exception:
+                sel_list = []
+
+        attempts_out.append(
+            ExerciseAttemptOut(
+                id=int(r["id"]),
+                attempt_no=int(r["attempt_no"] or 0),
+                is_correct=bool(r["is_correct"]),
+                answer_text=r.get("answer_text"),
+                selected_indices=sel_list,
+                time_ms=r.get("time_ms"),
+                created_at=r["created_at"],
+                xp_earned=int(r.get("xp_earned") or 0),
+            )
+        )
+
+    return ExerciseAnalyticsDetailOut(
+        exercise_id=int(ex["exercise_id"]),
+        lesson_id=int(ex["lesson_id"]),
+        order=int(ex["ord"]),
+        kind=ex.get("kind"),
+        prompt=ex.get("prompt") or "",
+        xp=int(ex.get("xp") or 0),
+        summary=ExerciseSummaryOut(
+            attempts=attempts,
+            correct=correct,
+            wrong=wrong,
+            accuracy=float(accuracy),
+        ),
+        attempts=attempts_out,
     )
 
 
