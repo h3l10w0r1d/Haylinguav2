@@ -100,7 +100,7 @@ export function SecondaryButton({
   );
 }
 
-export function ChoiceGrid({ choices, selected, onSelect, columns = 2 }) {
+export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = false }) {
   const colClass =
     columns === 1
       ? "grid-cols-1"
@@ -108,14 +108,33 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2 }) {
       ? "grid-cols-1 sm:grid-cols-3"
       : "grid-cols-1 sm:grid-cols-2";
 
+  // selected:
+  //  - single mode: number | null
+  //  - multi mode: number[] (indices)
+  const selectedSet = React.useMemo(() => {
+    if (!multi) return null;
+    const arr = Array.isArray(selected) ? selected : [];
+    return new Set(arr.map((n) => Number(n)));
+  }, [multi, selected]);
+
+  function handleClick(idx) {
+    if (!multi) return onSelect(idx);
+
+    const cur = selectedSet ?? new Set();
+    const next = new Set(cur);
+    if (next.has(idx)) next.delete(idx);
+    else next.add(idx);
+    onSelect(Array.from(next));
+  }
+
   return (
     <div className={cx("grid gap-3", colClass)}>
       {choices.map((c, idx) => {
-        const isSelected = selected === idx;
+        const isSelected = multi ? (selectedSet?.has(idx) ?? false) : selected === idx;
         return (
           <button
             key={idx}
-            onClick={() => onSelect(idx)}
+            onClick={() => handleClick(idx)}
             className={cx(
               "rounded-xl px-4 py-3 text-left font-semibold transition ring-1",
               isSelected
