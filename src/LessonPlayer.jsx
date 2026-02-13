@@ -1,9 +1,11 @@
 // src/LessonPlayer.jsx
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 import ExerciseRenderer from "./ExerciseRenderer";
+import LessonCompletionScreen from "./LessonCompletionScreen";
+import ExerciseAnalyticsModal from "./ExerciseAnalyticsModal";
 
 // 🔧 Make sure this matches your backend URL
 const API_BASE =
@@ -34,6 +36,18 @@ export default function LessonPlayer() {
   // True only AFTER the user submits an answer for the LAST exercise.
   // This prevents showing the "Done" state just because we are viewing the last step.
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
+
+  // Lesson analytics (shown after finishing all exercises)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState(null);
+
+  // Per-exercise analytics modal (opened from completion screen)
+  const [exModalOpen, setExModalOpen] = useState(false);
+  const [exModalLoading, setExModalLoading] = useState(false);
+  const [exModalError, setExModalError] = useState(null);
+  const [exModalData, setExModalData] = useState(null);
+  const [exModalExerciseId, setExModalExerciseId] = useState(null);
 
   const currentExercise = useMemo(() => {
     if (!lesson || !lesson.exercises || lesson.exercises.length === 0) return null;
@@ -80,6 +94,9 @@ export default function LessonPlayer() {
         setCurrentIndex(0);
         setHasFinishedAll(false);
         setLessonXpEarned(0);
+        setAnalyticsLoading(false);
+        setAnalyticsError(null);
+        setAnalyticsData(null);
 
         if (!data.exercises || data.exercises.length === 0) {
           console.warn("[LessonPlayer] Lesson has no exercises array or it's empty.");
@@ -149,6 +166,98 @@ export default function LessonPlayer() {
     }
     // finish
     setHasFinishedAll(true);
+  };
+
+  // ---------- Load analytics when finished ----------
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      if (!hasFinishedAll) return;
+      if (!lesson?.id) return;
+
+      const token = getToken();
+      if (!token) return;
+
+      setAnalyticsLoading(true);
+      setAnalyticsError(null);
+
+      const url = `${API_BASE}/me/lessons/${lesson.id}/analytics`;
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("[LessonPlayer] Analytics error:", res.status, text);
+          setAnalyticsError(`Failed to load analytics (${res.status}).`);
+          return;
+        }
+
+        const data = await res.json();
+        setAnalyticsData(data);
+      } catch (err) {
+        console.error("[LessonPlayer] Analytics network error:", err);
+        setAnalyticsError("Network error when loading analytics.");
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+
+    loadAnalytics();
+  }, [hasFinishedAll, lesson?.id]);
+
+  // ---------- Per-exercise analytics modal ----------
+
+  const fetchExerciseAnalytics = async (exerciseId) => {
+    if (!exerciseId) return;
+    const token = getToken();
+    if (!token) {
+      setExModalError("You need to be logged in to view analytics.");
+      return;
+    }
+
+    setExModalLoading(true);
+    setExModalError(null);
+
+    const url = `${API_BASE}/me/exercises/${exerciseId}/analytics`;
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("[LessonPlayer] Exercise analytics error:", res.status, text);
+        setExModalError(`Failed to load exercise analytics (${res.status}).`);
+        return;
+      }
+      const data = await res.json();
+      setExModalData(data);
+    } catch (err) {
+      console.error("[LessonPlayer] Exercise analytics network error:", err);
+      setExModalError("Network error when loading exercise analytics.");
+    } finally {
+      setExModalLoading(false);
+    }
+  };
+
+  const openExerciseAnalytics = (ex) => {
+    const id = ex?.exercise_id;
+    if (!id) return;
+    setExModalExerciseId(id);
+    setExModalData(null);
+    setExModalError(null);
+    setExModalOpen(true);
+    fetchExerciseAnalytics(id);
   };
 
   // ---------- Complete lesson ("Done" button) ----------
@@ -285,7 +394,7 @@ export default function LessonPlayer() {
               <div
                 className={
                   "rounded-2xl border p-4 shadow-xl " +
-                  (resultData.correct
+                  (resultData.isCorrect
                     ? "border-emerald-200 bg-emerald-50"
                     : resultData.skipped
                     ? "border-slate-200 bg-slate-50"
@@ -295,14 +404,14 @@ export default function LessonPlayer() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="text-base font-extrabold text-slate-900">
-                      {resultData.correct
+                      {resultData.isCorrect
                         ? "Correct!"
                         : resultData.skipped
                         ? "Skipped"
                         : "Not quite"}
                     </div>
                     <div className="text-sm text-slate-600">
-                      {resultData.correct
+                      {resultData.isCorrect
                         ? `+${Number(resultData.xpEarned || 0)} XP`
                         : resultData.skipped
                         ? "No XP gained"
@@ -362,24 +471,49 @@ export default function LessonPlayer() {
 
         {/* If finished, show a clean completion card (no interactive exercise behind it) */}
         {showDoneFooter ? (
-          <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8 border border-slate-200">
-            <div className="flex items-center gap-2 text-emerald-700">
-              <CheckCircle2 className="w-6 h-6" />
-              <div className="text-lg font-extrabold text-slate-900">Lesson complete</div>
-            </div>
-            <p className="mt-2 text-sm text-slate-600">
-              XP earned in this session: <span className="font-semibold">{lessonXpEarned}</span>
-            </p>
-            <div className="mt-6">
-              <button
-                onClick={handleCompleteLesson}
-                disabled={isCompleting}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-60 disabled:cursor-wait transition-colors"
-              >
-                {isCompleting ? "Saving…" : "Done"}
-              </button>
-            </div>
-          </div>
+          <LessonCompletionScreen
+            lesson={lesson}
+            sessionXpEarned={lessonXpEarned}
+            analytics={analyticsData}
+            analyticsLoading={analyticsLoading}
+            analyticsError={analyticsError}
+            onOpenExercise={openExerciseAnalytics}
+            onRetry={async () => {
+              const token = getToken();
+              if (!token) {
+                // not logged in; just restart locally
+                setCurrentIndex(0);
+                setHasFinishedAll(false);
+                setLessonXpEarned(0);
+                return;
+              }
+
+              const url = `${API_BASE}/me/lessons/${lesson.id}/reset`;
+              const res = await fetch(url, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+
+              if (!res.ok) {
+                const text = await res.text();
+                alert(`Could not reset lesson (${res.status}). ${text}`);
+                return;
+              }
+
+              // restart
+              setCurrentIndex(0);
+              setHasFinishedAll(false);
+              setLessonXpEarned(0);
+              setAnalyticsData(null);
+              setAnalyticsError(null);
+              setAnalyticsLoading(false);
+            }}
+            onDone={handleCompleteLesson}
+            isSaving={isCompleting}
+          />
         ) : null}
 
         {/* Fallback if something is wrong with the lesson data */}
@@ -397,6 +531,18 @@ export default function LessonPlayer() {
             </button>
           </div>
         ) : null}
+
+        <ExerciseAnalyticsModal
+          open={exModalOpen}
+          onClose={() => {
+            setExModalOpen(false);
+            setExModalExerciseId(null);
+          }}
+          loading={exModalLoading}
+          error={exModalError}
+          data={exModalData}
+          onRetry={() => fetchExerciseAnalytics(exModalExerciseId)}
+        />
       </main>
     </div>
   );
