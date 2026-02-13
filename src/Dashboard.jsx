@@ -257,16 +257,16 @@ export default function Dashboard({ user, onLogout }) {
 
                   {isCurrent && (
                     <button className="
-    relative overflow-hidden
-    cta-float
-    bg-gradient-to-r from-orange-500 to-pink-500
-    text-white font-semibold
-    px-6 py-4 rounded-2xl
-    shadow-lg
-    transition-transform duration-200
-    hover:scale-[1.02]
-    active:scale-[0.99]
-  ">
+  relative overflow-hidden cta-float
+  inline-flex items-center justify-center gap-2
+  px-5 py-3 text-base font-semibold
+  rounded-xl
+  bg-gradient-to-r from-orange-500 to-pink-500 text-white
+  shadow-md
+  transition-transform duration-200
+  hover:scale-[1.02]
+  active:scale-[0.99]
+">
   Continue → </button>
                   )}
 
