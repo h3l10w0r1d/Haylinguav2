@@ -256,13 +256,38 @@ export default function Dashboard({ user, onLogout }) {
                   </div>
 
                   {isCurrent && (
-                    <button
-                      onClick={() => handleStartLesson(lesson)}
-                      className="mt-4 w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 text-white text-sm font-semibold transition transform hover:scale-[1.02] hover:shadow-md active:scale-[0.99]"
-                    >
-                      Continue
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+                    /* Floating gradient CTA */
+.cta-float {
+  background-size: 200% 200%;
+  animation: ctaGradient 4s ease-in-out infinite;
+  will-change: background-position, transform;
+}
+
+@keyframes ctaGradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Optional: subtle moving shine layer */
+.cta-float::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.25) 20%,
+    transparent 40%
+  );
+  transform: translateX(-120%);
+  transition: transform 700ms ease;
+  pointer-events: none;
+}
+
+.cta-float:hover::after {
+  transform: translateX(120%);
+}
                   )}
 
                   {isCompleted && (
