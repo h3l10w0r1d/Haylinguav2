@@ -120,6 +120,8 @@ function AppShell() {
         name: me.name || me.email?.split('@')?.[0] || 'User',
         avatarUrl: me.avatar_url || '',
         email_verified: Boolean(me.email_verified),
+        xp: Number(me.total_xp ?? user?.xp ?? 0) || 0,
+        streak: Number(me.streak ?? user?.streak ?? 0) || 0,
       };
       setUser(updated);
       localStorage.setItem('hay_user', JSON.stringify(updated));
