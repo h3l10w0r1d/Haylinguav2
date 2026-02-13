@@ -36,7 +36,33 @@ function buildCorrectIndexSet(exercise, cfg) {
   const cIdx = cfg?.correctIndices ?? cfg?.correct_indices;
   if (Array.isArray(cIdx)) cIdx.forEach((i) => set.add(Number(i)));
   if (Number.isFinite(cfg?.correctIndex)) set.add(Number(cfg.correctIndex));
+  // Common alternates used by different CMS versions
+  if (Number.isFinite(cfg?.answerIndex)) set.add(Number(cfg.answerIndex));
+  if (Number.isFinite(cfg?.answer_index)) set.add(Number(cfg.answer_index));
+  if (Number.isFinite(cfg?.correct_option)) set.add(Number(cfg.correct_option));
+  // Sometimes expected_answer is a numeric index in DB
+  if (typeof exercise?.expected_answer === "number") set.add(Number(exercise.expected_answer));
+  if (typeof cfg?.expected_answer === "number") set.add(Number(cfg.expected_answer));
+  if (typeof cfg?.expectedAnswer === "number") set.add(Number(cfg.expectedAnswer));
   return set;
+}
+
+function getCorrectTextCandidates(exercise, cfg) {
+  const out = [];
+  const push = (v) => {
+    if (typeof v === "string" && v.trim()) out.push(v.trim());
+  };
+  // very common keys
+  push(cfg?.correct);
+  push(cfg?.answer);
+  push(cfg?.expected);
+  push(cfg?.expected_text);
+  push(cfg?.correctText);
+  push(cfg?.correct_text);
+  push(cfg?.correctAnswer);
+  push(cfg?.correct_answer);
+  push(exercise?.expected_answer);
+  return out;
 }
 
 function normalizeExpectedAnswers(exercise, cfg) {
@@ -78,6 +104,10 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
   }, [exercise?.options, cfg, kind]);
 
   const correctSet = useMemo(() => buildCorrectIndexSet(exercise, cfg), [exercise, cfg]);
+  const correctTextCandidates = useMemo(
+    () => getCorrectTextCandidates(exercise, cfg),
+    [exercise, cfg]
+  );
   const isMulti = kind === "letter_recognition";
 
   const [selected, setSelected] = useState(isMulti ? [] : null);
@@ -179,8 +209,16 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     }
     // single-choice
     if (selected == null) return false;
-    if (correctSet.size === 0) return false;
-    return correctSet.has(Number(selected));
+    const selIdx = Number(selected);
+    // Prefer index-based correctness when available
+    if (correctSet.size > 0) return correctSet.has(selIdx);
+
+    // Fallback: some exercises store the correct answer as TEXT in config
+    // (e.g., cfg.correct = "Goodbye") instead of indices.
+    const pickedText = mcqChoices[selIdx] ?? "";
+    if (!pickedText) return false;
+    if (correctTextCandidates.length === 0) return false;
+    return correctTextCandidates.some((t) => eqLoose(t, pickedText));
   };
 
   const onCheck = () => {
