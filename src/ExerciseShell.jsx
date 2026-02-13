@@ -1,5 +1,5 @@
 // src/ExerciseShell.jsx
-import React from "react";
+import React, { useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 
 /**
@@ -19,9 +19,25 @@ export default function ExerciseShell({
   secondaryLabel,
   secondaryDisabled,
   onSecondary,
+  // Phase 2.5: unified result sheet
+  result,
+  onResultPrimary,
   children,
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
+
+  // Keyboard: when result sheet is open, Enter triggers primary action.
+  useEffect(() => {
+    if (!result) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        onResultPrimary?.();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [result, onResultPrimary]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 via-slate-50 to-slate-50">
@@ -103,6 +119,80 @@ export default function ExerciseShell({
           </div>
         </div>
       ) : null}
+
+      {/* Unified Result Sheet (Phase 2.5) */}
+      {result ? (
+        <div className="fixed inset-0 z-[60] flex items-end">
+          {/* backdrop */}
+          <div className="absolute inset-0 bg-black/20" />
+
+          <div className="relative w-full">
+            <div className="max-w-3xl mx-auto px-4 pb-4">
+              <div
+                className={
+                  "rounded-3xl border p-4 sm:p-5 shadow-2xl " +
+                  (result.variant === "correct"
+                    ? "border-emerald-200 bg-emerald-50"
+                    : result.variant === "skipped"
+                    ? "border-slate-200 bg-white"
+                    : "border-rose-200 bg-rose-50")
+                }
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="text-2xl" aria-hidden>
+                        {result.variant === "correct"
+                          ? "✅"
+                          : result.variant === "skipped"
+                          ? "⏭️"
+                          : "❌"}
+                      </div>
+                      <div className="text-lg font-extrabold text-slate-900">
+                        {result.variant === "correct"
+                          ? "Correct!"
+                          : result.variant === "skipped"
+                          ? "Skipped"
+                          : "Not quite"}
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-slate-600">
+                      {result.variant === "correct"
+                        ? `+${Number(result.xpEarned || 0)} XP`
+                        : result.variant === "skipped"
+                        ? "No XP gained"
+                        : "Try again — you’ve got this."}
+                    </div>
+
+                    {result.subtext ? (
+                      <div className="text-xs text-slate-500">{result.subtext}</div>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onResultPrimary}
+                    className={
+                      "cta-float relative overflow-hidden rounded-2xl px-5 py-3 text-sm font-extrabold text-white shadow-md transition-transform duration-200 hover:scale-[1.02] active:scale-[0.99] " +
+                      (result.variant === "wrong"
+                        ? "bg-gradient-to-r from-slate-900 to-slate-800"
+                        : "bg-gradient-to-r from-orange-500 to-pink-500")
+                    }
+                  >
+                    {result.primaryLabel || (result.variant === "wrong" ? "Try again" : "Continue")}
+                  </button>
+                </div>
+
+                {result.detail ? (
+                  <div className="mt-3 text-sm text-slate-700">{result.detail}</div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }
