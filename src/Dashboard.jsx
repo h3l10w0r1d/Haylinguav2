@@ -259,7 +259,7 @@ export default function Dashboard({ user, onLogout }) {
                     <button className="
   relative overflow-hidden cta-float
   inline-flex items-center justify-center gap-2
-  px-4 py-2.5 text-sm font-semibold
+  px-4 py-3 text-sm font-semibold
   rounded-xl
   bg-gradient-to-r from-orange-500 to-pink-500 text-white
   shadow-md
