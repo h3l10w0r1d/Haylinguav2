@@ -81,8 +81,23 @@ function normalizeExpectedAnswers(exercise, cfg) {
     .filter(Boolean);
 }
 
+function normStr(x) {
+  if (x == null) return "";
+  let s = String(x);
+  try {
+    s = s.normalize("NFC");
+  } catch {}
+  s = s.trim().toLowerCase();
+  // collapse whitespace
+  s = s.replace(/\s+/g, " ");
+  // Armenian: treat ligature "և" and digraph "եւ" as equivalent
+  // Many keyboards / sources vary between these forms.
+  s = s.replace(/\u0587/g, "եւ");
+  return s;
+}
+
 function eqLoose(a, b) {
-  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+  return normStr(a) === normStr(b);
 }
 
 export default function Phase2Exercise({ exercise, registerActions, submit }) {
