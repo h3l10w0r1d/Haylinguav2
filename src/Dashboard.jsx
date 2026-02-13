@@ -256,38 +256,18 @@ export default function Dashboard({ user, onLogout }) {
                   </div>
 
                   {isCurrent && (
-                    /* Floating gradient CTA */
-.cta-float {
-  background-size: 200% 200%;
-  animation: ctaGradient 4s ease-in-out infinite;
-  will-change: background-position, transform;
-}
-
-@keyframes ctaGradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Optional: subtle moving shine layer */
-.cta-float::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    rgba(255,255,255,0.25) 20%,
-    transparent 40%
-  );
-  transform: translateX(-120%);
-  transition: transform 700ms ease;
-  pointer-events: none;
-}
-
-.cta-float:hover::after {
-  transform: translateX(120%);
-}
+                    <button className="
+    relative overflow-hidden
+    cta-float
+    bg-gradient-to-r from-orange-500 to-pink-500
+    text-white font-semibold
+    px-6 py-4 rounded-2xl
+    shadow-lg
+    transition-transform duration-200
+    hover:scale-[1.02]
+    active:scale-[0.99]
+  ">
+  Continue → </button>
                   )}
 
                   {isCompleted && (
