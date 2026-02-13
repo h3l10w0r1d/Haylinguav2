@@ -1,6 +1,6 @@
 // src/LessonCompletionScreen.jsx
 import { useMemo } from "react";
-import { CheckCircle2, Star, RotateCcw, BarChart3, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Star, RotateCcw, BarChart3, AlertTriangle, ChevronRight } from "lucide-react";
 
 function clamp01(n) {
   if (!Number.isFinite(n)) return 0;
@@ -29,6 +29,7 @@ export default function LessonCompletionScreen({
   analytics,
   analyticsLoading,
   analyticsError,
+  onOpenExercise,
   onRetry,
   onDone,
   isSaving,
@@ -112,7 +113,13 @@ export default function LessonCompletionScreen({
                 const completed = !!ex.completed;
                 const accuracy = Number(ex.accuracy ?? 0);
                 return (
-                  <div key={ex.exercise_id} className="p-4 flex items-center justify-between gap-4">
+                  <button
+                    key={ex.exercise_id}
+                    type="button"
+                    onClick={() => onOpenExercise?.(ex)}
+                    className="w-full text-left p-4 flex items-center justify-between gap-4 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                    title="Open exercise analytics"
+                  >
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-slate-900 truncate">
                         {typeof ex.order === "number" ? `#${ex.order + 1} · ` : ""}
@@ -123,17 +130,20 @@ export default function LessonCompletionScreen({
                         Attempts: {ex.attempts} · Accuracy: {Number.isFinite(accuracy) ? `${accuracy}%` : "—"} · XP: {ex.xp}
                       </div>
                     </div>
-                    <div
-                      className={
-                        "shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold " +
-                        (completed
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-slate-50 text-slate-600 border border-slate-200")
-                      }
-                    >
-                      {completed ? "Completed" : "Incomplete"}
+                    <div className="shrink-0 flex items-center gap-2">
+                      <div
+                        className={
+                          "rounded-xl px-3 py-1.5 text-xs font-semibold border " +
+                          (completed
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200")
+                        }
+                      >
+                        {completed ? "Completed" : "Incomplete"}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
