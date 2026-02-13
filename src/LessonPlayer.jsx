@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import ExerciseRenderer from "./ExerciseRenderer";
 import LessonCompletionScreen from "./LessonCompletionScreen";
 import ExerciseAnalyticsModal from "./ExerciseAnalyticsModal";
+import { sfx } from "./lib/sfx";
 
 // 🔧 Make sure this matches your backend URL
 const API_BASE =
@@ -140,6 +141,12 @@ export default function LessonPlayer() {
 
     const nextIndex = currentIndex + 1;
     const isLast = nextIndex >= lesson.exercises.length;
+
+    // Play SFX (after user interaction)
+    if (!skipped) {
+      if (isCorrect) sfx.correct();
+      else sfx.wrong();
+    }
 
     // Show the result overlay first, then proceed on user action.
     setResultData({
