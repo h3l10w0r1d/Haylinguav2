@@ -372,6 +372,38 @@ class LessonWithExercisesOut(BaseModel):
 class StatsOut(BaseModel):
     total_xp: int
     lessons_completed: int
+    streak: int = 0
+
+
+def _compute_streak_days(db: Connection, user_id: int) -> int:
+    """Compute current streak (consecutive days ending today) based on ANY exercise attempt.
+
+    Uses UTC dates (DATE(created_at)).
+    """
+    # Last 365 days is plenty for streak calculation
+    rows = db.execute(
+        text(
+            """
+            SELECT DISTINCT DATE(created_at) AS d
+            FROM user_exercise_attempts
+            WHERE user_id = :u
+              AND created_at >= NOW() - INTERVAL '365 days'
+            """
+        ),
+        {"u": user_id},
+    ).mappings().all()
+
+    days = {r["d"] for r in rows if r.get("d") is not None}
+    if not days:
+        return 0
+
+    today = datetime.utcnow().date()
+    streak = 0
+    cur = today
+    while cur in days:
+        streak += 1
+        cur = cur - timedelta(days=1)
+    return streak
 
 # ---------- Friends schemas + API ----------
 class FriendOut(BaseModel):
@@ -1303,8 +1335,13 @@ def complete_lesson(
     if lesson_row is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    lesson_id = lesson_row["id"]
-    xp_value = int(lesson_row["xp"] or 0)
+    lesson_id = int(lesson_row["id"])
+
+    # IMPORTANT: award XP based on what the user actually earned in this lesson,
+    # not the lesson's theoretical max XP. This also prevents getting "full marks"
+    # when only 70% completion is reached.
+    progress = recompute_lesson_progress(db, int(user_id), lesson_id)
+    xp_value = int(progress.get("earned_xp") or 0)
 
     # 3) Upsert into lesson_progress (no double-count protection here; your schema updates the same row)
     db.execute(
@@ -1340,14 +1377,16 @@ def complete_lesson(
         {"user_id": user_id},
     ).mappings().first()
 
+    streak = _compute_streak_days(db, int(user_id))
     return StatsOut(
         total_xp=int(stats_row["total_xp"]),
         lessons_completed=int(stats_row["lessons_completed"]),
+        streak=int(streak),
     )
 
 
 @router.get("/me/stats", response_model=StatsOut)
-def get_stats(email: str, db: Connection = Depends(get_db)):
+def get_stats(email: str, authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
     user_row = db.execute(
         text("SELECT id FROM users WHERE email = :email"),
         {"email": email},
@@ -1371,10 +1410,119 @@ def get_stats(email: str, db: Connection = Depends(get_db)):
         {"user_id": user_id},
     ).mappings().first()
 
+    streak = _compute_streak_days(db, int(user_id))
     return StatsOut(
         total_xp=int(stats_row["total_xp"]),
         lessons_completed=int(stats_row["lessons_completed"]),
+        streak=int(streak),
     )
+
+
+class LessonProgressOut(BaseModel):
+    id: int
+    slug: str
+    title: str
+    description: str | None = None
+    level: int
+    xp_total: int
+    xp_earned: int
+    exercises_total: int
+    exercises_completed: int
+    completion_pct: float
+    status: str  # completed | current | locked
+
+
+@router.get("/me/lessons/progress", response_model=list[LessonProgressOut])
+def me_lessons_progress(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Dashboard helper: lessons joined with per-user progress and unlock state."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    rows = db.execute(
+        text(
+            """
+            WITH ex AS (
+              SELECT lesson_id,
+                     COUNT(*)::int AS exercises_total,
+                     COALESCE(SUM(xp), 0)::int AS xp_total
+              FROM exercises
+              GROUP BY lesson_id
+            )
+            SELECT
+              l.id,
+              l.slug,
+              l.title,
+              l.description,
+              l.level,
+              COALESCE(ex.xp_total, COALESCE(l.xp, 0))::int AS xp_total,
+              COALESCE(ex.exercises_total, 0)::int AS exercises_total,
+              COALESCE(ulp.exercises_completed, 0)::int AS exercises_completed,
+              COALESCE(ulp.xp_earned, 0)::int AS xp_earned,
+              ulp.completed_at
+            FROM lessons l
+            LEFT JOIN ex ON ex.lesson_id = l.id
+            LEFT JOIN user_lesson_progress ulp
+              ON ulp.lesson_id = l.id
+             AND ulp.user_id = :u
+            ORDER BY l.level ASC, l.id ASC
+            """
+        ),
+        {"u": int(user_id)},
+    ).mappings().all()
+
+    out: list[LessonProgressOut] = []
+
+    # Compute status: first is unlocked; next unlocks when previous is completed (>=70%).
+    prev_completed = True  # allow first
+    current_set = False
+    for r in rows:
+        exercises_total = int(r["exercises_total"] or 0)
+        exercises_completed = int(r["exercises_completed"] or 0)
+        xp_total = int(r["xp_total"] or 0)
+        xp_earned = int(r["xp_earned"] or 0)
+
+        pct = 0.0
+        if exercises_total > 0:
+            pct = round((exercises_completed / exercises_total) * 100.0, 2)
+
+        is_completed = (pct >= 70.0) or (r.get("completed_at") is not None)
+
+        if not prev_completed:
+            status = "locked"
+        else:
+            if is_completed:
+                status = "completed"
+            else:
+                if not current_set:
+                    status = "current"
+                    current_set = True
+                else:
+                    status = "locked"  # keep later ones locked until you finish the current
+
+        # Unlock chaining uses "completed" only
+        prev_completed = is_completed
+
+        out.append(
+            LessonProgressOut(
+                id=int(r["id"]),
+                slug=r["slug"],
+                title=r["title"],
+                description=r.get("description"),
+                level=int(r["level"] or 1),
+                xp_total=xp_total,
+                xp_earned=xp_earned,
+                exercises_total=exercises_total,
+                exercises_completed=exercises_completed,
+                completion_pct=float(pct),
+                status=status,
+            )
+        )
+
+    return out
 
 @router.post("/me/exercises/{exercise_id}/attempt", response_model=AttemptOut)
 def record_exercise_attempt(
@@ -1580,6 +1728,8 @@ class MeOut(BaseModel):
     name: str | None = None
     avatar_url: str | None = None
     email_verified: bool = False
+    total_xp: int = 0
+    streak: int = 0
 
 class MeUpdateIn(BaseModel):
     name: str | None = None
@@ -1746,7 +1896,22 @@ def me_profile_get(
     if row is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return MeOut(**dict(row))
+    stats_row = db.execute(
+        text(
+            """
+            SELECT COALESCE(SUM(xp_earned), 0) AS total_xp
+            FROM lesson_progress
+            WHERE user_id = :u
+            """
+        ),
+        {"u": user_id},
+    ).mappings().first()
+
+    streak = _compute_streak_days(db, int(user_id))
+    payload = dict(row)
+    payload["total_xp"] = int(stats_row["total_xp"] or 0)
+    payload["streak"] = int(streak)
+    return MeOut(**payload)
 
 
 @router.get("/me/hearts")
