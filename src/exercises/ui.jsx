@@ -29,7 +29,9 @@ export function Card({ children, className }) {
   return (
     <div
       className={cx(
-        "rounded-2xl bg-white/90 shadow-sm ring-1 ring-black/5 p-4 md:p-6",
+        // Less "CMS card", more game-like surface
+        "rounded-3xl bg-white shadow-md ring-1 ring-slate-200/70 p-5 md:p-7",
+        "transition-transform duration-200",
         className
       )}
     >
@@ -40,7 +42,7 @@ export function Card({ children, className }) {
 
 export function Title({ children }) {
   return (
-    <div className="text-lg md:text-xl font-semibold text-slate-900">
+    <div className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
       {children}
     </div>
   );
@@ -63,10 +65,13 @@ export function PrimaryButton({
       onClick={onClick}
       disabled={disabled}
       className={cx(
-        "w-full rounded-xl px-4 py-3 font-semibold transition",
+        // Duolingo-like: gradient + subtle lift
+        "w-full rounded-2xl px-4 py-3.5 font-extrabold tracking-tight",
+        "shadow-md transition-transform duration-200",
+        "hover:scale-[1.01] active:scale-[0.99]",
         disabled
           ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-          : "bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700",
+          : "cta-float bg-gradient-to-r from-orange-500 to-pink-500 text-white",
         className
       )}
     >
@@ -88,7 +93,8 @@ export function SecondaryButton({
       onClick={onClick}
       disabled={disabled}
       className={cx(
-        "w-full rounded-xl px-4 py-3 font-semibold transition ring-1 ring-slate-200",
+        "w-full rounded-2xl px-4 py-3.5 font-semibold transition ring-1 ring-slate-200",
+        "hover:scale-[1.01] active:scale-[0.99]",
         disabled
           ? "bg-slate-100 text-slate-400 cursor-not-allowed"
           : "bg-white text-slate-800 hover:bg-slate-50 active:bg-slate-100",
@@ -136,9 +142,12 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
             key={idx}
             onClick={() => handleClick(idx)}
             className={cx(
-              "rounded-xl px-4 py-3 text-left font-semibold transition ring-1",
+              // Big tappable tiles (mobile-first)
+              "rounded-2xl px-4 py-4 text-left font-extrabold tracking-tight",
+              "transition-transform duration-150 ring-1",
+              "hover:scale-[1.01] active:scale-[0.99]",
               isSelected
-                ? "bg-orange-50 ring-orange-300 text-orange-800"
+                ? "bg-orange-50 ring-orange-300 text-slate-900"
                 : "bg-white ring-slate-200 hover:bg-slate-50"
             )}
           >
@@ -175,7 +184,7 @@ export function InlineInput({ value, onChange, placeholder }) {
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-xl px-4 py-3 ring-1 ring-slate-200 focus:outline-none focus:ring-orange-300"
+      className="w-full rounded-2xl px-4 py-3.5 ring-1 ring-slate-200 focus:outline-none focus:ring-orange-300 text-base"
     />
   );
 }
