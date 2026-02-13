@@ -256,19 +256,25 @@ export default function Dashboard({ user, onLogout }) {
                   </div>
 
                   {isCurrent && (
-                    <button className="
-  relative overflow-hidden cta-float
-  inline-flex items-center justify-center gap-2
-  px-4 py-3 text-sm font-semibold
-  rounded-xl
-  bg-gradient-to-r from-orange-500 to-pink-500 text-white
-  shadow-md
-  transition-transform duration-200
-  hover:scale-[1.02]
-  active:scale-[0.99]
-">
-  Continue → </button>
-                  )}
+  <button
+    type="button"
+    onClick={() => handleStartLesson(lesson)}
+    className="
+      mt-4 w-full
+      relative overflow-hidden cta-float
+      inline-flex items-center justify-center gap-2
+      px-4 py-3 text-sm font-semibold
+      rounded-xl
+      bg-gradient-to-r from-orange-500 to-pink-500 text-white
+      shadow-md
+      transition-transform duration-200
+      hover:scale-[1.02]
+      active:scale-[0.99]
+    "
+  >
+    Continue <ArrowRight className="w-4 h-4" />
+  </button>
+)}
 
                   {isCompleted && (
                     <button
