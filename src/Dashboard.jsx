@@ -10,8 +10,8 @@ const API_BASE_URL =
 export default function Dashboard({ user, onLogout }) {
   const navigate = useNavigate();
 
-  const [lessons, setLessons] = useState([]);
-  const [stats, setStats] = useState({ total_xp: 0, lessons_completed: 0 });
+  const [lessons, setLessons] = useState([]); // LessonProgressOut[]
+  const [stats, setStats] = useState({ total_xp: 0, lessons_completed: 0, streak: 0 });
 
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -27,14 +27,13 @@ export default function Dashboard({ user, onLogout }) {
 
   const email = user?.email || "";
 
-  // backend doesn't provide streak yet → use the user object (your AppShell stores it)
-  const streak = Math.max(1, Number(user?.streak ?? 1) || 1);
+  const streak = Number(stats?.streak ?? user?.streak ?? 0) || 0;
 
   useEffect(() => {
     const fetchLessons = async () => {
       try {
         setLoadingLessons(true);
-        const res = await fetch(`${API_BASE_URL}/lessons`, {
+        const res = await fetch(`${API_BASE_URL}/me/lessons/progress`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -50,13 +49,7 @@ export default function Dashboard({ user, onLogout }) {
           );
         }
 
-        const lessonsArray = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.lessons)
-          ? data.lessons
-          : [];
-
-        setLessons(lessonsArray);
+        setLessons(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("[Dashboard] lessons error:", err);
         setError(err.message || "Failed to load lessons");
@@ -100,6 +93,7 @@ export default function Dashboard({ user, onLogout }) {
         setStats({
           total_xp: Number(data?.total_xp || 0),
           lessons_completed: Number(data?.lessons_completed || 0),
+          streak: Number(data?.streak || 0),
         });
       } catch (err) {
         console.error("[Dashboard] stats error:", err);
@@ -114,6 +108,12 @@ export default function Dashboard({ user, onLogout }) {
 
   const handleStartLesson = (lesson) => {
     if (lesson?.slug) navigate(`/lesson/${lesson.slug}`);
+  };
+
+  const statusBadge = (status) => {
+    if (status === "completed") return "bg-emerald-100 text-emerald-700";
+    if (status === "current") return "bg-orange-100 text-orange-700";
+    return "bg-gray-100 text-gray-600";
   };
 
   return (
@@ -173,7 +173,7 @@ export default function Dashboard({ user, onLogout }) {
 
         {/* Lessons list */}
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">Exercises</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Lessons</h2>
           {(loadingLessons || loadingStats) && (
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -198,38 +198,91 @@ export default function Dashboard({ user, onLogout }) {
               <p className="text-gray-700">No lessons available yet.</p>
             </div>
           ) : (
-            lessons.map((lesson) => (
-              <div
-                key={lesson.id}
-                className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5 flex flex-col"
-              >
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {lesson.title}
-                  </h3>
-                  {lesson.description && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {lesson.description}
-                    </p>
-                  )}
-                  <p className="mt-3 text-xs text-gray-500">
-                    Level: <span className="font-medium">{lesson.level}</span> ·{" "}
-                    <span className="font-medium">
-                      {lesson.xp_reward ?? lesson.xp ?? 0}
-                    </span>{" "}
-                    XP
-                  </p>
-                </div>
+            lessons.map((lesson) => {
+              const status = lesson.status || "locked";
+              const isCompleted = status === "completed";
+              const isCurrent = status === "current";
+              const isLocked = status === "locked";
 
-                <button
-                  onClick={() => handleStartLesson(lesson)}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 text-white text-sm font-semibold hover:opacity-95 transition"
+              const cardClass = isCompleted
+                ? "bg-emerald-50/70 border-emerald-200"
+                : isCurrent
+                ? "bg-white border-orange-100"
+                : "bg-gray-50 border-gray-200";
+
+              const pct = Number(lesson.completion_pct || 0);
+
+              return (
+                <div
+                  key={lesson.id}
+                  className={`rounded-2xl border shadow-sm p-5 flex flex-col transition ${cardClass}`}
                 >
-                  Start lesson
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            ))
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <h3 className={`text-lg font-semibold ${isLocked ? "text-gray-500" : "text-gray-900"}`}>
+                        {lesson.title}
+                      </h3>
+                      {lesson.description && (
+                        <p className={`text-sm mt-1 ${isLocked ? "text-gray-400" : "text-gray-600"}`}>
+                          {lesson.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <span className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold ${statusBadge(status)}`}>
+                      {isCompleted ? "Completed" : isCurrent ? "Current" : "Locked"}
+                    </span>
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>
+                        XP: <span className="font-medium text-gray-700">{lesson.xp_earned ?? 0}</span>
+                        <span className="text-gray-400"> / {lesson.xp_total ?? 0}</span>
+                      </span>
+                      <span>
+                        {lesson.exercises_completed ?? 0}
+                        <span className="text-gray-400"> / {lesson.exercises_total ?? 0}</span> exercises
+                      </span>
+                    </div>
+
+                    <div className="mt-2 h-2 rounded-full bg-gray-200 overflow-hidden">
+                      <div
+                        className={`h-2 rounded-full ${isCompleted ? "bg-emerald-500" : isCurrent ? "bg-orange-500" : "bg-gray-400"}`}
+                        style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-[11px] text-gray-500">{pct.toFixed(0)}% complete</div>
+                  </div>
+
+                  {isCurrent && (
+                    <button
+                      onClick={() => handleStartLesson(lesson)}
+                      className="mt-4 w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 text-white text-sm font-semibold transition transform hover:scale-[1.02] hover:shadow-md active:scale-[0.99]"
+                    >
+                      Continue
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {isCompleted && (
+                    <button
+                      onClick={() => handleStartLesson(lesson)}
+                      className="mt-4 w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold transition transform hover:scale-[1.02] hover:shadow-md active:scale-[0.99]"
+                    >
+                      Repeat
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {isLocked && (
+                    <div className="mt-4 w-full py-3 rounded-xl bg-gray-200 text-gray-500 text-sm font-semibold text-center">
+                      Locked
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </div>
