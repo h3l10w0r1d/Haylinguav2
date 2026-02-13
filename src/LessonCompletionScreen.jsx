@@ -1,5 +1,5 @@
 // src/LessonCompletionScreen.jsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Trophy,
   Zap,
@@ -12,6 +12,7 @@ import {
   BarChart3,
   AlertTriangle,
 } from "lucide-react";
+import { sfx } from "./lib/sfx";
 
 function clamp01(n) {
   if (!Number.isFinite(n)) return 0;
