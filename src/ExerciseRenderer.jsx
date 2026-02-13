@@ -36,19 +36,21 @@ import { ttsFetch } from "./exercises/tts";
 function useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit }) {
   // NOTE: we do NOT advance to the next exercise immediately.
   // We first persist the attempt, show a Result screen, and only then call onAnswer() from ExerciseRenderer.
-  function wrong(msg) {
+
+  function wrong(msg, extra = {}) {
     onWrong?.(msg);
-    submit?.({ isCorrect: false, message: msg });
+    submit?.({ isCorrect: false, message: msg, ...(extra || {}) });
   }
 
-  function correct() {
+  function correct(extra = {}) {
     onCorrect?.();
-    submit?.({ isCorrect: true });
+    submit?.({ isCorrect: true, ...(extra || {}) });
   }
 
-  function skip() {
+  function skip(extra = {}) {
     onSkip?.();
-    submit?.({ skipped: true, isCorrect: true });
+    // Skip should NOT count as correct for lesson completion logic.
+    submit?.({ skipped: true, isCorrect: false, ...(extra || {}) });
   }
 
   return { wrong, correct, skip };
@@ -86,7 +88,6 @@ async function postAttempt({
         is_correct: !!isCorrect,
         answer_text: answerText,
         selected_indices: Array.isArray(selectedIndices) ? selectedIndices : null,
-        attempt_no: 1,
         time_ms: Number.isFinite(msSpent) ? Math.max(0, Math.floor(msSpent)) : null,
       }),
     });
@@ -312,25 +313,50 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
-  const choices = cfg.choices ?? cfg.options ?? [];
-  const answer = expected ?? cfg.answer ?? "";
+  const choices = getChoices(exercise, cfg);
 
-  const [selectedIndex, setSelectedIndex] = useState(null);
+  // Supports both single-answer and multi-select ("select all that apply")
+  // Priority:
+  //  - DB-backed options with is_correct flags
+  //  - cfg.correctIndices / cfg.correctAnswers
+  //  - expected_answer as JSON array (for multi) or string (for single)
+  const correctIndices = getCorrectIndices(exercise, cfg, choices);
+  const isMulti =
+    !!cfg.multi ||
+    correctIndices.length > 1 ||
+    (typeof prompt === "string" && prompt.toLowerCase().includes("select all"));
 
-  useEffect(() => setSelectedIndex(null), [exercise?.id]);
+  const singleAnswerText =
+    typeof expected === "string" && !expected.trim().startsWith("[") ? expected : (cfg.answer ?? "");
 
-  const canCheck = selectedIndex !== null;
+  const [selected, setSelected] = useState(isMulti ? [] : null);
+
+  useEffect(() => {
+    setSelected(isMulti ? [] : null);
+  }, [exercise?.id, isMulti]);
+
+  const canCheck = isMulti ? (Array.isArray(selected) && selected.length > 0) : selected !== null;
+
+  function arraysEqualAsSets(a, b) {
+    const aa = Array.isArray(a) ? a.map(Number) : [];
+    const bb = Array.isArray(b) ? b.map(Number) : [];
+    if (aa.length !== bb.length) return false;
+    const s = new Set(aa);
+    for (const x of bb) if (!s.has(x)) return false;
+    return true;
+  }
 
   return (
     <Card>
-      <Title>{prompt || "Choose the correct letter"}</Title>
+      <Title>{prompt || (isMulti ? "Select all correct answers" : "Choose the correct answer")}</Title>
 
       <div className="mt-4">
         <ChoiceGrid
           choices={choices}
-          selected={selectedIndex}
-          onSelect={setSelectedIndex}
+          selected={selected}
+          onSelect={setSelected}
           columns={2}
+          multi={isMulti}
         />
       </div>
 
@@ -338,9 +364,35 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            const pick = choices[selectedIndex] ?? "";
-            if (normalizeText(pick) === normalizeText(answer)) correct();
-            else wrong("Not quite. Try again.");
+            if (isMulti) {
+              const picked = Array.isArray(selected) ? selected : [];
+              const extra = {
+                selectedIndices: picked,
+                answerText: picked.map((i) => choices[i] ?? "").join(", "),
+              };
+
+              if (correctIndices.length === 0) {
+                wrong("This exercise is missing correct answers in config.", extra);
+                return;
+              }
+
+              if (arraysEqualAsSets(picked, correctIndices)) correct(extra);
+              else wrong("Not quite. Try again.", extra);
+              return;
+            }
+
+            const idx = selected;
+            const pick = choices[idx] ?? "";
+            const extra = { selectedIndices: [idx], answerText: pick };
+
+            if (correctIndices.length === 1) {
+              if (idx === correctIndices[0]) correct(extra);
+              else wrong("Not quite. Try again.", extra);
+              return;
+            }
+
+            if (normalizeText(pick) === normalizeText(singleAnswerText)) correct(extra);
+            else wrong("Not quite. Try again.", extra);
           }}
         >
           Check
@@ -424,8 +476,8 @@ function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
             const ok =
               solution.length === chosen.length &&
               solution.every((v, i) => Number(v) === Number(chosen[i]));
-            if (ok) correct();
-            else wrong("The order is off. Try again.");
+            if (ok) correct({ selectedIndices: chosen, answerText: built });
+            else wrong("The order is off. Try again.", { selectedIndices: chosen, answerText: built });
           }}
         >
           Check
@@ -460,8 +512,8 @@ function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            if (normalizeText(inputValue) === normalizeText(answer)) correct();
-            else wrong("Incorrect. Check the letter form and try again.");
+            if (normalizeText(inputValue) === normalizeText(answer)) correct({ answerText: inputValue });
+            else wrong("Incorrect. Check the letter form and try again.", { answerText: inputValue });
           }}
         >
           Check
@@ -498,7 +550,7 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            if (normalizeText(inputValue) === normalizeText(answer)) correct();
+            if (normalizeText(inputValue) === normalizeText(answer)) correct({ answerText: inputValue });
             else wrong("Almost — try again.");
           }}
         >
@@ -552,8 +604,8 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            if (normalizeText(inputValue) === normalizeText(answer)) correct();
-            else wrong("Not quite. Try the missing word again.");
+            if (normalizeText(inputValue) === normalizeText(answer)) correct({ answerText: inputValue });
+            else wrong("Not quite. Try the missing word again.", { answerText: inputValue });
           }}
         >
           Check
@@ -603,15 +655,21 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
+            const pick = choices[selectedIndex] ?? "";
+            const extra = {
+              selectedIndices: [selectedIndex],
+              answerText: pick,
+            };
+
             if (correctIndexFromDbOrCfg !== null) {
-              if (selectedIndex === correctIndexFromDbOrCfg) correct();
-              else wrong("Wrong choice. Try again.");
+              if (selectedIndex === correctIndexFromDbOrCfg) correct(extra);
+              else wrong("Wrong choice. Try again.", extra);
               return;
             }
+
             // fallback text compare
-            const pick = choices[selectedIndex] ?? "";
-            if (answerText && normalizeText(pick) === normalizeText(answerText)) correct();
-            else wrong("Wrong choice. Try again.");
+            if (answerText && normalizeText(pick) === normalizeText(answerText)) correct(extra);
+            else wrong("Wrong choice. Try again.", extra);
           }}
         >
           Check
@@ -674,8 +732,8 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
           disabled={!canCheck}
           onClick={() => {
             const pick = selectedIndex === 1;
-            if (pick === correctBool) correct();
-            else wrong("Nope — think about the meaning.");
+            if (pick === correctBool) correct({ selectedIndices: [selectedIndex], answerText: pick ? "true" : "false" });
+            else wrong("Nope — think about the meaning.", { selectedIndices: [selectedIndex], answerText: pick ? "true" : "false" });
           }}
         >
           Check
