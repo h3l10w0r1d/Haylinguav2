@@ -2,11 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Floating gradient CTA */
+/* Animated “floating” gradient for primary CTA */
 .cta-float {
   background-size: 200% 200%;
   animation: ctaGradient 4s ease-in-out infinite;
-  will-change: background-position, transform;
 }
 
 @keyframes ctaGradient {
@@ -15,7 +14,12 @@
   100% { background-position: 0% 50%; }
 }
 
-/* Optional: subtle moving shine layer */
+/* Optional subtle shine on hover (does NOT affect clicks) */
+.cta-float {
+  position: relative;
+  overflow: hidden;
+}
+
 .cta-float::after {
   content: "";
   position: absolute;
@@ -23,12 +27,12 @@
   background: linear-gradient(
     120deg,
     transparent 0%,
-    rgba(255,255,255,0.25) 20%,
+    rgba(255, 255, 255, 0.25) 20%,
     transparent 40%
   );
   transform: translateX(-120%);
   transition: transform 700ms ease;
-  pointer-events: none;
+  pointer-events: none; /* important */
 }
 
 .cta-float:hover::after {
