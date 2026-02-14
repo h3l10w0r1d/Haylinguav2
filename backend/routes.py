@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 import hashlib, traceback, datetime as dt
-
+from database import engine
 
 from database import get_db
 from auth import (
