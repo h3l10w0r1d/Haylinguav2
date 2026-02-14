@@ -67,18 +67,40 @@ function getCorrectTextCandidates(exercise, cfg) {
 
 function normalizeExpectedAnswers(exercise, cfg) {
   const candidates = [];
-  if (typeof cfg?.expected === "string") candidates.push(cfg.expected);
-  if (typeof cfg?.expectedAnswer === "string") candidates.push(cfg.expectedAnswer);
-  if (typeof cfg?.expected_answer === "string") candidates.push(cfg.expected_answer);
-  if (typeof exercise?.expected_answer === "string") candidates.push(exercise.expected_answer);
+  const push = (v) => {
+    if (v == null) return;
+    if (Array.isArray(v)) {
+      v.forEach((x) => push(x));
+      return;
+    }
+    const s = String(v).trim();
+    if (s) candidates.push(s);
+  };
 
-  if (Array.isArray(cfg?.answers)) candidates.push(...cfg.answers);
-  if (Array.isArray(cfg?.acceptedAnswers)) candidates.push(...cfg.acceptedAnswers);
-  if (Array.isArray(cfg?.accepted_answers)) candidates.push(...cfg.accepted_answers);
-  return candidates
-    .filter(Boolean)
-    .map((s) => String(s).trim())
-    .filter(Boolean);
+  // Common “expected” keys
+  push(cfg?.expected);
+  push(cfg?.expectedAnswer);
+  push(cfg?.expected_answer);
+  push(cfg?.expected_text);
+
+  // Common “answer/correct” keys used by different CMS versions
+  push(cfg?.answer);
+  push(cfg?.answers);
+  push(cfg?.correct);
+  push(cfg?.correctAnswer);
+  push(cfg?.correct_answer);
+  push(cfg?.correctText);
+  push(cfg?.correct_text);
+
+  // DB field
+  push(exercise?.expected_answer);
+
+  // Explicit accepted answers
+  push(cfg?.acceptedAnswers);
+  push(cfg?.accepted_answers);
+
+  // De-dup
+  return Array.from(new Set(candidates));
 }
 
 function normStr(x) {
@@ -90,6 +112,10 @@ function normStr(x) {
   s = s.trim().toLowerCase();
   // collapse whitespace
   s = s.replace(/\s+/g, " ");
+  // remove zero-width chars
+  s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
+  // normalize Armenian punctuation variants
+  s = s.replace(/[՝՜՚՟]/g, "");
   // Armenian: treat ligature "և" and digraph "եւ" as equivalent
   // Many keyboards / sources vary between these forms.
   s = s.replace(/\u0587/g, "եւ");
