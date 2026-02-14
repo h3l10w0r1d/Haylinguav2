@@ -1,3 +1,4 @@
+#
 # backend/routes.py
 import os
 from datetime import datetime, timedelta
@@ -1700,7 +1701,7 @@ def record_exercise_attempt(
         earned_xp=int(progress["earned_xp"]),
         earned_xp_delta=int(earned_xp_delta),
         completion_ratio=float(progress["completion_ratio"]),
-        completed=bool(progress["completed"]),
+        completed = bool(progress.get("is_completed", progress.get("completed", False))),
         hearts_current=int(hearts["hearts_current"]),
         hearts_max=int(hearts["hearts_max"]),
         )
