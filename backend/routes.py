@@ -2144,7 +2144,7 @@ def require_cms_admin(authorization: Optional[str] = Header(None), db=Depends(ge
 
 
 
-def require_cms(request: Request, db=Depends(get_db)):
+def require_cms(request: Request, db):
     """
     Back-compat wrapper used by existing CMS endpoints below.
     Prefer Authorization: Bearer <cms_token>.
@@ -2169,6 +2169,7 @@ def require_cms(request: Request, db=Depends(get_db)):
     if legacy:
         raise HTTPException(status_code=401, detail="Legacy CMS token is disabled. Please log in.")
     raise HTTPException(status_code=401, detail="Unauthorized CMS token")
+
 def require_cms_temp(authorization: Optional[str] = Header(None), db=Depends(get_db)) -> dict:
     """
     Temporary CMS token (invite accept / login step1) used ONLY for 2FA setup/verification.
@@ -2366,15 +2367,8 @@ def cms_invite_accept(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
     ).mappings().first()
     if not inv or inv["accepted_at"] is not None:
         raise HTTPException(status_code=404, detail="Invite not found")
-    expires_at = inv["expires_at"]
-    if expires_at is not None:
-        # PostgreSQL may return timezone-aware datetimes (timestamptz). Compare using
-        # a matching "now" to avoid naive/aware TypeError.
-        now = dt.datetime.utcnow()
-        if getattr(expires_at, "tzinfo", None) is not None:
-            now = dt.datetime.now(dt.timezone.utc)
-        if expires_at <= now:
-            raise HTTPException(status_code=400, detail="Invite expired")
+    if inv["expires_at"] <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invite expired")
 
     # Create or update cms_user
     email = inv["email"].strip().lower()
@@ -2490,27 +2484,7 @@ def cms_2fa_setup(_: dict = Depends(require_cms_temp), db=Depends(get_db), autho
     email = db.execute(text("SELECT email FROM cms_users WHERE id=:id"), {"id": cms_user_id}).scalar()
     issuer = "Haylingua CMS"
     otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
-
-    # Generate QR as a data URL so FE can show it immediately
-    try:
-        import base64
-        import io
-        import qrcode
-
-        img = qrcode.make(otp_uri)
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        qr_data_url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
-    except Exception:
-        qr_data_url = None
-
-    return {
-        "otpauth_url": otp_uri,
-        "secret": secret,
-        "issuer": issuer,
-        "account": email,
-        "qr_data_url": qr_data_url,
-    }
+    return {"otpauth_url": otp_uri, "secret": secret, "issuer": issuer, "account": email}
 
 @router.post("/cms/2fa/confirm")
 def cms_2fa_confirm(payload: Dict[str, Any] = Body(...), u: dict = Depends(require_cms_temp), db=Depends(get_db), authorization: Optional[str] = Header(None)):
@@ -2571,7 +2545,7 @@ CMS_TOKENS = set()
 
 @router.get("/cms/lessons")
 def cms_list_lessons(request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     q = text("""
     SELECT id, slug, title, description, level, xp, xp_reward, is_published
     FROM lessons
@@ -2582,7 +2556,7 @@ def cms_list_lessons(request: Request, db=Depends(get_db)):
 
 @router.post("/cms/lessons")
 async def cms_create_lesson(request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     body = await request.json()
 
     slug = (body.get("slug") or "").strip()
@@ -2619,7 +2593,7 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
 
 @router.put("/cms/lessons/{lesson_id}")
 async def cms_update_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     body = await request.json()
 
     fields = ["slug", "title", "description", "level", "xp", "xp_reward","is_published"]
@@ -2644,7 +2618,7 @@ async def cms_update_lesson(lesson_id: int, request: Request, db=Depends(get_db)
 
 @router.delete("/cms/lessons/{lesson_id}")
 def cms_delete_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     # delete exercises/options first if you don’t have CASCADE
     db.execute(text("DELETE FROM exercise_options WHERE exercise_id IN (SELECT id FROM exercises WHERE lesson_id = :id)"), {"id": lesson_id})
     db.execute(text("DELETE FROM exercises WHERE lesson_id = :id"), {"id": lesson_id})
@@ -2653,7 +2627,7 @@ def cms_delete_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
     
 @router.post("/cms/lessons/{lesson_id}/publish")
 def cms_publish_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     db.execute(
         text("UPDATE lessons SET is_published = true WHERE id = :id"),
         {"id": lesson_id},
@@ -2662,7 +2636,7 @@ def cms_publish_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
 
 @router.post("/cms/lessons/{lesson_id}/unpublish")
 def cms_unpublish_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     db.execute(
         text("UPDATE lessons SET is_published = false WHERE id = :id"),
         {"id": lesson_id},
@@ -2672,7 +2646,7 @@ def cms_unpublish_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
 
 @router.get("/cms/lessons/{lesson_id}/exercises")
 def cms_list_exercises(lesson_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     q = text("""
         SELECT id, lesson_id, kind, type, prompt, expected_answer, sentence_before, sentence_after, "order", xp, config
         FROM exercises
@@ -2684,7 +2658,7 @@ def cms_list_exercises(lesson_id: int, request: Request, db=Depends(get_db)):
 
 @router.get("/cms/exercises/{exercise_id}")
 def cms_get_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     row = db.execute(text("""
         SELECT id, lesson_id, kind, type, prompt, expected_answer, sentence_before, sentence_after, "order", xp, config
         FROM exercises
@@ -2697,7 +2671,7 @@ def cms_get_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
 
 @router.post("/cms/exercises")
 async def cms_create_exercise(request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     body = await request.json()
 
     lesson_id = int(body.get("lesson_id") or 0)
@@ -2749,7 +2723,7 @@ RETURNING id
 
 @router.put("/cms/exercises/{exercise_id}")
 async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     body = await request.json()
 
     allowed = ["kind", "type", "prompt", "expected_answer", "sentence_before", "sentence_after", "order", "xp", "config"]
@@ -2809,7 +2783,7 @@ async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get
 
 @router.delete("/cms/exercises/{exercise_id}")
 def cms_delete_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     db.execute(text("DELETE FROM exercise_options WHERE exercise_id = :id"), {"id": exercise_id})
     db.execute(text("DELETE FROM exercises WHERE id = :id"), {"id": exercise_id})
     return {"ok": True}
@@ -2907,7 +2881,7 @@ def recompute_lesson_progress(db, user_id: int, lesson_id: int):
 
 @router.get("/cms/exercises/{exercise_id}/options")
 def cms_list_options(exercise_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     rows = db.execute(text("""
         SELECT id, exercise_id, text, is_correct, side, match_key
         FROM exercise_options
@@ -2918,7 +2892,7 @@ def cms_list_options(exercise_id: int, request: Request, db=Depends(get_db)):
 
 @router.post("/cms/options")
 async def cms_create_option(request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     body = await request.json()
 
     exercise_id = int(body.get("exercise_id") or 0)
@@ -2942,7 +2916,7 @@ async def cms_create_option(request: Request, db=Depends(get_db)):
 
 @router.put("/cms/options/{option_id}")
 async def cms_update_option(option_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     body = await request.json()
 
     allowed = ["text", "is_correct", "side", "match_key"]
@@ -2965,7 +2939,7 @@ async def cms_update_option(option_id: int, request: Request, db=Depends(get_db)
 
 @router.delete("/cms/options/{option_id}")
 def cms_delete_option(option_id: int, request: Request, db=Depends(get_db)):
-    require_cms(request)
+    require_cms(request, db)
     db.execute(text("DELETE FROM exercise_options WHERE id = :id"), {"id": option_id})
     return {"ok": True}
     
