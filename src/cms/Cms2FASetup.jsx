@@ -11,6 +11,7 @@ export default function Cms2FASetup() {
 
   const [secret, setSecret] = useState("");
   const [otpauth, setOtpauth] = useState("");
+  const [qr, setQr] = useState("");
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,7 @@ export default function Cms2FASetup() {
         if (!res.ok) throw new Error(data?.detail || "2FA setup failed");
         setSecret(data.secret || "");
         setOtpauth(data.otpauth_url || "");
+        setQr(data.qr_data_url || "");
       } catch (e) {
         setErr(String(e.message || e));
       }
@@ -89,6 +91,17 @@ export default function Cms2FASetup() {
               <div className="text-sm font-semibold text-slate-900 mb-2">
                 Add account in Google Authenticator
               </div>
+
+              {qr ? (
+                <div className="flex items-center justify-center mb-3">
+                  <img
+                    src={qr}
+                    alt="2FA QR"
+                    className="w-48 h-48 rounded-2xl border border-slate-200 bg-white"
+                  />
+                </div>
+              ) : null}
+
               <div className="text-sm text-slate-700">
                 <div className="mb-2">
                   <span className="text-slate-500">Secret:</span>{" "}
