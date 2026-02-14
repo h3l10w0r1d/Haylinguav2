@@ -309,7 +309,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
       primaryLabel: "Check",
       secondaryLabel: "Skip",
     });
-  }, [registerActions, canCheck]);
+  }, [registerActions, canCheck, onCheck, onSkip]);
 
   // Keyboard shortcuts: Enter = Check, Esc = Skip, 1-9 to pick option (single-choice)
   useEffect(() => {
