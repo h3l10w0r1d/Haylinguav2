@@ -16,6 +16,7 @@ import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
 import CmsShell from './cms/CmsShell';
+import HeaderLayout from './HeaderLayout';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -226,6 +227,11 @@ function AppShell() {
     return children;
   };
 
+  // Shared layout so the dashboard-style header/nav is visible on all authenticated pages
+  function ProtectedLayout() {
+    return <HeaderLayout user={user} onLogout={handleLogout} />;
+  }
+
   const handleUpdateUser = (updates) => {
     if (!user) return;
     const updated = { ...user, ...updates };
@@ -263,58 +269,24 @@ function AppShell() {
         }
       />
 
+      {/* Authenticated app routes share the same header/nav (HeaderLayout) */}
       <Route
-        path="/dashboard"
         element={
           user ? (
             <RequireVerified>
-              <Dashboard
-                user={user}
-                onUpdateUser={handleUpdateUser}
-                onLogout={handleLogout}
-              />
+              <ProtectedLayout />
             </RequireVerified>
           ) : (
             <Navigate to="/" replace />
           )
         }
-      />
-
-      <Route
-        path="/lesson/:slug"
-        element={user ? <RequireVerified><LessonPlayer /></RequireVerified> : <Navigate to="/" replace />}
-      />
-
-      <Route
-        path="/friends"
-        element={
-          user ? (
-            <RequireVerified>
-              <Friends user={user} onUpdateUser={handleUpdateUser} />
-            </RequireVerified>
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-
-      <Route
-        path="/leaderboard"
-        element={user ? <RequireVerified><Leaderboard user={user} /></RequireVerified> : <Navigate to="/" replace />}
-      />
-
-      <Route
-        path="/profile"
-        element={
-          user ? (
-            <RequireVerified>
-              <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
-            </RequireVerified>
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
+      >
+        <Route path="/dashboard" element={<Dashboard user={user} onLogout={handleLogout} />} />
+        <Route path="/lesson/:slug" element={<LessonPlayer />} />
+        <Route path="/friends" element={<Friends user={user} onUpdateUser={handleUpdateUser} />} />
+        <Route path="/leaderboard" element={<Leaderboard user={user} />} />
+        <Route path="/profile" element={<ProfilePage user={user} onUpdateUser={handleUpdateUser} />} />
+      </Route>
       
       {/* CMS (no user auth required; gated by cmsKey) */}
       <Route path="/:cmsKey/cms" element={<CmsGate />} />
