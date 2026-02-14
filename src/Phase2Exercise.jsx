@@ -106,19 +106,25 @@ function normalizeExpectedAnswers(exercise, cfg) {
 function normStr(x) {
   if (x == null) return "";
   let s = String(x);
-  try {
-    s = s.normalize("NFC");
-  } catch {}
+
+  try { s = s.normalize("NFC"); } catch {}
+
   s = s.trim().toLowerCase();
+
   // collapse whitespace
   s = s.replace(/\s+/g, " ");
+
   // remove zero-width chars
   s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
-  // normalize Armenian punctuation variants
-  s = s.replace(/[՝՜՚՟]/g, "");
-  // Armenian: treat ligature "և" and digraph "եւ" as equivalent
-  // Many keyboards / sources vary between these forms.
+
+  // Armenian ligature normalize: treat "և" and "եւ" as same
   s = s.replace(/\u0587/g, "եւ");
+
+  // STRIP punctuation (Latin + Armenian + quotes)
+  // Keep only letters, numbers, spaces
+  // (Unicode property escapes supported in modern Vite/Chrome)
+  s = s.replace(/[^\p{L}\p{N} ]+/gu, "");
+
   return s;
 }
 
