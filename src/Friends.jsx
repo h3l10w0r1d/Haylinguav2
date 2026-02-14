@@ -1,6 +1,5 @@
 // src/Friends.jsx
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   Users,
   Search,
@@ -60,7 +59,6 @@ function writeSentCache(arr) {
 export default function Friends() {
   const [activeTab, setActiveTab] = useState("friends"); // friends | pending | discover
   const [searchTerm, setSearchTerm] = useState("");
-
   const [loading, setLoading] = useState(true);
 
   // Discover data (leaderboard)
@@ -88,7 +86,10 @@ export default function Friends() {
       setLoading(true);
       try {
         // 1) Discover list (leaderboard)
-        const lbRes = await apiFetch("/leaderboard?limit=200", { token, method: "GET" });
+        const lbRes = await apiFetch("/leaderboard?limit=200", {
+          token,
+          method: "GET",
+        });
         if (lbRes.ok) {
           const lb = await lbRes.json();
           setPeople(Array.isArray(lb) ? lb : []);
@@ -106,7 +107,10 @@ export default function Friends() {
         }
 
         // 3) Incoming pending requests
-        const inRes = await apiFetch("/friends/requests", { token, method: "GET" });
+        const inRes = await apiFetch("/friends/requests", {
+          token,
+          method: "GET",
+        });
         if (inRes.ok) {
           const inc = await inRes.json();
           setIncoming(Array.isArray(inc) ? inc : []);
@@ -115,12 +119,12 @@ export default function Friends() {
         }
 
         // 4) Sent requests (optional endpoint; fallback to cache if missing)
-        // If you add this later, FE will instantly start using it:
-        //   GET /friends/requests/sent
-        const sentRes = await apiFetch("/friends/requests/sent", { token, method: "GET" });
+        const sentRes = await apiFetch("/friends/requests/sent", {
+          token,
+          method: "GET",
+        });
         if (sentRes.ok) {
           const s = await sentRes.json();
-          // expected: [{id, addressee_id, addressee_email, addressee_name, created_at}, ...]
           const normalized = Array.isArray(s)
             ? s.map((x) => ({
                 id: x.id,
@@ -131,7 +135,6 @@ export default function Friends() {
             : [];
           setSent(normalized);
         } else {
-          // fallback cache
           setSent(readSentCache());
         }
       } finally {
@@ -179,22 +182,15 @@ export default function Friends() {
   };
 
   // --- derived lists ---
-  const friendsById = useMemo(() => new Map(friends.map((f) => [Number(f.id), f])), [friends]);
-
-  const myEmail = useMemo(() => {
-    // token-based only; we don't need /me here
-    return "";
-  }, []);
+  useMemo(() => new Map(friends.map((f) => [Number(f.id), f])), [friends]);
 
   const friendsList = useMemo(() => {
-    // friends already in correct shape
     return friends
       .map((f) => ({
         id: Number(f.id),
         name: f.name || (f.email ? f.email.split("@")[0] : "User"),
         email: f.email || "",
         avatar_url: f.avatar_url || null,
-        // optional display stats placeholders (not in FriendOut)
         level: 1,
         xp: 0,
         streak: 1,
@@ -203,11 +199,12 @@ export default function Friends() {
   }, [friends]);
 
   const incomingList = useMemo(() => {
-    // incoming: FriendRequestOut has requester_* fields
     return (incoming || []).map((r) => ({
       request_id: r.id,
       id: Number(r.requester_id),
-      name: r.requester_name || (r.requester_email ? r.requester_email.split("@")[0] : "User"),
+      name:
+        r.requester_name ||
+        (r.requester_email ? r.requester_email.split("@")[0] : "User"),
       email: r.requester_email || "",
       avatar_url: null,
       level: 1,
@@ -218,12 +215,11 @@ export default function Friends() {
   }, [incoming]);
 
   const sentList = useMemo(() => {
-    // normalized: {id,email,name,created_at}
     return (sent || [])
       .filter((x) => x?.email)
       .map((x) => ({
         request_id: x.id || null,
-        id: x.email, // use email as stable key if no id
+        id: x.email, // stable key if no id
         name: x.name || x.email.split("@")[0],
         email: x.email,
         avatar_url: null,
@@ -234,12 +230,9 @@ export default function Friends() {
       }));
   }, [sent]);
 
-  // Discover comes from leaderboard (people)
   const discoverList = useMemo(() => {
-    // leaderboard rows: {user_id,email,name,xp,streak,level,rank}
-    const myToken = getToken();
     const raw = Array.isArray(people) ? people : [];
-    const normalized = raw
+    return raw
       .map((p) => ({
         id: Number(p.user_id ?? p.id),
         name: p.name || (p.email ? p.email.split("@")[0] : "User"),
@@ -249,10 +242,6 @@ export default function Friends() {
         streak: Math.max(1, Number(p.streak ?? 1) || 1),
       }))
       .filter((p) => Number.isFinite(p.id) && p.email);
-
-    // remove yourself if /me isn't wired—best effort: keep as-is
-    // (once you add /me, you can filter by id)
-    return normalized;
   }, [people]);
 
   const applySearch = (list) => {
@@ -272,13 +261,8 @@ export default function Friends() {
     const cleanEmail = String(email || "").trim().toLowerCase();
     if (!cleanEmail) return;
 
-    // If you already have them as friend — no-op
     if (friendsList.some((f) => f.email.toLowerCase() === cleanEmail)) return;
-
-    // If already in incoming — better accept instead
     if (incomingList.some((r) => r.email.toLowerCase() === cleanEmail)) return;
-
-    // If already in sent cache/list — no-op
     if (sentList.some((r) => r.email.toLowerCase() === cleanEmail)) return;
 
     const res = await apiFetch("/friends/request", {
@@ -288,10 +272,11 @@ export default function Friends() {
     });
 
     if (res.ok) {
-      // if backend doesn't have "sent endpoint", keep local cache so UI still shows it
       const cached = readSentCache();
-      const next = [{ id: null, email: cleanEmail, name: null, created_at: new Date().toISOString() }, ...cached]
-        .slice(0, 100);
+      const next = [
+        { id: null, email: cleanEmail, name: null, created_at: new Date().toISOString() },
+        ...cached,
+      ].slice(0, 100);
       writeSentCache(next);
       setSent(next);
       await refreshFriendsData();
@@ -332,10 +317,10 @@ export default function Friends() {
   };
 
   const cancelSentRequest = (email) => {
-    // Backend cancellation endpoint not implemented in your routes yet.
-    // So we remove it from cache so the UI behaves correctly for now.
     const clean = String(email || "").trim().toLowerCase();
-    const cached = readSentCache().filter((x) => (x.email || "").toLowerCase() !== clean);
+    const cached = readSentCache().filter(
+      (x) => (x.email || "").toLowerCase() !== clean
+    );
     writeSentCache(cached);
     setSent(cached);
   };
@@ -346,8 +331,9 @@ export default function Friends() {
     }
   };
 
-  
-
+  // ✅ MISSING BEFORE: JSX must be inside a return()
+  return (
+    <div className="w-full">
       {/* Title */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -359,7 +345,9 @@ export default function Friends() {
 
         <div className="flex items-center gap-2 bg-orange-50 text-orange-700 px-3 py-2 rounded-xl">
           <Users className="w-4 h-4" />
-          <span className="text-sm font-medium">{friendsList.length} friends</span>
+          <span className="text-sm font-medium">
+            {friendsList.length} friends
+          </span>
         </div>
       </div>
 
@@ -385,7 +373,7 @@ export default function Friends() {
           }`}
         >
           Pending{" "}
-          {(incomingList.length + sentList.length) > 0 ? (
+          {incomingList.length + sentList.length > 0 ? (
             <span className="ml-2 inline-flex items-center justify-center text-xs font-semibold bg-white/30 px-2 py-0.5 rounded-full">
               {incomingList.length + sentList.length}
             </span>
@@ -406,7 +394,7 @@ export default function Friends() {
 
       {/* Search */}
       <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
         <input
           type="text"
           placeholder="Search by name or email..."
@@ -458,7 +446,6 @@ export default function Friends() {
                         person={p}
                         mode="friend"
                         onMessage={() => handleMessage(p)}
-                        // remove not implemented in backend yet
                         onRemove={null}
                       />
                     ))}
@@ -537,9 +524,9 @@ export default function Friends() {
 
                 <p className="mt-5 text-[11px] text-gray-400">
                   Incoming requests are real from the backend. “Sent” requests
-                  will become fully real once you add <code>/friends/requests/sent</code>{" "}
-                  (optional). Until then, the UI keeps a local cache so you can still
-                  see what you requested.
+                  will become fully real once you add{" "}
+                  <code>/friends/requests/sent</code> (optional). Until then, the
+                  UI keeps a local cache so you can still see what you requested.
                 </p>
               </>
             ) : null}
@@ -575,12 +562,12 @@ export default function Friends() {
                               ? () => sendRequestByEmail(p.email)
                               : null
                           }
-                          // If incoming exists in discover, user should go to pending to accept;
-                          // but we can still show the accept/decline buttons if we find the request_id.
                           onAccept={
                             isIncoming
                               ? () => {
-                                  const req = incomingList.find((r) => r.email === p.email);
+                                  const req = incomingList.find(
+                                    (r) => r.email === p.email
+                                  );
                                   if (req?.request_id) acceptRequest(req.request_id);
                                 }
                               : null
@@ -588,7 +575,9 @@ export default function Friends() {
                           onDecline={
                             isIncoming
                               ? () => {
-                                  const req = incomingList.find((r) => r.email === p.email);
+                                  const req = incomingList.find(
+                                    (r) => r.email === p.email
+                                  );
                                   if (req?.request_id) rejectRequest(req.request_id);
                                 }
                               : null
@@ -642,7 +631,6 @@ function PersonCard({
           </div>
         </div>
 
-        {/* Actions (with IFs) */}
         <div className="flex items-center gap-2">
           {mode === "friend" ? (
             <>
@@ -654,7 +642,6 @@ function PersonCard({
                 <MessageCircle className="w-5 h-5" />
               </button>
 
-              {/* backend remove not implemented -> hide button unless provided */}
               {onRemove ? (
                 <button
                   onClick={onRemove}
@@ -748,7 +735,6 @@ function PersonCard({
         </div>
       </div>
 
-      {/* Stats (from leaderboard when in discover; placeholders elsewhere) */}
       <div className="mt-4 flex flex-wrap gap-3">
         <div className="flex items-center gap-2 bg-orange-50 px-3 py-2 rounded-xl">
           <Trophy className="w-4 h-4 text-orange-600" />
@@ -772,4 +758,3 @@ function PersonCard({
     </div>
   );
 }
- 
