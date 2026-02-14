@@ -3,11 +3,15 @@
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
+export function getCmsToken() {
+  return localStorage.getItem("hay_cms_token") || "";
+}
+
 /**
- * Create a CMS API client bound to a token (cmsKey).
- * Backend expects: X-CMS-Token: <token>
+ * Create a CMS API client bound to a CMS access token.
+ * Backend expects: Authorization: Bearer <token>
  */
-export function createCmsApi(cmsKey) {
+export function createCmsApi(accessToken) {
   async function req(path, opts = {}) {
     const url = `${API_BASE}${path}`;
 
@@ -15,7 +19,7 @@ export function createCmsApi(cmsKey) {
       method: opts.method || "GET",
       headers: {
         "Content-Type": "application/json",
-        "X-CMS-Token": cmsKey,
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...(opts.headers || {}),
       },
       body: opts.body,
@@ -51,32 +55,30 @@ export function createCmsApi(cmsKey) {
 
   // Exercises
   const listExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);
-
-  // IMPORTANT: create goes to /cms/exercises with lesson_id in body
-  const createExercise = (lessonId, payload) =>
-    req("/cms/exercises", {
-      method: "POST",
-      body: JSON.stringify({ ...payload, lesson_id: Number(lessonId) }),
-    });
-
+  const getExercise = (exerciseId) => req(`/cms/exercises/${exerciseId}`);
+  const createExercise = (payload) =>
+    req("/cms/exercises", { method: "POST", body: JSON.stringify(payload) });
   const updateExercise = (exerciseId, payload) =>
-    req(`/cms/exercises/${exerciseId}`, { method: "PUT", body: JSON.stringify(payload) });
-
+    req(`/cms/exercises/${exerciseId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   const deleteExercise = (exerciseId) =>
     req(`/cms/exercises/${exerciseId}`, { method: "DELETE" });
-  
-    // Options (exercise_options table)
+
+  // Options
   const listOptions = (exerciseId) => req(`/cms/exercises/${exerciseId}/options`);
-
   const createOption = (payload) =>
-    req(`/cms/options`, { method: "POST", body: JSON.stringify(payload) });
-
+    req("/cms/options", { method: "POST", body: JSON.stringify(payload) });
   const updateOption = (optionId, payload) =>
     req(`/cms/options/${optionId}`, { method: "PUT", body: JSON.stringify(payload) });
-
   const deleteOption = (optionId) =>
     req(`/cms/options/${optionId}`, { method: "DELETE" });
 
+  // Team / invites
+  const listTeam = () => req("/cms/team");
+  const inviteTeam = (email) =>
+    req("/cms/team/invite", { method: "POST", body: JSON.stringify({ email }) });
 
   return {
     listLessons,
@@ -84,21 +86,23 @@ export function createCmsApi(cmsKey) {
     createLesson,
     updateLesson,
     deleteLesson,
-
     listExercises,
+    getExercise,
     createExercise,
     updateExercise,
     deleteExercise,
     listOptions,
     createOption,
     updateOption,
-    deleteOption
+    deleteOption,
+    listTeam,
+    inviteTeam,
   };
 }
 
 /**
  * Shared singleton client (so other components can just import cmsApi).
- * CmsShell must call setCmsApiClient(createCmsApi(cmsKey)).
+ * CmsShell must call setCmsApiClient(createCmsApi(token)).
  */
 export let cmsApi = null;
 
