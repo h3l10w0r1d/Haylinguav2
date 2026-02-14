@@ -26,8 +26,7 @@ origins = [
     "https://haylingua.am",
     "https://www.haylingua.am",
     "http://localhost:5173",  # Added for local development
-    "http://localhost:3000",    # Added for local development
-    "https://cms.haylingua.am"
+    "http://localhost:3000"    # Added for local development
 ]
 
 app.add_middleware(
