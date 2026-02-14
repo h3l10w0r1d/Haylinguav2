@@ -2075,28 +2075,445 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
 
 
 
-CMS_TOKENS = {
-    "c5fe8f3d5aa14af2b7ddfbd22cc72d94",
-    "d7c88020e1ea95dd060d90414b4da77e",
-    "07112370d92c4301262c47d0d9f4096d",
-    "f63b4c0e48b3abfc4e898de035655bab",
-    "e1d7a392d68e2e8290ac3cd06a0884aa",
-    "42ddc20c92e70d4398b55e30fe1c765e",
-    "b0440e852e0e5455b1917bfcaedf31cf",
-    "d207f151bdfdb299700ee3b201b71f1e",
-    "387d06eb745fbf1c88d5533dc4aad2f5",
-    "aa835a34b64a318f39ce9e34ee374c3b",
-}
 
-def require_cms(request: Request):
-    token = request.headers.get("X-CMS-Token", "")
-    ok = False
-    for t in CMS_TOKENS:
-        if token == t:
-            ok = True
-            break
-    if not ok:
-        raise HTTPException(status_code=401, detail="Unauthorized CMS token")
+# --------- CMS Main ----------
+# Invite-only CMS auth (admin-only) with mandatory TOTP (Google Authenticator)
+
+import secrets
+import hashlib
+from datetime import datetime, timedelta
+import pyotp
+
+CMS_INVITE_TTL_HOURS = int(os.getenv("CMS_INVITE_TTL_HOURS") or "72")
+CMS_INVITE_BASE_URL = (os.getenv("CMS_INVITE_BASE_URL") or "https://cms.haylingua.am").rstrip("/")
+CMS_BOOTSTRAP_EMAIL = (os.getenv("CMS_BOOTSTRAP_EMAIL") or "").strip().lower()
+CMS_BOOTSTRAP_SECRET = (os.getenv("CMS_BOOTSTRAP_SECRET") or "").strip()
+
+def _sha256_hex(s: str) -> str:
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+def _cms_jwt_encode(payload: dict, minutes: int) -> str:
+    # Reuse the same JWT secret as main auth
+    secret = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip()
+    if not secret:
+        raise HTTPException(status_code=500, detail="JWT secret not configured on server")
+    alg = (os.getenv("JWT_ALGORITHM") or "HS256").strip()
+    exp = datetime.utcnow() + timedelta(minutes=minutes)
+    full = {**payload, "exp": exp}
+    return jwt.encode(full, secret, algorithm=alg)
+
+def _cms_jwt_decode(token: str) -> dict:
+    secret = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip()
+    if not secret:
+        raise HTTPException(status_code=500, detail="JWT secret not configured on server")
+    alg = (os.getenv("JWT_ALGORITHM") or "HS256").strip()
+    try:
+        return jwt.decode(token, secret, algorithms=[alg])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def require_cms_admin(authorization: Optional[str] = Header(None), db=Depends(get_db)) -> dict:
+    """
+    CMS protected routes: require Bearer <cms_access_token>.
+    Token must include: scope='cms', role='admin', typ='cms'
+    """
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing Authorization bearer token")
+    token = authorization.split(" ", 1)[1].strip()
+    payload = _cms_jwt_decode(token)
+    if payload.get("scope") != "cms" or payload.get("typ") != "cms":
+        raise HTTPException(status_code=403, detail="Not a CMS token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+    cms_user_id = payload.get("sub")
+    if not cms_user_id:
+        raise HTTPException(status_code=401, detail="Invalid token subject")
+
+    row = db.execute(
+        text("SELECT id, email, status, totp_enabled FROM cms_users WHERE id = :id"),
+        {"id": int(cms_user_id)},
+    ).mappings().first()
+    if not row or row["status"] != "active":
+        raise HTTPException(status_code=403, detail="CMS user disabled or missing")
+    if not row["totp_enabled"]:
+        # Strict mode: no access without 2FA enabled
+        raise HTTPException(status_code=403, detail="2FA is required")
+    return dict(row)
+
+
+
+def require_cms(request: Request, db=Depends(get_db)):
+    """
+    Back-compat wrapper used by existing CMS endpoints below.
+    Prefer Authorization: Bearer <cms_token>.
+    """
+    authz = request.headers.get("Authorization", "")
+    if authz.lower().startswith("bearer "):
+        # validate like admin
+        payload = _cms_jwt_decode(authz.split(" ", 1)[1].strip())
+        if payload.get("scope") != "cms" or payload.get("typ") != "cms" or payload.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Unauthorized CMS token")
+        cms_user_id = payload.get("sub")
+        row = db.execute(
+            text("SELECT id, email, status, totp_enabled FROM cms_users WHERE id=:id"),
+            {"id": int(cms_user_id)},
+        ).mappings().first()
+        if not row or row["status"] != "active" or not row["totp_enabled"]:
+            raise HTTPException(status_code=403, detail="Unauthorized CMS user")
+        return dict(row)
+
+    # Legacy support (optional): X-CMS-Token (deprecated)
+    legacy = request.headers.get("X-CMS-Token", "")
+    if legacy:
+        raise HTTPException(status_code=401, detail="Legacy CMS token is disabled. Please log in.")
+    raise HTTPException(status_code=401, detail="Unauthorized CMS token")
+def require_cms_temp(authorization: Optional[str] = Header(None), db=Depends(get_db)) -> dict:
+    """
+    Temporary CMS token (invite accept / login step1) used ONLY for 2FA setup/verification.
+    typ: cms_temp, scope: cms
+    """
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing Authorization bearer token")
+    token = authorization.split(" ", 1)[1].strip()
+    payload = _cms_jwt_decode(token)
+    if payload.get("scope") != "cms" or payload.get("typ") != "cms_temp":
+        raise HTTPException(status_code=403, detail="Not a CMS temp token")
+    cms_user_id = payload.get("sub")
+    if not cms_user_id:
+        raise HTTPException(status_code=401, detail="Invalid token subject")
+    row = db.execute(
+        text("SELECT id, email, status, totp_secret, totp_enabled FROM cms_users WHERE id=:id"),
+        {"id": int(cms_user_id)},
+    ).mappings().first()
+    if not row or row["status"] != "active":
+        raise HTTPException(status_code=403, detail="CMS user disabled or missing")
+    return dict(row)
+
+def _send_invite_email(email: str, invite_url: str):
+    """
+    Best-effort. If SMTP not configured, prints link to logs.
+    """
+    host = os.getenv("SMTP_HOST")
+    port = int(os.getenv("SMTP_PORT") or "587")
+    user = os.getenv("SMTP_USER")
+    password = os.getenv("SMTP_PASS")
+    from_addr = os.getenv("EMAIL_FROM") or user or "no-reply@haylingua.am"
+
+    if not host or not user or not password:
+        print(f"[cms_invite] Invite for {email}: {invite_url}")
+        return
+
+    import smtplib
+    from email.mime.text import MIMEText
+
+    msg = MIMEText(
+        f"You were invited to Haylingua CMS.\n\nOpen this link to set your password and enable 2FA:\n{invite_url}\n\nThis link expires soon.",
+        "plain",
+        "utf-8",
+    )
+    msg["Subject"] = "Haylingua CMS invitation"
+    msg["From"] = from_addr
+    msg["To"] = email
+
+    with smtplib.SMTP(host, port) as s:
+        s.starttls()
+        s.login(user, password)
+        s.sendmail(from_addr, [email], msg.as_string())
+
+def _bootstrap_invite_if_needed(db):
+    """
+    If there are no cms_users and CMS_BOOTSTRAP_EMAIL is set, create/ensure a pending invite
+    so the owner can onboard.
+    """
+    if not CMS_BOOTSTRAP_EMAIL:
+        return
+    existing_users = db.execute(text("SELECT 1 FROM cms_users LIMIT 1")).first()
+    if existing_users:
+        return
+
+    # Ensure there's a non-expired invite
+    now = datetime.utcnow()
+    existing_inv = db.execute(
+        text(
+            """
+            SELECT id FROM cms_invites
+            WHERE lower(email)=:e AND accepted_at IS NULL AND expires_at > NOW()
+            ORDER BY created_at DESC LIMIT 1
+            """
+        ),
+        {"e": CMS_BOOTSTRAP_EMAIL},
+    ).first()
+    if existing_inv:
+        return
+
+    raw = secrets.token_urlsafe(32)
+    token_hash = _sha256_hex(raw)
+    expires_at = now + timedelta(hours=CMS_INVITE_TTL_HOURS)
+    db.execute(
+        text(
+            """
+            INSERT INTO cms_invites (email, role, token_hash, invited_by, expires_at)
+            VALUES (:email, 'admin', :token_hash, NULL, :expires_at)
+            """
+        ),
+        {"email": CMS_BOOTSTRAP_EMAIL, "token_hash": token_hash, "expires_at": expires_at},
+    )
+    invite_url = f"{CMS_INVITE_BASE_URL}/cms/invite?token={raw}"
+    _send_invite_email(CMS_BOOTSTRAP_EMAIL, invite_url)
+
+@router.get("/cms/bootstrap/status")
+def cms_bootstrap_status(db=Depends(get_db)):
+    # Helps you see if bootstrap is needed
+    u = db.execute(text("SELECT count(*) AS c FROM cms_users")).mappings().first()
+    i = db.execute(text("SELECT count(*) AS c FROM cms_invites WHERE accepted_at IS NULL AND expires_at > NOW()")).mappings().first()
+    return {"cms_users": int(u["c"]), "pending_invites": int(i["c"]), "bootstrap_email_set": bool(CMS_BOOTSTRAP_EMAIL)}
+
+@router.post("/cms/bootstrap/invite")
+def cms_bootstrap_invite(request: Request, db=Depends(get_db)):
+    # One-time endpoint (optional). Only works if no cms_users exist.
+    if not CMS_BOOTSTRAP_SECRET:
+        raise HTTPException(status_code=400, detail="CMS_BOOTSTRAP_SECRET is not set on server")
+    secret = request.headers.get("X-Bootstrap-Secret", "")
+    if secret != CMS_BOOTSTRAP_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid bootstrap secret")
+
+    existing_users = db.execute(text("SELECT 1 FROM cms_users LIMIT 1")).first()
+    if existing_users:
+        raise HTTPException(status_code=400, detail="CMS already initialized")
+
+    email = (CMS_BOOTSTRAP_EMAIL or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="CMS_BOOTSTRAP_EMAIL not set")
+
+    raw = secrets.token_urlsafe(32)
+    token_hash = _sha256_hex(raw)
+    expires_at = datetime.utcnow() + timedelta(hours=CMS_INVITE_TTL_HOURS)
+
+    db.execute(
+        text(
+            """
+            INSERT INTO cms_invites (email, role, token_hash, invited_by, expires_at)
+            VALUES (:email, 'admin', :token_hash, NULL, :expires_at)
+            """
+        ),
+        {"email": email, "token_hash": token_hash, "expires_at": expires_at},
+    )
+    invite_url = f"{CMS_INVITE_BASE_URL}/cms/invite?token={raw}"
+    _send_invite_email(email, invite_url)
+    return {"ok": True}
+
+@router.get("/cms/invites/verify")
+def cms_invite_verify(token: str, db=Depends(get_db)):
+    th = _sha256_hex(token)
+    inv = db.execute(
+        text(
+            """
+            SELECT id, email, role, expires_at, accepted_at
+            FROM cms_invites
+            WHERE token_hash=:h
+            """
+        ),
+        {"h": th},
+    ).mappings().first()
+    if not inv or inv["accepted_at"] is not None:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if inv["expires_at"] is None or inv["expires_at"] <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invite expired")
+    return {"email": inv["email"], "role": inv["role"], "expires_at": str(inv["expires_at"])}
+
+@router.post("/cms/invites/accept")
+def cms_invite_accept(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
+    token = (payload.get("token") or "").strip()
+    password = payload.get("password") or ""
+    if not token or not password:
+        raise HTTPException(status_code=400, detail="token and password required")
+
+    th = _sha256_hex(token)
+    inv = db.execute(
+        text(
+            """
+            SELECT id, email, role, expires_at, accepted_at
+            FROM cms_invites
+            WHERE token_hash=:h
+            """
+        ),
+        {"h": th},
+    ).mappings().first()
+    if not inv or inv["accepted_at"] is not None:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if inv["expires_at"] <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invite expired")
+
+    # Create or update cms_user
+    email = inv["email"].strip().lower()
+    pw_hash = hash_password(password)
+
+    existing = db.execute(
+        text("SELECT id FROM cms_users WHERE lower(email)=:e"),
+        {"e": email},
+    ).mappings().first()
+
+    if existing:
+        cms_user_id = int(existing["id"])
+        db.execute(
+            text(
+                """
+                UPDATE cms_users
+                SET password_hash=:ph, status='active', role='admin', updated_at=NOW()
+                WHERE id=:id
+                """
+            ),
+            {"ph": pw_hash, "id": cms_user_id},
+        )
+    else:
+        row = db.execute(
+            text(
+                """
+                INSERT INTO cms_users (email, role, status, password_hash, totp_enabled)
+                VALUES (:email, 'admin', 'active', :ph, FALSE)
+                RETURNING id
+                """
+            ),
+            {"email": email, "ph": pw_hash},
+        ).first()
+        cms_user_id = int(row[0])
+
+    db.execute(
+        text("UPDATE cms_invites SET accepted_at=NOW() WHERE id=:id"),
+        {"id": int(inv["id"])},
+    )
+
+    # Issue temp token for 2FA setup (strict)
+    temp = _cms_jwt_encode({"sub": str(cms_user_id), "scope": "cms", "typ": "cms_temp", "role": "admin"}, minutes=15)
+    return {"requires_2fa_setup": True, "temp_token": temp}
+
+@router.post("/cms/auth/login")
+def cms_login(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
+    email = (payload.get("email") or "").strip().lower()
+    password = payload.get("password") or ""
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="email and password required")
+
+    user = db.execute(
+        text("SELECT id, password_hash, status, totp_enabled FROM cms_users WHERE lower(email)=:e"),
+        {"e": email},
+    ).mappings().first()
+    if not user or user["status"] != "active":
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not user["password_hash"] or not verify_password(password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not user["totp_enabled"]:
+        # strict: must setup 2FA
+        temp = _cms_jwt_encode({"sub": str(user["id"]), "scope": "cms", "typ": "cms_temp", "role": "admin"}, minutes=15)
+        return {"needs_2fa_setup": True, "temp_token": temp}
+
+    temp = _cms_jwt_encode({"sub": str(user["id"]), "scope": "cms", "typ": "cms_temp", "role": "admin"}, minutes=10)
+    return {"needs_2fa": True, "temp_token": temp}
+
+@router.post("/cms/auth/2fa")
+def cms_login_2fa(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
+    temp_token = (payload.get("temp_token") or "").strip()
+    code = (payload.get("code") or "").strip().replace(" ", "")
+    if not temp_token or not code:
+        raise HTTPException(status_code=400, detail="temp_token and code required")
+    p = _cms_jwt_decode(temp_token)
+    if p.get("scope") != "cms" or p.get("typ") != "cms_temp":
+        raise HTTPException(status_code=403, detail="Invalid temp token")
+    cms_user_id = int(p.get("sub"))
+
+    user = db.execute(
+        text("SELECT id, totp_secret, totp_enabled, status FROM cms_users WHERE id=:id"),
+        {"id": cms_user_id},
+    ).mappings().first()
+    if not user or user["status"] != "active":
+        raise HTTPException(status_code=401, detail="Invalid user")
+
+    if not user["totp_enabled"] or not user["totp_secret"]:
+        raise HTTPException(status_code=403, detail="2FA not enabled")
+
+    totp = pyotp.TOTP(user["totp_secret"])
+    if not totp.verify(code, valid_window=1):
+        raise HTTPException(status_code=401, detail="Invalid 2FA code")
+
+    db.execute(text("UPDATE cms_users SET last_login_at=NOW() WHERE id=:id"), {"id": cms_user_id})
+    access = _cms_jwt_encode({"sub": str(cms_user_id), "scope": "cms", "typ": "cms", "role": "admin"}, minutes=60*24*30)
+    return {"access_token": access}
+
+@router.post("/cms/2fa/setup")
+def cms_2fa_setup(_: dict = Depends(require_cms_temp), db=Depends(get_db), authorization: Optional[str] = Header(None)):
+    # require_cms_temp already validated
+    token = authorization.split(" ", 1)[1].strip()
+    p = _cms_jwt_decode(token)
+    cms_user_id = int(p.get("sub"))
+
+    # Generate secret & save
+    secret = pyotp.random_base32()
+    db.execute(
+        text("UPDATE cms_users SET totp_secret=:s, totp_enabled=FALSE, updated_at=NOW() WHERE id=:id"),
+        {"s": secret, "id": cms_user_id},
+    )
+
+    email = db.execute(text("SELECT email FROM cms_users WHERE id=:id"), {"id": cms_user_id}).scalar()
+    issuer = "Haylingua CMS"
+    otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
+    return {"otpauth_url": otp_uri, "secret": secret, "issuer": issuer, "account": email}
+
+@router.post("/cms/2fa/confirm")
+def cms_2fa_confirm(payload: Dict[str, Any] = Body(...), u: dict = Depends(require_cms_temp), db=Depends(get_db), authorization: Optional[str] = Header(None)):
+    code = (payload.get("code") or "").strip().replace(" ", "")
+    if not code:
+        raise HTTPException(status_code=400, detail="code required")
+
+    cms_user_id = int(u["id"])
+    secret = u.get("totp_secret")
+    if not secret:
+        raise HTTPException(status_code=400, detail="2FA not initialized")
+
+    totp = pyotp.TOTP(secret)
+    if not totp.verify(code, valid_window=1):
+        raise HTTPException(status_code=401, detail="Invalid 2FA code")
+
+    db.execute(
+        text("UPDATE cms_users SET totp_enabled=TRUE, updated_at=NOW() WHERE id=:id"),
+        {"id": cms_user_id},
+    )
+    access = _cms_jwt_encode({"sub": str(cms_user_id), "scope": "cms", "typ": "cms", "role": "admin"}, minutes=60*24*30)
+    return {"access_token": access}
+
+@router.get("/cms/team")
+def cms_team_list(_: dict = Depends(require_cms_admin), db=Depends(get_db)):
+    rows = db.execute(
+        text("SELECT id, email, status, totp_enabled, created_at, last_login_at FROM cms_users ORDER BY id ASC")
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+@router.post("/cms/team/invite")
+def cms_team_invite(payload: Dict[str, Any] = Body(...), me: dict = Depends(require_cms_admin), db=Depends(get_db)):
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+
+    raw = secrets.token_urlsafe(32)
+    token_hash = _sha256_hex(raw)
+    expires_at = datetime.utcnow() + timedelta(hours=CMS_INVITE_TTL_HOURS)
+
+    db.execute(
+        text(
+            """
+            INSERT INTO cms_invites (email, role, token_hash, invited_by, expires_at)
+            VALUES (:email, 'admin', :h, :by, :exp)
+            """
+        ),
+        {"email": email, "h": token_hash, "by": int(me["id"]), "exp": expires_at},
+    )
+    invite_url = f"{CMS_INVITE_BASE_URL}/cms/invite?token={raw}"
+    _send_invite_email(email, invite_url)
+    return {"ok": True}
+
+# Backward-compatible legacy tokens (can be removed later)
+CMS_TOKENS = set()
 
 # -------------------- LESSONS --------------------
 
