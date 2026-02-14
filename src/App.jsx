@@ -15,7 +15,11 @@ import LessonPlayer from './LessonPlayer';
 import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
-import CmsShell from './cms/CmsShell';
+import CmsGate from './cms/CmsGate';
+import CmsLogin from './cms/CmsLogin';
+import CmsInvite from './cms/CmsInvite';
+import Cms2FASetup from './cms/Cms2FASetup';
+import CmsTeam from './cms/CmsTeam';
 import HeaderLayout from './HeaderLayout';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
@@ -26,33 +30,6 @@ function AppShell() {
   const [loadingUser, setLoadingUser] = useState(true);
 
   const navigate = useNavigate();
-
-  // --- CMS routing helpers ---
-  const ALLOWED_KEYS = new Set([
-    'c5fe8f3d5aa14af2b7ddfbd22cc72d94',
-    'd7c88020e1ea95dd060d90414b4da77e',
-    '07112370d92c4301262c47d0d9f4096d',
-    'f63b4c0e48b3abfc4e898de035655bab',
-    'e1d7a392d68e2e8290ac3cd06a0884aa',
-    '42ddc20c92e70d4398b55e30fe1c765e',
-    'b0440e852e0e5455b1917bfcaedf31cf',
-    'd207f151bdfdb299700ee3b201b71f1e',
-    '387d06eb745fbf1c88d5533dc4aad2f5',
-    'aa835a34b64a318f39ce9e34ee374c3b',
-  ]);
-
-  function CmsGate() {
-    const { cmsKey } = useParams();
-    const ok = cmsKey && ALLOWED_KEYS.has(String(cmsKey).trim());
-    if (!ok) return <Navigate to="/" replace />;
-    return <CmsShell />;
-  }
-
-  function CmsRedirect() {
-    const { cmsKey } = useParams();
-    if (!cmsKey) return <Navigate to="/" replace />;
-    return <Navigate to={`/${String(cmsKey).trim()}/cms`} replace />;
-  }
 
   // Load auth state from localStorage
   useEffect(() => {
@@ -288,10 +265,13 @@ function AppShell() {
         <Route path="/profile" element={<ProfilePage user={user} onUpdateUser={handleUpdateUser} />} />
       </Route>
       
-      {/* CMS (no user auth required; gated by cmsKey) */}
-      <Route path="/:cmsKey/cms" element={<CmsGate />} />
-      <Route path="/cms/:cmsKey" element={<CmsRedirect />} />
-      <Route path="/cms/:cmsKey/*" element={<CmsRedirect />} />
+      {/* CMS (invite-only) */}
+      <Route path="/cms/login" element={<CmsLogin />} />
+      <Route path="/cms/invite" element={<CmsInvite />} />
+      <Route path="/cms/2fa-setup" element={<Cms2FASetup />} />
+      <Route path="/cms/team" element={<CmsTeam />} />
+      <Route path="/cms" element={<CmsGate />} />
+      <Route path="/cms/*" element={<CmsGate />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
