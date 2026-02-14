@@ -2490,7 +2490,27 @@ def cms_2fa_setup(_: dict = Depends(require_cms_temp), db=Depends(get_db), autho
     email = db.execute(text("SELECT email FROM cms_users WHERE id=:id"), {"id": cms_user_id}).scalar()
     issuer = "Haylingua CMS"
     otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
-    return {"otpauth_url": otp_uri, "secret": secret, "issuer": issuer, "account": email}
+
+    # Generate QR as a data URL so FE can show it immediately
+    try:
+        import base64
+        import io
+        import qrcode
+
+        img = qrcode.make(otp_uri)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        qr_data_url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception:
+        qr_data_url = None
+
+    return {
+        "otpauth_url": otp_uri,
+        "secret": secret,
+        "issuer": issuer,
+        "account": email,
+        "qr_data_url": qr_data_url,
+    }
 
 @router.post("/cms/2fa/confirm")
 def cms_2fa_confirm(payload: Dict[str, Any] = Body(...), u: dict = Depends(require_cms_temp), db=Depends(get_db), authorization: Optional[str] = Header(None)):
