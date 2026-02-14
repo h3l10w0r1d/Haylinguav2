@@ -1,7 +1,6 @@
 // src/cms/CmsShell.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { createCmsApi, setCmsApiClient } from "./api";
+import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { BookOpen, Plus, Search, Settings2 } from "lucide-react";
 import LessonEditor from "./LessonEditor";
 import ExerciseEditor from "./ExerciseEditor";
@@ -69,10 +68,10 @@ function LessonRow({ lesson, active, onClick }) {
 }
 
 export default function CmsShell() {
-  const { cmsKey } = useParams();
+  const token = getCmsToken();
 
   // Create a token-bound api client
-  const api = useMemo(() => createCmsApi(cmsKey), [cmsKey]);
+  const api = useMemo(() => createCmsApi(token), [token]);
 
   // For compatibility with LessonEditor/ExerciseEditor that import { cmsApi } from "./api"
   useEffect(() => {
@@ -123,7 +122,7 @@ export default function CmsShell() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cmsKey]);
+  }, [token]);
 
   useEffect(() => {
     (async () => {
