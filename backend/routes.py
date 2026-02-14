@@ -2366,8 +2366,15 @@ def cms_invite_accept(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
     ).mappings().first()
     if not inv or inv["accepted_at"] is not None:
         raise HTTPException(status_code=404, detail="Invite not found")
-    if inv["expires_at"] <= datetime.utcnow():
-        raise HTTPException(status_code=400, detail="Invite expired")
+    expires_at = inv["expires_at"]
+    if expires_at is not None:
+        # PostgreSQL may return timezone-aware datetimes (timestamptz). Compare using
+        # a matching "now" to avoid naive/aware TypeError.
+        now = dt.datetime.utcnow()
+        if getattr(expires_at, "tzinfo", None) is not None:
+            now = dt.datetime.now(dt.timezone.utc)
+        if expires_at <= now:
+            raise HTTPException(status_code=400, detail="Invite expired")
 
     # Create or update cms_user
     email = inv["email"].strip().lower()
