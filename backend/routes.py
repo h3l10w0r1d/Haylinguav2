@@ -4,11 +4,13 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Body, Header
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query
+from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
+import hashlib, traceback, datetime as dt
+
 
 from database import get_db
 from auth import (
@@ -2303,23 +2305,46 @@ def cms_bootstrap_invite(request: Request, db=Depends(get_db)):
     return {"ok": True}
 
 @router.get("/cms/invites/verify")
-def cms_invite_verify(token: str, db=Depends(get_db)):
-    th = _sha256_hex(token)
-    inv = db.execute(
-        text(
-            """
-            SELECT id, email, role, expires_at, accepted_at
-            FROM cms_invites
-            WHERE token_hash=:h
-            """
-        ),
-        {"h": th},
-    ).mappings().first()
-    if not inv or inv["accepted_at"] is not None:
-        raise HTTPException(status_code=404, detail="Invite not found")
-    if inv["expires_at"] is None or inv["expires_at"] <= datetime.utcnow():
-        raise HTTPException(status_code=400, detail="Invite expired")
-    return {"email": inv["email"], "role": inv["role"], "expires_at": str(inv["expires_at"])}
+def cms_invite_verify(token: str = Query(..., min_length=10)):
+    try:
+        token = token.strip()
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+        with engine.begin() as conn:
+            row = conn.execute(text("""
+                SELECT id, email, role, expires_at, accepted_at
+                FROM cms_invites
+                WHERE token_hash = :h
+                LIMIT 1
+            """), {"h": token_hash}).mappings().first()
+
+        if not row:
+            return JSONResponse({"ok": False, "error": "invalid_token"}, status_code=400)
+
+        if row["accepted_at"] is not None:
+            return JSONResponse({"ok": False, "error": "already_used"}, status_code=400)
+
+        # expires_at may be stored as timestamp
+        expires_at = row["expires_at"]
+        if expires_at is not None:
+            now = dt.datetime.utcnow()
+            # if expires_at comes timezone-aware, convert now
+            if getattr(expires_at, "tzinfo", None) is not None:
+                now = dt.datetime.now(dt.timezone.utc)
+            if expires_at < now:
+                return JSONResponse({"ok": False, "error": "expired"}, status_code=400)
+
+        return {
+            "ok": True,
+            "email": row["email"],
+            "role": row.get("role", "admin"),
+            "expires_at": row["expires_at"],
+        }
+
+    except Exception as e:
+        print("CMS invite verify failed:", repr(e))
+        print(traceback.format_exc())
+        return JSONResponse({"ok": False, "error": "server_error"}, status_code=500)
 
 @router.post("/cms/invites/accept")
 def cms_invite_accept(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
