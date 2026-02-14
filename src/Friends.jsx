@@ -1,6 +1,6 @@
 // src/Friends.jsx
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Users,
   Search,
@@ -58,8 +58,6 @@ function writeSentCache(arr) {
 }
 
 export default function Friends() {
-  const location = useLocation();
-
   const [activeTab, setActiveTab] = useState("friends"); // friends | pending | discover
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -348,42 +346,7 @@ export default function Friends() {
     }
   };
 
-  // --- Header nav (embedded) ---
-  const NavLink = ({ to, children }) => {
-    const active = location.pathname === to;
-    return (
-      <Link
-        to={to}
-        className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-          active ? "bg-orange-600 text-white" : "text-gray-700 hover:bg-gray-100"
-        }`}
-      >
-        {children}
-      </Link>
-    );
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      {/* Embedded Header / Navigation */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-semibold">
-            H
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-gray-900">Haylingua</div>
-            <div className="text-xs text-gray-500">Friends</div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <NavLink to="/">Lessons</NavLink>
-          <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/profile">Profile</NavLink>
-          <NavLink to="/friends">Friends</NavLink>
-        </div>
-      </div>
+  
 
       {/* Title */}
       <div className="mb-6 flex items-center justify-between">
