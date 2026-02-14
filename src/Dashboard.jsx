@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Trophy, Zap, Loader2, ArrowRight } from "lucide-react";
-import HeaderLayout from "./HeaderLayout";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -117,8 +116,7 @@ export default function Dashboard({ user, onLogout }) {
   };
 
   return (
-    <HeaderLayout user={user} onLogout={onLogout}>
-      <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto px-4 py-6">
         {/* Top analytics */}
         <div className="mb-5">
           <h1 className="text-2xl font-bold text-gray-900">Your progress</h1>
@@ -296,7 +294,6 @@ export default function Dashboard({ user, onLogout }) {
             })
           )}
         </div>
-      </div>
-    </HeaderLayout>
+    </div>
   );
 }
