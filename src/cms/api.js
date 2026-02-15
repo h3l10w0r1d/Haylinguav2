@@ -73,8 +73,22 @@ export function createCmsApi(accessToken) {
   // Exercises
   const listExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);
   const getExercise = (exerciseId) => req(`/cms/exercises/${exerciseId}`);
-  const createExercise = (payload) =>
-    req("/cms/exercises", { method: "POST", body: JSON.stringify(payload) });
+  // Backwards/forwards compatible:
+  // - Some callers use createExercise(payload)
+  // - ExerciseEditor uses createExercise(lessonId, payload)
+  // Ensure lesson_id is always present.
+  const createExercise = (lessonIdOrPayload, maybePayload) => {
+    const payload = maybePayload ?? lessonIdOrPayload;
+    const lessonId = maybePayload !== undefined ? Number(lessonIdOrPayload) : null;
+    const finalPayload = {
+      ...(payload || {}),
+      ...(lessonId !== null && !Number.isNaN(lessonId) ? { lesson_id: lessonId } : {}),
+    };
+    return req("/cms/exercises", {
+      method: "POST",
+      body: JSON.stringify(finalPayload),
+    });
+  };
   const updateExercise = (exerciseId, payload) =>
     req(`/cms/exercises/${exerciseId}`, {
       method: "PUT",
