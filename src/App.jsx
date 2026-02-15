@@ -21,6 +21,7 @@ import CmsInvite from './cms/CmsInvite';
 import Cms2FASetup from './cms/Cms2FASetup';
 import CmsTeam from './cms/CmsTeam';
 import HeaderLayout from './HeaderLayout';
+import Onboarding from './Onboarding';
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -28,6 +29,7 @@ function AppShell() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
   const navigate = useNavigate();
 
@@ -75,7 +77,26 @@ function AppShell() {
     localStorage.setItem('hay_user', JSON.stringify(newUser));
 
     if (emailVerified) {
-      navigate('/dashboard', { replace: true });
+      // Route decision happens after we check onboarding.
+      navigate('/onboarding', { replace: true });
+    }
+  };
+
+  const refreshOnboarding = async (tokenValue) => {
+    const t = tokenValue || token;
+    if (!t) return { completed: false };
+    try {
+      const res = await fetch(`${API_BASE}/me/onboarding`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      const data = await res.json().catch(() => null);
+      const completed = Boolean(data?.completed);
+      setOnboardingCompleted(completed);
+      localStorage.setItem('hay_onboarding_completed', completed ? '1' : '0');
+      return { completed, data };
+    } catch (e) {
+      return { completed: false };
     }
   };
 
@@ -176,9 +197,16 @@ function AppShell() {
   useEffect(() => {
     if (!loadingUser && token) {
       refreshProfile(token);
+      refreshOnboarding(token);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingUser, token]);
+
+  useEffect(() => {
+    // restore cached onboarding flag so we can route instantly
+    const v = localStorage.getItem('hay_onboarding_completed');
+    if (v === '1') setOnboardingCompleted(true);
+  }, []);
 
   const RequireVerified = ({ children }) => {
     if (!user) return <Navigate to="/" replace />;
@@ -201,6 +229,12 @@ function AppShell() {
         </div>
       );
     }
+    return children;
+  };
+
+  const RequireOnboarded = ({ children }) => {
+    if (!user) return <Navigate to="/" replace />;
+    if (!onboardingCompleted) return <Navigate to="/onboarding" replace />;
     return children;
   };
 
@@ -239,7 +273,7 @@ function AppShell() {
         path="/"
         element={
           user?.email_verified === true ? (
-            <Navigate to="/dashboard" replace />
+            onboardingCompleted ? <Navigate to="/dashboard" replace /> : <Navigate to="/onboarding" replace />
           ) : (
             <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
           )
@@ -258,11 +292,59 @@ function AppShell() {
           )
         }
       >
-        <Route path="/dashboard" element={<Dashboard user={user} onLogout={handleLogout} />} />
-        <Route path="/lesson/:slug" element={<LessonPlayer />} />
-        <Route path="/friends" element={<Friends user={user} onUpdateUser={handleUpdateUser} />} />
-        <Route path="/leaderboard" element={<Leaderboard user={user} />} />
-        <Route path="/profile" element={<ProfilePage user={user} onUpdateUser={handleUpdateUser} />} />
+        <Route
+          path="/onboarding"
+          element={
+            <Onboarding
+              token={token}
+              onCompleted={() => {
+                setOnboardingCompleted(true);
+                localStorage.setItem('hay_onboarding_completed', '1');
+              }}
+            />
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <RequireOnboarded>
+              <Dashboard user={user} onLogout={handleLogout} />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/lesson/:slug"
+          element={
+            <RequireOnboarded>
+              <LessonPlayer />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <RequireOnboarded>
+              <Friends user={user} onUpdateUser={handleUpdateUser} />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <RequireOnboarded>
+              <Leaderboard user={user} />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireOnboarded>
+              <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
+            </RequireOnboarded>
+          }
+        />
       </Route>
       
       {/* CMS (invite-only) */}
