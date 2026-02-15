@@ -291,7 +291,8 @@ export default function Onboarding({ token, onCompleted }) {
 
   const computedVoicePref = useMemo(() => {
     if (voiceRandom) return "Random";
-    if (voiceMale && voiceFemale) return "Both";
+    // "Both" is deprecated; treat it as Random.
+    if (voiceMale && voiceFemale) return "Random";
     if (voiceMale) return "Male";
     if (voiceFemale) return "Female";
     return "";
@@ -343,7 +344,8 @@ export default function Onboarding({ token, onCompleted }) {
               setVoiceMale(true);
               setVoiceFemale(true);
             } else if (v === "Both") {
-              setVoiceRandom(false);
+              // Backward-compat: treat Both as Random.
+              setVoiceRandom(true);
               setVoiceMale(true);
               setVoiceFemale(true);
             } else if (v === "Male") {
@@ -450,6 +452,11 @@ export default function Onboarding({ token, onCompleted }) {
         setSaving(false);
         return;
       }
+
+      // Persist voice preference for exercise audio selection.
+      try {
+        localStorage.setItem("hay_voice_pref", computedVoicePref || "Random");
+      } catch {}
 
       onCompleted?.(data);
       navigate("/dashboard", { replace: true });
