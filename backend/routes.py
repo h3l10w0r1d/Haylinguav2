@@ -548,7 +548,7 @@ def friends_list(
             WITH xp AS (
               SELECT
                 u.id,
-                u.email,
+                NULL::text AS email,
                 u.username,
                 u.display_name,
                 u.avatar_url,
@@ -2751,7 +2751,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
               WHERE u.id = :uid
-              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme
+              GROUP BY u.id, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme
             ), ranked AS (
               SELECT
                 u2.id,
@@ -2787,8 +2787,10 @@ def get_public_user(
     db: Connection = Depends(get_db),
 ):
     viewer_id = _get_user_id_from_bearer(authorization)
+    # Public endpoint: allow unauthenticated access.
+    # If the viewer is authenticated, we can enrich the response (e.g., is_friend).
     if viewer_id is None:
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
+        viewer_id = 0
 
     uname = (username or "").strip().lower()
     if not uname:
@@ -2814,12 +2816,16 @@ def get_public_user(
     level = max(1, (xp // 500) + 1)
     streak = _compute_streak_days(db, target_id)
 
-    is_friend = bool(
-        db.execute(
-            text("SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"),
-            {"a": int(viewer_id), "b": target_id},
-        ).first()
-    )
+    is_friend = False
+    if int(viewer_id) > 0:
+        is_friend = bool(
+            db.execute(
+                text(
+                    "SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"
+                ),
+                {"a": int(viewer_id), "b": target_id},
+            ).first()
+        )
 
     return PublicUserOut(
         user_id=target_id,
@@ -2844,8 +2850,9 @@ def get_public_user_friends(
     db: Connection = Depends(get_db),
 ):
     viewer_id = _get_user_id_from_bearer(authorization)
+    # Public endpoint: allow unauthenticated access.
     if viewer_id is None:
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
+        viewer_id = 0
 
     uname = (username or "").strip().lower()
     target = db.execute(
@@ -2858,12 +2865,16 @@ def get_public_user_friends(
     target_id = int(target["id"])
     friends_public = bool(target.get("friends_public", True))
 
-    is_friend = bool(
-        db.execute(
-            text("SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"),
-            {"a": int(viewer_id), "b": target_id},
-        ).first()
-    )
+    is_friend = False
+    if int(viewer_id) > 0:
+        is_friend = bool(
+            db.execute(
+                text(
+                    "SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"
+                ),
+                {"a": int(viewer_id), "b": target_id},
+            ).first()
+        )
 
     # Only allow if public or viewer is friend or same user
     if not friends_public and int(viewer_id) != target_id and not is_friend:
