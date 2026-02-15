@@ -373,6 +373,12 @@ def ensure_schema() -> None:
                 WHERE username IS NOT NULL AND username <> ''
                 """
             )
+
         )
+        # ---------- users (profile customization) ----------
+        add_col_if_missing("users", "display_name TEXT")
+        add_col_if_missing("users", "bio TEXT")
+        add_col_if_missing("users", "profile_theme JSONB NOT NULL DEFAULT '{}'::jsonb")
+        add_col_if_missing("users", "friends_public BOOLEAN NOT NULL DEFAULT TRUE")
 
     print("[ensure_schema] done ✅")
