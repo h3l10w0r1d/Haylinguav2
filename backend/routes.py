@@ -548,7 +548,7 @@ def friends_list(
             WITH xp AS (
               SELECT
                 u.id,
-                NULL::text AS email,
+                u.email,
                 u.username,
                 u.display_name,
                 u.avatar_url,
@@ -2270,9 +2270,9 @@ def me_profile_put(
     new_name = " ".join([x for x in [fn, ln] if x]) or None
 
     updates = {}
-    # if user is trying to update name (even empty strings), update name
+    # Store as display_name (users table uses display_name)
     if payload.first_name is not None or payload.last_name is not None:
-        updates["name"] = new_name
+        updates["display_name"] = new_name
 
     if payload.avatar_url is not None:
         updates["avatar_url"] = payload.avatar_url.strip() or None
@@ -2732,6 +2732,7 @@ class PublicUserOut(BaseModel):
     global_rank: int
     friends_count: int
     is_friend: bool
+    friends_preview: list[dict] = []
 
 
 def _get_user_public_by_id(db: Connection, uid: int) -> dict:
@@ -2751,7 +2752,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
               WHERE u.id = :uid
-              GROUP BY u.id, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme
+              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme
             ), ranked AS (
               SELECT
                 u2.id,
@@ -2780,17 +2781,40 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
     return dict(r)
 
 
+def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[dict]:
+    """Small preview list of friends for public pages (only when friends_public=True)."""
+
+    rows = db.execute(
+        text(
+            """
+            SELECT u.username, u.display_name,
+                   (SELECT 1 + COUNT(*) FROM users u2
+                    WHERE COALESCE(u2.xp_total,0) > COALESCE(u.xp_total,0)) AS global_rank
+            FROM friends f
+            JOIN users u ON u.id = CASE
+                WHEN f.user_id = :uid THEN f.friend_id
+                ELSE f.user_id
+            END
+            WHERE (f.user_id = :uid OR f.friend_id = :uid)
+              AND f.status = 'accepted'
+            ORDER BY COALESCE(u.xp_total,0) DESC
+            LIMIT :lim
+            """
+        ),
+        {"uid": int(uid), "lim": int(limit)},
+    ).mappings().all()
+    return [dict(r) for r in rows]
+
+
 @router.get("/users/{username}", response_model=PublicUserOut)
 def get_public_user(
     username: str,
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
+    # Public endpoint: auth is optional.
+    # If a Bearer token is present, we use it to compute viewer-specific fields (like is_friend).
     viewer_id = _get_user_id_from_bearer(authorization)
-    # Public endpoint: allow unauthenticated access.
-    # If the viewer is authenticated, we can enrich the response (e.g., is_friend).
-    if viewer_id is None:
-        viewer_id = 0
 
     uname = (username or "").strip().lower()
     if not uname:
@@ -2817,7 +2841,7 @@ def get_public_user(
     streak = _compute_streak_days(db, target_id)
 
     is_friend = False
-    if int(viewer_id) > 0:
+    if viewer_id is not None:
         is_friend = bool(
             db.execute(
                 text(
@@ -2840,6 +2864,12 @@ def get_public_user(
         global_rank=int(data.get("global_rank") or 0),
         friends_count=int(data.get("friends_count") or 0),
         is_friend=is_friend,
+        # Lightweight preview to avoid a second call on the FE.
+        friends_preview=(
+            _get_user_public_friends(db, target_id, limit=6)
+            if bool(target.get("friends_public"))
+            else []
+        ),
     )
 
 
@@ -2850,9 +2880,8 @@ def get_public_user_friends(
     db: Connection = Depends(get_db),
 ):
     viewer_id = _get_user_id_from_bearer(authorization)
-    # Public endpoint: allow unauthenticated access.
     if viewer_id is None:
-        viewer_id = 0
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     uname = (username or "").strip().lower()
     target = db.execute(
@@ -2865,16 +2894,12 @@ def get_public_user_friends(
     target_id = int(target["id"])
     friends_public = bool(target.get("friends_public", True))
 
-    is_friend = False
-    if int(viewer_id) > 0:
-        is_friend = bool(
-            db.execute(
-                text(
-                    "SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"
-                ),
-                {"a": int(viewer_id), "b": target_id},
-            ).first()
-        )
+    is_friend = bool(
+        db.execute(
+            text("SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"),
+            {"a": int(viewer_id), "b": target_id},
+        ).first()
+    )
 
     # Only allow if public or viewer is friend or same user
     if not friends_public and int(viewer_id) != target_id and not is_friend:
