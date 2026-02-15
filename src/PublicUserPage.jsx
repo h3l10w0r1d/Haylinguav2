@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { apiFetch } from "./api";
-import { useAuth } from "./auth";
+import { apiFetch, getToken } from "./api";
 
 export default function PublicUserPage() {
   const { username } = useParams();
-  const { user: me, token } = useAuth();
+  // Public pages should load without auth. If user is logged in,
+  // we attach Bearer token to unlock friend actions + extra fields.
+  const token = getToken();
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
