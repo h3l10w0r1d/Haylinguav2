@@ -770,6 +770,34 @@ class MeProfileUpdateIn(BaseModel):
     last_name: str | None = None
     avatar_url: str | None = None
 
+
+class OnboardingOut(BaseModel):
+    completed: bool
+    data: dict | None = None
+
+
+class OnboardingIn(BaseModel):
+    # Screen 1: basics
+    age_range: str
+    country: str
+    planning_visit_armenia: bool | None = None
+
+    # Screen 2: curriculum
+    knowledge_level: str
+    dialect: str
+    primary_goal: str
+    source_language: str
+
+    # Screen 3: setup
+    daily_goal_min: int
+    reminder_time: str | None = None  # "08:00", "13:00", "20:00", or null
+    voice_pref: str
+
+    # Screen 4: legal
+    marketing_opt_in: bool = False
+    accepted_terms: bool
+
+
 # ---------- JWT helpers (for /complete) ----------
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or ""
@@ -1974,6 +2002,134 @@ def me_profile_put(
     return MeOut(**dict(row))
 
 
+@router.get("/me/onboarding", response_model=OnboardingOut)
+def me_onboarding_get(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
+
+    row = db.execute(
+        text(
+            """
+            SELECT age_range, country, planning_visit_armenia,
+                   knowledge_level, dialect, primary_goal, source_language,
+                   daily_goal_min, reminder_time, voice_pref,
+                   marketing_opt_in, accepted_terms, completed_at
+            FROM user_onboarding
+            WHERE user_id = :u
+            """
+        ),
+        {"u": int(user_id)},
+    ).mappings().first()
+
+    if row is None:
+        return OnboardingOut(completed=False, data=None)
+
+    data = dict(row)
+    completed = data.get("completed_at") is not None
+    data.pop("completed_at", None)
+    return OnboardingOut(completed=bool(completed), data=data)
+
+
+@router.post("/me/onboarding", response_model=OnboardingOut)
+def me_onboarding_post(
+    payload: OnboardingIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
+
+    # Minimal validation (FE should enforce UX, BE enforces sanity)
+    if not payload.accepted_terms:
+        raise HTTPException(status_code=400, detail={"field": "accepted_terms", "errors": ["Terms must be accepted"]})
+
+    if payload.daily_goal_min < 5 or payload.daily_goal_min > 60:
+        raise HTTPException(status_code=400, detail={"field": "daily_goal_min", "errors": ["Daily goal must be between 5 and 60 minutes"]})
+
+    country = (payload.country or "").strip()
+    if country == "":
+        raise HTTPException(status_code=400, detail={"field": "country", "errors": ["Country is required"]})
+
+    # Upsert
+    db.execute(
+        text(
+            """
+            INSERT INTO user_onboarding (
+                user_id,
+                age_range, country, planning_visit_armenia,
+                knowledge_level, dialect, primary_goal, source_language,
+                daily_goal_min, reminder_time, voice_pref,
+                marketing_opt_in, accepted_terms,
+                completed_at, updated_at
+            ) VALUES (
+                :user_id,
+                :age_range, :country, :planning_visit_armenia,
+                :knowledge_level, :dialect, :primary_goal, :source_language,
+                :daily_goal_min, :reminder_time, :voice_pref,
+                :marketing_opt_in, :accepted_terms,
+                NOW(), NOW()
+            )
+            ON CONFLICT (user_id) DO UPDATE SET
+                age_range = EXCLUDED.age_range,
+                country = EXCLUDED.country,
+                planning_visit_armenia = EXCLUDED.planning_visit_armenia,
+                knowledge_level = EXCLUDED.knowledge_level,
+                dialect = EXCLUDED.dialect,
+                primary_goal = EXCLUDED.primary_goal,
+                source_language = EXCLUDED.source_language,
+                daily_goal_min = EXCLUDED.daily_goal_min,
+                reminder_time = EXCLUDED.reminder_time,
+                voice_pref = EXCLUDED.voice_pref,
+                marketing_opt_in = EXCLUDED.marketing_opt_in,
+                accepted_terms = EXCLUDED.accepted_terms,
+                completed_at = NOW(),
+                updated_at = NOW()
+            """
+        ),
+        {
+            "user_id": int(user_id),
+            "age_range": payload.age_range,
+            "country": country,
+            "planning_visit_armenia": payload.planning_visit_armenia,
+            "knowledge_level": payload.knowledge_level,
+            "dialect": payload.dialect,
+            "primary_goal": payload.primary_goal,
+            "source_language": payload.source_language,
+            "daily_goal_min": int(payload.daily_goal_min),
+            "reminder_time": payload.reminder_time,
+            "voice_pref": payload.voice_pref,
+            "marketing_opt_in": bool(payload.marketing_opt_in),
+            "accepted_terms": bool(payload.accepted_terms),
+        },
+    )
+
+    # Return latest
+    row = db.execute(
+        text(
+            """
+            SELECT age_range, country, planning_visit_armenia,
+                   knowledge_level, dialect, primary_goal, source_language,
+                   daily_goal_min, reminder_time, voice_pref,
+                   marketing_opt_in, accepted_terms
+            FROM user_onboarding
+            WHERE user_id = :u
+            """
+        ),
+        {"u": int(user_id)},
+    ).mappings().first()
+
+    return OnboardingOut(completed=True, data=dict(row) if row else None)
+
+
 @router.get("/me/activity/last7days")
 def me_activity_last7days(
     authorization: Optional[str] = Header(default=None),
@@ -2714,16 +2870,6 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
     )
     RETURNING id
 """)
-
-    params = {
-        "lesson_id": lesson_id,
-        "kind": kind,
-        "prompt": prompt,
-        "expected_answer": expected_answer,
-        "order": order,
-        "xp": xp,
-        "config": json.dumps(config),
-    }
 
     new_id = db.execute(q, params).scalar_one()
     return {"id": new_id}
