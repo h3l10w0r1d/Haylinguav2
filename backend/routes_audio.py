@@ -76,6 +76,13 @@ class GenerateTTSRequest(BaseModel):
     voice_type: Literal["male", "female"]
 
 
+class GenerateTargetTTSRequest(BaseModel):
+    exercise_id: int
+    target_key: str
+    text: str
+    voice_type: Literal["male", "female"]
+
+
 async def generate_elevenlabs_tts(text: str, voice_id: str) -> bytes:
     if not ELEVEN_API_KEY:
         raise HTTPException(status_code=400, detail="ElevenLabs API key not configured")
@@ -140,6 +147,95 @@ def get_exercise_audio_list(exercise_id: int, db: Connection = Depends(get_db)):
     ).mappings().all()
     
     return {"audio_recordings": [dict(r) for r in rows]}
+
+
+# ------------------------------
+# Target audio (Duolingo-like)
+# ------------------------------
+
+
+@router.get("/cms/audio/targets/{exercise_id}")
+def cms_list_audio_targets(
+    exercise_id: int,
+    target_key: Optional[str] = None,
+    db: Connection = Depends(get_db),
+):
+    """List stored audio for an exercise (optionally filtered by target_key)."""
+    rows = db.execute(
+        text(
+            """
+            SELECT id, exercise_id, target_key, voice_type, source_type,
+                   audio_format, audio_size, file_path,
+                   created_at, updated_at
+            FROM exercise_audio_targets
+            WHERE exercise_id = :exercise_id
+              AND (:target_key IS NULL OR target_key = :target_key)
+            ORDER BY target_key ASC, voice_type ASC;
+            """
+        ),
+        {"exercise_id": exercise_id, "target_key": target_key},
+    ).mappings().all()
+    return {"targets": [dict(r) for r in rows]}
+
+
+@router.post("/cms/audio/targets/generate-tts")
+async def cms_generate_target_tts(payload: GenerateTargetTTSRequest, db: Connection = Depends(get_db)):
+    exercise_id = int(payload.exercise_id or 0)
+    target_key = (payload.target_key or "").strip()
+    text_value = (payload.text or "").strip()
+    voice_type = (payload.voice_type or "").strip().lower()
+
+    if not exercise_id or not target_key or not text_value:
+        raise HTTPException(status_code=400, detail="exercise_id, target_key and text are required")
+    if voice_type not in ("male", "female"):
+        raise HTTPException(status_code=400, detail="voice_type must be male or female")
+
+    voice_id = MALE_VOICE_ID if voice_type == "male" else FEMALE_VOICE_ID
+    audio_data = await generate_elevenlabs_tts(text_value, voice_id)
+
+    result = db.execute(
+        text(
+            """
+            INSERT INTO exercise_audio_targets (
+                exercise_id, target_key, voice_type, source_type,
+                tts_text, tts_voice_id,
+                audio_data, audio_format, audio_size,
+                created_at, updated_at
+            ) VALUES (
+                :exercise_id, :target_key, :voice_type, 'tts',
+                :tts_text, :voice_id,
+                :audio_data, 'mp3', :audio_size,
+                NOW(), NOW()
+            )
+            ON CONFLICT (exercise_id, target_key, voice_type) DO UPDATE SET
+                source_type='tts',
+                tts_text=EXCLUDED.tts_text,
+                tts_voice_id=EXCLUDED.tts_voice_id,
+                audio_data=EXCLUDED.audio_data,
+                audio_format=EXCLUDED.audio_format,
+                audio_size=EXCLUDED.audio_size,
+                file_path=NULL,
+                updated_at=NOW()
+            RETURNING id, audio_size;
+            """
+        ),
+        {
+            "exercise_id": exercise_id,
+            "target_key": target_key,
+            "voice_type": voice_type,
+            "tts_text": text_value,
+            "voice_id": voice_id,
+            "audio_data": audio_data,
+            "audio_size": len(audio_data),
+        },
+    ).mappings().first()
+    return {
+        "success": True,
+        "audio_id": result["id"],
+        "voice_type": voice_type,
+        "audio_size": result["audio_size"],
+        "target_key": target_key,
+    }
 
 
 @router.post("/cms/audio/generate-tts")
@@ -248,6 +344,149 @@ async def save_browser_recording(
     return {"success": True, "audio_id": result["id"]}
 
 
+@router.post("/cms/audio/targets/upload")
+async def upload_target_audio(
+    exercise_id: int = Form(...),
+    target_key: str = Form(...),
+    voice_type: str = Form(...),
+    audio_file: UploadFile = File(...),
+    db: Connection = Depends(get_db),
+):
+    target_key = (target_key or "").strip()
+    voice_type = (voice_type or "").strip().lower()
+    if not target_key:
+        raise HTTPException(400, "target_key is required")
+    if voice_type not in ("male", "female"):
+        raise HTTPException(400, "voice_type must be male or female")
+
+    audio_data = await audio_file.read()
+    if not audio_data:
+        raise HTTPException(400, "Empty file")
+    if len(audio_data) > MAX_AUDIO_SIZE:
+        raise HTTPException(400, f"File too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
+
+    format_map = {
+        'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav',
+        'audio/ogg': 'ogg', 'audio/webm': 'webm'
+    }
+    audio_format = format_map.get(audio_file.content_type, 'mp3')
+
+    result = db.execute(
+        text(
+            """
+            INSERT INTO exercise_audio_targets (
+                exercise_id, target_key, voice_type, source_type,
+                audio_data, audio_format, audio_size,
+                tts_text, tts_voice_id,
+                created_at, updated_at
+            ) VALUES (
+                :exercise_id, :target_key, :voice_type, 'recording',
+                :audio_data, :audio_format, :audio_size,
+                NULL, NULL,
+                NOW(), NOW()
+            )
+            ON CONFLICT (exercise_id, target_key, voice_type) DO UPDATE SET
+                source_type='recording',
+                audio_data=EXCLUDED.audio_data,
+                audio_format=EXCLUDED.audio_format,
+                audio_size=EXCLUDED.audio_size,
+                tts_text=NULL,
+                tts_voice_id=NULL,
+                file_path=NULL,
+                updated_at=NOW()
+            RETURNING id
+            """
+        ),
+        {
+            "exercise_id": exercise_id,
+            "target_key": target_key,
+            "voice_type": voice_type,
+            "audio_data": audio_data,
+            "audio_format": audio_format,
+            "audio_size": len(audio_data),
+        },
+    ).mappings().first()
+
+    return {"success": True, "audio_id": result["id"], "voice_type": voice_type, "target_key": target_key}
+
+
+@router.post("/cms/audio/targets/save-recording")
+async def save_target_recording(
+    exercise_id: int = Form(...),
+    target_key: str = Form(...),
+    voice_type: str = Form(...),
+    audio_file: UploadFile = File(...),
+    db: Connection = Depends(get_db),
+):
+    # Same as upload, but keeps browser format mapping defaulting to webm.
+    format_map = {'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3'}
+    audio_data = await audio_file.read()
+    if not audio_data:
+        raise HTTPException(400, "Empty recording")
+    audio_format = format_map.get(audio_file.content_type, 'webm')
+    # Reuse upload logic by creating a fake UploadFile isn't worth it; upsert directly.
+    target_key = (target_key or "").strip()
+    voice_type = (voice_type or "").strip().lower()
+    if not target_key:
+        raise HTTPException(400, "target_key is required")
+    if voice_type not in ("male", "female"):
+        raise HTTPException(400, "voice_type must be male or female")
+
+    result = db.execute(
+        text(
+            """
+            INSERT INTO exercise_audio_targets (
+                exercise_id, target_key, voice_type, source_type,
+                audio_data, audio_format, audio_size,
+                created_at, updated_at
+            ) VALUES (
+                :exercise_id, :target_key, :voice_type, 'recording',
+                :audio_data, :audio_format, :audio_size,
+                NOW(), NOW()
+            )
+            ON CONFLICT (exercise_id, target_key, voice_type) DO UPDATE SET
+                source_type='recording',
+                audio_data=EXCLUDED.audio_data,
+                audio_format=EXCLUDED.audio_format,
+                audio_size=EXCLUDED.audio_size,
+                tts_text=NULL,
+                tts_voice_id=NULL,
+                file_path=NULL,
+                updated_at=NOW()
+            RETURNING id
+            """
+        ),
+        {
+            "exercise_id": exercise_id,
+            "target_key": target_key,
+            "voice_type": voice_type,
+            "audio_data": audio_data,
+            "audio_format": audio_format,
+            "audio_size": len(audio_data),
+        },
+    ).mappings().first()
+    return {"success": True, "audio_id": result["id"], "target_key": target_key}
+
+
+@router.delete("/cms/audio/targets/{audio_id}")
+def delete_target_audio(audio_id: int, db: Connection = Depends(get_db)):
+    db.execute(text("DELETE FROM exercise_audio_targets WHERE id = :id"), {"id": audio_id})
+    return {"success": True}
+
+
+@router.get("/cms/audio/targets/{audio_id}/preview")
+def preview_target_audio(audio_id: int, db: Connection = Depends(get_db)):
+    row = db.execute(
+        text("SELECT audio_data, audio_format FROM exercise_audio_targets WHERE id = :id"),
+        {"id": audio_id},
+    ).mappings().first()
+    if not row:
+        raise HTTPException(404, "Audio not found")
+    content_types = {'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'webm': 'audio/webm'}
+    content_type = content_types.get(row["audio_format"], 'audio/mpeg')
+    return Response(content=bytes(row["audio_data"]), media_type=content_type)
+
+
 @router.get("/cms/audio/{audio_id}/preview")
 def preview_audio(audio_id: int, db: Connection = Depends(get_db)):
     row = db.execute(
@@ -299,6 +538,45 @@ def get_exercise_audio_for_playback(
         content=bytes(row["audio_data"]),
         media_type=content_types.get(row["audio_format"], 'audio/mpeg'),
         headers={"Cache-Control": "public, max-age=31536000"}
+    )
+
+
+@router.get("/audio/target/{exercise_id}")
+def get_target_audio_for_playback(
+    exercise_id: int,
+    key: str,
+    voice: str = "female",
+    db: Connection = Depends(get_db),
+):
+    """Serve stored per-target audio. Returns 404 when missing."""
+    key = (key or "").strip()
+    voice = (voice or "").strip().lower()
+    if not key:
+        raise HTTPException(400, "key is required")
+    if voice not in ("male", "female"):
+        voice = "female"
+
+    row = db.execute(
+        text(
+            """
+            SELECT audio_data, audio_format
+            FROM exercise_audio_targets
+            WHERE exercise_id = :exercise_id
+              AND target_key = :target_key
+              AND voice_type = :voice
+            LIMIT 1
+            """
+        ),
+        {"exercise_id": exercise_id, "target_key": key, "voice": voice},
+    ).mappings().first()
+    if not row:
+        raise HTTPException(404, "No audio found")
+
+    content_types = {'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'webm': 'audio/webm'}
+    return Response(
+        content=bytes(row["audio_data"]),
+        media_type=content_types.get(row["audio_format"], 'audio/mpeg'),
+        headers={"Cache-Control": "public, max-age=31536000"},
     )
 
 
