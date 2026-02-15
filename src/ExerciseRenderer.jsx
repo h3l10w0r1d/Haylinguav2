@@ -1006,7 +1006,11 @@ function ExAudioChoiceTts({
     if (!ttsText) return;
     try {
       setBusy(true);
-      const url = await ttsFetch(apiBaseUrl, ttsText);
+      const url = await ttsFetch(apiBaseUrl, {
+        text: ttsText,
+        exerciseId: exercise?.id,
+        // Voice preference is resolved inside ttsFetch (onboarding/localStorage) unless overridden.
+      });
       setAudioUrl(url);
       const audio = new Audio(url);
       audioRef.current = audio;
