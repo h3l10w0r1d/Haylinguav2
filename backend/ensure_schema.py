@@ -362,4 +362,17 @@ def ensure_schema() -> None:
         add_col_if_missing("lessons", "lesson_type TEXT NOT NULL DEFAULT 'standard'")
         add_col_if_missing("lessons", "config JSONB NOT NULL DEFAULT '{}'::jsonb")
 
+        # ---------- users (username support) ----------
+        add_col_if_missing("users", "username TEXT")
+        # Case-insensitive uniqueness for non-null usernames
+        conn.execute(
+            text(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_uniq
+                ON users (LOWER(username))
+                WHERE username IS NOT NULL AND username <> ''
+                """
+            )
+        )
+
     print("[ensure_schema] done ✅")
