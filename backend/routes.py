@@ -2672,7 +2672,14 @@ def cms_get_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
 @router.post("/cms/exercises")
 async def cms_create_exercise(request: Request, db=Depends(get_db)):
     require_cms(request, db)
+    # Defensive: if FE accidentally sends a raw number (e.g. just lesson_id)
+    # FastAPI will parse it as int and our .get(...) calls would crash.
     body = await request.json()
+    if not isinstance(body, dict):
+        if isinstance(body, int):
+            body = {"lesson_id": body}
+        else:
+            raise HTTPException(400, detail="Invalid JSON body; expected an object")
 
     lesson_id = int(body.get("lesson_id") or 0)
     kind = normalize_kind((body.get("kind") or "").strip())
