@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { apiFetch, getToken } from "./api";
+import { Link, useParams } from "react-router-dom";
+import { apiFetch } from "./api";
+import { useAuth } from "./auth";
 
-// Public, shareable profile: /u/:username
 export default function PublicUserPage() {
   const { username } = useParams();
-  const token = useMemo(() => getToken(), []);
+  const { user: me, token } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -14,79 +14,53 @@ export default function PublicUserPage() {
   const [friendState, setFriendState] = useState(null); // none | requested | friends
   const [busy, setBusy] = useState(false);
 
+  const initials = useMemo(() => {
+    const name = user?.display_name || user?.username || "?";
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("");
+  }, [user]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
       setLoading(true);
       setErr("");
       try {
-        const u = await apiFetch(`/users/${encodeURIComponent(username)}`);
+        const u = token
+          ? await apiFetch(`/users/${encodeURIComponent(username)}`, { token })
+          : await apiFetch(`/users/${encodeURIComponent(username)}`);
         if (!alive) return;
         setUser(u);
-        // stats endpoint is protected by token; only fetch if logged in
-        if (token && u?.email) {
-          try {
-            const s = await apiFetch(`/me/stats?email=${encodeURIComponent(u.email)}`, { token });
-            if (alive) setStats(s);
-          } catch {
-            // ignore
-          }
-        }
+        setStats(u?.stats || null);
+        setFriendState(u?.friend_state || null);
       } catch (e) {
         if (!alive) return;
-        setErr(e?.message || "Failed to load profile");
+        setErr(e?.detail || e?.message || "Failed to load profile");
       } finally {
         if (alive) setLoading(false);
       }
     })();
-
     return () => {
       alive = false;
     };
   }, [username, token]);
 
-  useEffect(() => {
-    // Determine friend state (only if logged in)
+  async function sendRequest() {
     if (!token || !user?.id) return;
-    let alive = true;
-    (async () => {
-      try {
-        const myFriends = await apiFetch("/friends", { token });
-        if (!alive) return;
-        const isFriend = Array.isArray(myFriends)
-          ? myFriends.some((f) => String(f.id) === String(user.id))
-          : false;
-        if (isFriend) {
-          setFriendState("friends");
-          return;
-        }
-        const sent = await apiFetch("/friends/requests/sent", { token });
-        if (!alive) return;
-        const requested = Array.isArray(sent)
-          ? sent.some((r) => String(r.to_user_id) === String(user.id))
-          : false;
-        setFriendState(requested ? "requested" : "none");
-      } catch {
-        // ignore
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [token, user?.id]);
-
-  async function sendFriendRequest() {
-    if (!token || !user?.id) return;
-    setBusy(true);
     try {
-      await apiFetch("/friends/requests", {
+      setBusy(true);
+      await apiFetch(`/friends/requests`, {
         method: "POST",
         token,
-        body: { to_user_id: user.id },
+        body: { target_user_id: user.id },
       });
       setFriendState("requested");
     } catch (e) {
-      setErr(e?.message || "Failed to send request");
+      setErr(e?.detail || e?.message || "Failed to send request");
     } finally {
       setBusy(false);
     }
@@ -94,196 +68,116 @@ export default function PublicUserPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
-        <div style={{ opacity: 0.7 }}>Loading profile…</div>
+      <div className="min-h-screen flex items-center justify-center text-white">
+        <div className="opacity-80 font-extrabold">Loading…</div>
       </div>
     );
   }
 
   if (err) {
     return (
-      <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Profile unavailable</div>
-        <div style={{ opacity: 0.85, marginBottom: 16 }}>{err}</div>
-        <Link to="/" style={{ color: "#6aa6ff" }}>Go home</Link>
+      <div className="min-h-screen flex items-center justify-center text-white p-6">
+        <div className="max-w-xl w-full rounded-2xl border border-white/10 bg-white/5 p-6">
+          <div className="text-lg font-black">Profile unavailable</div>
+          <div className="mt-2 text-sm text-white/80">{err}</div>
+          <div className="mt-4">
+            <Link
+              to="/"
+              className="inline-flex rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-extrabold hover:bg-white/15"
+            >
+              Back home
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const displayName = user?.username || user?.name || "User";
+  const bg = user?.profile?.bg || "#0b1020";
 
   return (
-    <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 18,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: "rgba(255,255,255,0.08)",
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: 18,
-            }}
-            aria-label="Avatar"
-          >
-            {user?.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
+    <div
+      className="min-h-screen text-white"
+      style={{
+        background: `radial-gradient(1200px 600px at 15% 15%, rgba(125, 211, 252, 0.20), transparent 60%), radial-gradient(900px 500px at 85% 25%, rgba(167, 139, 250, 0.18), transparent 55%), ${bg}`,
+      }}
+    >
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-2xl border border-white/15 bg-white/10 flex items-center justify-center font-black">
+              {initials}
+            </div>
+            <div>
+              <div className="text-2xl font-black leading-tight">
+                {user?.display_name || user?.username}
+              </div>
+              <div className="text-sm text-white/80">
+                @{user?.username}
+                {typeof user?.rank === "number" ? ` • Rank #${user.rank}` : ""}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {token ? (
+              <button
+                disabled={busy || !friendState || friendState === "friends"}
+                onClick={sendRequest}
+                className={`rounded-xl px-4 py-2 text-sm font-extrabold border transition ${
+                  friendState === "friends"
+                    ? "border-emerald-300/30 bg-emerald-400/15"
+                    : friendState === "requested"
+                    ? "border-white/15 bg-white/10"
+                    : "border-white/15 bg-white/10 hover:bg-white/15"
+                } ${busy || !friendState || friendState === "friends" ? "opacity-70" : ""}`}
+              >
+                {friendState === "friends"
+                  ? "Friends"
+                  : friendState === "requested"
+                  ? "Request sent"
+                  : "Add friend"}
+              </button>
+            ) : null}
+
+            {me ? (
+              <Link
+                to="/profile"
+                className="rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-extrabold hover:bg-white/15"
+              >
+                My profile
+              </Link>
             ) : (
-              (displayName || "U").slice(0, 1).toUpperCase()
+              <Link
+                to="/login"
+                className="rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-extrabold hover:bg-white/15"
+              >
+                Log in
+              </Link>
             )}
           </div>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 900, lineHeight: 1.1 }}>{displayName}</div>
-            <div style={{ opacity: 0.75, marginTop: 4 }}>@{user?.username || username}</div>
-          </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <Link
-            to="/leaderboard"
-            style={{
-              padding: "10px 12px",
-              borderRadius: 12,
-              background: "rgba(255,255,255,0.08)",
-              color: "inherit",
-              textDecoration: "none",
-              fontWeight: 700,
-            }}
-          >
-            Leaderboard
-          </Link>
-          {token ? (
-            friendState === "friends" ? (
-              <span
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  background: "rgba(76, 175, 80, 0.2)",
-                  border: "1px solid rgba(76, 175, 80, 0.35)",
-                  fontWeight: 800,
-                }}
-              >
-                Friends ✓
-              </span>
-            ) : friendState === "requested" ? (
-              <span
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  background: "rgba(255,255,255,0.08)",
-                  fontWeight: 800,
-                  opacity: 0.9,
-                }}
-              >
-                Request sent
-              </span>
-            ) : (
-              <button
-                onClick={sendFriendRequest}
-                disabled={busy}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: "#4e7cff",
-                  color: "white",
-                  fontWeight: 900,
-                  cursor: busy ? "not-allowed" : "pointer",
-                }}
-              >
-                Add friend
-              </button>
-            )
-          ) : (
-            <Link
-              to="/"
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.08)",
-                color: "inherit",
-                textDecoration: "none",
-                fontWeight: 800,
-              }}
-            >
-              Log in
-            </Link>
-          )}
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(12, 1fr)",
-          gap: 16,
-        }}
-      >
-        <div
-          style={{
-            gridColumn: "span 8",
-            padding: 16,
-            borderRadius: 16,
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.10)",
-          }}
-        >
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>Overview</div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard label="XP" value={stats?.xp_total ?? "—"} />
-            <StatCard label="Level" value={stats?.level ?? "—"} />
-            <StatCard label="Streak" value={stats?.streak_days ?? "—"} />
-            <StatCard label="Lessons" value={stats?.lessons_completed ?? "—"} />
+        <div className="mt-6 grid grid-cols-12 gap-4">
+          <div className="col-span-12 lg:col-span-8 rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="mb-3 text-base font-black">Overview</div>
+            <div className="flex flex-wrap gap-3">
+              <StatCard label="XP" value={stats?.xp_total ?? "—"} />
+              <StatCard label="Level" value={stats?.level ?? "—"} />
+              <StatCard label="Streak" value={stats?.streak_days ?? "—"} />
+              <StatCard label="Lessons" value={stats?.lessons_completed ?? "—"} />
+            </div>
+            <div className="mt-4 text-sm text-white/75">
+              Public page. Private settings (email, password, 2FA) are available only on your own Profile page after login.
+            </div>
           </div>
 
-          <div style={{ marginTop: 14, opacity: 0.75, fontSize: 13 }}>
-            This page is public. Your private settings (email, password, 2FA) live in your own Profile
-            page after login.
-          </div>
-        </div>
-
-        <div
-          style={{
-            gridColumn: "span 4",
-            padding: 16,
-            borderRadius: 16,
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.10)",
-          }}
-        >
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>Share</div>
-          <div style={{ opacity: 0.8, fontSize: 13, marginBottom: 10 }}>
-            Share this profile link:
-          </div>
-          <div
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              background: "rgba(0,0,0,0.25)",
-              border: "1px solid rgba(255,255,255,0.10)",
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-              fontSize: 12,
-              wordBreak: "break-all",
-            }}
-          >
-            {`https://www.haylingua.am/u/${user?.username || username}`}
+          <div className="col-span-12 lg:col-span-4 rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="mb-2 text-base font-black">Share</div>
+            <div className="mb-3 text-sm text-white/80">Share this profile link:</div>
+            <div className="rounded-xl border border-white/10 bg-black/25 p-3 font-mono text-xs break-all">
+              {`https://www.haylingua.am/u/${user?.username || username}`}
+            </div>
           </div>
         </div>
       </div>
@@ -293,17 +187,9 @@ export default function PublicUserPage() {
 
 function StatCard({ label, value }) {
   return (
-    <div
-      style={{
-        minWidth: 140,
-        padding: 12,
-        borderRadius: 14,
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.10)",
-      }}
-    >
-      <div style={{ opacity: 0.75, fontSize: 12, fontWeight: 800 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 950, marginTop: 4 }}>{String(value)}</div>
+    <div className="min-w-[140px] rounded-2xl border border-white/10 bg-white/5 p-3">
+      <div className="text-xs font-extrabold text-white/70">{label}</div>
+      <div className="mt-1 text-2xl font-black">{String(value)}</div>
     </div>
   );
 }
