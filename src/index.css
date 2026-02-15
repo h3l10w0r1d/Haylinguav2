@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Animated “floating” gradient for primary CTA */
+/* Animated â€œfloatingâ€ gradient for primary CTA */
 .cta-float {
   background-size: 200% 200%;
   animation: ctaGradient 4s ease-in-out infinite;
@@ -37,4 +37,57 @@
 
 .cta-float:hover::after {
   transform: translateX(120%);
+}
+
+/* Landing: soft animated background orbs */
+.lp-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(28px);
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  transform: translate3d(0, 0, 0);
+  animation: lpFloat 10s ease-in-out infinite;
+  will-change: transform;
+}
+
+.lp-orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55), rgba(255,255,255,0) 55%);
+  opacity: 0.25;
+}
+
+@keyframes lpFloat {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(14px, -18px, 0) scale(1.06); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.lp-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(17, 24, 39, 0.08) 1px, transparent 0);
+  background-size: 26px 26px;
+}
+
+.lp-grain {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.4'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .lp-orb { animation: none !important; }
+  .cta-float { animation: none !important; }
 }
