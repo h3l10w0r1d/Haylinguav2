@@ -22,6 +22,92 @@ function getToken() {
   );
 }
 
+
+
+function ReadingSectionCard({ section, userLevel, onNext }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  const rate = useMemo(() => {
+    const lvl = String(userLevel || '').toLowerCase();
+    if (lvl.includes('adv')) return Number(section?.rate_advanced ?? 1.05);
+    if (lvl.includes('inter')) return Number(section?.rate_intermediate ?? 1.0);
+    return Number(section?.rate_beginner ?? 0.9);
+  }, [userLevel, section]);
+
+  const play = async () => {
+    try {
+      setIsPlaying(true);
+      const text = section?.text || '';
+      if (!text.trim()) return;
+
+      const res = await fetch(`${API_BASE}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) {
+        console.warn('TTS failed', res.status);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = url;
+        audioRef.current.playbackRate = rate;
+        await audioRef.current.play();
+      }
+    } finally {
+      setIsPlaying(false);
+    }
+  };
+
+  useEffect(() => {
+    // Auto-play once when section mounts (Duolingo-like)
+    play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reading</div>
+            <h2 className="mt-1 text-lg font-bold">{section?.title || 'Read and listen'}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={play}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold hover:bg-slate-100"
+            disabled={isPlaying}
+          >
+            {isPlaying ? 'Playing…' : 'Play'}
+          </button>
+        </div>
+
+        <div className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-slate-800">
+          {section?.text || ''}
+        </div>
+
+        <audio ref={audioRef} />
+
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={onNext}
+            className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function LessonPlayer() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -180,7 +266,14 @@ export default function LessonPlayer() {
         const data = await res.json();
         console.log("[LessonPlayer] Lesson data:", data);
 
-        setLesson(data);
+        const normalized = { ...data, lesson_type: data.lesson_type || "standard", config: data.config || {} };
+
+        if (String(normalized.lesson_type) === "reading") {
+          const rebuilt = buildReadingExercises(normalized);
+          normalized.exercises = rebuilt;
+        }
+
+        setLesson(normalized);
         setCurrentIndex(0);
         setHasFinishedAll(false);
         setLessonXpEarned(0);
