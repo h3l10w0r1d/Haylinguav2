@@ -1703,7 +1703,7 @@ def complete_lesson(
 def get_stats(email: str, authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
     user_row = db.execute(
         text("SELECT id FROM users WHERE email = :email"),
-        {"q": q_l},
+        {"email": email},
     ).mappings().first()
 
     if user_row is None:
