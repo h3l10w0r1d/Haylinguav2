@@ -243,29 +243,33 @@ def ensure_schema() -> None:
         # Make sure recompute_lesson_progress upsert works
         ensure_unique_progress_constraint()
 
-    # exercise_audio: caches TTS/custom recordings (optionally on Render disk)
-    db.execute(text("""
-        CREATE TABLE IF NOT EXISTS exercise_audio (
-            id SERIAL PRIMARY KEY,
-            exercise_id INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
-            voice_type TEXT NOT NULL,
-            source_type TEXT NOT NULL DEFAULT 'tts',
-            tts_text TEXT,
-            tts_voice_id TEXT,
+        # ---------- exercise_audio ----------
+        # caches TTS/custom recordings (optionally on Render disk)
+        ensure_table(
+            "exercise_audio",
+            """
+            CREATE TABLE exercise_audio (
+                id SERIAL PRIMARY KEY,
+                exercise_id INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+                voice_type TEXT NOT NULL,
+                source_type TEXT NOT NULL DEFAULT 'tts',
+                tts_text TEXT,
+                tts_voice_id TEXT,
 
-            audio_data BYTEA,
-            audio_format TEXT NOT NULL DEFAULT 'mp3',
-            audio_size INTEGER NOT NULL DEFAULT 0,
-            file_path TEXT,
-            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-            UNIQUE (exercise_id, voice_type)
-        );
-    """))
+                audio_data BYTEA,
+                audio_format TEXT NOT NULL DEFAULT 'mp3',
+                audio_size INTEGER NOT NULL DEFAULT 0,
+                file_path TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                UNIQUE (exercise_id, voice_type)
+            );
+            """,
+        )
 
-    # Add file_path if deploying onto an older DB
-    ensure_column(db, "exercise_audio", "file_path", "TEXT")
-    ensure_column(db, "exercise_audio", "tts_text", "TEXT")
-    ensure_column(db, "exercise_audio", "tts_voice_id", "TEXT")
+        # Add columns if deploying onto an older DB
+        add_col_if_missing("exercise_audio", "file_path TEXT")
+        add_col_if_missing("exercise_audio", "tts_text TEXT")
+        add_col_if_missing("exercise_audio", "tts_voice_id TEXT")
 
     print("[ensure_schema] done ✅")
