@@ -757,6 +757,20 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
   const [picked, setPicked] = useState([]);
   const [available, setAvailable] = useState(tokens);
 
+  async function playTarget(targetKey, text) {
+    try {
+      const url = await ttsFetch(API_BASE, {
+        text,
+        exerciseId: exercise?.id,
+        targetKey,
+      });
+      const a = new Audio(url);
+      a.play();
+    } catch (e) {
+      console.error("TTS failed", e);
+    }
+  }
+
   useEffect(() => {
     setPicked([]);
     setAvailable(tokens);
@@ -787,17 +801,58 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
           ) : (
             picked.map((t, i) => (
               <Pill key={`${t}-${i}`} onClick={() => removePicked(i)} active>
-                {t}
+                <span className="mr-2">{t}</span>
+                <button
+                  type="button"
+                  className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/60 hover:bg-white"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // best effort: token index based on original tokens
+                    const idx = tokens.indexOf(t);
+                    playTarget(idx >= 0 ? `token_${idx}` : "token", t);
+                  }}
+                  title="Hear"
+                >
+                  🔊
+                </button>
               </Pill>
             ))
           )}
         </div>
       </div>
 
+      <div className="mt-3">
+        <button
+          type="button"
+          className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-2 text-sm hover:bg-slate-100"
+          onClick={() => {
+            const sentence = picked.join(" ").trim();
+            const fallback = Array.isArray(solution) ? solution.join(" ") : tokens.join(" ");
+            playTarget("sentence", sentence || fallback);
+          }}
+        >
+          🔊 Play sentence
+        </button>
+      </div>
+
       <div className="mt-4 flex flex-wrap gap-2">
         {available.map((t, i) => (
           <Pill key={`${t}-${i}`} onClick={() => addToken(i)}>
-            {t}
+            <span className="mr-2">{t}</span>
+            <button
+              type="button"
+              className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/60 hover:bg-white"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const idx = tokens.indexOf(t);
+                playTarget(idx >= 0 ? `token_${idx}` : "token", t);
+              }}
+              title="Hear"
+            >
+              🔊
+            </button>
           </Pill>
         ))}
       </div>
