@@ -283,6 +283,9 @@ function AppShell() {
 
   return (
     <Routes>
+      {/* Public user pages are accessible with or without auth */}
+      <Route path="/u/:username" element={<PublicUserPage token={token} />} />
+
       <Route
         path="/"
         element={
@@ -293,9 +296,6 @@ function AppShell() {
           )
         }
       />
-
-      {/* Public, shareable user pages */}
-      <Route path="/u/:username" element={<PublicUserPage />} />
 
       {/* Authenticated app routes share the same header/nav (HeaderLayout) */}
       <Route
