@@ -15,6 +15,7 @@ import LessonPlayer from './LessonPlayer';
 import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
+import PublicUserPage from './PublicUserPage';
 import CmsGate from './cms/CmsGate';
 import CmsLogin from './cms/CmsLogin';
 import CmsInvite from './cms/CmsInvite';
@@ -292,6 +293,9 @@ function AppShell() {
           )
         }
       />
+
+      {/* Public, shareable user pages */}
+      <Route path="/u/:username" element={<PublicUserPage />} />
 
       {/* Authenticated app routes share the same header/nav (HeaderLayout) */}
       <Route
