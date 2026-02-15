@@ -55,86 +55,96 @@ def _hash_code(code: str) -> str:
     return hashlib.sha256(f"{code}{EMAIL_CODE_PEPPER}".encode("utf-8")).hexdigest()
 
 def _render_verification_email_html(name: str, code: str) -> str:
-    safe_name = (name or "there").strip() or "there"
-    digits = list(code)
-    boxes = "".join(
-        f"<td style=\"width:52px;height:56px;border:1px solid #E6E6F0;border-radius:14px;text-align:center;vertical-align:middle;font-size:24px;font-weight:800;letter-spacing:1px;color:#15152A;background:#FFFFFF;\">{d}</td>"
-        for d in digits
+    # Email-safe HTML (table layout, inline styles). Avoids complex CSS.
+    safe_name = (name or "").strip() or "there"
+    year = datetime.utcnow().year
+    # Build digits row (visual). Copy-friendly full code is shown as a single block above.
+    digits = "".join(
+        f"""
+        <td align=\"center\" valign=\"middle\" style=\"width:52px;height:56px;border:1px solid #E6EAF2;border-radius:12px;background:#FFFFFF;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:24px;line-height:56px;font-weight:700;color:#0B1220;\">{d}</td>
+        """
+        for d in code
     )
 
-    # Table-based layout + inline styles for broad email client support
+    # Hidden preheader improves inbox preview.
+    preheader = f"Your Haylingua verification code is {code}. It expires in 10 minutes."
+
     return f"""<!doctype html>
 <html lang=\"en\">
   <head>
     <meta charset=\"utf-8\" />
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />
     <meta name=\"x-apple-disable-message-reformatting\" />
-    <title>Haylingua Verification</title>
+    <title>Haylingua verification</title>
   </head>
-  <body style=\"margin:0;padding:0;background:#0B0B18;\">
-    <!-- Preheader (hidden) -->
-    <div style=\"display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;\">
-      Your Haylingua verification code is {code}. It expires in 10 minutes.
-    </div>
+  <body style=\"margin:0;padding:0;background:#F6F8FC;\">
+    <div style=\"display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;\">{preheader}</div>
 
-    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:#0B0B18;padding:32px 12px;\">
+    <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background:#F6F8FC;\">
       <tr>
-        <td align=\"center\">
+        <td align=\"center\" style=\"padding:28px 12px;\">
 
-          <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"640\" style=\"max-width:640px;width:100%;\">
+          <!-- Outer card -->
+          <table role=\"presentation\" width=\"620\" cellspacing=\"0\" cellpadding=\"0\" style=\"width:620px;max-width:100%;background:#FFFFFF;border-radius:18px;overflow:hidden;border:1px solid #E6EAF2;\">
             <tr>
-              <td style=\"padding:0 8px 16px 8px;\">
-                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:linear-gradient(135deg,#6D5EF3 0%,#1FD1F9 100%);border-radius:22px;padding:1px;\">
+              <td style=\"padding:0;\">
+                <!-- Brand header -->
+                <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background:linear-gradient(135deg,#FF7A00 0%,#FFB000 60%,#FFD08A 100%);\">
                   <tr>
-                    <td style=\"background:#0F1022;border-radius:21px;padding:28px 24px;\">
+                    <td style=\"padding:20px 24px;\">
+                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-weight:800;font-size:20px;letter-spacing:0.2px;color:#0B1220;\">Haylingua</div>
+                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:13px;color:#0B1220;opacity:0.9;margin-top:2px;\">Email verification</div>
+                    </td>
+                  </tr>
+                </table>
 
-                      <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">
-                        <tr>
-                          <td style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#FFFFFF;\">
-                            <div style=\"font-size:14px;opacity:0.9;letter-spacing:0.3px;\">Welcome to</div>
-                            <div style=\"font-size:28px;font-weight:900;line-height:1.1;margin-top:4px;\">Haylingua</div>
-                          </td>
-                          <td align=\"right\" style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#FFFFFF;\">
-                            <div style=\"display:inline-block;padding:8px 12px;border:1px solid rgba(255,255,255,0.18);border-radius:999px;font-size:12px;opacity:0.95;\">Email Verification</div>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <div style=\"height:18px\"></div>
-
-                      <div style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#FFFFFF;font-size:18px;font-weight:700;\">Hi {safe_name} 👋</div>
-                      <div style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:rgba(255,255,255,0.86);font-size:14px;line-height:1.6;margin-top:8px;\">
-                        Use the verification code below to confirm your email address. This code expires in <b>10 minutes</b>.
+                <!-- Content -->
+                <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">
+                  <tr>
+                    <td style=\"padding:24px 24px 6px 24px;\">
+                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:18px;font-weight:750;color:#0B1220;\">Welcome, {safe_name} 👋</div>
+                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.55;color:#334155;margin-top:10px;\">
+                        Use the code below to confirm your email address. This code expires in <b>10 minutes</b>.
                       </div>
+                    </td>
+                  </tr>
 
-                      <div style=\"height:18px\"></div>
+                  <!-- Copy-friendly code -->
+                  <tr>
+                    <td style=\"padding:12px 24px 0 24px;\">
+                      <div style=\"background:#0B1220;border-radius:14px;padding:14px 16px;\">
+                        <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;letter-spacing:0.8px;text-transform:uppercase;color:#94A3B8;\">Your verification code</div>
+                        <div style=\"font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:8px;color:#FFFFFF;margin-top:6px;\">{code}</div>
+                        <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;color:#94A3B8;margin-top:8px;\">Tip: tap and hold to copy the full code.</div>
+                      </div>
+                    </td>
+                  </tr>
 
-                      <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:#121334;border-radius:18px;padding:18px 16px;border:1px solid rgba(255,255,255,0.08);\">
+                  <!-- Visual squares -->
+                  <tr>
+                    <td style=\"padding:14px 24px 0 24px;\">
+                      <table role=\"presentation\" cellspacing=\"10\" cellpadding=\"0\" align=\"center\" style=\"margin:0 auto;\">
                         <tr>
-                          <td style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:rgba(255,255,255,0.86);font-size:12px;letter-spacing:0.3px;\">YOUR CODE</td>
-                        </tr>
-                        <tr>
-                          <td style=\"padding-top:10px;\">
-                            <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"10\" align=\"center\">
-                              <tr>{boxes}</tr>
-                            </table>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td style=\"padding-top:10px;text-align:center;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:rgba(255,255,255,0.68);font-size:12px;\">
-                            If you didn’t request this, you can safely ignore this email.
-                          </td>
+                          {digits}
                         </tr>
                       </table>
+                    </td>
+                  </tr>
 
-                      <div style=\"height:18px\"></div>
-
-                      <div style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:rgba(255,255,255,0.72);font-size:12px;line-height:1.6;\">
+                  <tr>
+                    <td style=\"padding:18px 24px 22px 24px;\">
+                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#64748B;\">
+                        If you didn’t request this, you can safely ignore this email.
+                      </div>
+                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#64748B;margin-top:8px;\">
                         Need help? Reply to this email and we’ll assist you.
-                        <br />
-                        <span style=\"opacity:0.8\">© {dt.datetime.utcnow().year} Haylingua</span>
                       </div>
+                    </td>
+                  </tr>
 
+                  <tr>
+                    <td style=\"padding:14px 24px; border-top:1px solid #E6EAF2;\">
+                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;color:#94A3B8;\">© {year} Haylingua</div>
                     </td>
                   </tr>
                 </table>
@@ -151,13 +161,7 @@ def _render_verification_email_html(name: str, code: str) -> str:
 
 def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
     """Send email via SMTP if configured; otherwise log to server console.
-
-    Args:
-        to_email: recipient
-        subject: email subject
-        body: plain text body (always included)
-        html_body: optional HTML body (preferred by most clients)
-
+    
     Returns:
         bool: True if email was sent via SMTP, False if only logged to console
     """
@@ -1133,16 +1137,18 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
     )
 
     # Send the code via email and track if it was actually sent
+    subject = f"Haylingua verification code: {code}"
+    plain = (
+        f"Welcome to Haylingua, {name or 'there'}!\n\n"
+        f"Your verification code is: {code}\n"
+        f"This code expires in 10 minutes.\n\n"
+        "If you didn't request this, you can ignore this email."
+    )
     email_sent = _send_email(
         to_email=email,
-        subject="Your Haylingua verification code",
-        body=(
-            f"Hi {name or 'there'},\n\n"
-            f"Your Haylingua verification code is: {code}\n"
-            "It expires in 10 minutes.\n\n"
-            "If you didn't request this, you can ignore this email."
-        ),
-        html_body=_render_verification_email_html(name=name or "", code=code),
+        subject=subject,
+        body=plain,
+        html_body=_render_verification_email_html(name or "", code),
     )
 
     # 6) create token
@@ -1275,7 +1281,7 @@ def resend_verification(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     user_row = db.execute(
-        text("SELECT email, email_verified, name FROM users WHERE id = :uid"),
+        text("SELECT email, email_verified FROM users WHERE id = :uid"),
         {"uid": int(user_id)},
     ).mappings().first()
     if user_row is None:
@@ -1320,16 +1326,18 @@ def resend_verification(
         {"uid": int(user_id), "code_hash": code_hash, "expires_at": expires_at},
     )
 
+    subject = f"Haylingua verification code: {code}"
+    plain = (
+        f"Welcome back to Haylingua, {user_row.get('name') or 'there'}!\n\n"
+        f"Your verification code is: {code}\n"
+        f"This code expires in 10 minutes.\n\n"
+        "If you didn't request this, you can ignore this email."
+    )
     email_sent = _send_email(
         to_email=user_row["email"],
-        subject="Your Haylingua verification code",
-        body=(
-            f"Hi {(user_row.get('name') or 'there')},\n\n"
-            f"Your Haylingua verification code is: {code}\n"
-            "It expires in 10 minutes.\n\n"
-            "If you didn't request this, you can ignore this email."
-        ),
-        html_body=_render_verification_email_html(name=user_row.get("name") or "", code=code),
+        subject=subject,
+        body=plain,
+        html_body=_render_verification_email_html(user_row.get("name") or "", code),
     )
 
     response_data = ResendOut(ok=True, retry_after_s=60)
