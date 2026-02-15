@@ -272,4 +272,50 @@ def ensure_schema() -> None:
         add_col_if_missing("exercise_audio", "tts_text TEXT")
         add_col_if_missing("exercise_audio", "tts_voice_id TEXT")
 
+        # ---------- user_onboarding ----------
+        # Stores post-verification onboarding answers so we can personalize the curriculum.
+        ensure_table(
+            "user_onboarding",
+            """
+            CREATE TABLE user_onboarding (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+
+                age_range TEXT,
+                country TEXT,
+                planning_visit_armenia BOOLEAN,
+
+                knowledge_level TEXT,
+                dialect TEXT,
+                primary_goal TEXT,
+                source_language TEXT,
+
+                daily_goal_min INTEGER,
+                reminder_time TEXT,
+                voice_pref TEXT,
+
+                marketing_opt_in BOOLEAN,
+                accepted_terms BOOLEAN,
+
+                completed_at TIMESTAMP,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+            );
+            """,
+        )
+
+        # Add columns if deploying onto an older DB
+        add_col_if_missing("user_onboarding", "age_range TEXT")
+        add_col_if_missing("user_onboarding", "country TEXT")
+        add_col_if_missing("user_onboarding", "planning_visit_armenia BOOLEAN")
+        add_col_if_missing("user_onboarding", "knowledge_level TEXT")
+        add_col_if_missing("user_onboarding", "dialect TEXT")
+        add_col_if_missing("user_onboarding", "primary_goal TEXT")
+        add_col_if_missing("user_onboarding", "source_language TEXT")
+        add_col_if_missing("user_onboarding", "daily_goal_min INTEGER")
+        add_col_if_missing("user_onboarding", "reminder_time TEXT")
+        add_col_if_missing("user_onboarding", "voice_pref TEXT")
+        add_col_if_missing("user_onboarding", "marketing_opt_in BOOLEAN")
+        add_col_if_missing("user_onboarding", "accepted_terms BOOLEAN")
+        add_col_if_missing("user_onboarding", "completed_at TIMESTAMP")
+
     print("[ensure_schema] done ✅")
