@@ -331,6 +331,44 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
 
   const [selected, setSelected] = useState(isMulti ? [] : null);
 
+  // Duolingo-like behavior: auto-play the main sound for recognition-type tasks.
+  // Priority:
+  //  - CMS per-target audio key "prompt" (if present)
+  //  - Otherwise speak a short prompt (often the letter/word itself)
+  //  - Otherwise speak the expected answer (if it's a short letter/word)
+  // Can be disabled per exercise with cfg.autoplay === false
+  const didAutoplayRef = useRef(false);
+
+  async function playTarget(targetKey, text) {
+    if (!text) return;
+    try {
+      const url = await ttsFetch(API_BASE, {
+        text,
+        exerciseId: exercise?.id,
+        targetKey,
+      });
+      const a = new Audio(url);
+      a.play();
+    } catch (e) {
+      console.error("TTS failed", e);
+    }
+  }
+
+  useEffect(() => {
+    if (!exercise?.id) return;
+    if (cfg?.autoplay === false) return;
+    // Only once per exercise
+    if (didAutoplayRef.current) return;
+    didAutoplayRef.current = true;
+
+    const p = (prompt || "").trim();
+    const e = (singleAnswerText || "").trim();
+
+    // Heuristic: most letter/word prompts are short. Prefer speaking the prompt.
+    const speak = (p && p.length <= 18) ? p : ((e && e.length <= 18) ? e : "");
+    if (speak) playTarget("prompt", speak);
+  }, [exercise?.id]);
+
   useEffect(() => {
     setSelected(isMulti ? [] : null);
   }, [exercise?.id, isMulti]);
@@ -354,7 +392,15 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         <ChoiceGrid
           choices={choices}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={(next) => {
+            setSelected(next);
+            // For single-choice recognition, play the selected choice immediately.
+            if (!isMulti && Number.isFinite(next)) {
+              const idx = Number(next);
+              const txt = choices[idx] ?? "";
+              playTarget(`choice_${idx}`, txt);
+            }
+          }}
           columns={2}
           multi={isMulti}
         />
