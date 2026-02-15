@@ -376,6 +376,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
         </div>
       </div>
+	    </div>
     );
   }
 
