@@ -237,9 +237,22 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     }
     if (isMulti) {
       const picked = new Set(selected);
-      if (correctSet.size === 0) return false;
-      if (picked.size !== correctSet.size) return false;
-      for (const i of correctSet) if (!picked.has(i)) return false;
+
+      // Prefer index-based correctness when available.
+      if (correctSet.size > 0) {
+        if (picked.size !== correctSet.size) return false;
+        for (const i of correctSet) if (!picked.has(i)) return false;
+        return true;
+      }
+
+      // Fallback: some multi-select exercises (e.g., letter_recognition) store
+      // the correct answer(s) as TEXT in config (cfg.answer / cfg.correct), not indices.
+      const norm = (v) => String(v ?? "").trim();
+      const correctTextSet = new Set(correctTextCandidates.map(norm).filter(Boolean));
+      const pickedTextSet = new Set([...picked].map((i) => norm(mcqChoices[i])));
+      if (correctTextSet.size === 0) return false;
+      if (pickedTextSet.size !== correctTextSet.size) return false;
+      for (const t of correctTextSet) if (!pickedTextSet.has(t)) return false;
       return true;
     }
     // single-choice
