@@ -284,6 +284,29 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
   const cfgObj = useMemo(() => safeParseJson(configText), [configText]);
   const cfgValid = cfgObj !== null;
 
+  // AudioManager needs a single "exerciseText" string to generate TTS.
+  // Different exercise kinds store the spoken text under different config keys.
+  // We do best-effort extraction and fall back to expectedAnswer/prompt.
+  function deriveExerciseAudioText() {
+    const cfg = cfgObj && typeof cfgObj === "object" ? cfgObj : null;
+    if (cfg) {
+      const candidates = [
+        cfg.ttsText,
+        cfg.tts_text,
+        cfg.text,
+        cfg.word,
+        cfg.targetWord,
+        cfg.sentence,
+        cfg.promptText,
+      ];
+      const first = candidates.find((v) => typeof v === "string" && v.trim().length);
+      if (first) return first;
+    }
+    if (typeof expectedAnswer === "string" && expectedAnswer.trim()) return expectedAnswer;
+    if (typeof prompt === "string" && prompt.trim()) return prompt;
+    return "";
+  }
+
   function patchConfig(patch) {
     const current = safeParseJson(configText);
     const obj = current && typeof current === "object" ? current : {};
@@ -771,10 +794,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
         ) : (
           <AudioManager
             exerciseId={exercise.id}
-            kind={kind}
-            prompt={prompt}
-            expectedAnswer={expectedAnswer}
-            configText={configText}
+            exerciseText={deriveExerciseAudioText()}
           />
         )}
       </div>
