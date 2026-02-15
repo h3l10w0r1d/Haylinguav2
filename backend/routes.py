@@ -437,6 +437,8 @@ class LessonOut(BaseModel):
     description: str | None = None
     level: int
     xp: int
+    lesson_type: str = "standard"
+    config: Dict[str, Any] = {}
 
 
 class ExerciseOut(BaseModel):
@@ -462,6 +464,8 @@ class LessonWithExercisesOut(BaseModel):
     description: str | None = None
     level: int
     xp: int
+    lesson_type: str = "standard"
+    config: Dict[str, Any] = {}
     exercises: List[ExerciseOut]
 
 
@@ -843,6 +847,8 @@ class LeaderboardEntryOut(BaseModel):
     email: str | None = None
     name: str
     xp: int
+    lesson_type: str = "standard"
+    config: Dict[str, Any] = {}
     streak: int
     level: int
     rank: int
@@ -1343,7 +1349,7 @@ def list_lessons(db: Connection = Depends(get_db)):
     rows = db.execute(
         text(
             """
-            SELECT id, slug, title, description, level, xp
+            SELECT id, slug, title, description, level, xp, COALESCE(lesson_type, 'standard') as lesson_type, COALESCE(config, '{}'::jsonb) as config
             FROM lessons
             WHERE is_published = true
             ORDER BY level ASC, id ASC
@@ -1358,7 +1364,7 @@ def list_lessons(db: Connection = Depends(get_db)):
 def get_lesson(slug: str, db: Connection = Depends(get_db)):
     lesson_row = db.execute(
         text("""
-            SELECT id, slug, title, description, level, xp
+            SELECT id, slug, title, description, level, xp, COALESCE(lesson_type, 'standard') as lesson_type, COALESCE(config, '{}'::jsonb) as config
             FROM lessons
             WHERE slug = :slug
         """),
