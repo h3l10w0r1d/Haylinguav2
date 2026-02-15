@@ -1,5 +1,6 @@
 # backend/routes.py
 import os
+import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
@@ -510,12 +511,17 @@ def _compute_streak_days(db: Connection, user_id: int) -> int:
 
 # ---------- Friends schemas + API ----------
 class FriendOut(BaseModel):
-    id: int
-    email: str
-    name: str | None = None
+    user_id: int
+    username: str | None = None
+    name: str
     avatar_url: str | None = None
+    xp: int
+    level: int
+    streak: int
+    global_rank: int
 
 class FriendRequestOut(BaseModel):
+
     id: int
     requester_id: int
     requester_email: str
@@ -523,7 +529,7 @@ class FriendRequestOut(BaseModel):
     created_at: datetime
 
 class FriendRequestCreateIn(BaseModel):
-    email: str  # add friend by email
+    query: str  # username or email
 
 @router.get("/friends", response_model=list[FriendOut])
 def friends_list(
@@ -534,21 +540,79 @@ def friends_list(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    # Gate exercise attempts for unverified accounts
     _require_verified(db, int(user_id))
 
     rows = db.execute(
-        text("""
-            SELECT u.id, u.email, u.name, u.avatar_url
-            FROM friends f
-            JOIN users u ON u.id = f.friend_id
+        text(
+            """
+            WITH xp AS (
+              SELECT
+                u.id,
+                u.email,
+                u.username,
+                u.display_name,
+                u.avatar_url,
+                COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+              FROM users u
+              LEFT JOIN lesson_progress lp ON lp.user_id = u.id
+              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url
+            ), ranked AS (
+              SELECT
+                xp.*,
+                RANK() OVER (ORDER BY xp.total_xp DESC, xp.id ASC) AS global_rank
+              FROM xp
+            )
+            SELECT r.*
+            FROM ranked r
+            JOIN friends f ON f.friend_id = r.id
             WHERE f.user_id = :uid
-            ORDER BY COALESCE(u.name, u.email) ASC
-        """),
-        {"uid": user_id},
+            ORDER BY r.global_rank ASC, r.id ASC
+            """
+        ),
+        {"uid": int(user_id)},
     ).mappings().all()
 
-    return [FriendOut(**dict(r)) for r in rows]
+    out: list[FriendOut] = []
+    for r in rows:
+        email = (r.get("email") or "").strip()
+        username = (r.get("username") or "").strip() or None
+        display_name = (r.get("display_name") or "").strip()
+        if display_name:
+            name = display_name
+        elif username:
+            name = username
+        else:
+            name = email.split("@")[0] if "@" in email else (email or "User")
+
+        xp = int(r.get("total_xp") or 0)
+        level = max(1, (xp // 500) + 1)
+        streak = _compute_streak_days(db, int(r["id"]))
+
+        out.append(
+            FriendOut(
+                user_id=int(r["id"]),
+                username=username,
+                name=name,
+                avatar_url=r.get("avatar_url"),
+                xp=xp,
+                level=level,
+                streak=streak,
+                global_rank=int(r.get("global_rank") or 0),
+            )
+        )
+
+    return out
+
+
+@router.get("/friends/leaderboard", response_model=list[FriendOut])
+def friends_leaderboard(
+    authorization: Optional[str] = Header(default=None),
+    limit: int = 200,
+    db: Connection = Depends(get_db),
+):
+    friends = friends_list(authorization=authorization, db=db)
+    limit = max(1, min(int(limit or 200), 200))
+    return friends[:limit]
 
 
 @router.get("/friends/requests/outgoing", response_model=list[FriendRequestOut])
@@ -666,13 +730,15 @@ def friends_request_create(
     if requester_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    email = (payload.email or "").strip().lower()
-    if not email:
-        raise HTTPException(status_code=400, detail="Email is required")
+    q = (payload.query or "").strip()
+    if not q:
+        raise HTTPException(status_code=400, detail="username or email is required")
+
+    q_l = q.lower()
 
     addressee = db.execute(
-        text("SELECT id FROM users WHERE lower(email) = :email"),
-        {"email": email},
+        text("SELECT id FROM users WHERE lower(email) = :q OR lower(username) = :q"),
+        {"q": q_l},
     ).mappings().first()
 
     if not addressee:
@@ -1162,7 +1228,7 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
     # 5) check uniqueness (email + username)
     existing = db.execute(
         text("SELECT id FROM users WHERE email = :email"),
-        {"email": email},
+        {"q": q_l},
     ).mappings().first()
 
     if existing is not None:
@@ -1637,7 +1703,7 @@ def complete_lesson(
 def get_stats(email: str, authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
     user_row = db.execute(
         text("SELECT id FROM users WHERE email = :email"),
-        {"email": email},
+        {"q": q_l},
     ).mappings().first()
 
     if user_row is None:
@@ -1973,15 +2039,23 @@ def me_learning_summary(
 class MeOut(BaseModel):
     id: int
     email: str
-    name: str | None = None
+    username: str | None = None
+    name: str | None = None  # display name (legacy field name)
+    bio: str | None = None
     avatar_url: str | None = None
+    profile_theme: dict = {}
+    friends_public: bool = True
     email_verified: bool = False
     total_xp: int = 0
     streak: int = 0
 
+
 class MeUpdateIn(BaseModel):
     name: str | None = None
+    bio: str | None = None
     avatar_url: str | None = None
+    profile_theme: dict | None = None
+    friends_public: bool | None = None
 
 def _recommend_next_exercise(db: Connection, user_id: int, lesson_id: int) -> dict:
     """
@@ -2137,7 +2211,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, name, avatar_url, email_verified FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, bio, avatar_url, profile_theme, friends_public, email_verified FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -2213,7 +2287,7 @@ def me_profile_put(
         db.execute(text(f"UPDATE users SET {', '.join(set_parts)} WHERE id = :id"), params)
 
     row = db.execute(
-        text("SELECT id, email, name, avatar_url, email_verified FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, bio, avatar_url, profile_theme, friends_public, email_verified FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -2643,6 +2717,212 @@ def _bootstrap_invite_if_needed(db):
     )
     invite_url = f"{CMS_INVITE_BASE_URL}/cms/invite?token={raw}"
     _send_invite_email(CMS_BOOTSTRAP_EMAIL, invite_url)
+
+# ---------- Public user pages ----------
+class PublicUserOut(BaseModel):
+    user_id: int
+    username: str | None = None
+    name: str
+    bio: str | None = None
+    avatar_url: str | None = None
+    profile_theme: dict = {}
+    xp: int
+    level: int
+    streak: int
+    global_rank: int
+    friends_count: int
+    is_friend: bool
+
+
+def _get_user_public_by_id(db: Connection, uid: int) -> dict:
+    r = db.execute(
+        text(
+            """
+            WITH xp AS (
+              SELECT
+                u.id,
+                u.email,
+                u.username,
+                u.display_name,
+                u.bio,
+                u.avatar_url,
+                u.profile_theme,
+                COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+              FROM users u
+              LEFT JOIN lesson_progress lp ON lp.user_id = u.id
+              WHERE u.id = :uid
+              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme
+            ), ranked AS (
+              SELECT
+                u2.id,
+                COALESCE(SUM(lp2.xp_earned), 0) AS total_xp
+              FROM users u2
+              LEFT JOIN lesson_progress lp2 ON lp2.user_id = u2.id
+              GROUP BY u2.id
+            ), ranks AS (
+              SELECT
+                id,
+                RANK() OVER (ORDER BY total_xp DESC, id ASC) AS global_rank
+              FROM ranked
+            )
+            SELECT
+              xp.*,
+              ranks.global_rank,
+              (SELECT COUNT(1) FROM friends f WHERE f.user_id = xp.id) AS friends_count
+            FROM xp
+            JOIN ranks ON ranks.id = xp.id
+            """
+        ),
+        {"uid": uid},
+    ).mappings().first()
+    if not r:
+        raise HTTPException(status_code=404, detail="User not found")
+    return dict(r)
+
+
+@router.get("/users/{username}", response_model=PublicUserOut)
+def get_public_user(
+    username: str,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    viewer_id = _get_user_id_from_bearer(authorization)
+    if viewer_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    uname = (username or "").strip().lower()
+    if not uname:
+        raise HTTPException(status_code=400, detail="username is required")
+
+    target = db.execute(
+        text("SELECT id, friends_public FROM users WHERE lower(username) = :u LIMIT 1"),
+        {"u": uname},
+    ).mappings().first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_id = int(target["id"])
+    data = _get_user_public_by_id(db, target_id)
+
+    # display name logic
+    email = (data.get("email") or "").strip()
+    u = (data.get("username") or "").strip() or None
+    dn = (data.get("display_name") or "").strip()
+    name = dn or u or (email.split('@')[0] if '@' in email else (email or 'User'))
+
+    xp = int(data.get("total_xp") or 0)
+    level = max(1, (xp // 500) + 1)
+    streak = _compute_streak_days(db, target_id)
+
+    is_friend = bool(
+        db.execute(
+            text("SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"),
+            {"a": int(viewer_id), "b": target_id},
+        ).first()
+    )
+
+    return PublicUserOut(
+        user_id=target_id,
+        username=u,
+        name=name,
+        bio=data.get("bio"),
+        avatar_url=data.get("avatar_url"),
+        profile_theme=data.get("profile_theme") or {},
+        xp=xp,
+        level=level,
+        streak=streak,
+        global_rank=int(data.get("global_rank") or 0),
+        friends_count=int(data.get("friends_count") or 0),
+        is_friend=is_friend,
+    )
+
+
+@router.get("/users/{username}/friends", response_model=list[FriendOut])
+def get_public_user_friends(
+    username: str,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    viewer_id = _get_user_id_from_bearer(authorization)
+    if viewer_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    uname = (username or "").strip().lower()
+    target = db.execute(
+        text("SELECT id, friends_public FROM users WHERE lower(username) = :u LIMIT 1"),
+        {"u": uname},
+    ).mappings().first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_id = int(target["id"])
+    friends_public = bool(target.get("friends_public", True))
+
+    is_friend = bool(
+        db.execute(
+            text("SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"),
+            {"a": int(viewer_id), "b": target_id},
+        ).first()
+    )
+
+    # Only allow if public or viewer is friend or same user
+    if not friends_public and int(viewer_id) != target_id and not is_friend:
+        raise HTTPException(status_code=403, detail="Friends list is private")
+
+    rows = db.execute(
+        text(
+            """
+            WITH xp AS (
+              SELECT
+                u.id,
+                u.email,
+                u.username,
+                u.display_name,
+                u.avatar_url,
+                COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+              FROM users u
+              LEFT JOIN lesson_progress lp ON lp.user_id = u.id
+              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url
+            ), ranked AS (
+              SELECT
+                xp.*,
+                RANK() OVER (ORDER BY xp.total_xp DESC, xp.id ASC) AS global_rank
+              FROM xp
+            )
+            SELECT r.*
+            FROM ranked r
+            JOIN friends f ON f.friend_id = r.id
+            WHERE f.user_id = :uid
+            ORDER BY r.global_rank ASC, r.id ASC
+            """
+        ),
+        {"uid": target_id},
+    ).mappings().all()
+
+    out: list[FriendOut] = []
+    for r in rows:
+        email = (r.get("email") or "").strip()
+        u = (r.get("username") or "").strip() or None
+        dn = (r.get("display_name") or "").strip()
+        name = dn or u or (email.split('@')[0] if '@' in email else (email or 'User'))
+        xp = int(r.get("total_xp") or 0)
+        level = max(1, (xp // 500) + 1)
+        streak = _compute_streak_days(db, int(r["id"]))
+        out.append(
+            FriendOut(
+                user_id=int(r["id"]),
+                username=u,
+                name=name,
+                avatar_url=r.get("avatar_url"),
+                xp=xp,
+                level=level,
+                streak=streak,
+                global_rank=int(r.get("global_rank") or 0),
+            )
+        )
+
+    return out
+
 
 @router.get("/cms/bootstrap/status")
 def cms_bootstrap_status(db=Depends(get_db)):
