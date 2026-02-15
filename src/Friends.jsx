@@ -65,7 +65,7 @@ export default function Friends() {
   const [people, setPeople] = useState([]);
 
   // Friends from backend
-  const [friends, setFriends] = useState([]); // array of FriendOut: {id,email,name,avatar_url}
+  const [friends, setFriends] = useState([]); // FriendOut: {user_id,username,name,avatar_url,xp,level,streak,global_rank}
 
   // Incoming requests from backend
   const [incoming, setIncoming] = useState([]); // array of FriendRequestOut
@@ -182,18 +182,18 @@ export default function Friends() {
   };
 
   // --- derived lists ---
-  useMemo(() => new Map(friends.map((f) => [Number(f.id), f])), [friends]);
 
   const friendsList = useMemo(() => {
     return friends
       .map((f) => ({
-        id: Number(f.id),
-        name: f.name || (f.email ? f.email.split("@")[0] : "User"),
-        email: f.email || "",
+        id: Number(f.user_id ?? f.id),
+        name: f.name || f.username || "User",
+        username: f.username || null,
         avatar_url: f.avatar_url || null,
-        level: 1,
-        xp: 0,
-        streak: 1,
+        level: Number(f.level || 1),
+        xp: Number(f.xp || 0),
+        streak: Number(f.streak || 1),
+        global_rank: Number(f.global_rank || 0),
       }))
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   }, [friends]);
@@ -203,8 +203,7 @@ export default function Friends() {
       request_id: r.id,
       id: Number(r.requester_id),
       name:
-        r.requester_name ||
-        (r.requester_email ? r.requester_email.split("@")[0] : "User"),
+        r.requester_name || r.requester_username || (r.requester_email ? r.requester_email.split("@")[0] : "User"),
       email: r.requester_email || "",
       avatar_url: null,
       level: 1,
@@ -223,9 +222,10 @@ export default function Friends() {
         name: x.name || x.email.split("@")[0],
         email: x.email,
         avatar_url: null,
-        level: 1,
-        xp: 0,
-        streak: 1,
+        level: Number(f.level || 1),
+        xp: Number(f.xp || 0),
+        streak: Number(f.streak || 1),
+        global_rank: Number(f.global_rank || 0),
         created_at: x.created_at || null,
       }));
   }, [sent]);
@@ -326,8 +326,8 @@ export default function Friends() {
   };
 
   const handleMessage = (friend) => {
-    if (friend?.email) {
-      window.location.href = `mailto:${friend.email}?subject=Haylingua`;
+    if (friend?.username) {
+      window.location.href = `/u/${friend.username}`;
     }
   };
 
