@@ -54,9 +54,110 @@ def _hash_code(code: str) -> str:
     # 6-digit codes are low entropy; pepper prevents offline brute-force if DB leaks.
     return hashlib.sha256(f"{code}{EMAIL_CODE_PEPPER}".encode("utf-8")).hexdigest()
 
-def _send_email(to_email: str, subject: str, body: str) -> bool:
+def _render_verification_email_html(name: str, code: str) -> str:
+    safe_name = (name or "there").strip() or "there"
+    digits = list(code)
+    boxes = "".join(
+        f"<td style=\"width:52px;height:56px;border:1px solid #E6E6F0;border-radius:14px;text-align:center;vertical-align:middle;font-size:24px;font-weight:800;letter-spacing:1px;color:#15152A;background:#FFFFFF;\">{d}</td>"
+        for d in digits
+    )
+
+    # Table-based layout + inline styles for broad email client support
+    return f"""<!doctype html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <meta name=\"x-apple-disable-message-reformatting\" />
+    <title>Haylingua Verification</title>
+  </head>
+  <body style=\"margin:0;padding:0;background:#0B0B18;\">
+    <!-- Preheader (hidden) -->
+    <div style=\"display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;\">
+      Your Haylingua verification code is {code}. It expires in 10 minutes.
+    </div>
+
+    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:#0B0B18;padding:32px 12px;\">
+      <tr>
+        <td align=\"center\">
+
+          <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"640\" style=\"max-width:640px;width:100%;\">
+            <tr>
+              <td style=\"padding:0 8px 16px 8px;\">
+                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:linear-gradient(135deg,#6D5EF3 0%,#1FD1F9 100%);border-radius:22px;padding:1px;\">
+                  <tr>
+                    <td style=\"background:#0F1022;border-radius:21px;padding:28px 24px;\">
+
+                      <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">
+                        <tr>
+                          <td style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#FFFFFF;\">
+                            <div style=\"font-size:14px;opacity:0.9;letter-spacing:0.3px;\">Welcome to</div>
+                            <div style=\"font-size:28px;font-weight:900;line-height:1.1;margin-top:4px;\">Haylingua</div>
+                          </td>
+                          <td align=\"right\" style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#FFFFFF;\">
+                            <div style=\"display:inline-block;padding:8px 12px;border:1px solid rgba(255,255,255,0.18);border-radius:999px;font-size:12px;opacity:0.95;\">Email Verification</div>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <div style=\"height:18px\"></div>
+
+                      <div style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#FFFFFF;font-size:18px;font-weight:700;\">Hi {safe_name} 👋</div>
+                      <div style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:rgba(255,255,255,0.86);font-size:14px;line-height:1.6;margin-top:8px;\">
+                        Use the verification code below to confirm your email address. This code expires in <b>10 minutes</b>.
+                      </div>
+
+                      <div style=\"height:18px\"></div>
+
+                      <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:#121334;border-radius:18px;padding:18px 16px;border:1px solid rgba(255,255,255,0.08);\">
+                        <tr>
+                          <td style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:rgba(255,255,255,0.86);font-size:12px;letter-spacing:0.3px;\">YOUR CODE</td>
+                        </tr>
+                        <tr>
+                          <td style=\"padding-top:10px;\">
+                            <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"10\" align=\"center\">
+                              <tr>{boxes}</tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style=\"padding-top:10px;text-align:center;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:rgba(255,255,255,0.68);font-size:12px;\">
+                            If you didn’t request this, you can safely ignore this email.
+                          </td>
+                        </tr>
+                      </table>
+
+                      <div style=\"height:18px\"></div>
+
+                      <div style=\"font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:rgba(255,255,255,0.72);font-size:12px;line-height:1.6;\">
+                        Need help? Reply to this email and we’ll assist you.
+                        <br />
+                        <span style=\"opacity:0.8\">© {dt.datetime.utcnow().year} Haylingua</span>
+                      </div>
+
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
+
+
+def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
     """Send email via SMTP if configured; otherwise log to server console.
-    
+
+    Args:
+        to_email: recipient
+        subject: email subject
+        body: plain text body (always included)
+        html_body: optional HTML body (preferred by most clients)
+
     Returns:
         bool: True if email was sent via SMTP, False if only logged to console
     """
@@ -81,6 +182,8 @@ def _send_email(to_email: str, subject: str, body: str) -> bool:
         msg["To"] = to_email
         msg["Subject"] = subject
         msg.set_content(body)
+        if html_body:
+            msg.add_alternative(html_body, subtype="html")
 
         with smtplib.SMTP(smtp_host, smtp_port) as s:
             s.starttls()
@@ -1033,7 +1136,13 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
     email_sent = _send_email(
         to_email=email,
         subject="Your Haylingua verification code",
-        body=f"Your verification code is: {code}\n\nIt expires in 10 minutes.",
+        body=(
+            f"Hi {name or 'there'},\n\n"
+            f"Your Haylingua verification code is: {code}\n"
+            "It expires in 10 minutes.\n\n"
+            "If you didn't request this, you can ignore this email."
+        ),
+        html_body=_render_verification_email_html(name=name or "", code=code),
     )
 
     # 6) create token
@@ -1166,7 +1275,7 @@ def resend_verification(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     user_row = db.execute(
-        text("SELECT email, email_verified FROM users WHERE id = :uid"),
+        text("SELECT email, email_verified, name FROM users WHERE id = :uid"),
         {"uid": int(user_id)},
     ).mappings().first()
     if user_row is None:
@@ -1214,7 +1323,13 @@ def resend_verification(
     email_sent = _send_email(
         to_email=user_row["email"],
         subject="Your Haylingua verification code",
-        body=f"Your verification code is: {code}\n\nIt expires in 10 minutes.",
+        body=(
+            f"Hi {(user_row.get('name') or 'there')},\n\n"
+            f"Your Haylingua verification code is: {code}\n"
+            "It expires in 10 minutes.\n\n"
+            "If you didn't request this, you can ignore this email."
+        ),
+        html_body=_render_verification_email_html(name=user_row.get("name") or "", code=code),
     )
 
     response_data = ResendOut(ok=True, retry_after_s=60)
