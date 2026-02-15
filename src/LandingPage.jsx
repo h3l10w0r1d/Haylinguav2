@@ -202,7 +202,8 @@ export default function LandingPage({ onLogin, onSignup }) {
       }
 
       // Force page reload to ensure App.jsx picks up the verified state
-      window.location.href = "/dashboard";
+      // After verification we run onboarding before dashboard.
+      window.location.href = "/onboarding";
     } catch (err) {
       console.error(err);
       setError("Network error. Please try again.");
