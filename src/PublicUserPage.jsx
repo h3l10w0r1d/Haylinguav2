@@ -1,202 +1,159 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { apiFetch, getToken } from "./api";
+import { useParams, Link } from "react-router-dom";
 
-export default function PublicUserPage() {
-  const { username } = useParams();
-  // Public pages should load without auth. If user is logged in,
-  // we attach Bearer token to unlock friend actions + extra fields.
-  const token = getToken();
+/**
+ * Public user page
+ * - Works without auth
+ * - If token exists, we pass it to show friend-status / extra info (backend may use it)
+ */
 
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [user, setUser] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [friendState, setFriendState] = useState(null); // none | requested | friends
-  const [busy, setBusy] = useState(false);
+const API_BASE = import.meta.env.VITE_API_BASE || "https://haylinguav2.onrender.com";
 
-  const initials = useMemo(() => {
-    const name = user?.display_name || user?.username || "?";
-    return name
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase())
-      .join("");
-  }, [user]);
+function authHeaders(token) {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setLoading(true);
-      setErr("");
-      try {
-        const u = token
-          ? await apiFetch(`/users/${encodeURIComponent(username)}`, { token })
-          : await apiFetch(`/users/${encodeURIComponent(username)}`);
-        if (!alive) return;
-        setUser(u);
-        // Backend returns stats as flat fields on the public user response.
-        setStats({
-          total_xp: u?.xp ?? 0,
-          level: u?.level ?? 1,
-          streak: u?.streak ?? 0,
-          lessons_completed: u?.lessons_completed ?? 0,
-        });
-        setFriendState(u?.friend_state || (u?.is_friend ? "friends" : "none"));
-      } catch (e) {
-        if (!alive) return;
-        setErr(e?.detail || e?.message || "Failed to load profile");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [username, token]);
-
-  async function sendRequest() {
-    if (!token || !user?.id) return;
-    try {
-      setBusy(true);
-      await apiFetch(`/friends/requests`, {
-        method: "POST",
-        token,
-        body: { target_user_id: user.id },
-      });
-      setFriendState("requested");
-    } catch (e) {
-      setErr(e?.detail || e?.message || "Failed to send request");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white">
-        <div className="opacity-80 font-extrabold">Loading…</div>
-      </div>
-    );
-  }
-
-  if (err) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white p-6">
-        <div className="max-w-xl w-full rounded-2xl border border-white/10 bg-white/5 p-6">
-          <div className="text-lg font-black">Profile unavailable</div>
-          <div className="mt-2 text-sm text-white/80">{err}</div>
-          <div className="mt-4">
-            <Link
-              to="/"
-              className="inline-flex rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-extrabold hover:bg-white/15"
-            >
-              Back home
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const bg = user?.profile?.bg || "#0b1020";
-
+function Stat({ label, value }) {
   return (
-    <div
-      className="min-h-screen text-white"
-      style={{
-        background: `radial-gradient(1200px 600px at 15% 15%, rgba(125, 211, 252, 0.20), transparent 60%), radial-gradient(900px 500px at 85% 25%, rgba(167, 139, 250, 0.18), transparent 55%), ${bg}`,
-      }}
-    >
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl border border-white/15 bg-white/10 flex items-center justify-center font-black">
-              {initials}
-            </div>
-            <div>
-              <div className="text-2xl font-black leading-tight">
-                {user?.display_name || user?.username}
-              </div>
-              <div className="text-sm text-white/80">
-                @{user?.username}
-                {typeof user?.rank === "number" ? ` • Rank #${user.rank}` : ""}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {token ? (
-              <button
-                disabled={busy || !friendState || friendState === "friends"}
-                onClick={sendRequest}
-                className={`rounded-xl px-4 py-2 text-sm font-extrabold border transition ${
-                  friendState === "friends"
-                    ? "border-emerald-300/30 bg-emerald-400/15"
-                    : friendState === "requested"
-                    ? "border-white/15 bg-white/10"
-                    : "border-white/15 bg-white/10 hover:bg-white/15"
-                } ${busy || !friendState || friendState === "friends" ? "opacity-70" : ""}`}
-              >
-                {friendState === "friends"
-                  ? "Friends"
-                  : friendState === "requested"
-                  ? "Request sent"
-                  : "Add friend"}
-              </button>
-            ) : null}
-
-            {me ? (
-              <Link
-                to="/profile"
-                className="rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-extrabold hover:bg-white/15"
-              >
-                My profile
-              </Link>
-            ) : (
-              <Link
-                to="/login"
-                className="rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-extrabold hover:bg-white/15"
-              >
-                Log in
-              </Link>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-12 gap-4">
-          <div className="col-span-12 lg:col-span-8 rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div className="mb-3 text-base font-black">Overview</div>
-            <div className="flex flex-wrap gap-3">
-              <StatCard label="XP" value={stats?.total_xp ?? "—"} />
-              <StatCard label="Level" value={stats?.level ?? "—"} />
-              <StatCard label="Streak" value={stats?.streak ?? "—"} />
-              <StatCard label="Lessons" value={stats?.lessons_completed ?? "—"} />
-            </div>
-            <div className="mt-4 text-sm text-white/75">
-              Public page. Private settings (email, password, 2FA) are available only on your own Profile page after login.
-            </div>
-          </div>
-
-          <div className="col-span-12 lg:col-span-4 rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div className="mb-2 text-base font-black">Share</div>
-            <div className="mb-3 text-sm text-white/80">Share this profile link:</div>
-            <div className="rounded-xl border border-white/10 bg-black/25 p-3 font-mono text-xs break-all">
-              {`https://www.haylingua.am/u/${user?.username || username}`}
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="rounded-2xl bg-white/70 border border-black/5 px-4 py-3 shadow-sm">
+      <div className="text-xs text-black/50">{label}</div>
+      <div className="text-xl font-semibold text-black">{value ?? "—"}</div>
     </div>
   );
 }
 
-function StatCard({ label, value }) {
+export default function PublicUserPage({ token }) {
+  const { username } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [data, setData] = useState(null);
+
+  const safeUsername = useMemo(() => (username || "").trim(), [username]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      setLoading(true);
+      setErr(null);
+      try {
+        const r = await fetch(`${API_BASE}/users/${encodeURIComponent(safeUsername)}`, {
+          headers: {
+            "content-type": "application/json",
+            ...authHeaders(token),
+          },
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j?.detail || `Failed to load user (${r.status})`);
+        if (!cancelled) setData(j);
+      } catch (e) {
+        if (!cancelled) setErr(e.message || String(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    if (safeUsername) run();
+    return () => {
+      cancelled = true;
+    };
+  }, [safeUsername, token]);
+
+  const displayName = data?.display_name || data?.username || safeUsername;
+  const avatarUrl = data?.avatar_url || null;
+
   return (
-    <div className="min-w-[140px] rounded-2xl border border-white/10 bg-white/5 p-3">
-      <div className="text-xs font-extrabold text-white/70">{label}</div>
-      <div className="mt-1 text-2xl font-black">{String(value)}</div>
+    <div className="min-h-screen bg-[#fff7ef]">
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div>
+            <div className="text-sm text-black/50">Public profile</div>
+            <div className="text-2xl font-bold text-black">@{safeUsername}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/leaderboard"
+              className="rounded-xl px-4 py-2 text-sm font-medium bg-white border border-black/10 hover:bg-white/80"
+            >
+              Leaderboard
+            </Link>
+            <Link
+              to="/profile"
+              className="rounded-xl px-4 py-2 text-sm font-medium bg-[#ff6a00] text-white hover:bg-[#ff7a1a]"
+            >
+              My profile
+            </Link>
+          </div>
+        </div>
+
+        <div className="rounded-3xl bg-white/60 border border-black/5 shadow-sm overflow-hidden">
+          <div className="p-6 md:p-8">
+            {loading ? (
+              <div className="text-black/60">Loading…</div>
+            ) : err ? (
+              <div className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-red-700">
+                {err}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-start gap-5">
+                  <div className="h-16 w-16 rounded-2xl bg-[#ff6a00]/15 flex items-center justify-center overflow-hidden border border-black/5">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-2xl font-bold text-[#ff6a00]">
+                        {(displayName || "?").slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="text-2xl font-bold text-black leading-tight">{displayName}</div>
+                    <div className="text-sm text-black/50">@{data?.username || safeUsername}</div>
+                    {data?.bio ? (
+                      <div className="mt-3 text-sm text-black/70 whitespace-pre-wrap">{data.bio}</div>
+                    ) : (
+                      <div className="mt-3 text-sm text-black/50">Armenian learner on Haylingua.</div>
+                    )}
+                  </div>
+
+                  {typeof data?.rank_global === "number" ? (
+                    <div className="hidden md:block rounded-2xl bg-white border border-black/10 px-4 py-3 text-center">
+                      <div className="text-xs text-black/50">Global rank</div>
+                      <div className="text-xl font-semibold">#{data.rank_global}</div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Stat label="XP" value={data?.xp_total} />
+                  <Stat label="Level" value={data?.level} />
+                  <Stat label="Best streak" value={data?.best_streak_days} />
+                  <Stat label="Lessons" value={data?.lessons_completed} />
+                </div>
+
+                {data?.friends_public && Array.isArray(data?.friends_preview) && data.friends_preview.length > 0 ? (
+                  <div className="mt-8">
+                    <div className="text-sm font-semibold text-black mb-3">Friends</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {data.friends_preview.map((f) => (
+                        <div
+                          key={f.username}
+                          className="rounded-2xl bg-white border border-black/10 px-4 py-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <div className="font-semibold">{f.display_name || f.username}</div>
+                            <div className="text-xs text-black/50">@{f.username}</div>
+                          </div>
+                          <div className="text-sm text-black/70">#{f.rank_global ?? "—"}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
