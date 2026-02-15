@@ -1,7 +1,7 @@
 // src/cms/ExerciseEditor.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { cmsApi } from "./api";
-import AudioManager from "./AudioManager";
+import AudioTargetsManager from "./AudioTargetsManager";
 
 /**
  * Teacher-friendly Exercise Editor
@@ -792,9 +792,13 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
             Save the exercise first, then you can add recordings (male/female) or generate AI audio.
           </div>
         ) : (
-          <AudioManager
-            exerciseId={exercise.id}
-            exerciseText={deriveExerciseAudioText()}
+          <AudioTargetsManager
+            exercise={{
+              id: exercise.id,
+              kind: exercise.kind,
+              prompt: exercise.prompt,
+              config: exercise.config,
+            }}
           />
         )}
       </div>
