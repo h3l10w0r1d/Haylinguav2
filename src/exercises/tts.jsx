@@ -37,6 +37,16 @@ async function tryFetchExerciseAudio(base, exerciseId, voice) {
   return URL.createObjectURL(blob);
 }
 
+async function tryFetchTargetAudio(base, exerciseId, targetKey, voice) {
+  const url = `${base}/audio/target/${exerciseId}?key=${encodeURIComponent(
+    targetKey
+  )}&voice=${encodeURIComponent(voice)}`;
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 async function fetchLegacyTts(base, text) {
   const res = await fetch(`${base}/tts`, {
     method: "POST",
@@ -62,12 +72,18 @@ export async function ttsFetch(apiBaseUrl, input) {
 
   const text = input?.text ?? "";
   const exerciseId = input?.exerciseId;
+  const targetKey = input?.targetKey;
   // Voice preference: allow caller override, otherwise use onboarding value stored locally.
   const voicePref = input?.voice ?? localStorage.getItem("hay_voice_pref") ?? "";
 
   // 1) Prefer stored CMS audio if exerciseId provided
   if (exerciseId) {
     for (const v of voiceCandidates(voicePref)) {
+      // 0) If per-target audio exists, prefer it.
+      if (targetKey) {
+        const tu = await tryFetchTargetAudio(base, exerciseId, targetKey, v);
+        if (tu) return tu;
+      }
       const u = await tryFetchExerciseAudio(base, exerciseId, v);
       if (u) return u;
     }
