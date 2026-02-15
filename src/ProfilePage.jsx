@@ -1,362 +1,565 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { apiFetch, getToken } from "./api";
+// src/ProfilePage.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Trophy, Flame, Star } from "lucide-react";
 
-export default function ProfilePage() {
-  const token = useMemo(() => getToken(), []);
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_URL ||
+  "https://haylinguav2.onrender.com";
 
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+function getToken() {
+  return (
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("hay_token") ||
+    ""
+  );
+}
 
-  const [profile, setProfile] = useState(null);
-  const [stats, setStats] = useState(null);
+/**
+ * ✅ FIX #1: Avoid sending "Content-Type: application/json" on GET/HEAD.
+ * That header triggers CORS preflight on cross-origin requests and doubles traffic.
+ * We only set Content-Type when sending a JSON body (POST/PUT/PATCH).
+ */
+async function apiFetch(path, { token, ...opts } = {}) {
+  const method = String(opts.method || "GET").toUpperCase();
+  const hasBody = opts.body != null;
 
-  const [tab, setTab] = useState("overview");
+  const headers = {
+    ...(opts.headers || {}),
+  };
 
-  // edit state
-  const [name, setName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setLoading(true);
-      setErr("");
-      try {
-        const p = await apiFetch("/me/profile", { token });
-        if (!alive) return;
-        setProfile(p);
-      // If user never set a display name, default to username.
-      setName(p?.name || p?.username || "");
-        setAvatarUrl(p?.avatar_url || "");
-
-        if (p?.email) {
-          try {
-            const s = await apiFetch(`/me/stats?email=${encodeURIComponent(p.email)}`, { token });
-            if (alive) setStats(s);
-          } catch {
-            // ignore
-          }
-        }
-      } catch (e) {
-        if (!alive) return;
-        setErr(e?.message || "Failed to load profile");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [token]);
-
-  // Stats field names evolved over time; support multiple variants.
-  const totalXp =
-    (stats?.total_xp ?? stats?.xp_total ?? stats?.xp ?? stats?.totalXp ?? 0) || 0;
-  const streakDays =
-    (stats?.streak ?? stats?.streak_days ?? stats?.day_streak ?? stats?.streakDays ?? 0) || 0;
-  const lessonsCompleted =
-    (stats?.lessons_completed ??
-      stats?.lessonsCompleted ??
-      stats?.completed_lessons ??
-      0) || 0;
-  const level =
-    (stats?.level ?? stats?.lvl ?? Math.max(1, Math.floor(totalXp / 100) + 1)) || 1;
-
-  async function saveProfile() {
-    setSaving(true);
-    setSaved(false);
-    setErr("");
-    try {
-      const updated = await apiFetch("/me/profile", {
-        method: "PUT",
-        token,
-        body: { name: name.trim(), avatar_url: avatarUrl.trim() || null },
-      });
-      setProfile(updated);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1500);
-    } catch (e) {
-      setErr(e?.message || "Failed to save");
-    } finally {
-      setSaving(false);
+  if (hasBody && method !== "GET" && method !== "HEAD") {
+    if (!headers["Content-Type"] && !headers["content-type"]) {
+      headers["Content-Type"] = "application/json";
     }
   }
 
-  if (loading) {
+  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+  return res;
+}
+
+function safeJsonParse(res) {
+  return res.json().catch(() => null);
+}
+
+export default function ProfilePage({ user, onUpdateUser }) {
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState(user?.email || "");
+  const [avatarUrl, setAvatarUrl] = useState("");
+
+  const [saving, setSaving] = useState(false);
+
+  // Guard against repeated network calls if parent state updates recreate the
+  // `user` object or if multiple effects race each other.
+  const loadOnceRef = useRef({
+    profileEmail: null,
+    statsEmail: null,
+    activityEmail: null,
+  });
+
+  // Backend-driven stats (keep UI the same)
+  const [stats, setStats] = useState({
+    total_xp: null,
+    lessons_completed: null,
+  });
+
+  // Backend-driven last-7-days activity
+  const [weeklyProgress, setWeeklyProgress] = useState([
+    { day: "M", value: 0 },
+    { day: "T", value: 0 },
+    { day: "W", value: 0 },
+    { day: "T", value: 0 },
+    { day: "F", value: 0 },
+    { day: "S", value: 0 },
+    { day: "S", value: 0 },
+  ]);
+
+  /**
+   * ✅ FIX #2: Prevent endless re-fetch loops.
+   * This happens when onUpdateUser triggers parent state updates that cause remount/re-render cascades.
+   * Guards ensure each fetch group runs once per mount.
+   */
+  const didLoadProfileRef = useRef(false);
+  const didLoadStatsRef = useRef(false);
+  const didLoadActivityRef = useRef(false);
+
+  // Initialize from current user (local)
+  useEffect(() => {
+    if (!user) return;
+    setDisplayName(user.name || user.username || "");
+    setEmail(user.email || "");
+    setAvatarUrl(user.avatarUrl || "");
+  }, [user]);
+
+  // Load profile from backend (prefer /me/profile, fallback to /me)
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    if (didLoadProfileRef.current) return;
+    didLoadProfileRef.current = true;
+
+    (async () => {
+      try {
+        // 1) Try /me/profile
+        let res = await apiFetch("/me/profile", { token, method: "GET" });
+
+        // 2) Fallback to /me
+        if (!res.ok) {
+          res = await apiFetch("/me", { token, method: "GET" });
+        }
+
+        if (!res.ok) return;
+
+        const data = await safeJsonParse(res);
+        if (!data) return;
+
+        // Accept flexible backend shapes:
+        // { display_name, email, avatar_url }
+        // OR legacy: { first_name, last_name } or { name }
+        const dn = data.display_name ?? "";
+        const fn = data.first_name ?? "";
+        const ln = data.last_name ?? "";
+        const av = data.avatar_url ?? data.avatarUrl ?? "";
+        const em = data.email ?? user?.email ?? "";
+
+        const computedDisplay =
+          String(dn || "").trim() ||
+          [String(fn || "").trim(), String(ln || "").trim()].filter(Boolean).join(" ") ||
+          String(data.name || "").trim() ||
+          user?.name ||
+          user?.username ||
+          "";
+        setDisplayName(computedDisplay);
+
+        if (typeof em === "string" && em) setEmail(em);
+        if (typeof av === "string") setAvatarUrl(av);
+
+        const next = {
+          name: computedDisplay,
+          email: em || user?.email,
+          avatarUrl: av || undefined,
+        };
+
+        // ✅ Only update parent if something actually changed
+        const same =
+          String(next.name || "") === String(user?.name || "") &&
+          String(next.email || "") === String(user?.email || "") &&
+          String(next.avatarUrl || "") === String(user?.avatarUrl || "");
+
+        if (!same) onUpdateUser?.(next);
+      } catch (e) {
+        console.error("[Profile] load profile failed:", e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load stats from backend (/me/stats?email=...)
+  useEffect(() => {
+    if (!user?.email) return;
+    if (didLoadStatsRef.current) return;
+    didLoadStatsRef.current = true;
+
+    (async () => {
+      try {
+        const token = getToken();
+        const res = await apiFetch(
+          `/me/stats?email=${encodeURIComponent(user.email)}`,
+          { token, method: "GET" }
+        );
+
+        if (!res.ok) {
+          const t = await res.text().catch(() => "");
+          console.warn("[Profile] /me/stats not ok:", res.status, t);
+          return;
+        }
+
+        const data = await safeJsonParse(res);
+        if (!data) return;
+
+        const totalXp = Number(data.total_xp);
+        const lessonsDone = Number(data.lessons_completed);
+
+        const nextStats = {
+          total_xp: Number.isFinite(totalXp) ? totalXp : 0,
+          lessons_completed: Number.isFinite(lessonsDone) ? lessonsDone : 0,
+        };
+
+        setStats(nextStats);
+
+        // ✅ Only update parent if it actually changes
+        const nextPatch = {
+          xp: nextStats.total_xp,
+          completedLessonsCount: nextStats.lessons_completed,
+        };
+
+        const same =
+          Number(user?.xp ?? 0) === Number(nextPatch.xp ?? 0) &&
+          Number(user?.completedLessonsCount ?? 0) ===
+            Number(nextPatch.completedLessonsCount ?? 0);
+
+        if (!same) onUpdateUser?.(nextPatch);
+      } catch (e) {
+        console.error("[Profile] load /me/stats failed:", e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load real last-7-days activity
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    if (didLoadActivityRef.current) return;
+    didLoadActivityRef.current = true;
+
+    (async () => {
+      try {
+        const res = await apiFetch("/me/activity/last7days", {
+          token,
+          method: "GET",
+        });
+
+        if (!res.ok) {
+          const res2 = await apiFetch("/me/activity?days=7", {
+            token,
+            method: "GET",
+          });
+          if (!res2.ok) return;
+
+          const data2 = await safeJsonParse(res2);
+          if (Array.isArray(data2)) setWeeklyProgress(data2);
+          return;
+        }
+
+        const data = await safeJsonParse(res);
+
+        // backend may return ARRAY directly
+        if (Array.isArray(data)) {
+          setWeeklyProgress(
+            data.map((x) => ({
+              day: String(x?.day ?? ""),
+              value: Number(x?.value ?? 0),
+            }))
+          );
+          return;
+        }
+
+        // or { days: [...] }
+        if (Array.isArray(data?.days)) {
+          setWeeklyProgress(
+            data.days.map((x) => ({
+              day: String(x?.day ?? ""),
+              value: Number(x?.value ?? 0),
+            }))
+          );
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
+
+  if (!user) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          padding: 24,
-          background:
-            "radial-gradient(900px circle at 20% 0%, rgba(255,122,0,0.18), rgba(255,122,0,0) 50%), radial-gradient(700px circle at 80% 10%, rgba(255,205,120,0.20), rgba(255,205,120,0) 55%), #fff7ef",
-        }}
-      >
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ opacity: 0.75 }}>Loading…</div>
-        </div>
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <p className="text-gray-600">
+          You need to be logged in to view your profile.
+        </p>
       </div>
     );
   }
 
-  const username = profile?.username || "";
-  const displayName = profile?.username || profile?.name || "User";
+  const displayNameComputed = useMemo(() => {
+    const dn = (displayName || "").trim();
+    return dn || user.name || "Haylingua learner";
+  }, [displayName, user.name]);
+
+  const initials = useMemo(() => {
+    const c = (displayName || "").trim()?.[0] || user?.name?.[0] || user?.email?.[0] || "U";
+    return String(c).toUpperCase();
+  }, [displayName, user?.name, user?.email]);
+
+  // Use backend stats if available; fallback to local
+  const xp = stats.total_xp ?? (user.xp ?? 0);
+
+  const lessonsCompleted =
+    stats.lessons_completed ??
+    user.completedLessonsCount ??
+    (Array.isArray(user.completedLessons) ? user.completedLessons.length : 0);
+
+  // derive level from XP
+  const level = Math.max(1, Math.floor((Number(xp) || 0) / 500) + 1);
+
+  // streak should never show 0
+  const streak = Math.max(1, Number(user?.streak ?? 1) || 1);
+
+  const maxVal = Math.max(...weeklyProgress.map((d) => Number(d.value) || 0), 1);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const token = getToken();
+
+      const dn = (displayName || "").trim();
+      const payload = {
+        // Backend stores display_name via these compat fields
+        first_name: dn || null,
+        last_name: dn ? "" : null,
+        email: email.trim() || user.email,
+        avatar_url: avatarUrl.trim() || null,
+      };
+
+      // Persist to backend: prefer /me/profile, fallback to /me
+      if (token) {
+        let res = await apiFetch("/me/profile", {
+          token,
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const mergedName =
+            [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
+            user.name;
+
+          res = await apiFetch("/me", {
+            token,
+            method: "PUT",
+            body: JSON.stringify({
+              name: mergedName,
+              avatar_url: payload.avatar_url,
+            }),
+          });
+        }
+
+        if (!res.ok) {
+          const t = await res.text().catch(() => "");
+          console.warn("[Profile] profile save failed:", res.status, t);
+        }
+      }
+
+      const newName =
+        [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
+        user.name;
+
+      onUpdateUser?.({
+        name: newName,
+        email: payload.email,
+        avatarUrl: payload.avatar_url || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background:
-          "radial-gradient(900px circle at 20% 0%, rgba(255,122,0,0.18), rgba(255,122,0,0) 50%), radial-gradient(700px circle at 80% 10%, rgba(255,205,120,0.20), rgba(255,205,120,0) 55%), #fff7ef",
-      }}
-    >
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 18,
-              background: "rgba(255,255,255,0.08)",
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 20,
-              fontWeight: 950,
-            }}
-          >
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              (displayName || "U").slice(0, 1).toUpperCase()
-            )}
-          </div>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 950, lineHeight: 1.1 }}>{displayName}</div>
-            <div style={{ opacity: 0.75, marginTop: 4 }}>{username ? `@${username}` : profile?.email}</div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {username ? (
-            <Link
-              to={`/u/${encodeURIComponent(username)}`}
-              style={pillBtn("rgba(255,255,255,0.08)")}
-            >
-              View public page
-            </Link>
-          ) : null}
-          <Link to="/friends" style={pillBtn("rgba(255,255,255,0.08)")}>Friends</Link>
-          <Link to="/leaderboard" style={pillBtn("rgba(255,255,255,0.08)")}>Leaderboard</Link>
-        </div>
-      </div>
-
-      {err ? (
-        <div
-          style={{
-            marginTop: 14,
-            padding: 12,
-            borderRadius: 12,
-            background: "rgba(255, 82, 82, 0.12)",
-            border: "1px solid rgba(255, 82, 82, 0.25)",
-          }}
-        >
-          {err}
-        </div>
-      ) : null}
-
-      <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-        <TabBtn active={tab === "overview"} onClick={() => setTab("overview")}>Overview</TabBtn>
-        <TabBtn active={tab === "account"} onClick={() => setTab("account")}>Account</TabBtn>
-        <TabBtn active={tab === "security"} onClick={() => setTab("security")}>Security</TabBtn>
-      </div>
-
-      {tab === "overview" ? (
-        <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 16 }}>
-          <Card colSpan={8} title="Your progress">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <Stat label="XP" value={totalXp || "—"} />
-              <Stat label="Level" value={level || "—"} />
-              <Stat label="Streak" value={streakDays || "—"} />
-              <Stat label="Lessons" value={lessonsCompleted || "—"} />
-            </div>
-          </Card>
-
-          <Card colSpan={4} title="Public profile">
-            <div style={{ opacity: 0.85, fontSize: 13, lineHeight: 1.35 }}>
-              Your public page is what other people see on leaderboards and when they open your link.
-            </div>
-            <div style={{ marginTop: 10 }}>
-              {username ? (
-                <Link to={`/u/${encodeURIComponent(username)}`} style={pillBtn("#4e7cff")}>Open public page</Link>
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      {/* Top section: avatar + basic stats */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white text-2xl font-semibold shadow-md overflow-hidden">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayNameComputed}
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                <div style={{ opacity: 0.7, fontSize: 13 }}>No username found.</div>
+                initials
               )}
             </div>
-          </Card>
+          </div>
+          <div>
+            <h1 className="text-lg md:text-xl font-semibold text-gray-900">
+              {displayNameComputed}
+            </h1>
+            <p className="text-sm text-gray-500">{email}</p>
+            <p className="mt-1 text-xs text-orange-600 font-medium">
+              Armenian learner • Level {level}
+            </p>
+          </div>
         </div>
-      ) : null}
 
-      {tab === "account" ? (
-        <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 16 }}>
-          <Card colSpan={7} title="Personal details">
-            <Field label="Display name">
+        <div className="flex gap-3 md:gap-4">
+          <div className="flex flex-col items-center bg-orange-50 rounded-xl px-3 py-2">
+            <Trophy className="w-4 h-4 text-orange-500 mb-1" />
+            <span className="text-sm font-semibold text-gray-900">
+              Lv {level}
+            </span>
+            <span className="text-[11px] text-gray-500">Level</span>
+          </div>
+          <div className="flex flex-col items-center bg-yellow-50 rounded-xl px-3 py-2">
+            <Star className="w-4 h-4 text-yellow-500 mb-1" />
+            <span className="text-sm font-semibold text-gray-900">{xp}</span>
+            <span className="text-[11px] text-gray-500">XP</span>
+          </div>
+          <div className="flex flex-col items-center bg-red-50 rounded-xl px-3 py-2">
+            <Flame className="w-4 h-4 text-red-500 mb-1" />
+            <span className="text-sm font-semibold text-gray-900">
+              {streak}
+            </span>
+            <span className="text-[11px] text-gray-500">Day streak</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Profile form */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+          Profile details
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="displayName"
+              className="block text-xs font-medium text-gray-600 mb-1.5"
+            >
+              Display name
+            </label>
+            <input
+              id="displayName"
+              name="displayName"
+              type="text"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Niko"
+              autoComplete="nickname"
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              This is what others will see on the leaderboard and your public page.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-xs font-medium text-gray-600 mb-1.5"
+              >
+                Email address
+              </label>
               <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-                style={inputStyle}
+                id="email"
+                name="email"
+                type="email"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
               />
-            </Field>
+              <p className="mt-1 text-[11px] text-gray-400">
+                Used to log in to Haylingua.
+              </p>
+            </div>
 
-            <Field label="Avatar URL">
+            <div>
+              <label
+                htmlFor="avatarUrl"
+                className="block text-xs font-medium text-gray-600 mb-1.5"
+              >
+                Profile picture URL
+              </label>
               <input
+                id="avatarUrl"
+                name="avatarUrl"
+                type="url"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://…"
-                style={inputStyle}
+                placeholder="https://…/avatar.png"
+                autoComplete="url"
               />
-              <div style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
-                Uploading files directly isn’t enabled yet. For now, paste an image URL.
-              </div>
-            </Field>
+              <p className="mt-1 text-[11px] text-gray-400">
+                Paste a direct image link. We’ll show it in your avatar.
+              </p>
+            </div>
+          </div>
 
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button
-                onClick={saveProfile}
-                disabled={saving}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: "#4e7cff",
-                  color: "white",
-                  fontWeight: 950,
-                  cursor: saving ? "not-allowed" : "pointer",
-                }}
-              >
-                {saving ? "Saving…" : "Save"}
-              </button>
-              {saved ? <span style={{ opacity: 0.85, fontWeight: 800 }}>Saved ✓</span> : null}
-            </div>
-          </Card>
+          <div className="pt-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"
+            >
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </form>
+      </section>
 
-          <Card colSpan={5} title="Email">
-            <div style={{ opacity: 0.85, fontSize: 13, lineHeight: 1.35 }}>
-              Email change (with confirmation) and password recovery will be added in the next step.
+      {/* Progress overview */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+          Recent learning activity
+        </h2>
+
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <div className="flex-1">
+            <p className="text-xs text-gray-500 mb-2">
+              Exercises completed in the last 7 days
+            </p>
+
+            <div className="flex items-end gap-2 h-28">
+              {weeklyProgress.map((d, idx) => (
+                <div
+                  key={`${d.day}-${idx}`}
+                  className="flex flex-col items-center justify-end flex-1"
+                >
+                  <div
+                    className="w-6 rounded-full bg-orange-100 overflow-hidden flex items-end"
+                    style={{ height: "80px" }}
+                  >
+                    <div
+                      className="w-full bg-gradient-to-t from-orange-600 to-yellow-400"
+                      style={{
+                        height: `${((Number(d.value) || 0) / maxVal) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="mt-1 text-[11px] text-gray-500">{d.day}</span>
+                </div>
+              ))}
             </div>
-            <div style={{ marginTop: 10, opacity: 0.75, fontSize: 13 }}>
-              Current email: <span style={{ fontWeight: 900 }}>{profile?.email}</span>
+          </div>
+
+          <div className="w-full md:w-60 space-y-3">
+            <div className="flex justify-between items-center bg-orange-50 rounded-xl px-3 py-2.5">
+              <span className="text-xs text-gray-600">
+                Total lessons completed
+              </span>
+              <span className="text-sm font-semibold text-gray-900">
+                {lessonsCompleted}
+              </span>
             </div>
-          </Card>
+
+            <div className="flex justify-between items-center bg-green-50 rounded-xl px-3 py-2.5">
+              <span className="text-xs text-gray-600">Best streak</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {streak} days
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center bg-blue-50 rounded-xl px-3 py-2.5">
+              <span className="text-xs text-gray-600">Lifetime XP</span>
+              <span className="text-sm font-semibold text-gray-900">{xp}</span>
+            </div>
+          </div>
         </div>
-      ) : null}
 
-      {tab === "security" ? (
-        <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 16 }}>
-          <Card colSpan={6} title="Password">
-            <div style={{ opacity: 0.85, fontSize: 13, lineHeight: 1.35 }}>
-              Password change with “old password” + “forgot password” will be implemented as a secure flow.
-            </div>
-          </Card>
-          <Card colSpan={6} title="Two‑factor authentication">
-            <div style={{ opacity: 0.85, fontSize: 13, lineHeight: 1.35 }}>
-              2FA enable/disable (Email or Google Authenticator) will live here.
-            </div>
-          </Card>
-        </div>
-      ) : null}
-    </div>
+        <p className="mt-3 text-[11px] text-gray-400">
+          Stats are loaded from the backend (<code>/me/stats</code>). The “last 7
+          days” chart is loaded from <code>/me/activity/last7days</code> (or falls
+          back to <code>/me/activity?days=7</code>).
+        </p>
+      </section>
     </div>
   );
-}
-
-function Card({ title, colSpan, children }) {
-  return (
-    <div
-      style={{
-        gridColumn: `span ${colSpan}`,
-        padding: 16,
-        borderRadius: 16,
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.10)",
-      }}
-    >
-      <div style={{ fontWeight: 950, marginBottom: 10 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
-
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "10px 12px",
-        borderRadius: 12,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: active ? "rgba(78,124,255,0.25)" : "rgba(255,255,255,0.06)",
-        color: "inherit",
-        fontWeight: 900,
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Stat({ label, value }) {
-  return (
-    <div
-      style={{
-        minWidth: 150,
-        padding: 12,
-        borderRadius: 14,
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.10)",
-      }}
-    >
-      <div style={{ opacity: 0.75, fontSize: 12, fontWeight: 900 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 950, marginTop: 4 }}>{String(value)}</div>
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.8, marginBottom: 6 }}>{label}</div>
-      {children}
-    </div>
-  );
-}
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 12,
-  border: "1px solid rgba(0,0,0,0.12)",
-  outline: "none",
-  background: "#fff",
-  color: "#111",
-};
-
-function pillBtn(bg) {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    background: bg,
-    color: bg === "#4e7cff" ? "white" : "inherit",
-    textDecoration: "none",
-    fontWeight: 900,
-    border: bg === "#4e7cff" ? "none" : "1px solid rgba(255,255,255,0.12)",
-  };
 }
