@@ -31,7 +31,12 @@ def get_audio_config():
 
 
 # ElevenLabs configuration
-ELEVEN_API_KEY = os.getenv("ELEVEN_LABS_API_KEY", "")
+ELEVEN_API_KEY = (
+    os.getenv("ELEVENLABS_API_KEY")
+    or os.getenv("ELEVEN_LABS_API_KEY")
+    or os.getenv("eleven_labs.io")
+    or ""
+)
 ELEVEN_API_URL = "https://api.elevenlabs.io/v1"
 
 # ElevenLabs TTS defaults (override via Render env vars)
