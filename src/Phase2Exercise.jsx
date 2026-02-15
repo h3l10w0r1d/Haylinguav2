@@ -28,22 +28,42 @@ function getOptionText(opt) {
 function buildCorrectIndexSet(exercise, cfg) {
   const set = new Set();
   const opts = Array.isArray(exercise?.options) ? exercise.options : null;
+
   if (opts) {
     opts.forEach((o, idx) => {
       if (o && (o.is_correct === true || o.isCorrect === true)) set.add(idx);
     });
   }
+
   const cIdx = cfg?.correctIndices ?? cfg?.correct_indices;
   if (Array.isArray(cIdx)) cIdx.forEach((i) => set.add(Number(i)));
   if (Number.isFinite(cfg?.correctIndex)) set.add(Number(cfg.correctIndex));
+
   // Common alternates used by different CMS versions
   if (Number.isFinite(cfg?.answerIndex)) set.add(Number(cfg.answerIndex));
   if (Number.isFinite(cfg?.answer_index)) set.add(Number(cfg.answer_index));
   if (Number.isFinite(cfg?.correct_option)) set.add(Number(cfg.correct_option));
+
   // Sometimes expected_answer is a numeric index in DB
   if (typeof exercise?.expected_answer === "number") set.add(Number(exercise.expected_answer));
   if (typeof cfg?.expected_answer === "number") set.add(Number(cfg.expected_answer));
   if (typeof cfg?.expectedAnswer === "number") set.add(Number(cfg.expectedAnswer));
+
+  // Heuristic: some exercises store indices as 1-based (1..N) while UI is 0-based.
+  // If we detect that pattern, shift everything down by 1.
+  if (opts && opts.length > 0 && set.size > 0) {
+    const vals = Array.from(set).filter((n) => Number.isFinite(n));
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const looksOneBased = min >= 1 && max <= opts.length;
+    const hasOutOfRange = max >= opts.length;
+    if (looksOneBased || hasOutOfRange) {
+      const shifted = new Set();
+      vals.forEach((n) => shifted.add(n - 1));
+      return shifted;
+    }
+  }
+
   return set;
 }
 
@@ -67,64 +87,32 @@ function getCorrectTextCandidates(exercise, cfg) {
 
 function normalizeExpectedAnswers(exercise, cfg) {
   const candidates = [];
-  const push = (v) => {
-    if (v == null) return;
-    if (Array.isArray(v)) {
-      v.forEach((x) => push(x));
-      return;
-    }
-    const s = String(v).trim();
-    if (s) candidates.push(s);
-  };
+  if (typeof cfg?.expected === "string") candidates.push(cfg.expected);
+  if (typeof cfg?.expectedAnswer === "string") candidates.push(cfg.expectedAnswer);
+  if (typeof cfg?.expected_answer === "string") candidates.push(cfg.expected_answer);
+  if (typeof exercise?.expected_answer === "string") candidates.push(exercise.expected_answer);
 
-  // Common “expected” keys
-  push(cfg?.expected);
-  push(cfg?.expectedAnswer);
-  push(cfg?.expected_answer);
-  push(cfg?.expected_text);
-
-  // Common “answer/correct” keys used by different CMS versions
-  push(cfg?.answer);
-  push(cfg?.answers);
-  push(cfg?.correct);
-  push(cfg?.correctAnswer);
-  push(cfg?.correct_answer);
-  push(cfg?.correctText);
-  push(cfg?.correct_text);
-
-  // DB field
-  push(exercise?.expected_answer);
-
-  // Explicit accepted answers
-  push(cfg?.acceptedAnswers);
-  push(cfg?.accepted_answers);
-
-  // De-dup
-  return Array.from(new Set(candidates));
+  if (Array.isArray(cfg?.answers)) candidates.push(...cfg.answers);
+  if (Array.isArray(cfg?.acceptedAnswers)) candidates.push(...cfg.acceptedAnswers);
+  if (Array.isArray(cfg?.accepted_answers)) candidates.push(...cfg.accepted_answers);
+  return candidates
+    .filter(Boolean)
+    .map((s) => String(s).trim())
+    .filter(Boolean);
 }
 
 function normStr(x) {
   if (x == null) return "";
   let s = String(x);
-
-  try { s = s.normalize("NFC"); } catch {}
-
+  try {
+    s = s.normalize("NFC");
+  } catch {}
   s = s.trim().toLowerCase();
-
   // collapse whitespace
   s = s.replace(/\s+/g, " ");
-
-  // remove zero-width chars
-  s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
-
-  // Armenian ligature normalize: treat "և" and "եւ" as same
+  // Armenian: treat ligature "և" and digraph "եւ" as equivalent
+  // Many keyboards / sources vary between these forms.
   s = s.replace(/\u0587/g, "եւ");
-
-  // STRIP punctuation (Latin + Armenian + quotes)
-  // Keep only letters, numbers, spaces
-  // (Unicode property escapes supported in modern Vite/Chrome)
-  s = s.replace(/[^\p{L}\p{N} ]+/gu, "");
-
   return s;
 }
 
@@ -309,7 +297,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
       primaryLabel: "Check",
       secondaryLabel: "Skip",
     });
-  }, [registerActions, canCheck, onCheck, onSkip]);
+  }, [registerActions, canCheck]);
 
   // Keyboard shortcuts: Enter = Check, Esc = Skip, 1-9 to pick option (single-choice)
   useEffect(() => {
