@@ -15,15 +15,32 @@ export function createCmsApi(accessToken) {
   async function req(path, opts = {}) {
     const url = `${API_BASE}${path}`;
 
-    const res = await fetch(url, {
-      method: opts.method || "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        ...(opts.headers || {}),
-      },
-      body: opts.body,
-    });
+    // NOTE: Setting "Content-Type: application/json" on GET requests triggers CORS preflight.
+    // Some browsers/networks then surface this as a generic "Failed to fetch" even when
+    // the backend is reachable. Only set Content-Type when we actually send a JSON body.
+    const headers = {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(opts.headers || {}),
+    };
+    if (opts.body !== undefined && opts.body !== null) {
+      // Default to JSON for CMS requests unless caller overrides.
+      if (!headers["Content-Type"]) headers["Content-Type"] = "application/json";
+    }
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: opts.method || "GET",
+        headers,
+        body: opts.body,
+      });
+    } catch (e) {
+      // Surface a clearer message to the UI.
+      const msg =
+        (e && typeof e === "object" && "message" in e && e.message) ||
+        "Network error (failed to reach API)";
+      throw new Error(String(msg));
+    }
 
     const text = await res.text();
     let data = null;
@@ -56,13 +73,8 @@ export function createCmsApi(accessToken) {
   // Exercises
   const listExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);
   const getExercise = (exerciseId) => req(`/cms/exercises/${exerciseId}`);
-  // Backend expects lesson_id + kind in the POST body.
-  // The UI calls createExercise(lessonId, payload), so we must accept lessonId here.
-  const createExercise = (lessonId, payload) =>
-    req("/cms/exercises", {
-      method: "POST",
-      body: JSON.stringify({ ...payload, lesson_id: Number(lessonId) }),
-    });
+  const createExercise = (payload) =>
+    req("/cms/exercises", { method: "POST", body: JSON.stringify(payload) });
   const updateExercise = (exerciseId, payload) =>
     req(`/cms/exercises/${exerciseId}`, {
       method: "PUT",
