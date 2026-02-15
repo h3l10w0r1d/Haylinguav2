@@ -358,4 +358,8 @@ def ensure_schema() -> None:
         add_col_if_missing("user_onboarding", "accepted_terms BOOLEAN")
         add_col_if_missing("user_onboarding", "completed_at TIMESTAMP")
 
+        # ---------- lessons (reading lesson support) ----------
+        add_col_if_missing("lessons", "lesson_type TEXT NOT NULL DEFAULT 'standard'")
+        add_col_if_missing("lessons", "config JSONB NOT NULL DEFAULT '{}'::jsonb")
+
     print("[ensure_schema] done ✅")
