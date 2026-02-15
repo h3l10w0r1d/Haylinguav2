@@ -94,6 +94,14 @@ function AppShell() {
       const completed = Boolean(data?.completed);
       setOnboardingCompleted(completed);
       localStorage.setItem('hay_onboarding_completed', completed ? '1' : '0');
+
+      // Keep voice preference locally so exercise TTS/audio can respect it.
+      const vp = data?.data?.voice_pref;
+      if (vp) {
+        const s = String(vp);
+        // Backward-compat: treat "Both" as "Random".
+        localStorage.setItem('hay_voice_pref', s === 'Both' ? 'Random' : s);
+      }
       return { completed, data };
     } catch (e) {
       return { completed: false };
