@@ -11,6 +11,7 @@ export default function Signup() {
   
   // Step 1 - Signup
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
@@ -38,6 +39,7 @@ export default function Signup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           name: name.trim() || null,
+          username: username.trim(),
           email: email.trim(), 
           password 
         }),
@@ -71,7 +73,7 @@ export default function Signup() {
       localStorage.setItem("user_email", email.trim());
 
       // Store user object
-      const baseName = email.split('@')[0];
+      const baseName = (username.trim() || email.split('@')[0]);
       const newUser = {
         id: 1,
         email: email.trim(),
@@ -285,6 +287,21 @@ export default function Signup() {
             placeholder="Name (optional)"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            style={{
+              padding: "0.9rem 1rem",
+              borderRadius: 10,
+              border: "2px solid #e5e7eb",
+              fontSize: "15px",
+              outline: "none",
+            }}
+          />
+
+          <input
+            type="text"
+            placeholder="Username (required)"
+            required
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             style={{
               padding: "0.9rem 1rem",
               borderRadius: 10,
