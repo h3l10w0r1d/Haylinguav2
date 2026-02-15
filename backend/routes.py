@@ -115,22 +115,9 @@ def _render_verification_email_html(name: str, code: str) -> str:
                       <div style=\"background:#0B1220;border-radius:14px;padding:14px 16px;\">
                         <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;letter-spacing:0.8px;text-transform:uppercase;color:#94A3B8;\">Your verification code</div>
                         <div style=\"font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:8px;color:#FFFFFF;margin-top:6px;\">{code}</div>
-                        <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;color:#94A3B8;margin-top:8px;\">Tip: tap and hold to copy the full code.</div>
                       </div>
                     </td>
                   </tr>
-
-                  <!-- Visual squares -->
-                  <tr>
-                    <td style=\"padding:14px 24px 0 24px;\">
-                      <table role=\"presentation\" cellspacing=\"10\" cellpadding=\"0\" align=\"center\" style=\"margin:0 auto;\">
-                        <tr>
-                          {digits}
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-
                   <tr>
                     <td style=\"padding:18px 24px 22px 24px;\">
                       <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#64748B;\">
