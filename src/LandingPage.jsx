@@ -293,7 +293,11 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="relative z-10 px-4 sm:px-8 pt-6">
           <div className="mx-auto max-w-6xl flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-2xl bg-orange-600 shadow-sm" />
+              <img
+                src="/favicon.svg"
+                alt="Haylingua"
+                className="w-9 h-9 rounded-2xl shadow-sm"
+              />
               <div className="font-extrabold tracking-tight text-gray-900">Haylingua</div>
             </div>
             <a
@@ -420,7 +424,11 @@ export default function LandingPage({ onLogin, onSignup }) {
       <header className="relative z-10 px-4 sm:px-8 pt-6">
         <div className="mx-auto max-w-6xl flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl bg-orange-600 shadow-sm" />
+            <img
+              src="/favicon.svg"
+              alt="Haylingua"
+              className="w-10 h-10 rounded-2xl shadow-sm"
+            />
             <div>
               <div className="font-extrabold tracking-tight text-gray-900">Haylingua</div>
               <div className="text-xs text-gray-600">Learn Armenian with confidence</div>
