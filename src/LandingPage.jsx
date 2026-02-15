@@ -9,6 +9,7 @@ export default function LandingPage({ onLogin, onSignup }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -55,6 +56,18 @@ export default function LandingPage({ onLogin, onSignup }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (mode === "signup") {
+      if (!password || password.length < 8) {
+        setError("Password must be at least 8 characters");
+        return;
+      }
+      if (password !== password2) {
+        setError("Passwords do not match");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -526,6 +539,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                   onClick={() => {
                     setMode("login");
                     setError("");
+                    setPassword2("");
                   }}
                   className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
                     mode === "login"
@@ -540,6 +554,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                   onClick={() => {
                     setMode("signup");
                     setError("");
+                    setPassword2("");
                   }}
                   className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
                     mode === "signup"
@@ -618,6 +633,25 @@ export default function LandingPage({ onLogin, onSignup }) {
                     />
                   </div>
                 </div>
+
+                {mode === "signup" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Repeat password
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="password"
+                        value={password2}
+                        onChange={(e) => setPassword2(e.target.value)}
+                        placeholder="Repeat your password"
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <button
                   type="submit"
