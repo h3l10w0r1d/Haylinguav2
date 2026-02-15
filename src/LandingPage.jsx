@@ -7,6 +7,7 @@ const API_BASE = "https://haylinguav2.onrender.com";
 export default function LandingPage({ onLogin, onSignup }) {
   const [mode, setMode] = useState("login"); // 'login' | 'signup' | 'verify'
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -58,6 +59,29 @@ export default function LandingPage({ onLogin, onSignup }) {
     setError("");
 
     if (mode === "signup") {
+      if (!username || !username.trim()) {
+        setError("Username is required");
+        return;
+      }
+      const u = username.trim();
+      if (u.length < 3 || u.length > 24) {
+        setError("Username must be 3–24 characters");
+        return;
+      }
+      // allow letters, numbers, underscore, dot
+      for (let i = 0; i < u.length; i++) {
+        const ch = u[i];
+        const ok =
+          (ch >= "a" && ch <= "z") ||
+          (ch >= "A" && ch <= "Z") ||
+          (ch >= "0" && ch <= "9") ||
+          ch === "_" ||
+          ch === ".";
+        if (!ok) {
+          setError("Username can include letters, numbers, '_' and '.' only");
+          return;
+        }
+      }
       if (!password || password.length < 8) {
         setError("Password must be at least 8 characters");
         return;
@@ -92,6 +116,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim() || null,
+          username: username.trim(),
           email: email.trim(),
           password,
         }),
@@ -126,6 +151,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         id: 1,
         email: email.trim(),
         name: name.trim() || baseName,
+        username: username.trim(),
         firstName: "",
         lastName: "",
         avatarUrl: "",
@@ -549,6 +575,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                     setMode("login");
                     setError("");
                     setPassword2("");
+                    setUsername("");
                   }}
                   className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
                     mode === "login"
@@ -606,6 +633,26 @@ export default function LandingPage({ onLogin, onSignup }) {
                         className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       />
                     </div>
+                  </div>
+                )}
+
+                {mode === "signup" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Username
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="yourname"
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">3–24 chars. Letters/numbers, '_' and '.' only.</div>
                   </div>
                 )}
 
