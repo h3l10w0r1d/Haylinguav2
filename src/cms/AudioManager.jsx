@@ -31,7 +31,7 @@ const STYLE = {
   },
 };
 
-export default function AudioManager({ exerciseId, exerciseText, onClose }) {
+export default function AudioManager({ exerciseId, exerciseText, targetKey = null, onClose }) {
   const [audio, setAudio] = useState({ male: null, female: null });
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +64,10 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/cms/exercises/${exerciseId}/audio`, {
+      const url = targetKey
+        ? `${API_BASE}/cms/audio/targets/${exerciseId}?target_key=${encodeURIComponent(targetKey)}`
+        : `${API_BASE}/cms/exercises/${exerciseId}/audio`;
+      const res = await fetch(url, {
         headers: cmsHeaders(),
       });
 
@@ -81,7 +84,7 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
         throw new Error(msg);
       }
 
-      const recordings = data?.audio_recordings || [];
+      const recordings = targetKey ? data?.targets || [] : data?.audio_recordings || [];
       setAudio({
         male: recordings.find((r) => r.voice_type === "male") || null,
         female: recordings.find((r) => r.voice_type === "female") || null,
@@ -104,15 +107,19 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
     setSuccess("");
 
     try {
-      const res = await fetch(`${API_BASE}/cms/audio/generate-tts`, {
+      const res = await fetch(
+        targetKey ? `${API_BASE}/cms/audio/targets/generate-tts` : `${API_BASE}/cms/audio/generate-tts`,
+        {
         method: "POST",
         headers: cmsHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           exercise_id: exerciseId,
+          ...(targetKey ? { target_key: targetKey } : {}),
           text: exerciseText,
           voice_type: voiceType,
         }),
-      });
+        }
+      );
 
       let data = null;
       try {
@@ -157,13 +164,17 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
       const formData = new FormData();
       formData.append("exercise_id", String(exerciseId));
       formData.append("voice_type", voiceType);
+      if (targetKey) formData.append("target_key", String(targetKey));
       formData.append("audio_file", file);
 
-      const res = await fetch(`${API_BASE}/cms/audio/upload`, {
+      const res = await fetch(
+        targetKey ? `${API_BASE}/cms/audio/targets/upload` : `${API_BASE}/cms/audio/upload`,
+        {
         method: "POST",
         headers: cmsHeaders(), // token only, do NOT set Content-Type for FormData
         body: formData,
-      });
+        }
+      );
 
       let data = null;
       try {
@@ -235,14 +246,18 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
     try {
       const formData = new FormData();
       formData.append("exercise_id", String(exerciseId));
+      if (targetKey) formData.append("target_key", String(targetKey));
       formData.append("voice_type", voiceType);
       formData.append("audio_file", audioBlob, "recording.webm");
 
-      const res = await fetch(`${API_BASE}/cms/audio/save-recording`, {
+      const res = await fetch(
+        targetKey ? `${API_BASE}/cms/audio/targets/save-recording` : `${API_BASE}/cms/audio/save-recording`,
+        {
         method: "POST",
         headers: cmsHeaders(),
         body: formData,
-      });
+        }
+      );
 
       let data = null;
       try {
@@ -274,7 +289,9 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
 
     Object.values(audioPlayerRef.current).forEach((p) => p?.pause());
 
-    const player = new Audio(`${API_BASE}/cms/audio/${audioId}/preview`);
+    const player = new Audio(
+      `${API_BASE}${targetKey ? "/cms/audio/targets" : "/cms/audio"}/${audioId}/preview`
+    );
     player.onended = () => setPlaying(null);
     player.onerror = () => setError("Playback failed.");
 
@@ -290,10 +307,13 @@ export default function AudioManager({ exerciseId, exerciseText, onClose }) {
     setSuccess("");
 
     try {
-      const res = await fetch(`${API_BASE}/cms/audio/${audioId}`, {
+      const res = await fetch(
+        `${API_BASE}${targetKey ? "/cms/audio/targets" : "/cms/audio"}/${audioId}`,
+        {
         method: "DELETE",
         headers: cmsHeaders(),
-      });
+        }
+      );
 
       let data = null;
       try {
