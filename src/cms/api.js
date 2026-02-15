@@ -56,8 +56,13 @@ export function createCmsApi(accessToken) {
   // Exercises
   const listExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);
   const getExercise = (exerciseId) => req(`/cms/exercises/${exerciseId}`);
-  const createExercise = (payload) =>
-    req("/cms/exercises", { method: "POST", body: JSON.stringify(payload) });
+  // Backend expects lesson_id + kind in the POST body.
+  // The UI calls createExercise(lessonId, payload), so we must accept lessonId here.
+  const createExercise = (lessonId, payload) =>
+    req("/cms/exercises", {
+      method: "POST",
+      body: JSON.stringify({ ...payload, lesson_id: Number(lessonId) }),
+    });
   const updateExercise = (exerciseId, payload) =>
     req(`/cms/exercises/${exerciseId}`, {
       method: "PUT",
