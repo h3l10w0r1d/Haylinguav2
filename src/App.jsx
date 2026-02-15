@@ -169,14 +169,19 @@ function AppShell() {
   };
 
   // SIGNUP - handled by Signup component now
-  const handleSignup = async (_name, email, password) => {
+  const handleSignup = async (_name, username, email, password) => {
     // This is just for LandingPage compatibility
     // The standalone Signup component handles its own flow
     try {
       const res = await fetch(`${API_BASE}/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: (_name || '').trim() || null, email, password }),
+        body: JSON.stringify({
+          name: (_name || '').trim() || null,
+          username: (username || '').trim() || (email || '').split('@')[0],
+          email,
+          password,
+        }),
       });
 
       if (!res.ok) {
