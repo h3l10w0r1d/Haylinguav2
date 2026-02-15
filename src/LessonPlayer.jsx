@@ -22,6 +22,57 @@ function getToken() {
   );
 }
 
+// Build a combined step list for "reading" lessons.
+// Inserts special "reading_section" steps between referenced exercises.
+function buildReadingExercises(lesson) {
+  const cfg = lesson?.config || {};
+  const reading = cfg?.reading || {};
+  const sections = Array.isArray(reading?.sections) ? reading.sections : [];
+
+  const all = Array.isArray(lesson?.exercises) ? lesson.exercises : [];
+  const byId = new Map(all.map((e) => [Number(e?.id), e]));
+
+  const out = [];
+  let order = 0;
+
+  const normalizeIds = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) {
+      return val
+        .map((x) => Number(x))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    if (typeof val === "string") {
+      return val
+        .split(/[,\s]+/)
+        .map((x) => Number(x))
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    return [];
+  };
+
+  sections.forEach((section, idx) => {
+    out.push({
+      id: `reading_section_${idx}`,
+      kind: "reading_section",
+      xp: 0,
+      prompt: "",
+      config: { section },
+      sort_order: order++,
+      __reading: true,
+    });
+
+    const ids = normalizeIds(section?.exercise_ids);
+    ids.forEach((id) => {
+      const ex = byId.get(Number(id));
+      if (ex) out.push({ ...ex, sort_order: order++ });
+    });
+  });
+
+  // If no sections configured, fall back to normal exercises.
+  return out.length ? out : all;
+}
+
 
 
 function ReadingSectionCard({ section, userLevel, onNext }) {
@@ -113,6 +164,7 @@ export default function LessonPlayer() {
   const navigate = useNavigate();
 
   const [lesson, setLesson] = useState(null);
+  const [userLevel, setUserLevel] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -149,6 +201,8 @@ export default function LessonPlayer() {
     return lesson.exercises[currentIndex] || null;
   }, [lesson, currentIndex]);
 
+  const isReadingSection = String(currentExercise?.kind || "") === "reading_section";
+
   const PHASE2_KINDS = useMemo(
     () =>
       new Set([
@@ -165,7 +219,29 @@ export default function LessonPlayer() {
     []
   );
 
-  const isPhase2 = !!currentExercise && PHASE2_KINDS.has(String(currentExercise.kind || "").trim());
+  const isPhase2 =
+    !!currentExercise &&
+    !isReadingSection &&
+    PHASE2_KINDS.has(String(currentExercise.kind || "").trim());
+
+  // Load onboarding once (for reading speed / level)
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/me/onboarding`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        // support different naming
+        setUserLevel(data?.current_level || data?.level || data?.knowledge_level || null);
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     // reset timer + actions on exercise change
@@ -579,12 +655,12 @@ export default function LessonPlayer() {
       step={Math.min(currentIndex + 1, totalSteps)}
       total={totalSteps}
       onBack={() => navigate("/dashboard")}
-      primaryLabel={!showDoneFooter && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
-      primaryDisabled={!showDoneFooter && isPhase2 && !resultOpen ? !phase2Actions?.canCheck : null}
-      onPrimary={!showDoneFooter && isPhase2 && !resultOpen ? phase2Actions?.onCheck : null}
-      secondaryLabel={!showDoneFooter && isPhase2 && !resultOpen ? (phase2Actions?.secondaryLabel ?? "Skip") : null}
-      secondaryDisabled={!showDoneFooter && isPhase2 && !resultOpen ? false : null}
-      onSecondary={!showDoneFooter && isPhase2 && !resultOpen ? phase2Actions?.onSkip : null}
+      primaryLabel={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
+      primaryDisabled={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? !phase2Actions?.canCheck : null}
+      onPrimary={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? phase2Actions?.onCheck : null}
+      secondaryLabel={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.secondaryLabel ?? "Skip") : null}
+      secondaryDisabled={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? false : null}
+      onSecondary={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? phase2Actions?.onSkip : null}
       result={
         resultOpen && resultData
           ? {
@@ -612,7 +688,23 @@ export default function LessonPlayer() {
     >
         {/* Current exercise */}
         {!showDoneFooter && currentExercise ? (
-          isPhase2 ? (
+          isReadingSection ? (
+            <ReadingSectionCard
+              section={currentExercise?.config?.section}
+              userLevel={userLevel || lesson?.config?.reading_level}
+              onNext={() => {
+                // Reading step has no correctness/result sheet; just move on.
+                const next = currentIndex + 1;
+                const total = lesson.exercises?.length || 0;
+                if (next >= total) {
+                  setHasFinishedAll(true);
+                  return;
+                }
+                setCurrentIndex(next);
+                setRenderNonce((n) => n + 1);
+              }}
+            />
+          ) : isPhase2 ? (
             <Phase2Exercise
               key={`${currentExercise.id}:${renderNonce}`}
               exercise={currentExercise}
