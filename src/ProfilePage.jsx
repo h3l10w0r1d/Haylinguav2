@@ -28,7 +28,8 @@ export default function ProfilePage() {
         const p = await apiFetch("/me/profile", { token });
         if (!alive) return;
         setProfile(p);
-        setName(p?.name || "");
+      // If user never set a display name, default to username.
+      setName(p?.name || p?.username || "");
         setAvatarUrl(p?.avatar_url || "");
 
         if (p?.email) {
@@ -86,8 +87,17 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ opacity: 0.75 }}>Loading…</div>
+      <div
+        style={{
+          minHeight: "100vh",
+          padding: 24,
+          background:
+            "radial-gradient(900px circle at 20% 0%, rgba(255,122,0,0.18), rgba(255,122,0,0) 50%), radial-gradient(700px circle at 80% 10%, rgba(255,205,120,0.20), rgba(255,205,120,0) 55%), #fff7ef",
+        }}
+      >
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ opacity: 0.75 }}>Loading…</div>
+        </div>
       </div>
     );
   }
@@ -96,7 +106,15 @@ export default function ProfilePage() {
   const displayName = profile?.username || profile?.name || "User";
 
   return (
-    <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        padding: 24,
+        background:
+          "radial-gradient(900px circle at 20% 0%, rgba(255,122,0,0.18), rgba(255,122,0,0) 50%), radial-gradient(700px circle at 80% 10%, rgba(255,205,120,0.20), rgba(255,205,120,0) 55%), #fff7ef",
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div
@@ -254,6 +272,7 @@ export default function ProfilePage() {
           </Card>
         </div>
       ) : null}
+    </div>
     </div>
   );
 }
