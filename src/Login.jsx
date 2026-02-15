@@ -60,8 +60,8 @@ export default function Login() {
 
       <form onSubmit={handleLogin} style={{ maxWidth: 300, margin: "auto" }}>
         <input
-          type="email"
-          placeholder="Email"
+          type="text"
+          placeholder="Email or username"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
