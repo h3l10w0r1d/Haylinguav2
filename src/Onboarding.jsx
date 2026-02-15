@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 const API_BASE = "https://haylinguav2.onrender.com";
 
+
 const COUNTRY_OPTIONS = [
   "🇦🇲 Armenia",
   "🇷🇺 Russia",
@@ -268,13 +269,17 @@ export default function Onboarding({ token, onCompleted }) {
   const [knowledgeLevel, setKnowledgeLevel] = useState("");
   const [dialect, setDialect] = useState("Eastern");
   const [primaryGoal, setPrimaryGoal] = useState("");
+  // Source language removed from UI (kept as a hidden default for backend compatibility)
   const [sourceLanguage, setSourceLanguage] = useState("English");
 
   // Screen 3
   const [dailyGoalMin, setDailyGoalMin] = useState(10);
   const [reminderTime, setReminderTime] = useState("20:00");
   const [remindersEnabled, setRemindersEnabled] = useState(true);
-  const [voicePref, setVoicePref] = useState("Both");
+  // Voice selection UX: allow selecting Male/Female independently, compute "Both".
+  const [voiceRandom, setVoiceRandom] = useState(false);
+  const [voiceMale, setVoiceMale] = useState(true);
+  const [voiceFemale, setVoiceFemale] = useState(true);
 
   // Screen 4
   const [marketingOptIn, setMarketingOptIn] = useState(false);
@@ -283,6 +288,14 @@ export default function Onboarding({ token, onCompleted }) {
   const totalSteps = 4;
   const progressPct = Math.round((step / totalSteps) * 100);
   const showPlanningVisit = (country || "").trim() !== "" && country !== "Armenia";
+
+  const computedVoicePref = useMemo(() => {
+    if (voiceRandom) return "Random";
+    if (voiceMale && voiceFemale) return "Both";
+    if (voiceMale) return "Male";
+    if (voiceFemale) return "Female";
+    return "";
+  }, [voiceRandom, voiceMale, voiceFemale]);
 
   const headerText = useMemo(() => {
     if (step === 1) return { h: "Let’s personalize your path", p: "A few quick questions so we start you at the right level." };
@@ -323,7 +336,26 @@ export default function Onboarding({ token, onCompleted }) {
             setReminderTime(d.reminder_time);
             setRemindersEnabled(true);
           }
-          if (d.voice_pref) setVoicePref(d.voice_pref);
+          if (d.voice_pref) {
+            const v = String(d.voice_pref);
+            if (v === "Random") {
+              setVoiceRandom(true);
+              setVoiceMale(true);
+              setVoiceFemale(true);
+            } else if (v === "Both") {
+              setVoiceRandom(false);
+              setVoiceMale(true);
+              setVoiceFemale(true);
+            } else if (v === "Male") {
+              setVoiceRandom(false);
+              setVoiceMale(true);
+              setVoiceFemale(false);
+            } else if (v === "Female") {
+              setVoiceRandom(false);
+              setVoiceMale(false);
+              setVoiceFemale(true);
+            }
+          }
           if (typeof d.marketing_opt_in === "boolean") setMarketingOptIn(d.marketing_opt_in);
           if (typeof d.accepted_terms === "boolean") setAcceptedTerms(d.accepted_terms);
         }
@@ -349,11 +381,10 @@ export default function Onboarding({ token, onCompleted }) {
       if (!knowledgeLevel) return "Please select your current level.";
       if (!dialect) return "Please select a dialect.";
       if (!primaryGoal) return "Please select your main goal.";
-      if (!sourceLanguage) return "Please select your source language.";
       return "";
     }
     if (step === 3) {
-      if (!voicePref) return "Please select voice preference.";
+      if (!computedVoicePref) return "Please select at least one voice (or choose Random).";
       if (dailyGoalMin < 5 || dailyGoalMin > 60) return "Daily goal must be between 5 and 60 minutes.";
       if (remindersEnabled && !reminderTime) return "Select a reminder time or disable reminders.";
       return "";
@@ -398,7 +429,7 @@ export default function Onboarding({ token, onCompleted }) {
         source_language: sourceLanguage,
         daily_goal_min: Number(dailyGoalMin),
         reminder_time: remindersEnabled ? reminderTime : null,
-        voice_pref: voicePref,
+        voice_pref: computedVoicePref,
         marketing_opt_in: Boolean(marketingOptIn),
         accepted_terms: Boolean(acceptedTerms),
       };
@@ -448,11 +479,15 @@ export default function Onboarding({ token, onCompleted }) {
         <div className="lp-grain" />
       </div>
 
-      <div className="relative max-w-4xl mx-auto px-4 py-10">
+      {/* Account for fixed header and mobile bottom nav */}
+      <div className="relative max-w-5xl mx-auto px-4 pt-24 pb-28 md:pt-28 md:pb-10">
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
-            <div className="text-sm text-orange-700 font-medium">Haylingua • Onboarding</div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mt-1">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/60 border border-white/60 px-3 py-1 text-xs font-semibold text-orange-700">
+              <span className="inline-block w-2 h-2 rounded-full bg-orange-600" />
+              <span>Onboarding</span>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mt-3">
               {headerText.h}
             </h1>
             <p className="text-gray-600 mt-2 max-w-2xl">{headerText.p}</p>
@@ -463,7 +498,7 @@ export default function Onboarding({ token, onCompleted }) {
             rel="noreferrer"
             className="hidden md:inline-flex px-4 py-2 rounded-full bg-white/60 border border-white/50 text-gray-800 hover:bg-white transition"
           >
-            Visit blog
+            blog.haylingua.am
           </a>
         </div>
 
@@ -588,19 +623,7 @@ export default function Onboarding({ token, onCompleted }) {
                   </div>
                 </div>
 
-                <div>
-                  <FieldLabel
-                    title="Which language would you like to learn from?"
-                    subtitle="Learning Armenian through your strongest language reduces friction."
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {["English", "Russian", "French", "Spanish", "German"].map((x) => (
-                      <Pill key={x} active={sourceLanguage === x} onClick={() => setSourceLanguage(x)}>
-                        {x}
-                      </Pill>
-                    ))}
-                  </div>
-                </div>
+                {/* Source language removed from UX per request; kept server-side as default */}
               </div>
             ) : null}
 
@@ -665,12 +688,65 @@ export default function Onboarding({ token, onCompleted }) {
 
                 <div>
                   <FieldLabel title="Voice preference" subtitle="Hearing multiple voices improves comprehension." />
-                  <div className="flex flex-wrap gap-2">
-                    {["Male", "Female", "Both", "Random"].map((x) => (
-                      <Pill key={x} active={voicePref === x} onClick={() => setVoicePref(x)}>
-                        {x}
-                      </Pill>
-                    ))}
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <label className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-gray-200 px-4 py-3 hover:bg-orange-50 transition">
+                      <div>
+                        <div className="font-semibold text-gray-900">Male voice</div>
+                        <div className="text-xs text-gray-600">Clear pronunciation & lower pitch</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={voiceMale}
+                        onChange={(e) => {
+                          setVoiceMale(e.target.checked);
+                          setVoiceRandom(false);
+                        }}
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-gray-200 px-4 py-3 hover:bg-orange-50 transition">
+                      <div>
+                        <div className="font-semibold text-gray-900">Female voice</div>
+                        <div className="text-xs text-gray-600">Natural pitch variation & clarity</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={voiceFemale}
+                        onChange={(e) => {
+                          setVoiceFemale(e.target.checked);
+                          setVoiceRandom(false);
+                        }}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoiceRandom(true);
+                        setVoiceMale(true);
+                        setVoiceFemale(true);
+                      }}
+                      className={
+                        "sm:col-span-2 flex items-center justify-between rounded-2xl px-4 py-3 border transition " +
+                        (voiceRandom
+                          ? "bg-orange-600 text-white border-orange-600 shadow"
+                          : "bg-white text-gray-900 border-gray-200 hover:bg-orange-50")
+                      }
+                    >
+                      <div>
+                        <div className="font-semibold">Randomized voices</div>
+                        <div className={"text-xs " + (voiceRandom ? "text-orange-100" : "text-gray-600")}>
+                          Best for real-world listening variety
+                        </div>
+                      </div>
+                      <div className={"text-sm font-semibold " + (voiceRandom ? "text-white" : "text-gray-700")}>
+                        {voiceRandom ? "Enabled" : "Enable"}
+                      </div>
+                    </button>
+
+                    <div className="sm:col-span-2 text-xs text-gray-600">
+                      Selected: <span className="font-semibold text-gray-900">{computedVoicePref || "—"}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -685,7 +761,7 @@ export default function Onboarding({ token, onCompleted }) {
                     <div><span className="font-medium">Dialect:</span> {dialect}</div>
                     <div><span className="font-medium">Goal:</span> {primaryGoal || "—"}</div>
                     <div><span className="font-medium">Daily:</span> {dailyGoalMin} minutes</div>
-                    <div><span className="font-medium">Voice:</span> {voicePref}</div>
+                    <div><span className="font-medium">Voice:</span> {computedVoicePref}</div>
                     <div><span className="font-medium">Reminders:</span> {remindersEnabled ? reminderTime : "Off"}</div>
                   </div>
                 </div>
