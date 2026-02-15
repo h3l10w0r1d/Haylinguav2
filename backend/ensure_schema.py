@@ -102,104 +102,7 @@ def ensure_schema() -> None:
                 )
             )
 
-        
-        # ---------- cms_users / cms_invites ----------
-        ensure_table(
-            "cms_users",
-            """
-            CREATE TABLE cms_users (
-              id             SERIAL PRIMARY KEY,
-              email          TEXT UNIQUE NOT NULL,
-              name           TEXT,
-              role           TEXT NOT NULL DEFAULT 'admin',
-              status         TEXT NOT NULL DEFAULT 'invited',
-              password_hash  TEXT,
-              totp_secret    TEXT,
-              totp_enabled   BOOLEAN NOT NULL DEFAULT FALSE,
-              created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              last_login_at  TIMESTAMPTZ
-            );
-            """
-        )
-
-        ensure_table(
-            "cms_invites",
-            """
-            CREATE TABLE cms_invites (
-              id            SERIAL PRIMARY KEY,
-              email         TEXT NOT NULL,
-              role          TEXT NOT NULL DEFAULT 'admin',
-              token_hash    TEXT UNIQUE NOT NULL,
-              invited_by    INTEGER,
-              expires_at    TIMESTAMPTZ NOT NULL,
-              accepted_at   TIMESTAMPTZ,
-              created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-            """
-        )
-
-        # Index for lookup by email
-        conn.execute(
-            text(
-                """
-                DO $$
-                BEGIN
-                  IF NOT EXISTS (
-                    SELECT 1 FROM pg_indexes
-                    WHERE schemaname='public'
-                      AND tablename='cms_invites'
-                      AND indexname='ix_cms_invites_email'
-                  ) THEN
-                    CREATE INDEX ix_cms_invites_email ON cms_invites (email);
-                  END IF;
-                END$$;
-                """
-            )
-        )
-
-
-        # ---------- cms bootstrap invite (optional) ----------
-        bootstrap_email = (os.getenv("CMS_BOOTSTRAP_EMAIL") or "").strip().lower()
-        invite_base = (os.getenv("CMS_INVITE_BASE_URL") or "https://cms.haylingua.am").rstrip("/")
-        ttl_hours = int(os.getenv("CMS_INVITE_TTL_HOURS") or "72")
-
-        if bootstrap_email:
-            # Create a bootstrap invite only if CMS has no users yet
-            has_any = conn.execute(text("SELECT 1 FROM cms_users LIMIT 1")).first()
-            if not has_any:
-                # ensure a non-expired invite exists
-                existing = conn.execute(
-                    text(
-                        """
-                        SELECT 1 FROM cms_invites
-                        WHERE lower(email)=:e AND accepted_at IS NULL AND expires_at > NOW()
-                        LIMIT 1
-                        """
-                    ),
-                    {"e": bootstrap_email},
-                ).first()
-                if not existing:
-                    import secrets as _secrets
-                    import hashlib as _hashlib
-                    from datetime import datetime as _dt, timedelta as _td
-
-                    raw = _secrets.token_urlsafe(32)
-                    token_hash = _hashlib.sha256(raw.encode("utf-8")).hexdigest()
-                    expires_at = _dt.utcnow() + _td(hours=ttl_hours)
-
-                    conn.execute(
-                        text(
-                            """
-                            INSERT INTO cms_invites (email, role, token_hash, invited_by, expires_at)
-                            VALUES (:email, 'admin', :h, NULL, :exp)
-                            """
-                        ),
-                        {"email": bootstrap_email, "h": token_hash, "exp": expires_at},
-                    )
-                    print(f"[cms_bootstrap] Invite created for {bootstrap_email}: {invite_base}/cms/invite?token={raw}")
-
-# ---------- user_exercise_logs ----------
+        # ---------- user_exercise_logs ----------
         ensure_table(
             "user_exercise_logs",
             """
@@ -339,5 +242,30 @@ def ensure_schema() -> None:
 
         # Make sure recompute_lesson_progress upsert works
         ensure_unique_progress_constraint()
+
+    # exercise_audio: caches TTS/custom recordings (optionally on Render disk)
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS exercise_audio (
+            id SERIAL PRIMARY KEY,
+            exercise_id INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+            voice_type TEXT NOT NULL,
+            source_type TEXT NOT NULL DEFAULT 'tts',
+            tts_text TEXT,
+            tts_voice_id TEXT,
+
+            audio_data BYTEA,
+            audio_format TEXT NOT NULL DEFAULT 'mp3',
+            audio_size INTEGER NOT NULL DEFAULT 0,
+            file_path TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            UNIQUE (exercise_id, voice_type)
+        );
+    """))
+
+    # Add file_path if deploying onto an older DB
+    ensure_column(db, "exercise_audio", "file_path", "TEXT")
+    ensure_column(db, "exercise_audio", "tts_text", "TEXT")
+    ensure_column(db, "exercise_audio", "tts_voice_id", "TEXT")
 
     print("[ensure_schema] done ✅")
