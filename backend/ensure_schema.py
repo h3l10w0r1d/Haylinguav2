@@ -272,6 +272,46 @@ def ensure_schema() -> None:
         add_col_if_missing("exercise_audio", "tts_text TEXT")
         add_col_if_missing("exercise_audio", "tts_voice_id TEXT")
 
+        # ---------- exercise_audio_targets ----------
+        # Per-exercise, per-target audio (e.g., sentence token, choice, whole sentence).
+        # This enables Duolingo-like tap-to-hear behavior.
+        ensure_table(
+            "exercise_audio_targets",
+            """
+            CREATE TABLE exercise_audio_targets (
+                id SERIAL PRIMARY KEY,
+                exercise_id INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+                target_key TEXT NOT NULL,
+                voice_type TEXT NOT NULL,
+
+                -- 'recording' (user upload/record), 'tts' (generated)
+                source_type TEXT NOT NULL DEFAULT 'tts',
+                tts_text TEXT,
+                tts_voice_id TEXT,
+
+                audio_data BYTEA,
+                audio_format TEXT NOT NULL DEFAULT 'mp3',
+                audio_size INTEGER NOT NULL DEFAULT 0,
+                file_path TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+                UNIQUE (exercise_id, target_key, voice_type)
+            );
+            """,
+        )
+
+        # Add columns if deploying onto an older DB
+        add_col_if_missing("exercise_audio_targets", "source_type TEXT NOT NULL DEFAULT 'tts'")
+        add_col_if_missing("exercise_audio_targets", "tts_text TEXT")
+        add_col_if_missing("exercise_audio_targets", "tts_voice_id TEXT")
+        add_col_if_missing("exercise_audio_targets", "audio_data BYTEA")
+        add_col_if_missing("exercise_audio_targets", "audio_format TEXT NOT NULL DEFAULT 'mp3'")
+        add_col_if_missing("exercise_audio_targets", "audio_size INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("exercise_audio_targets", "file_path TEXT")
+        add_col_if_missing("exercise_audio_targets", "created_at TIMESTAMP NOT NULL DEFAULT NOW()")
+        add_col_if_missing("exercise_audio_targets", "updated_at TIMESTAMP NOT NULL DEFAULT NOW()")
+
         # ---------- user_onboarding ----------
         # Stores post-verification onboarding answers so we can personalize the curriculum.
         ensure_table(
