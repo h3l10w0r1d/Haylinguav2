@@ -36,8 +36,14 @@ export default function PublicUserPage() {
           : await apiFetch(`/users/${encodeURIComponent(username)}`);
         if (!alive) return;
         setUser(u);
-        setStats(u?.stats || null);
-        setFriendState(u?.friend_state || null);
+        // Backend returns stats as flat fields on the public user response.
+        setStats({
+          total_xp: u?.xp ?? 0,
+          level: u?.level ?? 1,
+          streak: u?.streak ?? 0,
+          lessons_completed: u?.lessons_completed ?? 0,
+        });
+        setFriendState(u?.friend_state || (u?.is_friend ? "friends" : "none"));
       } catch (e) {
         if (!alive) return;
         setErr(e?.detail || e?.message || "Failed to load profile");
@@ -163,9 +169,9 @@ export default function PublicUserPage() {
           <div className="col-span-12 lg:col-span-8 rounded-2xl border border-white/10 bg-white/5 p-5">
             <div className="mb-3 text-base font-black">Overview</div>
             <div className="flex flex-wrap gap-3">
-              <StatCard label="XP" value={stats?.xp_total ?? "—"} />
+              <StatCard label="XP" value={stats?.total_xp ?? "—"} />
               <StatCard label="Level" value={stats?.level ?? "—"} />
-              <StatCard label="Streak" value={stats?.streak_days ?? "—"} />
+              <StatCard label="Streak" value={stats?.streak ?? "—"} />
               <StatCard label="Lessons" value={stats?.lessons_completed ?? "—"} />
             </div>
             <div className="mt-4 text-sm text-white/75">
