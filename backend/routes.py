@@ -387,6 +387,8 @@ def _pick_due_review(queue: list[dict]) -> int | None:
 class UserCreate(BaseModel):
     # Optional display name (used by signup UI). Stored in users.name.
     name: str | None = None
+    # Public handle shown in leaderboards, and can be used to login.
+    username: str
     email: str
     password: str
 
@@ -399,6 +401,7 @@ class UserCreate(BaseModel):
 
 
 class UserLogin(BaseModel):
+    # Single identifier field: accepts email OR username (kept as `email` for backwards compatibility)
     email: str
     password: str
 
@@ -1059,26 +1062,104 @@ class SignupPayload(BaseModel):
 def signup(user: UserCreate, db: Connection = Depends(get_db)):
     # 1) clean inputs
     name = (user.name or "").strip() or None
+    username = (user.username or "").strip()
     email = (user.email or "").strip()
     password = (user.password or "")
 
-    # 2) validate email
-    email_errors = validate_email_simple(email)
+    # 2) validate username (inline; no helper validators)
+    # Rules: 3-20 chars, letters/digits/underscore/dot only, must start with letter or digit.
+    # We keep it strict to avoid messy leaderboard rendering.
+    username_errors: list[str] = []
+    if username == "":
+        username_errors.append("Username is required")
+    else:
+        if len(username) < 3:
+            username_errors.append("Username must be at least 3 characters")
+        if len(username) > 20:
+            username_errors.append("Username must be 20 characters or less")
+
+        # must not contain spaces or '@'
+        for ch in username:
+            if ch.isspace():
+                username_errors.append("Username cannot contain spaces")
+                break
+            if ch == "@":
+                username_errors.append("Username cannot contain '@'")
+                break
+
+        # allowed characters
+        for ch in username:
+            ok = False
+            if "a" <= ch.lower() <= "z":
+                ok = True
+            elif "0" <= ch <= "9":
+                ok = True
+            elif ch == "_" or ch == ".":
+                ok = True
+            if not ok:
+                username_errors.append("Username can only contain letters, numbers, '_' and '.'")
+                break
+
+        # first char must be alnum
+        if username and not (username[0].isalnum()):
+            username_errors.append("Username must start with a letter or number")
+
+    if len(username_errors) > 0:
+        raise HTTPException(status_code=400, detail={"field": "username", "errors": username_errors})
+
+    # 3) validate email (inline)
+    email_errors: list[str] = []
+    if email == "":
+        email_errors.append("Email is required")
+    else:
+        at_count = 0
+        dot_after_at = False
+        seen_at = False
+        for ch in email:
+            if ch.isspace():
+                email_errors.append("Email cannot contain spaces")
+                break
+            if ch == "@":
+                at_count += 1
+                seen_at = True
+                continue
+            if seen_at and ch == ".":
+                dot_after_at = True
+        if len(email_errors) == 0:
+            if at_count != 1:
+                email_errors.append("Email must contain exactly one '@'")
+            if not dot_after_at:
+                email_errors.append("Email must contain a '.' after '@'")
+
     if len(email_errors) > 0:
-        raise HTTPException(
-            status_code=400,
-            detail={"field": "email", "errors": email_errors},
-        )
+        raise HTTPException(status_code=400, detail={"field": "email", "errors": email_errors})
 
-    # 3) validate password
-    password_errors = validate_password_simple(password)
+    # 4) validate password (inline)
+    password_errors: list[str] = []
+    if password.strip() == "":
+        password_errors.append("Password is required")
+    else:
+        if len(password) < 8:
+            password_errors.append("Password must be at least 8 characters")
+        if len(password.encode("utf-8")) > 72:
+            password_errors.append("Password must be 72 bytes or less")
+
+        has_letter = False
+        has_digit = False
+        for ch in password:
+            if ch.isalpha():
+                has_letter = True
+            elif ch.isdigit():
+                has_digit = True
+        if not has_letter:
+            password_errors.append("Password must contain at least one letter")
+        if not has_digit:
+            password_errors.append("Password must contain at least one number")
+
     if len(password_errors) > 0:
-        raise HTTPException(
-            status_code=400,
-            detail={"field": "password", "errors": password_errors},
-        )
+        raise HTTPException(status_code=400, detail={"field": "password", "errors": password_errors})
 
-    # 4) check if email already exists (use the cleaned email!)
+    # 5) check uniqueness (email + username)
     existing = db.execute(
         text("SELECT id FROM users WHERE email = :email"),
         {"email": email},
@@ -1087,18 +1168,26 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
     if existing is not None:
         raise HTTPException(status_code=400, detail="Email already exists")
 
-    # 5) hash password and insert
+    existing_u = db.execute(
+        text("SELECT id FROM users WHERE LOWER(username) = LOWER(:u)"),
+        {"u": username},
+    ).mappings().first()
+
+    if existing_u is not None:
+        raise HTTPException(status_code=400, detail="Username already exists")
+
+    # 6) hash password and insert
     password_hash = hash_password(password)
 
     row = db.execute(
         text(
             """
-            INSERT INTO users (email, password_hash, name)
-            VALUES (:email, :password_hash, :name)
+            INSERT INTO users (email, password_hash, name, username)
+            VALUES (:email, :password_hash, :name, :username)
             RETURNING id
             """
         ),
-        {"email": email, "password_hash": password_hash, "name": name},
+        {"email": email, "password_hash": password_hash, "name": name, "username": username},
     ).mappings().first()
 
     if row is None:
@@ -1167,43 +1256,56 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
 @router.post("/login", response_model=AuthResponse)
 def login(payload: UserLogin, db: Connection = Depends(get_db)):
     # 1) clean inputs
-    email = (payload.email or "").strip()
+    identifier = (payload.email or "").strip()
     password = (payload.password or "")
 
-    # 2) validate email
-    email_errors = validate_email_simple(email)
-    if len(email_errors) > 0:
-        raise HTTPException(
-            status_code=400,
-            detail={"field": "email", "errors": email_errors},
-        )
-
-    # 3) validate password (simple)
+    # 2) validate inputs (inline)
+    if identifier == "":
+        raise HTTPException(status_code=400, detail={"field": "email", "errors": ["Email or username is required"]})
     if password.strip() == "":
-        raise HTTPException(
-            status_code=400,
-            detail={"field": "password", "errors": ["Password is required"]},
-        )
+        raise HTTPException(status_code=400, detail={"field": "password", "errors": ["Password is required"]})
 
-    # 4) load user from DB using cleaned email
-    row = db.execute(
-        text(
-            """
-            SELECT id, email, password_hash
-            FROM users
-            WHERE email = :email
-            """
-        ),
-        {"email": email},
-    ).mappings().first()
+    # Determine if identifier is email by counting '@'
+    at_count = 0
+    for ch in identifier:
+        if ch == "@":
+            at_count += 1
+
+    is_email = at_count == 1
+
+    # 3) load user from DB using email OR username
+    if is_email:
+        key = identifier.lower()
+        row = db.execute(
+            text(
+                """
+                SELECT id, email, password_hash
+                FROM users
+                WHERE email = :email
+                """
+            ),
+            {"email": key},
+        ).mappings().first()
+    else:
+        key = identifier
+        row = db.execute(
+            text(
+                """
+                SELECT id, email, password_hash
+                FROM users
+                WHERE LOWER(username) = LOWER(:u)
+                """
+            ),
+            {"u": key},
+        ).mappings().first()
 
     if row is None:
-        raise HTTPException(status_code=400, detail="Invalid email or password")
+        raise HTTPException(status_code=400, detail="Invalid email/username or password")
 
     # 5) check password
     ok = verify_password(password, row["password_hash"])
     if not ok:
-        raise HTTPException(status_code=400, detail="Invalid email or password")
+        raise HTTPException(status_code=400, detail="Invalid email/username or password")
 
     # 6) token
     token = create_token(row["id"])
@@ -2306,10 +2408,11 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
             SELECT
                 u.id AS user_id,
                 u.email AS email,
+                u.username AS username,
                 COALESCE(SUM(lp.xp_earned), 0) AS total_xp
             FROM users u
             LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-            GROUP BY u.id, u.email
+            GROUP BY u.id, u.email, u.username
             ORDER BY total_xp DESC, u.id ASC
             LIMIT :limit
             """
@@ -2320,7 +2423,12 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
     out: List[LeaderboardEntryOut] = []
     for i, r in enumerate(rows, start=1):
         email = r["email"] or ""
-        name = email.split("@")[0] if "@" in email else (email or "User")
+        # Show username when present; otherwise keep the old display format.
+        u = (r.get("username") or "").strip()
+        if u != "":
+            name = u
+        else:
+            name = email.split("@")[0] if "@" in email else (email or "User")
         xp = int(r["total_xp"] or 0)
 
         # Derive level from XP (simple & stable for now)
