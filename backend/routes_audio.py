@@ -20,6 +20,30 @@ router = APIRouter()
 ELEVEN_API_KEY = os.getenv("ELEVEN_LABS_API_KEY", "")
 ELEVEN_API_URL = "https://api.elevenlabs.io/v1"
 
+# ElevenLabs TTS defaults (override via Render env vars)
+# Model IDs are defined by ElevenLabs; as of Feb 2026, Eleven v3 uses `eleven_v3`.
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3")
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return float(raw)
+    except Exception:
+        return default
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+ELEVEN_STABILITY = _env_float("ELEVEN_STABILITY", 0.5)
+ELEVEN_SIMILARITY_BOOST = _env_float("ELEVEN_SIMILARITY_BOOST", 0.75)
+ELEVEN_STYLE = _env_float("ELEVEN_STYLE", 0.0)
+ELEVEN_USE_SPEAKER_BOOST = _env_bool("ELEVEN_USE_SPEAKER_BOOST", True)
+
 # Default voice IDs
 MALE_VOICE_ID = os.getenv("ELEVEN_MALE_VOICE", "pNInz6obpgDQGcFmaJgB")
 FEMALE_VOICE_ID = os.getenv("ELEVEN_FEMALE_VOICE", "EXAVITQu4vr4xnSDxMaL")
@@ -41,8 +65,13 @@ async def generate_elevenlabs_tts(text: str, voice_id: str) -> bytes:
     headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
     payload = {
         "text": text,
-        "model_id": "eleven_multilingual_v2",
-        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+        "model_id": ELEVEN_MODEL_ID,
+        "voice_settings": {
+            "stability": ELEVEN_STABILITY,
+            "similarity_boost": ELEVEN_SIMILARITY_BOOST,
+            "style": ELEVEN_STYLE,
+            "use_speaker_boost": ELEVEN_USE_SPEAKER_BOOST,
+        },
     }
     
     async with httpx.AsyncClient(timeout=60.0) as client:
