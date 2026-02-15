@@ -51,6 +51,19 @@ export default function ProfilePage() {
     };
   }, [token]);
 
+  // Stats field names evolved over time; support multiple variants.
+  const totalXp =
+    (stats?.total_xp ?? stats?.xp_total ?? stats?.xp ?? stats?.totalXp ?? 0) || 0;
+  const streakDays =
+    (stats?.streak ?? stats?.streak_days ?? stats?.day_streak ?? stats?.streakDays ?? 0) || 0;
+  const lessonsCompleted =
+    (stats?.lessons_completed ??
+      stats?.lessonsCompleted ??
+      stats?.completed_lessons ??
+      0) || 0;
+  const level =
+    (stats?.level ?? stats?.lvl ?? Math.max(1, Math.floor(totalXp / 100) + 1)) || 1;
+
   async function saveProfile() {
     setSaving(true);
     setSaved(false);
@@ -150,10 +163,10 @@ export default function ProfilePage() {
         <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 16 }}>
           <Card colSpan={8} title="Your progress">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <Stat label="XP" value={stats?.xp_total ?? "—"} />
-              <Stat label="Level" value={stats?.level ?? "—"} />
-              <Stat label="Streak" value={stats?.streak_days ?? "—"} />
-              <Stat label="Lessons" value={stats?.lessons_completed ?? "—"} />
+              <Stat label="XP" value={totalXp || "—"} />
+              <Stat label="Level" value={level || "—"} />
+              <Stat label="Streak" value={streakDays || "—"} />
+              <Stat label="Lessons" value={lessonsCompleted || "—"} />
             </div>
           </Card>
 
@@ -311,10 +324,10 @@ const inputStyle = {
   width: "100%",
   padding: "10px 12px",
   borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.12)",
+  border: "1px solid rgba(0,0,0,0.12)",
   outline: "none",
-  background: "rgba(0,0,0,0.25)",
-  color: "white",
+  background: "#fff",
+  color: "#111",
 };
 
 function pillBtn(bg) {
