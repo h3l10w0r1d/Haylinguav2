@@ -1,7 +1,11 @@
 // src/Phase2Exercise.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2 } from "lucide-react";
 import { Card } from "./exercises/ui";
+import { ttsFetch } from "./exercises/tts";
+
+const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
 
 // Minimal, UI-first implementation for Phase 2.
 // This component renders ONLY the interaction area.
@@ -147,10 +151,49 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
 
   const [selected, setSelected] = useState(isMulti ? [] : null);
 
+  // ===== Duolingo-like auto-audio =====
+  // IMPORTANT: this component is used for "letter_recognition" (and other Phase2 kinds)
+  // so autoplay must live here (NOT in ExerciseRenderer).
+  const didAutoplayRef = useRef(false);
+
+  async function playTarget(targetKey, text) {
+    if (!text || !exercise?.id) return;
+    try {
+      const url = await ttsFetch(API_BASE, {
+        text,
+        exerciseId: exercise.id,
+        targetKey,
+      });
+      const a = new Audio(url);
+      // Some browsers block autoplay audio without a user gesture.
+      // Even if play() is blocked, we still want the fetch to happen (it already did).
+      a.play().catch(() => {});
+    } catch (e) {
+      console.error("Audio play failed", e);
+    }
+  }
+
   useEffect(() => {
     // reset per exercise
     setSelected(isMulti ? [] : null);
+    didAutoplayRef.current = false;
   }, [exercise?.id, isMulti]);
+
+  // Autoplay the prompt for letter recognition (once per exercise)
+  useEffect(() => {
+    if (!exercise?.id) return;
+    if (cfg?.autoplay === false) return;
+    if (didAutoplayRef.current) return;
+
+    if (kind !== "letter_recognition") return;
+
+    didAutoplayRef.current = true;
+    const p = String(prompt || "").trim();
+    // Heuristic: keep it short (usually a letter or short word)
+    if (p && p.length <= 18) {
+      playTarget("prompt", p);
+    }
+  }, [exercise?.id, kind]);
 
   // ===== typing types =====
   const isTyping =
@@ -503,8 +546,18 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
                     const arr = Array.isArray(prev) ? prev : [];
                     return arr.includes(idx) ? arr.filter((x) => x !== idx) : [...arr, idx];
                   });
+                  // For multi-select recognition, play the choice when it becomes selected.
+                  if (kind === "letter_recognition") {
+                    const txt = String(c || "").trim();
+                    if (txt) playTarget(`choice_${idx}`, txt);
+                  }
                 } else {
                   setSelected(idx);
+                  // For single-choice recognition-like tasks, play the selected choice.
+                  if (kind === "letter_recognition" || kind === "translate_mcq") {
+                    const txt = String(c || "").trim();
+                    if (txt) playTarget(`choice_${idx}`, txt);
+                  }
                 }
               }}
               className={
