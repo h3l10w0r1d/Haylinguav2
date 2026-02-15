@@ -16,6 +16,20 @@ from database import get_db
 
 router = APIRouter()
 
+
+@router.get("/cms/audio/config")
+
+def get_audio_config():
+    """Non-sensitive audio/TTS configuration for the CMS UI."""
+    return {
+        "tts_enabled": bool(ELEVEN_API_KEY),
+        "provider": "elevenlabs",
+        "model_id": ELEVEN_MODEL_ID,
+        "male_voice_id": MALE_VOICE_ID,
+        "female_voice_id": FEMALE_VOICE_ID,
+    }
+
+
 # ElevenLabs configuration
 ELEVEN_API_KEY = os.getenv("ELEVEN_LABS_API_KEY", "")
 ELEVEN_API_URL = "https://api.elevenlabs.io/v1"
@@ -59,7 +73,7 @@ class GenerateTTSRequest(BaseModel):
 
 async def generate_elevenlabs_tts(text: str, voice_id: str) -> bytes:
     if not ELEVEN_API_KEY:
-        raise HTTPException(500, "ElevenLabs API key not configured")
+        raise HTTPException(status_code=400, detail="ElevenLabs API key not configured")
     
     url = f"{ELEVEN_API_URL}/text-to-speech/{voice_id}"
     headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
