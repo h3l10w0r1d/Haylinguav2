@@ -2715,6 +2715,16 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
     RETURNING id
 """)
 
+    params = {
+        "lesson_id": lesson_id,
+        "kind": kind,
+        "prompt": prompt,
+        "expected_answer": expected_answer,
+        "order": order,
+        "xp": xp,
+        "config": json.dumps(config),
+    }
+
     new_id = db.execute(q, params).scalar_one()
     return {"id": new_id}
 
