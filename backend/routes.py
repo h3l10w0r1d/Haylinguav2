@@ -437,6 +437,8 @@ class LessonOut(BaseModel):
     description: str | None = None
     level: int
     xp: int
+    lesson_type: str = "standard"
+    config: Dict[str, Any] = {}
 
 
 class ExerciseOut(BaseModel):
@@ -462,6 +464,8 @@ class LessonWithExercisesOut(BaseModel):
     description: str | None = None
     level: int
     xp: int
+    lesson_type: str = "standard"
+    config: Dict[str, Any] = {}
     exercises: List[ExerciseOut]
 
 
@@ -843,6 +847,8 @@ class LeaderboardEntryOut(BaseModel):
     email: str | None = None
     name: str
     xp: int
+    lesson_type: str = "standard"
+    config: Dict[str, Any] = {}
     streak: int
     level: int
     rank: int
@@ -1343,7 +1349,7 @@ def list_lessons(db: Connection = Depends(get_db)):
     rows = db.execute(
         text(
             """
-            SELECT id, slug, title, description, level, xp
+            SELECT id, slug, title, description, level, xp, COALESCE(lesson_type, 'standard') as lesson_type, COALESCE(config, '{}'::jsonb) as config
             FROM lessons
             WHERE is_published = true
             ORDER BY level ASC, id ASC
@@ -1358,7 +1364,7 @@ def list_lessons(db: Connection = Depends(get_db)):
 def get_lesson(slug: str, db: Connection = Depends(get_db)):
     lesson_row = db.execute(
         text("""
-            SELECT id, slug, title, description, level, xp
+            SELECT id, slug, title, description, level, xp, COALESCE(lesson_type, 'standard') as lesson_type, COALESCE(config, '{}'::jsonb) as config
             FROM lessons
             WHERE slug = :slug
         """),
@@ -2813,7 +2819,9 @@ CMS_TOKENS = set()
 def cms_list_lessons(request: Request, db=Depends(get_db)):
     require_cms(request, db)
     q = text("""
-    SELECT id, slug, title, description, level, xp, xp_reward, is_published
+    SELECT id, slug, title, description, level, xp, xp_reward, is_published,
+           COALESCE(lesson_type, 'standard') as lesson_type,
+           COALESCE(config, '{}'::jsonb) as config
     FROM lessons
     ORDER BY level ASC, id ASC
     """)
@@ -2832,6 +2840,10 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
     xp = int(body.get("xp") or 40)
     xp_reward = int(body.get("xp_reward") or xp)
 
+    # Reading lessons store additional structure in config.
+    lesson_type = (body.get("lesson_type") or "standard").strip() or "standard"
+    config = body.get("config") or {}
+
     # publish by default so it appears in /lessons
     is_published = bool(body.get("is_published", True))
 
@@ -2840,8 +2852,8 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
 
     new_id = db.execute(
         text("""
-            INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published)
-            VALUES (:slug, :title, :description, :level, :xp, :xp_reward, :is_published)
+            INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published, lesson_type, config)
+            VALUES (:slug, :title, :description, :level, :xp, :xp_reward, :is_published, :lesson_type, CAST(:config AS jsonb))
             RETURNING id
         """),
         {
@@ -2852,6 +2864,8 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
             "xp": xp,
             "xp_reward": xp_reward,
             "is_published": is_published,
+            "lesson_type": lesson_type,
+            "config": json.dumps(config),
         },
     ).scalar_one()
 
@@ -2862,7 +2876,8 @@ async def cms_update_lesson(lesson_id: int, request: Request, db=Depends(get_db)
     require_cms(request, db)
     body = await request.json()
 
-    fields = ["slug", "title", "description", "level", "xp", "xp_reward","is_published"]
+    # IMPORTANT: include lesson_type + config so Reading lessons persist correctly.
+    fields = ["slug", "title", "description", "level", "xp", "xp_reward", "is_published", "lesson_type", "config"]
     updates = {}
     for f in fields:
         if f in body:
@@ -2875,8 +2890,12 @@ async def cms_update_lesson(lesson_id: int, request: Request, db=Depends(get_db)
     set_parts = []
     params = {"id": lesson_id}
     for k, v in updates.items():
-        set_parts.append(f"{k} = :{k}")
-        params[k] = v
+        if k == "config":
+            set_parts.append("config = CAST(:config AS jsonb)")
+            params["config"] = json.dumps(v or {})
+        else:
+            set_parts.append(f"{k} = :{k}")
+            params[k] = v
 
     q = text(f"UPDATE lessons SET {', '.join(set_parts)} WHERE id = :id")
     db.execute(q, params)
@@ -3216,6 +3235,8 @@ def cms_delete_option(option_id: int, request: Request, db=Depends(get_db)):
     db.execute(text("DELETE FROM exercise_options WHERE id = :id"), {"id": option_id})
     return {"ok": True}
     
+# --------- ElevenLabs TTS ----------
+
 # --------- ElevenLabs TTS ----------
 
 """Legacy /tts endpoint.
