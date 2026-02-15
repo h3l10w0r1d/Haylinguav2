@@ -1,4 +1,3 @@
-#
 # backend/routes.py
 import os
 from datetime import datetime, timedelta
@@ -157,69 +156,6 @@ class LogOut(BaseModel):
 def normalize_kind(kind: str) -> str:
     k = (kind or "").strip()
     return KIND_MAP.get(k, k)
-
-def _norm_text(x: str) -> str:
-    return (x or "").strip().lower()
-
-
-def _evaluate_attempt(db, exercise_id: int, payload):
-    """Server-side correctness evaluation (best-effort).
-
-    Supports:
-      - typing kinds via exercises.expected_answer
-      - option-based kinds via exercise_options.is_correct with payload.selected_indices
-
-    Falls back to is_correct when we cannot evaluate.
-    Returns: (is_correct: bool, score: float 0..1)
-    """
-    row = db.execute(
-        text("SELECT kind, expected_answer FROM exercises WHERE id = :id"),
-        {"id": exercise_id},
-    ).mappings().first()
-    if not row:
-        ok = bool(getattr(payload, "is_correct", False))
-        return ok, (1.0 if ok else 0.0)
-
-    kind = normalize_kind(row.get("kind") or "")
-    expected = row.get("expected_answer")
-
-    # Typing / exact-answer kinds
-    if kind in {"letter_typing", "word_spelling", "fill_blank", "char_intro"}:
-        ans = _norm_text(getattr(payload, "answer_text", "") or "")
-        exp = _norm_text(expected or "")
-        ok = bool(exp) and ans == exp
-        return ok, (1.0 if ok else 0.0)
-
-    # Option-based kinds (MCQ / true-false / recognition)
-    if kind in {"char_mcq_sound", "translate_mcq", "letter_recognition", "true_false"}:
-        sel = list(getattr(payload, "selected_indices", None) or [])
-        if not sel:
-            return False, 0.0
-        opts = db.execute(
-            text("SELECT is_correct FROM exercise_options WHERE exercise_id = :id ORDER BY id"),
-            {"id": exercise_id},
-        ).mappings().all()
-        if not opts:
-            ok = bool(getattr(payload, "is_correct", False))
-            return ok, (1.0 if ok else 0.0)
-        correct_indices = {i for i, o in enumerate(opts) if o.get("is_correct")}
-        ok = sel[0] in correct_indices
-        return ok, (1.0 if ok else 0.0)
-
-    # Multi-select (exact set match)
-    if kind in {"multi_select"}:
-        sel = set(getattr(payload, "selected_indices", None) or [])
-        opts = db.execute(
-            text("SELECT is_correct FROM exercise_options WHERE exercise_id = :id ORDER BY id"),
-            {"id": exercise_id},
-        ).mappings().all()
-        correct_indices = {i for i, o in enumerate(opts) if o.get("is_correct")}
-        ok = bool(correct_indices) and sel == correct_indices
-        return ok, (1.0 if ok else 0.0)
-
-    ok = bool(getattr(payload, "is_correct", False))
-    return ok, (1.0 if ok else 0.0)
-
 
 def validate_exercise_config(kind: str, config: dict):
     if kind != "multi_select":
@@ -1620,9 +1556,6 @@ def record_exercise_attempt(
 
     _ensure_user_lesson_progress(db, user_id, lesson_id)
 
-    # ✅ Backend decides correctness (do not trust FE)
-    is_correct, _score = _evaluate_attempt(db, exercise_id, payload)
-
     # Insert attempt
     attempt_id = db.execute(
         text("""
@@ -1643,7 +1576,7 @@ def record_exercise_attempt(
             "l": lesson_id,
             "ex": exercise_id,
             "attempt_no": int(payload.attempt_no or 1),
-            "ok": bool(is_correct),
+            "ok": bool(payload.is_correct),
             "answer_text": payload.answer_text,
             "selected_indices": json.dumps(payload.selected_indices or []),
             "time_ms": payload.time_ms,
@@ -1656,9 +1589,9 @@ def record_exercise_attempt(
         user_id=user_id,
         lesson_id=lesson_id,
         exercise_id=exercise_id,
-        is_correct=bool(is_correct),
+        is_correct=bool(payload.is_correct),
     )
-    _update_review_queue(db, user_id, lesson_id, exercise_id, bool(is_correct))
+    _update_review_queue(db, user_id, lesson_id, exercise_id, bool(payload.is_correct))
     acc = _get_accuracy(db, user_id, lesson_id)
 
     # Snapshot XP before recompute so we can return per-attempt delta
@@ -1677,7 +1610,7 @@ def record_exercise_attempt(
 
     # Hearts: decrement on wrong answers (keep DB as source of truth)
     _ensure_hearts_initialized(db, user_id)
-    if not bool(is_correct):
+    if not bool(payload.is_correct):
         db.execute(
             text(
                 """
@@ -1701,7 +1634,7 @@ def record_exercise_attempt(
         earned_xp=int(progress["earned_xp"]),
         earned_xp_delta=int(earned_xp_delta),
         completion_ratio=float(progress["completion_ratio"]),
-        completed = bool(progress.get("is_completed", progress.get("completed", False))),
+        completed=bool(progress["completed"]),
         hearts_current=int(hearts["hearts_current"]),
         hearts_max=int(hearts["hearts_max"]),
         )
@@ -2860,98 +2793,193 @@ def cms_delete_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
 
 
 def recompute_lesson_progress(db, user_id: int, lesson_id: int):
-    """Recompute per-user per-lesson progress.
+    # 1) total exercises in lesson
+    total_row = db.execute(
+        text("SELECT COUNT(*) AS c FROM exercises WHERE lesson_id = :lid"),
+        {"lid": lesson_id},
+    ).mappings().first()
 
-    Progress is XP-based:
-      - Each exercise has fixed xp.
-      - User earns that xp once the exercise is solved correctly (1+ correct attempt).
-      - Lesson completion is based on earned_xp / total_xp.
-      - A lesson is considered completed at >= 70%.
+    total_ex = int(total_row["c"] or 0)
 
-    This makes the backend authoritative and prevents double-counting XP on retries.
-    """
+    # avoid division by zero
+    if total_ex == 0:
+        total_ex = 1
 
-    # Total XP available in the lesson
-    total_xp = db.execute(
-        text(
-            """
-            SELECT COALESCE(SUM(xp), 0) AS total_xp
-            FROM exercises
-            WHERE lesson_id = :lesson_id
-            """
-        ),
-        {"lesson_id": lesson_id},
-    ).scalar() or 0
+    # 2) how many exercises user has correct at least once
+    correct_row = db.execute(
+        text("""
+            SELECT COUNT(DISTINCT uea.exercise_id) AS c
+            FROM user_exercise_attempts uea
+            JOIN exercises e ON e.id = uea.exercise_id
+            WHERE uea.user_id = :uid
+              AND e.lesson_id = :lid
+              AND uea.is_correct = TRUE
+        """),
+        {"uid": user_id, "lid": lesson_id},
+    ).mappings().first()
 
-    # Earned XP = sum of xp for exercises that have at least one correct attempt
-    earned_xp = db.execute(
-        text(
-            """
-            SELECT COALESCE(SUM(e.xp), 0) AS earned_xp
-            FROM exercises e
-            WHERE e.lesson_id = :lesson_id
-              AND EXISTS (
-                SELECT 1
-                FROM user_exercise_attempts a
-                WHERE a.user_id = :user_id
-                  AND a.exercise_id = e.id
-                  AND a.is_correct = TRUE
-              )
-            """
-        ),
-        {"lesson_id": lesson_id, "user_id": user_id},
-    ).scalar() or 0
+    correct_ex = int(correct_row["c"] or 0)
 
-    # Completed exercises count (distinct)
-    exercises_completed = db.execute(
-        text(
-            """
-            SELECT COUNT(*) AS cnt
-            FROM exercises e
-            WHERE e.lesson_id = :lesson_id
-              AND EXISTS (
-                SELECT 1
-                FROM user_exercise_attempts a
-                WHERE a.user_id = :user_id
-                  AND a.exercise_id = e.id
-                  AND a.is_correct = TRUE
-              )
-            """
-        ),
-        {"lesson_id": lesson_id, "user_id": user_id},
-    ).scalar() or 0
+    # 3) earned XP = sum XP of DISTINCT correct exercises
+    xp_row = db.execute(
+        text("""
+            SELECT COALESCE(SUM(t.xp), 0) AS xp
+            FROM (
+                SELECT DISTINCT e.id, e.xp
+                FROM user_exercise_attempts uea
+                JOIN exercises e ON e.id = uea.exercise_id
+                WHERE uea.user_id = :uid
+                  AND e.lesson_id = :lid
+                  AND uea.is_correct = TRUE
+            ) t
+        """),
+        {"uid": user_id, "lid": lesson_id},
+    ).mappings().first()
 
-    completion_ratio = float(earned_xp) / float(total_xp) if total_xp else 0.0
+    earned_xp = int(xp_row["xp"] or 0)
+
+    # 4) completion
+    completion_ratio = correct_ex / total_ex
     is_completed = completion_ratio >= 0.70
 
-    # Upsert progress row
+    # 5) store progress (use your existing table)
+    # If your table is user_lesson_progress and it has these columns, do:
     db.execute(
-        text(
-            """
-            INSERT INTO user_lesson_progress (user_id, lesson_id, earned_xp, completion_ratio, is_completed, exercises_completed)
-            VALUES (:user_id, :lesson_id, :earned_xp, :ratio, :done, :ex_done)
-            ON CONFLICT (user_id, lesson_id) DO UPDATE
-            SET earned_xp = EXCLUDED.earned_xp,
-                completion_ratio = EXCLUDED.completion_ratio,
-                is_completed = EXCLUDED.is_completed,
+        text("""
+            INSERT INTO user_lesson_progress (
+                user_id, lesson_id, exercises_total, exercises_completed, xp_earned, last_seen_at, completed_at
+            )
+            VALUES (
+                :uid, :lid, :total, :completed, :xp, NOW(), CASE WHEN :done THEN NOW() ELSE NULL END
+            )
+            ON CONFLICT (user_id, lesson_id)
+            DO UPDATE SET
+                exercises_total = EXCLUDED.exercises_total,
                 exercises_completed = EXCLUDED.exercises_completed,
-                updated_at = NOW()
-            """
-        ),
+                xp_earned = EXCLUDED.xp_earned,
+                last_seen_at = NOW(),
+                completed_at = CASE WHEN :done THEN COALESCE(user_lesson_progress.completed_at, NOW()) ELSE NULL END
+        """),
         {
-            "user_id": user_id,
-            "lesson_id": lesson_id,
-            "earned_xp": int(earned_xp),
-            "ratio": float(completion_ratio),
-            "done": bool(is_completed),
-            "ex_done": int(exercises_completed),
+            "uid": user_id,
+            "lid": lesson_id,
+            "total": total_ex,
+            "completed": correct_ex,
+            "xp": earned_xp,
+            "done": is_completed,
         },
     )
 
     return {
-        "earned_xp": int(earned_xp),
-        "total_xp": int(total_xp),
-        "completion_ratio": float(completion_ratio),
-        "is_completed": bool(is_completed),
-        "exercises_completed": int(exercises_completed),
+        "total_exercises": total_ex,
+        "correct_exercises": correct_ex,
+        "earned_xp": earned_xp,
+        "completion_ratio": completion_ratio,
+        "completed": is_completed,
     }
+# -------------------- OPTIONS --------------------
+
+@router.get("/cms/exercises/{exercise_id}/options")
+def cms_list_options(exercise_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT id, exercise_id, text, is_correct, side, match_key
+        FROM exercise_options
+        WHERE exercise_id = :id
+        ORDER BY id ASC
+    """), {"id": exercise_id}).mappings().all()
+    return [dict(r) for r in rows]
+
+@router.post("/cms/options")
+async def cms_create_option(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+
+    exercise_id = int(body.get("exercise_id") or 0)
+    text_val = (body.get("text") or "").strip()
+    is_correct = bool(body.get("is_correct") or False)
+    side = body.get("side")
+    match_key = body.get("match_key")
+
+    if not exercise_id or not text_val:
+        raise HTTPException(400, detail="exercise_id and text are required")
+
+    new_id = db.execute(text("""
+        INSERT INTO exercise_options (exercise_id, text, is_correct, side, match_key)
+        VALUES (:exercise_id, :text, :is_correct, :side, :match_key)
+        RETURNING id
+    """), {
+        "exercise_id": exercise_id, "text": text_val,
+        "is_correct": is_correct, "side": side, "match_key": match_key
+    }).scalar_one()
+    return {"id": new_id}
+
+@router.put("/cms/options/{option_id}")
+async def cms_update_option(option_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+
+    allowed = ["text", "is_correct", "side", "match_key"]
+    updates = {}
+    for f in allowed:
+        if f in body:
+            updates[f] = body[f]
+
+    if len(updates) == 0:
+        return {"ok": True}
+
+    set_parts = []
+    params = {"id": option_id}
+    for k, v in updates.items():
+        set_parts.append(f"{k} = :{k}")
+        params[k] = v
+
+    db.execute(text(f"UPDATE exercise_options SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/options/{option_id}")
+def cms_delete_option(option_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM exercise_options WHERE id = :id"), {"id": option_id})
+    return {"ok": True}
+    
+# --------- ElevenLabs TTS ----------
+
+@router.post("/tts", response_class=Response)
+async def tts_speak(payload: TTSPayload):
+    if not ELEVEN_API_KEY:
+        raise HTTPException(status_code=500, detail="TTS not configured on server")
+
+    text_value = (payload.text or "").strip()
+    if not text_value:
+        raise HTTPException(status_code=400, detail="Text is empty")
+
+    voice_id = payload.voice_id or DEFAULT_VOICE_ID
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    params = {"output_format": "mp3_44100_128"}
+
+    headers = {
+        "xi-api-key": ELEVEN_API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    body = {
+        "text": text_value,
+        "model_id": "eleven_multilingual_v2",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(url, params=params, headers=headers, json=body)
+        if r.status_code != 200:
+            print("ElevenLabs error:", r.status_code, r.text)
+            raise HTTPException(
+                status_code=502,
+                detail=f"ElevenLabs error ({r.status_code})",
+            )
+        audio_bytes = r.content
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"TTS request failed: {e}") from e
+
+    return Response(content=audio_bytes, media_type="audio/mpeg")
