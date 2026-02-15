@@ -2694,36 +2694,26 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
         raise HTTPException(400, detail="lesson_id and kind are required")
 
     q = text("""
-        INSERT INTO exercises (
-    lesson_id,
-    kind,
-    prompt,
-    expected_answer,
-    "order",
-    xp,
-    config
-)
-VALUES (
-    %(lesson_id)s,
-    %(kind)s,
-    %(prompt)s,
-    %(expected_answer)s,
-    %(order)s,
-    %(xp)s,
-    CAST(%(config)s AS jsonb)
-)
-RETURNING id
-    """)
-
-    params = {
-        "lesson_id": lesson_id,
-        "kind": kind,
-        "prompt": prompt,
-        "expected_answer": expected_answer,
-        "order": order,
-        "xp": xp,
-        "config": json.dumps(config),
-    }
+    INSERT INTO exercises (
+        lesson_id,
+        kind,
+        prompt,
+        expected_answer,
+        "order",
+        xp,
+        config
+    )
+    VALUES (
+        :lesson_id,
+        :kind,
+        :prompt,
+        :expected_answer,
+        :order,
+        :xp,
+        CAST(:config AS jsonb)
+    )
+    RETURNING id
+""")
 
     new_id = db.execute(q, params).scalar_one()
     return {"id": new_id}
