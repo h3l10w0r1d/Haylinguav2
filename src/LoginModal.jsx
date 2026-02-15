@@ -9,6 +9,7 @@ export default function LoginModal({
   onSwitchMode,
 }) {
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +23,7 @@ export default function LoginModal({
       if (isLogin) {
         await onLogin(email, password);
       } else {
-        await onSignup(name, email, password);
+        await onSignup(name, username, email, password);
       }
       onClose();
     } catch (err) {
@@ -64,12 +65,28 @@ export default function LoginModal({
             </div>
           )}
 
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Username
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                placeholder="e.g. armen_23"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              {isLogin ? "Email or username" : "Email"}
             </label>
             <input
-              type="email"
+              type={isLogin ? "text" : "email"}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
