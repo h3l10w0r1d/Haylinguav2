@@ -76,11 +76,36 @@ async def generate_elevenlabs_tts(text: str, voice_id: str) -> bytes:
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(url, headers=headers, json=payload)
-    
-    if response.status_code != 200:
-        raise HTTPException(response.status_code, f"ElevenLabs error: {response.text}")
-    
-    return response.content
+
+        # If the API key belongs to a different workspace/account, a hard-coded voice_id
+        # can become invalid -> ElevenLabs responds 404 (voice not found).
+        # We try to recover by selecting the first available voice for that API key.
+        if response.status_code == 404:
+            try:
+                voices_resp = await client.get(f"{ELEVEN_API_URL}/voices", headers=headers)
+                if voices_resp.status_code == 200:
+                    voices_data = voices_resp.json() or {}
+                    voices = voices_data.get("voices") or []
+                    if voices:
+                        fallback_voice_id = voices[0].get("voice_id") or voices[0].get("id")
+                        if fallback_voice_id and fallback_voice_id != voice_id:
+                            url2 = f"{ELEVEN_API_URL}/text-to-speech/{fallback_voice_id}"
+                            response = await client.post(url2, headers=headers, json=payload)
+            except Exception:
+                # If recovery fails, we'll return the original error below.
+                pass
+
+        if response.status_code != 200:
+            # keep it short, but useful (Eleven can return HTML on errors sometimes)
+            body = (response.text or "").strip()
+            if len(body) > 600:
+                body = body[:600] + "…"
+            raise HTTPException(
+                response.status_code,
+                f"ElevenLabs error ({response.status_code}). voice_id={voice_id}. body={body}",
+            )
+
+        return response.content
 
 
 @router.get("/cms/exercises/{exercise_id}/audio")
