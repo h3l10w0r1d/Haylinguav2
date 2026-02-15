@@ -6,9 +6,14 @@ export const API_BASE = (
   "https://haylinguav2.onrender.com"
 ).replace(/\/$/, "");
 
-// App.jsx uses "hay_token" as the auth token key
+// The app historically used different token keys across pages.
+// Support both so we never drop auth after refactors.
 export function getToken() {
-  return localStorage.getItem("hay_token") || "";
+  return (
+    localStorage.getItem("hay_token") ||
+    localStorage.getItem("token") ||
+    ""
+  );
 }
 
 function safeJsonParse(text) {
