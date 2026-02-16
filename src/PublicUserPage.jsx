@@ -7,7 +7,7 @@ import { useParams, Link } from "react-router-dom";
  * - If token exists, we pass it to show friend-status / extra info (backend may use it)
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://haylinguav2.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
 function authHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
