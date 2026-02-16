@@ -15,12 +15,12 @@ import {
   EyeOff,
 } from "lucide-react";
 
-import av1 from "./assets/avatars/av1.svg";
-import av2 from "./assets/avatars/av2.svg";
-import av3 from "./assets/avatars/av3.svg";
-import av4 from "./assets/avatars/av4.svg";
-import av5 from "./assets/avatars/av5.svg";
-import av6 from "./assets/avatars/av6.svg";
+import av1 from "./assets/avatars/av1.png";
+import av2 from "./assets/avatars/av2.png";
+import av3 from "./assets/avatars/av3.png";
+import av4 from "./assets/avatars/av4.png";
+import av5 from "./assets/avatars/av5.png";
+import av6 from "./assets/avatars/av6.png";
 
 const PRESET_AVATARS = [av1, av2, av3, av4, av5, av6];
 
