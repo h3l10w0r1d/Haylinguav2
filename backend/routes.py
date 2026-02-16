@@ -937,7 +937,11 @@ class MeProfileOut(BaseModel):
 class MeProfileUpdateIn(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
+    display_name: str | None = None
+    bio: str | None = None
     avatar_url: str | None = None
+    profile_theme: dict | None = None
+    friends_public: bool | None = None
 
 
 class OnboardingOut(BaseModel):
@@ -2267,15 +2271,27 @@ def me_profile_put(
 
     fn = (payload.first_name or "").strip()
     ln = (payload.last_name or "").strip()
-    new_name = " ".join([x for x in [fn, ln] if x]) or None
+    computed_name = " ".join([x for x in [fn, ln] if x]) or None
+    explicit_name = (payload.display_name or "").strip() or None
+    new_name = explicit_name if payload.display_name is not None else computed_name
 
     updates = {}
     # Store as display_name (users table uses display_name)
-    if payload.first_name is not None or payload.last_name is not None:
+    if payload.display_name is not None or payload.first_name is not None or payload.last_name is not None:
         updates["display_name"] = new_name
 
     if payload.avatar_url is not None:
         updates["avatar_url"] = payload.avatar_url.strip() or None
+
+    if payload.bio is not None:
+        updates["bio"] = (payload.bio or "").strip() or None
+
+    if payload.profile_theme is not None:
+        # Stored as jsonb
+        updates["profile_theme"] = payload.profile_theme or {}
+
+    if payload.friends_public is not None:
+        updates["friends_public"] = bool(payload.friends_public)
 
     if updates:
         set_parts = []
@@ -2283,6 +2299,14 @@ def me_profile_put(
         for k, v in updates.items():
             set_parts.append(f"{k} = :{k}")
             params[k] = v
+
+        # Cast json fields explicitly when present
+        if "profile_theme" in updates:
+            # Replace profile_theme assignment with explicit jsonb cast
+            set_parts = [
+                ("profile_theme = CAST(:profile_theme AS jsonb)" if p.startswith("profile_theme") else p)
+                for p in set_parts
+            ]
 
         db.execute(text(f"UPDATE users SET {', '.join(set_parts)} WHERE id = :id"), params)
 
@@ -2769,7 +2793,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
             SELECT
               xp.*,
               ranks.global_rank,
-              (SELECT COUNT(1) FROM friends f WHERE f.user_id = xp.id) AS friends_count
+              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = xp.id OR f.friend_id = xp.id) AND f.status = 'accepted') AS friends_count
             FROM xp
             JOIN ranks ON ranks.id = xp.id
             """
@@ -2784,20 +2808,35 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
 def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[dict]:
     """Small preview list of friends for public pages (only when friends_public=True)."""
 
+    # Compute ranks based on SUM(lesson_progress.xp_earned) to avoid relying on a non-existent
+    # users.xp_total column.
     rows = db.execute(
         text(
             """
-            SELECT u.username, u.display_name,
-                   (SELECT 1 + COUNT(*) FROM users u2
-                    WHERE COALESCE(u2.xp_total,0) > COALESCE(u.xp_total,0)) AS global_rank
-            FROM friends f
-            JOIN users u ON u.id = CASE
-                WHEN f.user_id = :uid THEN f.friend_id
-                ELSE f.user_id
-            END
-            WHERE (f.user_id = :uid OR f.friend_id = :uid)
-              AND f.status = 'accepted'
-            ORDER BY COALESCE(u.xp_total,0) DESC
+            WITH totals AS (
+              SELECT u.id, u.username, u.display_name,
+                     COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+              FROM users u
+              LEFT JOIN lesson_progress lp ON lp.user_id = u.id
+              GROUP BY u.id, u.username, u.display_name
+            ), ranks AS (
+              SELECT id,
+                     RANK() OVER (ORDER BY total_xp DESC, id ASC) AS global_rank
+              FROM totals
+            ), friend_ids AS (
+              SELECT CASE
+                       WHEN f.user_id = :uid THEN f.friend_id
+                       ELSE f.user_id
+                     END AS fid
+              FROM friends f
+              WHERE (f.user_id = :uid OR f.friend_id = :uid)
+                AND f.status = 'accepted'
+            )
+            SELECT t.username, t.display_name, r.global_rank
+            FROM friend_ids fi
+            JOIN totals t ON t.id = fi.fid
+            JOIN ranks r ON r.id = fi.fid
+            ORDER BY t.total_xp DESC, t.id ASC
             LIMIT :lim
             """
         ),
@@ -2845,7 +2884,13 @@ def get_public_user(
         is_friend = bool(
             db.execute(
                 text(
-                    "SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"
+                    """
+                    SELECT 1
+                    FROM friends
+                    WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
+                      AND status = 'accepted'
+                    LIMIT 1
+                    """
                 ),
                 {"a": int(viewer_id), "b": target_id},
             ).first()
@@ -2896,7 +2941,15 @@ def get_public_user_friends(
 
     is_friend = bool(
         db.execute(
-            text("SELECT 1 FROM friends WHERE user_id = :a AND friend_id = :b LIMIT 1"),
+            text(
+                """
+                SELECT 1
+                FROM friends
+                WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
+                  AND status = 'accepted'
+                LIMIT 1
+                """
+            ),
             {"a": int(viewer_id), "b": target_id},
         ).first()
     )
