@@ -2793,7 +2793,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
             SELECT
               xp.*,
               ranks.global_rank,
-              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = xp.id OR f.friend_id = xp.id) AND f.status = 'accepted') AS friends_count
+              (SELECT COUNT(1) FROM friends f WHERE f.user_id = xp.id) AS friends_count
             FROM xp
             JOIN ranks ON ranks.id = xp.id
             """
@@ -2824,13 +2824,9 @@ def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[d
                      RANK() OVER (ORDER BY total_xp DESC, id ASC) AS global_rank
               FROM totals
             ), friend_ids AS (
-              SELECT CASE
-                       WHEN f.user_id = :uid THEN f.friend_id
-                       ELSE f.user_id
-                     END AS fid
+              SELECT f.friend_id AS fid
               FROM friends f
-              WHERE (f.user_id = :uid OR f.friend_id = :uid)
-                AND f.status = 'accepted'
+              WHERE f.user_id = :uid
             )
             SELECT t.username, t.display_name, r.global_rank
             FROM friend_ids fi
