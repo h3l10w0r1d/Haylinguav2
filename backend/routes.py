@@ -1,7 +1,7 @@
 # backend/routes.py
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Any, Optional
 
 import httpx
@@ -2732,7 +2732,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
 
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pyotp
 
 CMS_INVITE_TTL_HOURS = int(os.getenv("CMS_INVITE_TTL_HOURS") or "72")
