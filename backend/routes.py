@@ -1,6 +1,7 @@
 # backend/routes.py
 import os
 import json
+import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
@@ -35,6 +36,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy import text
 from database import get_db
 import json
+import re
 
 router = APIRouter()
 
@@ -935,11 +937,14 @@ class MeProfileOut(BaseModel):
     last_name: str | None = None
 
 class MeProfileUpdateIn(BaseModel):
+    username: str | None = None
     first_name: str | None = None
     last_name: str | None = None
     display_name: str | None = None
     bio: str | None = None
     avatar_url: str | None = None
+    banner_url: str | None = None
+    is_hidden: bool = False
     profile_theme: dict | None = None
     friends_public: bool | None = None
 
@@ -2047,6 +2052,8 @@ class MeOut(BaseModel):
     name: str | None = None  # display name (legacy field name)
     bio: str | None = None
     avatar_url: str | None = None
+    banner_url: str | None = None
+    is_hidden: bool = False
     profile_theme: dict = {}
     friends_public: bool = True
     email_verified: bool = False
@@ -2058,6 +2065,8 @@ class MeUpdateIn(BaseModel):
     name: str | None = None
     bio: str | None = None
     avatar_url: str | None = None
+    banner_url: str | None = None
+    is_hidden: bool = False
     profile_theme: dict | None = None
     friends_public: bool | None = None
 
@@ -2215,7 +2224,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, bio, avatar_url, profile_theme, friends_public, email_verified FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, bio, avatar_url, banner_url, is_hidden, profile_theme, friends_public, email_verified FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -2255,6 +2264,7 @@ def me_hearts(
 
 
 class MeProfileUpdateIn(BaseModel):
+    username: str | None = None
     first_name: str | None = None
     last_name: str | None = None
     avatar_url: str | None = None
@@ -2276,12 +2286,37 @@ def me_profile_put(
     new_name = explicit_name if payload.display_name is not None else computed_name
 
     updates = {}
+
+    if payload.username is not None:
+        u = (payload.username or "").strip()
+        if u == "":
+            updates["username"] = None
+        else:
+            # basic normalization
+            u_norm = u.lower()
+            # validate simple slug
+            if not re.match(r"^[a-z0-9_]{3,32}$", u_norm):
+                raise HTTPException(status_code=400, detail="Invalid username format")
+            exists = db.execute(
+                text("SELECT 1 FROM users WHERE LOWER(username)=LOWER(:u) AND id <> :id LIMIT 1"),
+                {"u": u_norm, "id": user_id},
+            ).scalar()
+            if exists:
+                raise HTTPException(status_code=400, detail="Username already taken")
+            updates["username"] = u_norm
+
     # Store as display_name (users table uses display_name)
     if payload.display_name is not None or payload.first_name is not None or payload.last_name is not None:
         updates["display_name"] = new_name
 
     if payload.avatar_url is not None:
         updates["avatar_url"] = payload.avatar_url.strip() or None
+
+    if payload.banner_url is not None:
+        updates["banner_url"] = payload.banner_url.strip() or None
+
+    if payload.is_hidden is not None:
+        updates["is_hidden"] = bool(payload.is_hidden)
 
     if payload.bio is not None:
         updates["bio"] = (payload.bio or "").strip() or None
@@ -2311,7 +2346,7 @@ def me_profile_put(
         db.execute(text(f"UPDATE users SET {', '.join(set_parts)} WHERE id = :id"), params)
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, bio, avatar_url, profile_theme, friends_public, email_verified FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, bio, avatar_url, banner_url, is_hidden, profile_theme, friends_public, email_verified FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -2749,6 +2784,8 @@ class PublicUserOut(BaseModel):
     name: str
     bio: str | None = None
     avatar_url: str | None = None
+    banner_url: str | None = None
+    is_hidden: bool = False
     profile_theme: dict = {}
     xp: int
     level: int
@@ -2771,6 +2808,8 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
                 u.display_name,
                 u.bio,
                 u.avatar_url,
+                u.banner_url,
+                u.is_hidden,
                 u.profile_theme,
                 COALESCE(SUM(lp.xp_earned), 0) AS total_xp
               FROM users u
@@ -2793,7 +2832,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
             SELECT
               xp.*,
               ranks.global_rank,
-              (SELECT COUNT(1) FROM friends f WHERE f.user_id = xp.id) AS friends_count
+              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = xp.id OR f.friend_id = xp.id) ) AS friends_count
             FROM xp
             JOIN ranks ON ranks.id = xp.id
             """
@@ -2803,6 +2842,20 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
     if not r:
         raise HTTPException(status_code=404, detail="User not found")
     return dict(r)
+
+    # If account is hidden, return minimal public data
+    if bool(out.get("is_hidden")):
+        out["bio"] = None
+        out["avatar_url"] = None
+        out["banner_url"] = None
+        out["profile_theme"] = {}
+        out["xp"] = 0
+        out["level"] = 1
+        out["streak"] = 0
+        out["global_rank"] = 0
+        out["friends_count"] = 0
+        out["friends_preview"] = []
+        return out
 
 
 def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[dict]:
@@ -2824,9 +2877,13 @@ def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[d
                      RANK() OVER (ORDER BY total_xp DESC, id ASC) AS global_rank
               FROM totals
             ), friend_ids AS (
-              SELECT f.friend_id AS fid
+              SELECT CASE
+                       WHEN f.user_id = :uid THEN f.friend_id
+                       ELSE f.user_id
+                     END AS fid
               FROM friends f
-              WHERE f.user_id = :uid
+              WHERE (f.user_id = :uid OR f.friend_id = :uid)
+                AND f.status = 'accepted'
             )
             SELECT t.username, t.display_name, r.global_rank
             FROM friend_ids fi
@@ -2884,6 +2941,7 @@ def get_public_user(
                     SELECT 1
                     FROM friends
                     WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
+                      
                     LIMIT 1
                     """
                 ),
@@ -2941,6 +2999,7 @@ def get_public_user_friends(
                 SELECT 1
                 FROM friends
                 WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
+                  
                 LIMIT 1
                 """
             ),
