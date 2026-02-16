@@ -67,6 +67,13 @@ export default function PublicUserPage({ token }) {
   const displayName = data?.name || data?.username || safeUsername;
   const avatarUrl = data?.avatar_url || null;
 
+  const resolveAvatarUrl = (u) => {
+    if (!u) return null;
+    if (u.startsWith("http://") || u.startsWith("https://")) return u;
+    if (u.startsWith("/static/")) return `${API_BASE}${u}`;
+    return u;
+  };
+
   const theme = data?.profile_theme || {};
   const pageBg = theme?.background || "#fff7ef";
 
@@ -113,7 +120,7 @@ export default function PublicUserPage({ token }) {
                 <div className="flex items-start gap-5">
                   <div className="h-16 w-16 rounded-2xl bg-[#ff6a00]/15 flex items-center justify-center overflow-hidden border border-black/5">
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                      <img src={resolveAvatarUrl(avatarUrl)} alt="avatar" className="h-full w-full object-cover" />
                     ) : (
                       <span className="text-2xl font-bold text-[#ff6a00]">
                         {(displayName || "?").slice(0, 1).toUpperCase()}
