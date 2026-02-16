@@ -1,6 +1,6 @@
 // src/ProfilePage.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Trophy, Flame, Star } from "lucide-react";
+import { Trophy, Flame, Star, Palette, ShieldCheck, Mail, KeyRound, LockKeyhole, Link2 } from "lucide-react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -9,6 +9,124 @@ const API_BASE =
   "https://haylinguav2.onrender.com";
 
 function getToken() {
+
+  const publicProfileHref = useMemo(() => {
+    const un = (username || user?.username || "").trim();
+    return un ? `/users/${encodeURIComponent(un)}` : "";
+  }, [username, user?.username]);
+
+  const handleRequestEmailChange = async () => {
+    setNotice("");
+    const token = getToken();
+    const em = (newEmail || "").trim();
+    if (!em) return setNotice("Enter a new email.");
+    if (!token) return setNotice("You must be logged in.");
+
+    try {
+      let res = await apiFetch("/me/request-email-change", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ new_email: em }),
+      });
+
+      if (!res.ok) {
+        res = await apiFetch("/me/email/change-request", {
+          token,
+          method: "POST",
+          body: JSON.stringify({ new_email: em }),
+        });
+      }
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        return setNotice(
+          `Email change request not available yet (status ${res.status}). ${t}`.trim()
+        );
+      }
+
+      setNewEmail("");
+      setNotice("Confirmation email sent. Please check your inbox.");
+    } catch (e) {
+      console.error("[Profile] email change request failed:", e);
+      setNotice("Email change request failed.");
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setNotice("");
+    const token = getToken();
+    if (!token) return setNotice("You must be logged in.");
+    if (!oldPassword || !newPassword) return setNotice("Fill both password fields.");
+    if (String(newPassword).length < 8) return setNotice("New password is too short (min 8).");
+
+    try {
+      let res = await apiFetch("/me/change-password", {
+        token,
+        method: "POST",
+        body: JSON.stringify({
+          old_password: oldPassword,
+          new_password: newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        res = await apiFetch("/me/password/change", {
+          token,
+          method: "POST",
+          body: JSON.stringify({
+            old_password: oldPassword,
+            new_password: newPassword,
+          }),
+        });
+      }
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        return setNotice(
+          `Password change not available yet (status ${res.status}). ${t}`.trim()
+        );
+      }
+
+      setOldPassword("");
+      setNewPassword("");
+      setNotice("Password updated successfully.");
+    } catch (e) {
+      console.error("[Profile] password change failed:", e);
+      setNotice("Password change failed.");
+    }
+  };
+
+  const handleToggle2FA = async () => {
+    setNotice("");
+    const token = getToken();
+    if (!token) return setNotice("You must be logged in.");
+
+    try {
+      let res = await apiFetch("/me/toggle-2fa", {
+        token,
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        res = await apiFetch("/me/2fa/toggle", {
+          token,
+          method: "POST",
+        });
+      }
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        return setNotice(`2FA toggle not available yet (status ${res.status}). ${t}`.trim());
+      }
+
+      setTwoFaEnabled((v) => !v);
+      setNotice(`2FA ${!twoFaEnabled ? "enabled" : "disabled"}.`);
+    } catch (e) {
+      console.error("[Profile] toggle 2FA failed:", e);
+      setNotice("2FA toggle failed.");
+    }
+  };
+
   return (
     localStorage.getItem("access_token") ||
     localStorage.getItem("hay_token") ||
@@ -45,10 +163,42 @@ function safeJsonParse(res) {
   return res.json().catch(() => null);
 }
 
+function isValidGradient(s) {
+  if (!s) return false;
+  const v = String(s).trim();
+  return (
+    v.startsWith("linear-gradient(") ||
+    v.startsWith("radial-gradient(") ||
+    v.startsWith("conic-gradient(")
+  );
+}
+
+function resolveProfileBackground({ themeBg, themeGradient }) {
+  const bg = String(themeBg || "").trim() || "#fff7ed";
+  const grad = String(themeGradient || "").trim();
+  if (isValidGradient(grad)) return grad;
+  return bg;
+}
+
 export default function ProfilePage({ user, onUpdateUser }) {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState(user?.email || "");
   const [avatarUrl, setAvatarUrl] = useState("");
+
+  // Public profile + customization
+  const [username, setUsername] = useState(user?.username || "");
+  const [bio, setBio] = useState("");
+  const [themeBg, setThemeBg] = useState("#fff7ed"); // warm off-white (matches current UI)
+  const [themeGradient, setThemeGradient] = useState("");
+  const [friendsPublic, setFriendsPublic] = useState(true);
+
+  // Security UI (endpoints may be added later)
+  const [newEmail, setNewEmail] = useState("");
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+
+  const [notice, setNotice] = useState("");
 
   const [saving, setSaving] = useState(false);
 
@@ -136,6 +286,25 @@ export default function ProfilePage({ user, onUpdateUser }) {
 
         if (typeof em === "string" && em) setEmail(em);
         if (typeof av === "string") setAvatarUrl(av);
+
+        // Public profile fields (optional)
+        const un = data.username ?? data.handle ?? user?.username ?? "";
+        if (typeof un === "string") setUsername(un);
+
+        const b = data.bio ?? "";
+        if (typeof b === "string") setBio(b);
+
+        const theme = data.profile_theme ?? data.theme ?? null;
+        if (theme && typeof theme === "object") {
+          if (typeof theme.background === "string") setThemeBg(theme.background);
+          if (typeof theme.gradient === "string") setThemeGradient(theme.gradient);
+        }
+
+        const fp = data.friends_public;
+        if (typeof fp === "boolean") setFriendsPublic(fp);
+
+        const tfa = data.two_fa_enabled ?? data.twofa_enabled ?? data.two_fa ?? null;
+        if (typeof tfa === "boolean") setTwoFaEnabled(tfa);
 
         const next = {
           name: computedDisplay,
@@ -308,11 +477,22 @@ export default function ProfilePage({ user, onUpdateUser }) {
 
       const dn = (displayName || "").trim();
       const payload = {
-        // Backend stores display_name via these compat fields
+        // ✅ Keep legacy compatibility
         first_name: dn || null,
         last_name: dn ? "" : null,
+
+        // Existing fields
         email: email.trim() || user.email,
         avatar_url: avatarUrl.trim() || null,
+
+        // New public-profile fields (backend may ignore if not implemented)
+        display_name: dn || null,
+        bio: (bio || "").trim() || null,
+        friends_public: !!friendsPublic,
+        profile_theme: {
+          background: String(themeBg || "").trim() || "#fff7ed",
+          gradient: String(themeGradient || "").trim() || "",
+        },
       };
 
       // Persist to backend: prefer /me/profile, fallback to /me
@@ -494,6 +674,233 @@ export default function ProfilePage({ user, onUpdateUser }) {
             </button>
           </div>
         </form>
+      </section>
+
+
+      {/* Public profile & customization (NEW) */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+          Public profile
+        </h2>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Public username
+            </label>
+            <input
+              type="text"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="your-username"
+              autoComplete="username"
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              Used for your public page URL.
+            </p>
+          </div>
+
+          <div className="flex flex-col justify-between">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Public page link
+            </label>
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-700 truncate">
+                {publicProfileHref ? `${window.location.origin}${publicProfileHref}` : "—"}
+              </div>
+              {publicProfileHref ? (
+                <a
+                  href={publicProfileHref}
+                  className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Open
+                </a>
+              ) : (
+                <span className="text-xs text-gray-400">Set a username</span>
+              )}
+            </div>
+
+            <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300"
+                checked={friendsPublic}
+                onChange={(e) => setFriendsPublic(e.target.checked)}
+              />
+              Show my friends on public page
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-5 grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Bio
+            </label>
+            <textarea
+              className="w-full min-h-[96px] rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Tell others who you are…"
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              Appears on your public page.
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Palette className="w-4 h-4 text-orange-600" />
+              <p className="text-sm font-semibold text-gray-900">
+                Page background
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Background color
+                </label>
+                <input
+                  type="color"
+                  className="w-full h-10 rounded-xl border border-gray-200 p-1 bg-white"
+                  value={themeBg}
+                  onChange={(e) => setThemeBg(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Gradient (optional)
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  value={themeGradient}
+                  onChange={(e) => setThemeGradient(e.target.value)}
+                  placeholder="linear-gradient(135deg, #fff7ed, #ffffff)"
+                />
+              </div>
+            </div>
+
+            <div
+              className="mt-3 rounded-xl border border-gray-200 p-3 text-sm text-gray-700"
+              style={{ background: resolveProfileBackground({ themeBg, themeGradient }) }}
+            >
+              Preview
+            </div>
+
+            <p className="mt-2 text-[11px] text-gray-400">
+              Only gradients starting with <code>linear-gradient</code>, <code>radial-gradient</code>, or <code>conic-gradient</code> are applied.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Account security (NEW) */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+          Account security
+        </h2>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Mail className="w-4 h-4 text-orange-600" />
+              <p className="text-sm font-semibold text-gray-900">Change email</p>
+            </div>
+
+            <input
+              type="email"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="new@email.com"
+              autoComplete="email"
+            />
+
+            <button
+              type="button"
+              onClick={handleRequestEmailChange}
+              className="mt-3 inline-flex items-center justify-center w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
+            >
+              Send confirmation link
+            </button>
+
+            <p className="mt-2 text-[11px] text-gray-400">
+              Requires backend email confirmation endpoint.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <KeyRound className="w-4 h-4 text-orange-600" />
+              <p className="text-sm font-semibold text-gray-900">Change password</p>
+            </div>
+
+            <input
+              type="password"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              placeholder="Current password"
+              autoComplete="current-password"
+            />
+
+            <input
+              type="password"
+              className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New password"
+              autoComplete="new-password"
+            />
+
+            <button
+              type="button"
+              onClick={handleChangePassword}
+              className="mt-3 inline-flex items-center justify-center w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
+            >
+              Update password
+            </button>
+
+            <p className="mt-2 text-[11px] text-gray-400">
+              Requires backend password change endpoint.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-gray-100 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-orange-600" />
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Two-factor authentication</p>
+                <p className="text-[11px] text-gray-400">
+                  Enable/disable 2FA (email or authenticator).
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleToggle2FA}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors"
+            >
+              <LockKeyhole className="w-4 h-4" />
+              {twoFaEnabled ? "Disable 2FA" : "Enable 2FA"}
+            </button>
+          </div>
+        </div>
+
+        {notice ? (
+          <div className="mt-4 rounded-xl bg-orange-50 text-orange-800 px-3 py-2 text-sm">
+            {notice}
+          </div>
+        ) : null}
       </section>
 
       {/* Progress overview */}
