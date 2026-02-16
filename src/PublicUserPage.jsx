@@ -167,3 +167,19 @@ export default function PublicUserPage({ token }) {
     </div>
   );
 }
+  if (data?.is_hidden) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-2xl shadow-sm p-6">
+          <h1 className="text-xl font-semibold text-gray-900">
+            {data.username || "User"}
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            This account is hidden.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+
