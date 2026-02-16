@@ -104,7 +104,28 @@ export default function ProfilePage() {
   const [themeBg, setThemeBg] = useState("#fff7ed");
   const [themeGradient, setThemeGradient] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
-  const [avatarPreview, setAvatarPreview] = useState(""); // local preview only
+  // avatarPreview stores the *raw* value saved in DB:
+  // - Presets: "/avatars/<name>.svg" (served by frontend)
+  // - Custom uploads: "/static/avatars/<file>" (served by backend)
+  const [avatarPreview, setAvatarPreview] = useState("");
+
+  const DEFAULT_AVATARS = [
+    "/avatars/avatar-1.svg",
+    "/avatars/avatar-2.svg",
+    "/avatars/avatar-3.svg",
+    "/avatars/avatar-4.svg",
+    "/avatars/avatar-5.svg",
+    "/avatars/avatar-6.svg",
+  ];
+
+  const resolveAvatarUrl = (u) => {
+    if (!u) return "";
+    if (u.startsWith("http://") || u.startsWith("https://")) return u;
+    // Backend-hosted uploads
+    if (u.startsWith("/static/")) return `${API_BASE}${u}`;
+    // Frontend presets
+    return u;
+  };
 
   // Stats
   const [level, setLevel] = useState(1);
@@ -184,8 +205,8 @@ export default function ProfilePage() {
       } catch {}
 
       try {
-        // Existing BE endpoint appears to support /me/stats?email=...
-        const s = await apiFetch(`/me/stats?email=${encodeURIComponent(email)}`, { token });
+        // Stats are auth-based; don't depend on async state `email`.
+        const s = await apiFetch(`/me/stats`, { token });
         const sd = await safeJsonParse(s);
         if (!cancelled && s.ok && sd) {
           setLessonsCompleted(sd.total_lessons_completed ?? lessonsCompleted);
@@ -278,6 +299,7 @@ export default function ProfilePage() {
         friends_public: !!friendsPublic,
         is_hidden: !!isHidden,
         banner_url: bannerUrl || null,
+        avatar_url: avatarPreview || null,
         profile_theme: {
           background: themeBg || "#fff7ed",
           gradient: themeGradient || "",
@@ -311,12 +333,25 @@ export default function ProfilePage() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.onchange = () => {
+    input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await apiFetch(`/me/avatar`, { method: "POST", token, body: form });
+        const data = await safeJsonParse(res);
+        if (res.ok && data?.avatar_url) {
+          setAvatarPreview(data.avatar_url);
+          setMessage("Avatar uploaded.");
+          return;
+        }
+      } catch {}
+
+      // fallback (shouldn't happen): local preview
       const url = URL.createObjectURL(file);
       setAvatarPreview(url);
-      setMessage("Avatar selected (upload endpoint not wired yet).");
+      setMessage("Avatar selected.");
     };
     input.click();
   }
@@ -348,7 +383,7 @@ export default function ProfilePage() {
               <div className="relative">
                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/80 backdrop-blur border border-white/60 flex items-center justify-center overflow-hidden shadow">
                   {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                    <img src={resolveAvatarUrl(avatarPreview)} alt="Avatar preview" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-xl md:text-2xl font-extrabold text-orange-700">
                       {(firstName || username || "H")[0]?.toUpperCase()}
@@ -416,6 +451,42 @@ export default function ProfilePage() {
         <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Profile details</h2>
 
         <form onSubmit={handleSaveCore} className="space-y-4">
+          {/* Avatar */}
+          <div className="rounded-2xl border border-gray-200 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Avatar</div>
+                <div className="text-[12px] text-gray-500">Pick a preset or upload your own.</div>
+              </div>
+              <button
+                type="button"
+                onClick={handleAvatarPick}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors"
+              >
+                Upload
+              </button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-6 gap-2">
+              {DEFAULT_AVATARS.map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setAvatarPreview(u)}
+                  className={`rounded-xl border p-1.5 hover:bg-gray-50 transition-colors ${
+                    avatarPreview === u ? "border-orange-400 ring-2 ring-orange-200" : "border-gray-200"
+                  }`}
+                  title="Use this avatar"
+                >
+                  <img src={u} alt="avatar" className="w-full h-auto rounded-lg" />
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 text-[11px] text-gray-400">
+              Custom uploads are stored on the server disk. Presets are served from the frontend assets.
+            </div>
+          </div>
+
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">First name</label>
