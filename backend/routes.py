@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query
 from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import Connection
 import hashlib, traceback, datetime as dt
 from database import engine
@@ -2324,11 +2325,11 @@ def me_profile_put(
                 raise HTTPException(status_code=400, detail="Invalid username")
             # ensure uniqueness
             exists = db.execute(
-                text("SELECT 1 FROM users WHERE username = :u AND id != :id LIMIT 1"),
+                text("SELECT 1 FROM users WHERE lower(username) = lower(:u) AND id != :id LIMIT 1"),
                 {"u": uname, "id": int(user_id)},
             ).first()
             if exists:
-                raise HTTPException(status_code=400, detail="Username already taken")
+                raise HTTPException(status_code=409, detail="Username already taken")
             updates["username"] = uname
 
     if payload.bio is not None:
@@ -2358,7 +2359,11 @@ def me_profile_put(
                 for p in set_parts
             ]
 
+        try:
         db.execute(text(f"UPDATE users SET {', '.join(set_parts)} WHERE id = :id"), params)
+      except IntegrityError:
+        # likely username case-insensitive unique constraint
+        raise HTTPException(status_code=409, detail="Username already taken")
 
     row = db.execute(
         text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified FROM users WHERE id = :id"),
@@ -2843,7 +2848,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
             SELECT
               xp.*,
               ranks.global_rank,
-              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = xp.id OR f.friend_id = xp.id) AND f.status = 'accepted') AS friends_count
+              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = xp.id OR f.friend_id = xp.id)) AS friends_count
             FROM xp
             JOIN ranks ON ranks.id = xp.id
             """
@@ -2880,7 +2885,7 @@ def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[d
                      END AS fid
               FROM friends f
               WHERE (f.user_id = :uid OR f.friend_id = :uid)
-                AND f.status = 'accepted'
+               
             )
             SELECT t.username, t.display_name, r.global_rank
             FROM friend_ids fi
