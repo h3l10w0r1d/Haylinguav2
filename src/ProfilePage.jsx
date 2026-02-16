@@ -1,6 +1,16 @@
 // src/ProfilePage.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Trophy, Flame, Star, Palette, ShieldCheck, Mail, KeyRound, LockKeyhole, Link2 } from "lucide-react";
+import {
+  Trophy,
+  Flame,
+  Star,
+  Palette,
+  ShieldCheck,
+  Mail,
+  KeyRound,
+  LockKeyhole,
+  Link2,
+} from "lucide-react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -9,133 +19,16 @@ const API_BASE =
   "https://haylinguav2.onrender.com";
 
 function getToken() {
-
-  const publicProfileHref = useMemo(() => {
-    const un = (username || user?.username || "").trim();
-    return un ? `/users/${encodeURIComponent(un)}` : "";
-  }, [username, user?.username]);
-
-  const handleRequestEmailChange = async () => {
-    setNotice("");
-    const token = getToken();
-    const em = (newEmail || "").trim();
-    if (!em) return setNotice("Enter a new email.");
-    if (!token) return setNotice("You must be logged in.");
-
-    try {
-      let res = await apiFetch("/me/request-email-change", {
-        token,
-        method: "POST",
-        body: JSON.stringify({ new_email: em }),
-      });
-
-      if (!res.ok) {
-        res = await apiFetch("/me/email/change-request", {
-          token,
-          method: "POST",
-          body: JSON.stringify({ new_email: em }),
-        });
-      }
-
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        return setNotice(
-          `Email change request not available yet (status ${res.status}). ${t}`.trim()
-        );
-      }
-
-      setNewEmail("");
-      setNotice("Confirmation email sent. Please check your inbox.");
-    } catch (e) {
-      console.error("[Profile] email change request failed:", e);
-      setNotice("Email change request failed.");
-    }
-  };
-
-  const handleChangePassword = async () => {
-    setNotice("");
-    const token = getToken();
-    if (!token) return setNotice("You must be logged in.");
-    if (!oldPassword || !newPassword) return setNotice("Fill both password fields.");
-    if (String(newPassword).length < 8) return setNotice("New password is too short (min 8).");
-
-    try {
-      let res = await apiFetch("/me/change-password", {
-        token,
-        method: "POST",
-        body: JSON.stringify({
-          old_password: oldPassword,
-          new_password: newPassword,
-        }),
-      });
-
-      if (!res.ok) {
-        res = await apiFetch("/me/password/change", {
-          token,
-          method: "POST",
-          body: JSON.stringify({
-            old_password: oldPassword,
-            new_password: newPassword,
-          }),
-        });
-      }
-
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        return setNotice(
-          `Password change not available yet (status ${res.status}). ${t}`.trim()
-        );
-      }
-
-      setOldPassword("");
-      setNewPassword("");
-      setNotice("Password updated successfully.");
-    } catch (e) {
-      console.error("[Profile] password change failed:", e);
-      setNotice("Password change failed.");
-    }
-  };
-
-  const handleToggle2FA = async () => {
-    setNotice("");
-    const token = getToken();
-    if (!token) return setNotice("You must be logged in.");
-
-    try {
-      let res = await apiFetch("/me/toggle-2fa", {
-        token,
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        res = await apiFetch("/me/2fa/toggle", {
-          token,
-          method: "POST",
-        });
-      }
-
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        return setNotice(`2FA toggle not available yet (status ${res.status}). ${t}`.trim());
-      }
-
-      setTwoFaEnabled((v) => !v);
-      setNotice(`2FA ${!twoFaEnabled ? "enabled" : "disabled"}.`);
-    } catch (e) {
-      console.error("[Profile] toggle 2FA failed:", e);
-      setNotice("2FA toggle failed.");
-    }
-  };
-
   return (
     localStorage.getItem("access_token") ||
     localStorage.getItem("hay_token") ||
+    localStorage.getItem("token") ||
     ""
   );
 }
 
 /**
- * ✅ FIX #1: Avoid sending "Content-Type: application/json" on GET/HEAD.
+ * Avoid sending "Content-Type: application/json" on GET/HEAD.
  * That header triggers CORS preflight on cross-origin requests and doubles traffic.
  * We only set Content-Type when sending a JSON body (POST/PUT/PATCH).
  */
@@ -155,31 +48,21 @@ async function apiFetch(path, { token, ...opts } = {}) {
     }
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
-  return res;
+  return fetch(`${API_BASE}${path}`, { ...opts, headers });
 }
 
 function safeJsonParse(res) {
   return res.json().catch(() => null);
 }
 
-function isValidGradient(s) {
-  if (!s) return false;
-  const v = String(s).trim();
+function isSafeGradient(v) {
+  const s = String(v || "").trim();
   return (
-    v.startsWith("linear-gradient(") ||
-    v.startsWith("radial-gradient(") ||
-    v.startsWith("conic-gradient(")
+    s.startsWith("linear-gradient(") ||
+    s.startsWith("radial-gradient(") ||
+    s.startsWith("conic-gradient(")
   );
 }
-
-function resolveProfileBackground({ themeBg, themeGradient }) {
-  const bg = String(themeBg || "").trim() || "#fff7ed";
-  const grad = String(themeGradient || "").trim();
-  if (isValidGradient(grad)) return grad;
-  return bg;
-}
-
 export default function ProfilePage({ user, onUpdateUser }) {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState(user?.email || "");
@@ -199,6 +82,111 @@ export default function ProfilePage({ user, onUpdateUser }) {
   const [twoFaEnabled, setTwoFaEnabled] = useState(false);
 
   const [notice, setNotice] = useState("");
+  const publicProfileHref = useMemo(() => {
+    const un = String((username || user?.username || "")).trim();
+    return un ? `/u/${encodeURIComponent(un)}` : "";
+  }, [username, user?.username]);
+
+  const handleRequestEmailChange = async () => {
+    setNotice("");
+    const token = getToken();
+    const em = (newEmail || "").trim();
+    if (!em) return setNotice("Enter a new email.");
+    if (!token) return setNotice("You must be logged in.");
+
+    try {
+      // Try the planned endpoint; if missing, show a clear message instead of crashing.
+      let res = await apiFetch("/me/request-email-change", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ new_email: em }),
+      });
+
+      if (!res.ok) {
+        // legacy / alternative route name
+        res = await apiFetch("/me/email/change-request", {
+          token,
+          method: "POST",
+          body: JSON.stringify({ new_email: em }),
+        });
+      }
+
+      if (res.ok) {
+        setNotice("Email confirmation sent (if this feature is enabled on the backend).");
+      } else if (res.status === 404 || res.status === 501) {
+        setNotice("Email change endpoint is not implemented on the backend yet.");
+      } else {
+        const j = await safeJsonParse(res);
+        setNotice(j?.detail || "Email change request failed.");
+      }
+    } catch {
+      setNotice("Network error while requesting email change.");
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setNotice("");
+    const token = getToken();
+    if (!token) return setNotice("You must be logged in.");
+    if (!oldPassword) return setNotice("Enter your current password.");
+    if (!newPassword) return setNotice("Enter a new password.");
+
+    try {
+      let res = await apiFetch("/me/change-password", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+      });
+
+      if (!res.ok) {
+        // legacy / alternative route name
+        res = await apiFetch("/me/password/change", {
+          token,
+          method: "POST",
+          body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+        });
+      }
+
+      if (res.ok) {
+        setNotice("Password changed.");
+        setOldPassword("");
+        setNewPassword("");
+      } else if (res.status === 404 || res.status === 501) {
+        setNotice("Password change endpoint is not implemented on the backend yet.");
+      } else {
+        const j = await safeJsonParse(res);
+        setNotice(j?.detail || "Password change failed.");
+      }
+    } catch {
+      setNotice("Network error while changing password.");
+    }
+  };
+
+  const handleToggle2FA = async () => {
+    setNotice("");
+    const token = getToken();
+    if (!token) return setNotice("You must be logged in.");
+
+    try {
+      const res = await apiFetch("/me/2fa/toggle", {
+        token,
+        method: "POST",
+      });
+
+      if (res.ok) {
+        setTwoFaEnabled((v) => !v);
+        setNotice("2FA setting updated.");
+      } else if (res.status === 404 || res.status === 501) {
+        setNotice("2FA endpoints are not implemented on the backend yet.");
+      } else {
+        const j = await safeJsonParse(res);
+        setNotice(j?.detail || "Failed to update 2FA.");
+      }
+    } catch {
+      setNotice("Network error while updating 2FA.");
+    }
+  };
+
 
   const [saving, setSaving] = useState(false);
 
