@@ -1712,36 +1712,54 @@ def complete_lesson(
 
 
 @router.get("/me/stats", response_model=StatsOut)
-def get_stats(email: str, authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    user_row = db.execute(
-        text("SELECT id FROM users WHERE email = :email"),
-        {"email": email},
-    ).mappings().first()
+def get_stats(
+    email: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Return current user's stats.
 
-    if user_row is None:
-        return StatsOut(total_xp=0, lessons_completed=0)
+    Historically the frontend called this endpoint with `?email=...`.
+    Email is now optional: if email is missing/blank we infer the user from the Bearer token.
+    """
 
-    user_id = user_row["id"]
+    # Prefer auth-based lookup (safer, avoids leaking emails in URLs)
+    user_id = _get_user_id_from_bearer(authorization)
 
-    stats_row = db.execute(
+    email = (email or "").strip()
+
+    # If no valid token and no email provided, we can't resolve a user.
+    if not user_id and not email:
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
+
+    if email:
+        user = db.execute(
+            text("SELECT id FROM users WHERE email = :email"),
+            {"email": email},
+        ).mappings().first()
+        if not user:
+            return StatsOut(total_xp=0, lessons_completed=0, streak=0)
+        user_id = int(user["id"])
+
+    r = db.execute(
         text(
             """
             SELECT
-                COALESCE(SUM(xp_earned), 0) AS total_xp,
-                COUNT(*) AS lessons_completed
-            FROM lesson_progress
-            WHERE user_id = :user_id
+              COALESCE(SUM(lp.xp_earned), 0) AS total_xp,
+              COALESCE(SUM(CASE WHEN lp.completed THEN 1 ELSE 0 END), 0) AS lessons_completed
+            FROM lesson_progress lp
+            WHERE lp.user_id = :uid
             """
         ),
-        {"user_id": user_id},
+        {"uid": user_id},
     ).mappings().first()
 
-    streak = _compute_streak_days(db, int(user_id))
-    return StatsOut(
-        total_xp=int(stats_row["total_xp"]),
-        lessons_completed=int(stats_row["lessons_completed"]),
-        streak=int(streak),
-    )
+    total_xp = int(r["total_xp"] or 0) if r else 0
+    lessons_completed = int(r["lessons_completed"] or 0) if r else 0
+
+    streak = _compute_streak_days(db, user_id)
+
+    return StatsOut(total_xp=total_xp, lessons_completed=lessons_completed, streak=streak)
 
 
 class LessonProgressOut(BaseModel):
