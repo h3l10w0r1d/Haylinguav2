@@ -2335,8 +2335,10 @@ def me_profile_put(
         updates["bio"] = (payload.bio or "").strip() or None
 
     if payload.profile_theme is not None:
-        # Stored as jsonb
-        updates["profile_theme"] = payload.profile_theme or {}
+        # Stored as jsonb. IMPORTANT: psycopg2 can't bind raw dicts in text() queries.
+        # Bind as a JSON string and CAST to jsonb in SQL.
+        import json as _json
+        updates["profile_theme"] = _json.dumps(payload.profile_theme or {})
 
     if payload.friends_public is not None:
         updates["friends_public"] = bool(payload.friends_public)
