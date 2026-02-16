@@ -15,6 +15,15 @@ import {
   EyeOff,
 } from "lucide-react";
 
+import av1 from "./assets/avatars/av1.svg";
+import av2 from "./assets/avatars/av2.svg";
+import av3 from "./assets/avatars/av3.svg";
+import av4 from "./assets/avatars/av4.svg";
+import av5 from "./assets/avatars/av5.svg";
+import av6 from "./assets/avatars/av6.svg";
+
+const PRESET_AVATARS = [av1, av2, av3, av4, av5, av6];
+
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_BASE ||
@@ -38,11 +47,14 @@ function getToken() {
 async function apiFetch(path, { token, ...opts } = {}) {
   const method = String(opts.method || "GET").toUpperCase();
   const hasBody = opts.body != null;
+  const isFormData = typeof FormData !== "undefined" && opts.body instanceof FormData;
 
   const headers = { ...(opts.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  if (hasBody && method !== "GET" && method !== "HEAD") {
+  // For JSON bodies we set Content-Type automatically.
+  // For FormData (file uploads), the browser will set the proper multipart boundary.
+  if (hasBody && method !== "GET" && method !== "HEAD" && !isFormData) {
     if (!headers["Content-Type"] && !headers["content-type"]) {
       headers["Content-Type"] = "application/json";
     }
@@ -104,28 +116,10 @@ export default function ProfilePage() {
   const [themeBg, setThemeBg] = useState("#fff7ed");
   const [themeGradient, setThemeGradient] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
-  // avatarPreview stores the *raw* value saved in DB:
-  // - Presets: "/avatars/<name>.svg" (served by frontend)
-  // - Custom uploads: "/static/avatars/<file>" (served by backend)
-  const [avatarPreview, setAvatarPreview] = useState("");
-
-  const DEFAULT_AVATARS = [
-    "/avatars/avatar-1.svg",
-    "/avatars/avatar-2.svg",
-    "/avatars/avatar-3.svg",
-    "/avatars/avatar-4.svg",
-    "/avatars/avatar-5.svg",
-    "/avatars/avatar-6.svg",
-  ];
-
-  const resolveAvatarUrl = (u) => {
-    if (!u) return "";
-    if (u.startsWith("http://") || u.startsWith("https://")) return u;
-    // Backend-hosted uploads
-    if (u.startsWith("/static/")) return `${API_BASE}${u}`;
-    // Frontend presets
-    return u;
-  };
+  const [avatarPreview, setAvatarPreview] = useState(""); // local preview only
+  const [avatarPresetUrl, setAvatarPresetUrl] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [showAvatarPresets, setShowAvatarPresets] = useState(false);
 
   // Stats
   const [level, setLevel] = useState(1);
@@ -186,6 +180,11 @@ export default function ProfilePage() {
           const picked = b || pickRandomBanner();
           setBannerUrl(picked);
 
+          const au = data.avatar_url || data.avatar || "";
+          setAvatarPreview(au);
+          setAvatarPresetUrl(au);
+          setAvatarFile(null);
+
           // Stats preview in header (safe fallbacks)
           setLevel(data.level || 1);
           setXp(data.xp || data.total_xp || 0);
@@ -205,13 +204,14 @@ export default function ProfilePage() {
       } catch {}
 
       try {
-        // Stats are auth-based; don't depend on async state `email`.
+        // Stats are tied to the authenticated user; email query is optional/legacy.
         const s = await apiFetch(`/me/stats`, { token });
         const sd = await safeJsonParse(s);
         if (!cancelled && s.ok && sd) {
-          setLessonsCompleted(sd.total_lessons_completed ?? lessonsCompleted);
-          setStreak(sd.best_streak_days ?? streak);
-          setXp(sd.lifetime_xp ?? xp);
+          // Backwards/forwards compatible mapping (older BE used different keys).
+          setLessonsCompleted(sd.lessons_completed ?? sd.total_lessons_completed ?? lessonsCompleted);
+          setStreak(sd.streak ?? sd.best_streak_days ?? streak);
+          setXp(sd.total_xp ?? sd.lifetime_xp ?? xp);
         }
       } catch {}
     }
@@ -290,6 +290,24 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage("");
     try {
+      // If a custom avatar file is selected, upload it first (same pattern as exercise recordings).
+      // Expected BE endpoint: POST /me/avatar (multipart form-data "file").
+      let avatarUrlToSave = avatarPresetUrl || "";
+      if (avatarFile) {
+        const fd = new FormData();
+        fd.append("file", avatarFile);
+        const up = await apiFetch("/me/avatar", {
+          token,
+          method: "POST",
+          body: fd,
+        });
+        const upd = await safeJsonParse(up);
+        if (!up.ok) {
+          throw new Error(upd?.detail || "Avatar upload failed.");
+        }
+        avatarUrlToSave = upd?.url || upd?.avatar_url || upd?.path || "";
+      }
+
       const payload = {
         username: String(username || "").trim() || null,
         first_name: String(firstName || "").trim() || null,
@@ -299,7 +317,7 @@ export default function ProfilePage() {
         friends_public: !!friendsPublic,
         is_hidden: !!isHidden,
         banner_url: bannerUrl || null,
-        avatar_url: avatarPreview || null,
+        ...(avatarUrlToSave ? { avatar_url: avatarUrlToSave } : {}),
         profile_theme: {
           background: themeBg || "#fff7ed",
           gradient: themeGradient || "",
@@ -333,27 +351,23 @@ export default function ProfilePage() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.onchange = async () => {
+    input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      try {
-        const form = new FormData();
-        form.append("file", file);
-        const res = await apiFetch(`/me/avatar`, { method: "POST", token, body: form });
-        const data = await safeJsonParse(res);
-        if (res.ok && data?.avatar_url) {
-          setAvatarPreview(data.avatar_url);
-          setMessage("Avatar uploaded.");
-          return;
-        }
-      } catch {}
-
-      // fallback (shouldn't happen): local preview
+      setAvatarPresetUrl("");
+      setAvatarFile(file);
       const url = URL.createObjectURL(file);
       setAvatarPreview(url);
       setMessage("Avatar selected.");
     };
     input.click();
+  }
+
+  function handlePresetAvatarPick(url) {
+    setAvatarFile(null);
+    setAvatarPresetUrl(url);
+    setAvatarPreview(url);
+    setMessage("Avatar selected.");
   }
 
   if (loading) {
@@ -383,7 +397,7 @@ export default function ProfilePage() {
               <div className="relative">
                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/80 backdrop-blur border border-white/60 flex items-center justify-center overflow-hidden shadow">
                   {avatarPreview ? (
-                    <img src={resolveAvatarUrl(avatarPreview)} alt="Avatar preview" className="w-full h-full object-cover" />
+                    <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-xl md:text-2xl font-extrabold text-orange-700">
                       {(firstName || username || "H")[0]?.toUpperCase()}
@@ -398,7 +412,34 @@ export default function ProfilePage() {
                   <ImageIcon className="w-4 h-4 text-orange-700" />
                   Upload
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarPresets((v) => !v)}
+                  className="absolute -bottom-2 left-0 inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                >
+                  Presets
+                </button>
               </div>
+
+              {showAvatarPresets && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {PRESET_AVATARS.map((url, idx) => {
+                    const active = avatarPreview === url || avatarPresetUrl === url;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handlePresetAvatarPick(url)}
+                        className={`h-10 w-10 rounded-full overflow-hidden border ${active ? "border-orange-400" : "border-white/60"} bg-white/70 backdrop-blur hover:border-orange-300`}
+                        title={`Avatar ${idx + 1}`}
+                      >
+                        <img src={url} alt={`Avatar ${idx + 1}`} className="h-full w-full object-cover" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="pb-1">
                 <div className="text-white drop-shadow text-lg md:text-xl font-bold">
@@ -451,42 +492,6 @@ export default function ProfilePage() {
         <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Profile details</h2>
 
         <form onSubmit={handleSaveCore} className="space-y-4">
-          {/* Avatar */}
-          <div className="rounded-2xl border border-gray-200 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Avatar</div>
-                <div className="text-[12px] text-gray-500">Pick a preset or upload your own.</div>
-              </div>
-              <button
-                type="button"
-                onClick={handleAvatarPick}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors"
-              >
-                Upload
-              </button>
-            </div>
-
-            <div className="mt-3 grid grid-cols-6 gap-2">
-              {DEFAULT_AVATARS.map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => setAvatarPreview(u)}
-                  className={`rounded-xl border p-1.5 hover:bg-gray-50 transition-colors ${
-                    avatarPreview === u ? "border-orange-400 ring-2 ring-orange-200" : "border-gray-200"
-                  }`}
-                  title="Use this avatar"
-                >
-                  <img src={u} alt="avatar" className="w-full h-auto rounded-lg" />
-                </button>
-              ))}
-            </div>
-            <div className="mt-2 text-[11px] text-gray-400">
-              Custom uploads are stored on the server disk. Presets are served from the frontend assets.
-            </div>
-          </div>
-
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">First name</label>
@@ -709,23 +714,34 @@ export default function ProfilePage() {
               Exercises completed in the last 7 days
             </div>
 
-            <div className="flex items-end gap-3 h-24">
-              {(last7?.length ? last7 : ["T", "W", "T", "F", "S", "S", "M"]).map((d, idx) => {
-                const v = typeof d === "object" ? d.value ?? 0 : 0;
-                const label = typeof d === "object" ? d.label ?? "" : String(d);
-                const height = Math.max(12, Math.min(96, 12 + v * 18));
-                return (
-                  <div key={idx} className="flex flex-col items-center gap-2 flex-1">
-                    <div
-                      className="w-full rounded-full bg-orange-100"
-                      style={{ height }}
-                      title={`${label}: ${v}`}
-                    />
-                    <div className="text-[11px] text-gray-500">{label}</div>
-                  </div>
-                );
-              })}
-            </div>
+            {(() => {
+              const items = last7?.length ? last7 : ["T", "W", "T", "F", "S", "S", "M"];
+              const values = items.map((d) => (typeof d === "object" ? Number(d.value ?? 0) : 0));
+              const maxV = Math.max(1, ...values);
+              return (
+                <div className="flex items-end gap-3 h-28">
+                  {items.map((d, idx) => {
+                    const v = typeof d === "object" ? Number(d.value ?? 0) : 0;
+                    const label = typeof d === "object" ? String(d.label ?? "") : String(d);
+                    const h = Math.round((v / maxV) * 88);
+                    return (
+                      <div key={idx} className="flex flex-col items-center gap-2 flex-1">
+                        <div className="w-full max-w-[44px]">
+                          <div className="relative h-20 w-full rounded-xl bg-orange-50 overflow-hidden">
+                            <div
+                              className="absolute bottom-0 left-0 right-0 bg-orange-200 rounded-xl"
+                              style={{ height: `${Math.max(3, h)}px` }}
+                              title={`${label}: ${v}`}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-gray-500">{label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="space-y-2">
@@ -746,10 +762,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <p className="mt-3 text-[11px] text-gray-400">
-          Stats are loaded from the backend (<code>/me/stats</code>). The “last 7 days” chart is loaded from{" "}
-          <code>/me/activity/last7days</code> (or falls back to <code>/me/activity?days=7</code>).
-        </p>
       </section>
 
       {!!message && (
