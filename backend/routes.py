@@ -1746,7 +1746,7 @@ def get_stats(
             """
             SELECT
               COALESCE(SUM(lp.xp_earned), 0) AS total_xp,
-              COALESCE(SUM(CASE WHEN lp.completed THEN 1 ELSE 0 END), 0) AS lessons_completed
+              COALESCE(SUM(CASE WHEN lp.completed_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS lessons_completed
             FROM lesson_progress lp
             WHERE lp.user_id = :uid
             """
