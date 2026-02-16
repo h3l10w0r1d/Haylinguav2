@@ -2578,10 +2578,14 @@ def me_activity_last7days(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    """Exercise completions per day for the last 7 days (including today).
+    """Exercise activity per day for the last 7 days (including today).
 
-    The UI shows "Exercises completed in the last 7 days", so we base this on
-    user_exercise_logs (event_type='completed') rather than lesson completions.
+    IMPORTANT: In this codebase, the thing that is reliably written when a user
+    finishes an exercise is `user_exercise_attempts` (via /me/exercises/{id}/attempt).
+    `user_exercise_logs` exists but is only written if the FE calls /me/exercises/{id}/log.
+
+    So the chart must be based on `user_exercise_attempts`, otherwise you'll get
+    zeros even after completing exercises.
     """
 
     user_id = _get_user_id_from_bearer(authorization)
@@ -2593,23 +2597,23 @@ def me_activity_last7days(
     today = date.today()
     start = today - timedelta(days=6)
 
+    # Use UTC-day buckets to match streak logic.
     rows = db.execute(
         text(
             """
             SELECT
-              DATE(created_at) AS d,
-              COUNT(DISTINCT exercise_id) AS c
-            FROM user_exercise_logs
+              DATE(created_at AT TIME ZONE 'UTC') AS d,
+              COUNT(*) AS c
+            FROM user_exercise_attempts
             WHERE user_id = :uid
               AND created_at >= :start
-              AND event_type = 'completed'
-            GROUP BY DATE(created_at)
+            GROUP BY DATE(created_at AT TIME ZONE 'UTC')
             """
         ),
         {"uid": int(user_id), "start": start},
     ).mappings().all()
 
-    by_date = {row["d"]: int(row["c"]) for row in rows}
+    by_date = {row["d"]: int(row["c"]) for row in rows if row.get("d") is not None}
 
     out = []
     for i in range(7):
