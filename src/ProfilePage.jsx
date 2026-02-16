@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Trophy, Flame, Star } from "lucide-react";
 
 const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_BASE ||
   import.meta.env.VITE_API_URL ||
   "https://haylinguav2.onrender.com";
