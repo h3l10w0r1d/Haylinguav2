@@ -2884,7 +2884,6 @@ def get_public_user(
                     SELECT 1
                     FROM friends
                     WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
-                      AND status = 'accepted'
                     LIMIT 1
                     """
                 ),
@@ -2942,7 +2941,6 @@ def get_public_user_friends(
                 SELECT 1
                 FROM friends
                 WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
-                  AND status = 'accepted'
                 LIMIT 1
                 """
             ),
