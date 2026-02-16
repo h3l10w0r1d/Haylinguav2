@@ -10,6 +10,9 @@ import {
   KeyRound,
   LockKeyhole,
   Link2,
+  Image as ImageIcon,
+  Shuffle,
+  EyeOff,
 } from "lucide-react";
 
 const API_BASE =
@@ -36,10 +39,7 @@ async function apiFetch(path, { token, ...opts } = {}) {
   const method = String(opts.method || "GET").toUpperCase();
   const hasBody = opts.body != null;
 
-  const headers = {
-    ...(opts.headers || {}),
-  };
-
+  const headers = { ...(opts.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   if (hasBody && method !== "GET" && method !== "HEAD") {
@@ -71,710 +71,443 @@ function resolveProfileBackground({ themeBg, themeGradient }) {
   return bg;
 }
 
+// A small, safe default banner pool (open source / hotlink-friendly).
+// You can swap this to your own CDN later.
 const DEFAULT_BANNERS = [
-  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=70",
-  "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1600&q=70",
-  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1600&q=70",
-  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=70",
-  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=70",
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80",
+  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=80",
+  "https://images.unsplash.com/photo-1520975682031-a17461b66b47?auto=format&fit=crop&w=1600&q=80",
+  "https://images.unsplash.com/photo-1500534314209-a26db0f5c1f2?auto=format&fit=crop&w=1600&q=80",
+  "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1600&q=80",
 ];
-export default function ProfilePage({ user, onUpdateUser }) {
+
+function pickRandomBanner() {
+  return DEFAULT_BANNERS[Math.floor(Math.random() * DEFAULT_BANNERS.length)];
+}
+
+export default function ProfilePage() {
+  const token = useMemo(() => getToken(), []);
+  const [loading, setLoading] = useState(true);
+
+  // Core profile
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState(""); // read-only
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email] = useState(user?.email || "");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [bannerUrl, setBannerUrl] = useState("");
-  const [isHidden, setIsHidden] = useState(false);
-  const avatarInputRef = useRef(null);
-
-  // Public profile + customization
-  const [username, setUsername] = useState(user?.username || "");
   const [bio, setBio] = useState("");
-  const [themeBg, setThemeBg] = useState("#fff7ed"); // warm off-white (matches current UI)
-  const [themeGradient, setThemeGradient] = useState("");
+
+  // Public controls
   const [friendsPublic, setFriendsPublic] = useState(true);
+  const [isHidden, setIsHidden] = useState(false);
 
-  // Security UI (endpoints may be added later)
-  const [newEmail, setNewEmail] = useState("");
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+  // Theme / visuals
+  const [themeBg, setThemeBg] = useState("#fff7ed");
+  const [themeGradient, setThemeGradient] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState(""); // local preview only
 
-  const [notice, setNotice] = useState("");
-  const publicProfileHref = useMemo(() => {
-    const un = String((username || user?.username || "")).trim();
-    return un ? `/u/${encodeURIComponent(un)}` : "";
-  }, [username, user?.username]);
+  // Stats
+  const [level, setLevel] = useState(1);
+  const [xp, setXp] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [last7, setLast7] = useState([]);
+  const [lessonsCompleted, setLessonsCompleted] = useState(0);
 
-  const handleRequestEmailChange = async () => {
-    setNotice("");
-    const token = getToken();
-    const em = (newEmail || "").trim();
-    if (!em) return setNotice("Enter a new email.");
-    if (!token) return setNotice("You must be logged in.");
-
-    try {
-      // Try the planned endpoint; if missing, show a clear message instead of crashing.
-      let res = await apiFetch("/me/request-email-change", {
-        token,
-        method: "POST",
-        body: JSON.stringify({ new_email: em }),
-      });
-
-      if (!res.ok) {
-        // legacy / alternative route name
-        res = await apiFetch("/me/email/change-request", {
-          token,
-          method: "POST",
-          body: JSON.stringify({ new_email: em }),
-        });
-      }
-
-      if (res.ok) {
-        setNotice("Email confirmation sent (if this feature is enabled on the backend).");
-      } else if (res.status === 404 || res.status === 501) {
-        setNotice("Email change endpoint is not implemented on the backend yet.");
-      } else {
-        const j = await safeJsonParse(res);
-        setNotice(j?.detail || "Email change request failed.");
-      }
-    } catch {
-      setNotice("Network error while requesting email change.");
-    }
-  };
-
-  const handleChangePassword = async () => {
-    setNotice("");
-    const token = getToken();
-    if (!token) return setNotice("You must be logged in.");
-    if (!oldPassword) return setNotice("Enter your current password.");
-    if (!newPassword) return setNotice("Enter a new password.");
-
-    try {
-      let res = await apiFetch("/me/change-password", {
-        token,
-        method: "POST",
-        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
-      });
-
-      if (!res.ok) {
-        // legacy / alternative route name
-        res = await apiFetch("/me/password/change", {
-          token,
-          method: "POST",
-          body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
-        });
-      }
-
-      if (res.ok) {
-        setNotice("Password changed.");
-        setOldPassword("");
-        setNewPassword("");
-      } else if (res.status === 404 || res.status === 501) {
-        setNotice("Password change endpoint is not implemented on the backend yet.");
-      } else {
-        const j = await safeJsonParse(res);
-        setNotice(j?.detail || "Password change failed.");
-      }
-    } catch {
-      setNotice("Network error while changing password.");
-    }
-  };
-
-  const handleToggle2FA = async () => {
-    setNotice("");
-    const token = getToken();
-    if (!token) return setNotice("You must be logged in.");
-
-    try {
-      const res = await apiFetch("/me/2fa/toggle", {
-        token,
-        method: "POST",
-      });
-
-      if (res.ok) {
-        setTwoFaEnabled((v) => !v);
-        setNotice("2FA setting updated.");
-      } else if (res.status === 404 || res.status === 501) {
-        setNotice("2FA endpoints are not implemented on the backend yet.");
-      } else {
-        const j = await safeJsonParse(res);
-        setNotice(j?.detail || "Failed to update 2FA.");
-      }
-    } catch {
-      setNotice("Network error while updating 2FA.");
-    }
-  };
-
-
+  // UX state
   const [saving, setSaving] = useState(false);
+  const [bgSaving, setBgSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const bgSaveTimer = useRef(null);
 
-  // Guard against repeated network calls if parent state updates recreate the
-  // `user` object or if multiple effects race each other.
-  const loadOnceRef = useRef({
-    profileEmail: null,
-    statsEmail: null,
-    activityEmail: null,
-  });
+  const publicProfileHref = useMemo(() => {
+    const u = String(username || "").trim();
+    if (!u) return "";
+    // keep consistent with current router in your app (you can adjust)
+    return `/u/${encodeURIComponent(u)}`;
+  }, [username]);
 
-  // Backend-driven stats (keep UI the same)
-  const [stats, setStats] = useState({
-    total_xp: null,
-    lessons_completed: null,
-  });
+  const headerBackground = useMemo(
+    () => resolveProfileBackground({ themeBg, themeGradient }),
+    [themeBg, themeGradient]
+  );
 
-  // Backend-driven last-7-days activity
-  const [weeklyProgress, setWeeklyProgress] = useState([
-    { day: "M", value: 0 },
-    { day: "T", value: 0 },
-    { day: "W", value: 0 },
-    { day: "T", value: 0 },
-    { day: "F", value: 0 },
-    { day: "S", value: 0 },
-    { day: "S", value: 0 },
-  ]);
-
-  /**
-   * ✅ FIX #2: Prevent endless re-fetch loops.
-   * This happens when onUpdateUser triggers parent state updates that cause remount/re-render cascades.
-   * Guards ensure each fetch group runs once per mount.
-   */
-  const didLoadProfileRef = useRef(false);
-  const didLoadStatsRef = useRef(false);
-  const didLoadActivityRef = useRef(false);
-
-  // Initialize from current user (local)
   useEffect(() => {
-    if (!user) return;
-    setDisplayName(user.name || user.username || "");    setAvatarUrl(user.avatarUrl || "");
-  }, [user]);
+    let cancelled = false;
 
-  // Load profile from backend (prefer /me/profile, fallback to /me)
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    if (didLoadProfileRef.current) return;
-    didLoadProfileRef.current = true;
-
-    (async () => {
+    async function load() {
+      setLoading(true);
+      setMessage("");
       try {
-        // 1) Try /me/profile
-        let res = await apiFetch("/me/profile", { token, method: "GET" });
-
-        // 2) Fallback to /me
-        if (!res.ok) {
-          res = await apiFetch("/me", { token, method: "GET" });
-        }
-
-        if (!res.ok) return;
-
+        const res = await apiFetch("/me/profile", { token });
         const data = await safeJsonParse(res);
-        if (!data) return;
 
-        // Accept flexible backend shapes:
-        // { display_name, email, avatar_url }
-        // OR legacy: { first_name, last_name } or { name }
-        const dn = data.display_name ?? "";
-        const fn = data.first_name ?? "";
-        const ln = data.last_name ?? "";
-        const av = data.avatar_url ?? data.avatarUrl ?? "";
-        const em = data.email ?? user?.email ?? "";
+        if (!cancelled && res.ok && data) {
+          setUsername(data.username || "");
+          setEmail(data.email || "");
 
-        const computedDisplay =
-          String(dn || "").trim() ||
-          [String(fn || "").trim(), String(ln || "").trim()].filter(Boolean).join(" ") ||
-          String(data.name || "").trim() ||
-          user?.name ||
-          user?.username ||
-          "";
-        setDisplayName(computedDisplay);
+          // Your backend may store name fields as first_name/last_name (recommended).
+          // Fall back to display_name split if those don't exist.
+          setFirstName(data.first_name || "");
+          setLastName(data.last_name || "");
 
-        if (typeof em === "string" && em)        if (typeof av === "string") setAvatarUrl(av);
+          setBio(data.bio || "");
 
-        // Public profile fields (optional)
-        const un = data.username ?? data.handle ?? user?.username ?? "";
-        if (typeof un === "string") setUsername(un);
+          setFriendsPublic(
+            typeof data.friends_public === "boolean" ? data.friends_public : true
+          );
+          setIsHidden(typeof data.is_hidden === "boolean" ? data.is_hidden : false);
 
-        const b = data.bio ?? "";
-        if (typeof b === "string") setBio(b);
+          const theme = data.profile_theme || {};
+          setThemeBg(theme.background || "#fff7ed");
+          setThemeGradient(theme.gradient || "");
 
-        const theme = data.profile_theme ?? data.theme ?? null;
-        if (theme && typeof theme === "object") {
-          if (typeof theme.background === "string") setThemeBg(theme.background);
-          if (typeof theme.gradient === "string") setThemeGradient(theme.gradient);
+          const b = data.banner_url || theme.banner || "";
+          const picked = b || pickRandomBanner();
+          setBannerUrl(picked);
+
+          // Stats preview in header (safe fallbacks)
+          setLevel(data.level || 1);
+          setXp(data.xp || data.total_xp || 0);
+          setStreak(data.streak || data.daily_streak || 0);
         }
-
-        const fp = data.friends_public;
-        if (typeof fp === "boolean") setFriendsPublic(fp);
-
-        const tfa = data.two_fa_enabled ?? data.twofa_enabled ?? data.two_fa ?? null;
-        if (typeof tfa === "boolean") setTwoFaEnabled(tfa);
-
-        const next = {
-          name: computedDisplay,
-          email: em || user?.email,
-          avatarUrl: av || undefined,
-        };
-
-        // ✅ Only update parent if something actually changed
-        const same =
-          String(next.name || "") === String(user?.name || "") &&
-          String(next.email || "") === String(user?.email || "") &&
-          String(next.avatarUrl || "") === String(user?.avatarUrl || "");
-
-        if (!same) onUpdateUser?.(next);
-      } catch (e) {
-        console.error("[Profile] load profile failed:", e);
+      } catch {
+        if (!cancelled) setMessage("Failed to load profile.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    })();
+
+      // Load activity/stats (best-effort; do not block page)
+      try {
+        const a = await apiFetch("/me/activity/last7days", { token });
+        const ad = await safeJsonParse(a);
+        if (!cancelled && a.ok && ad?.days) setLast7(ad.days);
+      } catch {}
+
+      try {
+        // Existing BE endpoint appears to support /me/stats?email=...
+        const s = await apiFetch(`/me/stats?email=${encodeURIComponent(email)}`, { token });
+        const sd = await safeJsonParse(s);
+        if (!cancelled && s.ok && sd) {
+          setLessonsCompleted(sd.total_lessons_completed ?? lessonsCompleted);
+          setStreak(sd.best_streak_days ?? streak);
+          setXp(sd.lifetime_xp ?? xp);
+        }
+      } catch {}
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [token]);
 
-  const hasAutoBanner = useRef(false);
-
-  // If user has no banner yet, assign a random default one once (persisted to BE).
+  // Auto-save: background + banner + public toggles (no submit button)
   useEffect(() => {
-    if (!profileLoadedRef.current) return;
-    if (hasAutoBanner.current) return;
-    if (bannerUrl) return;
+    if (loading) return;
+    if (!token) return;
 
-    const pick = DEFAULT_BANNERS[Math.floor(Math.random() * DEFAULT_BANNERS.length)];
-    hasAutoBanner.current = true;
-    setBannerUrl(pick);
+    if (bgSaveTimer.current) clearTimeout(bgSaveTimer.current);
+    bgSaveTimer.current = setTimeout(async () => {
+      setBgSaving(true);
+      setMessage("");
 
-    const token = getToken();
-    apiFetch("/me/profile", {
-      method: "PUT",
-      token,
-      body: JSON.stringify({ banner_url: pick }),
-    }).catch(() => {});
-  }, [bannerUrl]);
-
-  // Auto-save customization (bio/theme/visibility/friends/username/banner) with debounce
-  const autoSaveTimer = useRef(null);
-  useEffect(() => {
-    if (!profileLoadedRef.current) return;
-
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      const token = getToken();
-      apiFetch("/me/profile", {
-        method: "PUT",
-        token,
-        body: JSON.stringify({
-          username: (username || "").trim() || null,
-          bio: (bio || "").trim() || null,
+      try {
+        const payload = {
+          username: String(username || "").trim() || null,
+          first_name: String(firstName || "").trim() || null,
+          last_name: String(lastName || "").trim() || null,
+          bio: String(bio || "").trim() || null,
           friends_public: !!friendsPublic,
           is_hidden: !!isHidden,
           banner_url: bannerUrl || null,
           profile_theme: {
-            background: themeBg,
-            gradient: themeGradient,
+            background: themeBg || "#fff7ed",
+            gradient: themeGradient || "",
           },
-        }),
-      })
-        .then(() => setToast({ kind: "success", text: "Saved" }))
-        .catch(() => setToast({ kind: "error", text: "Could not save" }));
-    }, 700);
-
-    return () => {
-      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    };
-  }, [username, bio, friendsPublic, isHidden, bannerUrl, themeBg, themeGradient]);
-
-  // Load stats from backend (/me/stats?email=...)
-  useEffect(() => {
-    if (!user?.email) return;
-    if (didLoadStatsRef.current) return;
-    didLoadStatsRef.current = true;
-
-    (async () => {
-      try {
-        const token = getToken();
-        const res = await apiFetch(
-          `/me/stats?email=${encodeURIComponent(user.email)}`,
-          { token, method: "GET" }
-        );
-
-        if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          console.warn("[Profile] /me/stats not ok:", res.status, t);
-          return;
-        }
-
-        const data = await safeJsonParse(res);
-        if (!data) return;
-
-        const totalXp = Number(data.total_xp);
-        const lessonsDone = Number(data.lessons_completed);
-
-        const nextStats = {
-          total_xp: Number.isFinite(totalXp) ? totalXp : 0,
-          lessons_completed: Number.isFinite(lessonsDone) ? lessonsDone : 0,
         };
 
-        setStats(nextStats);
-
-        // ✅ Only update parent if it actually changes
-        const nextPatch = {
-          xp: nextStats.total_xp,
-          completedLessonsCount: nextStats.lessons_completed,
-        };
-
-        const same =
-          Number(user?.xp ?? 0) === Number(nextPatch.xp ?? 0) &&
-          Number(user?.completedLessonsCount ?? 0) ===
-            Number(nextPatch.completedLessonsCount ?? 0);
-
-        if (!same) onUpdateUser?.(nextPatch);
-      } catch (e) {
-        console.error("[Profile] load /me/stats failed:", e);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Load real last-7-days activity
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    if (didLoadActivityRef.current) return;
-    didLoadActivityRef.current = true;
-
-    (async () => {
-      try {
-        const res = await apiFetch("/me/activity/last7days", {
-          token,
-          method: "GET",
-        });
-
-        if (!res.ok) {
-          const res2 = await apiFetch("/me/activity?days=7", {
-            token,
-            method: "GET",
-          });
-          if (!res2.ok) return;
-
-          const data2 = await safeJsonParse(res2);
-          if (Array.isArray(data2)) setWeeklyProgress(data2);
-          return;
-        }
-
-        const data = await safeJsonParse(res);
-
-        // backend may return ARRAY directly
-        if (Array.isArray(data)) {
-          setWeeklyProgress(
-            data.map((x) => ({
-              day: String(x?.day ?? ""),
-              value: Number(x?.value ?? 0),
-            }))
-          );
-          return;
-        }
-
-        // or { days: [...] }
-        if (Array.isArray(data?.days)) {
-          setWeeklyProgress(
-            data.days.map((x) => ({
-              day: String(x?.day ?? ""),
-              value: Number(x?.value ?? 0),
-            }))
-          );
-        }
-      } catch {
-        // ignore
-      }
-    })();
-  }, []);
-
-  if (!user) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-gray-600">
-          You need to be logged in to view your profile.
-        </p>
-      </div>
-    );
-  }
-
-  const displayNameComputed = useMemo(() => {
-    const fn = (firstName || "").trim();
-      const ln = (lastName || "").trim();
-    return dn || user.name || "Haylingua learner";
-  }, [displayName, user.name]);
-
-  const initials = useMemo(() => {
-    const c = (displayName || "").trim()?.[0] || user?.name?.[0] || user?.email?.[0] || "U";
-    return String(c).toUpperCase();
-  }, [displayName, user?.name, user?.email]);
-
-  // Use backend stats if available; fallback to local
-  const xp = stats.total_xp ?? (user.xp ?? 0);
-
-  const lessonsCompleted =
-    stats.lessons_completed ??
-    user.completedLessonsCount ??
-    (Array.isArray(user.completedLessons) ? user.completedLessons.length : 0);
-
-  // derive level from XP
-  const level = Math.max(1, Math.floor((Number(xp) || 0) / 500) + 1);
-
-  // streak should never show 0
-  const streak = Math.max(1, Number(user?.streak ?? 1) || 1);
-
-  const maxVal = Math.max(...weeklyProgress.map((d) => Number(d.value) || 0), 1);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      const token = getToken();
-
-      const fn = (firstName || "").trim();
-      const ln = (lastName || "").trim();
-      const payload = {
-        // ✅ Keep legacy compatibility
-        first_name: dn || null,
-        last_name: dn ? "" : null,
-
-        // Existing fields
-        email: email.trim() || user.email,
-        avatar_url: avatarUrl.trim() || null,
-
-        // New public-profile fields (backend may ignore if not implemented)
-        display_name: dn || null,
-        bio: (bio || "").trim() || null,
-        friends_public: !!friendsPublic,
-        profile_theme: {
-          background: String(themeBg || "").trim() || "#fff7ed",
-          gradient: String(themeGradient || "").trim() || "",
-        },
-      };
-
-      // Persist to backend: prefer /me/profile, fallback to /me
-      if (token) {
-        let res = await apiFetch("/me/profile", {
+        const res = await apiFetch("/me/profile", {
           token,
           method: "PUT",
           body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
-          const mergedName =
-            [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
-            user.name;
-
-          res = await apiFetch("/me", {
-            token,
-            method: "PUT",
-            body: JSON.stringify({
-              name: mergedName,
-              avatar_url: payload.avatar_url,
-            }),
-          });
+          const err = await safeJsonParse(res);
+          setMessage(err?.detail || "Failed to save profile settings.");
         }
-
-        if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          console.warn("[Profile] profile save failed:", res.status, t);
-        }
+      } catch {
+        setMessage("Failed to save profile settings.");
+      } finally {
+        setBgSaving(false);
       }
+    }, 650);
 
-      const newName =
-        [payload.first_name, payload.last_name].filter(Boolean).join(" ") ||
-        user.name;
+    return () => {
+      if (bgSaveTimer.current) clearTimeout(bgSaveTimer.current);
+    };
+  }, [
+    loading,
+    token,
+    themeBg,
+    themeGradient,
+    bannerUrl,
+    friendsPublic,
+    isHidden,
+    username,
+    firstName,
+    lastName,
+    bio,
+  ]);
 
-      onUpdateUser?.({
-        name: newName,
-        email: payload.email,
-        avatarUrl: payload.avatar_url || undefined,
+  // Manual save for core profile (optional; keeps existing UX expectation)
+  async function handleSaveCore(e) {
+    e?.preventDefault?.();
+    if (!token) return;
+
+    setSaving(true);
+    setMessage("");
+    try {
+      const payload = {
+        username: String(username || "").trim() || null,
+        first_name: String(firstName || "").trim() || null,
+        last_name: String(lastName || "").trim() || null,
+        bio: String(bio || "").trim() || null,
+        // keep these so core-save doesn't overwrite autosaved settings unexpectedly
+        friends_public: !!friendsPublic,
+        is_hidden: !!isHidden,
+        banner_url: bannerUrl || null,
+        profile_theme: {
+          background: themeBg || "#fff7ed",
+          gradient: themeGradient || "",
+        },
+      };
+
+      const res = await apiFetch("/me/profile", {
+        token,
+        method: "PUT",
+        body: JSON.stringify(payload),
       });
+
+      if (res.ok) {
+        setMessage("Saved.");
+      } else {
+        const err = await safeJsonParse(res);
+        setMessage(err?.detail || "Save failed.");
+      }
+    } catch {
+      setMessage("Save failed.");
     } finally {
       setSaving(false);
     }
-  };
+  }
+
+  function handlePickBanner() {
+    setBannerUrl(pickRandomBanner());
+  }
+
+  function handleAvatarPick() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+      setMessage("Avatar selected (upload endpoint not wired yet).");
+    };
+    input.click();
+  }
+
+  if (loading) {
+    return <div className="max-w-5xl mx-auto px-4 py-10 text-gray-700">Loading…</div>;
+  }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      {/* Top section: avatar + basic stats */}
-      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative overflow-hidden">
-        {bannerUrl ? (
-          <img
-            src={bannerUrl}
-            alt="Profile banner"
-            className="absolute inset-0 w-full h-full object-cover opacity-40"
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      {/* Header banner */}
+      <div className="rounded-3xl overflow-hidden shadow-sm border border-orange-100 bg-white">
+        <div
+          className="relative h-40 md:h-52"
+          style={{
+            backgroundImage: `url(${bannerUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div
+            className="absolute inset-0 opacity-70"
+            style={{
+              background: headerBackground,
+            }}
           />
-        ) : null}
-        <div className="absolute inset-0 bg-white/70" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
-
-        <div className="flex items-center gap-4 relative overflow-hidden">
-        {bannerUrl ? (
-          <img
-            src={bannerUrl}
-            alt="Profile banner"
-            className="absolute inset-0 w-full h-full object-cover opacity-40"
-          />
-        ) : null}
-        <div className="absolute inset-0 bg-white/70" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
-
-          <div className="relative">
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (!f) return;
-                const url = URL.createObjectURL(f);
-                setAvatarUrl(url);
-                setToast({ kind: "info", text: "Photo upload is coming next. For now this is a preview." });
-              }}
-            />
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white text-2xl font-semibold shadow-md overflow-hidden">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={displayNameComputed}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                initials
-              )}
-            </div>
-          </div>
-          <div>
-            <div className="flex flex-wrap gap-2 mb-2">
-              <button
-                type="button"
-                onClick={() => avatarInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-white/70 border border-gray-200 hover:bg-white transition-colors"
-              >
-                Upload photo
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const pick = DEFAULT_BANNERS[Math.floor(Math.random() * DEFAULT_BANNERS.length)];
-                  setBannerUrl(pick);
-                }}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-white/70 border border-gray-200 hover:bg-white transition-colors"
-              >
-                Random banner
-              </button>
-            </div>
-            <h1 className="text-lg md:text-xl font-semibold text-gray-900">
-              {displayNameComputed}
-            </h1>
-            <p className="text-sm text-gray-500">{email}</p>
-            <p className="mt-1 text-xs text-orange-600 font-medium">
-              Armenian learner • Level {level}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-3 md:gap-4 relative overflow-hidden">
-        {bannerUrl ? (
-          <img
-            src={bannerUrl}
-            alt="Profile banner"
-            className="absolute inset-0 w-full h-full object-cover opacity-40"
-          />
-        ) : null}
-        <div className="absolute inset-0 bg-white/70" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
-
-          <div className="flex flex-col items-center bg-orange-50 rounded-xl px-3 py-2">
-            <Trophy className="w-4 h-4 text-orange-500 mb-1" />
-            <span className="text-sm font-semibold text-gray-900">
-              Lv {level}
-            </span>
-            <span className="text-[11px] text-gray-500">Level</span>
-          </div>
-          <div className="flex flex-col items-center bg-yellow-50 rounded-xl px-3 py-2">
-            <Star className="w-4 h-4 text-yellow-500 mb-1" />
-            <span className="text-sm font-semibold text-gray-900">{xp}</span>
-            <span className="text-[11px] text-gray-500">XP</span>
-          </div>
-          <div className="flex flex-col items-center bg-red-50 rounded-xl px-3 py-2">
-            <Flame className="w-4 h-4 text-red-500 mb-1" />
-            <span className="text-sm font-semibold text-gray-900">
-              {streak}
-            </span>
-            <span className="text-[11px] text-gray-500">Day streak</span>
-          </div>
-        </div>
+          <div className="absolute inset-0 p-4 md:p-6 flex items-end justify-between gap-3">
+            <div className="flex items-end gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/80 backdrop-blur border border-white/60 flex items-center justify-center overflow-hidden shadow">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xl md:text-2xl font-extrabold text-orange-700">
+                      {(firstName || username || "H")[0]?.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAvatarPick}
+                  className="absolute -bottom-2 -right-2 inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                >
+                  <ImageIcon className="w-4 h-4 text-orange-700" />
+                  Upload
+                </button>
               </div>
-      </section>
 
-      {/* Profile form */}
-      
+              <div className="pb-1">
+                <div className="text-white drop-shadow text-lg md:text-xl font-bold">
+                  {firstName || lastName ? `${firstName} ${lastName}`.trim() : username || "Your profile"}
+                </div>
+                <div className="text-white/90 drop-shadow text-xs md:text-sm flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1">
+                    <Trophy className="w-4 h-4" /> Lv {level}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Star className="w-4 h-4" /> {xp} XP
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Flame className="w-4 h-4" /> {streak} day streak
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handlePickBanner}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                >
+                  <Shuffle className="w-4 h-4 text-orange-700" />
+                  Random banner
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHidden((v) => !v)}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                >
+                  <EyeOff className="w-4 h-4 text-orange-700" />
+                  {isHidden ? "Hidden" : "Public"}
+                </button>
+              </div>
+
+              <div className="text-[11px] text-white/90 drop-shadow">
+                {bgSaving ? "Saving…" : " "}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Profile details (no display name, no avatar url) */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
-          Profile details
-        </h2>
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Profile details</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSaveCore} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label
-                htmlFor="firstName"
-                className="block text-xs font-medium text-gray-600 mb-1.5"
-              >
-                First name
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">First name</label>
               <input
-                id="firstName"
                 type="text"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                autoComplete="given-name"
                 placeholder="Armen"
+                autoComplete="given-name"
               />
             </div>
 
             <div>
-              <label
-                htmlFor="lastName"
-                className="block text-xs font-medium text-gray-600 mb-1.5"
-              >
-                Last name
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Last name</label>
               <input
-                id="lastName"
                 type="text"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                autoComplete="family-name"
                 placeholder="Ghazaryan"
+                autoComplete="family-name"
               />
             </div>
-          </div>
 
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-xs font-medium text-gray-600 mb-1.5"
-            >
-              Email address
-            </label>
-            <input
-              id="email"
-              type="email"
-              readOnly
-              disabled
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-700"
-              value={email}
-            />
-            <p className="mt-1 text-[11px] text-gray-400">
-              Email changes are managed in Account security.
-            </p>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Public username</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="your-username"
+                autoComplete="username"
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <div className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-700 truncate">
+                  {publicProfileHref ? `${window.location.origin}${publicProfileHref}` : "—"}
+                </div>
+                {publicProfileHref ? (
+                  <a
+                    href={publicProfileHref}
+                    className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
+                  >
+                    <Link2 className="w-4 h-4" />
+                    Open
+                  </a>
+                ) : (
+                  <span className="text-xs text-gray-400">Set a username</span>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-gray-400">
+                If the account is hidden, your public page will show only “This account is hidden”.
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Bio</label>
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Write something short…"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Email address</label>
+              <input
+                type="email"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-600 cursor-not-allowed"
+                value={email}
+                readOnly
+                disabled
+              />
+              <p className="mt-1 text-[11px] text-gray-400">
+                Email can only be changed via Account security (with confirmation).
+              </p>
+            </div>
+
+            <div className="flex items-center">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700 mt-6">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={friendsPublic}
+                  onChange={(e) => setFriendsPublic(e.target.checked)}
+                />
+                Show friends list publicly
+              </label>
+            </div>
           </div>
 
           <div className="pt-2 flex justify-end">
@@ -789,160 +522,150 @@ export default function ProfilePage({ user, onUpdateUser }) {
         </form>
       </section>
 
-
-      {/* Account security (NEW) */}
+      {/* Background (no submit button; autosaves) */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
-          Account security
-        </h2>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900">Appearance</h2>
+          <div className="text-xs text-gray-500 flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            {bgSaving ? "Saving…" : "Auto-saved"}
+          </div>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-gray-100 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Mail className="w-4 h-4 text-orange-600" />
-              <p className="text-sm font-semibold text-gray-900">Change email</p>
-            </div>
-
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Background color</label>
             <input
-              type="email"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="new@email.com"
-              autoComplete="email"
+              type="color"
+              className="w-14 h-10 rounded-xl border border-gray-200 p-1 bg-white"
+              value={themeBg}
+              onChange={(e) => setThemeBg(e.target.value)}
             />
-
-            <button
-              type="button"
-              onClick={handleRequestEmailChange}
-              className="mt-3 inline-flex items-center justify-center w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
-            >
-              Send confirmation link
-            </button>
-
-            <p className="mt-2 text-[11px] text-gray-400">
-              Requires backend email confirmation endpoint.
-            </p>
+            <p className="mt-1 text-[11px] text-gray-400">Used if gradient is empty/invalid.</p>
           </div>
 
-          <div className="rounded-2xl border border-gray-100 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <KeyRound className="w-4 h-4 text-orange-600" />
-              <p className="text-sm font-semibold text-gray-900">Change password</p>
-            </div>
-
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Background gradient (CSS)</label>
             <input
-              type="password"
+              type="text"
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              placeholder="Current password"
-              autoComplete="current-password"
+              value={themeGradient}
+              onChange={(e) => setThemeGradient(e.target.value)}
+              placeholder="linear-gradient(...)"
             />
-
-            <input
-              type="password"
-              className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="New password"
-              autoComplete="new-password"
-            />
-
-            <button
-              type="button"
-              onClick={handleChangePassword}
-              className="mt-3 inline-flex items-center justify-center w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
-            >
-              Update password
-            </button>
-
-            <p className="mt-2 text-[11px] text-gray-400">
-              Requires backend password change endpoint.
+            <p className="mt-1 text-[11px] text-gray-400">
+              Only accepts linear/radial/conic-gradient. Otherwise we fall back to the color.
             </p>
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-gray-100 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-orange-600" />
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Two-factor authentication</p>
-                <p className="text-[11px] text-gray-400">
-                  Enable/disable 2FA (email or authenticator).
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleToggle2FA}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors"
-            >
-              <LockKeyhole className="w-4 h-4" />
-              {twoFaEnabled ? "Disable 2FA" : "Enable 2FA"}
-            </button>
+        <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 text-xs font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">
+            Preview
           </div>
+          <div className="h-20" style={{ background: headerBackground }} />
         </div>
-
-        {notice ? (
-          <div className="mt-4 rounded-xl bg-orange-50 text-orange-800 px-3 py-2 text-sm">
-            {notice}
-          </div>
-        ) : null}
       </section>
 
-      {/* Progress overview */}
+      {/* Account security placeholders */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Account security</h2>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-gray-200 p-4">
+            <div className="flex items-center gap-2 font-semibold text-gray-900">
+              <Mail className="w-4 h-4 text-orange-700" />
+              Change email
+            </div>
+            <p className="mt-2 text-sm text-gray-600">
+              This flow requires email confirmation. The UI is ready; backend endpoints can be wired next.
+            </p>
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              onClick={() => setMessage("Email change flow is not wired yet.")}
+            >
+              <Mail className="w-4 h-4" /> Start email change
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 p-4">
+            <div className="flex items-center gap-2 font-semibold text-gray-900">
+              <KeyRound className="w-4 h-4 text-orange-700" />
+              Change password
+            </div>
+            <p className="mt-2 text-sm text-gray-600">
+              Requires current password + new password. Can be wired to <code>/me/change-password</code>.
+            </p>
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              onClick={() => setMessage("Password change flow is not wired yet.")}
+            >
+              <KeyRound className="w-4 h-4" /> Change password
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 p-4 md:col-span-2">
+            <div className="flex items-center gap-2 font-semibold text-gray-900">
+              <ShieldCheck className="w-4 h-4 text-orange-700" />
+              Two-factor authentication (2FA)
+            </div>
+            <p className="mt-2 text-sm text-gray-600">
+              Yes: enabling 2FA should open a popup/modal with a QR code, secret, and a code verification field.
+              Once you confirm the code, show recovery codes.
+            </p>
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              onClick={() => setMessage("2FA popup UI can be added after backend endpoints exist.")}
+            >
+              <LockKeyhole className="w-4 h-4" /> Manage 2FA
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Recent learning activity (kept) */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
         <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
           Recent learning activity
         </h2>
 
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-          <div className="flex-1">
-            <p className="text-xs text-gray-500 mb-2">
+        <div className="grid md:grid-cols-[1fr,240px] gap-4">
+          <div className="rounded-2xl border border-gray-200 p-4">
+            <div className="text-xs font-semibold text-gray-700 mb-3">
               Exercises completed in the last 7 days
-            </p>
+            </div>
 
-            <div className="flex items-end gap-2 h-28">
-              {weeklyProgress.map((d, idx) => (
-                <div
-                  key={`${d.day}-${idx}`}
-                  className="flex flex-col items-center justify-end flex-1"
-                >
-                  <div
-                    className="w-6 rounded-full bg-orange-100 overflow-hidden flex items-end"
-                    style={{ height: "80px" }}
-                  >
+            <div className="flex items-end gap-3 h-24">
+              {(last7?.length ? last7 : ["T", "W", "T", "F", "S", "S", "M"]).map((d, idx) => {
+                const v = typeof d === "object" ? d.value ?? 0 : 0;
+                const label = typeof d === "object" ? d.label ?? "" : String(d);
+                const height = Math.max(12, Math.min(96, 12 + v * 18));
+                return (
+                  <div key={idx} className="flex flex-col items-center gap-2 flex-1">
                     <div
-                      className="w-full bg-gradient-to-t from-orange-600 to-yellow-400"
-                      style={{
-                        height: `${((Number(d.value) || 0) / maxVal) * 100}%`,
-                      }}
+                      className="w-full rounded-full bg-orange-100"
+                      style={{ height }}
+                      title={`${label}: ${v}`}
                     />
+                    <div className="text-[11px] text-gray-500">{label}</div>
                   </div>
-                  <span className="mt-1 text-[11px] text-gray-500">{d.day}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          <div className="w-full md:w-60 space-y-3">
+          <div className="space-y-2">
             <div className="flex justify-between items-center bg-orange-50 rounded-xl px-3 py-2.5">
-              <span className="text-xs text-gray-600">
-                Total lessons completed
-              </span>
-              <span className="text-sm font-semibold text-gray-900">
-                {lessonsCompleted}
-              </span>
+              <span className="text-xs text-gray-600">Total lessons completed</span>
+              <span className="text-sm font-semibold text-gray-900">{lessonsCompleted}</span>
             </div>
 
             <div className="flex justify-between items-center bg-green-50 rounded-xl px-3 py-2.5">
               <span className="text-xs text-gray-600">Best streak</span>
-              <span className="text-sm font-semibold text-gray-900">
-                {streak} days
-              </span>
+              <span className="text-sm font-semibold text-gray-900">{streak} days</span>
             </div>
 
             <div className="flex justify-between items-center bg-blue-50 rounded-xl px-3 py-2.5">
@@ -953,11 +676,16 @@ export default function ProfilePage({ user, onUpdateUser }) {
         </div>
 
         <p className="mt-3 text-[11px] text-gray-400">
-          Stats are loaded from the backend (<code>/me/stats</code>). The “last 7
-          days” chart is loaded from <code>/me/activity/last7days</code> (or falls
-          back to <code>/me/activity?days=7</code>).
+          Stats are loaded from the backend (<code>/me/stats</code>). The “last 7 days” chart is loaded from{" "}
+          <code>/me/activity/last7days</code> (or falls back to <code>/me/activity?days=7</code>).
         </p>
       </section>
+
+      {!!message && (
+        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+          {message}
+        </div>
+      )}
     </div>
   );
 }
