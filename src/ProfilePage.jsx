@@ -64,9 +64,6 @@ function isSafeGradient(v) {
   );
 }
 
-// Resolve background safely so invalid CSS values never crash rendering.
-// - If a gradient is provided, only allow a limited safe set.
-// - Otherwise fall back to a plain color.
 function resolveProfileBackground({ themeBg, themeGradient }) {
   const bg = String(themeBg || "").trim() || "#fff7ed";
   const g = String(themeGradient || "").trim();
@@ -74,10 +71,21 @@ function resolveProfileBackground({ themeBg, themeGradient }) {
   return bg;
 }
 
+const DEFAULT_BANNERS = [
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=70",
+  "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1600&q=70",
+  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1600&q=70",
+  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=70",
+  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=70",
+];
 export default function ProfilePage({ user, onUpdateUser }) {
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState(user?.email || "");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email] = useState(user?.email || "");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
+  const [isHidden, setIsHidden] = useState(false);
+  const avatarInputRef = useRef(null);
 
   // Public profile + customization
   const [username, setUsername] = useState(user?.username || "");
@@ -238,9 +246,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
   // Initialize from current user (local)
   useEffect(() => {
     if (!user) return;
-    setDisplayName(user.name || user.username || "");
-    setEmail(user.email || "");
-    setAvatarUrl(user.avatarUrl || "");
+    setDisplayName(user.name || user.username || "");    setAvatarUrl(user.avatarUrl || "");
   }, [user]);
 
   // Load profile from backend (prefer /me/profile, fallback to /me)
@@ -283,8 +289,7 @@ export default function ProfilePage({ user, onUpdateUser }) {
           "";
         setDisplayName(computedDisplay);
 
-        if (typeof em === "string" && em) setEmail(em);
-        if (typeof av === "string") setAvatarUrl(av);
+        if (typeof em === "string" && em)        if (typeof av === "string") setAvatarUrl(av);
 
         // Public profile fields (optional)
         const un = data.username ?? data.handle ?? user?.username ?? "";
@@ -324,6 +329,58 @@ export default function ProfilePage({ user, onUpdateUser }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const hasAutoBanner = useRef(false);
+
+  // If user has no banner yet, assign a random default one once (persisted to BE).
+  useEffect(() => {
+    if (!profileLoadedRef.current) return;
+    if (hasAutoBanner.current) return;
+    if (bannerUrl) return;
+
+    const pick = DEFAULT_BANNERS[Math.floor(Math.random() * DEFAULT_BANNERS.length)];
+    hasAutoBanner.current = true;
+    setBannerUrl(pick);
+
+    const token = getToken();
+    apiFetch("/me/profile", {
+      method: "PUT",
+      token,
+      body: JSON.stringify({ banner_url: pick }),
+    }).catch(() => {});
+  }, [bannerUrl]);
+
+  // Auto-save customization (bio/theme/visibility/friends/username/banner) with debounce
+  const autoSaveTimer = useRef(null);
+  useEffect(() => {
+    if (!profileLoadedRef.current) return;
+
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      const token = getToken();
+      apiFetch("/me/profile", {
+        method: "PUT",
+        token,
+        body: JSON.stringify({
+          username: (username || "").trim() || null,
+          bio: (bio || "").trim() || null,
+          friends_public: !!friendsPublic,
+          is_hidden: !!isHidden,
+          banner_url: bannerUrl || null,
+          profile_theme: {
+            background: themeBg,
+            gradient: themeGradient,
+          },
+        }),
+      })
+        .then(() => setToast({ kind: "success", text: "Saved" }))
+        .catch(() => setToast({ kind: "error", text: "Could not save" }));
+    }, 700);
+
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [username, bio, friendsPublic, isHidden, bannerUrl, themeBg, themeGradient]);
 
   // Load stats from backend (/me/stats?email=...)
   useEffect(() => {
@@ -442,7 +499,8 @@ export default function ProfilePage({ user, onUpdateUser }) {
   }
 
   const displayNameComputed = useMemo(() => {
-    const dn = (displayName || "").trim();
+    const fn = (firstName || "").trim();
+      const ln = (lastName || "").trim();
     return dn || user.name || "Haylingua learner";
   }, [displayName, user.name]);
 
@@ -474,7 +532,8 @@ export default function ProfilePage({ user, onUpdateUser }) {
     try {
       const token = getToken();
 
-      const dn = (displayName || "").trim();
+      const fn = (firstName || "").trim();
+      const ln = (lastName || "").trim();
       const payload = {
         // ✅ Keep legacy compatibility
         first_name: dn || null,
@@ -540,9 +599,42 @@ export default function ProfilePage({ user, onUpdateUser }) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       {/* Top section: avatar + basic stats */}
-      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative overflow-hidden">
+        {bannerUrl ? (
+          <img
+            src={bannerUrl}
+            alt="Profile banner"
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-white/70" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
+
+        <div className="flex items-center gap-4 relative overflow-hidden">
+        {bannerUrl ? (
+          <img
+            src={bannerUrl}
+            alt="Profile banner"
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-white/70" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
+
           <div className="relative">
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                const url = URL.createObjectURL(f);
+                setAvatarUrl(url);
+                setToast({ kind: "info", text: "Photo upload is coming next. For now this is a preview." });
+              }}
+            />
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white text-2xl font-semibold shadow-md overflow-hidden">
               {avatarUrl ? (
                 <img
@@ -556,6 +648,25 @@ export default function ProfilePage({ user, onUpdateUser }) {
             </div>
           </div>
           <div>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-white/70 border border-gray-200 hover:bg-white transition-colors"
+              >
+                Upload photo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const pick = DEFAULT_BANNERS[Math.floor(Math.random() * DEFAULT_BANNERS.length)];
+                  setBannerUrl(pick);
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-white/70 border border-gray-200 hover:bg-white transition-colors"
+              >
+                Random banner
+              </button>
+            </div>
             <h1 className="text-lg md:text-xl font-semibold text-gray-900">
               {displayNameComputed}
             </h1>
@@ -566,7 +677,17 @@ export default function ProfilePage({ user, onUpdateUser }) {
           </div>
         </div>
 
-        <div className="flex gap-3 md:gap-4">
+        <div className="flex gap-3 md:gap-4 relative overflow-hidden">
+        {bannerUrl ? (
+          <img
+            src={bannerUrl}
+            alt="Profile banner"
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-white/70" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
+
           <div className="flex flex-col items-center bg-orange-50 rounded-xl px-3 py-2">
             <Trophy className="w-4 h-4 text-orange-500 mb-1" />
             <span className="text-sm font-semibold text-gray-900">
@@ -587,80 +708,73 @@ export default function ProfilePage({ user, onUpdateUser }) {
             <span className="text-[11px] text-gray-500">Day streak</span>
           </div>
         </div>
+              </div>
       </section>
 
       {/* Profile form */}
+      
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
         <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
           Profile details
         </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="displayName"
-              className="block text-xs font-medium text-gray-600 mb-1.5"
-            >
-              Display name
-            </label>
-            <input
-              id="displayName"
-              name="displayName"
-              type="text"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Niko"
-              autoComplete="nickname"
-            />
-            <p className="mt-1 text-[11px] text-gray-400">
-              This is what others will see on the leaderboard and your public page.
-            </p>
-          </div>
 
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label
-                htmlFor="email"
+                htmlFor="firstName"
                 className="block text-xs font-medium text-gray-600 mb-1.5"
               >
-                Email address
+                First name
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
+                id="firstName"
+                type="text"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                autoComplete="given-name"
+                placeholder="Armen"
               />
-              <p className="mt-1 text-[11px] text-gray-400">
-                Used to log in to Haylingua.
-              </p>
             </div>
 
             <div>
               <label
-                htmlFor="avatarUrl"
+                htmlFor="lastName"
                 className="block text-xs font-medium text-gray-600 mb-1.5"
               >
-                Profile picture URL
+                Last name
               </label>
               <input
-                id="avatarUrl"
-                name="avatarUrl"
-                type="url"
+                id="lastName"
+                type="text"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://…/avatar.png"
-                autoComplete="url"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                autoComplete="family-name"
+                placeholder="Ghazaryan"
               />
-              <p className="mt-1 text-[11px] text-gray-400">
-                Paste a direct image link. We’ll show it in your avatar.
-              </p>
             </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-xs font-medium text-gray-600 mb-1.5"
+            >
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              readOnly
+              disabled
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-700"
+              value={email}
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              Email changes are managed in Account security.
+            </p>
           </div>
 
           <div className="pt-2 flex justify-end">
@@ -675,129 +789,6 @@ export default function ProfilePage({ user, onUpdateUser }) {
         </form>
       </section>
 
-
-      {/* Public profile & customization (NEW) */}
-      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
-          Public profile
-        </h2>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">
-              Public username
-            </label>
-            <input
-              type="text"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="your-username"
-              autoComplete="username"
-            />
-            <p className="mt-1 text-[11px] text-gray-400">
-              Used for your public page URL.
-            </p>
-          </div>
-
-          <div className="flex flex-col justify-between">
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">
-              Public page link
-            </label>
-
-            <div className="flex items-center gap-2">
-              <div className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-700 truncate">
-                {publicProfileHref ? `${window.location.origin}${publicProfileHref}` : "—"}
-              </div>
-              {publicProfileHref ? (
-                <a
-                  href={publicProfileHref}
-                  className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
-                >
-                  <Link2 className="w-4 h-4" />
-                  Open
-                </a>
-              ) : (
-                <span className="text-xs text-gray-400">Set a username</span>
-              )}
-            </div>
-
-            <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={friendsPublic}
-                onChange={(e) => setFriendsPublic(e.target.checked)}
-              />
-              Show my friends on public page
-            </label>
-          </div>
-        </div>
-
-        <div className="mt-5 grid md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">
-              Bio
-            </label>
-            <textarea
-              className="w-full min-h-[96px] rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Tell others who you are…"
-            />
-            <p className="mt-1 text-[11px] text-gray-400">
-              Appears on your public page.
-            </p>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Palette className="w-4 h-4 text-orange-600" />
-              <p className="text-sm font-semibold text-gray-900">
-                Page background
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Background color
-                </label>
-                <input
-                  type="color"
-                  className="w-full h-10 rounded-xl border border-gray-200 p-1 bg-white"
-                  value={themeBg}
-                  onChange={(e) => setThemeBg(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Gradient (optional)
-                </label>
-                <input
-                  type="text"
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  value={themeGradient}
-                  onChange={(e) => setThemeGradient(e.target.value)}
-                  placeholder="linear-gradient(135deg, #fff7ed, #ffffff)"
-                />
-              </div>
-            </div>
-
-            <div
-              className="mt-3 rounded-xl border border-gray-200 p-3 text-sm text-gray-700"
-              style={{ background: resolveProfileBackground({ themeBg, themeGradient }) }}
-            >
-              Preview
-            </div>
-
-            <p className="mt-2 text-[11px] text-gray-400">
-              Only gradients starting with <code>linear-gradient</code>, <code>radial-gradient</code>, or <code>conic-gradient</code> are applied.
-            </p>
-          </div>
-        </div>
-      </section>
 
       {/* Account security (NEW) */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
