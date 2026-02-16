@@ -2866,7 +2866,17 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
             SELECT
               xp.*,
               ranks.global_rank,
-              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = xp.id OR f.friend_id = xp.id)) AS friends_count
+              (
+                SELECT COUNT(DISTINCT other_id)
+                FROM (
+                  SELECT CASE
+                    WHEN f.user_id = xp.id THEN f.friend_id
+                    ELSE f.user_id
+                  END AS other_id
+                  FROM friends f
+                  WHERE f.user_id = xp.id OR f.friend_id = xp.id
+                ) x
+              ) AS friends_count
             FROM xp
             JOIN ranks ON ranks.id = xp.id
             """
@@ -2958,11 +2968,11 @@ def get_public_user(
             db.execute(
                 text(
                     """
-                    SELECT 1
-                    FROM friends
-                    WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
-                      AND status = 'accepted'
-                    LIMIT 1
+                SELECT 1
+                FROM friends f
+                WHERE (f.user_id = :a AND f.friend_id = :b)
+                   OR (f.user_id = :b AND f.friend_id = :a)
+                LIMIT 1
                     """
                 ),
                 {"a": int(viewer_id), "b": target_id},
@@ -3017,9 +3027,9 @@ def get_public_user_friends(
             text(
                 """
                 SELECT 1
-                FROM friends
-                WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
-                  AND status = 'accepted'
+                FROM friends f
+                WHERE (f.user_id = :a AND f.friend_id = :b)
+                   OR (f.user_id = :b AND f.friend_id = :a)
                 LIMIT 1
                 """
             ),
