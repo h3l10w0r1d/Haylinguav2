@@ -63,7 +63,7 @@ export default function PublicUserPage({ token }) {
   }, [safeUsername, token]);
 
   // Backend returns PublicUserOut:
-  // { username, name, bio, avatar_url, profile_theme, xp, level, streak, global_rank, friends_preview[] }
+  // { username, name, bio, avatar_url, profile_theme, xp, level, streak, global_rank, friends_preview[], is_hidden }
   const displayName = data?.name || data?.username || safeUsername;
   const avatarUrl = data?.avatar_url || null;
 
@@ -103,6 +103,12 @@ export default function PublicUserPage({ token }) {
                 {err}
               </div>
             ) : (
+              data?.is_hidden ? (
+                <div className="rounded-2xl bg-white border border-black/10 px-5 py-6">
+                  <div className="text-xl font-semibold text-black">@{data?.username || safeUsername}</div>
+                  <div className="mt-2 text-sm text-black/60">This account is hidden.</div>
+                </div>
+              ) : (
               <>
                 <div className="flex items-start gap-5">
                   <div className="h-16 w-16 rounded-2xl bg-[#ff6a00]/15 flex items-center justify-center overflow-hidden border border-black/5">
@@ -160,6 +166,7 @@ export default function PublicUserPage({ token }) {
                   </div>
                 ) : null}
               </>
+              )
             )}
           </div>
         </div>
@@ -167,19 +174,4 @@ export default function PublicUserPage({ token }) {
     </div>
   );
 }
-  if (data?.is_hidden) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h1 className="text-xl font-semibold text-gray-900">
-            {data.username || "User"}
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            This account is hidden.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
 
