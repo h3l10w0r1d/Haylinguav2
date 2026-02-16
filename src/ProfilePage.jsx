@@ -63,6 +63,17 @@ function isSafeGradient(v) {
     s.startsWith("conic-gradient(")
   );
 }
+
+// Resolve background safely so invalid CSS values never crash rendering.
+// - If a gradient is provided, only allow a limited safe set.
+// - Otherwise fall back to a plain color.
+function resolveProfileBackground({ themeBg, themeGradient }) {
+  const bg = String(themeBg || "").trim() || "#fff7ed";
+  const g = String(themeGradient || "").trim();
+  if (g && isSafeGradient(g)) return g;
+  return bg;
+}
+
 export default function ProfilePage({ user, onUpdateUser }) {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState(user?.email || "");
