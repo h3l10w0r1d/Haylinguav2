@@ -2360,10 +2360,10 @@ def me_profile_put(
             ]
 
         try:
-        db.execute(text(f"UPDATE users SET {', '.join(set_parts)} WHERE id = :id"), params)
-      except IntegrityError:
-        # likely username case-insensitive unique constraint
-        raise HTTPException(status_code=409, detail="Username already taken")
+            db.execute(text(f"UPDATE users SET {', '.join(set_parts)} WHERE id = :id"), params)
+        except IntegrityError:
+            # likely username case-insensitive unique constraint
+            raise HTTPException(status_code=409, detail="Username already taken")
 
     row = db.execute(
         text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified FROM users WHERE id = :id"),
