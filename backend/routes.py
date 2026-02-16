@@ -1227,8 +1227,8 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
 
     # 5) check uniqueness (email + username)
     existing = db.execute(
-        text("SELECT id FROM users WHERE email = :email"),
-        {"q": q_l},
+        text("SELECT id FROM users WHERE LOWER(email) = :email"),
+        {"email": email.lower()},
     ).mappings().first()
 
     if existing is not None:
