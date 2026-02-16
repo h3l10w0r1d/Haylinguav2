@@ -377,10 +377,13 @@ def ensure_schema() -> None:
         )
         # ---------- users (profile customization) ----------
         add_col_if_missing("users", "display_name TEXT")
+        add_col_if_missing("users", "first_name TEXT")
+        add_col_if_missing("users", "last_name TEXT")
         add_col_if_missing("users", "bio TEXT")
-        add_col_if_missing("users", "banner_url TEXT")
-        add_col_if_missing("users", "is_hidden BOOLEAN NOT NULL DEFAULT FALSE")
         add_col_if_missing("users", "profile_theme JSONB NOT NULL DEFAULT '{}'::jsonb")
         add_col_if_missing("users", "friends_public BOOLEAN NOT NULL DEFAULT TRUE")
+        add_col_if_missing("users", "avatar_url TEXT")
+        add_col_if_missing("users", "banner_url TEXT")
+        add_col_if_missing("users", "is_hidden BOOLEAN NOT NULL DEFAULT FALSE")
 
     print("[ensure_schema] done ✅")
