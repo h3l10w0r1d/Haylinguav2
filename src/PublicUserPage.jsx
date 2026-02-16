@@ -7,7 +7,12 @@ import { useParams, Link } from "react-router-dom";
  * - If token exists, we pass it to show friend-status / extra info (backend may use it)
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+// Keep API base consistent across the app.
+// Prefer VITE_API_BASE_URL, fallback to legacy VITE_API_BASE.
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE ||
+  "https://haylinguav2.onrender.com";
 
 function authHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -57,11 +62,16 @@ export default function PublicUserPage({ token }) {
     };
   }, [safeUsername, token]);
 
-  const displayName = data?.display_name || data?.username || safeUsername;
+  // Backend returns PublicUserOut:
+  // { username, name, bio, avatar_url, profile_theme, xp, level, streak, global_rank, friends_preview[] }
+  const displayName = data?.name || data?.username || safeUsername;
   const avatarUrl = data?.avatar_url || null;
 
+  const theme = data?.profile_theme || {};
+  const pageBg = theme?.background || "#fff7ef";
+
   return (
-    <div className="min-h-screen bg-[#fff7ef]">
+    <div className="min-h-screen" style={{ background: pageBg }}>
       <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
@@ -115,19 +125,19 @@ export default function PublicUserPage({ token }) {
                     )}
                   </div>
 
-                  {typeof data?.rank_global === "number" ? (
+                  {typeof data?.global_rank === "number" ? (
                     <div className="hidden md:block rounded-2xl bg-white border border-black/10 px-4 py-3 text-center">
                       <div className="text-xs text-black/50">Global rank</div>
-                      <div className="text-xl font-semibold">#{data.rank_global}</div>
+                      <div className="text-xl font-semibold">#{data.global_rank}</div>
                     </div>
                   ) : null}
                 </div>
 
                 <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Stat label="XP" value={data?.xp_total} />
+                  <Stat label="XP" value={data?.xp} />
                   <Stat label="Level" value={data?.level} />
-                  <Stat label="Best streak" value={data?.best_streak_days} />
-                  <Stat label="Lessons" value={data?.lessons_completed} />
+                  <Stat label="Streak" value={data?.streak} />
+                  <Stat label="Friends" value={data?.friends_count} />
                 </div>
 
                 {data?.friends_public && Array.isArray(data?.friends_preview) && data.friends_preview.length > 0 ? (
@@ -143,7 +153,7 @@ export default function PublicUserPage({ token }) {
                             <div className="font-semibold">{f.display_name || f.username}</div>
                             <div className="text-xs text-black/50">@{f.username}</div>
                           </div>
-                          <div className="text-sm text-black/70">#{f.rank_global ?? "—"}</div>
+                        <div className="text-sm text-black/70">#{f.global_rank ?? "—"}</div>
                         </div>
                       ))}
                     </div>
