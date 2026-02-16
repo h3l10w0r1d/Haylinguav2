@@ -64,8 +64,8 @@ export default function LandingPage({ onLogin, onSignup }) {
         return;
       }
       const u = username.trim();
-      if (u.length < 3 || u.length > 24) {
-        setError("Username must be 3–24 characters");
+      if (u.length < 3 || u.length > 20) {
+        setError("Username must be 3–20 characters");
         return;
       }
       // allow letters, numbers, underscore, dot
