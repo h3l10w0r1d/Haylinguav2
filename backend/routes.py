@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query
+from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query, UploadFile, File
 from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
@@ -2391,6 +2391,60 @@ def me_profile_put(
     return MeOut(**dict(row))
 
 
+@router.post("/me/avatar")
+def me_avatar_upload(
+    file: UploadFile = File(...),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Upload a custom avatar image.
+
+    - Stores the file on disk (Render persistent disk if configured)
+    - Updates users.avatar_url to a public URL under /static/avatars/
+    """
+
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    user_id = int(user_id)
+
+    _require_verified(db, user_id)
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Avatar must be an image")
+
+    data = file.file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(data) > 2_000_000:
+        raise HTTPException(status_code=413, detail="Avatar too large (max 2MB)")
+
+    import os
+    from pathlib import Path
+    from uuid import uuid4
+
+    disk_root = os.getenv("RENDER_DISK_PATH", "/tmp")
+    avatar_dir = Path(disk_root) / "avatars"
+    avatar_dir.mkdir(parents=True, exist_ok=True)
+
+    original = file.filename or "avatar.png"
+    ext = os.path.splitext(original)[1].lower()
+    if ext not in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]:
+        ext = ".png"
+
+    key = f"u{user_id}_{uuid4().hex}{ext}"
+    (avatar_dir / key).write_bytes(data)
+
+    public_url = f"/static/avatars/{key}"
+    db.execute(
+        text("UPDATE users SET avatar_url = :u WHERE id = :id"),
+        {"u": public_url, "id": user_id},
+    )
+    db.commit()
+
+    return {"avatar_url": public_url}
+
+
 @router.get("/me/onboarding", response_model=OnboardingOut)
 def me_onboarding_get(
     authorization: Optional[str] = Header(default=None),
@@ -2524,7 +2578,51 @@ def me_activity_last7days(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    return me_activity(days=7, authorization=authorization, db=db)
+    """Exercise completions per day for the last 7 days (including today).
+
+    The UI shows "Exercises completed in the last 7 days", so we base this on
+    user_exercise_logs (event_type='completed') rather than lesson completions.
+    """
+
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
+
+    today = date.today()
+    start = today - timedelta(days=6)
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+              DATE(created_at) AS d,
+              COUNT(DISTINCT exercise_id) AS c
+            FROM user_exercise_logs
+            WHERE user_id = :uid
+              AND created_at >= :start
+              AND event_type = 'completed'
+            GROUP BY DATE(created_at)
+            """
+        ),
+        {"uid": int(user_id), "start": start},
+    ).mappings().all()
+
+    by_date = {row["d"]: int(row["c"]) for row in rows}
+
+    out = []
+    for i in range(7):
+        d = start + timedelta(days=i)
+        out.append(
+            {
+                "date": d.isoformat(),
+                "label": d.strftime("%a")[0],
+                "value": by_date.get(d, 0),
+            }
+        )
+
+    return {"days": out}
     
 @router.get("/me/lessons/{lesson_id}/next")
 def me_next_exercise(
@@ -2866,17 +2964,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
             SELECT
               xp.*,
               ranks.global_rank,
-              (
-                SELECT COUNT(DISTINCT other_id)
-                FROM (
-                  SELECT CASE
-                    WHEN f.user_id = xp.id THEN f.friend_id
-                    ELSE f.user_id
-                  END AS other_id
-                  FROM friends f
-                  WHERE f.user_id = xp.id OR f.friend_id = xp.id
-                ) x
-              ) AS friends_count
+              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = xp.id OR f.friend_id = xp.id)) AS friends_count
             FROM xp
             JOIN ranks ON ranks.id = xp.id
             """
@@ -2964,15 +3052,15 @@ def get_public_user(
 
     is_friend = False
     if viewer_id is not None:
+        # In production the friends table is accepted-only (no `status` column).
         is_friend = bool(
             db.execute(
                 text(
                     """
-                SELECT 1
-                FROM friends f
-                WHERE (f.user_id = :a AND f.friend_id = :b)
-                   OR (f.user_id = :b AND f.friend_id = :a)
-                LIMIT 1
+                    SELECT 1
+                    FROM friends
+                    WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
+                    LIMIT 1
                     """
                 ),
                 {"a": int(viewer_id), "b": target_id},
@@ -3027,9 +3115,9 @@ def get_public_user_friends(
             text(
                 """
                 SELECT 1
-                FROM friends f
-                WHERE (f.user_id = :a AND f.friend_id = :b)
-                   OR (f.user_id = :b AND f.friend_id = :a)
+                FROM friends
+                WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
+                  AND status = 'accepted'
                 LIMIT 1
                 """
             ),
