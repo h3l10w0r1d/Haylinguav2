@@ -1,7 +1,29 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+// IMPORTANT:
+// Public pages are served from the FE domain, but API lives on the backend.
+// If VITE_API_BASE is not set, default to the Render backend so we don't
+// accidentally fetch the FE HTML (which then fails JSON parsing).
+const API_BASE = import.meta.env.VITE_API_BASE || "https://haylinguav2.onrender.com";
+
+async function fetchJsonOrThrow(url, init) {
+  const res = await fetch(url, init);
+  const ct = res.headers.get("content-type") || "";
+  if (!res.ok) {
+    let hint = "";
+    try {
+      hint = (await res.text()).slice(0, 120);
+    } catch {}
+    throw new Error(`Request failed (${res.status})${hint ? `: ${hint}` : ""}`);
+  }
+  if (!ct.includes("application/json")) {
+    const txt = await res.text();
+    const snippet = txt.slice(0, 120).replace(/\s+/g, " ");
+    throw new Error(`Expected JSON but got ${ct || "unknown"}: ${snippet}`);
+  }
+  return res.json();
+}
 
 function resolveUrl(url) {
   if (!url) return "";
@@ -40,11 +62,10 @@ export default function PublicUserPage({ token }) {
       setLoading(true);
       setErr("");
       try {
-        const res = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        if (!res.ok) throw new Error(`Failed to load profile (${res.status})`);
-        const json = await res.json();
+        const json = await fetchJsonOrThrow(
+          `${API_BASE}/users/${encodeURIComponent(username)}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+        );
         if (!cancelled) setData(json);
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load profile");
@@ -115,10 +136,11 @@ export default function PublicUserPage({ token }) {
       });
       if (!res.ok) throw new Error(`Friend action failed (${res.status})`);
       // reload
-      const refreshed = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (refreshed.ok) setData(await refreshed.json());
+      const refreshed = await fetchJsonOrThrow(
+        `${API_BASE}/users/${encodeURIComponent(username)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setData(refreshed);
     } catch (e) {
       setErr(e?.message || "Friend action failed");
     } finally {
