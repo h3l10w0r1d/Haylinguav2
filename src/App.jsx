@@ -284,7 +284,14 @@ function AppShell() {
   return (
     <Routes>
       {/* Public user pages are accessible with or without auth */}
-      <Route path="/u/:username" element={<PublicUserPage token={token} />} />
+      <Route
+        path="/u/:username"
+        element={
+          <HeaderLayout user={user} onLogout={handleLogout}>
+            <PublicUserPage token={token} />
+          </HeaderLayout>
+        }
+      />
 
       <Route
         path="/"
