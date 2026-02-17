@@ -1,184 +1,226 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-
-/**
- * Public user page
- * - Works without auth
- * - If token exists, we pass it to show friend-status / extra info (backend may use it)
- */
-
-// Keep API base consistent across the app.
-// Prefer VITE_API_BASE_URL, fallback to legacy VITE_API_BASE.
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_BASE ||
-  "https://haylinguav2.onrender.com";
-
-function authHeaders(token) {
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function Stat({ label, value }) {
-  return (
-    <div className="rounded-2xl bg-white/70 border border-black/5 px-4 py-3 shadow-sm">
-      <div className="text-xs text-black/50">{label}</div>
-      <div className="text-xl font-semibold text-black">{value ?? "—"}</div>
-    </div>
-  );
-}
+import { useParams } from "react-router-dom";
+import { apiFetch } from "./api";
 
 export default function PublicUserPage({ token }) {
   const { username } = useParams();
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
-  const [data, setData] = useState(null);
 
-  const safeUsername = useMemo(() => (username || "").trim(), [username]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [busyAction, setBusyAction] = useState(false);
+
+  const isMe = useMemo(() => {
+    const me = localStorage.getItem("username") || "";
+    return me.toLowerCase() === (username || "").toLowerCase();
+  }, [username]);
 
   useEffect(() => {
     let cancelled = false;
     async function run() {
+      if (!username) return;
       setLoading(true);
-      setErr(null);
+      setError(null);
       try {
-        const r = await fetch(`${API_BASE}/users/${encodeURIComponent(safeUsername)}`, {
-          headers: {
-            "content-type": "application/json",
-            ...authHeaders(token),
-          },
-        });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(j?.detail || `Failed to load user (${r.status})`);
-        if (!cancelled) setData(j);
+        const data = await apiFetch(`/users/${encodeURIComponent(username)}`, { token });
+        if (!cancelled) setProfile(data);
       } catch (e) {
-        if (!cancelled) setErr(e.message || String(e));
+        if (!cancelled) setError(e?.message || "Failed to load profile");
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-    if (safeUsername) run();
+    run();
     return () => {
       cancelled = true;
     };
-  }, [safeUsername, token]);
+  }, [token, username]);
 
-  // Backend returns PublicUserOut:
-  // { username, name, bio, avatar_url, profile_theme, xp, level, streak, global_rank, friends_preview[], is_hidden }
-  const displayName = data?.name || data?.username || safeUsername;
-  const avatarUrl = data?.avatar_url || null;
-
-  const resolveAvatarUrl = (u) => {
-    if (!u) return null;
-    if (u.startsWith("http://") || u.startsWith("https://")) return u;
-    if (u.startsWith("/static/")) return `${API_BASE}${u}`;
-    return u;
-  };
-
-  const theme = data?.profile_theme || {};
-  const pageBg = theme?.background || "#fff7ef";
+  async function doFriendAction(kind) {
+    if (!profile || busyAction) return;
+    try {
+      setBusyAction(true);
+      if (kind === "add") {
+        await apiFetch("/friends/request", {
+          method: "POST",
+          token,
+          body: { to_username: profile.username },
+        });
+      } else if (kind === "accept") {
+        await apiFetch("/friends/accept", {
+          method: "POST",
+          token,
+          body: { from_username: profile.username },
+        });
+      } else if (kind === "decline") {
+        await apiFetch("/friends/decline", {
+          method: "POST",
+          token,
+          body: { from_username: profile.username },
+        });
+      }
+      const data = await apiFetch(`/users/${encodeURIComponent(username)}`, { token });
+      setProfile(data);
+    } catch (e) {
+      setError(e?.message || "Action failed");
+    } finally {
+      setBusyAction(false);
+    }
+  }
 
   return (
-    <div className="min-h-screen" style={{ background: pageBg }}>
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        <div className="flex items-center justify-between gap-3 mb-6">
+    <div className="min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100">
+      <div className="mx-auto max-w-5xl px-4 py-6">
+        {/* Inside-page indicator (header stays global) */}
+        <div className="mb-4 flex items-center justify-between">
           <div>
-            <div className="text-sm text-black/50">Public profile</div>
-            <div className="text-2xl font-bold text-black">@{safeUsername}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/leaderboard"
-              className="rounded-xl px-4 py-2 text-sm font-medium bg-white border border-black/10 hover:bg-white/80"
-            >
-              Leaderboard
-            </Link>
-            <Link
-              to="/profile"
-              className="rounded-xl px-4 py-2 text-sm font-medium bg-[#ff6a00] text-white hover:bg-[#ff7a1a]"
-            >
-              My profile
-            </Link>
+            <div className="text-xs text-slate-500">You are here</div>
+            <div className="text-lg font-semibold">Profile</div>
           </div>
         </div>
 
-        <div className="rounded-3xl bg-white/60 border border-black/5 shadow-sm overflow-hidden">
-          <div className="p-6 md:p-8">
-            {loading ? (
-              <div className="text-black/60">Loading…</div>
-            ) : err ? (
-              <div className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-red-700">
-                {err}
-              </div>
-            ) : (
-              data?.is_hidden ? (
-                <div className="rounded-2xl bg-white border border-black/10 px-5 py-6">
-                  <div className="text-xl font-semibold text-black">@{data?.username || safeUsername}</div>
-                  <div className="mt-2 text-sm text-black/60">This account is hidden.</div>
+        {loading ? (
+          <div className="animate-pulse rounded-2xl bg-slate-900 p-6">Loading…</div>
+        ) : error ? (
+          <div className="rounded-2xl border border-red-800 bg-red-950/40 p-6">
+            {String(error)}
+          </div>
+        ) : !profile ? (
+          <div className="rounded-2xl bg-slate-900 p-6">Not found.</div>
+        ) : (
+          <div className="space-y-6">
+            {/* Hero banner */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/40 p-6 shadow">
+              <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-orange-500/10 blur-3xl" />
+              <div className="pointer-events-none absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl" />
+
+              <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={profile.avatar_url || "/avatars/default-1.svg"}
+                    alt="avatar"
+                    className="h-20 w-20 rounded-2xl bg-slate-800 object-cover ring-1 ring-white/10"
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate text-2xl font-semibold">
+                      {profile.name || profile.username}
+                    </div>
+                    <div className="truncate text-sm text-slate-400">@{profile.username}</div>
+                    {profile.joined_at ? (
+                      <div className="mt-1 text-xs text-slate-500">
+                        Joined {new Date(profile.joined_at).toLocaleDateString()}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              ) : (
-              <>
-                <div className="flex items-start gap-5">
-                  <div className="h-16 w-16 rounded-2xl bg-[#ff6a00]/15 flex items-center justify-center overflow-hidden border border-black/5">
-                    {avatarUrl ? (
-                      <img src={resolveAvatarUrl(avatarUrl)} alt="avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-2xl font-bold text-[#ff6a00]">
-                        {(displayName || "?").slice(0, 1).toUpperCase()}
+
+                {/* Friend actions must live on hero */}
+                {!isMe ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {profile.friendship === "friends" ? (
+                      <span className="rounded-full bg-emerald-900/40 px-3 py-1 text-sm text-emerald-200 ring-1 ring-emerald-500/20">
+                        Friends
                       </span>
-                    )}
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="text-2xl font-bold text-black leading-tight">{displayName}</div>
-                    <div className="text-sm text-black/50">@{data?.username || safeUsername}</div>
-                    {data?.bio ? (
-                      <div className="mt-3 text-sm text-black/70 whitespace-pre-wrap">{data.bio}</div>
-                    ) : (
-                      <div className="mt-3 text-sm text-black/50">Armenian learner on Haylingua.</div>
-                    )}
-                  </div>
-
-                  {typeof data?.global_rank === "number" ? (
-                    <div className="hidden md:block rounded-2xl bg-white border border-black/10 px-4 py-3 text-center">
-                      <div className="text-xs text-black/50">Global rank</div>
-                      <div className="text-xl font-semibold">#{data.global_rank}</div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Stat label="XP" value={data?.xp} />
-                  <Stat label="Level" value={data?.level} />
-                  <Stat label="Streak" value={data?.streak} />
-                  <Stat label="Friends" value={data?.friends_count} />
-                </div>
-
-                {data?.friends_public && Array.isArray(data?.friends_preview) && data.friends_preview.length > 0 ? (
-                  <div className="mt-8">
-                    <div className="text-sm font-semibold text-black mb-3">Friends</div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {data.friends_preview.map((f) => (
-                        <div
-                          key={f.username}
-                          className="rounded-2xl bg-white border border-black/10 px-4 py-3 flex items-center justify-between"
+                    ) : profile.friendship === "incoming_pending" ? (
+                      <>
+                        <button
+                          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+                          onClick={() => doFriendAction("accept")}
+                          disabled={busyAction}
                         >
-                          <div>
-                            <div className="font-semibold">{f.display_name || f.username}</div>
-                            <div className="text-xs text-black/50">@{f.username}</div>
-                          </div>
-                        <div className="text-sm text-black/70">#{f.global_rank ?? "—"}</div>
-                        </div>
-                      ))}
-                    </div>
+                          Confirm
+                        </button>
+                        <button
+                          className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold hover:bg-slate-700 disabled:opacity-60"
+                          onClick={() => doFriendAction("decline")}
+                          disabled={busyAction}
+                        >
+                          Decline
+                        </button>
+                      </>
+                    ) : profile.friendship === "outgoing_pending" ? (
+                      <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-200 ring-1 ring-white/10">
+                        Request sent
+                      </span>
+                    ) : (
+                      <button
+                        className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-orange-400 disabled:opacity-60"
+                        onClick={() => doFriendAction("add")}
+                        disabled={busyAction}
+                      >
+                        Add friend
+                      </button>
+                    )}
                   </div>
                 ) : null}
-              </>
-              )
-            )}
+              </div>
+
+              <div className="relative mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <HeroStat label="Total XP" value={profile.total_xp ?? 0} />
+                <HeroStat label="Lessons" value={profile.lessons_completed ?? 0} />
+                <HeroStat label="Streak" value={profile.streak ?? 0} />
+                <HeroStat label="Friends" value={profile.friends_count ?? 0} />
+              </div>
+
+              {profile.bio ? (
+                <div className="relative mt-5 max-w-3xl text-sm text-slate-300">
+                  {profile.bio}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Top friends feed */}
+            <div className="rounded-3xl bg-slate-900 p-6 shadow">
+              <div className="mb-4">
+                <div className="text-sm font-semibold">Top friends</div>
+                <div className="text-xs text-slate-500">
+                  The 3 friends with the highest XP
+                </div>
+              </div>
+              {profile.top_friends?.length ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {profile.top_friends.slice(0, 3).map((f) => (
+                    <a
+                      key={f.username}
+                      href={`/u/${encodeURIComponent(f.username)}`}
+                      className="group rounded-2xl bg-slate-950/50 p-4 ring-1 ring-white/10 transition hover:bg-slate-950/70"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={f.avatar_url || "/avatars/default-1.svg"}
+                          alt="avatar"
+                          className="h-12 w-12 rounded-xl bg-slate-800 object-cover"
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold group-hover:text-white">
+                            {f.display_name || f.username}
+                          </div>
+                          <div className="truncate text-xs text-slate-400">@{f.username}</div>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex items-baseline justify-between">
+                        <div className="text-xs text-slate-500">XP</div>
+                        <div className="text-lg font-semibold">{f.xp ?? 0}</div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-slate-400">No friends yet.</div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
+function HeroStat({ label, value }) {
+  return (
+    <div className="rounded-2xl bg-slate-950/40 p-4 ring-1 ring-white/10">
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className="mt-1 text-2xl font-semibold">{value}</div>
+    </div>
+  );
+}
