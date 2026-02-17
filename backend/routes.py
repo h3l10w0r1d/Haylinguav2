@@ -1,7 +1,8 @@
 # backend/routes.py
 import os
 import json
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
+import uuid
 from typing import List, Dict, Any, Optional
 
 import httpx
@@ -2397,52 +2398,51 @@ def me_avatar_upload(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    """Upload a custom avatar image.
+    """Upload a custom avatar to disk and set users.avatar_url.
 
-    - Stores the file on disk (Render persistent disk if configured)
-    - Updates users.avatar_url to a public URL under /static/avatars/
+    Default avatars are shipped by the frontend. This endpoint is for custom uploads.
     """
-
     user_id = _get_user_id_from_bearer(authorization)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
-    user_id = int(user_id)
 
-    _require_verified(db, user_id)
+    _require_verified(db, int(user_id))
 
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Avatar must be an image")
+    # Basic content-type gate
+    allowed = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+    ext = allowed.get((file.content_type or "").lower())
+    if not ext:
+        raise HTTPException(status_code=400, detail="Only PNG, JPG, or WEBP images are allowed")
 
-    data = file.file.read()
-    if not data:
-        raise HTTPException(status_code=400, detail="Empty file")
-    if len(data) > 2_000_000:
-        raise HTTPException(status_code=413, detail="Avatar too large (max 2MB)")
+    uploads_dir = os.getenv("UPLOADS_DIR", "uploads")
+    avatar_dir = os.path.join(uploads_dir, "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)
 
-    import os
-    from pathlib import Path
-    from uuid import uuid4
+    filename = f"u{int(user_id)}_{uuid.uuid4().hex}{ext}"
+    path = os.path.join(avatar_dir, filename)
 
-    disk_root = os.getenv("RENDER_DISK_PATH", "/tmp")
-    avatar_dir = Path(disk_root) / "avatars"
-    avatar_dir.mkdir(parents=True, exist_ok=True)
+    # Save to disk
+    try:
+        content = file.file.read()
+        if content is None or len(content) == 0:
+            raise HTTPException(status_code=400, detail="Empty file")
+        if len(content) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Avatar too large (max 5MB)")
+        with open(path, "wb") as f:
+            f.write(content)
+    finally:
+        try:
+            file.file.close()
+        except Exception:
+            pass
 
-    original = file.filename or "avatar.png"
-    ext = os.path.splitext(original)[1].lower()
-    if ext not in [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]:
-        ext = ".png"
-
-    key = f"u{user_id}_{uuid4().hex}{ext}"
-    (avatar_dir / key).write_bytes(data)
-
-    public_url = f"/static/avatars/{key}"
+    avatar_url = f"/static/avatars/{filename}"
     db.execute(
-        text("UPDATE users SET avatar_url = :u WHERE id = :id"),
-        {"u": public_url, "id": user_id},
+        text("UPDATE users SET avatar_url = :url WHERE id = :id"),
+        {"url": avatar_url, "id": int(user_id)},
     )
-    db.commit()
 
-    return {"avatar_url": public_url}
+    return {"avatar_url": avatar_url}
 
 
 @router.get("/me/onboarding", response_model=OnboardingOut)
@@ -2578,55 +2578,7 @@ def me_activity_last7days(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    """Exercise activity per day for the last 7 days (including today).
-
-    IMPORTANT: In this codebase, the thing that is reliably written when a user
-    finishes an exercise is `user_exercise_attempts` (via /me/exercises/{id}/attempt).
-    `user_exercise_logs` exists but is only written if the FE calls /me/exercises/{id}/log.
-
-    So the chart must be based on `user_exercise_attempts`, otherwise you'll get
-    zeros even after completing exercises.
-    """
-
-    user_id = _get_user_id_from_bearer(authorization)
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
-
-    _require_verified(db, int(user_id))
-
-    today = date.today()
-    start = today - timedelta(days=6)
-
-    # Use UTC-day buckets to match streak logic.
-    rows = db.execute(
-        text(
-            """
-            SELECT
-              DATE(created_at AT TIME ZONE 'UTC') AS d,
-              COUNT(*) AS c
-            FROM user_exercise_attempts
-            WHERE user_id = :uid
-              AND created_at >= :start
-            GROUP BY DATE(created_at AT TIME ZONE 'UTC')
-            """
-        ),
-        {"uid": int(user_id), "start": start},
-    ).mappings().all()
-
-    by_date = {row["d"]: int(row["c"]) for row in rows if row.get("d") is not None}
-
-    out = []
-    for i in range(7):
-        d = start + timedelta(days=i)
-        out.append(
-            {
-                "date": d.isoformat(),
-                "label": d.strftime("%a")[0],
-                "value": by_date.get(d, 0),
-            }
-        )
-
-    return {"days": out}
+    return me_activity(days=7, authorization=authorization, db=db)
     
 @router.get("/me/lessons/{lesson_id}/next")
 def me_next_exercise(
@@ -2736,7 +2688,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
 
 import secrets
 import hashlib
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 import pyotp
 
 CMS_INVITE_TTL_HOURS = int(os.getenv("CMS_INVITE_TTL_HOURS") or "72")
@@ -2925,13 +2877,16 @@ class PublicUserOut(BaseModel):
     bio: str | None = None
     avatar_url: str | None = None
     profile_theme: dict = {}
+    joined_at: datetime | None = None
     xp: int
     level: int
     streak: int
     global_rank: int
     friends_count: int
+    friendship: str = "none"  # none | friends | outgoing_pending | incoming_pending | self
     is_friend: bool
     friends_preview: list[dict] = []
+    top_friends: list[dict] = []
 
 
 def _get_user_public_by_id(db: Connection, uid: int) -> dict:
@@ -2947,11 +2902,12 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
                 u.bio,
                 u.avatar_url,
                 u.profile_theme,
+                u.joined_at,
                 COALESCE(SUM(lp.xp_earned), 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
               WHERE u.id = :uid
-              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme
+              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme, u.joined_at
             ), ranked AS (
               SELECT
                 u2.id,
@@ -3054,22 +3010,72 @@ def get_public_user(
     level = max(1, (xp // 500) + 1)
     streak = _compute_streak_days(db, target_id)
 
+    # Relationship between viewer and target
+    friendship = "none"
     is_friend = False
-    if viewer_id is not None:
-        # In production the friends table is accepted-only (no `status` column).
+    if viewer_id is not None and int(viewer_id) == target_id:
+        friendship = "self"
+    elif viewer_id is not None:
         is_friend = bool(
             db.execute(
                 text(
                     """
                     SELECT 1
                     FROM friends
-                    WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
+                    WHERE (user_id = :a AND friend_id = :b)
+                       OR (user_id = :b AND friend_id = :a)
                     LIMIT 1
                     """
                 ),
                 {"a": int(viewer_id), "b": target_id},
             ).first()
         )
+        if is_friend:
+            friendship = "friends"
+        else:
+            rr = db.execute(
+                text(
+                    """
+                    SELECT from_user_id, to_user_id
+                    FROM friend_requests
+                    WHERE status = 'pending'
+                      AND ((from_user_id = :a AND to_user_id = :b) OR (from_user_id = :b AND to_user_id = :a))
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """
+                ),
+                {"a": int(viewer_id), "b": target_id},
+            ).mappings().first()
+            if rr:
+                friendship = (
+                    "outgoing_pending" if int(rr["from_user_id"]) == int(viewer_id) else "incoming_pending"
+                )
+
+    # Top friends (3) by XP
+    q_top = text(
+        """
+        WITH fr AS (
+          SELECT CASE WHEN f.user_id = :uid THEN f.friend_id ELSE f.user_id END AS fid
+          FROM friends f
+          WHERE f.user_id = :uid OR f.friend_id = :uid
+        ),
+        xp AS (
+          SELECT lp.user_id, COALESCE(SUM(lp.xp_earned), 0)::int AS xp
+          FROM lesson_progress lp
+          GROUP BY lp.user_id
+        )
+        SELECT u.username,
+               COALESCE(u.display_name, u.username) AS display_name,
+               u.avatar_url,
+               COALESCE(xp.xp, 0) AS xp
+        FROM fr
+        JOIN users u ON u.id = fr.fid
+        LEFT JOIN xp ON xp.user_id = u.id
+        ORDER BY COALESCE(xp.xp, 0) DESC
+        LIMIT 3
+        """
+    )
+    top_friends = [dict(r) for r in db.execute(q_top, {"uid": target_id}).mappings().all()]
 
     return PublicUserOut(
         user_id=target_id,
@@ -3078,11 +3084,13 @@ def get_public_user(
         bio=data.get("bio"),
         avatar_url=data.get("avatar_url"),
         profile_theme=data.get("profile_theme") or {},
+        joined_at=data.get("joined_at"),
         xp=xp,
         level=level,
         streak=streak,
         global_rank=int(data.get("global_rank") or 0),
         friends_count=int(data.get("friends_count") or 0),
+        friendship=friendship,
         is_friend=is_friend,
         # Lightweight preview to avoid a second call on the FE.
         friends_preview=(
@@ -3090,6 +3098,7 @@ def get_public_user(
             if bool(target.get("friends_public"))
             else []
         ),
+        top_friends=top_friends,
     )
 
 
@@ -3121,7 +3130,6 @@ def get_public_user_friends(
                 SELECT 1
                 FROM friends
                 WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
-                  AND status = 'accepted'
                 LIMIT 1
                 """
             ),
