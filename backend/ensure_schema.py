@@ -385,5 +385,6 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "avatar_url TEXT")
         add_col_if_missing("users", "banner_url TEXT")
         add_col_if_missing("users", "is_hidden BOOLEAN NOT NULL DEFAULT FALSE")
+        add_col_if_missing("users", "joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW()")
 
     print("[ensure_schema] done ✅")
