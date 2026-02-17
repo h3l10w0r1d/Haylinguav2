@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import HeaderLayout from "./HeaderLayout";
 
 // IMPORTANT:
 // Public pages are served from the FE domain, but API lives on the backend.
@@ -55,6 +56,7 @@ export default function PublicUserPage({ token }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
+  const [activity, setActivity] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +69,25 @@ export default function PublicUserPage({ token }) {
           { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
         );
         if (!cancelled) setData(json);
+
+        // Also load weekly activity for the public profile (same card as private).
+        try {
+          const a = await fetchJsonOrThrow(
+            `${API_BASE}/users/${encodeURIComponent(username)}/activity/last7days`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+          );
+          if (!cancelled) setActivity(a);
+        } catch {
+          try {
+            const a2 = await fetchJsonOrThrow(
+              `${API_BASE}/users/${encodeURIComponent(username)}/activity?days=7`,
+              { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+            );
+            if (!cancelled) setActivity(a2);
+          } catch {
+            if (!cancelled) setActivity(null);
+          }
+        }
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load profile");
       } finally {
@@ -79,42 +100,66 @@ export default function PublicUserPage({ token }) {
     };
   }, [username, token]);
 
-  const profileTheme = data?.profile_theme || {};
-  const pageBg = profileTheme.background || "#0b1220";
-  const headerBg = profileTheme.header_background || "linear-gradient(135deg, rgba(255,122,0,.25), rgba(255,122,0,.05))";
-  const bannerUrl = resolveUrl(data?.banner_url || profileTheme.banner_url);
-  const avatarUrl = resolveUrl(data?.avatar_url || data?.avatar);
+  // Normalize payload shapes (BE has evolved a few times):
+  // - sometimes fields are top-level
+  // - sometimes nested under { profile, stats, profile_theme }
+  const profile = data?.profile || data?.user_profile || data?.user || data;
+  const stats = data?.stats || data?.user_stats || data?.public_stats || {};
+
+  const profileTheme = profile?.profile_theme || data?.profile_theme || {};
+  const pageBg = profileTheme.background || profile?.bg_color || "#0b1220";
+  const headerBg =
+    profileTheme.header_background ||
+    "linear-gradient(135deg, rgba(255,122,0,.25), rgba(255,122,0,.05))";
+  const bannerUrl = resolveUrl(profile?.banner_url || profileTheme.banner_url);
+  const avatarUrl = resolveUrl(profile?.avatar_url || profile?.avatar || data?.avatar_url || data?.avatar);
 
   const totalXp = useMemo(() => {
-    const v = data?.total_xp ?? data?.xp ?? data?.stats?.total_xp ?? 0;
+    const v = stats?.total_xp ?? stats?.xp ?? profile?.total_xp ?? profile?.xp ?? data?.total_xp ?? data?.xp ?? 0;
     return Number.isFinite(Number(v)) ? Number(v) : 0;
-  }, [data]);
+  }, [data, profile, stats]);
   const lessonsCompleted = useMemo(() => {
-    const v = data?.lessons_completed ?? data?.stats?.lessons_completed ?? 0;
+    const v = stats?.lessons_completed ?? stats?.completed_lessons ?? profile?.lessons_completed ?? data?.lessons_completed ?? 0;
     return Number.isFinite(Number(v)) ? Number(v) : 0;
-  }, [data]);
+  }, [data, profile, stats]);
   const streak = useMemo(() => {
-    const v = data?.streak ?? data?.stats?.streak ?? 0;
+    const v = stats?.streak ?? profile?.streak ?? data?.streak ?? 0;
     return Number.isFinite(Number(v)) ? Number(v) : 0;
-  }, [data]);
+  }, [data, profile, stats]);
   const friendsCount = useMemo(() => {
-    const v = data?.friends_count ?? data?.friends ?? data?.stats?.friends ?? 0;
+    const v =
+      stats?.friends_count ??
+      profile?.friends_count ??
+      profile?.friends ??
+      data?.friends_count ??
+      data?.friends ??
+      0;
     return Number.isFinite(Number(v)) ? Number(v) : 0;
-  }, [data]);
+  }, [data, profile, stats]);
   const level = useMemo(() => {
-    const v = data?.level ?? data?.stats?.level;
+    const v = stats?.level ?? profile?.level ?? data?.level;
     if (Number.isFinite(Number(v))) return Number(v);
     // fallback: simple level from XP if backend didn't include it
     return Math.max(1, Math.floor(totalXp / 100) + 1);
-  }, [data, totalXp]);
+  }, [data, profile, stats, totalXp]);
 
-  const joinDate = fmtJoinDate(data?.created_at || data?.joined_at || data?.createdAt);
-  const bio = data?.bio || data?.about || "";
+  const joinDate = fmtJoinDate(profile?.created_at || profile?.joined_at || data?.created_at || data?.joined_at || data?.createdAt);
+  const bio = profile?.bio || profile?.about || data?.bio || data?.about || "";
 
-  const topFriends = Array.isArray(data?.top_friends) ? data.top_friends : Array.isArray(data?.friends_preview) ? data.friends_preview : [];
+  const topFriends = Array.isArray(data?.top_friends)
+    ? data.top_friends
+    : Array.isArray(profile?.top_friends)
+      ? profile.top_friends
+      : Array.isArray(data?.friends_preview)
+        ? data.friends_preview
+        : [];
 
-  const friendStatus = data?.friend_status || (data?.is_friend ? "friends" : "none");
-  const canFriendActions = Boolean(token) && data?.is_self !== true; // BE may send is_self
+  const relationship = (data?.relationship || profile?.relationship || "none").toLowerCase();
+  const friendStatus =
+    relationship === "self"
+      ? "self"
+      : data?.friend_status || profile?.friend_status || (data?.is_friend ? "friends" : "none");
+  const canFriendActions = Boolean(token) && relationship !== "self" && data?.is_self !== true;
 
   async function friendAction(kind) {
     if (!token) {
@@ -199,11 +244,14 @@ export default function PublicUserPage({ token }) {
   }, [canFriendActions, friendStatus, actionBusy, data, token, username]);
 
   return (
-    <div
-      className="min-h-[calc(100vh-64px)]"
-      style={{ background: pageBg }}
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div style={{ background: pageBg }}>
+      {/* Keep the same global header as the rest of the app */}
+      <HeaderLayout />
+      <div
+        className="min-h-[calc(100vh-64px)]"
+        style={{ background: pageBg }}
+      >
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* inside-page location indicator (header remains global) */}
         <div className="mb-4">
           <div className="text-xs text-white/55">You are here</div>
@@ -320,8 +368,47 @@ export default function PublicUserPage({ token }) {
                 </div>
               )}
             </div>
+
+            {/* RECENT LEARNING ACTIVITY (same card as private profile) */}
+            <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-6">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <div className="text-lg font-semibold text-white">Recent learning activity</div>
+                  <div className="text-white/55 text-sm">Exercises completed in the last 7 days</div>
+                </div>
+              </div>
+
+              {!activity?.days ? (
+                <div className="mt-4 text-white/60">No activity data yet.</div>
+              ) : (
+                <ActivityBars days={activity.days} />
+              )}
+            </div>
           </>
         )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityBars({ days }) {
+  const max = Math.max(1, ...days.map((d) => Number(d.value || 0)));
+  return (
+    <div className="mt-6">
+      <div className="flex items-end justify-between gap-3">
+        {days.map((d) => {
+          const v = Number(d.value || 0);
+          const w = Math.min(100, (v / max) * 100);
+          return (
+            <div key={d.date} className="flex-1 flex flex-col items-center gap-2">
+              <div className="w-full rounded-full bg-white/10 overflow-hidden" style={{ height: 10 }}>
+                <div className="h-full bg-orange-300/70" style={{ width: `${w}%` }} />
+              </div>
+              <div className="text-white/55 text-xs">{d.label}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
