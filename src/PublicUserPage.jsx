@@ -1,226 +1,306 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { apiFetch } from "./api";
+import { useParams, useNavigate } from "react-router-dom";
 
-export default function PublicUserPage({ token }) {
-  const { username } = useParams();
+const API_BASE = import.meta.env.VITE_API_BASE || "";
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [busyAction, setBusyAction] = useState(false);
+function resolveUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("data:")) return url;
+  return `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
+}
 
-  const isMe = useMemo(() => {
-    const me = localStorage.getItem("username") || "";
-    return me.toLowerCase() === (username || "").toLowerCase();
-  }, [username]);
+function fmtJoinDate(v) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      if (!username) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await apiFetch(`/users/${encodeURIComponent(username)}`, { token });
-        if (!cancelled) setProfile(data);
-      } catch (e) {
-        if (!cancelled) setError(e?.message || "Failed to load profile");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [token, username]);
-
-  async function doFriendAction(kind) {
-    if (!profile || busyAction) return;
-    try {
-      setBusyAction(true);
-      if (kind === "add") {
-        await apiFetch("/friends/request", {
-          method: "POST",
-          token,
-          body: { to_username: profile.username },
-        });
-      } else if (kind === "accept") {
-        await apiFetch("/friends/accept", {
-          method: "POST",
-          token,
-          body: { from_username: profile.username },
-        });
-      } else if (kind === "decline") {
-        await apiFetch("/friends/decline", {
-          method: "POST",
-          token,
-          body: { from_username: profile.username },
-        });
-      }
-      const data = await apiFetch(`/users/${encodeURIComponent(username)}`, { token });
-      setProfile(data);
-    } catch (e) {
-      setError(e?.message || "Action failed");
-    } finally {
-      setBusyAction(false);
-    }
-  }
-
+function StatCard({ label, value }) {
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-5xl px-4 py-6">
-        {/* Inside-page indicator (header stays global) */}
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs text-slate-500">You are here</div>
-            <div className="text-lg font-semibold">Profile</div>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="animate-pulse rounded-2xl bg-slate-900 p-6">Loading…</div>
-        ) : error ? (
-          <div className="rounded-2xl border border-red-800 bg-red-950/40 p-6">
-            {String(error)}
-          </div>
-        ) : !profile ? (
-          <div className="rounded-2xl bg-slate-900 p-6">Not found.</div>
-        ) : (
-          <div className="space-y-6">
-            {/* Hero banner */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/40 p-6 shadow">
-              <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-orange-500/10 blur-3xl" />
-              <div className="pointer-events-none absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl" />
-
-              <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={profile.avatar_url || "/avatars/default-1.svg"}
-                    alt="avatar"
-                    className="h-20 w-20 rounded-2xl bg-slate-800 object-cover ring-1 ring-white/10"
-                  />
-                  <div className="min-w-0">
-                    <div className="truncate text-2xl font-semibold">
-                      {profile.name || profile.username}
-                    </div>
-                    <div className="truncate text-sm text-slate-400">@{profile.username}</div>
-                    {profile.joined_at ? (
-                      <div className="mt-1 text-xs text-slate-500">
-                        Joined {new Date(profile.joined_at).toLocaleDateString()}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* Friend actions must live on hero */}
-                {!isMe ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {profile.friendship === "friends" ? (
-                      <span className="rounded-full bg-emerald-900/40 px-3 py-1 text-sm text-emerald-200 ring-1 ring-emerald-500/20">
-                        Friends
-                      </span>
-                    ) : profile.friendship === "incoming_pending" ? (
-                      <>
-                        <button
-                          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
-                          onClick={() => doFriendAction("accept")}
-                          disabled={busyAction}
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold hover:bg-slate-700 disabled:opacity-60"
-                          onClick={() => doFriendAction("decline")}
-                          disabled={busyAction}
-                        >
-                          Decline
-                        </button>
-                      </>
-                    ) : profile.friendship === "outgoing_pending" ? (
-                      <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-200 ring-1 ring-white/10">
-                        Request sent
-                      </span>
-                    ) : (
-                      <button
-                        className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-orange-400 disabled:opacity-60"
-                        onClick={() => doFriendAction("add")}
-                        disabled={busyAction}
-                      >
-                        Add friend
-                      </button>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="relative mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <HeroStat label="Total XP" value={profile.total_xp ?? 0} />
-                <HeroStat label="Lessons" value={profile.lessons_completed ?? 0} />
-                <HeroStat label="Streak" value={profile.streak ?? 0} />
-                <HeroStat label="Friends" value={profile.friends_count ?? 0} />
-              </div>
-
-              {profile.bio ? (
-                <div className="relative mt-5 max-w-3xl text-sm text-slate-300">
-                  {profile.bio}
-                </div>
-              ) : null}
-            </div>
-
-            {/* Top friends feed */}
-            <div className="rounded-3xl bg-slate-900 p-6 shadow">
-              <div className="mb-4">
-                <div className="text-sm font-semibold">Top friends</div>
-                <div className="text-xs text-slate-500">
-                  The 3 friends with the highest XP
-                </div>
-              </div>
-              {profile.top_friends?.length ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {profile.top_friends.slice(0, 3).map((f) => (
-                    <a
-                      key={f.username}
-                      href={`/u/${encodeURIComponent(f.username)}`}
-                      className="group rounded-2xl bg-slate-950/50 p-4 ring-1 ring-white/10 transition hover:bg-slate-950/70"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={f.avatar_url || "/avatars/default-1.svg"}
-                          alt="avatar"
-                          className="h-12 w-12 rounded-xl bg-slate-800 object-cover"
-                        />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold group-hover:text-white">
-                            {f.display_name || f.username}
-                          </div>
-                          <div className="truncate text-xs text-slate-400">@{f.username}</div>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex items-baseline justify-between">
-                        <div className="text-xs text-slate-500">XP</div>
-                        <div className="text-lg font-semibold">{f.xp ?? 0}</div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-slate-400">No friends yet.</div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur px-5 py-4">
+      <div className="text-xs tracking-wide text-white/60">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-white">{value}</div>
     </div>
   );
 }
 
-function HeroStat({ label, value }) {
+export default function PublicUserPage({ token }) {
+  const { username } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setErr("");
+      try {
+        const res = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!res.ok) throw new Error(`Failed to load profile (${res.status})`);
+        const json = await res.json();
+        if (!cancelled) setData(json);
+      } catch (e) {
+        if (!cancelled) setErr(e?.message || "Failed to load profile");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [username, token]);
+
+  const profileTheme = data?.profile_theme || {};
+  const pageBg = profileTheme.background || "#0b1220";
+  const headerBg = profileTheme.header_background || "linear-gradient(135deg, rgba(255,122,0,.25), rgba(255,122,0,.05))";
+  const bannerUrl = resolveUrl(data?.banner_url || profileTheme.banner_url);
+  const avatarUrl = resolveUrl(data?.avatar_url || data?.avatar);
+
+  const totalXp = useMemo(() => {
+    const v = data?.total_xp ?? data?.xp ?? data?.stats?.total_xp ?? 0;
+    return Number.isFinite(Number(v)) ? Number(v) : 0;
+  }, [data]);
+  const lessonsCompleted = useMemo(() => {
+    const v = data?.lessons_completed ?? data?.stats?.lessons_completed ?? 0;
+    return Number.isFinite(Number(v)) ? Number(v) : 0;
+  }, [data]);
+  const streak = useMemo(() => {
+    const v = data?.streak ?? data?.stats?.streak ?? 0;
+    return Number.isFinite(Number(v)) ? Number(v) : 0;
+  }, [data]);
+  const friendsCount = useMemo(() => {
+    const v = data?.friends_count ?? data?.friends ?? data?.stats?.friends ?? 0;
+    return Number.isFinite(Number(v)) ? Number(v) : 0;
+  }, [data]);
+  const level = useMemo(() => {
+    const v = data?.level ?? data?.stats?.level;
+    if (Number.isFinite(Number(v))) return Number(v);
+    // fallback: simple level from XP if backend didn't include it
+    return Math.max(1, Math.floor(totalXp / 100) + 1);
+  }, [data, totalXp]);
+
+  const joinDate = fmtJoinDate(data?.created_at || data?.joined_at || data?.createdAt);
+  const bio = data?.bio || data?.about || "";
+
+  const topFriends = Array.isArray(data?.top_friends) ? data.top_friends : Array.isArray(data?.friends_preview) ? data.friends_preview : [];
+
+  const friendStatus = data?.friend_status || (data?.is_friend ? "friends" : "none");
+  const canFriendActions = Boolean(token) && data?.is_self !== true; // BE may send is_self
+
+  async function friendAction(kind) {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    if (!data?.user_id) return;
+
+    setActionBusy(true);
+    try {
+      let endpoint = "";
+      if (kind === "request") endpoint = `${API_BASE}/me/friends/request/${data.user_id}`;
+      if (kind === "accept") endpoint = `${API_BASE}/me/friends/accept/${data.user_id}`;
+      if (kind === "remove") endpoint = `${API_BASE}/me/friends/remove/${data.user_id}`;
+      if (!endpoint) return;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Friend action failed (${res.status})`);
+      // reload
+      const refreshed = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (refreshed.ok) setData(await refreshed.json());
+    } catch (e) {
+      setErr(e?.message || "Friend action failed");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  const heroCta = useMemo(() => {
+    if (!canFriendActions) return null;
+
+    // statuses we support if backend provides them
+    if (friendStatus === "incoming" || friendStatus === "requested_to_you") {
+      return (
+        <button
+          disabled={actionBusy}
+          onClick={() => friendAction("accept")}
+          className="px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60"
+        >
+          Confirm request
+        </button>
+      );
+    }
+
+    if (friendStatus === "outgoing" || friendStatus === "requested") {
+      return (
+        <button
+          disabled
+          className="px-5 py-2 rounded-full bg-white/10 text-white/70 text-sm font-semibold cursor-not-allowed"
+        >
+          Request sent
+        </button>
+      );
+    }
+
+    if (friendStatus === "friends") {
+      return (
+        <button
+          disabled={actionBusy}
+          onClick={() => friendAction("remove")}
+          className="px-5 py-2 rounded-full bg-white/10 hover:bg-white/15 text-white text-sm font-semibold disabled:opacity-60"
+        >
+          Friends ✓
+        </button>
+      );
+    }
+
+    return (
+      <button
+        disabled={actionBusy}
+        onClick={() => friendAction("request")}
+        className="px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60"
+      >
+        Add friend
+      </button>
+    );
+  }, [canFriendActions, friendStatus, actionBusy, data, token, username]);
+
   return (
-    <div className="rounded-2xl bg-slate-950/40 p-4 ring-1 ring-white/10">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
+    <div
+      className="min-h-[calc(100vh-64px)]"
+      style={{ background: pageBg }}
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* inside-page location indicator (header remains global) */}
+        <div className="mb-4">
+          <div className="text-xs text-white/55">You are here</div>
+          <div className="text-2xl font-semibold text-white">Profile</div>
+        </div>
+
+        {loading ? (
+          <div className="text-white/70">Loading…</div>
+        ) : err ? (
+          <div className="text-red-200">{err}</div>
+        ) : !data ? (
+          <div className="text-white/70">User not found.</div>
+        ) : (
+          <>
+            {/* HERO / BANNER */}
+            <div
+              className="rounded-3xl overflow-hidden border border-white/10 shadow-[0_20px_80px_rgba(0,0,0,.35)]"
+              style={{ background: headerBg }}
+            >
+              {bannerUrl ? (
+                <div
+                  className="h-36 sm:h-44 md:h-52 bg-center bg-cover"
+                  style={{ backgroundImage: `url(${bannerUrl})` }}
+                />
+              ) : (
+                <div className="h-20 sm:h-28" />
+              )}
+
+              <div className="px-6 sm:px-8 pb-8">
+                <div className="-mt-10 sm:-mt-12 flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/10 border border-white/15 overflow-hidden flex items-center justify-center">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-white/60 text-sm">No avatar</div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="text-2xl sm:text-3xl font-semibold text-white">{data.name || data.full_name || data.username}</div>
+                      <div className="text-white/65">@{data.username}</div>
+                      {joinDate ? <div className="text-white/45 text-sm mt-1">Joined {joinDate}</div> : null}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {heroCta}
+                  </div>
+                </div>
+
+                {bio ? (
+                  <div className="mt-4 text-white/75 max-w-3xl">{bio}</div>
+                ) : null}
+
+                <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <StatCard label="Total XP" value={totalXp} />
+                  <StatCard label="Level" value={level} />
+                  <StatCard label="Streak" value={streak} />
+                  <StatCard label="Friends" value={friendsCount} />
+                </div>
+
+                <div className="mt-4 text-white/55 text-sm">
+                  Lessons completed: <span className="text-white/80">{lessonsCompleted}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* TOP FRIENDS */}
+            <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-6">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <div className="text-lg font-semibold text-white">Top friends</div>
+                  <div className="text-white/55 text-sm">Top 3 friends by XP</div>
+                </div>
+                <button
+                  onClick={() => navigate("/friends")}
+                  className="text-sm font-semibold text-orange-300 hover:text-orange-200"
+                >
+                  View all
+                </button>
+              </div>
+
+              {topFriends.length === 0 ? (
+                <div className="mt-4 text-white/60">No friends yet.</div>
+              ) : (
+                <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {topFriends.slice(0, 3).map((f) => {
+                    const fAvatar = resolveUrl(f.avatar_url || f.avatar);
+                    const fXp = f.total_xp ?? f.xp ?? 0;
+                    return (
+                      <button
+                        key={f.username}
+                        onClick={() => navigate(`/u/${encodeURIComponent(f.username)}`)}
+                        className="text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center">
+                            {fAvatar ? (
+                              <img src={fAvatar} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="text-white/60 text-xs">—</div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-semibold truncate">{f.name || f.username}</div>
+                            <div className="text-white/55 text-sm truncate">@{f.username}</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 text-white/70 text-sm">XP: <span className="text-white">{fXp}</span></div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
