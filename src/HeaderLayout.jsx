@@ -110,7 +110,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
         <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
           {/* Logo / home */}
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate(user ? "/dashboard" : "/leaderboard")}
             className="flex items-center gap-2"
           >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg">
@@ -161,21 +161,32 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 <span>{xp}</span>
               </div>
             </div>
-            <button
-              onClick={() => navigate("/profile")}
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm"
-              title="Your profile"
-            >
-              {initial}
-            </button>
+            {user ? (
+              <>
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm"
+                  title="Your profile"
+                >
+                  {initial}
+                </button>
 
-            <button
-              onClick={onLogout}
-              className="hidden md:inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-full transition-colors"
-            >
-              <LogOut className="w-3 h-3" />
-              <span>Log out</span>
-            </button>
+                <button
+                  onClick={() => onLogout?.()}
+                  className="hidden md:inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-full transition-colors"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>Log out</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => navigate("/login")}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600"
+              >
+                Login
+              </button>
+            )}
           </div>
         </div>
       </header>
