@@ -354,6 +354,7 @@ export default function ProfilePage() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
+      setShowAvatarPresets(false);
       setAvatarPresetUrl("");
       setAvatarFile(file);
       const url = URL.createObjectURL(file);
@@ -363,11 +364,28 @@ export default function ProfilePage() {
     input.click();
   }
 
-  function handlePresetAvatarPick(url) {
-    setAvatarFile(null);
-    setAvatarPresetUrl(url);
+  async function handlePresetAvatarPick(url) {
+    setShowAvatarPresets(false);
     setAvatarPreview(url);
-    setMessage("Avatar selected.");
+
+    // Prefer storing presets in a stable way: upload the chosen preset to BE and save returned /static/avatars/*.
+    // This avoids Vite-hashed asset URLs changing across deployments.
+    try {
+      const r = await fetch(url);
+      const blob = await r.blob();
+      const mime = blob?.type || "image/png";
+      const ext = mime.includes("/") ? mime.split("/")[1] : "png";
+      const file = new File([blob], `preset-avatar.${ext}`, { type: mime });
+
+      setAvatarPresetUrl("");
+      setAvatarFile(file);
+      setMessage("Avatar selected.");
+    } catch {
+      // Fallback: keep the local preset URL (works in dev, but is less stable).
+      setAvatarFile(null);
+      setAvatarPresetUrl(url);
+      setMessage("Avatar selected.");
+    }
   }
 
   if (loading) {
@@ -404,22 +422,24 @@ export default function ProfilePage() {
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAvatarPick}
-                  className="absolute -bottom-2 -right-2 inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
-                >
-                  <ImageIcon className="w-4 h-4 text-orange-700" />
-                  Upload
-                </button>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAvatarPick}
+                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                  >
+                    <ImageIcon className="w-4 h-4 text-orange-700" />
+                    Upload
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setShowAvatarPresets((v) => !v)}
-                  className="absolute -bottom-2 left-0 inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
-                >
-                  Presets
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAvatarPresets((v) => !v)}
+                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                  >
+                    Presets
+                  </button>
+                </div>
               </div>
 
               {showAvatarPresets && (
