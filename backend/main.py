@@ -1,8 +1,6 @@
 # backend/main.py
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-import os
-from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes import router as api_router
@@ -16,17 +14,18 @@ from lesson_analytics import router as lesson_analytics_router
 
 app = FastAPI()
 
+# Serve uploaded avatars from disk (custom avatars).
+# Default avatars are shipped by the frontend.
+UPLOADS_DIR = os.getenv("UPLOADS_DIR", "uploads")
+AVATAR_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "avatars")
+os.makedirs(AVATAR_UPLOAD_DIR, exist_ok=True)
+app.mount("/static/avatars", StaticFiles(directory=AVATAR_UPLOAD_DIR), name="avatars")
+
 ensure_schema()
 
 # Register all routers
 app.include_router(lesson_analytics_router)
 app.include_router(api_router)
-
-# Serve uploaded assets (avatars) from the Render disk (or /tmp locally)
-DISK_ROOT = os.getenv("RENDER_DISK_PATH", "/tmp")
-AVATAR_DIR = Path(DISK_ROOT) / "avatars"
-AVATAR_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/static/avatars", StaticFiles(directory=str(AVATAR_DIR)), name="avatars")
 app.include_router(audio_router)  # NEW: Audio routes
 
 # 🔧 CORS – include your real frontend URLs (Vercel)
