@@ -643,7 +643,6 @@ html{scroll-behavior:smooth;}
     ))}
   </div>
 </section>
-</section>
 
         {/* roadmap */}
         <section ref={roadmapRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
