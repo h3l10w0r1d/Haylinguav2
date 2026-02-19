@@ -640,7 +640,21 @@ html{scroll-behavior:smooth;}
                     <div className="mt-1 text-sm text-slate-700">{x.d}</div>
                   </div>
                   <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-                    <x.icon className={/* how it works (Apple-style sticky reveal) */}
+                    <x.icon className="w-5 h-5 text-orange-600" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 h-10 rounded-2xl bg-gradient-to-r from-orange-100 via-white to-amber-100 shimmer" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* how it works */}
 <section ref={howRef} className="mt-20 mx-auto max-w-6xl scroll-mt-24">
   <div className="grid md:grid-cols-12 gap-8">
     <div className="md:col-span-4">
@@ -668,35 +682,31 @@ html{scroll-behavior:smooth;}
           <button
             type="button"
             onClick={() => scrollToRef(authRef)}
-            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-slate-900 bg-white/70 border border-orange-200/60 shadow-sm hover:bg-white transition"
+            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-slate-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white transition"
           >
-            Log in <LogIn className="ml-2 h-4 w-4 text-orange-600" />
+            Log in <LogIn className="ml-2 h-4 w-4" />
           </button>
-        </div>
-
-        <div className="mt-8 hidden md:block text-xs text-slate-500">
-          Scroll to reveal the steps →
         </div>
       </div>
     </div>
 
     <div className="md:col-span-8">
-      <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 gap-5">
         {[
-          { t: "1) Master the alphabet", icon: BookOpen, d: "Recognition + sound mapping, so your brain stops guessing and starts reading." },
-          { t: "2) Build real words", icon: Keyboard, d: "Combine letters into words with listening, spelling, and typing practice." },
+          { t: "1) Master the alphabet", icon: BookOpen, d: "Recognition + sound mapping so you stop guessing and start reading." },
+          { t: "2) Build real words", icon: Keyboard, d: "Combine letters into words with listening, spelling, and typing drills." },
           { t: "3) Improve daily", icon: Flame, d: "Earn XP and streaks, repeat intelligently, and reinforce weak points." },
-        ].map((x, i) => (
+          { t: "4) Score higher", icon: Target, d: "Tight feedback loops designed for accuracy and measurable results." },
+        ].map((x) => (
           <div
             key={x.t}
             data-reveal
-            style={{ transitionDelay: `${i * 90}ms` }}
-            className="lp-reveal group rounded-3xl border border-orange-200/50 bg-white/70 backdrop-blur-xl p-6 sm:p-7 lp-card hover:bg-white transition"
+            className="lp-card group bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition"
           >
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-lg font-semibold tracking-tight text-slate-900">{x.t}</div>
-                <div className="mt-2 text-sm text-slate-600 leading-relaxed">{x.d}</div>
+                <div className="font-extrabold text-slate-900">{x.t}</div>
+                <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
               </div>
               <div className="h-11 w-11 rounded-2xl bg-white/80 border border-orange-200/60 grid place-items-center lp-float-slow">
                 <x.icon className="w-5 h-5 text-orange-600" />
@@ -710,30 +720,6 @@ html{scroll-behavior:smooth;}
         ))}
       </div>
     </div>
-  </div>
-</section>
- with daily practice.
-  </p>
-
-  <div className="mt-8 grid md:grid-cols-3 gap-5">
-    {[
-      { t: "1) Master the alphabet", icon: BookOpen, d: "Recognition + sound mapping, so your brain stops guessing and starts reading." },
-      { t: "2) Build real words", icon: Keyboard, d: "Combine letters into words with listening, spelling, and typing practice." },
-      { t: "3) Improve daily", icon: Flame, d: "Earn XP and streaks, repeat intelligently, and reinforce weak points." },
-    ].map((x) => (
-      <div key={x.t} className="group bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition">
-        <div className="flex items-start justify-between gap-3">
-          <div className="font-extrabold text-slate-900">{x.t}</div>
-          <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-            <x.icon className="w-5 h-5 text-orange-600" />
-          </div>
-        </div>
-        <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
-        <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-          <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 group-hover:w-3/5 transition-all duration-500" />
-        </div>
-      </div>
-    ))}
   </div>
 </section>
 
@@ -773,7 +759,7 @@ html{scroll-behavior:smooth;}
   <div
     key={x.label}
     data-reveal
-    style={ transitionDelay: `${i * 60}ms` }
+    style={{ transitionDelay: `${i * 60}ms` }}
     className="lp-reveal group rounded-3xl border border-orange-100 bg-white/70 p-4 lp-card hover:bg-white transition"
   >
     <div className="flex items-center justify-between">
@@ -836,7 +822,7 @@ html{scroll-behavior:smooth;}
               <div
                 key={x.t}
                 data-reveal
-                style={ transitionDelay: `${i * 80}ms` }
+                style={{ transitionDelay: `${i * 80}ms` }}
                 className="lp-reveal group rounded-3xl border border-orange-100 bg-white/70 p-6 lp-card hover:bg-white transition"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -945,7 +931,7 @@ html{scroll-behavior:smooth;}
 <div
               key={x.t}
               data-reveal
-              style={ transitionDelay: `${i * 70}ms` }
+              style={{ transitionDelay: `${i * 70}ms` }}
               className="lp-reveal group bg-white/70 border border-orange-100 rounded-3xl p-6 lp-card hover:bg-white transition"
             >
                 <div className="flex items-start justify-between gap-3">
@@ -988,7 +974,7 @@ html{scroll-behavior:smooth;}
             <div
             key={x.t}
             data-reveal
-            style={ transitionDelay: `${i * 70}ms` }
+            style={{ transitionDelay: `${i * 70}ms` }}
             className="lp-reveal rounded-3xl border border-orange-100 bg-white/70 p-4 lp-card"
           >
               <div className="flex items-start gap-3">
@@ -1075,7 +1061,7 @@ html{scroll-behavior:smooth;}
   </div>
 </section>
 
-{/* footer */}}
+{/* footer */}
         <footer ref={blogRef} className="mt-16 mx-auto max-w-6xl pb-10">
   {/* Blog CTA (secondary) */}
   <div className="rounded-3xl border border-orange-100 bg-white/70 p-6 sm:p-8 shadow-sm">
