@@ -66,6 +66,51 @@ export default function LandingPage({ onLogin, onSignup }) {
     return () => clearInterval(timer);
   }, [cooldown]);
 
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  // Respect OS-level motion preferences (Apple-like: subtle, optional motion)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReducedMotion(!!mq.matches);
+    apply();
+    try {
+      mq.addEventListener("change", apply);
+      return () => mq.removeEventListener("change", apply);
+    } catch {
+      // Safari fallback
+      mq.addListener(apply);
+      return () => mq.removeListener(apply);
+    }
+  }, []);
+
+  // Scroll-reveal for premium "Apple" feel (calm motion, not flashy)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const els = Array.from(document.querySelectorAll("[data-reveal]"));
+    if (!els.length) return;
+
+    if (reducedMotion) {
+      els.forEach((el) => el.classList.add("is-visible"));
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-visible");
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
+    );
+
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [reducedMotion]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -326,6 +371,17 @@ html{scroll-behavior:smooth;}
 .lp-float-2{width:540px;height:540px;bottom:-220px;right:-180px;animation-delay:-5s;background:radial-gradient(circle at 40% 40%, rgba(99,102,241,.85), rgba(251,113,133,0));}
 .lp-float-3{width:420px;height:420px;top:35%;left:55%;animation-delay:-9s;background:radial-gradient(circle at 35% 35%, rgba(252,211,77,.85), rgba(252,211,77,0));}
 @keyframes lpFloat{0%{transform:translate3d(0,0,0) scale(1);}50%{transform:translate3d(40px,-30px,0) scale(1.05);}100%{transform:translate3d(0,0,0) scale(1);}}
+
+.lp-card{box-shadow:0 1px 0 rgba(15,23,42,.04),0 12px 40px rgba(15,23,42,.08);}
+.lp-reveal{opacity:0;transform:translate3d(0,18px,0);filter:blur(6px);transition:opacity 600ms cubic-bezier(.16,1,.3,1),transform 600ms cubic-bezier(.16,1,.3,1),filter 600ms cubic-bezier(.16,1,.3,1);}
+.lp-reveal.is-visible{opacity:1;transform:none;filter:blur(0);}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto;}
+  .lp-float{animation:none!important;}
+  .lp-float-slow{animation:none!important;}
+  .shimmer{animation:none!important;}
+  .lp-reveal{opacity:1;transform:none;filter:none;transition:none;}
+}
 `}</style>
         <div aria-hidden className="lp-float-wrap">
           <div className="lp-float lp-float-1" />
@@ -584,42 +640,79 @@ html{scroll-behavior:smooth;}
                     <div className="mt-1 text-sm text-slate-700">{x.d}</div>
                   </div>
                   <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-                    <x.icon className="w-5 h-5 text-orange-600" />
-                  </div>
-                </div>
-                <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 group-hover:w-3/5 transition-all duration-500" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-extrabold text-slate-900">Beginner‑friendly. Results‑driven.</div>
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-600">
-                <CheckCircle2 className="w-4 h-4 text-orange-600" /> Clean scoring feedback
-              </div>
-            </div>
-            <div className="mt-2 text-sm text-slate-700 leading-relaxed">
-              Short sessions, clear prompts, instant correction — so your accuracy climbs fast and confidence follows.
-            </div>
-          </div>
+                    <x.icon className={/* how it works (Apple-style sticky reveal) */}
+<section ref={howRef} className="mt-20 mx-auto max-w-6xl scroll-mt-24">
+  <div className="grid md:grid-cols-12 gap-8">
+    <div className="md:col-span-4">
+      <div className="md:sticky md:top-24">
+        <div className="inline-flex items-center gap-2 rounded-full border border-orange-200/60 bg-white/70 px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">
+          <Sparkles className="h-4 w-4 text-orange-600" />
+          Built for beginners
         </div>
 
-        <div className="px-6 sm:px-8 pb-6">
-          <div className="h-10 rounded-2xl bg-gradient-to-r from-orange-100 via-white to-amber-100 shimmer" />
+        <h2 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
+          How it works
+        </h2>
+        <p className="mt-3 text-slate-600 leading-relaxed">
+          A calm, structured path: master the Armenian alphabet, build real words, and improve your score with short daily practice.
+        </p>
+
+        <div className="mt-6 flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => scrollToRef(authRef)}
+            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 shadow-[0_10px_30px_rgba(249,115,22,0.25)] hover:opacity-95 transition"
+          >
+            Create account <ArrowRight className="ml-2 h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToRef(authRef)}
+            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-slate-900 bg-white/70 border border-orange-200/60 shadow-sm hover:bg-white transition"
+          >
+            Log in <LogIn className="ml-2 h-4 w-4 text-orange-600" />
+          </button>
         </div>
+
+        <div className="mt-8 hidden md:block text-xs text-slate-500">
+          Scroll to reveal the steps →
+        </div>
+      </div>
+    </div>
+
+    <div className="md:col-span-8">
+      <div className="space-y-4">
+        {[
+          { t: "1) Master the alphabet", icon: BookOpen, d: "Recognition + sound mapping, so your brain stops guessing and starts reading." },
+          { t: "2) Build real words", icon: Keyboard, d: "Combine letters into words with listening, spelling, and typing practice." },
+          { t: "3) Improve daily", icon: Flame, d: "Earn XP and streaks, repeat intelligently, and reinforce weak points." },
+        ].map((x, i) => (
+          <div
+            key={x.t}
+            data-reveal
+            style={{ transitionDelay: `${i * 90}ms` }}
+            className="lp-reveal group rounded-3xl border border-orange-200/50 bg-white/70 backdrop-blur-xl p-6 sm:p-7 lp-card hover:bg-white transition"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-lg font-semibold tracking-tight text-slate-900">{x.t}</div>
+                <div className="mt-2 text-sm text-slate-600 leading-relaxed">{x.d}</div>
+              </div>
+              <div className="h-11 w-11 rounded-2xl bg-white/80 border border-orange-200/60 grid place-items-center lp-float-slow">
+                <x.icon className="w-5 h-5 text-orange-600" />
+              </div>
+            </div>
+
+            <div className="mt-5 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
+              <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 group-hover:w-3/5 transition-all duration-500" />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   </div>
 </section>
-
-{/* how it works */}
-<section ref={howRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
-  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">How it works</h2>
-  <p className="mt-2 text-slate-700 max-w-3xl">
-    A structured path designed for beginners: learn the Armenian alphabet, build real words, and improve your score with daily practice.
+ with daily practice.
   </p>
 
   <div className="mt-8 grid md:grid-cols-3 gap-5">
@@ -679,7 +772,9 @@ html{scroll-behavior:smooth;}
 ].map((x, i) => (
   <div
     key={x.label}
-    className="group rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm hover:bg-white transition"
+    data-reveal
+    style={ transitionDelay: `${i * 60}ms` }
+    className="lp-reveal group rounded-3xl border border-orange-100 bg-white/70 p-4 lp-card hover:bg-white transition"
   >
     <div className="flex items-center justify-between">
       <div className="text-xs font-bold text-gray-700">Stage {i + 1}</div>
@@ -737,8 +832,13 @@ html{scroll-behavior:smooth;}
               { t: "Level 1 — Foundations", icon: BookOpen, d: "Alphabet, sounds, and recognition. Build correct habits from day one." },
               { t: "Level 2 — Everyday Armenian", icon: Layers3, d: "Words, spelling, and practical vocabulary with repeatable patterns." },
               { t: "Level 3 — Mastery path", icon: BarChart3, d: "Sentence work, review loops, and targeted reinforcement for weak points." },
-            ].map((x) => (
-              <div key={x.t} className="group rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm hover:bg-white transition">
+            ].map((x, i) => (
+              <div
+                key={x.t}
+                data-reveal
+                style={ transitionDelay: `${i * 80}ms` }
+                className="lp-reveal group rounded-3xl border border-orange-100 bg-white/70 p-6 lp-card hover:bg-white transition"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="font-extrabold text-slate-900">{x.t}</div>
                   <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
@@ -841,8 +941,13 @@ html{scroll-behavior:smooth;}
               { t: "Audio-first", icon: Headphones, d: "Train pronunciation and ear early, not after you already build bad habits." },
               { t: "Fast onboarding", icon: Timer, d: "Sign up in seconds and start learning immediately." },
               { t: "Blog & updates", icon: BookOpen, d: "Follow new features, study tips, and Armenian language notes." },
-            ].map((x) => (              
-<div key={x.t} className="group bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition">
+            ].map((x, i) => (              
+<div
+              key={x.t}
+              data-reveal
+              style={ transitionDelay: `${i * 70}ms` }
+              className="lp-reveal group bg-white/70 border border-orange-100 rounded-3xl p-6 lp-card hover:bg-white transition"
+            >
                 <div className="flex items-start justify-between gap-3">
                   <div className="font-bold text-gray-900">{x.t}</div>
                   <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
@@ -879,8 +984,13 @@ html{scroll-behavior:smooth;}
             { t: "High-accuracy practice", d: "Instant correction + smart repetition to raise scores.", icon: CheckCircle2 },
             { t: "Daily momentum", d: "XP + streaks that make consistency feel effortless.", icon: Flame },
             { t: "Audio & typing", d: "Train your ear and your hands from day one.", icon: Headphones },
-          ].map((x) => (
-            <div key={x.t} className="rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm">
+          ].map((x, i) => (
+            <div
+            key={x.t}
+            data-reveal
+            style={ transitionDelay: `${i * 70}ms` }
+            className="lp-reveal rounded-3xl border border-orange-100 bg-white/70 p-4 lp-card"
+          >
               <div className="flex items-start gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center">
                   <x.icon className="w-5 h-5 text-orange-600" />
