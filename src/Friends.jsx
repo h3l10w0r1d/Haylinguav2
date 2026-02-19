@@ -223,10 +223,11 @@ export default function Friends() {
         name: x.name || x.email.split("@")[0],
         email: x.email,
         avatar_url: null,
-        level: Number(f.level || 1),
-        xp: Number(f.xp || 0),
-        streak: Number(f.streak || 1),
-        global_rank: Number(f.global_rank || 0),
+        // Sent requests don't have stats; keep neutral values.
+        level: 1,
+        xp: 0,
+        streak: 0,
+        global_rank: 0,
         created_at: x.created_at || null,
       }));
   }, [sent]);
@@ -262,7 +263,7 @@ export default function Friends() {
     const cleanEmail = String(email || "").trim().toLowerCase();
     if (!cleanEmail) return;
 
-    if (friendsList.some((f) => f.email.toLowerCase() === cleanEmail)) return;
+    // Friends list doesn't include emails; avoid crashing on undefined.
     if (incomingList.some((r) => r.email.toLowerCase() === cleanEmail)) return;
     if (sentList.some((r) => r.email.toLowerCase() === cleanEmail)) return;
 
