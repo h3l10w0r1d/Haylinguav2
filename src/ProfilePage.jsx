@@ -83,6 +83,18 @@ function resolveProfileBackground({ themeBg, themeGradient }) {
   return bg;
 }
 
+// Normalize backend-provided media URLs.
+// BE typically returns paths like "/static/..."; those must be absolute for the FE domain.
+function resolveUrl(u) {
+  const s = String(u || "").trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("data:")) return s;
+  if (s.startsWith("blob:")) return s;
+  if (s.startsWith("/")) return `${API_BASE}${s}`;
+  return s;
+}
+
 // A small, safe default banner pool (open source / hotlink-friendly).
 // You can swap this to your own CDN later.
 const DEFAULT_BANNERS = [
@@ -183,12 +195,13 @@ export default function ProfilePage() {
 
           const b = data.banner_url || theme.banner || "";
           const picked = b || pickRandomBanner();
-          setBannerUrl(picked);
+          setBannerUrl(resolveUrl(picked));
           bannerTouchedRef.current = Boolean(b);
 
           const au = data.avatar_url || data.avatar || "";
-          setAvatarPreview(au);
-          setAvatarPresetUrl(au);
+          const resolvedAvatar = resolveUrl(au);
+          setAvatarPreview(resolvedAvatar);
+          setAvatarPresetUrl(resolvedAvatar);
           setAvatarFile(null);
 
           // Stats preview in header (safe fallbacks)
@@ -330,6 +343,12 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
+        if (avatarUrlToSave) {
+          // Update preview immediately using resolved URL (fixes broken preview after refresh).
+          setAvatarPreview(resolveUrl(avatarUrlToSave));
+          setAvatarPresetUrl(resolveUrl(avatarUrlToSave));
+          setAvatarFile(null);
+        }
         setMessage("Saved.");
       } else {
         const err = await safeJsonParse(res);
@@ -735,27 +754,47 @@ export default function ProfilePage() {
             </div>
 
             {(() => {
-              const items = last7?.length ? last7 : ["T", "W", "T", "F", "S", "S", "M"];
-              const values = items.map((d) => (typeof d === "object" ? Number(d.value ?? 0) : 0));
+              const items = Array.isArray(last7) && last7.length ? last7 : [];
+              const normalized = items.map((d, i) => {
+                const v = Number(d?.value ?? 0);
+                const label = String(d?.label ?? "").trim();
+                const date = String(d?.date ?? "").trim();
+                // Fallback label from date (YYYY-MM-DD -> first letter of weekday is unknown w/o tz; keep short).
+                const safeLabel = label || (date ? date.slice(5) : String(i + 1));
+                return { v: Number.isFinite(v) ? v : 0, label: safeLabel };
+              });
+              const values = normalized.map((x) => x.v);
               const maxV = Math.max(1, ...values);
+              const allZero = values.every((x) => x === 0);
+
+              if (!normalized.length) {
+                return (
+                  <div className="h-20 flex items-center justify-center text-sm text-gray-500">
+                    No activity yet — start a lesson to see your progress here.
+                  </div>
+                );
+              }
+
               return (
                 <div className="flex items-end gap-3 h-28">
-                  {items.map((d, idx) => {
-                    const v = typeof d === "object" ? Number(d.value ?? 0) : 0;
-                    const label = typeof d === "object" ? String(d.label ?? "") : String(d);
-                    const h = Math.round((v / maxV) * 88);
+                  {normalized.map((x, idx) => {
+                    const h = Math.round((x.v / maxV) * 88);
                     return (
                       <div key={idx} className="flex flex-col items-center gap-2 flex-1">
-                        <div className="w-full max-w-[44px]">
-                          <div className="relative h-20 w-full rounded-xl bg-orange-50 overflow-hidden">
+                        <div className="w-full max-w-[46px]">
+                          <div className="relative h-20 w-full rounded-2xl bg-orange-50 overflow-hidden border border-orange-100">
                             <div
-                              className="absolute bottom-0 left-0 right-0 bg-orange-200 rounded-xl"
-                              style={{ height: `${Math.max(3, h)}px` }}
-                              title={`${label}: ${v}`}
+                              className="absolute bottom-0 left-0 right-0 rounded-2xl"
+                              style={{
+                                height: `${allZero ? 8 : Math.max(8, h)}px`,
+                                background:
+                                  "linear-gradient(180deg, rgba(252,114,41,.95), rgba(252,76,48,.75))",
+                              }}
+                              title={`${x.label}: ${x.v}`}
                             />
                           </div>
                         </div>
-                        <div className="text-[11px] text-gray-500">{label}</div>
+                        <div className="text-[11px] text-gray-500">{x.label}</div>
                       </div>
                     );
                   })}
