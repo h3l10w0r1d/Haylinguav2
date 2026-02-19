@@ -22,6 +22,10 @@ export default function LandingPage({ onLogin, onSignup }) {
   const [cooldown, setCooldown] = useState(0);
 
   const authRef = useRef(null);
+  const howRef = useRef(null);
+  const roadmapRef = useRef(null);
+  const trustRef = useRef(null);
+  const blogRef = useRef(null);
 
   const [mouse, setMouse] = useState({ x: 0.5, y: 0.5 });
   const onMouseMove = (e) => {
@@ -41,6 +45,14 @@ export default function LandingPage({ onLogin, onSignup }) {
   const scrollToAuth = () => {
     try {
       authRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch {
+      // ignore
+    }
+  };
+
+  const scrollToRef = (ref) => {
+    try {
+      ref?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch {
       // ignore
     }
@@ -430,6 +442,16 @@ export default function LandingPage({ onLogin, onSignup }) {
       className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50"
       onMouseMove={onMouseMove}
     >
+      <style>{`
+        @keyframes lpFloatSlow { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
+        @keyframes lpGlowPulse { 0%,100% { opacity: .55 } 50% { opacity: .85 } }
+        @keyframes lpShimmer { 0% { background-position: 0% 50% } 100% { background-position: 100% 50% } }
+
+        .lp-float-slow { animation: lpFloatSlow 6s ease-in-out infinite; }
+        .lp-glow { animation: lpGlowPulse 5.5s ease-in-out infinite; }
+        .lp-shimmer { background-size: 200% 200%; animation: lpShimmer 7s linear infinite; }
+      `}</style>
+
       {/* background */}
       <div className="lp-grain" />
       <div className="absolute inset-0 lp-grid opacity-40" />
@@ -461,6 +483,36 @@ export default function LandingPage({ onLogin, onSignup }) {
             </div>
           </div>
           <nav className="flex items-center gap-4">
+            <div className="hidden lg:flex items-center gap-1 bg-white/60 border border-orange-100 rounded-2xl px-2 py-1 shadow-sm backdrop-blur">
+              <button
+                type="button"
+                onClick={() => scrollToRef(howRef)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white/70 transition"
+              >
+                How it works
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToRef(roadmapRef)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white/70 transition"
+              >
+                Roadmap
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToRef(trustRef)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white/70 transition"
+              >
+                Trust
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToRef(blogRef)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white/70 transition"
+              >
+                Blog
+              </button>
+            </div>
             <a
               href="https://blog.haylingua.am"
               target="_blank"
@@ -560,6 +612,32 @@ export default function LandingPage({ onLogin, onSignup }) {
               <div className="bg-white/70 border border-orange-100 rounded-2xl p-4 shadow-sm">
                 <div className="text-2xl font-extrabold text-gray-900">Audio</div>
                 <div className="text-xs text-gray-600">listen & repeat</div>
+              </div>
+            </div>
+
+            {/* mini "web3" style highlight strip */}
+            <div className="mt-8 max-w-xl">
+              <div className="relative overflow-hidden rounded-3xl border border-orange-100 bg-white/65 backdrop-blur shadow-sm">
+                <div className="absolute inset-0 opacity-70 lp-shimmer bg-gradient-to-r from-orange-100 via-rose-100 to-amber-100" />
+                <div className="relative p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-2 rounded-2xl bg-white/80 border border-orange-100 px-3 py-1.5 text-xs font-semibold text-gray-800">
+                      <span className="h-2 w-2 rounded-full bg-orange-500 lp-glow" />
+                      Beginner-first Armenian
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-2xl bg-white/80 border border-orange-100 px-3 py-1.5 text-xs font-semibold text-gray-800">
+                      <span className="h-2 w-2 rounded-full bg-rose-500 lp-glow" />
+                      Instant feedback
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-2xl bg-white/80 border border-orange-100 px-3 py-1.5 text-xs font-semibold text-gray-800">
+                      <span className="h-2 w-2 rounded-full bg-amber-500 lp-glow" />
+                      XP-based progression
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm text-gray-700 leading-relaxed">
+                    Designed for beginners to hit high scores fast — clear lessons, repeatable practice, and a roadmap you can trust.
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -732,6 +810,215 @@ export default function LandingPage({ onLogin, onSignup }) {
           </section>
         </div>
 
+        {/* how it works */}
+        <section ref={howRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">A roadmap you can actually follow</h2>
+              <p className="mt-2 text-gray-700 max-w-3xl">
+                Short sessions, clear milestones, and smart repetition. You always know what to do next.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setError("");
+                  scrollToAuth();
+                }}
+                className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-rose-600 cta-float shadow-sm"
+              >
+                Start free
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                  scrollToAuth();
+                }}
+                className="px-4 py-2 rounded-2xl text-sm font-semibold text-gray-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white"
+              >
+                Log in
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-8 grid lg:grid-cols-3 gap-5">
+            {[
+              {
+                t: "1) Learn the alphabet",
+                d: "Recognition + sound mapping, so your brain stops guessing and starts reading.",
+              },
+              {
+                t: "2) Build words",
+                d: "Start combining letters into real words with typing and listening tasks.",
+              },
+              {
+                t: "3) Use it daily",
+                d: "Earn XP and streaks, repeat intelligently, and unlock lessons with confidence.",
+              },
+            ].map((x) => (
+              <div
+                key={x.t}
+                className="group bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-bold text-gray-900">{x.t}</div>
+                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-orange-200 to-rose-200 border border-orange-100 shadow-sm lp-float-slow" />
+                </div>
+                <div className="mt-2 text-sm text-gray-700 leading-relaxed">{x.d}</div>
+                <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
+                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 group-hover:w-3/5 transition-all duration-500" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* roadmap */}
+        <section ref={roadmapRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
+          <div className="bg-white/70 border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm overflow-hidden relative">
+            <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-orange-200/50 blur-2xl" />
+            <div className="absolute -bottom-12 -left-10 h-44 w-44 rounded-full bg-rose-200/50 blur-2xl" />
+
+            <div className="relative">
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Progress path</h2>
+                  <p className="mt-2 text-gray-700 max-w-3xl">
+                    Built like a game — but optimized for real learning outcomes.
+                  </p>
+                </div>
+                <a
+                  href="https://blog.haylingua.am"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-2xl text-sm font-semibold text-gray-800 bg-white/80 border border-orange-100 shadow-sm hover:bg-white"
+                >
+                  See updates on the blog →
+                </a>
+              </div>
+
+              <div className="mt-8 grid md:grid-cols-6 gap-4">
+                {["Alphabet", "Sounds", "Words", "Spelling", "Sentences", "Mastery"].map((label, i) => (
+                  <div
+                    key={label}
+                    className="group rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm hover:bg-white transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-gray-700">Stage {i + 1}</div>
+                      <div className="h-6 w-6 rounded-xl bg-gradient-to-br from-orange-200 to-rose-200 border border-orange-100" />
+                    </div>
+                    <div className="mt-2 font-extrabold text-gray-900">{label}</div>
+                    <div className="mt-1 text-xs text-gray-600 leading-relaxed">
+                      {label === "Alphabet" && "Recognize letters + match sounds."}
+                      {label === "Sounds" && "Hear, repeat, and pick correctly."}
+                      {label === "Words" && "Build and read real words."}
+                      {label === "Spelling" && "Type confidently, fewer mistakes."}
+                      {label === "Sentences" && "Order, translate, and understand."}
+                      {label === "Mastery" && "Reinforce weak points with XP."}
+                    </div>
+                    <div className="mt-3 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-orange-500 to-rose-500 transition-all duration-500"
+                        style={{ width: `${Math.min(100, 25 + i * 12)}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 text-[11px] text-gray-500">
+                      Completion turns green in-app.
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 grid lg:grid-cols-2 gap-5">
+                <div className="rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm">
+                  <div className="font-extrabold text-gray-900">High-score learning</div>
+                  <div className="mt-2 text-sm text-gray-700 leading-relaxed">
+                    Exercises are designed so you can improve quickly: clear prompts, instant correction, and repeatable patterns.
+                    The result is confidence — and higher accuracy — fast.
+                  </div>
+                </div>
+                <div className="rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm">
+                  <div className="font-extrabold text-gray-900">Out-of-the-box UI</div>
+                  <div className="mt-2 text-sm text-gray-700 leading-relaxed">
+                    Smooth animations, crisp cards, and a modern “web3” feel — without sacrificing readability or trust.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* trust */}
+        <section ref={trustRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Built to earn trust</h2>
+          <p className="mt-2 text-gray-700 max-w-3xl">
+            You’re here to learn — not to get spammed. Haylingua is designed to be safe, fast, and respectful.
+          </p>
+          <div className="mt-8 grid md:grid-cols-3 gap-5">
+            {[
+              {
+                t: "Email verification",
+                d: "We verify accounts to keep the platform clean and your progress secure.",
+              },
+              {
+                t: "No data selling",
+                d: "Your learning data stays yours. We don’t sell it to third parties.",
+              },
+              {
+                t: "Clear progression",
+                d: "XP-based structure means you always know what you’ve earned and what’s next.",
+              },
+            ].map((x) => (
+              <div key={x.t} className="bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-bold text-gray-900">{x.t}</div>
+                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-orange-200 to-amber-200 border border-orange-100 shadow-sm" />
+                </div>
+                <div className="mt-2 text-sm text-gray-700 leading-relaxed">{x.d}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 rounded-3xl border border-orange-100 bg-white/70 p-6 sm:p-8 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <div className="text-sm font-bold text-gray-900">One clear goal</div>
+                <div className="mt-1 text-gray-700">
+                  Get you from <span className="font-semibold">zero</span> to reading Armenian confidently — with the fastest path possible.
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("signup");
+                    setError("");
+                    scrollToAuth();
+                  }}
+                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-rose-600 cta-float shadow"
+                >
+                  Create account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("login");
+                    setError("");
+                    scrollToAuth();
+                  }}
+                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-gray-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white"
+                >
+                  Log in
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* features */}
         <section className="mt-16 mx-auto max-w-6xl">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">What you get</h2>
@@ -797,21 +1084,42 @@ export default function LandingPage({ onLogin, onSignup }) {
         </section>
 
         {/* footer */}
-        <footer className="mt-16 mx-auto max-w-6xl pb-10 text-sm text-gray-600 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-          <div>© {new Date().getFullYear()} Haylingua</div>
-          <div className="flex gap-4">
-            <a href="https://blog.haylingua.am" target="_blank" rel="noreferrer" className="hover:text-gray-900">Blog</a>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                setError("");
-                scrollToAuth();
-              }}
-              className="hover:text-gray-900"
-            >
-              Get started
-            </button>
+        <footer ref={blogRef} className="mt-16 mx-auto max-w-6xl pb-10 text-sm text-gray-600 flex flex-col gap-6">
+          <div className="rounded-3xl border border-orange-100 bg-white/70 p-6 sm:p-8 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <div className="text-sm font-bold text-gray-900">Want study tips, updates, and Armenian notes?</div>
+                <div className="mt-1 text-gray-700">
+                  Visit the Haylingua Blog — short posts that make the learning path even easier.
+                </div>
+              </div>
+              <a
+                href="https://blog.haylingua.am"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center px-4 py-2 rounded-2xl text-sm font-semibold text-gray-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white"
+              >
+                Open blog →
+              </a>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+            <div>© {new Date().getFullYear()} Haylingua</div>
+            <div className="flex gap-4">
+              <a href="https://blog.haylingua.am" target="_blank" rel="noreferrer" className="hover:text-gray-900">Blog</a>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setError("");
+                  scrollToAuth();
+                }}
+                className="hover:text-gray-900"
+              >
+                Get started
+              </button>
+            </div>
           </div>
         </footer>
       </main>
