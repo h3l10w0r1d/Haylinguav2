@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import HeaderLayout from "./HeaderLayout";
 
 // IMPORTANT:
 // Public pages are served from the FE domain, but API lives on the backend.
@@ -154,11 +153,9 @@ export default function PublicUserPage({ token }) {
         ? data.friends_preview
         : [];
 
-  const relationship = (data?.relationship || profile?.relationship || "none").toLowerCase();
-  const friendStatus =
-    relationship === "self"
-      ? "self"
-      : data?.friend_status || profile?.friend_status || (data?.is_friend ? "friends" : "none");
+  const relationship = String(data?.friendship || profile?.friendship || "none").toLowerCase();
+  const friendRequestId = data?.friend_request_id ?? profile?.friend_request_id ?? null;
+  const friendStatus = relationship;
   const canFriendActions = Boolean(token) && relationship !== "self" && data?.is_self !== true;
 
   async function friendAction(kind) {
@@ -170,15 +167,33 @@ export default function PublicUserPage({ token }) {
 
     setActionBusy(true);
     try {
-      let endpoint = "";
-      if (kind === "request") endpoint = `${API_BASE}/me/friends/request/${data.user_id}`;
-      if (kind === "accept") endpoint = `${API_BASE}/me/friends/accept/${data.user_id}`;
-      if (kind === "remove") endpoint = `${API_BASE}/me/friends/remove/${data.user_id}`;
-      if (!endpoint) return;
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let res;
+
+      if (kind === "request") {
+        // Canonical endpoint (matches Friends.jsx)
+        res = await fetch(`${API_BASE}/friends/request`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: String(data.username || username || "").trim() }),
+        });
+      } else if (kind === "accept") {
+        if (!friendRequestId) throw new Error("Missing friend request id");
+        res = await fetch(`${API_BASE}/friends/requests/${friendRequestId}/accept`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else if (kind === "remove") {
+        // Backend supports this endpoint to unfriend from profile
+        res = await fetch(`${API_BASE}/friends/remove/${data.user_id}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
+      if (!res) return;
       if (!res.ok) throw new Error(`Friend action failed (${res.status})`);
       // reload
       const refreshed = await fetchJsonOrThrow(
@@ -196,8 +211,7 @@ export default function PublicUserPage({ token }) {
   const heroCta = useMemo(() => {
     if (!canFriendActions) return null;
 
-    // statuses we support if backend provides them
-    if (friendStatus === "incoming" || friendStatus === "requested_to_you") {
+    if (friendStatus === "incoming_pending") {
       return (
         <button
           disabled={actionBusy}
@@ -209,7 +223,7 @@ export default function PublicUserPage({ token }) {
       );
     }
 
-    if (friendStatus === "outgoing" || friendStatus === "requested") {
+    if (friendStatus === "outgoing_pending") {
       return (
         <button
           disabled
@@ -245,8 +259,6 @@ export default function PublicUserPage({ token }) {
 
   return (
     <div style={{ background: pageBg }}>
-      {/* Keep the same global header as the rest of the app */}
-      <HeaderLayout />
       <div
         className="min-h-[calc(100vh-64px)]"
         style={{ background: pageBg }}
