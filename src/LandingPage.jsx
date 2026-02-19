@@ -313,7 +313,7 @@ export default function LandingPage({ onLogin, onSignup }) {
   if (mode === "verify") {
     return (
       <div
-        className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50"
+        className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-white to-indigo-50"
         onMouseMove={onMouseMove}
       >
         {/* background */}
@@ -323,7 +323,7 @@ html{scroll-behavior:smooth;}
 .lp-float-wrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
 .lp-float{position:absolute;border-radius:9999px;filter:blur(70px);opacity:.32;mix-blend-mode:multiply;animation:lpFloat 16s ease-in-out infinite;transform:translate3d(0,0,0);}
 .lp-float-1{width:520px;height:520px;top:-180px;left:-140px;background:radial-gradient(circle at 30% 30%, rgba(255,159,67,.9), rgba(255,159,67,0));}
-.lp-float-2{width:540px;height:540px;bottom:-220px;right:-180px;animation-delay:-5s;background:radial-gradient(circle at 40% 40%, rgba(251,113,133,.85), rgba(251,113,133,0));}
+.lp-float-2{width:540px;height:540px;bottom:-220px;right:-180px;animation-delay:-5s;background:radial-gradient(circle at 40% 40%, rgba(99,102,241,.85), rgba(251,113,133,0));}
 .lp-float-3{width:420px;height:420px;top:35%;left:55%;animation-delay:-9s;background:radial-gradient(circle at 35% 35%, rgba(252,211,77,.85), rgba(252,211,77,0));}
 @keyframes lpFloat{0%{transform:translate3d(0,0,0) scale(1);}50%{transform:translate3d(40px,-30px,0) scale(1.05);}100%{transform:translate3d(0,0,0) scale(1);}}
 `}</style>
@@ -432,7 +432,7 @@ html{scroll-behavior:smooth;}
   // Render login/signup screen
   return (
     <div
-      className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50"
+      className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-white to-indigo-50"
       onMouseMove={onMouseMove}
     >
       <style>{`
@@ -457,74 +457,204 @@ html{scroll-behavior:smooth;}
         style={{ width: 420, height: 420, top: 120, right: -180, transform: `translate3d(${-orbShift.dx}px, ${orbShift.dy}px, 0)` }}
       />
       <div
-        className="lp-orb bg-rose-200"
+        className="lp-orb bg-indigo-200"
         style={{ width: 520, height: 520, bottom: -240, left: 80, transform: `translate3d(${orbShift.dx}px, ${-orbShift.dy}px, 0)` }}
       />
 
 
 {/* top bar */}
-<div className="sticky top-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 backdrop-blur-xl bg-white/60 border-b border-orange-100/60">
+<div className="sticky top-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 backdrop-blur-xl bg-white/65 border-b border-orange-100/60">
   <div className="mx-auto max-w-6xl flex items-center justify-between gap-3">
     <button
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      className="inline-flex items-center gap-2 font-extrabold tracking-tight text-gray-900"
+      className="inline-flex items-center gap-2 font-extrabold tracking-tight text-slate-900"
       aria-label="Haylingua home"
     >
-      <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-rose-500 shadow-sm grid place-items-center text-white text-sm">
+      <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-indigo-600 shadow-sm grid place-items-center text-white text-sm">
         Հ
       </span>
       <span className="text-base sm:text-lg">Haylingua</span>
-      <span className="hidden sm:inline-flex items-center gap-1.5 ml-2 px-2.5 py-1 rounded-full text-[
-              {
-                t: "1) Learn the alphabet",
-                icon: BookOpen,
-                d: "Recognition + sound mapping, so your brain stops guessing and starts reading.",
-              },
-              {
-                t: "2) Build words",
-                icon: Keyboard,
-                d: "Start combining letters into real words with typing and listening tasks.",
-              },
-              {
-                t: "3) Use it daily",
-                icon: Flame,
-                d: "Earn XP and streaks, repeat intelligently, and unlock lessons with confidence.",
-              },
+    </button>
+
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => {
+          setMode("login");
+          setError("");
+          scrollToAuth();
+        }}
+        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-slate-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white transition"
+      >
+        <LogIn className="w-4 h-4" /> Log in
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setMode("signup");
+          setError("");
+          scrollToAuth();
+        }}
+        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow-sm"
+      >
+        <Sparkles className="w-4 h-4" /> Create account
+      </button>
+    </div>
+  </div>
+</div>
+
+{/* hero */}
+<section className="mx-auto max-w-6xl pt-12 sm:pt-16">
+  <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+    <div>
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-bold text-slate-700">
+        <Sparkles className="w-4 h-4 text-orange-600" />
+        Armenian learning for beginners
+      </div>
+
+      <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
+        Learn Armenian online — <span className="bg-gradient-to-r from-orange-600 to-indigo-600 bg-clip-text text-transparent">fast, structured, and score‑focused.</span>
+      </h1>
+
+      <p className="mt-4 text-base sm:text-lg text-slate-700 max-w-xl leading-relaxed">
+        Haylingua is a gamified Armenian language learning app built to help beginners master the alphabet, pronunciation, and spelling —
+        with a clear path and measurable progress.
+      </p>
+
+      <div className="mt-7 flex flex-wrap gap-2.5">
+        <button
+          type="button"
+          onClick={() => {
+            setMode("signup");
+            setError("");
+            scrollToAuth();
+          }}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow"
+        >
+          Start free <ArrowRight className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode("login");
+            setError("");
+            scrollToAuth();
+          }}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-slate-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white transition"
+        >
+          Log in <LogIn className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-600">
+        <div className="inline-flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-orange-600" /> Secure data
+        </div>
+        <div className="inline-flex items-center gap-2">
+          <Target className="w-4 h-4 text-orange-600" /> High‑accuracy exercises
+        </div>
+        <div className="inline-flex items-center gap-2">
+          <Flame className="w-4 h-4 text-orange-600" /> XP + streaks
+        </div>
+      </div>
+    </div>
+
+    <div className="relative">
+      <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-orange-200/40 via-white/20 to-indigo-200/40 blur-2xl lp-glow-pulse" />
+      <div className="relative rounded-[2.5rem] border border-orange-100 bg-white/70 shadow-sm overflow-hidden">
+        <div className="p-6 sm:p-8">
+          <div className="flex items-center justify-between">
+            <div className="font-extrabold text-slate-900">Your learning path</div>
+            <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center">
+              <Route className="w-5 h-5 text-orange-600" />
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {[
+              { t: "Alphabet mastery", d: "Recognize letters and match sounds correctly.", icon: BookOpen },
+              { t: "Words & spelling", d: "Build real words with listening + typing drills.", icon: Keyboard },
+              { t: "Daily progress", d: "Earn XP, keep streaks, and reinforce weak points.", icon: Flame },
             ].map((x) => (
-              <div
-                key={x.t}
-                className="group bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition"
-              >
+              <div key={x.t} className="group rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm hover:bg-white transition">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="font-bold text-gray-900">{x.t}</div>
-                  {x.icon ? (
-                    <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-                      <x.icon className="w-5 h-5 text-orange-600" />
-                    </div>
-                  ) : (
-                    <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-orange-200 to-rose-200 border border-orange-100 shadow-sm lp-float-slow" />
-                  )}
+                  <div>
+                    <div className="font-extrabold text-slate-900">{x.t}</div>
+                    <div className="mt-1 text-sm text-slate-700">{x.d}</div>
+                  </div>
+                  <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
+                    <x.icon className="w-5 h-5 text-orange-600" />
+                  </div>
                 </div>
-                <div className="mt-2 text-sm text-gray-700 leading-relaxed">{x.d}</div>
                 <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 group-hover:w-3/5 transition-all duration-500" />
+                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-indigo-500 group-hover:w-3/5 transition-all duration-500" />
                 </div>
               </div>
             ))}
           </div>
-        </section>
+
+          <div className="mt-5 rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-extrabold text-slate-900">Beginner‑friendly. Results‑driven.</div>
+              <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-600">
+                <CheckCircle2 className="w-4 h-4 text-orange-600" /> Clean scoring feedback
+              </div>
+            </div>
+            <div className="mt-2 text-sm text-slate-700 leading-relaxed">
+              Short sessions, clear prompts, instant correction — so your accuracy climbs fast and confidence follows.
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 sm:px-8 pb-6">
+          <div className="h-10 rounded-2xl bg-gradient-to-r from-orange-100 via-white to-indigo-100 shimmer" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* how it works */}
+<section ref={howRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
+  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">How it works</h2>
+  <p className="mt-2 text-slate-700 max-w-3xl">
+    A structured path designed for beginners: learn the Armenian alphabet, build real words, and improve your score with daily practice.
+  </p>
+
+  <div className="mt-8 grid md:grid-cols-3 gap-5">
+    {[
+      { t: "1) Master the alphabet", icon: BookOpen, d: "Recognition + sound mapping, so your brain stops guessing and starts reading." },
+      { t: "2) Build real words", icon: Keyboard, d: "Combine letters into words with listening, spelling, and typing practice." },
+      { t: "3) Improve daily", icon: Flame, d: "Earn XP and streaks, repeat intelligently, and reinforce weak points." },
+    ].map((x) => (
+      <div key={x.t} className="group bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition">
+        <div className="flex items-start justify-between gap-3">
+          <div className="font-extrabold text-slate-900">{x.t}</div>
+          <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
+            <x.icon className="w-5 h-5 text-orange-600" />
+          </div>
+        </div>
+        <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
+        <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
+          <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-indigo-500 group-hover:w-3/5 transition-all duration-500" />
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+</section>
 
         {/* roadmap */}
         <section ref={roadmapRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
           <div className="bg-white/70 border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm overflow-hidden relative">
             <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-orange-200/50 blur-2xl" />
-            <div className="absolute -bottom-12 -left-10 h-44 w-44 rounded-full bg-rose-200/50 blur-2xl" />
+            <div className="absolute -bottom-12 -left-10 h-44 w-44 rounded-full bg-indigo-200/50 blur-2xl" />
 
             <div className="relative">
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Progress path</h2>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">A roadmap you can actually follow</h2>
                   <p className="mt-2 text-gray-700 max-w-3xl">
                     Built like a game — but optimized for real learning outcomes.
                   </p>
@@ -562,7 +692,7 @@ html{scroll-behavior:smooth;}
     <div className="mt-1 text-xs text-gray-600 leading-relaxed">{x.desc}</div>
     <div className="mt-3 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
       <div
-        className="h-full rounded-full bg-gradient-to-r from-orange-500 to-rose-500 transition-all duration-500"
+        className="h-full rounded-full bg-gradient-to-r from-orange-500 to-indigo-500 transition-all duration-500"
         style={{ width: `${Math.min(100, 25 + i * 12)}%` }}
       />
     </div>
@@ -573,7 +703,7 @@ html{scroll-behavior:smooth;}
 
               <div className="mt-8 grid lg:grid-cols-2 gap-5">
                 <div className="rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm">
-                  <div className="font-extrabold text-gray-900">High-score learning</div>
+                  <div className="flex items-center justify-between gap-3"><div className="font-extrabold text-slate-900">High-score learning</div><div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center"><Target className="w-5 h-5 text-orange-600" /></div></div>
                   <div className="mt-2 text-sm text-gray-700 leading-relaxed">
                     Exercises are designed so you can improve quickly: clear prompts, instant correction, and repeatable patterns.
                     The result is confidence — and higher accuracy — fast.
@@ -581,14 +711,13 @@ html{scroll-behavior:smooth;}
                 </div>
                 <div className="rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="font-extrabold text-gray-900">Premium motion, zero distraction</div>
+                    <div className="font-extrabold text-slate-900">Designed for focus. Engineered for clarity.</div>
                     <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center">
                       <Wand2 className="w-5 h-5 text-orange-600" />
                     </div>
                   </div>
                   <div className="mt-2 text-sm text-gray-700 leading-relaxed">
-                    Apple-level polish with a “web3” edge: soft gradients, glassy surfaces, and micro‑interactions that guide your eyes — not steal your attention.
-                    Everything stays crisp, readable, and built for trust.
+                    Subtle motion helps you understand what just happened, what’s next, and how to improve — without noise. Clean cards, crisp typography, and purposeful micro‑interactions keep the experience premium and trustworthy.
                   </div>
                 </div>
               </div>
@@ -596,7 +725,37 @@ html{scroll-behavior:smooth;}
           </div>
         </section>
 
-        {/* trust */}
+        
+        {/* progress path (levels) */}
+        <section className="mt-16 mx-auto max-w-6xl scroll-mt-24">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Progress path</h2>
+          <p className="mt-2 text-slate-700 max-w-3xl">
+            A clear sequence of levels that takes you from Armenian alphabet basics to confident reading and writing.
+          </p>
+
+          <div className="mt-8 grid lg:grid-cols-3 gap-5">
+            {[
+              { t: "Level 1 — Foundations", icon: BookOpen, d: "Alphabet, sounds, and recognition. Build correct habits from day one." },
+              { t: "Level 2 — Everyday Armenian", icon: Layers3, d: "Words, spelling, and practical vocabulary with repeatable patterns." },
+              { t: "Level 3 — Mastery path", icon: BarChart3, d: "Sentence work, review loops, and targeted reinforcement for weak points." },
+            ].map((x) => (
+              <div key={x.t} className="group rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm hover:bg-white transition">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-extrabold text-slate-900">{x.t}</div>
+                  <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
+                    <x.icon className="w-5 h-5 text-orange-600" />
+                  </div>
+                </div>
+                <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
+                <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
+                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-indigo-500 group-hover:w-3/5 transition-all duration-500" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+{/* trust */}
         <section ref={trustRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Built to earn trust</h2>
           <p className="mt-2 text-gray-700 max-w-3xl">
@@ -648,7 +807,7 @@ html{scroll-behavior:smooth;}
                     setError("");
                     scrollToAuth();
                   }}
-                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-rose-600 cta-float shadow"
+                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow"
                 >
                   Create account
                 </button>
@@ -744,7 +903,7 @@ html{scroll-behavior:smooth;}
               setError("");
               scrollToAuth();
             }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-rose-600 cta-float shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow-sm"
           >
             Start learning <ArrowRight className="w-4 h-4" />
           </button>
@@ -761,7 +920,7 @@ html{scroll-behavior:smooth;}
     </div>
 
     <div className="bg-white/70 border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
-      <div className="absolute -bottom-12 -right-12 h-44 w-44 rounded-full bg-rose-200/50 blur-2xl" />
+      <div className="absolute -bottom-12 -right-12 h-44 w-44 rounded-full bg-indigo-200/50 blur-2xl" />
       <div className="relative">
         <div className="text-sm font-bold text-gray-900">Designed like a product you trust</div>
         <div className="mt-2 text-sm sm:text-base text-gray-800 leading-relaxed">
@@ -834,7 +993,7 @@ html{scroll-behavior:smooth;}
     <div className="grid md:grid-cols-5 gap-8">
       <div className="md:col-span-2">
         <div className="flex items-center gap-2 font-extrabold tracking-tight text-gray-900">
-          <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-rose-500 shadow-sm grid place-items-center text-white text-sm">
+          <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-indigo-500 shadow-sm grid place-items-center text-white text-sm">
             Հ
           </span>
           <span className="text-lg">Haylingua</span>
@@ -860,7 +1019,7 @@ html{scroll-behavior:smooth;}
               setError("");
               scrollToAuth();
             }}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-rose-600 cta-float shadow-sm"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow-sm"
           >
             Create account <ArrowRight className="w-4 h-4" />
           </button>
