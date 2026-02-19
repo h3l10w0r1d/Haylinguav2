@@ -190,10 +190,11 @@ export default function Friends() {
         name: f.name || f.username || "User",
         username: f.username || null,
         avatar_url: f.avatar_url || null,
-        level: Number(f.level || 1),
-        xp: Number(f.xp || 0),
-        streak: Number(f.streak || 1),
-        global_rank: Number(f.global_rank || 0),
+        // Sent requests don't have stats; keep neutral values.
+        level: 1,
+        xp: 0,
+        streak: 0,
+        global_rank: 0,
       }))
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   }, [friends]);
@@ -268,7 +269,8 @@ export default function Friends() {
     const res = await apiFetch("/friends/request", {
       token,
       method: "POST",
-      body: JSON.stringify({ email: cleanEmail }),
+      // Backend expects { query: "<username_or_email>" }
+      body: JSON.stringify({ query: cleanEmail }),
     });
 
     if (res.ok) {
