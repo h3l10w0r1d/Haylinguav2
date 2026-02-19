@@ -1,6 +1,6 @@
 // src/LandingPage.jsx - Marketing landing + inline auth + email verification
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Lock, Mail, User, Sparkles } from "lucide-react";
+import { Lock, Mail, User, Sparkles, ArrowRight, LogIn, BookOpen, ShieldCheck } from "lucide-react";
 
 const API_BASE = "https://haylinguav2.onrender.com";
 
@@ -318,6 +318,21 @@ export default function LandingPage({ onLogin, onSignup }) {
       >
         {/* background */}
         <div className="lp-grain" />
+        <style>{`
+html{scroll-behavior:smooth;}
+.lp-float-wrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
+.lp-float{position:absolute;border-radius:9999px;filter:blur(70px);opacity:.32;mix-blend-mode:multiply;animation:lpFloat 16s ease-in-out infinite;transform:translate3d(0,0,0);}
+.lp-float-1{width:520px;height:520px;top:-180px;left:-140px;background:radial-gradient(circle at 30% 30%, rgba(255,159,67,.9), rgba(255,159,67,0));}
+.lp-float-2{width:540px;height:540px;bottom:-220px;right:-180px;animation-delay:-5s;background:radial-gradient(circle at 40% 40%, rgba(251,113,133,.85), rgba(251,113,133,0));}
+.lp-float-3{width:420px;height:420px;top:35%;left:55%;animation-delay:-9s;background:radial-gradient(circle at 35% 35%, rgba(252,211,77,.85), rgba(252,211,77,0));}
+@keyframes lpFloat{0%{transform:translate3d(0,0,0) scale(1);}50%{transform:translate3d(40px,-30px,0) scale(1.05);}100%{transform:translate3d(0,0,0) scale(1);}}
+`}</style>
+        <div aria-hidden className="lp-float-wrap">
+          <div className="lp-float lp-float-1" />
+          <div className="lp-float lp-float-2" />
+          <div className="lp-float lp-float-3" />
+        </div>
+
         <div
           className="lp-orb bg-orange-300"
           style={{ width: 380, height: 380, top: -120, left: -120, transform: `translate3d(${orbShift.dx}px, ${orbShift.dy}px, 0)` }}
@@ -326,28 +341,6 @@ export default function LandingPage({ onLogin, onSignup }) {
           className="lp-orb bg-amber-200"
           style={{ width: 340, height: 340, bottom: -140, right: -120, transform: `translate3d(${-orbShift.dx}px, ${-orbShift.dy}px, 0)` }}
         />
-
-        {/* top bar */}
-        <div className="relative z-10 px-4 sm:px-8 pt-6">
-          <div className="mx-auto max-w-6xl flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img
-                src="/favicon.svg"
-                alt="Haylingua"
-                className="w-9 h-9 rounded-2xl shadow-sm"
-              />
-              <div className="font-extrabold tracking-tight text-gray-900">Haylingua</div>
-            </div>
-            <a
-              href="https://blog.haylingua.am"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              Blog
-            </a>
-          </div>
-        </div>
 
         <div className="relative z-10 px-4 sm:px-8 pb-12 pt-10 flex items-center justify-center">
           <div className="max-w-md w-full">
@@ -469,83 +462,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       />
 
       {/* top bar */}
-      <header className="relative z-10 px-4 sm:px-8 pt-6">
-        <div className="mx-auto max-w-6xl flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img
-              src="/favicon.svg"
-              alt="Haylingua"
-              className="w-10 h-10 rounded-2xl shadow-sm"
-            />
-            <div>
-              <div className="font-extrabold tracking-tight text-gray-900">Haylingua</div>
-              <div className="text-xs text-gray-600">Learn Armenian with confidence</div>
-            </div>
-          </div>
-          <nav className="flex items-center gap-4">
-            <div className="hidden lg:flex items-center gap-1 bg-white/60 border border-orange-100 rounded-2xl px-2 py-1 shadow-sm backdrop-blur">
-              <button
-                type="button"
-                onClick={() => scrollToRef(howRef)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white/70 transition"
-              >
-                How it works
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollToRef(roadmapRef)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white/70 transition"
-              >
-                Roadmap
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollToRef(trustRef)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white/70 transition"
-              >
-                Trust
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollToRef(blogRef)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white/70 transition"
-              >
-                Blog
-              </button>
-            </div>
-            <a
-              href="https://blog.haylingua.am"
-              target="_blank"
-              rel="noreferrer"
-              className="hidden sm:inline text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              Blog
-            </a>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("login");
-                setError("");
-                scrollToAuth();
-              }}
-              className="text-sm font-semibold text-gray-800 hover:text-gray-900"
-            >
-              Log in
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                setError("");
-                scrollToAuth();
-              }}
-              className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-rose-600 cta-float shadow-sm"
-            >
-              Start free
-            </button>
-          </nav>
-        </div>
-      </header>
+
 
       {/* hero */}
       <main className="relative z-10 px-4 sm:px-8 pb-20 pt-10">
@@ -590,14 +507,6 @@ export default function LandingPage({ onLogin, onSignup }) {
               >
                 Log in
               </button>
-              <a
-                href="https://blog.haylingua.am"
-                target="_blank"
-                rel="noreferrer"
-                className="px-5 py-3 rounded-2xl text-sm font-semibold text-gray-700 bg-white/60 border border-gray-200 hover:bg-white"
-              >
-                Read the blog
-              </a>
             </div>
 
             <div className="mt-10 grid grid-cols-3 gap-4 max-w-xl">
@@ -962,21 +871,26 @@ export default function LandingPage({ onLogin, onSignup }) {
             {[
               {
                 t: "Email verification",
+                icon: Mail,
                 d: "We verify accounts to keep the platform clean and your progress secure.",
               },
               {
-                t: "No data selling",
+                t: "Secure data",
+                icon: ShieldCheck,
                 d: "Your learning data stays yours. We don’t sell it to third parties.",
               },
               {
                 t: "Clear progression",
+                icon: Sparkles,
                 d: "XP-based structure means you always know what you’ve earned and what’s next.",
               },
             ].map((x) => (
               <div key={x.t} className="bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition">
                 <div className="flex items-start justify-between gap-3">
                   <div className="font-bold text-gray-900">{x.t}</div>
-                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-orange-200 to-amber-200 border border-orange-100 shadow-sm" />
+                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-orange-200 to-amber-200 border border-orange-100 shadow-sm grid place-items-center">
+                    <x.icon className="h-5 w-5 text-orange-700" />
+                  </div>
                 </div>
                 <div className="mt-2 text-sm text-gray-700 leading-relaxed">{x.d}</div>
               </div>
