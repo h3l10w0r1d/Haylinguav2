@@ -313,7 +313,7 @@ export default function LandingPage({ onLogin, onSignup }) {
   if (mode === "verify") {
     return (
       <div
-        className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-white to-indigo-50"
+        className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-white to-amber-50"
         onMouseMove={onMouseMove}
       >
         {/* background */}
@@ -432,7 +432,7 @@ html{scroll-behavior:smooth;}
   // Render login/signup screen
   return (
     <div
-      className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-white to-indigo-50"
+      className="min-h-screen lp-bg bg-gradient-to-br from-orange-50 via-white to-amber-50"
       onMouseMove={onMouseMove}
     >
       <style>{`
@@ -457,7 +457,7 @@ html{scroll-behavior:smooth;}
         style={{ width: 420, height: 420, top: 120, right: -180, transform: `translate3d(${-orbShift.dx}px, ${orbShift.dy}px, 0)` }}
       />
       <div
-        className="lp-orb bg-indigo-200"
+        className="lp-orb bg-orange-200"
         style={{ width: 520, height: 520, bottom: -240, left: 80, transform: `translate3d(${orbShift.dx}px, ${-orbShift.dy}px, 0)` }}
       />
 
@@ -471,7 +471,7 @@ html{scroll-behavior:smooth;}
       className="inline-flex items-center gap-2 font-extrabold tracking-tight text-slate-900"
       aria-label="Haylingua home"
     >
-      <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-indigo-600 shadow-sm grid place-items-center text-white text-sm">
+      <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-sm grid place-items-center text-white text-sm">
         Հ
       </span>
       <span className="text-base sm:text-lg">Haylingua</span>
@@ -496,7 +496,7 @@ html{scroll-behavior:smooth;}
           setError("");
           scrollToAuth();
         }}
-        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow-sm"
+        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow-sm"
       >
         <Sparkles className="w-4 h-4" /> Create account
       </button>
@@ -514,7 +514,7 @@ html{scroll-behavior:smooth;}
       </div>
 
       <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
-        Learn Armenian online — <span className="bg-gradient-to-r from-orange-600 to-indigo-600 bg-clip-text text-transparent">fast, structured, and score‑focused.</span>
+        Learn Armenian online — <span className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">fast, structured, and score‑focused.</span>
       </h1>
 
       <p className="mt-4 text-base sm:text-lg text-slate-700 max-w-xl leading-relaxed">
@@ -530,7 +530,7 @@ html{scroll-behavior:smooth;}
             setError("");
             scrollToAuth();
           }}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow"
         >
           Start free <ArrowRight className="w-4 h-4" />
         </button>
@@ -561,7 +561,7 @@ html{scroll-behavior:smooth;}
     </div>
 
     <div className="relative">
-      <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-orange-200/40 via-white/20 to-indigo-200/40 blur-2xl lp-glow-pulse" />
+      <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-orange-200/40 via-white/20 to-amber-200/40 blur-2xl lp-glow-pulse" />
       <div className="relative rounded-[2.5rem] border border-orange-100 bg-white/70 shadow-sm overflow-hidden">
         <div className="p-6 sm:p-8">
           <div className="flex items-center justify-between">
@@ -588,7 +588,7 @@ html{scroll-behavior:smooth;}
                   </div>
                 </div>
                 <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-indigo-500 group-hover:w-3/5 transition-all duration-500" />
+                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 group-hover:w-3/5 transition-all duration-500" />
                 </div>
               </div>
             ))}
@@ -608,7 +608,7 @@ html{scroll-behavior:smooth;}
         </div>
 
         <div className="px-6 sm:px-8 pb-6">
-          <div className="h-10 rounded-2xl bg-gradient-to-r from-orange-100 via-white to-indigo-100 shimmer" />
+          <div className="h-10 rounded-2xl bg-gradient-to-r from-orange-100 via-white to-amber-100 shimmer" />
         </div>
       </div>
     </div>
@@ -637,7 +637,7 @@ html{scroll-behavior:smooth;}
         </div>
         <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
         <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-          <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-indigo-500 group-hover:w-3/5 transition-all duration-500" />
+          <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 group-hover:w-3/5 transition-all duration-500" />
         </div>
       </div>
     ))}
@@ -648,7 +648,7 @@ html{scroll-behavior:smooth;}
         <section ref={roadmapRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
           <div className="bg-white/70 border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm overflow-hidden relative">
             <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-orange-200/50 blur-2xl" />
-            <div className="absolute -bottom-12 -left-10 h-44 w-44 rounded-full bg-indigo-200/50 blur-2xl" />
+            <div className="absolute -bottom-12 -left-10 h-44 w-44 rounded-full bg-orange-200/60 blur-2xl" />
 
             <div className="relative">
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -691,7 +691,7 @@ html{scroll-behavior:smooth;}
     <div className="mt-1 text-xs text-gray-600 leading-relaxed">{x.desc}</div>
     <div className="mt-3 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
       <div
-        className="h-full rounded-full bg-gradient-to-r from-orange-500 to-indigo-500 transition-all duration-500"
+        className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-500"
         style={{ width: `${Math.min(100, 25 + i * 12)}%` }}
       />
     </div>
@@ -747,7 +747,7 @@ html{scroll-behavior:smooth;}
                 </div>
                 <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
                 <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-indigo-500 group-hover:w-3/5 transition-all duration-500" />
+                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 group-hover:w-3/5 transition-all duration-500" />
                 </div>
               </div>
             ))}
@@ -806,7 +806,7 @@ html{scroll-behavior:smooth;}
                     setError("");
                     scrollToAuth();
                   }}
-                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow"
+                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow"
                 >
                   Create account
                 </button>
@@ -902,7 +902,7 @@ html{scroll-behavior:smooth;}
               setError("");
               scrollToAuth();
             }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow-sm"
           >
             Start learning <ArrowRight className="w-4 h-4" />
           </button>
@@ -919,7 +919,7 @@ html{scroll-behavior:smooth;}
     </div>
 
     <div className="bg-white/70 border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
-      <div className="absolute -bottom-12 -right-12 h-44 w-44 rounded-full bg-indigo-200/50 blur-2xl" />
+      <div className="absolute -bottom-12 -right-12 h-44 w-44 rounded-full bg-orange-200/60 blur-2xl" />
       <div className="relative">
         <div className="text-sm font-bold text-gray-900">Designed like a product you trust</div>
         <div className="mt-2 text-sm sm:text-base text-gray-800 leading-relaxed">
@@ -992,7 +992,7 @@ html{scroll-behavior:smooth;}
     <div className="grid md:grid-cols-5 gap-8">
       <div className="md:col-span-2">
         <div className="flex items-center gap-2 font-extrabold tracking-tight text-gray-900">
-          <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-indigo-500 shadow-sm grid place-items-center text-white text-sm">
+          <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 shadow-sm grid place-items-center text-white text-sm">
             Հ
           </span>
           <span className="text-lg">Haylingua</span>
@@ -1018,7 +1018,7 @@ html{scroll-behavior:smooth;}
               setError("");
               scrollToAuth();
             }}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-indigo-600 cta-float shadow-sm"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow-sm"
           >
             Create account <ArrowRight className="w-4 h-4" />
           </button>
