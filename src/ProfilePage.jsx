@@ -134,6 +134,11 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const bgSaveTimer = useRef(null);
 
+  // Track whether the user explicitly changed the banner.
+  // We may show a random banner as a visual default, but we shouldn't persist it
+  // unless the user chose to.
+  const bannerTouchedRef = useRef(false);
+
   const publicProfileHref = useMemo(() => {
     const u = String(username || "").trim();
     if (!u) return "";
@@ -179,6 +184,7 @@ export default function ProfilePage() {
           const b = data.banner_url || theme.banner || "";
           const picked = b || pickRandomBanner();
           setBannerUrl(picked);
+          bannerTouchedRef.current = Boolean(b);
 
           const au = data.avatar_url || data.avatar || "";
           setAvatarPreview(au);
@@ -235,13 +241,10 @@ export default function ProfilePage() {
 
       try {
         const payload = {
-          username: String(username || "").trim() || null,
-          first_name: String(firstName || "").trim() || null,
-          last_name: String(lastName || "").trim() || null,
-          bio: String(bio || "").trim() || null,
           friends_public: !!friendsPublic,
           is_hidden: !!isHidden,
-          banner_url: bannerUrl || null,
+          // Don't persist a random/default banner unless user explicitly changed it.
+          ...(bannerTouchedRef.current ? { banner_url: bannerUrl || null } : {}),
           profile_theme: {
             background: themeBg || "#fff7ed",
             gradient: themeGradient || "",
@@ -276,10 +279,6 @@ export default function ProfilePage() {
     bannerUrl,
     friendsPublic,
     isHidden,
-    username,
-    firstName,
-    lastName,
-    bio,
   ]);
 
   // Manual save for core profile (optional; keeps existing UX expectation)
@@ -344,6 +343,7 @@ export default function ProfilePage() {
   }
 
   function handlePickBanner() {
+    bannerTouchedRef.current = true;
     setBannerUrl(pickRandomBanner());
   }
 
