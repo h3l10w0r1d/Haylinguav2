@@ -1,6 +1,7 @@
 // src/LandingPage.jsx - Marketing landing + inline auth + email verification
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Lock, Mail, User, Sparkles, ArrowRight, LogIn, BookOpen, ShieldCheck, CheckCircle2, Headphones, Keyboard, Flame, Target, Timer, Layers3, GraduationCap, Route, BarChart3, Fingerprint, Wand2, Globe, Twitter, Instagram, Youtube } from "lucide-react";
+import LoginModal from "./LoginModal";
 
 const API_BASE = "https://haylinguav2.onrender.com";
 
@@ -20,6 +21,14 @@ export default function LandingPage({ onLogin, onSignup }) {
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
+
+  // Landing auth modal (Apple-like: fast, focused entry)
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState("login");
+
+  // Brand colors from favicon/logo
+  const BRAND_PRIMARY = "#FC4C30"; // main orange-red
+  const BRAND_SECONDARY = "#FC7229"; // warm orange
 
   const authRef = useRef(null);
   const howRef = useRef(null);
@@ -42,12 +51,10 @@ export default function LandingPage({ onLogin, onSignup }) {
     return { dx, dy };
   }, [mouse]);
 
-  const scrollToAuth = () => {
-    try {
-      authRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch {
-      // ignore
-    }
+  const openAuth = (nextMode) => {
+    setAuthMode(nextMode);
+    setAuthOpen(true);
+    setError("");
   };
 
   const scrollToRef = (ref) => {
@@ -167,15 +174,27 @@ export default function LandingPage({ onLogin, onSignup }) {
   };
 
   const handleSignup = async () => {
+    // kept for backward compatibility (in case older UI calls it)
+    return handleSignupDirect(name, username, email, password);
+  };
+
+  const handleSignupDirect = async (_name, _username, _email, _password) => {
     try {
+      // keep state in sync so verify screen shows correct email
+      setName((_name || "").trim());
+      setUsername((_username || "").trim());
+      setEmail((_email || "").trim());
+      setPassword(_password || "");
+      setPassword2(_password || "");
+
       const res = await fetch(`${API_BASE}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim() || null,
-          username: username.trim(),
-          email: email.trim(),
-          password,
+          name: (_name || "").trim() || null,
+          username: (_username || "").trim(),
+          email: (_email || "").trim(),
+          password: _password,
         }),
       });
 
@@ -200,15 +219,15 @@ export default function LandingPage({ onLogin, onSignup }) {
       setToken(accessToken);
       localStorage.setItem("hay_token", accessToken);
       localStorage.setItem("access_token", accessToken);
-      localStorage.setItem("user_email", email.trim());
+      localStorage.setItem("user_email", (_email || "").trim());
 
       // Store user object
-      const baseName = email.split("@")[0];
+      const baseName = (_email || "").split("@")[0];
       const newUser = {
         id: 1,
-        email: email.trim(),
-        name: name.trim() || baseName,
-        username: username.trim(),
+        email: (_email || "").trim(),
+        name: (_name || "").trim() || baseName,
+        username: (_username || "").trim(),
         firstName: "",
         lastName: "",
         avatarUrl: "",
@@ -368,7 +387,7 @@ html{scroll-behavior:smooth;}
 .lp-float-wrap{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
 .lp-float{position:absolute;border-radius:9999px;filter:blur(70px);opacity:.32;mix-blend-mode:multiply;animation:lpFloat 16s ease-in-out infinite;transform:translate3d(0,0,0);}
 .lp-float-1{width:520px;height:520px;top:-180px;left:-140px;background:radial-gradient(circle at 30% 30%, rgba(255,159,67,.9), rgba(255,159,67,0));}
-.lp-float-2{width:540px;height:540px;bottom:-220px;right:-180px;animation-delay:-5s;background:radial-gradient(circle at 40% 40%, rgba(99,102,241,.85), rgba(251,113,133,0));}
+.lp-float-2{width:540px;height:540px;bottom:-220px;right:-180px;animation-delay:-5s;background:radial-gradient(circle at 40% 40%, rgba(252,114,41,.85), rgba(252,114,41,0));}
 .lp-float-3{width:420px;height:420px;top:35%;left:55%;animation-delay:-9s;background:radial-gradient(circle at 35% 35%, rgba(252,211,77,.85), rgba(252,211,77,0));}
 @keyframes lpFloat{0%{transform:translate3d(0,0,0) scale(1);}50%{transform:translate3d(40px,-30px,0) scale(1.05);}100%{transform:translate3d(0,0,0) scale(1);}}
 
@@ -527,7 +546,7 @@ html{scroll-behavior:smooth;}
       className="inline-flex items-center gap-2 font-extrabold tracking-tight text-slate-900"
       aria-label="Haylingua home"
     >
-      <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-sm grid place-items-center text-white text-sm">
+      <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-[#FC4C30] to-[#FC7229] shadow-sm grid place-items-center text-white text-sm">
         Հ
       </span>
       <span className="text-base sm:text-lg">Haylingua</span>
@@ -537,9 +556,7 @@ html{scroll-behavior:smooth;}
       <button
         type="button"
         onClick={() => {
-          setMode("login");
-          setError("");
-          scrollToAuth();
+          openAuth("login");
         }}
         className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-slate-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white transition"
       >
@@ -548,11 +565,9 @@ html{scroll-behavior:smooth;}
       <button
         type="button"
         onClick={() => {
-          setMode("signup");
-          setError("");
-          scrollToAuth();
+          openAuth("signup");
         }}
-        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow-sm"
+        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-[#FC4C30] to-[#FC7229] cta-float shadow-sm"
       >
         <Sparkles className="w-4 h-4" /> Create account
       </button>
@@ -565,12 +580,12 @@ html{scroll-behavior:smooth;}
   <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
     <div>
       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-bold text-slate-700">
-        <Sparkles className="w-4 h-4 text-orange-600" />
+        <Sparkles className="w-4 h-4 text-[#FC4C30]" />
         Armenian learning for beginners
       </div>
 
       <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
-        Learn Armenian online — <span className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">fast, structured, and score‑focused.</span>
+        Learn Armenian online — <span className="bg-gradient-to-r from-[#FC4C30] to-[#FC7229] bg-clip-text text-transparent">fast, structured, and score‑focused.</span>
       </h1>
 
       <p className="mt-4 text-base sm:text-lg text-slate-700 max-w-xl leading-relaxed">
@@ -582,20 +597,16 @@ html{scroll-behavior:smooth;}
         <button
           type="button"
           onClick={() => {
-            setMode("signup");
-            setError("");
-            scrollToAuth();
+            openAuth("signup");
           }}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-[#FC4C30] to-[#FC7229] cta-float shadow"
         >
           Start free <ArrowRight className="w-4 h-4" />
         </button>
         <button
           type="button"
           onClick={() => {
-            setMode("login");
-            setError("");
-            scrollToAuth();
+            openAuth("login");
           }}
           className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-slate-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white transition"
         >
@@ -605,13 +616,13 @@ html{scroll-behavior:smooth;}
 
       <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-600">
         <div className="inline-flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-orange-600" /> Secure data
+          <ShieldCheck className="w-4 h-4 text-[#FC4C30]" /> Secure data
         </div>
         <div className="inline-flex items-center gap-2">
-          <Target className="w-4 h-4 text-orange-600" /> High‑accuracy exercises
+          <Target className="w-4 h-4 text-[#FC4C30]" /> High‑accuracy exercises
         </div>
         <div className="inline-flex items-center gap-2">
-          <Flame className="w-4 h-4 text-orange-600" /> XP + streaks
+          <Flame className="w-4 h-4 text-[#FC4C30]" /> XP + streaks
         </div>
       </div>
     </div>
@@ -623,7 +634,7 @@ html{scroll-behavior:smooth;}
           <div className="flex items-center justify-between">
             <div className="font-extrabold text-slate-900">Your learning path</div>
             <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center">
-              <Route className="w-5 h-5 text-orange-600" />
+              <Route className="w-5 h-5 text-[#FC4C30]" />
             </div>
           </div>
 
@@ -640,7 +651,7 @@ html{scroll-behavior:smooth;}
                     <div className="mt-1 text-sm text-slate-700">{x.d}</div>
                   </div>
                   <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-                    <x.icon className="w-5 h-5 text-orange-600" />
+                    <x.icon className="w-5 h-5 text-[#FC4C30]" />
                   </div>
                 </div>
               </div>
@@ -660,7 +671,7 @@ html{scroll-behavior:smooth;}
     <div className="md:col-span-4">
       <div className="md:sticky md:top-24">
         <div className="inline-flex items-center gap-2 rounded-full border border-orange-200/60 bg-white/70 px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">
-          <Sparkles className="h-4 w-4 text-orange-600" />
+          <Sparkles className="h-4 w-4 text-[#FC4C30]" />
           Built for beginners
         </div>
 
@@ -674,14 +685,14 @@ html{scroll-behavior:smooth;}
         <div className="mt-6 flex flex-col gap-3">
           <button
             type="button"
-            onClick={() => scrollToRef(authRef)}
-            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 shadow-[0_10px_30px_rgba(249,115,22,0.25)] hover:opacity-95 transition"
+            onClick={() => openAuth("signup")}
+            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#FC4C30] to-[#FC7229] shadow-[0_10px_30px_rgba(252,76,48,0.22)] hover:opacity-95 transition"
           >
             Create account <ArrowRight className="ml-2 h-4 w-4" />
           </button>
           <button
             type="button"
-            onClick={() => scrollToRef(authRef)}
+            onClick={() => openAuth("login")}
             className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-slate-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white transition"
           >
             Log in <LogIn className="ml-2 h-4 w-4" />
@@ -709,12 +720,12 @@ html{scroll-behavior:smooth;}
                 <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
               </div>
               <div className="h-11 w-11 rounded-2xl bg-white/80 border border-orange-200/60 grid place-items-center lp-float-slow">
-                <x.icon className="w-5 h-5 text-orange-600" />
+                <x.icon className="w-5 h-5 text-[#FC4C30]" />
               </div>
             </div>
 
             <div className="mt-5 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-              <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-600 to-amber-500 group-hover:w-3/5 transition-all duration-500" />
+          <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-[#FC4C30] to-[#FC7229] group-hover:w-3/5 transition-all duration-500" />
             </div>
           </div>
         ))}
@@ -888,20 +899,16 @@ html{scroll-behavior:smooth;}
                 <button
                   type="button"
                   onClick={() => {
-                    setMode("signup");
-                    setError("");
-                    scrollToAuth();
+                    openAuth("signup");
                   }}
-                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow"
+                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-[#FC4C30] to-[#FC7229] cta-float shadow"
                 >
                   Create account
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    setMode("login");
-                    setError("");
-                    scrollToAuth();
+                    openAuth("login");
                   }}
                   className="px-4 py-2 rounded-2xl text-sm font-semibold text-gray-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white"
                 >
@@ -994,11 +1001,9 @@ html{scroll-behavior:smooth;}
           <button
             type="button"
             onClick={() => {
-              setMode("signup");
-              setError("");
-              scrollToAuth();
+              openAuth("signup");
             }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-[#FC4C30] to-[#FC7229] cta-float shadow-sm"
           >
             Start learning <ArrowRight className="w-4 h-4" />
           </button>
@@ -1110,11 +1115,9 @@ html{scroll-behavior:smooth;}
           <button
             type="button"
             onClick={() => {
-              setMode("signup");
-              setError("");
-              scrollToAuth();
+              openAuth("signup");
             }}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow-sm"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-[#FC4C30] to-[#FC7229] cta-float shadow-sm"
           >
             Create account <ArrowRight className="w-4 h-4" />
           </button>
@@ -1169,6 +1172,33 @@ html{scroll-behavior:smooth;}
     </div>
   </div>
 </footer>
+
+      {/* Auth modal (Login / Signup) */}
+      {authOpen && (
+        <LoginModal
+          mode={authMode}
+          onClose={() => setAuthOpen(false)}
+          onLogin={async (id, pw) => {
+            setLoading(true);
+            try {
+              await onLogin(id, pw);
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onSignup={async (n, u, e, pw) => {
+            setLoading(true);
+            try {
+              // Use LandingPage's signup so we can switch to email verification mode
+              await handleSignupDirect(n, u, e, pw);
+              setAuthOpen(false);
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onSwitchMode={(m) => setAuthMode(m)}
+        />
+      )}
     </div>
   );
 }
