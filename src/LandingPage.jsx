@@ -1051,7 +1051,7 @@ html{scroll-behavior:smooth;}
 
         <div className="mt-6 rounded-3xl border border-orange-100 bg-white/70 p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <div className="font-extrabold text-gray-900">SEO note</div>
+            <div className="font-extrabold text-gray-900">Why us?</div>
             <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center">
               <GraduationCap className="w-5 h-5 text-orange-600" />
             </div>
