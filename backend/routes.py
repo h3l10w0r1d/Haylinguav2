@@ -750,13 +750,16 @@ def friends_request_create(
     if addressee_id == requester_id:
         raise HTTPException(status_code=400, detail="You cannot add yourself")
 
-    # already friends?
+    # already friends? (friends table is symmetric)
     existing_friend = db.execute(
-        text("""
+        text(
+            """
             SELECT 1 FROM friends
-            WHERE user_id = :a AND friend_id = :b
+            WHERE (user_id = :a AND friend_id = :b)
+               OR (user_id = :b AND friend_id = :a)
             LIMIT 1
-        """),
+            """
+        ),
         {"a": requester_id, "b": addressee_id},
     ).first()
     if existing_friend:
@@ -895,6 +898,37 @@ def friends_request_reject(
         {"id": request_id},
     )
     return {"ok": True, "status": "rejected"}
+
+
+@router.post("/friends/remove/{other_user_id}")
+def friends_remove(
+    other_user_id: int,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Unfriend another user (symmetric friends table).
+
+    This endpoint exists mainly to support profile-page unfriending.
+    """
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    if int(other_user_id) == int(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user")
+
+    db.execute(
+        text(
+            """
+            DELETE FROM friends
+            WHERE (user_id = :a AND friend_id = :b)
+               OR (user_id = :b AND friend_id = :a)
+            """
+        ),
+        {"a": int(user_id), "b": int(other_user_id)},
+    )
+
+    return {"ok": True}
 
 # ---------- TTS schema ----------
 
@@ -2240,9 +2274,10 @@ def me_activity(
     for i in range(days):
         d = start + timedelta(days=i)
         label = labels[d.weekday()]
-        out.append({"day": label, "value": counts_by_date.get(d, 0)})
+        out.append({"date": d.isoformat(), "label": label, "value": counts_by_date.get(d, 0)})
 
-    return out
+    # FE expects a stable wrapper for forwards/backwards compatibility
+    return {"days": out}
 
 @router.get("/me/profile", response_model=MeOut)
 def me_profile_get(
@@ -2884,6 +2919,9 @@ class PublicUserOut(BaseModel):
     global_rank: int
     friends_count: int
     friendship: str = "none"  # none | friends | outgoing_pending | incoming_pending | self
+    # When the viewer is authenticated and there is a pending friend request between
+    # the viewer and this user, we include the request id so the FE can accept it.
+    friend_request_id: int | None = None
     is_friend: bool
     friends_preview: list[dict] = []
     top_friends: list[dict] = []
@@ -2991,13 +3029,19 @@ def get_public_user(
         raise HTTPException(status_code=400, detail="username is required")
 
     target = db.execute(
-        text("SELECT id, friends_public FROM users WHERE lower(username) = :u LIMIT 1"),
+        text("SELECT id, friends_public, is_hidden FROM users WHERE lower(username) = :u LIMIT 1"),
         {"u": uname},
     ).mappings().first()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
     target_id = int(target["id"])
+
+    # Respect hidden accounts.
+    # If the profile is hidden, only the owner can view it.
+    if bool(target.get("is_hidden")) and not (viewer_id is not None and int(viewer_id) == target_id):
+        # Return 404 to avoid leaking that the user exists.
+        raise HTTPException(status_code=404, detail="User not found")
     data = _get_user_public_by_id(db, target_id)
 
     # display name logic
@@ -3013,6 +3057,7 @@ def get_public_user(
     # Relationship between viewer and target
     friendship = "none"
     is_friend = False
+    friend_request_id: int | None = None
     if viewer_id is not None and int(viewer_id) == target_id:
         friendship = "self"
     elif viewer_id is not None:
@@ -3036,7 +3081,7 @@ def get_public_user(
             rr = db.execute(
                 text(
                     """
-                    SELECT from_user_id, to_user_id
+                    SELECT id, from_user_id, to_user_id
                     FROM friend_requests
                     WHERE status = 'pending'
                       AND ((from_user_id = :a AND to_user_id = :b) OR (from_user_id = :b AND to_user_id = :a))
@@ -3047,6 +3092,7 @@ def get_public_user(
                 {"a": int(viewer_id), "b": target_id},
             ).mappings().first()
             if rr:
+                friend_request_id = int(rr["id"])
                 friendship = (
                     "outgoing_pending" if int(rr["from_user_id"]) == int(viewer_id) else "incoming_pending"
                 )
@@ -3091,6 +3137,7 @@ def get_public_user(
         global_rank=int(data.get("global_rank") or 0),
         friends_count=int(data.get("friends_count") or 0),
         friendship=friendship,
+        friend_request_id=friend_request_id,
         is_friend=is_friend,
         # Lightweight preview to avoid a second call on the FE.
         friends_preview=(
@@ -3160,11 +3207,17 @@ def get_public_user_friends(
                 xp.*,
                 RANK() OVER (ORDER BY xp.total_xp DESC, xp.id ASC) AS global_rank
               FROM xp
+            ), friend_ids AS (
+              SELECT CASE
+                       WHEN f.user_id = :uid THEN f.friend_id
+                       ELSE f.user_id
+                     END AS fid
+              FROM friends f
+              WHERE (f.user_id = :uid OR f.friend_id = :uid)
             )
             SELECT r.*
             FROM ranked r
-            JOIN friends f ON f.friend_id = r.id
-            WHERE f.user_id = :uid
+            JOIN friend_ids fi ON fi.fid = r.id
             ORDER BY r.global_rank ASC, r.id ASC
             """
         ),
@@ -3194,6 +3247,102 @@ def get_public_user_friends(
         )
 
     return out
+
+
+@router.get("/users/{username}/activity")
+def public_user_activity(
+    username: str,
+    days: int = 7,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Public (privacy-respecting) activity for a user's profile.
+
+    Uses friends_public as a proxy privacy toggle:
+    - If friends_public is false, only the user themselves or their friends can view.
+    - Hidden profiles are not accessible unless viewing self.
+    """
+    viewer_id = _get_user_id_from_bearer(authorization)
+
+    uname = (username or "").strip().lower()
+    if not uname:
+        raise HTTPException(status_code=400, detail="username is required")
+
+    target = db.execute(
+        text("SELECT id, friends_public, is_hidden FROM users WHERE lower(username) = :u LIMIT 1"),
+        {"u": uname},
+    ).mappings().first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_id = int(target["id"])
+    if bool(target.get("is_hidden")) and not (viewer_id is not None and int(viewer_id) == target_id):
+        raise HTTPException(status_code=404, detail="User not found")
+
+    friends_public = bool(target.get("friends_public", True))
+    is_friend = False
+    if viewer_id is not None and int(viewer_id) != target_id:
+        is_friend = bool(
+            db.execute(
+                text(
+                    """
+                    SELECT 1
+                    FROM friends
+                    WHERE ((user_id = :a AND friend_id = :b) OR (user_id = :b AND friend_id = :a))
+                    LIMIT 1
+                    """
+                ),
+                {"a": int(viewer_id), "b": target_id},
+            ).first()
+        )
+
+    if not friends_public and not (viewer_id is not None and int(viewer_id) == target_id) and not is_friend:
+        raise HTTPException(status_code=403, detail="Activity is private")
+
+    # Reuse the same logic as /me/activity
+    if days < 1:
+        days = 1
+    if days > 30:
+        days = 30
+
+    today = datetime.utcnow().date()
+    start = today - timedelta(days=days - 1)
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+              DATE(completed_at) AS d,
+              COUNT(*)::int AS c
+            FROM lesson_progress
+            WHERE user_id = :user_id
+              AND completed_at >= :start_dt
+            GROUP BY DATE(completed_at)
+            ORDER BY d ASC
+            """
+        ),
+        {"user_id": target_id, "start_dt": start},
+    ).mappings().all()
+
+    counts_by_date = {r["d"]: int(r["c"]) for r in rows}
+    labels = ["M", "T", "W", "T", "F", "S", "S"]
+
+    out: List[Dict[str, int | str]] = []
+    for i in range(days):
+        d = start + timedelta(days=i)
+        label = labels[d.weekday()]
+        out.append({"date": d.isoformat(), "label": label, "value": counts_by_date.get(d, 0)})
+
+    return {"days": out}
+
+
+@router.get("/users/{username}/activity/last7days")
+def public_user_activity_last7days(
+    username: str,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    return public_user_activity(username=username, days=7, authorization=authorization, db=db)
 
 
 @router.get("/cms/bootstrap/status")
