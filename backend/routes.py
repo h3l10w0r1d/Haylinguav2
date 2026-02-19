@@ -3077,26 +3077,26 @@ def get_public_user(
         )
         if is_friend:
             friendship = "friends"
-		else:
-			# Schema uses requester_id/addressee_id (not from_user_id/to_user_id)
-			rr = db.execute(
-				text(
-					"""
-					SELECT id, requester_id, addressee_id
-					FROM friend_requests
-					WHERE status = 'pending'
-					  AND ((requester_id = :a AND addressee_id = :b) OR (requester_id = :b AND addressee_id = :a))
-					ORDER BY created_at DESC
-					LIMIT 1
-					"""
-				),
-				{"a": int(viewer_id), "b": target_id},
-			).mappings().first()
-			if rr:
-				friend_request_id = int(rr["id"])
-				friendship = (
-					"outgoing_pending" if int(rr["requester_id"]) == int(viewer_id) else "incoming_pending"
-				)
+        else:
+            # Schema uses requester_id/addressee_id (not from_user_id/to_user_id)
+            rr = db.execute(
+                text(
+                    """
+                    SELECT id, requester_id, addressee_id
+                    FROM friend_requests
+                    WHERE status = 'pending'
+                      AND ((requester_id = :a AND addressee_id = :b) OR (requester_id = :b AND addressee_id = :a))
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """
+                ),
+                {"a": int(viewer_id), "b": target_id},
+            ).mappings().first()
+            if rr:
+                friend_request_id = int(rr["id"])
+                friendship = (
+                    "outgoing_pending" if int(rr["requester_id"]) == int(viewer_id) else "incoming_pending"
+                )
 
     # Top friends (3) by XP
     q_top = text(
