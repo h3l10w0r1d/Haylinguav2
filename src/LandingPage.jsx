@@ -1073,7 +1073,6 @@ html{scroll-behavior:smooth;}
     </div>
   </div>
 </footer>
-      </main>
     </div>
   );
 }
