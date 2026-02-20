@@ -139,34 +139,37 @@ function AppShell() {
   };
 
   // LOGIN
-  const handleLogin = async (email, password) => {
-    try {
-      const res = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+  // LOGIN (supports 2FA)
+  // - If 2FA is enabled and otp is missing, backend returns 401 with detail.requires_2fa
+  // - We surface that to UI by throwing an Error with `requires2fa=true`
+  const handleLogin = async (email, password, otp = null) => {
+    const res = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, otp }),
+    });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Login failed', res.status, text);
-        throw new Error('Invalid email or password');
+    if (!res.ok) {
+      const dataErr = await res.json().catch(() => null);
+      if (res.status === 401 && dataErr?.detail?.requires_2fa && !otp) {
+        const e = new Error('2FA code required');
+        // attach a flag for UI
+        e.requires2fa = true;
+        throw e;
       }
-
-      const data = await res.json();
-      const tokenValue = data.access_token;
-
-      if (!tokenValue) {
-        console.error('No token in /login response', data);
-        throw new Error('No token in /login response');
-      }
-
-      handleAuthSuccess(tokenValue, data.email ?? email, '', data.email_verified || false);
-      await refreshProfile(tokenValue);
-    } catch (err) {
-      console.error('Login error', err);
-      alert(err.message || 'Login failed. Please try again.');
+      const msg =
+        (typeof dataErr?.detail === 'string' && dataErr.detail) ||
+        dataErr?.detail?.message ||
+        'Invalid email, password, or 2FA code';
+      throw new Error(msg);
     }
+
+    const data = await res.json().catch(() => ({}));
+    const tokenValue = data.access_token;
+    if (!tokenValue) throw new Error('No token in /login response');
+
+    handleAuthSuccess(tokenValue, data.email ?? email, '', data.email_verified || false);
+    await refreshProfile(tokenValue);
   };
 
   // SIGNUP - handled by Signup component now
