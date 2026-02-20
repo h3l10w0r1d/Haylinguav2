@@ -11,6 +11,8 @@ export default function LandingPage({ onLogin, onSignup }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+  const [otp, setOtp] = useState("");
+  const [needs2FA, setNeeds2FA] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -108,14 +110,19 @@ export default function LandingPage({ onLogin, onSignup }) {
 
     try {
       if (mode === "login") {
-        await onLogin(email.trim(), password);
+        await onLogin(email.trim(), password, needs2FA ? otp : null);
       } else if (mode === "signup") {
         // Handle signup ourselves to get verification code
         await handleSignup();
       }
     } catch (err) {
       console.error("Auth error", err);
-      setError(err.message || "Something went wrong");
+      if (mode === "login" && err?.requires2fa) {
+        setNeeds2FA(true);
+        setError("2FA is enabled for this account. Enter your authenticator or recovery code.");
+      } else {
+        setError(err.message || "Something went wrong");
+      }
     } finally {
       setLoading(false);
     }
@@ -1090,6 +1097,23 @@ html{scroll-behavior:smooth;}
             </div>
           </div>
 
+          {mode === "login" && needs2FA && (
+            <div>
+              <label className="text-xs font-bold text-slate-700">2FA code</label>
+              <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-2xl bg-white border border-orange-100 shadow-sm">
+                <ShieldCheck className="w-4 h-4 text-orange-600" />
+                <input
+                  className="w-full outline-none text-sm"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="6-digit code or recovery"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                />
+              </div>
+            </div>
+          )}
+
           {mode === "signup" && (
             <div>
               <label className="text-xs font-bold text-slate-700">Confirm password</label>
@@ -1118,7 +1142,14 @@ html{scroll-behavior:smooth;}
             disabled={loading}
             className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 shadow hover:opacity-95 disabled:opacity-60"
           >
-            {loading ? "Please wait…" : mode === "login" ? "Log in" : "Create account"} <ArrowRight className="w-4 h-4" />
+            {loading
+              ? "Please wait…"
+              : mode === "login"
+              ? needs2FA
+                ? "Verify & log in"
+                : "Log in"
+              : "Create account"}{" "}
+            <ArrowRight className="w-4 h-4" />
           </button>
 
           <div className="text-xs text-slate-600">
