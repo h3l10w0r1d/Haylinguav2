@@ -16,17 +16,37 @@ app = FastAPI()
 
 
 def _uploads_dir() -> str:
-    """Return a persistent uploads directory when available.
+    """Return a writable uploads directory.
 
-    Render instances have an ephemeral filesystem. If a Persistent Disk is mounted
-    at /var/data, we prefer storing uploads there so they survive redeploys.
+    Render instances have an ephemeral filesystem. If a Persistent Disk is mounted,
+    we want to store uploads on it so they survive redeploys.
+
+    IMPORTANT: Do not assume /var/data is writable just because it exists.
+    Some environments include /var/data as a system directory without a disk mount.
     """
+
+    def _try_dir(p: str) -> bool:
+        try:
+            os.makedirs(p, exist_ok=True)
+        except PermissionError:
+            return False
+        except OSError:
+            return False
+        return os.access(p, os.W_OK)
+
+    candidates: list[str] = []
     env = os.getenv("UPLOADS_DIR")
     if env:
-        return env
-    # Render Persistent Disk (recommended mount path)
-    if os.path.isdir("/var/data"):
-        return "/var/data/uploads"
+        candidates.append(env)
+    # Common Render Persistent Disk mount path
+    candidates.append("/var/data/uploads")
+    # Local dev fallback
+    candidates.append("uploads")
+
+    for p in candidates:
+        if _try_dir(p):
+            return p
+
     return "uploads"
 
 
@@ -34,7 +54,14 @@ def _uploads_dir() -> str:
 # Default avatars are shipped by the frontend.
 UPLOADS_DIR = _uploads_dir()
 AVATAR_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "avatars")
-os.makedirs(AVATAR_UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(AVATAR_UPLOAD_DIR, exist_ok=True)
+except PermissionError:
+    # Fall back to a local directory so the app can still boot.
+    UPLOADS_DIR = "uploads"
+    AVATAR_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "avatars")
+    os.makedirs(AVATAR_UPLOAD_DIR, exist_ok=True)
+
 app.mount("/static/avatars", StaticFiles(directory=AVATAR_UPLOAD_DIR), name="avatars")
 
 ensure_schema()
