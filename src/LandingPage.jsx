@@ -965,6 +965,167 @@ html{scroll-behavior:smooth;}
   </div>
 </section>
 
+{/* auth */}
+<section ref={authRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
+  <div className="rounded-3xl border border-orange-100 bg-white/70 shadow-sm overflow-hidden">
+    <div className="grid lg:grid-cols-2">
+      <div className="p-6 sm:p-10 bg-gradient-to-br from-orange-50/70 via-white to-amber-50/70">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-orange-100 text-xs font-bold text-slate-700">
+          <ShieldCheck className="w-4 h-4 text-orange-600" /> Secure, fast start
+        </div>
+        <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+          Start learning Armenian in minutes.
+        </h2>
+        <p className="mt-3 text-slate-700 leading-relaxed max-w-md">
+          Create an account to track XP, streaks, and lesson progress — or log in to continue where you left off.
+        </p>
+
+        <div className="mt-6 grid sm:grid-cols-2 gap-3 text-sm text-slate-700">
+          <div className="lp-card rounded-2xl bg-white/80 border border-orange-100 p-4 shadow-sm">
+            <div className="flex items-center gap-2 font-bold"><Target className="w-4 h-4 text-orange-600" /> Score-focused practice</div>
+            <div className="mt-1 text-slate-600">Clear exercises that build accuracy fast.</div>
+          </div>
+          <div className="lp-card rounded-2xl bg-white/80 border border-orange-100 p-4 shadow-sm">
+            <div className="flex items-center gap-2 font-bold"><Flame className="w-4 h-4 text-orange-600" /> XP + streaks</div>
+            <div className="mt-1 text-slate-600">Motivation that keeps you consistent.</div>
+          </div>
+          <div className="lp-card rounded-2xl bg-white/80 border border-orange-100 p-4 shadow-sm">
+            <div className="flex items-center gap-2 font-bold"><Keyboard className="w-4 h-4 text-orange-600" /> Spelling & typing</div>
+            <div className="mt-1 text-slate-600">Train the alphabet and real words.</div>
+          </div>
+          <div className="lp-card rounded-2xl bg-white/80 border border-orange-100 p-4 shadow-sm">
+            <div className="flex items-center gap-2 font-bold"><CheckCircle2 className="w-4 h-4 text-orange-600" /> Verified accounts</div>
+            <div className="mt-1 text-slate-600">Email verification improves safety.</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 sm:p-10">
+        <div className="flex items-center gap-2 rounded-2xl bg-orange-50 border border-orange-100 p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("login");
+              setError("");
+            }}
+            className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${mode === "login" ? "bg-white shadow-sm text-slate-900" : "text-slate-700 hover:text-slate-900"}`}
+          >
+            Log in
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signup");
+              setError("");
+            }}
+            className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${mode === "signup" ? "bg-white shadow-sm text-slate-900" : "text-slate-700 hover:text-slate-900"}`}
+          >
+            Create account
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-3">
+          {mode === "signup" && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700">Name (optional)</label>
+                <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-2xl bg-white border border-orange-100 shadow-sm">
+                  <User className="w-4 h-4 text-orange-600" />
+                  <input
+                    className="w-full outline-none text-sm"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Armen"
+                    autoComplete="name"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700">Username</label>
+                <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-2xl bg-white border border-orange-100 shadow-sm">
+                  <Fingerprint className="w-4 h-4 text-orange-600" />
+                  <input
+                    className="w-full outline-none text-sm"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="armen"
+                    autoComplete="username"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-bold text-slate-700">Email</label>
+            <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-2xl bg-white border border-orange-100 shadow-sm">
+              <Mail className="w-4 h-4 text-orange-600" />
+              <input
+                className="w-full outline-none text-sm"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                inputMode="email"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700">Password</label>
+            <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-2xl bg-white border border-orange-100 shadow-sm">
+              <Lock className="w-4 h-4 text-orange-600" />
+              <input
+                className="w-full outline-none text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                type="password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+              />
+            </div>
+          </div>
+
+          {mode === "signup" && (
+            <div>
+              <label className="text-xs font-bold text-slate-700">Confirm password</label>
+              <div className="mt-1 flex items-center gap-2 px-3 py-2 rounded-2xl bg-white border border-orange-100 shadow-sm">
+                <Lock className="w-4 h-4 text-orange-600" />
+                <input
+                  className="w-full outline-none text-sm"
+                  value={password2}
+                  onChange={(e) => setPassword2(e.target.value)}
+                  placeholder="••••••••"
+                  type="password"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 shadow hover:opacity-95 disabled:opacity-60"
+          >
+            {loading ? "Please wait…" : mode === "login" ? "Log in" : "Create account"} <ArrowRight className="w-4 h-4" />
+          </button>
+
+          <div className="text-xs text-slate-600">
+            By continuing you agree to our terms and privacy policy.
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
 {/* footer */}
         <footer ref={blogRef} className="mt-16 mx-auto max-w-6xl pb-10">
   {/* Blog CTA (secondary) */}
