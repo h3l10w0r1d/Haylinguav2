@@ -424,6 +424,7 @@ class UserLogin(BaseModel):
     # Single identifier field: accepts email OR username (kept as `email` for backwards compatibility)
     email: str
     password: str
+    otp: Optional[str] = None  # 2FA code (TOTP or recovery code)
 
 
 class AuthResponse(BaseModel):
@@ -1409,7 +1410,7 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
         row = db.execute(
             text(
                 """
-                SELECT id, email, password_hash
+                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes
                 FROM users
                 WHERE email = :email
                 """
@@ -1421,7 +1422,7 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
         row = db.execute(
             text(
                 """
-                SELECT id, email, password_hash
+                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes
                 FROM users
                 WHERE LOWER(username) = LOWER(:u)
                 """
@@ -1436,6 +1437,57 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
     ok = verify_password(password, row["password_hash"])
     if not ok:
         raise HTTPException(status_code=400, detail="Invalid email/username or password")
+
+    # If user has 2FA enabled, require a valid OTP (TOTP or recovery code)
+    if bool(row.get("totp_enabled")):
+        otp = (payload.otp or "").strip()
+        if otp == "":
+            # 401 so the frontend can prompt for OTP and retry
+            raise HTTPException(
+                status_code=401,
+                detail={"requires_2fa": True, "message": "2FA code required"},
+            )
+
+        # local imports to avoid file-wide import ordering issues
+        import pyotp  # type: ignore
+        import json
+
+        secret = (row.get("totp_secret") or "").strip()
+        is_valid = False
+
+        # 1) Try TOTP first
+        if secret:
+            try:
+                totp = pyotp.TOTP(secret)
+                is_valid = bool(totp.verify(otp.replace(" ", ""), valid_window=1))
+            except Exception:
+                is_valid = False
+
+        # 2) If not TOTP, try recovery code (stored as hashed list)
+        if not is_valid:
+            stored = row.get("recovery_codes") or []
+            if isinstance(stored, str):
+                try:
+                    stored = json.loads(stored)
+                except Exception:
+                    stored = []
+
+            rc = otp.upper().replace(" ", "").replace("_", "-")
+            if len(rc) == 8 and "-" not in rc:
+                rc = f"{rc[:4]}-{rc[4:]}"
+
+            h = _hash_recovery_code(rc)
+            if h in stored:
+                is_valid = True
+                # consume recovery code
+                stored = [x for x in stored if x != h]
+                db.execute(
+                    text("UPDATE users SET recovery_codes = CAST(:rc AS jsonb) WHERE id = :id"),
+                    {"rc": json.dumps(stored), "id": int(row["id"])},
+                )
+
+        if not is_valid:
+            raise HTTPException(status_code=400, detail="Invalid 2FA code")
 
     # 6) token
     token = create_token(row["id"])
