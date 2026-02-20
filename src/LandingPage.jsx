@@ -446,20 +446,24 @@ html{scroll-behavior:smooth;}
       `}</style>
 
       {/* background */}
-      <div className="lp-grain" />
-      <div className="absolute inset-0 lp-grid opacity-40" />
+      <div className="lp-grain pointer-events-none" />
+      <div className="absolute inset-0 lp-grid opacity-40 pointer-events-none" />
       <div
-        className="lp-orb bg-orange-300"
+        className="lp-orb bg-orange-300 pointer-events-none"
         style={{ width: 520, height: 520, top: -220, left: -200, transform: `translate3d(${orbShift.dx}px, ${orbShift.dy}px, 0)` }}
       />
       <div
-        className="lp-orb bg-amber-200"
+        className="lp-orb bg-amber-200 pointer-events-none"
         style={{ width: 420, height: 420, top: 120, right: -180, transform: `translate3d(${-orbShift.dx}px, ${orbShift.dy}px, 0)` }}
       />
       <div
-        className="lp-orb bg-orange-200"
+        className="lp-orb bg-orange-200 pointer-events-none"
         style={{ width: 520, height: 520, bottom: -240, left: 80, transform: `translate3d(${orbShift.dx}px, ${-orbShift.dy}px, 0)` }}
       />
+
+
+      {/* foreground */}
+      <div className="relative z-10 px-4 sm:px-8">
 
 
 {/* top bar */}
@@ -1234,6 +1238,7 @@ html{scroll-behavior:smooth;}
     </div>
   </div>
 </footer>
+      </div>
     </div>
   );
 }
