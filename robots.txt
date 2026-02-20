@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Optional: block internal or utility routes if they exist
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /settings/
+Disallow: /profile/
+Disallow: /login
+Disallow: /signup
+
+Sitemap: https://www.haylingua.am/sitemap.xml
