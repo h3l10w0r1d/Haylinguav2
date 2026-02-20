@@ -14,9 +14,25 @@ from lesson_analytics import router as lesson_analytics_router
 
 app = FastAPI()
 
+
+def _uploads_dir() -> str:
+    """Return a persistent uploads directory when available.
+
+    Render instances have an ephemeral filesystem. If a Persistent Disk is mounted
+    at /var/data, we prefer storing uploads there so they survive redeploys.
+    """
+    env = os.getenv("UPLOADS_DIR")
+    if env:
+        return env
+    # Render Persistent Disk (recommended mount path)
+    if os.path.isdir("/var/data"):
+        return "/var/data/uploads"
+    return "uploads"
+
+
 # Serve uploaded avatars from disk (custom avatars).
 # Default avatars are shipped by the frontend.
-UPLOADS_DIR = os.getenv("UPLOADS_DIR", "uploads")
+UPLOADS_DIR = _uploads_dir()
 AVATAR_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "avatars")
 os.makedirs(AVATAR_UPLOAD_DIR, exist_ok=True)
 app.mount("/static/avatars", StaticFiles(directory=AVATAR_UPLOAD_DIR), name="avatars")
