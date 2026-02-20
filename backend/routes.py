@@ -3,7 +3,7 @@ import os
 import json
 from datetime import datetime, timedelta
 import uuid
-from typing import List, Dict, Any, Optional  
+from typing import List, Dict, Any, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query, UploadFile, File
@@ -2788,12 +2788,32 @@ def me_avatar_upload(
     if not ext:
         raise HTTPException(status_code=400, detail="Only PNG, JPG, or WEBP images are allowed")
 
-    # Prefer Render Persistent Disk if mounted; otherwise fall back to local dir.
-    uploads_dir = os.getenv("UPLOADS_DIR")
-    if not uploads_dir:
-        uploads_dir = "/var/data/uploads" if os.path.isdir("/var/data") else "uploads"
+    # Prefer Render Persistent Disk when writable; otherwise fall back.
+    def _pick_uploads_dir() -> str:
+        candidates = []
+        env = os.getenv("UPLOADS_DIR")
+        if env:
+            candidates.append(env)
+        candidates.append("/var/data/uploads")
+        candidates.append("uploads")
+        for p in candidates:
+            try:
+                os.makedirs(p, exist_ok=True)
+            except PermissionError:
+                continue
+            except OSError:
+                continue
+            if os.access(p, os.W_OK):
+                return p
+        return "uploads"
+
+    uploads_dir = _pick_uploads_dir()
     avatar_dir = os.path.join(uploads_dir, "avatars")
-    os.makedirs(avatar_dir, exist_ok=True)
+    try:
+        os.makedirs(avatar_dir, exist_ok=True)
+    except PermissionError:
+        avatar_dir = os.path.join("uploads", "avatars")
+        os.makedirs(avatar_dir, exist_ok=True)
 
     filename = f"u{int(user_id)}_{uuid.uuid4().hex}{ext}"
     path = os.path.join(avatar_dir, filename)
