@@ -387,4 +387,55 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "is_hidden BOOLEAN NOT NULL DEFAULT FALSE")
         add_col_if_missing("users", "joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW()")
 
+        # ---------- users (account security: 2FA) ----------
+        # These fields are used for optional TOTP-based 2FA.
+        add_col_if_missing("users", "totp_enabled BOOLEAN NOT NULL DEFAULT FALSE")
+        add_col_if_missing("users", "totp_secret TEXT")
+        add_col_if_missing("users", "totp_confirmed_at TIMESTAMPTZ")
+        add_col_if_missing("users", "recovery_codes JSONB NOT NULL DEFAULT '[]'::jsonb")
+
+        # Make sure defaults exist and older rows are backfilled.
+        set_default("users", "totp_enabled", "FALSE")
+        set_default("users", "recovery_codes", "'[]'::jsonb")
+        fill_nulls("users", "totp_enabled", "FALSE")
+        fill_nulls("users", "recovery_codes", "'[]'::jsonb")
+
+        # ---------- email_change_requests ----------
+        # Used for verified email-change flow.
+        ensure_table(
+            "email_change_requests",
+            """
+            CREATE TABLE email_change_requests (
+              id         SERIAL PRIMARY KEY,
+              user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              new_email  TEXT NOT NULL,
+              code_hash  TEXT NOT NULL,
+              expires_at TIMESTAMPTZ NOT NULL,
+              attempts   INTEGER NOT NULL DEFAULT 0,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            """,
+        )
+
+        # Ensure only one active request row per user (idempotent).
+        conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_indexes
+                    WHERE schemaname='public'
+                      AND tablename='email_change_requests'
+                      AND indexname='ux_email_change_requests_user'
+                  ) THEN
+                    CREATE UNIQUE INDEX ux_email_change_requests_user
+                      ON email_change_requests (user_id);
+                  END IF;
+                END$$;
+                """
+            )
+        )
+
     print("[ensure_schema] done ✅")
