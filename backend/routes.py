@@ -46,11 +46,9 @@ router = APIRouter()
 import hashlib
 import random
 import smtplib
-import secrets
 from email.message import EmailMessage
 
 EMAIL_CODE_PEPPER = os.getenv("EMAIL_CODE_PEPPER", "change_me")
-RECOVERY_CODE_PEPPER = os.getenv("RECOVERY_CODE_PEPPER", EMAIL_CODE_PEPPER)
 
 def _gen_6digit_code() -> str:
     return f"{random.randint(0, 999999):06d}"
@@ -58,21 +56,6 @@ def _gen_6digit_code() -> str:
 def _hash_code(code: str) -> str:
     # 6-digit codes are low entropy; pepper prevents offline brute-force if DB leaks.
     return hashlib.sha256(f"{code}{EMAIL_CODE_PEPPER}".encode("utf-8")).hexdigest()
-
-def _hash_recovery_code(code: str) -> str:
-    return hashlib.sha256(f"{code}{RECOVERY_CODE_PEPPER}".encode("utf-8")).hexdigest()
-
-def _gen_recovery_codes(n: int = 10) -> tuple[list[str], list[str]]:
-    """Returns (plain_codes, hashed_codes). Plain codes are shown once."""
-    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I
-    plain: list[str] = []
-    hashed: list[str] = []
-    for _ in range(n):
-        code = "".join(secrets.choice(alphabet) for _ in range(8))
-        code = f"{code[:4]}-{code[4:]}"
-        plain.append(code)
-        hashed.append(_hash_recovery_code(code))
-    return plain, hashed
 
 def _render_verification_email_html(name: str, code: str) -> str:
     # Email-safe HTML (table layout, inline styles). Avoids complex CSS.
@@ -424,7 +407,6 @@ class UserLogin(BaseModel):
     # Single identifier field: accepts email OR username (kept as `email` for backwards compatibility)
     email: str
     password: str
-    otp: Optional[str] = None  # 2FA code (TOTP or recovery code)
 
 
 class AuthResponse(BaseModel):
@@ -1410,7 +1392,7 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
         row = db.execute(
             text(
                 """
-                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes
+                SELECT id, email, password_hash
                 FROM users
                 WHERE email = :email
                 """
@@ -1422,7 +1404,7 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
         row = db.execute(
             text(
                 """
-                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes
+                SELECT id, email, password_hash
                 FROM users
                 WHERE LOWER(username) = LOWER(:u)
                 """
@@ -1437,57 +1419,6 @@ def login(payload: UserLogin, db: Connection = Depends(get_db)):
     ok = verify_password(password, row["password_hash"])
     if not ok:
         raise HTTPException(status_code=400, detail="Invalid email/username or password")
-
-    # If user has 2FA enabled, require a valid OTP (TOTP or recovery code)
-    if bool(row.get("totp_enabled")):
-        otp = (payload.otp or "").strip()
-        if otp == "":
-            # 401 so the frontend can prompt for OTP and retry
-            raise HTTPException(
-                status_code=401,
-                detail={"requires_2fa": True, "message": "2FA code required"},
-            )
-
-        # local imports to avoid file-wide import ordering issues
-        import pyotp  # type: ignore
-        import json
-
-        secret = (row.get("totp_secret") or "").strip()
-        is_valid = False
-
-        # 1) Try TOTP first
-        if secret:
-            try:
-                totp = pyotp.TOTP(secret)
-                is_valid = bool(totp.verify(otp.replace(" ", ""), valid_window=1))
-            except Exception:
-                is_valid = False
-
-        # 2) If not TOTP, try recovery code (stored as hashed list)
-        if not is_valid:
-            stored = row.get("recovery_codes") or []
-            if isinstance(stored, str):
-                try:
-                    stored = json.loads(stored)
-                except Exception:
-                    stored = []
-
-            rc = otp.upper().replace(" ", "").replace("_", "-")
-            if len(rc) == 8 and "-" not in rc:
-                rc = f"{rc[:4]}-{rc[4:]}"
-
-            h = _hash_recovery_code(rc)
-            if h in stored:
-                is_valid = True
-                # consume recovery code
-                stored = [x for x in stored if x != h]
-                db.execute(
-                    text("UPDATE users SET recovery_codes = CAST(:rc AS jsonb) WHERE id = :id"),
-                    {"rc": json.dumps(stored), "id": int(row["id"])},
-                )
-
-        if not is_valid:
-            raise HTTPException(status_code=400, detail="Invalid 2FA code")
 
     # 6) token
     token = create_token(row["id"])
@@ -2496,7 +2427,13 @@ def me_profile_put(
     return MeOut(**dict(row))
 
 
-# ---------------- Account security (Phase 2) ----------------
+# ----------------------------
+# Account security
+# - Change password
+# - Change email (confirm via code sent to new email)
+# - Two-factor authentication (TOTP)
+# ----------------------------
+
 
 @router.post("/me/change-password")
 def me_change_password(
@@ -2504,197 +2441,185 @@ def me_change_password(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    """Change password for the logged-in user (requires current password)."""
     user_id = _get_user_id_from_bearer(authorization)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    current_password = (payload.get("current_password") or "").strip()
-    new_password = (payload.get("new_password") or "").strip()
-    if not current_password or not new_password:
-        raise HTTPException(status_code=400, detail="current_password and new_password required")
+    _require_verified(db, int(user_id))
 
-    pw_errors = validate_password_simple(new_password)
-    if pw_errors:
-        raise HTTPException(status_code=400, detail={"errors": pw_errors})
+    current_password = payload.get("current_password") or ""
+    new_password = payload.get("new_password") or ""
+    if not current_password.strip() or not new_password.strip():
+        raise HTTPException(status_code=400, detail="current_password and new_password are required")
 
     row = db.execute(
         text("SELECT password_hash FROM users WHERE id=:id"),
         {"id": int(user_id)},
     ).mappings().first()
-    if not row:
+    if not row or not row.get("password_hash"):
         raise HTTPException(status_code=404, detail="User not found")
 
     if not verify_password(current_password, row["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid current password")
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    errs = validate_password_simple(new_password)
+    if errs:
+        raise HTTPException(status_code=400, detail={"field": "new_password", "errors": errs})
 
     db.execute(
-        text("UPDATE users SET password_hash=:h WHERE id=:id"),
-        {"h": hash_password(new_password), "id": int(user_id)},
+        text("UPDATE users SET password_hash=:ph, updated_at=NOW() WHERE id=:id"),
+        {"ph": hash_password(new_password), "id": int(user_id)},
     )
     return {"ok": True}
 
 
-@router.post("/me/email-change/start")
-def me_email_change_start(
+@router.post("/me/change-email/start")
+def me_change_email_start(
     payload: Dict[str, Any] = Body(...),
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    """Start email change flow by sending a 6-digit code to the new email."""
     user_id = _get_user_id_from_bearer(authorization)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
 
     new_email = (payload.get("new_email") or "").strip().lower()
-    current_password = (payload.get("current_password") or "").strip()
-    if not new_email or not current_password:
-        raise HTTPException(status_code=400, detail="new_email and current_password required")
+    errs = validate_email_simple(new_email)
+    if errs:
+        raise HTTPException(status_code=400, detail={"field": "new_email", "errors": errs})
 
-    email_errors = validate_email_simple(new_email)
-    if email_errors:
-        raise HTTPException(status_code=400, detail={"errors": email_errors})
-
-    me = db.execute(
-        text("SELECT id, email, password_hash, display_name, first_name FROM users WHERE id=:id"),
-        {"id": int(user_id)},
-    ).mappings().first()
-    if not me:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if not verify_password(current_password, me["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid current password")
-
-    if (me.get("email") or "").strip().lower() == new_email:
-        raise HTTPException(status_code=400, detail="Email is already set to this value")
-
+    # Ensure not already used
     exists = db.execute(
-        text("SELECT 1 FROM users WHERE lower(email)=lower(:e) AND id != :id LIMIT 1"),
+        text("SELECT 1 FROM users WHERE lower(email)=:e AND id != :id LIMIT 1"),
         {"e": new_email, "id": int(user_id)},
     ).first()
     if exists:
-        raise HTTPException(status_code=409, detail="Email already in use")
+        raise HTTPException(status_code=409, detail="Email is already in use")
 
-    code = _gen_6digit_code()
-    code_hash = _hash_code(code)
-
-    # 15-minute expiry
-    expires_minutes = int(os.getenv("EMAIL_CHANGE_EXPIRE_MINUTES", "15"))
-    expires_at = datetime.utcnow() + timedelta(minutes=expires_minutes)
-
-    # Upsert: one active request per user
-    db.execute(
-        text(
-            """
-            INSERT INTO email_change_requests (user_id, new_email, code_hash, expires_at, attempts)
-            VALUES (:uid, :new_email, :code_hash, :expires_at, 0)
-            ON CONFLICT (user_id)
-            DO UPDATE SET new_email=EXCLUDED.new_email, code_hash=EXCLUDED.code_hash, expires_at=EXCLUDED.expires_at, attempts=0, created_at=NOW()
-            """
-        ),
-        {
-            "uid": int(user_id),
-            "new_email": new_email,
-            "code_hash": code_hash,
-            "expires_at": expires_at,
-        },
-    )
-
-    name = (me.get("first_name") or me.get("display_name") or "").strip() or "there"
-    subject = f"Haylingua email change code: {code}"
-    body = (
-        f"Your Haylingua email change code is: {code}\n"
-        f"It expires in {expires_minutes} minutes.\n\n"
-        f"If you didn't request this, you can ignore this email."
-    )
-    html = _render_verification_email_html(name=name, code=code)
-    sent = _send_email(new_email, subject, body, html_body=html)
-
-    resp: Dict[str, Any] = {"ok": True, "sent": bool(sent)}
-    # Dev convenience
-    if os.getenv("DEV_INCLUDE_EMAIL_CODES", "").lower() in {"1", "true", "yes"}:
-        resp["code"] = code
-    return resp
-
-
-@router.post("/me/email-change/confirm")
-def me_email_change_confirm(
-    payload: Dict[str, Any] = Body(...),
-    authorization: Optional[str] = Header(default=None),
-    db: Connection = Depends(get_db),
-):
-    user_id = _get_user_id_from_bearer(authorization)
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
-
-    code = (payload.get("code") or "").strip().replace(" ", "")
-    if not code:
-        raise HTTPException(status_code=400, detail="code required")
-
-    req = db.execute(
-        text(
-            """
-            SELECT id, new_email, code_hash, expires_at, attempts
-            FROM email_change_requests
-            WHERE user_id=:uid
-            """
-        ),
-        {"uid": int(user_id)},
-    ).mappings().first()
-
-    if not req:
-        raise HTTPException(status_code=404, detail="No pending email change")
-
-    if req["expires_at"] and datetime.utcnow() > req["expires_at"].replace(tzinfo=None):
-        db.execute(text("DELETE FROM email_change_requests WHERE user_id=:uid"), {"uid": int(user_id)})
-        raise HTTPException(status_code=400, detail="Code expired")
-
-    attempts = int(req.get("attempts") or 0)
-    if attempts >= 8:
-        db.execute(text("DELETE FROM email_change_requests WHERE user_id=:uid"), {"uid": int(user_id)})
-        raise HTTPException(status_code=429, detail="Too many attempts")
-
-    if _hash_code(code) != req["code_hash"]:
-        db.execute(
-            text("UPDATE email_change_requests SET attempts=attempts+1 WHERE user_id=:uid"),
-            {"uid": int(user_id)},
-        )
-        raise HTTPException(status_code=401, detail="Invalid code")
-
-    new_email = (req.get("new_email") or "").strip().lower()
-    exists = db.execute(
-        text("SELECT 1 FROM users WHERE lower(email)=lower(:e) AND id != :id LIMIT 1"),
-        {"e": new_email, "id": int(user_id)},
-    ).first()
-    if exists:
-        # Clean up request to avoid loops
-        db.execute(text("DELETE FROM email_change_requests WHERE user_id=:uid"), {"uid": int(user_id)})
-        raise HTTPException(status_code=409, detail="Email already in use")
+    # Generate confirmation code
+    code = f"{secrets.randbelow(900000) + 100000}"  # 6 digits
+    code_hash = _sha256_hex(code)
+    expires_at = datetime.utcnow() + timedelta(minutes=20)
 
     db.execute(
         text(
             """
             UPDATE users
-            SET email=:e, email_verified=TRUE
+            SET pending_email=:e,
+                pending_email_code_hash=:h,
+                pending_email_expires_at=:x,
+                updated_at=NOW()
             WHERE id=:id
             """
         ),
-        {"e": new_email, "id": int(user_id)},
+        {"e": new_email, "h": code_hash, "x": expires_at, "id": int(user_id)},
     )
-    db.execute(text("DELETE FROM email_change_requests WHERE user_id=:uid"), {"uid": int(user_id)})
-    return {"ok": True, "email": new_email}
+
+    # Send to the NEW email
+    subject = "Confirm your new Haylingua email"
+    plain = f"Your Haylingua email change code is: {code}. It expires in 20 minutes."
+    email_sent = _send_email(to_email=new_email, subject=subject, body=plain, html_body=None)
+
+    resp = {"ok": True, "email_sent": bool(email_sent)}
+    # Dev fallback (same as signup verify): include code when email didn't send.
+    if not email_sent:
+        resp["verification_code"] = code
+    return resp
 
 
-@router.post("/me/email-change/cancel")
-def me_email_change_cancel(
+@router.post("/me/change-email/confirm")
+def me_change_email_confirm(
+    payload: Dict[str, Any] = Body(...),
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
     user_id = _get_user_id_from_bearer(authorization)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
-    db.execute(text("DELETE FROM email_change_requests WHERE user_id=:uid"), {"uid": int(user_id)})
-    return {"ok": True}
+
+    _require_verified(db, int(user_id))
+
+    code = (payload.get("code") or "").strip().replace(" ", "")
+    if not code:
+        raise HTTPException(status_code=400, detail="code required")
+
+    row = db.execute(
+        text(
+            """
+            SELECT email, pending_email, pending_email_code_hash, pending_email_expires_at
+            FROM users
+            WHERE id=:id
+            """
+        ),
+        {"id": int(user_id)},
+    ).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not row.get("pending_email") or not row.get("pending_email_code_hash"):
+        raise HTTPException(status_code=400, detail="No pending email change")
+
+    exp = row.get("pending_email_expires_at")
+    if exp is not None:
+        now = datetime.utcnow()
+        if getattr(exp, "tzinfo", None) is not None:
+            now = datetime.now(dt.timezone.utc)
+        if exp < now:
+            raise HTTPException(status_code=400, detail="Code expired")
+
+    if _sha256_hex(code) != row["pending_email_code_hash"]:
+        raise HTTPException(status_code=400, detail="Invalid code")
+
+    new_email = row["pending_email"].strip().lower()
+    # Re-check uniqueness right before swap
+    exists = db.execute(
+        text("SELECT 1 FROM users WHERE lower(email)=:e AND id != :id LIMIT 1"),
+        {"e": new_email, "id": int(user_id)},
+    ).first()
+    if exists:
+        raise HTTPException(status_code=409, detail="Email is already in use")
+
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET email=:e,
+                email_verified=TRUE,
+                email_verified_at=NOW(),
+                pending_email=NULL,
+                pending_email_code_hash=NULL,
+                pending_email_expires_at=NULL,
+                updated_at=NOW()
+            WHERE id=:id
+            """
+        ),
+        {"e": new_email, "id": int(user_id)},
+    )
+    return {"ok": True, "email": new_email}
+
+
+def _qr_png_data_url(data: str) -> str:
+    # qrcode is installed; return a small PNG data URL
+    import io
+    import base64
+    import qrcode
+
+    img = qrcode.make(data)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
+
+
+def _make_recovery_codes(n: int = 10) -> list:
+    # Human-friendly codes like XXXX-XXXX
+    out = []
+    for _ in range(n):
+        raw = secrets.token_hex(4).upper()
+        out.append(f"{raw[:4]}-{raw[4:]}")
+    return out
 
 
 @router.get("/me/2fa/status")
@@ -2709,9 +2634,7 @@ def me_2fa_status(
         text("SELECT totp_enabled FROM users WHERE id=:id"),
         {"id": int(user_id)},
     ).mappings().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="User not found")
-    return {"enabled": bool(row.get("totp_enabled"))}
+    return {"enabled": bool(row.get("totp_enabled")) if row else False}
 
 
 @router.post("/me/2fa/setup")
@@ -2723,25 +2646,25 @@ def me_2fa_setup(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    row = db.execute(
-        text("SELECT email, totp_enabled FROM users WHERE id=:id"),
-        {"id": int(user_id)},
-    ).mappings().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="User not found")
-    if bool(row.get("totp_enabled")):
-        raise HTTPException(status_code=400, detail="2FA already enabled")
+    _require_verified(db, int(user_id))
 
+    # Generate secret & save (not enabled until confirmed)
     secret = pyotp.random_base32()
     db.execute(
-        text("UPDATE users SET totp_secret=:s, totp_enabled=FALSE WHERE id=:id"),
+        text("UPDATE users SET totp_secret=:s, totp_enabled=FALSE, updated_at=NOW() WHERE id=:id"),
         {"s": secret, "id": int(user_id)},
     )
 
+    email = db.execute(text("SELECT email FROM users WHERE id=:id"), {"id": int(user_id)}).scalar()
     issuer = "Haylingua"
-    account = (row.get("email") or "").strip().lower()
-    otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=account, issuer_name=issuer)
-    return {"otpauth_url": otp_uri, "secret": secret, "issuer": issuer, "account": account}
+    otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
+    return {
+        "otpauth_url": otp_uri,
+        "secret": secret,
+        "qr_png": _qr_png_data_url(otp_uri),
+        "issuer": issuer,
+        "account": email,
+    }
 
 
 @router.post("/me/2fa/confirm")
@@ -2754,19 +2677,17 @@ def me_2fa_confirm(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
+    _require_verified(db, int(user_id))
+
     code = (payload.get("code") or "").strip().replace(" ", "")
     if not code:
         raise HTTPException(status_code=400, detail="code required")
 
     row = db.execute(
-        text("SELECT totp_secret, totp_enabled FROM users WHERE id=:id"),
+        text("SELECT totp_secret FROM users WHERE id=:id"),
         {"id": int(user_id)},
     ).mappings().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="User not found")
-    if bool(row.get("totp_enabled")):
-        raise HTTPException(status_code=400, detail="2FA already enabled")
-    secret = row.get("totp_secret")
+    secret = (row or {}).get("totp_secret")
     if not secret:
         raise HTTPException(status_code=400, detail="2FA not initialized")
 
@@ -2774,23 +2695,25 @@ def me_2fa_confirm(
     if not totp.verify(code, valid_window=1):
         raise HTTPException(status_code=401, detail="Invalid 2FA code")
 
-    plain, hashed = _gen_recovery_codes(10)
+    # Generate one-time recovery codes (hash stored)
+    recovery = _make_recovery_codes(10)
+    hashes = [_sha256_hex(x) for x in recovery]
     import json as _json
+
     db.execute(
         text(
             """
             UPDATE users
             SET totp_enabled=TRUE,
-                totp_confirmed_at=NOW(),
-                recovery_codes=CAST(:rc AS jsonb)
+                totp_recovery_hashes=CAST(:h AS jsonb),
+                updated_at=NOW()
             WHERE id=:id
             """
         ),
-        {"id": int(user_id), "rc": _json.dumps(hashed)},
+        {"h": _json.dumps(hashes), "id": int(user_id)},
     )
 
-    # Plain recovery codes are returned once.
-    return {"ok": True, "recovery_codes": plain}
+    return {"ok": True, "recovery_codes": recovery}
 
 
 @router.post("/me/2fa/disable")
@@ -2803,66 +2726,42 @@ def me_2fa_disable(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    current_password = (payload.get("current_password") or "").strip()
+    _require_verified(db, int(user_id))
+
+    # Require either a valid current TOTP code or current password.
     code = (payload.get("code") or "").strip().replace(" ", "")
-    if not current_password or not code:
-        raise HTTPException(status_code=400, detail="current_password and code required")
+    current_password = payload.get("current_password") or ""
 
     row = db.execute(
-        text("SELECT password_hash, totp_enabled, totp_secret, recovery_codes FROM users WHERE id=:id"),
+        text("SELECT password_hash, totp_secret, totp_enabled FROM users WHERE id=:id"),
         {"id": int(user_id)},
     ).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="User not found")
     if not bool(row.get("totp_enabled")):
-        raise HTTPException(status_code=400, detail="2FA is not enabled")
+        return {"ok": True}
 
-    if not verify_password(current_password, row["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid current password")
-
-    secret = row.get("totp_secret")
     ok = False
-    if secret:
-        totp = pyotp.TOTP(secret)
-        if totp.verify(code, valid_window=1):
-            ok = True
-
-    # If not a TOTP, try recovery code.
-    if not ok:
-        try:
-            stored = row.get("recovery_codes") or []
-            if isinstance(stored, str):
-                import json as _json
-                stored = _json.loads(stored)
-        except Exception:
-            stored = []
-        hashed = _hash_recovery_code(code)
-        if hashed in stored:
-            ok = True
-            # consume code
-            stored = [x for x in stored if x != hashed]
-            import json as _json
-            db.execute(
-                text("UPDATE users SET recovery_codes=CAST(:rc AS jsonb) WHERE id=:id"),
-                {"id": int(user_id), "rc": _json.dumps(stored)},
-            )
+    if code and row.get("totp_secret"):
+        ok = pyotp.TOTP(row["totp_secret"]).verify(code, valid_window=1)
+    if not ok and current_password.strip() and row.get("password_hash"):
+        ok = verify_password(current_password, row["password_hash"])
 
     if not ok:
-        raise HTTPException(status_code=401, detail="Invalid code")
+        raise HTTPException(status_code=401, detail="Invalid code or password")
 
-    import json as _json
     db.execute(
         text(
             """
             UPDATE users
             SET totp_enabled=FALSE,
                 totp_secret=NULL,
-                totp_confirmed_at=NULL,
-                recovery_codes=CAST(:rc AS jsonb)
+                totp_recovery_hashes='[]'::jsonb,
+                updated_at=NOW()
             WHERE id=:id
             """
         ),
-        {"id": int(user_id), "rc": _json.dumps([])},
+        {"id": int(user_id)},
     )
     return {"ok": True}
 
@@ -2889,7 +2788,10 @@ def me_avatar_upload(
     if not ext:
         raise HTTPException(status_code=400, detail="Only PNG, JPG, or WEBP images are allowed")
 
-    uploads_dir = os.getenv("UPLOADS_DIR", "uploads")
+    # Prefer Render Persistent Disk if mounted; otherwise fall back to local dir.
+    uploads_dir = os.getenv("UPLOADS_DIR")
+    if not uploads_dir:
+        uploads_dir = "/var/data/uploads" if os.path.isdir("/var/data") else "uploads"
     avatar_dir = os.path.join(uploads_dir, "avatars")
     os.makedirs(avatar_dir, exist_ok=True)
 
