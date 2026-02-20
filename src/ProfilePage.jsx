@@ -109,63 +109,6 @@ function pickRandomBanner() {
   return DEFAULT_BANNERS[Math.floor(Math.random() * DEFAULT_BANNERS.length)];
 }
 
-
-function Modal({ open, title, icon: Icon, onClose, children, footer }) {
-  const panelRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e) {
-      if (e.key === "Escape") onClose?.();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
-        onMouseDown={(e) => {
-          if (e.target === e.currentTarget) onClose?.();
-        }}
-      />
-      <div
-        ref={panelRef}
-        className="relative w-full max-w-lg rounded-3xl border border-white/40 bg-white/85 backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.20)] overflow-hidden"
-      >
-        <div className="px-6 py-5 border-b border-gray-200/70 flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-orange-50 border border-orange-100 grid place-items-center">
-              {Icon ? <Icon className="w-5 h-5 text-orange-700" /> : null}
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-gray-900">{title}</div>
-              <div className="text-xs text-gray-500">Account security</div>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="h-9 w-9 rounded-2xl hover:bg-gray-100 text-gray-600 grid place-items-center transition-colors"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="px-6 py-5">{children}</div>
-
-        {footer ? (
-          <div className="px-6 py-4 border-t border-gray-200/70 bg-white/70">{footer}</div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 export default function ProfilePage() {
   const token = useMemo(() => getToken(), []);
   const [loading, setLoading] = useState(true);
@@ -197,41 +140,34 @@ export default function ProfilePage() {
   const [last7, setLast7] = useState([]);
   const [lessonsCompleted, setLessonsCompleted] = useState(0);
 
+  // Account security
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailStage, setEmailStage] = useState("start"); // start | confirm
+  const [newEmail, setNewEmail] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailDevCode, setEmailDevCode] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
+
+  const [pwModalOpen, setPwModalOpen] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+
+  const [twoFaOpen, setTwoFaOpen] = useState(false);
+  const [twoFaBusy, setTwoFaBusy] = useState(false);
+  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+  const [twoFaSetup, setTwoFaSetup] = useState(null); // {qr_png, secret, otpauth_url}
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaRecovery, setTwoFaRecovery] = useState([]);
+  const [twoFaDisableCode, setTwoFaDisableCode] = useState("");
+  const [twoFaDisablePw, setTwoFaDisablePw] = useState("");
+
   // UX state
   const [saving, setSaving] = useState(false);
   const [bgSaving, setBgSaving] = useState(false);
   const [message, setMessage] = useState("");
-
   const bgSaveTimer = useRef(null);
-
-  // ----------------------------
-  // Account security modals (Phase 3 UI)
-  // ----------------------------
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [emailStep, setEmailStep] = useState("start"); // start | confirm
-  const [emailNew, setEmailNew] = useState("");
-  const [emailPassword, setEmailPassword] = useState("");
-  const [emailCode, setEmailCode] = useState("");
-  const [emailBusy, setEmailBusy] = useState(false);
-
-  const [pwModalOpen, setPwModalOpen] = useState(false);
-  const [pwCurrent, setPwCurrent] = useState("");
-  const [pwNew, setPwNew] = useState("");
-  const [pwConfirm, setPwConfirm] = useState("");
-  const [pwBusy, setPwBusy] = useState(false);
-
-  const [twofaModalOpen, setTwofaModalOpen] = useState(false);
-  const [twofaEnabled, setTwofaEnabled] = useState(false);
-  const [twofaLoading, setTwofaLoading] = useState(false);
-  const [twofaBusy, setTwofaBusy] = useState(false);
-  const [twofaSecret, setTwofaSecret] = useState("");
-  const [twofaOtpAuth, setTwofaOtpAuth] = useState("");
-  const [twofaCode, setTwofaCode] = useState("");
-  const [twofaRecovery, setTwofaRecovery] = useState([]);
-  const [twofaDisablePassword, setTwofaDisablePassword] = useState("");
-  const [twofaDisableCode, setTwofaDisableCode] = useState("");
-  const [twofaStage, setTwofaStage] = useState("status"); // status | setup | confirm | recovery | disable
-
 
   // Track whether the user explicitly changed the banner.
   // We may show a random banner as a visual default, but we shouldn't persist it
@@ -295,6 +231,13 @@ export default function ProfilePage() {
           setLevel(data.level || 1);
           setXp(data.xp || data.total_xp || 0);
           setStreak(data.streak || data.daily_streak || 0);
+
+          // 2FA status (best-effort)
+          try {
+            const r2 = await apiFetch("/me/2fa/status", { token });
+            const d2 = await safeJsonParse(r2);
+            if (!cancelled && r2.ok && d2) setTwoFaEnabled(!!d2.enabled);
+          } catch {}
         }
       } catch {
         if (!cancelled) setMessage("Failed to load profile.");
@@ -328,25 +271,6 @@ export default function ProfilePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
-
-
-// Load 2FA status (best-effort)
-useEffect(() => {
-  if (loading) return;
-  if (!token) return;
-  let cancelled = false;
-  (async () => {
-    try {
-      const r = await apiFetch("/me/2fa/status", { token });
-      const d = await safeJsonParse(r);
-      if (!cancelled && r.ok) setTwofaEnabled(!!d?.enabled);
-    } catch {}
-  })();
-  return () => {
-    cancelled = true;
-  };
-}, [loading, token]);
-
 
   // Auto-save: background + banner + public toggles (no submit button)
   useEffect(() => {
@@ -513,229 +437,161 @@ useEffect(() => {
     }
   }
 
-// ----------------------------
-// Account security actions (Phase 3 UI)
-// ----------------------------
-function openEmailModal() {
-  setEmailNew("");
-  setEmailPassword("");
-  setEmailCode("");
-  setEmailStep("start");
-  setEmailModalOpen(true);
-  setMessage("");
-}
-
-function openPasswordModal() {
-  setPwCurrent("");
-  setPwNew("");
-  setPwConfirm("");
-  setPwModalOpen(true);
-  setMessage("");
-}
-
-async function refresh2faStatus() {
-  try {
-    const r = await apiFetch("/me/2fa/status", { token });
-    const d = await safeJsonParse(r);
-    if (r.ok) setTwofaEnabled(!!d?.enabled);
-  } catch {}
-}
-
-async function openTwofaModal() {
-  setTwofaStage("status");
-  setTwofaSecret("");
-  setTwofaOtpAuth("");
-  setTwofaCode("");
-  setTwofaRecovery([]);
-  setTwofaDisablePassword("");
-  setTwofaDisableCode("");
-  setTwofaModalOpen(true);
-
-  setTwofaLoading(true);
-  await refresh2faStatus();
-  setTwofaLoading(false);
-}
-
-async function startEmailChange() {
-  if (!token) return;
-  const nextEmail = String(emailNew || "").trim();
-  if (!nextEmail) return setMessage("Enter a new email.");
-  if (!emailPassword) return setMessage("Enter your current password.");
-
-  setEmailBusy(true);
-  setMessage("");
-  try {
-    const r = await apiFetch("/me/email-change/start", {
-      token,
-      method: "POST",
-      body: JSON.stringify({ new_email: nextEmail, current_password: emailPassword }),
-    });
-    const d = await safeJsonParse(r);
-    if (r.ok) {
-      setEmailStep("confirm");
-      setMessage("Verification code sent to your new email.");
-      // Dev convenience (only if backend enables it)
-      if (d?.code) setEmailCode(String(d.code));
-    } else {
-      setMessage(d?.detail || "Failed to start email change.");
+  // -------- Account security actions --------
+  async function startEmailChange() {
+    if (!token) return;
+    setEmailBusy(true);
+    setMessage("");
+    setEmailDevCode("");
+    try {
+      const res = await apiFetch("/me/change-email/start", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ new_email: newEmail }),
+      });
+      const data = await safeJsonParse(res);
+      if (!res.ok) throw new Error(data?.detail || "Failed to start email change");
+      setEmailStage("confirm");
+      if (data?.verification_code) setEmailDevCode(String(data.verification_code));
+    } catch (e) {
+      setMessage(String(e?.message || "Failed to start email change."));
+    } finally {
+      setEmailBusy(false);
     }
-  } catch {
-    setMessage("Failed to start email change.");
-  } finally {
-    setEmailBusy(false);
   }
-}
 
-async function confirmEmailChange() {
-  if (!token) return;
-  const code = String(emailCode || "").trim();
-  if (!code) return setMessage("Enter the 6-digit code.");
-
-  setEmailBusy(true);
-  setMessage("");
-  try {
-    const r = await apiFetch("/me/email-change/confirm", {
-      token,
-      method: "POST",
-      body: JSON.stringify({ code }),
-    });
-    const d = await safeJsonParse(r);
-    if (r.ok) {
+  async function confirmEmailChange() {
+    if (!token) return;
+    setEmailBusy(true);
+    setMessage("");
+    try {
+      const res = await apiFetch("/me/change-email/confirm", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ code: emailCode }),
+      });
+      const data = await safeJsonParse(res);
+      if (!res.ok) throw new Error(data?.detail || "Failed to confirm email change");
+      setEmail(data?.email || newEmail);
       setEmailModalOpen(false);
-      setEmail(d?.email || emailNew);
+      setEmailStage("start");
+      setNewEmail("");
+      setEmailCode("");
+      setEmailDevCode("");
       setMessage("Email updated.");
-    } else {
-      setMessage(d?.detail || "Invalid or expired code.");
+    } catch (e) {
+      setMessage(String(e?.message || "Failed to confirm email change."));
+    } finally {
+      setEmailBusy(false);
     }
-  } catch {
-    setMessage("Failed to confirm email change.");
-  } finally {
-    setEmailBusy(false);
   }
-}
 
-async function cancelEmailChange() {
-  if (!token) return;
-  setEmailBusy(true);
-  try {
-    await apiFetch("/me/email-change/cancel", { token, method: "POST" });
-  } catch {}
-  setEmailBusy(false);
-  setEmailModalOpen(false);
-}
-
-async function changePassword() {
-  if (!token) return;
-  if (!pwCurrent) return setMessage("Enter your current password.");
-  if (!pwNew) return setMessage("Enter a new password.");
-  if (pwNew !== pwConfirm) return setMessage("New passwords do not match.");
-
-  setPwBusy(true);
-  setMessage("");
-  try {
-    const r = await apiFetch("/me/change-password", {
-      token,
-      method: "POST",
-      body: JSON.stringify({ current_password: pwCurrent, new_password: pwNew }),
-    });
-    const d = await safeJsonParse(r);
-    if (r.ok) {
+  async function changePassword() {
+    if (!token) return;
+    if (newPw !== newPw2) {
+      setMessage("New passwords do not match.");
+      return;
+    }
+    setPwBusy(true);
+    setMessage("");
+    try {
+      const res = await apiFetch("/me/change-password", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ current_password: currentPw, new_password: newPw }),
+      });
+      const data = await safeJsonParse(res);
+      if (!res.ok) throw new Error(data?.detail || "Failed to change password");
       setPwModalOpen(false);
+      setCurrentPw("");
+      setNewPw("");
+      setNewPw2("");
       setMessage("Password updated.");
-    } else {
-      setMessage(d?.detail || "Failed to change password.");
+    } catch (e) {
+      setMessage(String(e?.message || "Failed to change password."));
+    } finally {
+      setPwBusy(false);
     }
-  } catch {
-    setMessage("Failed to change password.");
-  } finally {
-    setPwBusy(false);
   }
-}
 
-async function twofaSetup() {
-  if (!token) return;
-  setTwofaBusy(true);
-  setMessage("");
-  try {
-    const r = await apiFetch("/me/2fa/setup", { token, method: "POST" });
-    const d = await safeJsonParse(r);
-    if (r.ok && d) {
-      setTwofaSecret(String(d.secret || ""));
-      setTwofaOtpAuth(String(d.otpauth_url || ""));
-      setTwofaStage("confirm");
-    } else {
-      setMessage(d?.detail || "Failed to start 2FA setup.");
+  async function open2FA() {
+    setTwoFaOpen(true);
+    setTwoFaRecovery([]);
+    setTwoFaSetup(null);
+    setTwoFaCode("");
+    setTwoFaDisableCode("");
+    setTwoFaDisablePw("");
+    setMessage("");
+    // refresh status
+    try {
+      const r = await apiFetch("/me/2fa/status", { token });
+      const d = await safeJsonParse(r);
+      if (r.ok && d) setTwoFaEnabled(!!d.enabled);
+    } catch {}
+  }
+
+  async function start2FASetup() {
+    if (!token) return;
+    setTwoFaBusy(true);
+    setMessage("");
+    setTwoFaRecovery([]);
+    try {
+      const r = await apiFetch("/me/2fa/setup", { token, method: "POST" });
+      const d = await safeJsonParse(r);
+      if (!r.ok) throw new Error(d?.detail || "Failed to start 2FA setup");
+      setTwoFaSetup(d);
+    } catch (e) {
+      setMessage(String(e?.message || "Failed to start 2FA setup."));
+    } finally {
+      setTwoFaBusy(false);
     }
-  } catch {
-    setMessage("Failed to start 2FA setup.");
-  } finally {
-    setTwofaBusy(false);
   }
-}
 
-async function twofaConfirm() {
-  if (!token) return;
-  const code = String(twofaCode || "").trim();
-  if (!code) return setMessage("Enter the 2FA code from your authenticator.");
-
-  setTwofaBusy(true);
-  setMessage("");
-  try {
-    const r = await apiFetch("/me/2fa/confirm", {
-      token,
-      method: "POST",
-      body: JSON.stringify({ code }),
-    });
-    const d = await safeJsonParse(r);
-    if (r.ok) {
-      setTwofaRecovery(Array.isArray(d?.recovery_codes) ? d.recovery_codes : []);
-      setTwofaEnabled(true);
-      setTwofaStage("recovery");
-      setMessage("2FA enabled.");
-    } else {
-      setMessage(d?.detail || "Invalid code.");
+  async function confirm2FA() {
+    if (!token) return;
+    setTwoFaBusy(true);
+    setMessage("");
+    try {
+      const r = await apiFetch("/me/2fa/confirm", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ code: twoFaCode }),
+      });
+      const d = await safeJsonParse(r);
+      if (!r.ok) throw new Error(d?.detail || "Invalid code");
+      setTwoFaEnabled(true);
+      setTwoFaRecovery(Array.isArray(d?.recovery_codes) ? d.recovery_codes : []);
+    } catch (e) {
+      setMessage(String(e?.message || "Failed to enable 2FA."));
+    } finally {
+      setTwoFaBusy(false);
     }
-  } catch {
-    setMessage("Failed to confirm 2FA.");
-  } finally {
-    setTwofaBusy(false);
   }
-}
 
-async function twofaDisable() {
-  if (!token) return;
-  if (!twofaDisablePassword) return setMessage("Enter your current password.");
-  if (!twofaDisableCode) return setMessage("Enter a 2FA code (or a recovery code).");
-
-  setTwofaBusy(true);
-  setMessage("");
-  try {
-    const r = await apiFetch("/me/2fa/disable", {
-      token,
-      method: "POST",
-      body: JSON.stringify({
-        current_password: twofaDisablePassword,
-        code: String(twofaDisableCode || "").trim(),
-      }),
-    });
-    const d = await safeJsonParse(r);
-    if (r.ok) {
-      setTwofaEnabled(false);
-      setTwofaStage("status");
-      setTwofaDisablePassword("");
-      setTwofaDisableCode("");
+  async function disable2FA() {
+    if (!token) return;
+    setTwoFaBusy(true);
+    setMessage("");
+    try {
+      const r = await apiFetch("/me/2fa/disable", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ code: twoFaDisableCode, current_password: twoFaDisablePw }),
+      });
+      const d = await safeJsonParse(r);
+      if (!r.ok) throw new Error(d?.detail || "Failed to disable 2FA");
+      setTwoFaEnabled(false);
+      setTwoFaSetup(null);
+      setTwoFaRecovery([]);
+      setTwoFaDisableCode("");
+      setTwoFaDisablePw("");
       setMessage("2FA disabled.");
-    } else {
-      setMessage(d?.detail || "Failed to disable 2FA.");
+    } catch (e) {
+      setMessage(String(e?.message || "Failed to disable 2FA."));
+    } finally {
+      setTwoFaBusy(false);
     }
-  } catch {
-    setMessage("Failed to disable 2FA.");
-  } finally {
-    setTwofaBusy(false);
   }
-}
-
-
 
   if (loading) {
     return <div className="max-w-5xl mx-auto px-4 py-10 text-gray-700">Loading…</div>;
@@ -967,6 +823,343 @@ async function twofaDisable() {
         </form>
       </section>
 
+      {/* Email change modal */}
+      {emailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setEmailModalOpen(false)}
+          />
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-orange-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="font-semibold text-gray-900 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-orange-700" /> Change email
+              </div>
+              <button
+                type="button"
+                className="h-9 w-9 rounded-xl hover:bg-gray-100 grid place-items-center"
+                onClick={() => setEmailModalOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5">
+              {emailStage === "start" ? (
+                <>
+                  <p className="text-sm text-gray-600">
+                    We’ll send a 6‑digit code to your new email address.
+                  </p>
+                  <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">
+                    New email
+                  </label>
+                  <input
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    type="email"
+                    placeholder="name@example.com"
+                    className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-100 hover:bg-gray-200"
+                      onClick={() => setEmailModalOpen(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={emailBusy}
+                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                      onClick={startEmailChange}
+                    >
+                      {emailBusy ? "Sending…" : "Send code"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600">
+                    Enter the code sent to <span className="font-semibold text-gray-800">{newEmail}</span>.
+                  </p>
+                  {!!emailDevCode && (
+                    <div className="mt-3 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
+                      Email delivery is not configured. Use this code: <span className="font-mono font-bold">{emailDevCode}</span>
+                    </div>
+                  )}
+                  <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">6‑digit code</label>
+                  <input
+                    value={emailCode}
+                    onChange={(e) => setEmailCode(e.target.value)}
+                    inputMode="numeric"
+                    placeholder="123456"
+                    className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                  <div className="mt-4 flex justify-between gap-2">
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-100 hover:bg-gray-200"
+                      onClick={() => {
+                        setEmailStage("start");
+                        setEmailCode("");
+                        setEmailDevCode("");
+                      }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={emailBusy}
+                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                      onClick={confirmEmailChange}
+                    >
+                      {emailBusy ? "Confirming…" : "Confirm"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password modal */}
+      {pwModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPwModalOpen(false)} />
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-orange-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="font-semibold text-gray-900 flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-orange-700" /> Change password
+              </div>
+              <button
+                type="button"
+                className="h-9 w-9 rounded-xl hover:bg-gray-100 grid place-items-center"
+                onClick={() => setPwModalOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Current password</label>
+              <input
+                value={currentPw}
+                onChange={(e) => setCurrentPw(e.target.value)}
+                type="password"
+                className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+
+              <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">New password</label>
+              <input
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                type="password"
+                className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+
+              <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">Repeat new password</label>
+              <input
+                value={newPw2}
+                onChange={(e) => setNewPw2(e.target.value)}
+                type="password"
+                className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-100 hover:bg-gray-200"
+                  onClick={() => setPwModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={pwBusy}
+                  className="px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                  onClick={changePassword}
+                >
+                  {pwBusy ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA modal */}
+      {twoFaOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setTwoFaOpen(false)} />
+          <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-xl border border-orange-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="font-semibold text-gray-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-orange-700" /> Two‑factor authentication
+              </div>
+              <button
+                type="button"
+                className="h-9 w-9 rounded-xl hover:bg-gray-100 grid place-items-center"
+                onClick={() => setTwoFaOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-gray-700">
+                  Status: {twoFaEnabled ? (
+                    <span className="inline-flex items-center gap-1 font-semibold text-green-700">Enabled</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 font-semibold text-gray-500">Disabled</span>
+                  )}
+                </div>
+
+                {!twoFaEnabled ? (
+                  <button
+                    type="button"
+                    disabled={twoFaBusy}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                    onClick={start2FASetup}
+                  >
+                    <LockKeyhole className="w-4 h-4" /> {twoFaBusy ? "Preparing…" : "Start setup"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={twoFaBusy}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
+                    onClick={disable2FA}
+                  >
+                    Disable 2FA
+                  </button>
+                )}
+              </div>
+
+              {!twoFaEnabled && twoFaSetup && (
+                <div className="mt-5 grid md:grid-cols-[260px,1fr] gap-4">
+                  <div className="rounded-3xl border border-gray-200 p-4 bg-gray-50">
+                    <div className="text-xs font-semibold text-gray-700">Scan QR</div>
+                    <img
+                      src={twoFaSetup.qr_png}
+                      alt="2FA QR"
+                      className="mt-3 w-full rounded-2xl bg-white p-3 border border-gray-200"
+                    />
+                    <div className="mt-3 text-[11px] text-gray-500">
+                      Or enter this secret manually:
+                    </div>
+                    <div className="mt-1 font-mono text-xs bg-white border border-gray-200 rounded-2xl px-3 py-2">
+                      {twoFaSetup.secret}
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-gray-200 p-4">
+                    <div className="text-sm font-semibold text-gray-900">Verify</div>
+                    <p className="mt-1 text-sm text-gray-600">
+                      After adding Haylingua to your authenticator app, enter the 6‑digit code.
+                    </p>
+                    <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">Code</label>
+                    <input
+                      value={twoFaCode}
+                      onChange={(e) => setTwoFaCode(e.target.value)}
+                      inputMode="numeric"
+                      placeholder="123456"
+                      className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        disabled={twoFaBusy}
+                        className="px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                        onClick={confirm2FA}
+                      >
+                        {twoFaBusy ? "Enabling…" : "Enable 2FA"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {twoFaEnabled && (
+                <div className="mt-5 rounded-3xl border border-gray-200 p-4 bg-gray-50">
+                  <div className="text-sm font-semibold text-gray-900">Disable 2FA</div>
+                  <p className="mt-1 text-sm text-gray-600">
+                    For safety, provide either a current authenticator code or your password.
+                  </p>
+                  <div className="mt-4 grid md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Authenticator code</label>
+                      <input
+                        value={twoFaDisableCode}
+                        onChange={(e) => setTwoFaDisableCode(e.target.value)}
+                        inputMode="numeric"
+                        placeholder="123456"
+                        className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Current password</label>
+                      <input
+                        value={twoFaDisablePw}
+                        onChange={(e) => setTwoFaDisablePw(e.target.value)}
+                        type="password"
+                        className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      disabled={twoFaBusy}
+                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-900 text-white hover:bg-black disabled:opacity-60"
+                      onClick={disable2FA}
+                    >
+                      {twoFaBusy ? "Disabling…" : "Disable"}
+                    </button>
+                  </div>
+
+                  {twoFaRecovery?.length > 0 && (
+                    <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3">
+                      <div className="text-xs font-semibold text-orange-900">Recovery codes</div>
+                      <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-orange-900">
+                        {twoFaRecovery.map((c) => (
+                          <div key={c} className="rounded-xl bg-white/70 border border-orange-100 px-3 py-2">
+                            {c}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-2 text-[11px] text-orange-800">
+                        Save these codes somewhere safe. Each code can be used once.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!twoFaEnabled && twoFaRecovery?.length > 0 && (
+                <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3">
+                  <div className="text-xs font-semibold text-orange-900">Recovery codes</div>
+                  <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-orange-900">
+                    {twoFaRecovery.map((c) => (
+                      <div key={c} className="rounded-xl bg-white/70 border border-orange-100 px-3 py-2">
+                        {c}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-[11px] text-orange-800">
+                    Save these codes somewhere safe. Each code can be used once.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background (no submit button; autosaves) */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
         <div className="flex items-center justify-between gap-3 mb-4">
@@ -1012,94 +1205,74 @@ async function twofaDisable() {
         </div>
       </section>
 
-      
-{/* Account security */}
-<section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-  <div className="flex items-start justify-between gap-4 mb-4">
-    <div>
-      <h2 className="text-base md:text-lg font-semibold text-gray-900">Account security</h2>
-      <p className="mt-1 text-sm text-gray-600">
-        Keep your account protected with verified email changes, password updates, and optional 2FA.
-      </p>
-    </div>
+      {/* Account security placeholders */}
+      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Account security</h2>
 
-    <div className="flex items-center gap-2">
-      <div
-        className={
-          "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border " +
-          (twofaEnabled
-            ? "bg-green-50 text-green-700 border-green-200"
-            : "bg-gray-50 text-gray-700 border-gray-200")
-        }
-      >
-        <ShieldCheck className={"w-4 h-4 " + (twofaEnabled ? "text-green-700" : "text-gray-500")} />
-        2FA {twofaEnabled ? "On" : "Off"}
-      </div>
-    </div>
-  </div>
-
-  <div className="grid md:grid-cols-2 gap-4">
-    <div className="rounded-2xl border border-gray-200 p-4">
-      <div className="flex items-center gap-2 font-semibold text-gray-900">
-        <Mail className="w-4 h-4 text-orange-700" />
-        Change email
-      </div>
-      <p className="mt-2 text-sm text-gray-600">
-        Update your email with a confirmation code sent to the new address.
-      </p>
-      <div className="mt-2 text-xs text-gray-500">
-        Current: <span className="font-semibold text-gray-800">{email || "—"}</span>
-      </div>
-      <button
-        type="button"
-        className="mt-3 inline-flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors"
-        onClick={openEmailModal}
-      >
-        <Mail className="w-4 h-4" /> Start email change
-      </button>
-    </div>
-
-    <div className="rounded-2xl border border-gray-200 p-4">
-      <div className="flex items-center gap-2 font-semibold text-gray-900">
-        <KeyRound className="w-4 h-4 text-orange-700" />
-        Change password
-      </div>
-      <p className="mt-2 text-sm text-gray-600">
-        Use a strong password. We’ll verify your current password first.
-      </p>
-      <button
-        type="button"
-        className="mt-3 inline-flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-        onClick={openPasswordModal}
-      >
-        <KeyRound className="w-4 h-4" /> Change password
-      </button>
-    </div>
-
-    <div className="rounded-2xl border border-gray-200 p-4 md:col-span-2">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 font-semibold text-gray-900">
-            <LockKeyhole className="w-4 h-4 text-orange-700" />
-            Two-factor authentication (2FA)
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-gray-200 p-4">
+            <div className="flex items-center gap-2 font-semibold text-gray-900">
+              <Mail className="w-4 h-4 text-orange-700" />
+              Change email
+            </div>
+            <p className="mt-2 text-sm text-gray-600">
+              Update your account email with a confirmation code sent to the new address.
+            </p>
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              onClick={() => {
+                setEmailModalOpen(true);
+                setEmailStage("start");
+                setNewEmail("");
+                setEmailCode("");
+                setEmailDevCode("");
+              }}
+            >
+              <Mail className="w-4 h-4" /> Start email change
+            </button>
           </div>
-          <p className="mt-2 text-sm text-gray-600">
-            Add a second step at login using an authenticator app. You’ll also get recovery codes.
-          </p>
-        </div>
 
-        <button
-          type="button"
-          className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 transition-colors"
-          onClick={openTwofaModal}
-        >
-          <LockKeyhole className="w-4 h-4" />
-          Manage 2FA
-        </button>
-      </div>
-    </div>
-  </div>
-</section>
+          <div className="rounded-2xl border border-gray-200 p-4">
+            <div className="flex items-center gap-2 font-semibold text-gray-900">
+              <KeyRound className="w-4 h-4 text-orange-700" />
+              Change password
+            </div>
+            <p className="mt-2 text-sm text-gray-600">
+              Change your password securely (requires your current password).
+            </p>
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              onClick={() => {
+                setPwModalOpen(true);
+                setCurrentPw("");
+                setNewPw("");
+                setNewPw2("");
+              }}
+            >
+              <KeyRound className="w-4 h-4" /> Change password
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 p-4 md:col-span-2">
+            <div className="flex items-center gap-2 font-semibold text-gray-900">
+              <ShieldCheck className="w-4 h-4 text-orange-700" />
+              Two-factor authentication (2FA)
+            </div>
+            <p className="mt-2 text-sm text-gray-600">
+              Add an extra security layer with an authenticator app (TOTP). You’ll receive recovery codes after enabling.
+            </p>
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              onClick={open2FA}
+            >
+              <LockKeyhole className="w-4 h-4" /> {twoFaEnabled ? "Manage 2FA" : "Enable 2FA"}
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Recent learning activity (kept) */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
@@ -1182,357 +1355,6 @@ async function twofaDisable() {
         </div>
 
       </section>
-
-{/* ---------------------------- */}
-{/* Account security modals */}
-{/* ---------------------------- */}
-
-<Modal
-  open={emailModalOpen}
-  title={emailStep === "confirm" ? "Confirm email change" : "Change email"}
-  icon={Mail}
-  onClose={() => {
-    setEmailModalOpen(false);
-  }}
-  footer={
-    <div className="flex items-center justify-end gap-2">
-      <button
-        type="button"
-        className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-        onClick={() => setEmailModalOpen(false)}
-      >
-        Cancel
-      </button>
-
-      {emailStep === "confirm" ? (
-        <button
-          type="button"
-          className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors disabled:opacity-60"
-          disabled={emailBusy}
-          onClick={confirmEmailChange}
-        >
-          Confirm
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors disabled:opacity-60"
-          disabled={emailBusy}
-          onClick={startEmailChange}
-        >
-          Send code
-        </button>
-      )}
-    </div>
-  }
->
-  {emailStep === "confirm" ? (
-    <div className="space-y-3">
-      <div className="text-sm text-gray-700">
-        Enter the 6‑digit verification code sent to <span className="font-semibold">{emailNew}</span>.
-      </div>
-
-      <label className="block">
-        <span className="text-xs font-semibold text-gray-600">Verification code</span>
-        <input
-          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          value={emailCode}
-          onChange={(e) => setEmailCode(e.target.value)}
-          placeholder="123456"
-          inputMode="numeric"
-        />
-      </label>
-
-      <button
-        type="button"
-        className="inline-flex items-center gap-2 text-xs font-semibold text-gray-600 hover:text-gray-900"
-        onClick={cancelEmailChange}
-        disabled={emailBusy}
-      >
-        <EyeOff className="w-4 h-4" /> Cancel request
-      </button>
-    </div>
-  ) : (
-    <div className="space-y-3">
-      <label className="block">
-        <span className="text-xs font-semibold text-gray-600">New email</span>
-        <input
-          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          value={emailNew}
-          onChange={(e) => setEmailNew(e.target.value)}
-          placeholder="name@example.com"
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-xs font-semibold text-gray-600">Current password</span>
-        <input
-          type="password"
-          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          value={emailPassword}
-          onChange={(e) => setEmailPassword(e.target.value)}
-          placeholder="••••••••"
-        />
-      </label>
-
-      <div className="text-xs text-gray-500">
-        We’ll send a confirmation code to the new email. Your old email stays active until confirmed.
-      </div>
-    </div>
-  )}
-</Modal>
-
-<Modal
-  open={pwModalOpen}
-  title="Change password"
-  icon={KeyRound}
-  onClose={() => setPwModalOpen(false)}
-  footer={
-    <div className="flex items-center justify-end gap-2">
-      <button
-        type="button"
-        className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-        onClick={() => setPwModalOpen(false)}
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors disabled:opacity-60"
-        disabled={pwBusy}
-        onClick={changePassword}
-      >
-        Update password
-      </button>
-    </div>
-  }
->
-  <div className="space-y-3">
-    <label className="block">
-      <span className="text-xs font-semibold text-gray-600">Current password</span>
-      <input
-        type="password"
-        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-        value={pwCurrent}
-        onChange={(e) => setPwCurrent(e.target.value)}
-        placeholder="••••••••"
-      />
-    </label>
-
-    <label className="block">
-      <span className="text-xs font-semibold text-gray-600">New password</span>
-      <input
-        type="password"
-        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-        value={pwNew}
-        onChange={(e) => setPwNew(e.target.value)}
-        placeholder="At least 8 characters"
-      />
-    </label>
-
-    <label className="block">
-      <span className="text-xs font-semibold text-gray-600">Confirm new password</span>
-      <input
-        type="password"
-        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-        value={pwConfirm}
-        onChange={(e) => setPwConfirm(e.target.value)}
-        placeholder="Repeat new password"
-      />
-    </label>
-
-    <div className="text-xs text-gray-500">
-      Tip: use a long passphrase. Avoid reusing passwords from other services.
-    </div>
-  </div>
-</Modal>
-
-<Modal
-  open={twofaModalOpen}
-  title="Two-factor authentication"
-  icon={LockKeyhole}
-  onClose={() => setTwofaModalOpen(false)}
-  footer={
-    <div className="flex items-center justify-between gap-3">
-      <button
-        type="button"
-        className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-        onClick={() => setTwofaModalOpen(false)}
-      >
-        Close
-      </button>
-
-      {twofaEnabled ? (
-        <button
-          type="button"
-          className="px-3 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-60"
-          disabled={twofaBusy}
-          onClick={() => setTwofaStage("disable")}
-        >
-          Disable 2FA
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="px-3 py-2 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors disabled:opacity-60"
-          disabled={twofaBusy}
-          onClick={twofaSetup}
-        >
-          Enable 2FA
-        </button>
-      )}
-    </div>
-  }
->
-  {twofaLoading ? (
-    <div className="text-sm text-gray-600">Loading…</div>
-  ) : twofaEnabled && twofaStage === "disable" ? (
-    <div className="space-y-3">
-      <div className="text-sm text-gray-700">
-        To disable 2FA, confirm with your password and a current code (or a recovery code).
-      </div>
-
-      <label className="block">
-        <span className="text-xs font-semibold text-gray-600">Current password</span>
-        <input
-          type="password"
-          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          value={twofaDisablePassword}
-          onChange={(e) => setTwofaDisablePassword(e.target.value)}
-          placeholder="••••••••"
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-xs font-semibold text-gray-600">2FA code or recovery code</span>
-        <input
-          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          value={twofaDisableCode}
-          onChange={(e) => setTwofaDisableCode(e.target.value)}
-          placeholder="123456 or ABCD-EFGH"
-        />
-      </label>
-
-      <button
-        type="button"
-        className="inline-flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-60"
-        disabled={twofaBusy}
-        onClick={twofaDisable}
-      >
-        Disable now
-      </button>
-    </div>
-  ) : twofaStage === "recovery" && twofaRecovery.length ? (
-    <div className="space-y-3">
-      <div className="text-sm text-gray-700">
-        Save these recovery codes somewhere safe. Each code can be used once.
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {twofaRecovery.map((c, i) => (
-          <div key={i} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-mono text-gray-800">
-            {c}
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        className="inline-flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors"
-        onClick={() => setTwofaStage("status")}
-      >
-        Done
-      </button>
-    </div>
-  ) : twofaStage === "confirm" ? (
-    <div className="space-y-4">
-      <div className="text-sm text-gray-700">
-        Scan the QR code with your authenticator app, then enter the code to confirm.
-      </div>
-
-      {twofaOtpAuth ? (
-        <div className="flex items-start gap-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-3">
-            <img
-              alt="2FA QR"
-              className="h-40 w-40"
-              src={
-                "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" +
-                encodeURIComponent(twofaOtpAuth)
-              }
-            />
-          </div>
-          <div className="flex-1 space-y-2">
-            <div className="text-xs text-gray-500">Secret</div>
-            <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-mono text-gray-800 break-all">
-              {twofaSecret || "—"}
-            </div>
-            <div className="text-[11px] text-gray-500">
-              If QR scan fails, add the secret manually.
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <label className="block">
-        <span className="text-xs font-semibold text-gray-600">Authenticator code</span>
-        <input
-          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          value={twofaCode}
-          onChange={(e) => setTwofaCode(e.target.value)}
-          placeholder="123456"
-          inputMode="numeric"
-        />
-      </label>
-
-      <button
-        type="button"
-        className="inline-flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-black transition-colors disabled:opacity-60"
-        disabled={twofaBusy}
-        onClick={twofaConfirm}
-      >
-        Confirm 2FA
-      </button>
-    </div>
-  ) : (
-    <div className="space-y-3">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold text-gray-900">Status</div>
-          <div
-            className={
-              "text-xs font-semibold px-2.5 py-1 rounded-full border " +
-              (twofaEnabled
-                ? "bg-green-50 text-green-700 border-green-200"
-                : "bg-gray-50 text-gray-700 border-gray-200")
-            }
-          >
-            {twofaEnabled ? "Enabled" : "Disabled"}
-          </div>
-        </div>
-        <div className="mt-2 text-sm text-gray-600">
-          {twofaEnabled
-            ? "Your account requires a second code at login."
-            : "Enable 2FA to protect your account from password leaks."}
-        </div>
-      </div>
-
-      {!twofaEnabled ? (
-        <div className="text-xs text-gray-500">
-          Click <span className="font-semibold">Enable 2FA</span> to generate a QR code, then confirm with your authenticator code.
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-gray-600 hover:text-gray-900"
-          onClick={() => setTwofaStage("disable")}
-        >
-          <EyeOff className="w-4 h-4" /> Disable 2FA
-        </button>
-      )}
-    </div>
-  )}
-</Modal>
-
-
 
       {!!message && (
         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
