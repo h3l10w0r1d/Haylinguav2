@@ -27,6 +27,14 @@ from auth import (
 # JWT decode (for Bearer auth on /complete)
 from jose import jwt, JWTError
 
+# Brevo (Sendinblue) integration (contacts + events)
+try:
+    from integrations.brevo import upsert_contact as _brevo_upsert_contact
+    from integrations.brevo import track_event as _brevo_track_event
+except Exception:
+    _brevo_upsert_contact = None
+    _brevo_track_event = None
+
 
 
 import math
@@ -510,6 +518,89 @@ def _compute_streak_days(db: Connection, user_id: int) -> int:
         streak += 1
         cur = cur - timedelta(days=1)
     return streak
+
+
+def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, event_props: dict | None = None) -> None:
+    """Best-effort sync to Brevo.
+
+    This must NEVER break the API flow.
+    """
+    if _brevo_upsert_contact is None:
+        return
+    try:
+        u = db.execute(
+            text(
+                """
+                SELECT id, email, username, display_name, first_name, last_name, bio,
+                       avatar_url, banner_url, friends_public, is_hidden, email_verified
+                FROM users
+                WHERE id = :id
+                """
+            ),
+            {"id": int(user_id)},
+        ).mappings().first()
+        if not u:
+            return
+
+        stats = db.execute(
+            text(
+                """
+                SELECT
+                  COALESCE(SUM(lp.xp_earned), 0) AS total_xp,
+                  COUNT(DISTINCT lp.lesson_id) FILTER (WHERE lp.is_completed = TRUE) AS lessons_completed,
+                  (SELECT COUNT(*) FROM user_exercise_logs l WHERE l.user_id = :u) AS exercises_done
+                FROM lesson_progress lp
+                WHERE lp.user_id = :u
+                """
+            ),
+            {"u": int(user_id)},
+        ).mappings().first() or {}
+
+        streak = _compute_streak_days(db, int(user_id))
+
+        # "As much data as possible" – send what we have today.
+        attrs = {
+            "HAYLINGUA_USER_ID": int(u.get("id")),
+            "USERNAME": (u.get("username") or "") or None,
+            "DISPLAY_NAME": (u.get("display_name") or "") or None,
+            "FIRST_NAME": (u.get("first_name") or "") or None,
+            "LAST_NAME": (u.get("last_name") or "") or None,
+            "BIO": (u.get("bio") or "") or None,
+            "AVATAR_URL": (u.get("avatar_url") or "") or None,
+            "BANNER_URL": (u.get("banner_url") or "") or None,
+            "FRIENDS_PUBLIC": bool(u.get("friends_public")),
+            "IS_HIDDEN": bool(u.get("is_hidden")),
+            "EMAIL_VERIFIED": bool(u.get("email_verified")),
+            "XP_TOTAL": int(stats.get("total_xp") or 0),
+            "LESSONS_COMPLETED": int(stats.get("lessons_completed") or 0),
+            "EXERCISES_COMPLETED": int(stats.get("exercises_done") or 0),
+            "STREAK_DAYS": int(streak),
+            "LANGUAGE": "Armenian",
+        }
+
+        email = (u.get("email") or "").strip()
+        if not email:
+            return
+
+        _brevo_upsert_contact(email=email, attributes=attrs)
+
+        if event and _brevo_track_event is not None:
+            props = dict(event_props or {})
+            props.update(
+                {
+                    "user_id": int(u.get("id")),
+                    "username": (u.get("username") or "") or None,
+                    "total_xp": int(stats.get("total_xp") or 0),
+                    "streak_days": int(streak),
+                }
+            )
+            _brevo_track_event(email=email, event=event, properties=props)
+    except Exception:
+        # Never raise; just log server-side.
+        try:
+            traceback.print_exc()
+        except Exception:
+            pass
 
 # ---------- Friends schemas + API ----------
 class FriendOut(BaseModel):
@@ -1363,6 +1454,9 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
         response_data["verification_code"] = code
         print(f"⚠️  DEV MODE: Including verification code in response: {code}")
 
+    # Best-effort Brevo sync (contacts + events). Never blocks signup.
+    _brevo_sync_user(db, int(user_id), event="user_registered")
+
     return response_data
 
 
@@ -1475,6 +1569,9 @@ def verify_email(
         text("DELETE FROM email_verification_codes WHERE user_id = :uid"),
         {"uid": int(user_id)},
     )
+
+    # Sync verification to Brevo (so you can trigger onboarding sequences).
+    _brevo_sync_user(db, int(user_id), event="email_verified")
 
     return {"ok": True}
 
@@ -2423,6 +2520,9 @@ def me_profile_put(
         text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
+
+    # Best-effort Brevo sync for profile changes.
+    _brevo_sync_user(db, int(user_id), event="profile_updated")
 
     return MeOut(**dict(row))
 
