@@ -69,6 +69,9 @@ ensure_schema()
 # Register all routers
 app.include_router(lesson_analytics_router)
 app.include_router(api_router)
+# Backward/forward compatibility: some clients may call endpoints under /api
+# (e.g., /api/me/profile). Mount the same router there as well.
+app.include_router(api_router, prefix="/api", include_in_schema=False)
 app.include_router(audio_router)  # NEW: Audio routes
 
 # 🔧 CORS – include your real frontend URLs (Vercel)
