@@ -67,12 +67,16 @@ app.mount("/static/avatars", StaticFiles(directory=AVATAR_UPLOAD_DIR), name="ava
 ensure_schema()
 
 # Register all routers
+# NOTE: Some deployments historically mounted the API under /api.
+# To prevent route-prefix mismatches between frontend and backend,
+# we expose both:
+#   - unprefixed routes: /me/profile, /auth/login, ...
+#   - prefixed routes:   /api/me/profile, /api/auth/login, ...
 app.include_router(lesson_analytics_router)
 app.include_router(api_router)
-# Backward/forward compatibility: some clients may call endpoints under /api
-# (e.g., /api/me/profile). Mount the same router there as well.
-app.include_router(api_router, prefix="/api", include_in_schema=False)
+app.include_router(api_router, prefix="/api")
 app.include_router(audio_router)  # NEW: Audio routes
+app.include_router(audio_router, prefix="/api")
 
 # 🔧 CORS – include your real frontend URLs (Vercel)
 origins = [
