@@ -424,7 +424,11 @@ class AuthResponse(BaseModel):
 
 
 class VerifyEmailIn(BaseModel):
-    code: str
+    # Accept multiple common keys from the frontend to avoid payload mismatches.
+    # Primary key remains `code`.
+    code: Optional[str] = None
+    otp: Optional[str] = None
+    verification_code: Optional[str] = None
 
 
 class ResendOut(BaseModel):
@@ -527,7 +531,16 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
     """
     if _brevo_upsert_contact is None:
         return
+    # NOTE: this function is called inside request transactions.
+    # Any SQL error would abort the whole transaction unless we isolate it.
+    # Use a SAVEPOINT so failures here never roll back signup/verify flows.
     try:
+        sp_name = "brevo_sync"
+        try:
+            db.execute(text(f"SAVEPOINT {sp_name}"))
+        except Exception:
+            sp_name = None
+
         u = db.execute(
             text(
                 """
@@ -542,15 +555,17 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
         if not u:
             return
 
+        # Stats tables/columns have evolved; use the canonical table used elsewhere in this project.
+        # user_lesson_progress columns: xp_earned, completed_at, lesson_id
         stats = db.execute(
             text(
                 """
                 SELECT
-                  COALESCE(SUM(lp.xp_earned), 0) AS total_xp,
-                  COUNT(DISTINCT lp.lesson_id) FILTER (WHERE lp.is_completed = TRUE) AS lessons_completed,
+                  COALESCE(SUM(ulp.xp_earned), 0) AS total_xp,
+                  COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
                   (SELECT COUNT(*) FROM user_exercise_logs l WHERE l.user_id = :u) AS exercises_done
-                FROM lesson_progress lp
-                WHERE lp.user_id = :u
+                FROM user_lesson_progress ulp
+                WHERE ulp.user_id = :u
                 """
             ),
             {"u": int(user_id)},
@@ -595,7 +610,20 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
                 }
             )
             _brevo_track_event(email=email, event=event, properties=props)
+
+        if sp_name:
+            try:
+                db.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+            except Exception:
+                pass
     except Exception:
+        # If we created a savepoint and something failed, rollback to it so the
+        # outer request transaction isn't aborted.
+        try:
+            db.execute(text("ROLLBACK TO SAVEPOINT brevo_sync"))
+            db.execute(text("RELEASE SAVEPOINT brevo_sync"))
+        except Exception:
+            pass
         # Never raise; just log server-side.
         try:
             traceback.print_exc()
@@ -1529,7 +1557,7 @@ def verify_email(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    code = (payload.code or "").strip()
+    code = ((payload.code or payload.otp or payload.verification_code) or "").strip()
     if len(code) != 6 or not code.isdigit():
         raise HTTPException(status_code=400, detail="INVALID_CODE")
 
