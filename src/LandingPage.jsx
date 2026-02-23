@@ -1,6 +1,6 @@
 // src/LandingPage.jsx - Marketing landing + inline auth + email verification
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Lock, Mail, User, Sparkles, ArrowRight, LogIn, BookOpen, ShieldCheck, CheckCircle2, Headphones, Keyboard, Flame, Target, Timer, Layers3, GraduationCap, Route, BarChart3, Fingerprint, Wand2, Globe, Twitter, Instagram, Youtube } from "lucide-react";
+import { Lock, Mail, User, Sparkles, ArrowRight, ChevronDown, LogIn, BookOpen, ShieldCheck, CheckCircle2, Headphones, Keyboard, Flame, Target, Timer, Layers3, GraduationCap, Route, BarChart3, Fingerprint, Wand2, Globe, Twitter, Instagram, Youtube } from "lucide-react";
 
 /**
  * We intentionally avoid depending on framer-motion to keep Vercel builds stable.
@@ -741,7 +741,7 @@ html{scroll-behavior:smooth;}
     <div className="mt-8 grid gap-4 md:grid-cols-3">
       {[
         { step: "01", title: "Start with the alphabet", desc: "Recognize letters quickly with visual + sound pairing.", icon: BookOpen },
-        { step: "02", title: "Short exercises that stick", desc: "MCQ, typing, matching, and fill-in tasks to build recall.", icon: Layers3 },
+        { step: "02", title: "Short exercises that stick", desc: "Multiple-choice, typing, matching, and fill-in tasks to build recall.", icon: Layers3 },
         { step: "03", title: "Review mistakes & level up", desc: "See what went wrong, retry, and keep your streak alive.", icon: BarChart3 },
       ].map((s) => (
         <motion.div key={s.step} whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="rounded-3xl border border-orange-100 bg-white/80 p-6 shadow-sm">
@@ -817,12 +817,18 @@ html{scroll-behavior:smooth;}
         { q: "Do I need to know Armenian script already?", a: "No — the early lessons teach recognition and sound mapping from zero." },
       ].map((f) => (
         <details key={f.q} className="group rounded-2xl border border-orange-100 bg-white/80 p-5 shadow-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-            <span className="text-sm sm:text-base font-extrabold text-slate-900">{f.q}</span>
-            <span className="text-slate-400 transition group-open:rotate-45">+</span>
-          </summary>
-          <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-700">{f.a}</p>
-        </details>
+  <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+    <span className="text-sm sm:text-base font-extrabold text-slate-900">{f.q}</span>
+    <ChevronDown className="h-5 w-5 text-slate-500 transition-transform duration-300 group-open:rotate-180" />
+  </summary>
+
+  {/* smooth open/close without tiny '+' target */}
+  <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-out group-open:grid-rows-[1fr]">
+    <div className="overflow-hidden">
+      <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-700">{f.a}</p>
+    </div>
+  </div>
+</details>
       ))}
     </div>
 
