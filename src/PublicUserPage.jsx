@@ -3,9 +3,30 @@ import { useParams, useNavigate } from "react-router-dom";
 
 // IMPORTANT:
 // Public pages are served from the FE domain, but API lives on the backend.
-// If VITE_API_BASE is not set, default to the Render backend so we don't
-// accidentally fetch the FE HTML (which then fails JSON parsing).
-const API_BASE = import.meta.env.VITE_API_BASE || "https://haylinguav2.onrender.com";
+// If env is not set, default to the Render backend so we don't accidentally
+// fetch FE HTML (which then fails JSON parsing).
+// Keep this consistent with ProfilePage.jsx so both pages hit the same API.
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_URL ||
+  "https://haylinguav2.onrender.com";
+
+function isSafeGradient(v) {
+  const s = String(v || "").trim();
+  return (
+    s.startsWith("linear-gradient(") ||
+    s.startsWith("radial-gradient(") ||
+    s.startsWith("conic-gradient(")
+  );
+}
+
+function resolveProfileBackground({ themeBg, themeGradient }) {
+  const bg = String(themeBg || "").trim() || "#fff7ed";
+  const g = String(themeGradient || "").trim();
+  if (g && isSafeGradient(g)) return g;
+  return bg;
+}
 
 async function fetchJsonOrThrow(url, init) {
   const res = await fetch(url, init);
@@ -37,6 +58,18 @@ function fmtJoinDate(v) {
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function normalizeFriendshipStatus(raw) {
+  const s = String(raw || "none").toLowerCase().trim();
+  // Common aliases across BE versions
+  if (["self", "me"].includes(s)) return "self";
+  if (["friends", "friend", "accepted", "connected"].includes(s)) return "friends";
+  if (["incoming_pending", "incoming", "pending_in", "request_received", "received"].includes(s))
+    return "incoming_pending";
+  if (["outgoing_pending", "outgoing", "pending_out", "requested", "sent"].includes(s))
+    return "outgoing_pending";
+  return "none";
 }
 
 function StatCard({ label, value }) {
@@ -106,9 +139,14 @@ export default function PublicUserPage({ token }) {
   const stats = data?.stats || data?.user_stats || data?.public_stats || {};
 
   const profileTheme = profile?.profile_theme || data?.profile_theme || {};
-  const pageBg = profileTheme.background || profile?.bg_color || "#fff7ed";
+  // Support both plain colors and gradients (matches private ProfilePage behavior).
+  const pageBg = resolveProfileBackground({
+    themeBg: profileTheme.background || profile?.bg_color || "#fff7ed",
+    themeGradient: profileTheme.gradient || "",
+  });
   const headerBg =
     profileTheme.header_background ||
+    (isSafeGradient(profileTheme.gradient) ? profileTheme.gradient : null) ||
     "linear-gradient(135deg, rgba(255,122,0,.25), rgba(255,122,0,.05))";
   const bannerUrl = resolveUrl(profile?.banner_url || profileTheme.banner_url);
   const avatarUrl = resolveUrl(profile?.avatar_url || profile?.avatar || data?.avatar_url || data?.avatar);
@@ -154,9 +192,29 @@ export default function PublicUserPage({ token }) {
         : [];
 
   const relationship = String(data?.friendship || profile?.friendship || "none").toLowerCase();
-  const friendRequestId = data?.friend_request_id ?? profile?.friend_request_id ?? null;
-  const friendStatus = relationship;
+  const friendRequestId =
+    data?.friend_request_id ??
+    profile?.friend_request_id ??
+    data?.friendship?.request_id ??
+    data?.friendship?.id ??
+    null;
+  const friendStatus = normalizeFriendshipStatus(relationship);
   const canFriendActions = Boolean(token) && relationship !== "self" && data?.is_self !== true;
+
+  // Privacy: if a user hides their profile, show a private state unless viewer is the user or a friend.
+  const isHidden = Boolean(profile?.is_hidden ?? data?.is_hidden);
+  const isSelf = friendStatus === "self" || data?.is_self === true;
+  const isFriend = friendStatus === "friends";
+  const isPrivateView = isHidden && !isSelf && !isFriend;
+
+  // Friends list visibility (some users may hide friends list but keep profile public)
+  const friendsPublic =
+    typeof profile?.friends_public === "boolean"
+      ? profile.friends_public
+      : typeof data?.friends_public === "boolean"
+        ? data.friends_public
+        : true;
+  const canSeeFriendsSection = (isSelf || isFriend) ? true : friendsPublic;
 
   async function friendAction(kind) {
     if (!token) {
@@ -257,6 +315,8 @@ export default function PublicUserPage({ token }) {
     );
   }, [canFriendActions, friendStatus, actionBusy, data, token, username]);
 
+  const friendsCountDisplay = (!isPrivateView && canSeeFriendsSection) ? friendsCount : "—";
+
   return (
     <div className="bg-[#fff7ed]" style={{ background: pageBg }}>
       <div className="min-h-[calc(100vh-64px)]" style={{ background: pageBg }}>
@@ -318,19 +378,34 @@ export default function PublicUserPage({ token }) {
                 ) : null}
 
                 <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 relative">
-                  <StatCard label="Total XP" value={totalXp} />
-                  <StatCard label="Level" value={level} />
-                  <StatCard label="Streak" value={streak} />
-                  <StatCard label="Friends" value={friendsCount} />
+                  {/* If profile is hidden, don't leak stats */}
+                  {isPrivateView ? (
+                    <div className="col-span-2 md:col-span-4 rounded-2xl border border-orange-100 bg-white/70 backdrop-blur px-5 py-4 shadow-sm">
+                      <div className="text-sm font-semibold text-gray-900">This profile is private</div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        You can still send a friend request to view more.
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <StatCard label="Total XP" value={totalXp} />
+                      <StatCard label="Level" value={level} />
+                      <StatCard label="Streak" value={streak} />
+                      <StatCard label="Friends" value={friendsCountDisplay} />
+                    </>
+                  )}
                 </div>
 
-                <div className="mt-4 text-gray-600 text-sm relative">
-                  Lessons completed: <span className="text-gray-900">{lessonsCompleted}</span>
-                </div>
+                {!isPrivateView ? (
+                  <div className="mt-4 text-gray-600 text-sm relative">
+                    Lessons completed: <span className="text-gray-900">{lessonsCompleted}</span>
+                  </div>
+                ) : null}
               </div>
             </div>
 
             {/* TOP FRIENDS */}
+            {!isPrivateView && canSeeFriendsSection ? (
             <div className="mt-8 rounded-3xl border border-orange-100 bg-white/70 backdrop-blur p-6 shadow-sm">
               <div className="flex items-end justify-between gap-4">
                 <div>
@@ -378,8 +453,10 @@ export default function PublicUserPage({ token }) {
                 </div>
               )}
             </div>
+            ) : null}
 
             {/* RECENT LEARNING ACTIVITY (same card as private profile) */}
+            {!isPrivateView ? (
             <div className="mt-8 rounded-3xl border border-orange-100 bg-white/70 backdrop-blur p-6 shadow-sm">
               <div className="flex items-end justify-between gap-4">
                 <div>
@@ -394,6 +471,7 @@ export default function PublicUserPage({ token }) {
                 <ActivityBars days={activity.days} />
               )}
             </div>
+            ) : null}
           </>
         )}
         </div>
