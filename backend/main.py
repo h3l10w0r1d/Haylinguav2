@@ -1,4 +1,29 @@
+"""Haylingua backend app.
+
+Deployment note
+---------------
+Some hosts (including Render) often start Uvicorn from the repository root
+(`uvicorn main:app`). In that scenario, modules inside the `backend/` folder
+like `routes.py` / `database.py` are **not** importable unless `backend/` is
+on `PYTHONPATH`.
+
+Historically you ran Uvicorn from inside `backend/`, so imports such as
+`from routes import router` worked. After the Brevo integration, the working
+directory / start command appears to have shifted, causing routers to never
+load and making every GET endpoint return 404 (while CORS still answers
+OPTIONS with 200).
+
+Fix: put the backend directory onto `sys.path` before importing local modules.
+"""
+
 # backend/main.py
+import os
+import sys
+
+_BACKEND_DIR = os.path.dirname(__file__)
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,9 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes import router as api_router
 from routes_audio import router as audio_router  # NEW: Audio management
 from db_utils import seed_alphabet_lessons
-import os
 from ensure_schema import ensure_schema
-
 from lesson_analytics import router as lesson_analytics_router
 
 
