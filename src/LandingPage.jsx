@@ -113,6 +113,45 @@ export default function LandingPage({ onLogin, onSignup }) {
     return { dx, dy };
   }, [mouse]);
 
+  // Tailwind-only scroll reveal (no external animation runtime)
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll("[data-reveal]"));
+    if (!els.length) return;
+
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReduced) {
+      for (const el of els) {
+        el.classList.remove("opacity-0", "translate-y-3");
+      }
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const el = entry.target;
+          el.classList.remove("opacity-0", "translate-y-3");
+          el.classList.add(
+            "animate-in",
+            "fade-in",
+            "slide-in-from-bottom-2",
+            "duration-700"
+          );
+          io.unobserve(el);
+        }
+      },
+      { threshold: 0.15, rootMargin: "-80px 0px" }
+    );
+
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   const scrollToAuth = () => {
     try {
       authRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -591,7 +630,7 @@ html{scroll-behavior:smooth;}
 </header>
 
 {/* hero */}
-<section className="mx-auto max-w-6xl pt-10 sm:pt-16">
+<section data-reveal className="mx-auto max-w-6xl pt-10 sm:pt-16 opacity-0 translate-y-3">
   <motion.div variants={revealContainer} initial="hidden" animate="show" className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
     <div>
       <motion.div variants={revealUp} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-extrabold text-slate-700">
@@ -687,7 +726,7 @@ html{scroll-behavior:smooth;}
 </section>
 
 {/* how it works */}
-<section ref={howRef} className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24">
+<section ref={howRef} data-reveal className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24 opacity-0 translate-y-3">
   <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={inViewOnce} transition={{ duration: 0.5, ease: "easeOut" }}>
     <div className="text-center">
       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-extrabold text-slate-700">
@@ -721,7 +760,7 @@ html{scroll-behavior:smooth;}
 </section>
 
 {/* features */}
-<section ref={roadmapRef} className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24">
+<section ref={roadmapRef} data-reveal className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24 opacity-0 translate-y-3">
   <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={inViewOnce} transition={{ duration: 0.5, ease: "easeOut" }}>
     <div className="text-center">
       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-extrabold text-slate-700">
@@ -759,7 +798,7 @@ html{scroll-behavior:smooth;}
 </section>
 
 {/* FAQ / trust */}
-<section ref={trustRef} className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24 pb-6">
+<section ref={trustRef} data-reveal className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24 pb-6 opacity-0 translate-y-3">
   <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={inViewOnce} transition={{ duration: 0.5, ease: "easeOut" }}>
     <div className="text-center">
       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-extrabold text-slate-700">
@@ -805,7 +844,7 @@ html{scroll-behavior:smooth;}
 
 
 {/* auth */}
-<section ref={authRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
+<section ref={authRef} data-reveal className="mt-16 mx-auto max-w-6xl scroll-mt-24 opacity-0 translate-y-3">
   <div className="rounded-3xl border border-orange-100 bg-white/70 shadow-sm overflow-hidden">
     <div className="grid lg:grid-cols-2">
       <div className="p-6 sm:p-10 bg-gradient-to-br from-orange-50/70 via-white to-amber-50/70">
