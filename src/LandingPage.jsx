@@ -1,8 +1,22 @@
 // src/LandingPage.jsx - Marketing landing + inline auth + email verification
 import { useState, useEffect, useMemo, useRef } from "react";
+import { motion } from "framer-motion";
 import { Lock, Mail, User, Sparkles, ArrowRight, LogIn, BookOpen, ShieldCheck, CheckCircle2, Headphones, Keyboard, Flame, Target, Timer, Layers3, GraduationCap, Route, BarChart3, Fingerprint, Wand2, Globe, Twitter, Instagram, Youtube } from "lucide-react";
 
 const API_BASE = "https://haylinguav2.onrender.com";
+
+const revealContainer = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.08 } },
+};
+
+const revealUp = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
+};
+
+const inViewOnce = { once: true, margin: "-80px" };
+
 
 export default function LandingPage({ onLogin, onSignup }) {
   const [mode, setMode] = useState("login"); // 'login' | 'signup' | 'verify'
@@ -474,7 +488,7 @@ html{scroll-behavior:smooth;}
 
 
 {/* top bar */}
-<div className="sticky top-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 backdrop-blur-xl bg-white/65 border-b border-orange-100/60">
+<header className="sticky top-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 backdrop-blur-xl bg-white/65 border-b border-orange-100/60">
   <div className="mx-auto max-w-6xl flex items-center justify-between gap-3">
     <button
       type="button"
@@ -487,6 +501,12 @@ html{scroll-behavior:smooth;}
       </span>
       <span className="text-base sm:text-lg">Haylingua</span>
     </button>
+
+    <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
+      <button type="button" onClick={() => scrollToRef(howRef)} className="hover:text-slate-900">How it works</button>
+      <button type="button" onClick={() => scrollToRef(roadmapRef)} className="hover:text-slate-900">Features</button>
+      <button type="button" onClick={() => scrollToRef(trustRef)} className="hover:text-slate-900">FAQ</button>
+    </nav>
 
     <div className="flex items-center gap-2">
       <button
@@ -507,33 +527,35 @@ html{scroll-behavior:smooth;}
           setError("");
           scrollToAuth();
         }}
-        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow-sm"
+        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 shadow-sm hover:opacity-95"
       >
-        <Sparkles className="w-4 h-4" /> Create account
+        <Sparkles className="w-4 h-4" /> Sign up
       </button>
     </div>
   </div>
-</div>
+</header>
 
 {/* hero */}
-<section className="mx-auto max-w-6xl pt-12 sm:pt-16">
-  <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+<section className="mx-auto max-w-6xl pt-10 sm:pt-16">
+  <motion.div variants={revealContainer} initial="hidden" animate="show" className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
     <div>
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-bold text-slate-700">
+      <motion.div variants={revealUp} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-extrabold text-slate-700">
         <Sparkles className="w-4 h-4 text-orange-600" />
-        Armenian learning for beginners
-      </div>
+        Armenian-only • Duolingo-style learning
+      </motion.div>
 
-      <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
-        Learn Armenian online — <span className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">fast, structured, and score‑focused.</span>
-      </h1>
+      <motion.h1 variants={revealUp} className="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
+        Learn Armenian with short, addictive lessons —{" "}
+        <span className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">
+          and real progress.
+        </span>
+      </motion.h1>
 
-      <p className="mt-4 text-base sm:text-lg text-slate-700 max-w-xl leading-relaxed">
-        Haylingua is a gamified Armenian language learning app built to help beginners master the alphabet, pronunciation, and spelling —
-        with a clear path and measurable progress.
-      </p>
+      <motion.p variants={revealUp} className="mt-4 text-base sm:text-lg text-slate-700 max-w-xl leading-relaxed">
+        Practice reading, listening, and writing with gamified exercises, XP, streaks, and a clean, focused path for beginners.
+      </motion.p>
 
-      <div className="mt-7 flex flex-wrap gap-2.5">
+      <motion.div variants={revealUp} className="mt-7 flex flex-wrap gap-2.5">
         <button
           type="button"
           onClick={() => {
@@ -541,7 +563,7 @@ html{scroll-behavior:smooth;}
             setError("");
             scrollToAuth();
           }}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 shadow"
         >
           Start free <ArrowRight className="w-4 h-4" />
         </button>
@@ -556,425 +578,176 @@ html{scroll-behavior:smooth;}
         >
           Log in <LogIn className="w-4 h-4" />
         </button>
-      </div>
+      </motion.div>
 
-      <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-600">
-        <div className="inline-flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-orange-600" /> Secure data
-        </div>
-        <div className="inline-flex items-center gap-2">
-          <Target className="w-4 h-4 text-orange-600" /> High‑accuracy exercises
-        </div>
-        <div className="inline-flex items-center gap-2">
-          <Flame className="w-4 h-4 text-orange-600" /> XP + streaks
-        </div>
-      </div>
+      <motion.div variants={revealUp} className="mt-8 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+        <span className="rounded-full border border-orange-100 bg-white/80 px-3 py-1">⚡ 2–4 min lessons</span>
+        <span className="rounded-full border border-orange-100 bg-white/80 px-3 py-1">🔥 Streaks & achievements</span>
+        <span className="rounded-full border border-orange-100 bg-white/80 px-3 py-1">🔊 Audio drills</span>
+        <span className="rounded-full border border-orange-100 bg-white/80 px-3 py-1">⌨️ Typing practice</span>
+      </motion.div>
     </div>
 
-    <div className="relative">
-      <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-orange-200/40 via-white/20 to-amber-200/40 blur-2xl lp-glow-pulse" />
-      <div className="relative rounded-[2.5rem] border border-orange-100 bg-white/70 shadow-sm overflow-hidden">
-        <div className="p-6 sm:p-8">
-          <div className="flex items-center justify-between">
-            <div className="font-extrabold text-slate-900">Your learning path</div>
-            <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center">
-              <Route className="w-5 h-5 text-orange-600" />
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {[
-              { t: "Alphabet mastery", d: "Recognize letters and match sounds correctly.", icon: BookOpen },
-              { t: "Words & spelling", d: "Build real words with listening + typing drills.", icon: Keyboard },
-              { t: "Daily progress", d: "Earn XP, keep streaks, and reinforce weak points.", icon: Flame },
-            ].map((x) => (
-              <div key={x.t} className="group rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm hover:bg-white transition">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-extrabold text-slate-900">{x.t}</div>
-                    <div className="mt-1 text-sm text-slate-700">{x.d}</div>
-                  </div>
-                  <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-                    <x.icon className="w-5 h-5 text-orange-600" />
-                  </div>
-                </div>
-                <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 group-hover:w-3/5 transition-all duration-500" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-extrabold text-slate-900">Beginner‑friendly. Results‑driven.</div>
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-600">
-                <CheckCircle2 className="w-4 h-4 text-orange-600" /> Clean scoring feedback
-              </div>
-            </div>
-            <div className="mt-2 text-sm text-slate-700 leading-relaxed">
-              Short sessions, clear prompts, instant correction — so your accuracy climbs fast and confidence follows.
-            </div>
-          </div>
+    <motion.div variants={revealUp} className="relative">
+      <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="rounded-3xl border border-orange-100 bg-white/80 p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-extrabold text-slate-900">Today’s lesson</div>
+          <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">+25 XP</span>
         </div>
 
-        <div className="px-6 sm:px-8 pb-6">
-          <div className="h-10 rounded-2xl bg-gradient-to-r from-orange-100 via-white to-amber-100 shimmer" />
+        <div className="mt-5 grid gap-3">
+          <div className="rounded-2xl border border-orange-100 bg-white p-4">
+            <div className="text-xs text-slate-500 font-semibold">Exercise</div>
+            <div className="mt-1 text-sm font-extrabold text-slate-900">Match the sound to the letter</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {["Ա", "Բ", "Գ", "Դ"].map((c) => (
+                <button
+                  key={c}
+                  className="rounded-xl border border-orange-100 bg-white px-4 py-2 text-sm font-extrabold hover:bg-orange-50 transition"
+                  type="button"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-orange-100 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-slate-500 font-semibold">Streak</div>
+                <div className="mt-1 text-sm font-extrabold text-slate-900">10 days</div>
+              </div>
+              <div className="text-2xl">🔥</div>
+            </div>
+            <div className="mt-3 h-2 w-full rounded-full bg-orange-50">
+              <div className="h-2 w-2/3 rounded-full bg-gradient-to-r from-orange-600 to-amber-500" />
+            </div>
+            <div className="mt-2 text-xs text-slate-600">Keep going to unlock more XP boosts.</div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
+      </motion.div>
+    </motion.div>
+  </motion.div>
 </section>
 
 {/* how it works */}
-<section ref={howRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
-  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">How it works</h2>
-  <p className="mt-2 text-slate-700 max-w-3xl">
-    A structured path designed for beginners: learn the Armenian alphabet, build real words, and improve your score with daily practice.
-  </p>
-
-  <div className="mt-8 grid md:grid-cols-3 gap-5">
-    {[
-      { t: "1) Master the alphabet", icon: BookOpen, d: "Recognition + sound mapping, so your brain stops guessing and starts reading." },
-      { t: "2) Build real words", icon: Keyboard, d: "Combine letters into words with listening, spelling, and typing practice." },
-      { t: "3) Improve daily", icon: Flame, d: "Earn XP and streaks, repeat intelligently, and reinforce weak points." },
-    ].map((x) => (
-      <div key={x.t} className="group bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition">
-        <div className="flex items-start justify-between gap-3">
-          <div className="font-extrabold text-slate-900">{x.t}</div>
-          <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-            <x.icon className="w-5 h-5 text-orange-600" />
-          </div>
-        </div>
-        <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
-        <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-          <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 group-hover:w-3/5 transition-all duration-500" />
-        </div>
+<section ref={howRef} className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24">
+  <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={inViewOnce} transition={{ duration: 0.5, ease: "easeOut" }}>
+    <div className="text-center">
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-extrabold text-slate-700">
+        <Route className="w-4 h-4 text-orange-600" /> How it works
       </div>
-    ))}
-  </div>
+      <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">A simple loop: learn → practice → improve.</h2>
+      <p className="mt-3 text-slate-700 max-w-2xl mx-auto leading-relaxed">
+        No clutter. Just clear progression and repeatable wins — optimized for Armenian learners.
+      </p>
+    </div>
+
+    <div className="mt-8 grid gap-4 md:grid-cols-3">
+      {[
+        { step: "01", title: "Start with the alphabet", desc: "Recognize letters quickly with visual + sound pairing.", icon: BookOpen },
+        { step: "02", title: "Short exercises that stick", desc: "MCQ, typing, matching, and fill-in tasks to build recall.", icon: Layers3 },
+        { step: "03", title: "Review mistakes & level up", desc: "See what went wrong, retry, and keep your streak alive.", icon: BarChart3 },
+      ].map((s) => (
+        <motion.div key={s.step} whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="rounded-3xl border border-orange-100 bg-white/80 p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-extrabold text-orange-700">{s.step}</div>
+            <div className="h-10 w-10 rounded-2xl bg-white border border-orange-100 shadow-sm grid place-items-center">
+              <s.icon className="w-5 h-5 text-orange-600" />
+            </div>
+          </div>
+          <div className="mt-3 text-base font-extrabold text-slate-900">{s.title}</div>
+          <div className="mt-2 text-sm text-slate-700 leading-relaxed">{s.desc}</div>
+        </motion.div>
+      ))}
+    </div>
+  </motion.div>
 </section>
 
-        {/* roadmap */}
-        <section ref={roadmapRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
-          <div className="bg-white/70 border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm overflow-hidden relative">
-            <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-orange-200/50 blur-2xl" />
-            <div className="absolute -bottom-12 -left-10 h-44 w-44 rounded-full bg-orange-200/60 blur-2xl" />
-
-            <div className="relative">
-              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">A roadmap you can actually follow</h2>
-                  <p className="mt-2 text-gray-700 max-w-3xl">
-                    Built like a game — but optimized for real learning outcomes.
-                  </p>
-                </div>
-                <a
-                  href="https://blog.haylingua.am"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center px-4 py-2 rounded-2xl text-sm font-semibold text-gray-800 bg-white/80 border border-orange-100 shadow-sm hover:bg-white"
-                >
-                  See updates on the blog →
-                </a>
-              </div>
-
-              <div className="mt-8 grid md:grid-cols-6 gap-4">
-                {[
-  { label: "Alphabet", icon: BookOpen, desc: "Recognize letters + match sounds." },
-  { label: "Sounds", icon: Headphones, desc: "Hear, repeat, and pick correctly." },
-  { label: "Words", icon: Layers3, desc: "Build and read real words." },
-  { label: "Spelling", icon: Keyboard, desc: "Type confidently, fewer mistakes." },
-  { label: "Sentences", icon: Route, desc: "Order, translate, and understand." },
-  { label: "Mastery", icon: BarChart3, desc: "Reinforce weak points with XP." },
-].map((x, i) => (
-  <div
-    key={x.label}
-    className="group rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm hover:bg-white transition"
-  >
-    <div className="flex items-center justify-between">
-      <div className="text-xs font-bold text-gray-700">Stage {i + 1}</div>
-      <div className="h-8 w-8 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center">
-        <x.icon className="w-4 h-4 text-orange-600" />
+{/* features */}
+<section ref={roadmapRef} className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24">
+  <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={inViewOnce} transition={{ duration: 0.5, ease: "easeOut" }}>
+    <div className="text-center">
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-extrabold text-slate-700">
+        <Wand2 className="w-4 h-4 text-orange-600" /> Features
       </div>
-    </div>
-    <div className="mt-2 font-extrabold text-gray-900">{x.label}</div>
-    <div className="mt-1 text-xs text-gray-600 leading-relaxed">{x.desc}</div>
-    <div className="mt-3 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-      <div
-        className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-500"
-        style={{ width: `${Math.min(100, 25 + i * 12)}%` }}
-      />
-    </div>
-    <div className="mt-2 text-[11px] text-gray-500">Completion turns green in-app.</div>
-  </div>
-))}
-              </div>
-
-              <div className="mt-8 grid lg:grid-cols-2 gap-5">
-                <div className="rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm">
-                  <div className="flex items-center justify-between gap-3"><div className="font-extrabold text-slate-900">High-score learning</div><div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center"><Target className="w-5 h-5 text-orange-600" /></div></div>
-                  <div className="mt-2 text-sm text-gray-700 leading-relaxed">
-                    Exercises are designed so you can improve quickly: clear prompts, instant correction, and repeatable patterns.
-                    The result is confidence — and higher accuracy — fast.
-                  </div>
-                </div>
-                <div className="rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="font-extrabold text-slate-900">Designed for focus. Engineered for clarity.</div>
-                    <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center">
-                      <Wand2 className="w-5 h-5 text-orange-600" />
-                    </div>
-                  </div>
-                  <div className="mt-2 text-sm text-gray-700 leading-relaxed">
-                    Subtle motion helps you understand what just happened, what’s next, and how to improve — without noise. Clean cards, crisp typography, and purposeful micro‑interactions keep the experience premium and trustworthy.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        
-        {/* progress path (levels) */}
-        <section className="mt-16 mx-auto max-w-6xl scroll-mt-24">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Progress path</h2>
-          <p className="mt-2 text-slate-700 max-w-3xl">
-            A clear sequence of levels that takes you from Armenian alphabet basics to confident reading and writing.
-          </p>
-
-          <div className="mt-8 grid lg:grid-cols-3 gap-5">
-            {[
-              { t: "Level 1 — Foundations", icon: BookOpen, d: "Alphabet, sounds, and recognition. Build correct habits from day one." },
-              { t: "Level 2 — Everyday Armenian", icon: Layers3, d: "Words, spelling, and practical vocabulary with repeatable patterns." },
-              { t: "Level 3 — Mastery path", icon: BarChart3, d: "Sentence work, review loops, and targeted reinforcement for weak points." },
-            ].map((x) => (
-              <div key={x.t} className="group rounded-3xl border border-orange-100 bg-white/70 p-6 shadow-sm hover:bg-white transition">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="font-extrabold text-slate-900">{x.t}</div>
-                  <div className="h-10 w-10 rounded-2xl bg-white/80 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-                    <x.icon className="w-5 h-5 text-orange-600" />
-                  </div>
-                </div>
-                <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
-                <div className="mt-4 h-1.5 w-full rounded-full bg-orange-100 overflow-hidden">
-                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400 group-hover:w-3/5 transition-all duration-500" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-{/* trust */}
-        <section ref={trustRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Built to earn trust</h2>
-          <p className="mt-2 text-gray-700 max-w-3xl">
-            You’re here to learn — not to get spammed. Haylingua is designed to be safe, fast, and respectful.
-          </p>
-          <div className="mt-8 grid md:grid-cols-3 gap-5">
-            {[
-              {
-                t: "Email verification",
-                icon: Mail,
-                d: "We verify accounts to keep the platform clean and your progress secure.",
-              },
-              {
-                t: "Secure data",
-                icon: ShieldCheck,
-                d: "Your learning data stays yours. We don’t sell it to third parties.",
-              },
-              {
-                t: "Clear progression",
-                icon: Sparkles,
-                d: "XP-based structure means you always know what you’ve earned and what’s next.",
-              },
-            ].map((x) => (
-              <div key={x.t} className="bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="font-bold text-gray-900">{x.t}</div>
-                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-orange-200 to-amber-200 border border-orange-100 shadow-sm grid place-items-center">
-                    <x.icon className="h-5 w-5 text-orange-700" />
-                  </div>
-                </div>
-                <div className="mt-2 text-sm text-gray-700 leading-relaxed">{x.d}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 rounded-3xl border border-orange-100 bg-white/70 p-6 sm:p-8 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <div className="text-sm font-bold text-gray-900">One clear goal</div>
-                <div className="mt-1 text-gray-700">
-                  Get you from <span className="font-semibold">zero</span> to reading Armenian confidently — with the fastest path possible.
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode("signup");
-                    setError("");
-                    scrollToAuth();
-                  }}
-                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow"
-                >
-                  Create account
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode("login");
-                    setError("");
-                    scrollToAuth();
-                  }}
-                  className="px-4 py-2 rounded-2xl text-sm font-semibold text-gray-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white"
-                >
-                  Log in
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* features */}
-        <section className="mt-16 mx-auto max-w-6xl">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">What you get</h2>
-          <p className="mt-2 text-gray-700 max-w-3xl">
-            A clean learning path that starts from the alphabet and builds into real reading and writing — without overwhelming you.
-          </p>
-          <div className="mt-8 grid md:grid-cols-3 gap-5">
-            
-{[
-              { t: "Interactive exercises", icon: Target, d: "Listening, typing, and recognition tasks designed for fast retention." },
-              { t: "Gamified progress", icon: Flame, d: "Earn XP, keep streaks, and see your improvement clearly." },
-              { t: "Smart structure", icon: Route, d: "Lessons are ordered, consistent, and focused — no random jumps." },
-              { t: "Audio-first", icon: Headphones, d: "Train pronunciation and ear early, not after you already build bad habits." },
-              { t: "Fast onboarding", icon: Timer, d: "Sign up in seconds and start learning immediately." },
-              { t: "Blog & updates", icon: BookOpen, d: "Follow new features, study tips, and Armenian language notes." },
-            ].map((x) => (              
-<div key={x.t} className="group bg-white/70 border border-orange-100 rounded-3xl p-6 shadow-sm hover:bg-white transition">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="font-bold text-gray-900">{x.t}</div>
-                  <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center lp-float-slow">
-                    <x.icon className="w-5 h-5 text-orange-600" />
-                  </div>
-                </div>
-                <div className="mt-2 text-sm text-gray-700 leading-relaxed">{x.d}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        
-{/* about */}
-<section className="mt-16 mx-auto max-w-6xl">
-  <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">About Haylingua</h2>
-  <p className="mt-2 text-gray-700 max-w-3xl">
-    Haylingua is a premium Armenian language learning app built for beginners who want measurable progress — fast, structured, and enjoyable.
-  </p>
-
-  <div className="mt-6 grid lg:grid-cols-2 gap-6">
-    <div className="bg-white/70 border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
-      <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-orange-200/50 blur-2xl" />
-      <div className="relative">
-        <div className="text-sm font-bold text-gray-900">Learn Armenian the right way</div>
-        <div className="mt-2 text-sm sm:text-base text-gray-800 leading-relaxed">
-          Armenian has a unique alphabet and sound system. Haylingua starts with the fundamentals — letter recognition, sound mapping, and
-          pronunciation habits — then builds into real words, spelling, and sentence understanding through short, repeatable exercises.
-        </div>
-
-        <div className="mt-5 grid sm:grid-cols-2 gap-3">
-          {[
-            { t: "Beginner-first path", d: "No random jumps. You always know what comes next.", icon: Route },
-            { t: "High-accuracy practice", d: "Instant correction + smart repetition to raise scores.", icon: CheckCircle2 },
-            { t: "Daily momentum", d: "XP + streaks that make consistency feel effortless.", icon: Flame },
-            { t: "Audio & typing", d: "Train your ear and your hands from day one.", icon: Headphones },
-          ].map((x) => (
-            <div key={x.t} className="rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center">
-                  <x.icon className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <div className="text-sm font-extrabold text-gray-900">{x.t}</div>
-                  <div className="mt-1 text-xs text-gray-700 leading-relaxed">{x.d}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setMode("signup");
-              setError("");
-              scrollToAuth();
-            }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 cta-float shadow-sm"
-          >
-            Start learning <ArrowRight className="w-4 h-4" />
-          </button>
-          <a
-            href="https://blog.haylingua.am"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold text-gray-900 bg-white/80 border border-orange-100 shadow-sm hover:bg-white"
-          >
-            Read the blog <BookOpen className="w-4 h-4" />
-          </a>
-        </div>
-      </div>
+      <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Everything you need to stick with Armenian.</h2>
+      <p className="mt-3 text-slate-700 max-w-2xl mx-auto leading-relaxed">
+        Gamified progress, clean UX, and exercises that feel rewarding — not overwhelming.
+      </p>
     </div>
 
-    <div className="bg-white/70 border border-orange-100 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
-      <div className="absolute -bottom-12 -right-12 h-44 w-44 rounded-full bg-orange-200/60 blur-2xl" />
-      <div className="relative">
-        <div className="text-sm font-bold text-gray-900">Designed like a product you trust</div>
-        <div className="mt-2 text-sm sm:text-base text-gray-800 leading-relaxed">
-          Fast pages, clean typography, and motion that feels intentional. We keep it modern and “web3”‑clean — but always readable,
-          predictable, and safe.
-        </div>
-
-        <div className="mt-5 grid sm:grid-cols-2 gap-3">
-          {[
-            { t: "Secure data", d: "Your account and progress are protected.", icon: ShieldCheck },
-            { t: "Verified accounts", d: "Email verification keeps the platform clean.", icon: Mail },
-            { t: "Focused UX", d: "No clutter — just learning and progress.", icon: Target },
-            { t: "Built for streaks", d: "Short sessions that fit real life.", icon: Timer },
-          ].map((x) => (
-            <div key={x.t} className="rounded-3xl border border-orange-100 bg-white/70 p-4 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center">
-                  <x.icon className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <div className="text-sm font-extrabold text-gray-900">{x.t}</div>
-                  <div className="mt-1 text-xs text-gray-700 leading-relaxed">{x.d}</div>
-                </div>
-              </div>
+    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {[
+        { t: "XP that means something", d: "Earn XP per exercise and see clear totals per lesson.", icon: Sparkles },
+        { t: "Streaks & motivation", d: "Build consistency with streaks and achievements.", icon: Flame },
+        { t: "Audio-first practice", d: "Train your ear early with sound-based tasks.", icon: Headphones },
+        { t: "Typing & spelling", d: "Practice Armenian letters and real words.", icon: Keyboard },
+        { t: "Verified accounts", d: "Email verification improves safety and trust.", icon: ShieldCheck },
+        { t: "Progress analytics", d: "Review mistakes and retry weak spots.", icon: BarChart3 },
+      ].map((x) => (
+        <motion.div key={x.t} whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="rounded-3xl border border-orange-100 bg-white/80 p-6 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-white border border-orange-100 shadow-sm grid place-items-center">
+              <x.icon className="w-5 h-5 text-orange-600" />
             </div>
-          ))}
-        </div>
-
-        <div className="mt-6 rounded-3xl border border-orange-100 bg-white/70 p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div className="font-extrabold text-gray-900">SEO note</div>
-            <div className="h-10 w-10 rounded-2xl bg-white/70 border border-orange-100 shadow-sm grid place-items-center">
-              <GraduationCap className="w-5 h-5 text-orange-600" />
+            <div>
+              <div className="text-sm font-extrabold text-slate-900">{x.t}</div>
+              <div className="mt-2 text-sm text-slate-700 leading-relaxed">{x.d}</div>
             </div>
           </div>
-          <div className="mt-2 text-sm text-gray-700 leading-relaxed">
-            Looking for an <span className="font-semibold">Armenian alphabet learning app</span> or a <span className="font-semibold">beginner Armenian course</span>?
-            Haylingua is built to take you from letters to real reading — with progress you can see.
-          </div>
-        </div>
-      </div>
+        </motion.div>
+      ))}
     </div>
-  </div>
+  </motion.div>
 </section>
+
+{/* FAQ / trust */}
+<section ref={trustRef} className="mx-auto max-w-6xl mt-14 sm:mt-20 scroll-mt-24 pb-6">
+  <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={inViewOnce} transition={{ duration: 0.5, ease: "easeOut" }}>
+    <div className="text-center">
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-orange-100 text-xs font-extrabold text-slate-700">
+        <CheckCircle2 className="w-4 h-4 text-orange-600" /> FAQ
+      </div>
+      <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Common questions</h2>
+      <p className="mt-3 text-slate-700 max-w-2xl mx-auto leading-relaxed">
+        Focused product, simple answers.
+      </p>
+    </div>
+
+    <div className="mt-8 grid gap-3 max-w-3xl mx-auto">
+      {[
+        { q: "Is this only for Armenian?", a: "Yes. Haylingua is focused entirely on Armenian to keep the path coherent and high quality." },
+        { q: "Is it beginner friendly?", a: "Yes. Start from the alphabet and progress with short guided exercises." },
+        { q: "Do I need to know Armenian script already?", a: "No — the early lessons teach recognition and sound mapping from zero." },
+      ].map((f) => (
+        <details key={f.q} className="group rounded-2xl border border-orange-100 bg-white/80 p-5 shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+            <span className="text-sm sm:text-base font-extrabold text-slate-900">{f.q}</span>
+            <span className="text-slate-400 transition group-open:rotate-45">+</span>
+          </summary>
+          <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-700">{f.a}</p>
+        </details>
+      ))}
+    </div>
+
+    <div className="mt-8 flex justify-center">
+      <button
+        type="button"
+        onClick={() => {
+          setMode("signup");
+          setError("");
+          scrollToAuth();
+        }}
+        className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 shadow"
+      >
+        Create account <ArrowRight className="w-4 h-4" />
+      </button>
+    </div>
+  </motion.div>
+</section>
+
 
 {/* auth */}
 <section ref={authRef} className="mt-16 mx-auto max-w-6xl scroll-mt-24">
