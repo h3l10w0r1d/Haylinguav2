@@ -1,7 +1,62 @@
 // src/LandingPage.jsx - Marketing landing + inline auth + email verification
-import { useState, useEffect, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Lock, Mail, User, Sparkles, ArrowRight, LogIn, BookOpen, ShieldCheck, CheckCircle2, Headphones, Keyboard, Flame, Target, Timer, Layers3, GraduationCap, Route, BarChart3, Fingerprint, Wand2, Globe, Twitter, Instagram, Youtube } from "lucide-react";
+
+/**
+ * We intentionally avoid depending on framer-motion to keep Vercel builds stable.
+ * This tiny shim keeps the existing <motion.div>/<motion.h1> JSX working by
+ * rendering plain elements and stripping motion props.
+ */
+const MOTION_PROPS = new Set([
+  "initial",
+  "animate",
+  "exit",
+  "variants",
+  "transition",
+  "whileInView",
+  "viewport",
+  "whileHover",
+  "whileTap",
+  "layout",
+]);
+
+function mergeClassName(a, b) {
+  if (!a) return b || "";
+  if (!b) return a || "";
+  return `${a} ${b}`;
+}
+
+const motion = new Proxy(
+  {},
+  {
+    get: (_target, tag) =>
+      React.forwardRef(function MotionTag(props, ref) {
+        const { children, className, whileHover, whileTap, ...rest } = props;
+
+        for (const k of Object.keys(rest)) {
+          if (MOTION_PROPS.has(k)) delete rest[k];
+        }
+
+        // Best-effort hover/tap lift for cards/buttons
+        let extra = "";
+        if (whileHover && typeof whileHover === "object" && whileHover.y === -4) {
+          extra = mergeClassName(
+            extra,
+            "transition-transform duration-200 ease-out hover:-translate-y-1"
+          );
+        }
+        if (whileTap && typeof whileTap === "object" && typeof whileTap.scale === "number") {
+          extra = mergeClassName(extra, "active:scale-[0.99]");
+        }
+
+        return React.createElement(
+          tag,
+          { ...rest, ref, className: mergeClassName(className, extra) },
+          children
+        );
+      }),
+  }
+);
 
 const API_BASE = "https://haylinguav2.onrender.com";
 
