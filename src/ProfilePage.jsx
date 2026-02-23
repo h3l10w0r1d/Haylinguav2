@@ -168,11 +168,16 @@ export default function ProfilePage() {
   const [bgSaving, setBgSaving] = useState(false);
   const [message, setMessage] = useState("");
   const bgSaveTimer = useRef(null);
+  const avatarObjectUrlRef = useRef(null);
 
   // Track whether the user explicitly changed the banner.
   // We may show a random banner as a visual default, but we shouldn't persist it
   // unless the user chose to.
   const bannerTouchedRef = useRef(false);
+
+  // Track whether the user explicitly changed the avatar.
+  // Same idea as banner: don't accidentally overwrite avatar_url unless the user picked one.
+  const avatarTouchedRef = useRef(false);
 
   const publicProfileHref = useMemo(() => {
     const u = String(username || "").trim();
@@ -223,9 +228,15 @@ export default function ProfilePage() {
 
           const au = data.avatar_url || data.avatar || "";
           const resolvedAvatar = resolveUrl(au);
+          // If a previous local blob URL was set, revoke it to avoid leaks.
+          if (avatarObjectUrlRef.current) {
+            try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
+            avatarObjectUrlRef.current = null;
+          }
           setAvatarPreview(resolvedAvatar);
           setAvatarPresetUrl(resolvedAvatar);
           setAvatarFile(null);
+          avatarTouchedRef.current = Boolean(au);
 
           // Stats preview in header (safe fallbacks)
           setLevel(data.level || 1);
@@ -271,6 +282,16 @@ export default function ProfilePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Cleanup any object URLs on unmount.
+  useEffect(() => {
+    return () => {
+      if (avatarObjectUrlRef.current) {
+        try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
+        avatarObjectUrlRef.current = null;
+      }
+    };
+  }, []);
 
   // Auto-save: background + banner + public toggles (no submit button)
   useEffect(() => {
@@ -358,8 +379,14 @@ export default function ProfilePage() {
         // keep these so core-save doesn't overwrite autosaved settings unexpectedly
         friends_public: !!friendsPublic,
         is_hidden: !!isHidden,
-        banner_url: bannerUrl || null,
-        ...(avatarUrlToSave ? { avatar_url: avatarUrlToSave } : {}),
+        // Only persist banner if the user explicitly touched it.
+        ...(bannerTouchedRef.current
+          ? { banner_url: bannerUrl || null, banner: bannerUrl || null }
+          : {}),
+        // Only persist avatar if the user explicitly touched it.
+        ...(avatarTouchedRef.current && avatarUrlToSave
+          ? { avatar_url: avatarUrlToSave, avatar: avatarUrlToSave }
+          : {}),
         profile_theme: {
           background: themeBg || "#fff7ed",
           gradient: themeGradient || "",
@@ -375,9 +402,14 @@ export default function ProfilePage() {
       if (res.ok) {
         if (avatarUrlToSave) {
           // Update preview immediately using resolved URL (fixes broken preview after refresh).
+          if (avatarObjectUrlRef.current) {
+            try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
+            avatarObjectUrlRef.current = null;
+          }
           setAvatarPreview(resolveUrl(avatarUrlToSave));
           setAvatarPresetUrl(resolveUrl(avatarUrlToSave));
           setAvatarFile(null);
+          avatarTouchedRef.current = true;
         }
         setMessage("Saved.");
       } else {
@@ -406,7 +438,12 @@ export default function ProfilePage() {
       setShowAvatarPresets(false);
       setAvatarPresetUrl("");
       setAvatarFile(file);
+      avatarTouchedRef.current = true;
       const url = URL.createObjectURL(file);
+      if (avatarObjectUrlRef.current) {
+        try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
+      }
+      avatarObjectUrlRef.current = url;
       setAvatarPreview(url);
       setMessage("Avatar selected.");
     };
@@ -415,7 +452,12 @@ export default function ProfilePage() {
 
   async function handlePresetAvatarPick(url) {
     setShowAvatarPresets(false);
+    if (avatarObjectUrlRef.current) {
+      try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
+      avatarObjectUrlRef.current = null;
+    }
     setAvatarPreview(url);
+    avatarTouchedRef.current = true;
 
     // Prefer storing presets in a stable way: upload the chosen preset to BE and save returned /static/avatars/*.
     // This avoids Vite-hashed asset URLs changing across deployments.
@@ -436,6 +478,44 @@ export default function ProfilePage() {
       setMessage("Avatar selected.");
     }
   }
+
+  // Auto-persist avatar to backend when user picks a file/preset.
+  // This fixes the common issue where avatar looks changed but isn't saved after refresh.
+  useEffect(() => {
+    if (loading) return;
+    if (!token) return;
+    if (!avatarTouchedRef.current) return;
+    if (!avatarFile) return;
+
+    const t = setTimeout(async () => {
+      try {
+        const fd = new FormData();
+        fd.append("file", avatarFile);
+        const up = await apiFetch("/me/avatar", {
+          token,
+          method: "POST",
+          body: fd,
+        });
+        const upd = await safeJsonParse(up);
+        if (!up.ok) return;
+
+        const avatarUrlToSave = upd?.url || upd?.avatar_url || upd?.path || "";
+        if (!avatarUrlToSave) return;
+
+        if (avatarObjectUrlRef.current) {
+          try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
+          avatarObjectUrlRef.current = null;
+        }
+        setAvatarPreview(resolveUrl(avatarUrlToSave));
+        setAvatarPresetUrl(resolveUrl(avatarUrlToSave));
+        setAvatarFile(null);
+      } catch {
+        // Silent: avatar save shouldn't break the whole profile page.
+      }
+    }, 450);
+
+    return () => clearTimeout(t);
+  }, [loading, token, avatarFile]);
 
   // -------- Account security actions --------
   async function startEmailChange() {
