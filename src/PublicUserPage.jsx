@@ -281,7 +281,14 @@ export default function PublicUserPage({ token }) {
     profileTheme.header_background ||
     (isSafeGradient(profileTheme.gradient) ? profileTheme.gradient : null) ||
     "linear-gradient(135deg, rgba(255,122,0,.25), rgba(255,122,0,.05))";
-  const bannerUrl = resolveUrl(profile?.banner_url || profileTheme.banner_url);
+  // Banner URL may be returned either on the profile object, top-level (PublicUserOut.banner_url),
+  // or inside profile_theme depending on BE version.
+  const bannerUrl = resolveUrl(
+    profile?.banner_url ||
+      data?.banner_url ||
+      profileTheme.banner_url ||
+      data?.profile_theme?.banner_url
+  );
   const avatarUrl = resolveUrl(profile?.avatar_url || profile?.avatar || data?.avatar_url || data?.avatar);
 
   const totalXp = useMemo(() => {
