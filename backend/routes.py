@@ -3476,6 +3476,7 @@ class PublicUserOut(BaseModel):
     name: str
     bio: str | None = None
     avatar_url: str | None = None
+    banner_url: str | None = None
     profile_theme: dict = {}
     joined_at: datetime | None = None
     xp: int
@@ -3504,13 +3505,14 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
                 u.display_name,
                 u.bio,
                 u.avatar_url,
+                u.banner_url,
                 u.profile_theme,
                 u.joined_at,
                 COALESCE(SUM(lp.xp_earned), 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
               WHERE u.id = :uid
-              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme, u.joined_at
+              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.banner_url, u.profile_theme, u.joined_at
             ), ranked AS (
               SELECT
                 u2.id,
@@ -3695,6 +3697,7 @@ def get_public_user(
         name=name,
         bio=data.get("bio"),
         avatar_url=data.get("avatar_url"),
+        banner_url=data.get("banner_url"),
         profile_theme=data.get("profile_theme") or {},
         joined_at=data.get("joined_at"),
         xp=xp,
