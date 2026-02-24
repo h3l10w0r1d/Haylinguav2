@@ -87,6 +87,19 @@ except PermissionError:
 
 app.mount("/static/avatars", StaticFiles(directory=AVATAR_UPLOAD_DIR), name="avatars")
 
+# Serve uploaded banners from disk (custom banners).
+# Preset banners can be shipped by the frontend and stored as "/banners/...".
+BANNER_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "banners")
+try:
+    os.makedirs(BANNER_UPLOAD_DIR, exist_ok=True)
+except PermissionError:
+    # Fall back to a local directory so the app can still boot.
+    UPLOADS_DIR = "uploads"
+    BANNER_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "banners")
+    os.makedirs(BANNER_UPLOAD_DIR, exist_ok=True)
+
+app.mount("/static/banners", StaticFiles(directory=BANNER_UPLOAD_DIR), name="banners")
+
 ensure_schema()
 
 # Register all routers
