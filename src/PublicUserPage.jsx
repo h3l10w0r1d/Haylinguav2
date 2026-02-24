@@ -125,7 +125,11 @@ function resolveUrl(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   if (url.startsWith("data:")) return url;
-  return `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
+  // Backend-hosted media uses /static/* and must be absolute.
+  // Frontend preset assets may be stored as /banners/* and should stay relative.
+  if (url.startsWith("/static/")) return `${API_BASE}${url}`;
+  if (url.startsWith("/")) return url;
+  return url;
 }
 
 function fmtJoinDate(v) {
