@@ -11,7 +11,6 @@ import {
   LockKeyhole,
   Link2,
   Image as ImageIcon,
-  Shuffle,
   EyeOff,
 } from "lucide-react";
 
@@ -91,23 +90,15 @@ function resolveUrl(u) {
   if (/^https?:\/\//i.test(s)) return s;
   if (s.startsWith("data:")) return s;
   if (s.startsWith("blob:")) return s;
-  if (s.startsWith("/")) return `${API_BASE}${s}`;
+  // Backend-hosted media uses /static/* and must be absolute.
+  // Frontend preset assets may be stored as /banners/* and should stay relative.
+  if (s.startsWith("/static/")) return `${API_BASE}${s}`;
+  if (s.startsWith("/")) return s;
   return s;
 }
 
-// A small, safe default banner pool (open source / hotlink-friendly).
-// You can swap this to your own CDN later.
-const DEFAULT_BANNERS = [
-  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80",
-  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=80",
-  "https://images.unsplash.com/photo-1520975682031-a17461b66b47?auto=format&fit=crop&w=1600&q=80",
-  "https://images.unsplash.com/photo-1500534314209-a26db0f5c1f2?auto=format&fit=crop&w=1600&q=80",
-  "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1600&q=80",
-];
-
-function pickRandomBanner() {
-  return DEFAULT_BANNERS[Math.floor(Math.random() * DEFAULT_BANNERS.length)];
-}
+// Preset banners shipped with the frontend (public/banners/*)
+const PRESET_BANNERS = Array.from({ length: 8 }).map((_, i) => `/banners/banner-${i + 1}.svg`);
 
 export default function ProfilePage() {
   const token = useMemo(() => getToken(), []);
@@ -128,6 +119,8 @@ export default function ProfilePage() {
   const [themeBg, setThemeBg] = useState("#fff7ed");
   const [themeGradient, setThemeGradient] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
+  const [showBannerPicker, setShowBannerPicker] = useState(false);
+  const [bannerBusy, setBannerBusy] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(""); // local preview only
   const [avatarPresetUrl, setAvatarPresetUrl] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
@@ -222,8 +215,7 @@ export default function ProfilePage() {
           setThemeGradient(theme.gradient || "");
 
           const b = data.banner_url || theme.banner || "";
-          const picked = b || pickRandomBanner();
-          setBannerUrl(resolveUrl(picked));
+          setBannerUrl(b || "");
           bannerTouchedRef.current = Boolean(b);
 
           const au = data.avatar_url || data.avatar || "";
@@ -423,9 +415,54 @@ export default function ProfilePage() {
     }
   }
 
-  function handlePickBanner() {
+  function handleSelectPresetBanner(url) {
     bannerTouchedRef.current = true;
-    setBannerUrl(pickRandomBanner());
+    setBannerUrl(url);
+    setShowBannerPicker(false);
+    setMessage("Banner selected.");
+  }
+
+  async function handleUploadBanner() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/png,image/jpeg,image/webp";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        setBannerBusy(true);
+        setMessage("");
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await apiFetch("/me/banner", {
+          token,
+          method: "POST",
+          body: fd,
+        });
+        const data = await safeJsonParse(res);
+        if (!res.ok) {
+          setMessage(data?.detail || "Banner upload failed.");
+          return;
+        }
+        const url = data?.banner_url || "";
+        bannerTouchedRef.current = true;
+        setBannerUrl(url);
+        setShowBannerPicker(false);
+        setMessage("Banner uploaded.");
+      } catch {
+        setMessage("Banner upload failed.");
+      } finally {
+        setBannerBusy(false);
+      }
+    };
+    input.click();
+  }
+
+  function handleRemoveBanner() {
+    bannerTouchedRef.current = true;
+    setBannerUrl("");
+    setShowBannerPicker(false);
+    setMessage("Banner removed.");
   }
 
   function handleAvatarPick() {
@@ -683,18 +720,22 @@ export default function ProfilePage() {
       <div className="rounded-3xl overflow-hidden shadow-sm border border-orange-100 bg-white">
         <div
           className="relative h-40 md:h-52"
-          style={{
-            backgroundImage: `url(${bannerUrl})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
+          style={
+            bannerUrl
+              ? {
+                  backgroundImage: `url(${resolveUrl(bannerUrl)})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : { background: headerBackground }
+          }
         >
-          <div
-            className="absolute inset-0 opacity-70"
-            style={{
-              background: headerBackground,
-            }}
-          />
+          {bannerUrl ? (
+            <div
+              className="absolute inset-0 opacity-70"
+              style={{ background: headerBackground }}
+            />
+          ) : null}
           <div className="absolute inset-0 p-4 md:p-6 flex items-end justify-between gap-3">
             <div className="flex items-end gap-4">
               <div className="relative">
@@ -768,11 +809,11 @@ export default function ProfilePage() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={handlePickBanner}
+                  onClick={() => setShowBannerPicker(true)}
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
                 >
-                  <Shuffle className="w-4 h-4 text-orange-700" />
-                  Random banner
+                  <ImageIcon className="w-4 h-4 text-orange-700" />
+                  Banner
                 </button>
                 <button
                   type="button"
@@ -791,6 +832,87 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Banner picker modal */}
+      {showBannerPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => (bannerBusy ? null : setShowBannerPicker(false))}
+          />
+          <div className="relative w-full max-w-3xl rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+            <div className="p-5 md:p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Choose a banner</div>
+                <div className="text-xs text-slate-500 mt-0.5">Pick a preset or upload your own.</div>
+              </div>
+              <button
+                type="button"
+                disabled={bannerBusy}
+                onClick={() => setShowBannerPicker(false)}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-5 md:p-6 space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {PRESET_BANNERS.map((url) => {
+                  const active = String(bannerUrl || "") === url;
+                  return (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => handleSelectPresetBanner(url)}
+                      className={
+                        "group relative h-20 rounded-2xl overflow-hidden border transition " +
+                        (active
+                          ? "border-orange-400 ring-2 ring-orange-200"
+                          : "border-slate-200 hover:border-orange-200")
+                      }
+                      title="Select banner"
+                    >
+                      <div
+                        className="absolute inset-0 bg-center bg-cover"
+                        style={{ backgroundImage: `url(${url})` }}
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={bannerBusy}
+                    onClick={handleUploadBanner}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 disabled:opacity-60"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    {bannerBusy ? "Uploading…" : "Upload banner"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={bannerBusy}
+                    onClick={handleRemoveBanner}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div className="text-xs text-slate-500">
+                  Tip: presets are fast; uploads let you personalize fully.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Profile details (no display name, no avatar url) */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
