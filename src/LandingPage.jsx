@@ -778,7 +778,7 @@ html{scroll-behavior:smooth;}
         { t: "Streaks & motivation", d: "Build consistency with streaks and achievements.", icon: Flame },
         { t: "Audio-first practice", d: "Train your ear early with sound-based tasks.", icon: Headphones },
         { t: "Typing & spelling", d: "Practice Armenian letters and real words.", icon: Keyboard },
-        { t: "Verified accounts", d: "Email verification improves safety and trust.", icon: ShieldCheck },
+        { t: "Secure accounts", d: "We mind your security and privacy concerns and provide full functionality to control it.", icon: ShieldCheck },
         { t: "Progress analytics", d: "Review mistakes and retry weak spots.", icon: BarChart3 },
       ].map((x) => (
         <motion.div key={x.t} whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="rounded-3xl border border-orange-100 bg-white/80 p-6 shadow-sm">
