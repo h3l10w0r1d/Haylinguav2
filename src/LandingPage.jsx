@@ -919,7 +919,7 @@ html{scroll-behavior:smooth;}
                     className="w-full outline-none text-sm"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Armen"
+                    placeholder="e.g. Armen"
                     autoComplete="name"
                   />
                 </div>
@@ -932,7 +932,7 @@ html{scroll-behavior:smooth;}
                     className="w-full outline-none text-sm"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="armen"
+                    placeholder="e.g. Niko33"
                     autoComplete="username"
                   />
                 </div>
