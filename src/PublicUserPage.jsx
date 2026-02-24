@@ -125,6 +125,10 @@ function resolveUrl(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   if (url.startsWith("data:")) return url;
+  // Some BE versions return paths without a leading slash (e.g. "static/banners/..."),
+  // which would otherwise resolve against the FE domain and break in production.
+  if (url.startsWith("static/")) return `${API_BASE}/${url}`;
+  if (url.startsWith("banners/")) return `/${url}`;
   // Backend-hosted media uses /static/* and must be absolute.
   // Frontend preset assets may be stored as /banners/* and should stay relative.
   if (url.startsWith("/static/")) return `${API_BASE}${url}`;
