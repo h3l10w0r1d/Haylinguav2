@@ -931,7 +931,7 @@ export default function ProfilePage() {
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="e.g. Armen"
+                placeholder="Armen"
                 autoComplete="given-name"
               />
             </div>
@@ -943,7 +943,7 @@ export default function ProfilePage() {
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                placeholder="e.g. Ghazaryan"
+                placeholder="Ghazaryan"
                 autoComplete="family-name"
               />
             </div>
@@ -1367,33 +1367,53 @@ export default function ProfilePage() {
       )}
 
       {/* Background (no submit button; autosaves) */}
-      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="text-base md:text-lg font-semibold text-gray-900">Appearance</h2>
-          <div className="text-xs text-gray-500 flex items-center gap-2">
-            <Palette className="w-4 h-4" />
-            {bgSaving ? "Saving…" : "Auto-saved"}
-          </div>
-        </div>
+<section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+  <div className="flex items-center justify-between gap-3 mb-4">
+    <h2 className="text-base md:text-lg font-semibold text-gray-900">Appearance</h2>
+    <div className="text-xs text-gray-500 flex items-center gap-2">
+      <Palette className="w-4 h-4" />
+      {bgSaving ? "Saving…" : "Auto-saved"}
+    </div>
+  </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Background color</label>
-            <input
-              type="color"
-              className="w-14 h-10 rounded-xl border border-gray-200 p-1 bg-white"
-              value={themeBg}
-              onChange={(e) => setThemeBg(e.target.value)}
-            />
-            <p className="mt-1 text-[11px] text-gray-400">Used if gradient is empty/invalid.</p>
-          </div>
-        <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 text-xs font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">
-            Preview
-          </div>
-          <div className="h-20" style={{ background: headerBackground }} />
-        </div>
-      </section>
+  <div className="grid md:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1.5">
+        Background color
+      </label>
+      <input
+        type="color"
+        className="w-14 h-10 rounded-xl border border-gray-200 p-1 bg-white"
+        value={themeBg}
+        onChange={(e) => setThemeBg(e.target.value)}
+      />
+      <p className="mt-1 text-[11px] text-gray-400">Used if gradient is empty/invalid.</p>
+    </div>
+
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1.5">
+        Gradient (optional)
+      </label>
+      <input
+        type="text"
+        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        value={themeGradient}
+        onChange={(e) => setThemeGradient(e.target.value)}
+        placeholder="linear-gradient(135deg, #ffedd5, #fdba74)"
+      />
+      <p className="mt-1 text-[11px] text-gray-400">
+        Example: <span className="font-mono">linear-gradient(...)</span>
+      </p>
+    </div>
+  </div>
+
+  <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
+    <div className="px-4 py-3 text-xs font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">
+      Preview
+    </div>
+    <div className="h-20" style={{ background: headerBackground }} />
+  </div>
+</section>
 
       {/* Account security placeholders */}
       <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
