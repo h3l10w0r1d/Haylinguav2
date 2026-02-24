@@ -1383,20 +1383,6 @@ export default function ProfilePage() {
             />
             <p className="mt-1 text-[11px] text-gray-400">Used if gradient is empty/invalid.</p>
           </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Background gradient (CSS)</label>
-            <input
-              type="text"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              value={themeGradient}
-              onChange={(e) => setThemeGradient(e.target.value)}
-              placeholder="linear-gradient(...)"
-            />
-            <p className="mt-1 text-[11px] text-gray-400">
-              Only accepts linear/radial/conic-gradient. Otherwise we fall back to the color.
-            </p>
-          </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
