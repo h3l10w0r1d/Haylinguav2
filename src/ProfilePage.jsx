@@ -1391,9 +1391,6 @@ export default function ProfilePage() {
     </div>
 
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1.5">
-        Gradient (optional)
-      </label>
     </div>
   </div>
 
