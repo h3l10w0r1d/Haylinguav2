@@ -90,6 +90,10 @@ function resolveUrl(u) {
   if (/^https?:\/\//i.test(s)) return s;
   if (s.startsWith("data:")) return s;
   if (s.startsWith("blob:")) return s;
+  // Some BE versions return paths without a leading slash (e.g. "static/banners/..."),
+  // which would otherwise resolve against the FE domain and break in production.
+  if (s.startsWith("static/")) return `${API_BASE}/${s}`;
+  if (s.startsWith("banners/")) return `/${s}`;
   // Backend-hosted media uses /static/* and must be absolute.
   // Frontend preset assets may be stored as /banners/* and should stay relative.
   if (s.startsWith("/static/")) return `${API_BASE}${s}`;
@@ -1382,6 +1386,20 @@ export default function ProfilePage() {
               onChange={(e) => setThemeBg(e.target.value)}
             />
             <p className="mt-1 text-[11px] text-gray-400">Used if gradient is empty/invalid.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Background gradient (CSS)</label>
+            <input
+              type="text"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              value={themeGradient}
+              onChange={(e) => setThemeGradient(e.target.value)}
+              placeholder="linear-gradient(...)"
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              Only accepts linear/radial/conic-gradient. Otherwise we fall back to the color.
+            </p>
           </div>
         </div>
 
