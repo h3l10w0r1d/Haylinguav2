@@ -28,6 +28,81 @@ function resolveProfileBackground({ themeBg, themeGradient }) {
   return bg;
 }
 
+function parseHexColor(input) {
+  const s = String(input || "").trim();
+  const hex = s.startsWith("#") ? s.slice(1) : s;
+  if (![3, 6, 8].includes(hex.length)) return null;
+  const expand = (h) => (h.length === 1 ? `${h}${h}` : h);
+  const r = expand(hex.slice(0, hex.length === 3 ? 1 : 2));
+  const g = expand(hex.slice(hex.length === 3 ? 1 : 2, hex.length === 3 ? 2 : 4));
+  const b = expand(hex.slice(hex.length === 3 ? 2 : 3, hex.length === 3 ? 3 : 6));
+  const rr = parseInt(r, 16);
+  const gg = parseInt(g, 16);
+  const bb = parseInt(b, 16);
+  if ([rr, gg, bb].some((v) => Number.isNaN(v))) return null;
+  return { r: rr, g: gg, b: bb };
+}
+
+function parseRgbColor(input) {
+  const s = String(input || "").trim().toLowerCase();
+  const m = s.match(/^rgba?\(([^)]+)\)$/);
+  if (!m) return null;
+  const parts = m[1]
+    .split(",")
+    .map((x) => x.trim())
+    .slice(0, 3)
+    .map((x) => Number(x));
+  if (parts.length !== 3 || parts.some((v) => !Number.isFinite(v))) return null;
+  return { r: parts[0], g: parts[1], b: parts[2] };
+}
+
+function relativeLuminance({ r, g, b }) {
+  const srgb = [r, g, b].map((v) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+}
+
+function pickThemeVars(pageBg, isGradient) {
+  // If it's a gradient, we can't reliably compute luminance; assume light and
+  // let the overlay + cards guarantee readability.
+  if (isGradient) {
+    return {
+      "--hl-card-bg": "rgba(255,255,255,0.78)",
+      "--hl-card-border": "rgba(15,23,42,0.10)",
+      "--hl-text": "#0f172a",
+      "--hl-muted": "rgba(15,23,42,0.65)",
+      "--hl-soft": "rgba(15,23,42,0.08)",
+      "--hl-hero-overlay": "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(255,255,255,0.85) 55%, rgba(255,255,255,1) 100%)",
+    };
+  }
+
+  const rgb = parseHexColor(pageBg) || parseRgbColor(pageBg);
+  const lum = rgb ? relativeLuminance(rgb) : 0.9;
+  const isDark = lum < 0.42;
+
+  if (isDark) {
+    return {
+      "--hl-card-bg": "rgba(15,23,42,0.62)",
+      "--hl-card-border": "rgba(248,250,252,0.14)",
+      "--hl-text": "#f8fafc",
+      "--hl-muted": "rgba(248,250,252,0.72)",
+      "--hl-soft": "rgba(248,250,252,0.14)",
+      "--hl-hero-overlay": "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(2,6,23,0.65) 55%, rgba(2,6,23,0.88) 100%)",
+    };
+  }
+
+  return {
+    "--hl-card-bg": "rgba(255,255,255,0.78)",
+    "--hl-card-border": "rgba(15,23,42,0.10)",
+    "--hl-text": "#0f172a",
+    "--hl-muted": "rgba(15,23,42,0.65)",
+    "--hl-soft": "rgba(15,23,42,0.08)",
+    "--hl-hero-overlay": "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(255,255,255,0.85) 55%, rgba(255,255,255,1) 100%)",
+  };
+}
+
 async function fetchJsonOrThrow(url, init) {
   const res = await fetch(url, init);
   const ct = res.headers.get("content-type") || "";
@@ -74,10 +149,58 @@ function normalizeFriendshipStatus(raw) {
 
 function StatCard({ label, value }) {
   return (
-    <div className="rounded-2xl border border-orange-100 bg-white/70 backdrop-blur px-5 py-4 shadow-sm">
-      <div className="text-xs tracking-wide text-gray-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-gray-900">{value}</div>
+    <div
+      className="rounded-3xl border px-5 py-4 shadow-sm backdrop-blur"
+      style={{ background: "var(--hl-card-bg)", borderColor: "var(--hl-card-border)" }}
+    >
+      <div className="text-xs tracking-wide" style={{ color: "var(--hl-muted)" }}>
+        {label}
+      </div>
+      <div className="mt-1 text-2xl font-semibold" style={{ color: "var(--hl-text)" }}>
+        {value}
+      </div>
     </div>
+  );
+}
+
+function Card({ className = "", children }) {
+  return (
+    <div
+      className={`rounded-3xl border shadow-sm backdrop-blur ${className}`}
+      style={{ background: "var(--hl-card-bg)", borderColor: "var(--hl-card-border)" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Button({ variant = "primary", disabled, onClick, children }) {
+  const base =
+    "inline-flex items-center justify-center rounded-2xl px-4 py-2 text-sm font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed";
+  if (variant === "neutral") {
+    return (
+      <button
+        disabled={disabled}
+        onClick={onClick}
+        className={base}
+        style={{
+          color: "var(--hl-text)",
+          background: "rgba(255,255,255,0.18)",
+          border: `1px solid var(--hl-soft)`,
+        }}
+      >
+        {children}
+      </button>
+    );
+  }
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className={`${base} bg-orange-500 hover:bg-orange-600 text-white shadow-sm`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -144,6 +267,8 @@ export default function PublicUserPage({ token }) {
     themeBg: profileTheme.background || profile?.bg_color || "#fff7ed",
     themeGradient: profileTheme.gradient || "",
   });
+  const isGradientBg = isSafeGradient(pageBg);
+  const themeVars = useMemo(() => pickThemeVars(pageBg, isGradientBg), [pageBg, isGradientBg]);
   const headerBg =
     profileTheme.header_background ||
     (isSafeGradient(profileTheme.gradient) ? profileTheme.gradient : null) ||
@@ -271,207 +396,211 @@ export default function PublicUserPage({ token }) {
 
     if (friendStatus === "incoming_pending") {
       return (
-        <button
-          disabled={actionBusy}
-          onClick={() => friendAction("accept")}
-          className="px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60"
-        >
-          Confirm request
-        </button>
+        <Button disabled={actionBusy} onClick={() => friendAction("accept")}>Confirm request</Button>
       );
     }
 
     if (friendStatus === "outgoing_pending") {
       return (
-        <button
-          disabled
-          className="px-5 py-2 rounded-full bg-white/10 text-white/70 text-sm font-semibold cursor-not-allowed"
-        >
-          Request sent
-        </button>
+        <Button variant="neutral" disabled>Request sent</Button>
       );
     }
 
     if (friendStatus === "friends") {
       return (
-        <button
-          disabled={actionBusy}
-          onClick={() => friendAction("remove")}
-          className="px-5 py-2 rounded-full bg-white/10 hover:bg-white/15 text-white text-sm font-semibold disabled:opacity-60"
-        >
-          Friends ✓
-        </button>
+        <Button variant="neutral" disabled={actionBusy} onClick={() => friendAction("remove")}>Friends ✓</Button>
       );
     }
 
     return (
-      <button
-        disabled={actionBusy}
-        onClick={() => friendAction("request")}
-        className="px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60"
-      >
-        Add friend
-      </button>
+      <Button disabled={actionBusy} onClick={() => friendAction("request")}>Add friend</Button>
     );
   }, [canFriendActions, friendStatus, actionBusy, data, token, username]);
 
   const friendsCountDisplay = (!isPrivateView && canSeeFriendsSection) ? friendsCount : "—";
 
   return (
-    <div className="bg-[#fff7ed]" style={{ background: pageBg }}>
+    <div style={{ background: pageBg, ...themeVars }}>
       <div className="min-h-[calc(100vh-64px)]" style={{ background: pageBg }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* inside-page location indicator (header remains global) */}
-        <div className="mb-4">
-          <div className="text-xs text-gray-500">You are here</div>
-          <div className="text-2xl font-semibold text-gray-900">Profile</div>
-        </div>
 
         {loading ? (
-          <div className="text-gray-600">Loading…</div>
+          <div style={{ color: "var(--hl-muted)" }}>Loading…</div>
         ) : err ? (
           <div className="text-red-600">{err}</div>
         ) : !data ? (
-          <div className="text-gray-600">User not found.</div>
+          <div style={{ color: "var(--hl-muted)" }}>User not found.</div>
         ) : (
           <>
-            {/* HERO / BANNER */}
-            <div
-              className="rounded-3xl overflow-hidden border border-orange-100 bg-white shadow-sm"
-              style={{ background: headerBg }}
-            >
+            {/* HERO */}
+            <div className="relative rounded-3xl overflow-hidden" style={{ background: headerBg }}>
               {bannerUrl ? (
-                <div
-                  className="h-36 sm:h-44 md:h-52 bg-center bg-cover"
-                  style={{ backgroundImage: `url(${bannerUrl})` }}
-                />
+                <div className="h-44 sm:h-56 md:h-64 bg-center bg-cover" style={{ backgroundImage: `url(${bannerUrl})` }} />
               ) : (
-                <div className="h-20 sm:h-28" />
+                <div className="h-32 sm:h-40 md:h-48" />
               )}
 
-              <div className="px-6 sm:px-8 pb-8 relative">
-                <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg, rgba(255,247,237,0) 0%, rgba(255,247,237,.85) 55%, rgba(255,247,237,1) 100%)" }} />
-                <div className="-mt-10 sm:-mt-12 flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/80 backdrop-blur border border-orange-100 overflow-hidden flex items-center justify-center shadow-sm">
+              <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--hl-hero-overlay)" }} />
+
+              <div className="relative px-5 sm:px-7 pb-8 pt-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="flex items-end gap-4">
+                    <div
+                      className="-mt-16 sm:-mt-20 w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden shadow-sm"
+                      style={{ background: "rgba(255,255,255,0.20)", border: `2px solid var(--hl-soft)` }}
+                    >
                       {avatarUrl ? (
                         <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="text-gray-500 text-sm">No avatar</div>
+                        <div className="w-full h-full grid place-items-center text-sm" style={{ color: "var(--hl-muted)" }}>
+                          No avatar
+                        </div>
                       )}
                     </div>
 
-                    <div>
-                      <div className="text-2xl sm:text-3xl font-semibold text-gray-900 relative">{data.name || data.full_name || data.username}</div>
-                      <div className="text-gray-600 relative">@{data.username}</div>
-                      {joinDate ? <div className="text-gray-500 text-sm mt-1 relative">Joined {joinDate}</div> : null}
+                    <div className="pb-1">
+                      <div className="text-3xl sm:text-4xl font-semibold" style={{ color: "var(--hl-text)" }}>
+                        {data.name || data.full_name || data.username}
+                      </div>
+                      <div className="text-sm" style={{ color: "var(--hl-muted)" }}>
+                        @{data.username}
+                        {joinDate ? <span className="ml-2">• Joined {joinDate}</span> : null}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    {heroCta}
-                  </div>
+                  <div className="flex items-center gap-2">{heroCta}</div>
                 </div>
 
                 {bio ? (
-                  <div className="mt-4 text-gray-700 max-w-3xl relative">{bio}</div>
-                ) : null}
-
-                <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 relative">
-                  {/* If profile is hidden, don't leak stats */}
-                  {isPrivateView ? (
-                    <div className="col-span-2 md:col-span-4 rounded-2xl border border-orange-100 bg-white/70 backdrop-blur px-5 py-4 shadow-sm">
-                      <div className="text-sm font-semibold text-gray-900">This profile is private</div>
-                      <div className="mt-1 text-sm text-gray-600">
-                        You can still send a friend request to view more.
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <StatCard label="Total XP" value={totalXp} />
-                      <StatCard label="Level" value={level} />
-                      <StatCard label="Streak" value={streak} />
-                      <StatCard label="Friends" value={friendsCountDisplay} />
-                    </>
-                  )}
-                </div>
-
-                {!isPrivateView ? (
-                  <div className="mt-4 text-gray-600 text-sm relative">
-                    Lessons completed: <span className="text-gray-900">{lessonsCompleted}</span>
+                  <div className="mt-4 max-w-3xl text-sm sm:text-base" style={{ color: "var(--hl-text)" }}>
+                    {bio}
                   </div>
                 ) : null}
               </div>
             </div>
 
-            {/* TOP FRIENDS */}
-            {!isPrivateView && canSeeFriendsSection ? (
-            <div className="mt-8 rounded-3xl border border-orange-100 bg-white/70 backdrop-blur p-6 shadow-sm">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <div className="text-lg font-semibold text-gray-900">Top friends</div>
-                  <div className="text-gray-500 text-sm">Top 3 friends by XP</div>
-                </div>
-                <button
-                  onClick={() => navigate("/friends")}
-                  className="text-sm font-semibold text-orange-700 hover:text-orange-800"
-                >
-                  View all
-                </button>
+            <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                {isPrivateView ? (
+                  <Card className="p-6">
+                    <div className="text-base font-semibold" style={{ color: "var(--hl-text)" }}>
+                      This profile is private
+                    </div>
+                    <div className="mt-2 text-sm" style={{ color: "var(--hl-muted)" }}>
+                      Send a friend request to view learning stats and activity.
+                    </div>
+                  </Card>
+                ) : (
+                  <Card className="p-6">
+                    <div>
+                      <div className="text-lg font-semibold" style={{ color: "var(--hl-text)" }}>
+                        Recent learning activity
+                      </div>
+                      <div className="text-sm" style={{ color: "var(--hl-muted)" }}>
+                        Exercises completed in the last 7 days
+                      </div>
+                    </div>
+
+                    {!activity?.days ? (
+                      <div className="mt-4 text-sm" style={{ color: "var(--hl-muted)" }}>
+                        No activity data yet.
+                      </div>
+                    ) : (
+                      <ActivityBars days={activity.days} />
+                    )}
+                  </Card>
+                )}
               </div>
 
-              {topFriends.length === 0 ? (
-                <div className="mt-4 text-white/60">No friends yet.</div>
-              ) : (
-                <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {topFriends.slice(0, 3).map((f) => {
-                    const fAvatar = resolveUrl(f.avatar_url || f.avatar);
-                    const fXp = f.total_xp ?? f.xp ?? 0;
-                    return (
-                      <button
-                        key={f.username}
-                        onClick={() => navigate(`/u/${encodeURIComponent(f.username)}`)}
-                        className="text-left rounded-2xl border border-orange-100 bg-white hover:bg-orange-50 transition-colors p-4"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-white border border-orange-100 overflow-hidden flex items-center justify-center">
-                            {fAvatar ? (
-                              <img src={fAvatar} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="text-gray-400 text-xs">—</div>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-gray-900 font-semibold truncate">{f.name || f.username}</div>
-                            <div className="text-gray-500 text-sm truncate">@{f.username}</div>
-                          </div>
+              <div className="space-y-6">
+                <Card className="p-6">
+                  <div className="text-lg font-semibold" style={{ color: "var(--hl-text)" }}>
+                    Stats
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <StatCard label="Total XP" value={isPrivateView ? "—" : totalXp} />
+                    <StatCard label="Level" value={isPrivateView ? "—" : level} />
+                    <StatCard label="Streak" value={isPrivateView ? "—" : streak} />
+                    <StatCard label="Friends" value={friendsCountDisplay} />
+                  </div>
+                  {!isPrivateView ? (
+                    <div className="mt-4 text-sm" style={{ color: "var(--hl-muted)" }}>
+                      Lessons completed: <span style={{ color: "var(--hl-text)" }}>{lessonsCompleted}</span>
+                    </div>
+                  ) : null}
+                </Card>
+
+                {!isPrivateView && canSeeFriendsSection ? (
+                  <Card className="p-6">
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <div className="text-lg font-semibold" style={{ color: "var(--hl-text)" }}>
+                          Friends
                         </div>
-                        <div className="mt-3 text-gray-600 text-sm">XP: <span className="text-gray-900">{fXp}</span></div>
+                        <div className="text-sm" style={{ color: "var(--hl-muted)" }}>
+                          A quick peek at top friends
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigate("/friends")}
+                        className="text-sm font-semibold hover:opacity-90"
+                        style={{ color: "var(--hl-text)" }}
+                      >
+                        View all
                       </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            ) : null}
+                    </div>
 
-            {/* RECENT LEARNING ACTIVITY (same card as private profile) */}
-            {!isPrivateView ? (
-            <div className="mt-8 rounded-3xl border border-orange-100 bg-white/70 backdrop-blur p-6 shadow-sm">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <div className="text-lg font-semibold text-gray-900">Recent learning activity</div>
-                  <div className="text-gray-500 text-sm">Exercises completed in the last 7 days</div>
-                </div>
+                    {topFriends.length === 0 ? (
+                      <div className="mt-4 text-sm" style={{ color: "var(--hl-muted)" }}>
+                        No friends yet.
+                      </div>
+                    ) : (
+                      <div className="mt-4 space-y-3">
+                        {topFriends.slice(0, 3).map((f) => {
+                          const fAvatar = resolveUrl(f.avatar_url || f.avatar);
+                          const fXp = f.total_xp ?? f.xp ?? 0;
+                          return (
+                            <button
+                              key={f.username}
+                              onClick={() => navigate(`/u/${encodeURIComponent(f.username)}`)}
+                              className="w-full text-left rounded-2xl border p-3 transition hover:-translate-y-0.5"
+                              style={{ background: "rgba(255,255,255,0.08)", borderColor: "var(--hl-soft)" }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-10 h-10 rounded-xl overflow-hidden grid place-items-center"
+                                  style={{ background: "rgba(255,255,255,0.10)", border: `1px solid var(--hl-soft)` }}
+                                >
+                                  {fAvatar ? (
+                                    <img src={fAvatar} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="text-xs" style={{ color: "var(--hl-muted)" }}>
+                                      —
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-semibold truncate" style={{ color: "var(--hl-text)" }}>
+                                    {f.name || f.username}
+                                  </div>
+                                  <div className="text-sm truncate" style={{ color: "var(--hl-muted)" }}>
+                                    @{f.username}
+                                  </div>
+                                </div>
+                                <div className="text-sm" style={{ color: "var(--hl-muted)" }}>
+                                  {fXp} XP
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+                ) : null}
               </div>
-
-              {!activity?.days ? (
-                <div className="mt-4 text-gray-600">No activity data yet.</div>
-              ) : (
-                <ActivityBars days={activity.days} />
-              )}
             </div>
-            ) : null}
           </>
         )}
         </div>
@@ -501,7 +630,10 @@ function ActivityBars({ days }) {
           return (
             <div key={x.key} className="flex flex-col items-center gap-2 flex-1">
               <div className="w-full max-w-[46px]">
-                <div className="relative h-20 w-full rounded-2xl bg-orange-50 overflow-hidden border border-orange-100">
+                <div
+                  className="relative h-20 w-full rounded-2xl overflow-hidden border"
+                  style={{ background: "rgba(255,255,255,0.10)", borderColor: "var(--hl-soft)" }}
+                >
                   <div
                     className="absolute bottom-0 left-0 right-0 rounded-2xl"
                     style={{
@@ -513,7 +645,9 @@ function ActivityBars({ days }) {
                   />
                 </div>
               </div>
-              <div className="text-[11px] text-gray-500">{x.label}</div>
+              <div className="text-[11px]" style={{ color: "var(--hl-muted)" }}>
+                {x.label}
+              </div>
             </div>
           );
         })}
