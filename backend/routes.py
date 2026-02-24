@@ -2970,6 +2970,81 @@ def me_avatar_upload(
     return {"avatar_url": avatar_url}
 
 
+@router.post("/me/banner")
+def me_banner_upload(
+    file: UploadFile = File(...),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Upload a custom banner to disk and set users.banner_url.
+
+    Preset banners are shipped by the frontend (e.g. "/banners/banner-1.svg").
+    This endpoint is only for user-uploaded custom banners.
+    """
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
+
+    allowed = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+    ext = allowed.get((file.content_type or "").lower())
+    if not ext:
+        raise HTTPException(status_code=400, detail="Only PNG, JPG, or WEBP images are allowed")
+
+    def _pick_uploads_dir() -> str:
+        candidates = []
+        env = os.getenv("UPLOADS_DIR")
+        if env:
+            candidates.append(env)
+        candidates.append("/var/data/uploads")
+        candidates.append("uploads")
+        for p in candidates:
+            try:
+                os.makedirs(p, exist_ok=True)
+            except PermissionError:
+                continue
+            except OSError:
+                continue
+            if os.access(p, os.W_OK):
+                return p
+        return "uploads"
+
+    uploads_dir = _pick_uploads_dir()
+    banner_dir = os.path.join(uploads_dir, "banners")
+    try:
+        os.makedirs(banner_dir, exist_ok=True)
+    except PermissionError:
+        banner_dir = os.path.join("uploads", "banners")
+        os.makedirs(banner_dir, exist_ok=True)
+
+    filename = f"u{int(user_id)}_{uuid.uuid4().hex}{ext}"
+    path = os.path.join(banner_dir, filename)
+
+    try:
+        content = file.file.read()
+        if content is None or len(content) == 0:
+            raise HTTPException(status_code=400, detail="Empty file")
+        # banners can be larger than avatars
+        if len(content) > 8 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Banner too large (max 8MB)")
+        with open(path, "wb") as f:
+            f.write(content)
+    finally:
+        try:
+            file.file.close()
+        except Exception:
+            pass
+
+    banner_url = f"/static/banners/{filename}"
+    db.execute(
+        text("UPDATE users SET banner_url = :url WHERE id = :id"),
+        {"url": banner_url, "id": int(user_id)},
+    )
+
+    return {"banner_url": banner_url}
+
+
 @router.get("/me/onboarding", response_model=OnboardingOut)
 def me_onboarding_get(
     authorization: Optional[str] = Header(default=None),
