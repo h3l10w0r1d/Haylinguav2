@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+python-jose
+passlib[bcrypt]
+bcrypt<5.0.0
+sqlalchemy
+psycopg2-binary
+python-dotenv
+email-validator
+PyJWT
+httpx
+python-multipart
+qrcode[pil]==7.4.2
+pillow==11.1.0
+pyotp==2.9.0

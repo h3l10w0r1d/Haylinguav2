@@ -1,0 +1,415 @@
+/* ------------------------------
+   Global reset / base
+-------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+/* Links in landing text */
+a {
+  color: #ea580c;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ------------------------------
+   LANDING PAGE
+-------------------------------- */
+
+.landing-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #fff7ec 0%, #ffffff 55%, #f9fafb 100%);
+  color: #111827;
+}
+
+/* Hero */
+
+.hero {
+  padding: 4rem 1.5rem 3rem;
+  text-align: left;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.hero h1 {
+  font-size: clamp(2.4rem, 4vw, 3.1rem);
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  color: #111827;
+}
+
+.subtitle {
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: #4b5563;
+  max-width: 44rem;
+}
+
+/* CTA buttons */
+
+.cta-buttons {
+  margin-top: 1.75rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  color: white;
+  box-shadow: 0 12px 24px rgba(248, 113, 22, 0.35);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(248, 113, 22, 0.4);
+  text-decoration: none;
+}
+
+.btn-secondary {
+  background: #ffffff;
+  color: #111827;
+  border-color: #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background: #f3f4f6;
+  text-decoration: none;
+}
+
+/* Sections */
+
+section {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 0;
+}
+
+section h2 {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+  color: #111827;
+}
+
+section p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+/* Feature grid */
+
+.features {
+  margin-top: 0.5rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.feature-card {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.feature-card h3 {
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+  color: #111827;
+}
+
+.feature-card p {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+/* Journey list */
+
+.journey-list {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0.75rem;
+}
+
+.journey-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+  color: #4b5563;
+}
+
+.journey-step span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Testimonials */
+
+.testimonials {
+  margin-top: 0.75rem;
+}
+
+.testimonial {
+  font-size: 0.9rem;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 3px solid #fed7aa;
+}
+
+/* Footer */
+
+.landing-footer {
+  margin-top: 2.5rem;
+  padding: 1.25rem 1.5rem 2rem;
+  border-top: 1px solid #e5e7eb;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.landing-footer a {
+  font-weight: 600;
+}
+
+/* Responsive tweaks */
+
+@media (min-width: 768px) {
+  .hero {
+    padding-top: 4.5rem;
+  }
+
+  .cta-buttons {
+    margin-top: 2rem;
+  }
+}
+
+/* ------------------------------
+   DASHBOARD / ROADMAP
+-------------------------------- */
+
+.roadmap-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #ecfeff 0%, #ffffff 60%, #f9fafb 100%);
+  padding: 3rem 1.5rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.roadmap-hero {
+  max-width: 720px;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.roadmap-hero h1 {
+  font-size: clamp(2rem, 3vw, 2.5rem);
+  margin-bottom: 0.75rem;
+  color: #0f172a;
+}
+
+.roadmap-hero p {
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+/* Section */
+
+.roadmap-section {
+  width: 100%;
+  max-width: 720px;
+}
+
+.roadmap-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+/* Track */
+
+.roadmap-track {
+  position: relative;
+  padding: 1.5rem 0;
+}
+
+.roadmap-track::before {
+  content: "";
+  position: absolute;
+  left: 32px;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #22c55e, #a7f3d0);
+  opacity: 0.4;
+}
+
+/* Step */
+
+.roadmap-step {
+  position: relative;
+  display: flex;
+  gap: 1.25rem;
+  padding: 0.75rem 1.25rem 0.75rem 0.5rem;
+  margin-left: 1.75rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  align-items: center;
+}
+
+.roadmap-step + .roadmap-step {
+  margin-top: 1.4rem;
+}
+
+.roadmap-step--locked {
+  opacity: 0.45;
+  background: rgba(249, 250, 251, 0.9);
+}
+
+/* Badge */
+
+.roadmap-badge-wrapper {
+  margin-left: -0.25rem;
+  flex-shrink: 0;
+}
+
+.roadmap-badge {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 20%, #bbf7d0, #22c55e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 30px rgba(22, 163, 74, 0.45);
+}
+
+.roadmap-step--active .roadmap-badge {
+  animation: pulse-ring 1.8s infinite;
+}
+
+.roadmap-step--locked .roadmap-badge {
+  background: radial-gradient(circle at 30% 20%, #e5e7eb, #9ca3af);
+  box-shadow: none;
+}
+
+.roadmap-badge-label {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fefce8;
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #854d0e;
+  border: 1px solid #facc15;
+  box-shadow: 0 6px 14px rgba(161, 98, 7, 0.25);
+}
+
+.roadmap-badge-icon {
+  font-size: 1.5rem;
+}
+
+/* Info */
+
+.roadmap-info h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.roadmap-info p {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+/* States */
+
+.roadmap-error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.roadmap-loading {
+  font-size: 0.9rem;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+/* Animations */
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
