@@ -1237,6 +1237,7 @@ class LeaderboardEntryOut(BaseModel):
     streak: int
     level: int
     rank: int
+    avatar_url: str | None = None
 
 
 
@@ -3424,10 +3425,11 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 u.id AS user_id,
                 u.email AS email,
                 u.username AS username,
+                u.avatar_url AS avatar_url,
                 COALESCE(SUM(lp.xp_earned), 0) AS total_xp
             FROM users u
             LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-            GROUP BY u.id, u.email, u.username
+            GROUP BY u.id, u.email, u.username, u.avatar_url
             ORDER BY total_xp DESC, u.id ASC
             LIMIT :limit
             """
@@ -3461,6 +3463,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 streak=streak,
                 level=level,
                 rank=i,
+                avatar_url=r.get("avatar_url"),
             )
         )
 
@@ -3666,6 +3669,7 @@ class PublicUserOut(BaseModel):
     name: str
     bio: str | None = None
     avatar_url: str | None = None
+    banner_url: str | None = None
     profile_theme: dict = {}
     joined_at: datetime | None = None
     xp: int
@@ -3694,13 +3698,14 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
                 u.display_name,
                 u.bio,
                 u.avatar_url,
+                u.banner_url,
                 u.profile_theme,
                 u.joined_at,
                 COALESCE(SUM(lp.xp_earned), 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
               WHERE u.id = :uid
-              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.profile_theme, u.joined_at
+              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.banner_url, u.profile_theme, u.joined_at
             ), ranked AS (
               SELECT
                 u2.id,
@@ -3885,6 +3890,7 @@ def get_public_user(
         name=name,
         bio=data.get("bio"),
         avatar_url=data.get("avatar_url"),
+        banner_url=data.get("banner_url"),
         profile_theme=data.get("profile_theme") or {},
         joined_at=data.get("joined_at"),
         xp=xp,
