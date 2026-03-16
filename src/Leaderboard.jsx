@@ -14,8 +14,9 @@ function resolveUrl(u) {
   if (s.startsWith("data:")) return s;
   if (s.startsWith("blob:")) return s;
   if (s.startsWith("static/")) return `${API_BASE}/${s}`;
+  // FIX: /static/ paths must be absolute (backend-hosted)
   if (s.startsWith("/static/")) return `${API_BASE}${s}`;
-  if (s.startsWith("/")) return `${API_BASE}${s}`;
+  if (s.startsWith("/")) return s;
   return s;
 }
 
@@ -23,6 +24,7 @@ export default function Leaderboard({ user, onLogout }) {
   const navigate = useNavigate();
   const currentUserName = user?.name || user?.email?.split("@")[0] || "You";
 
+  // Keep the old UI data as a fallback so the page never looks broken
   const placeholderEntries = useMemo(
     () => [
       { id: 1, name: "Armen Petrosyan", xp: 4200, streak: 21, level: 10 },
@@ -58,6 +60,7 @@ export default function Leaderboard({ user, onLogout }) {
 
     async function loadLeaderboard() {
       setLoading(true);
+
       try {
         const res = await fetch(`${API_BASE}/leaderboard?limit=50`, {
           method: "GET",
@@ -67,10 +70,14 @@ export default function Leaderboard({ user, onLogout }) {
           },
         });
 
-        if (!res.ok) throw new Error(`Leaderboard API failed (${res.status})`);
+        if (!res.ok) {
+          // If backend not ready, keep placeholder UI
+          throw new Error(`Leaderboard API failed (${res.status})`);
+        }
 
         const data = await res.json();
 
+        // Expect: [{ user_id, email, name, xp, streak, level, rank }]
         const normalized = Array.isArray(data)
           ? data.map((r) => ({
               id: r.user_id ?? r.id,
@@ -87,10 +94,12 @@ export default function Leaderboard({ user, onLogout }) {
           : [];
 
         if (!cancelled && normalized.length > 0) {
+          // Ensure current user gets the "You" badge even if backend doesn't mark it
           const withYou = normalized.map((e) => ({
             ...e,
             isYou: e.isYou || e.name === currentUserName,
           }));
+
           setEntries(withYou);
         }
       } catch (err) {
@@ -102,16 +111,10 @@ export default function Leaderboard({ user, onLogout }) {
     }
 
     loadLeaderboard();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [token, user?.email, currentUserName, placeholderEntries]);
-
-  // Navigate to public profile — requires a username
-  function openProfile(entry) {
-    if (!entry || entry.is_hidden) return;
-    const u = String(entry.username || "").trim();
-    if (!u) return; // no username = can't navigate
-    navigate(`/u/${encodeURIComponent(u)}`);
-  }
 
   return (
     <HeaderLayout user={user} onLogout={onLogout}>
@@ -161,24 +164,39 @@ export default function Leaderboard({ user, onLogout }) {
           </h2>
 
           <div className="grid grid-cols-3 gap-3 md:gap-4 items-end">
+            {/* 2nd */}
             <PodiumCard
               place={2}
-              entry={entries?.[1]}
+              name={entries?.[1]?.name ?? "—"}
+              avatarUrl={entries?.[1]?.avatar_url}
+              isHidden={entries?.[1]?.is_hidden}
+              xp={entries?.[1]?.xp ?? 0}
+              streak={entries?.[1]?.streak ?? 0}
+              level={entries?.[1]?.level ?? 1}
               heightClass="h-28 md:h-32"
-              onClick={() => openProfile(entries?.[1])}
             />
+            {/* 1st */}
             <PodiumCard
               place={1}
-              entry={entries?.[0]}
+              name={entries?.[0]?.name ?? "—"}
+              avatarUrl={entries?.[0]?.avatar_url}
+              isHidden={entries?.[0]?.is_hidden}
+              xp={entries?.[0]?.xp ?? 0}
+              streak={entries?.[0]?.streak ?? 0}
+              level={entries?.[0]?.level ?? 1}
               heightClass="h-32 md:h-40"
               highlight
-              onClick={() => openProfile(entries?.[0])}
             />
+            {/* 3rd */}
             <PodiumCard
               place={3}
-              entry={entries?.[2]}
+              name={entries?.[2]?.name ?? "—"}
+              avatarUrl={entries?.[2]?.avatar_url}
+              isHidden={entries?.[2]?.is_hidden}
+              xp={entries?.[2]?.xp ?? 0}
+              streak={entries?.[2]?.streak ?? 0}
+              level={entries?.[2]?.level ?? 1}
               heightClass="h-24 md:h-28"
-              onClick={() => openProfile(entries?.[2])}
             />
           </div>
         </section>
@@ -195,17 +213,34 @@ export default function Leaderboard({ user, onLogout }) {
                 key={entry.id ?? index}
                 rank={index + 1}
                 entry={entry}
-                onOpen={() => openProfile(entry)}
+                onOpen={() => {
+                  // FIX: only navigate if username exists
+                  if (entry?.is_hidden) return;
+                  const u = String(entry?.username || "").trim();
+                  if (!u) return;
+                  navigate(`/u/${encodeURIComponent(u)}`);
+                }}
               />
             ))}
           </div>
+
         </section>
       </div>
     </HeaderLayout>
   );
 }
 
-function PodiumCard({ place, entry, heightClass, highlight = false, onClick }) {
+function PodiumCard({
+  place,
+  name,
+  avatarUrl,
+  isHidden,
+  xp,
+  streak,
+  level,
+  heightClass,
+  highlight = false,
+}) {
   const placeColors = {
     1: "from-yellow-400 via-orange-500 to-red-500",
     2: "from-gray-300 to-gray-400",
@@ -215,20 +250,11 @@ function PodiumCard({ place, entry, heightClass, highlight = false, onClick }) {
   const icon =
     place === 1 ? <Crown className="w-5 h-5" /> : <Medal className="w-5 h-5" />;
 
-  const name = entry?.name || "—";
-  const [firstName] = name.split(" ");
-  const isHidden = !!entry?.is_hidden;
-  const avatarSrc = !isHidden ? resolveUrl(entry?.avatar_url) : "";
-  const xp = entry?.xp ?? 0;
-  const level = entry?.level ?? 1;
-  const streak = entry?.streak ?? 0;
-  const canClick = !isHidden && !!entry?.username;
+  const [firstName] = (name || "User").split(" ");
+  const avatarSrc = !isHidden ? resolveUrl(avatarUrl) : "";
 
   return (
-    <div
-      className={`flex flex-col items-center gap-1 ${canClick ? "cursor-pointer" : ""}`}
-      onClick={canClick ? onClick : undefined}
-    >
+    <div className="flex flex-col items-center gap-1">
       <div
         className={`w-12 h-12 rounded-full bg-gradient-to-br ${
           placeColors[place]
@@ -237,12 +263,8 @@ function PodiumCard({ place, entry, heightClass, highlight = false, onClick }) {
         {isHidden ? (
           "?"
         ) : avatarSrc ? (
-          <img
-            src={avatarSrc}
-            alt="Avatar"
-            className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
-          />
+          <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = "none"; }} />
         ) : (
           firstName?.[0]?.toUpperCase() ?? "?"
         )}
@@ -256,7 +278,9 @@ function PodiumCard({ place, entry, heightClass, highlight = false, onClick }) {
         className={`mt-1 w-full rounded-xl bg-gray-100 flex flex-col items-center justify-end ${heightClass} relative overflow-hidden`}
       >
         <div
-          className={`absolute inset-x-0 bottom-0 bg-gradient-to-t ${placeColors[place]}`}
+          className={`absolute inset-x-0 bottom-0 bg-gradient-to-t ${
+            placeColors[place]
+          }`}
           style={{ height: "70%" }}
         />
         <div className="relative z-10 flex flex-col items-center pb-1">
@@ -284,16 +308,18 @@ function RowEntry({ rank, entry, onOpen }) {
     : "bg-gray-50 text-gray-600 border-gray-100";
 
   const isHidden = !!entry?.is_hidden;
-  const canClick = !isHidden && !!entry?.username;
   const avatarSrc = !isHidden ? resolveUrl(entry?.avatar_url) : "";
   const initial =
     entry.name?.[0]?.toUpperCase() ?? entry.email?.[0]?.toUpperCase() ?? "?";
 
+  // FIX: only clickable when username exists
+  const canClick = !isHidden && !!entry?.username;
+
   return (
     <div
       className={`flex items-center gap-3 py-3 ${
-        entry.isYou ? "bg-orange-50/60" : canClick ? "hover:bg-gray-50 cursor-pointer" : ""
-      } transition-colors`}
+        entry.isYou ? "bg-orange-50/60" : canClick ? "hover:bg-gray-50" : ""
+      } transition-colors ${canClick ? "cursor-pointer" : ""}`}
       onClick={canClick ? onOpen : undefined}
       role={canClick ? "button" : undefined}
       tabIndex={canClick ? 0 : undefined}
@@ -305,33 +331,28 @@ function RowEntry({ rank, entry, onOpen }) {
         #{rank}
       </div>
 
-      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-sm font-semibold overflow-hidden flex-shrink-0">
+      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
         {isHidden ? (
           "?"
         ) : avatarSrc ? (
-          <img
-            src={avatarSrc}
-            alt="Avatar"
-            className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
-          />
+          <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = "none"; }} />
         ) : (
           initial
         )}
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-900 truncate">
+          <span className="text-sm font-medium text-gray-900">
             {isHidden ? "Hidden" : entry.name}
           </span>
           {entry.isYou && (
-            <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeColors}`}>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeColors}`}
+            >
               You
             </span>
-          )}
-          {!isHidden && !entry.username && (
-            <span className="text-[10px] text-gray-400">(no profile)</span>
           )}
         </div>
 
@@ -340,20 +361,20 @@ function RowEntry({ rank, entry, onOpen }) {
             <span>This user is hidden.</span>
           </div>
         ) : (
-          <div className="flex items-center gap-4 text-[11px] text-gray-500 mt-0.5">
-            <span className="flex items-center gap-1">
-              <Trophy className="w-3 h-3 text-yellow-500" />
-              Lv {entry.level}
-            </span>
-            <span className="flex items-center gap-1">
-              <Star className="w-3 h-3 text-yellow-500" />
-              {entry.xp} XP
-            </span>
-            <span className="flex items-center gap-1">
-              <Flame className="w-3 h-3 text-orange-500" />
-              {entry.streak} day streak
-            </span>
-          </div>
+        <div className="flex items-center gap-4 text-[11px] text-gray-500 mt-0.5">
+          <span className="flex items-center gap-1">
+            <Trophy className="w-3 h-3 text-yellow-500" />
+            Lv {entry.level}
+          </span>
+          <span className="flex items-center gap-1">
+            <Star className="w-3 h-3 text-yellow-500" />
+            {entry.xp} XP
+          </span>
+          <span className="flex items-center gap-1">
+            <Flame className="w-3 h-3 text-orange-500" />
+            {entry.streak} day streak
+          </span>
+        </div>
         )}
       </div>
     </div>
