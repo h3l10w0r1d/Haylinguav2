@@ -522,6 +522,7 @@ def get_exercise_audio_for_playback(
     voice: str = "female",
     db: Connection = Depends(get_db)
 ):
+    # 1) Try exercise_audio (legacy / direct upload)
     row = db.execute(
         text("""
             SELECT audio_data, audio_format FROM exercise_audio
@@ -529,10 +530,23 @@ def get_exercise_audio_for_playback(
         """),
         {"exercise_id": exercise_id, "voice": voice}
     ).mappings().first()
-    
+
+    # 2) Fall back to exercise_audio_targets (CMS AudioTargetsManager stores here)
+    #    Try the 'prompt' target key first, then any key for this exercise+voice.
+    if not row:
+        row = db.execute(
+            text("""
+                SELECT audio_data, audio_format FROM exercise_audio_targets
+                WHERE exercise_id = :exercise_id AND voice_type = :voice
+                ORDER BY CASE WHEN target_key = 'prompt' THEN 0 ELSE 1 END, id ASC
+                LIMIT 1
+            """),
+            {"exercise_id": exercise_id, "voice": voice}
+        ).mappings().first()
+
     if not row:
         raise HTTPException(404, f"No {voice} audio found")
-    
+
     content_types = {'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'webm': 'audio/webm'}
     return Response(
         content=bytes(row["audio_data"]),
