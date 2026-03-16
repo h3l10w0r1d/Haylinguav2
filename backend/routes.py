@@ -1231,6 +1231,7 @@ class LeaderboardEntryOut(BaseModel):
     user_id: int
     email: str | None = None
     name: str
+    username: str | None = None
     xp: int
     lesson_type: str = "standard"
     config: Dict[str, Any] = {}
@@ -3459,6 +3460,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 user_id=int(r["user_id"]),
                 email=email,
                 name=name,
+                username=(r.get("username") or "").strip() or None,
                 xp=xp,
                 streak=streak,
                 level=level,
