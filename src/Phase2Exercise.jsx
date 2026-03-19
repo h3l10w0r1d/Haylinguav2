@@ -54,7 +54,6 @@ function buildCorrectIndexSet(exercise, cfg) {
   if (typeof cfg?.expectedAnswer === "number") set.add(Number(cfg.expectedAnswer));
 
   // Heuristic: some exercises store indices as 1-based (1..N) while UI is 0-based.
-  // If we detect that pattern, shift everything down by 1.
   if (opts && opts.length > 0 && set.size > 0) {
     const vals = Array.from(set).filter((n) => Number.isFinite(n));
     const min = Math.min(...vals);
@@ -109,28 +108,13 @@ function normStr(x) {
   if (x == null) return "";
   let s = String(x);
 
-  // Canonical Unicode normalization for consistent comparison across keyboards/IMEs.
   try {
     s = s.normalize("NFC");
   } catch {}
 
-  // Normalize odd whitespace (NBSP, narrow NBSP, figure space) to regular spaces.
   s = s.replace(/[\u00A0\u202F\u2007]/g, " ");
-
-  // Remove invisible/formatting characters that mobile IMEs may insert.
-  // - zero-width chars: 200B–200F
-  // - bidi overrides: 202A–202E
-  // - word joiner: 2060
-  // - isolate marks: 2066–2069
-  // - BOM: FEFF
-  // - soft hyphen: 00AD
   s = s.replace(/[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF\u00AD]/g, "");
-
-  // Armenian: treat ligature "և" and digraph "եւ" as equivalent.
-  // Normalize digraph to ligature (or the reverse) consistently.
   s = s.replace(/եւ/g, "և");
-
-  // Trim, case-fold, and collapse whitespace.
   s = s.trim().toLowerCase();
   s = s.replace(/\s+/g, " ");
 
@@ -149,15 +133,18 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
   const prompt =
     exercise?.prompt ?? cfg?.prompt ?? cfg?.question ?? cfg?.title ?? "";
 
-  // ===== translate_mcq / char_mcq_sound / true_false (single-choice) =====
-const mcqChoices = useMemo(() => {
-  if (kind === "true_false") return ["True", "False"];
-  const opts = Array.isArray(exercise?.options) ? exercise.options : null;
-  if (opts?.length) return opts.map(getOptionText);
-  const c = cfg?.choices ?? cfg?.options;
-  if (Array.isArray(c)) return c.map(getOptionText);
-  return [];
-}, [exercise?.options, cfg, kind]);
+  // ===== SURGICAL FIX 1 of 2 =====
+  // mcqChoices: true_false MUST return ["True","False"] so the two buttons render
+  // and selected=0 means True, selected=1 means False.
+  const mcqChoices = useMemo(() => {
+    if (kind === "true_false") return ["True", "False"];
+    const opts = Array.isArray(exercise?.options) ? exercise.options : null;
+    if (opts?.length) return opts.map(getOptionText);
+    const c = cfg?.choices ?? cfg?.options;
+    if (Array.isArray(c)) return c.map(getOptionText);
+    return [];
+  }, [exercise?.options, cfg, kind]);
+  // ===== END FIX 1 =====
 
   const correctSet = useMemo(() => buildCorrectIndexSet(exercise, cfg), [exercise, cfg]);
   const correctTextCandidates = useMemo(
@@ -168,9 +155,6 @@ const mcqChoices = useMemo(() => {
 
   const [selected, setSelected] = useState(isMulti ? [] : null);
 
-  // ===== Duolingo-like auto-audio =====
-  // IMPORTANT: this component is used for "letter_recognition" (and other Phase2 kinds)
-  // so autoplay must live here (NOT in ExerciseRenderer).
   const didAutoplayRef = useRef(false);
 
   async function playTarget(targetKey, text) {
@@ -182,8 +166,6 @@ const mcqChoices = useMemo(() => {
         targetKey,
       });
       const a = new Audio(url);
-      // Some browsers block autoplay audio without a user gesture.
-      // Even if play() is blocked, we still want the fetch to happen (it already did).
       a.play().catch(() => {});
     } catch (e) {
       console.error("Audio play failed", e);
@@ -206,7 +188,6 @@ const mcqChoices = useMemo(() => {
 
     didAutoplayRef.current = true;
     const p = String(prompt || "").trim();
-    // Heuristic: keep it short (usually a letter or short word)
     if (p && p.length <= 18) {
       playTarget("prompt", p);
     }
@@ -280,6 +261,18 @@ const mcqChoices = useMemo(() => {
   }, [isTyping, typed, isSentenceOrder, orderChosen, isBuildWord, buildChosen, isMulti, selected]);
 
   const computeIsCorrect = () => {
+    // ===== SURGICAL FIX 2 of 2 =====
+    // true_false: cfg.correct is a boolean. correctSet and correctTextCandidates
+    // are both empty for boolean configs so we must handle this before them.
+    // choices = ["True","False"] → index 0 = True, index 1 = False.
+    if (kind === "true_false") {
+      const c = cfg?.correct;
+      const correctBool = c === true || c === 1 || c === "true";
+      const userPickedTrue = selected === 0;
+      return userPickedTrue === correctBool;
+    }
+    // ===== END FIX 2 =====
+
     if (isTyping) {
       if (expectedAnswers.length === 0) return false;
       return expectedAnswers.some((a) => eqLoose(a, typed));
@@ -287,7 +280,6 @@ const mcqChoices = useMemo(() => {
     if (isSentenceOrder) {
       const built = orderChosen.map((i) => sentenceTokens[i]).join(" ").trim();
       if (correctSentence) return eqLoose(built, correctSentence);
-      // fallback: use tokens as-is (rare)
       return false;
     }
     if (isBuildWord) {
@@ -298,15 +290,12 @@ const mcqChoices = useMemo(() => {
     if (isMulti) {
       const picked = new Set(selected);
 
-      // Prefer index-based correctness when available.
       if (correctSet.size > 0) {
         if (picked.size !== correctSet.size) return false;
         for (const i of correctSet) if (!picked.has(i)) return false;
         return true;
       }
 
-      // Fallback: some multi-select exercises (e.g., letter_recognition) store
-      // the correct answer(s) as TEXT in config (cfg.answer / cfg.correct), not indices.
       const norm = (v) => String(v ?? "").trim();
       const correctTextSet = new Set(correctTextCandidates.map(norm).filter(Boolean));
       const pickedTextSet = new Set([...picked].map((i) => norm(mcqChoices[i])));
@@ -318,11 +307,8 @@ const mcqChoices = useMemo(() => {
     // single-choice
     if (selected == null) return false;
     const selIdx = Number(selected);
-    // Prefer index-based correctness when available
     if (correctSet.size > 0) return correctSet.has(selIdx);
 
-    // Fallback: some exercises store the correct answer as TEXT in config
-    // (e.g., cfg.correct = "Goodbye") instead of indices.
     const pickedText = mcqChoices[selIdx] ?? "";
     if (!pickedText) return false;
     if (correctTextCandidates.length === 0) return false;
@@ -421,7 +407,7 @@ const mcqChoices = useMemo(() => {
         </div>
         {expectedAnswers.length ? (
           <div className="mt-3 text-xs text-slate-500">
-            Tip: capitalization doesn’t matter.
+            Tip: capitalization doesn't matter.
           </div>
         ) : null}
       </Card>
@@ -567,14 +553,12 @@ const mcqChoices = useMemo(() => {
                     const arr = Array.isArray(prev) ? prev : [];
                     return arr.includes(idx) ? arr.filter((x) => x !== idx) : [...arr, idx];
                   });
-                  // For multi-select recognition, play the choice when it becomes selected.
                   if (kind === "letter_recognition") {
                     const txt = String(c || "").trim();
                     if (txt) playTarget(`choice_${idx}`, txt);
                   }
                 } else {
                   setSelected(idx);
-                  // For single-choice recognition-like tasks, play the selected choice.
                   if (kind === "letter_recognition" || kind === "translate_mcq") {
                     const txt = String(c || "").trim();
                     if (txt) playTarget(`choice_${idx}`, txt);
