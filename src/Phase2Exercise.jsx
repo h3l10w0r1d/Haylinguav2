@@ -155,7 +155,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
   const correctBool = cfg?.correct === true;
   const userPickedTrue = selected === 0;
   return userPickedTrue === correctBool;
-}, [exercise?.options, cfg, kind]);
+} [exercise?.options, cfg, kind]);
 
   const correctSet = useMemo(() => buildCorrectIndexSet(exercise, cfg), [exercise, cfg]);
   const correctTextCandidates = useMemo(
