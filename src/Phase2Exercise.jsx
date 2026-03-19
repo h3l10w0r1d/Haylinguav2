@@ -347,11 +347,17 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     submit?.({ skipped: true, isCorrect: false });
   };
 
-  // Register actions with parent
+  // Register actions with parent — ref ensures parent always calls the latest onCheck,
+  // preventing stale-closure bugs when the user changes their selection between renders
+  // (e.g. clicks "False" first, then switches to "True" — without this the registered
+  // onCheck would still evaluate with the original "False" selection → both wrong).
+  const onCheckRef = useRef(onCheck);
+  onCheckRef.current = onCheck;
+
   useEffect(() => {
     registerActions?.({
       canCheck,
-      onCheck,
+      onCheck: (...args) => onCheckRef.current(...args),
       onSkip,
       primaryLabel: "Check",
       secondaryLabel: "Skip",
@@ -364,7 +370,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
       if (e.key === "Enter") {
         if (canCheck) {
           e.preventDefault();
-          onCheck();
+          onCheckRef.current();
         }
       }
       if (e.key === "Escape") {
@@ -385,7 +391,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canCheck, isMulti, isTyping, isSentenceOrder, isBuildWord, mcqChoices.length, onCheck]);
+  }, [canCheck, isMulti, isTyping, isSentenceOrder, isBuildWord, mcqChoices.length]);
 
   // ===== UI blocks =====
   if (isTyping) {
