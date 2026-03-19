@@ -552,12 +552,7 @@ export default function Friends() {
                   )}
                 </div>
 
-                <p className="mt-5 text-[11px] text-gray-400">
-                  Incoming requests are real from the backend. "Sent" requests
-                  will become fully real once you add{" "}
-                  <code>/friends/requests/sent</code> (optional). Until then, the
-                  UI keeps a local cache so you can still see what you requested.
-                </p>
+
               </>
             ) : null}
 
