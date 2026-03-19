@@ -23,7 +23,6 @@ function getToken() {
 }
 
 // Build a combined step list for "reading" lessons.
-// Inserts special "reading_section" steps between referenced exercises.
 function buildReadingExercises(lesson) {
   const cfg = lesson?.config || {};
   const reading = cfg?.reading || {};
@@ -69,11 +68,8 @@ function buildReadingExercises(lesson) {
     });
   });
 
-  // If no sections configured, fall back to normal exercises.
   return out.length ? out : all;
 }
-
-
 
 function ReadingSectionCard({ section, userLevel, onNext }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -115,7 +111,6 @@ function ReadingSectionCard({ section, userLevel, onNext }) {
   };
 
   useEffect(() => {
-    // Auto-play once when section mounts (Duolingo-like)
     play();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -170,26 +165,20 @@ export default function LessonPlayer() {
   const [loadError, setLoadError] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [lessonXpEarned, setLessonXpEarned] = useState(0);
-  // Per-exercise result modal (Duolingo-style)
   const [resultOpen, setResultOpen] = useState(false);
   const [resultData, setResultData] = useState(null);
   const [pendingNext, setPendingNext] = useState(null);
   const [renderNonce, setRenderNonce] = useState(0);
-  // True only AFTER the user submits an answer for the LAST exercise.
-  // This prevents showing the "Done" state just because we are viewing the last step.
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
 
-  // Phase 2: unified bottom bar controls (provided by Phase2Exercise)
   const [phase2Actions, setPhase2Actions] = useState(null);
 
   const exerciseStartRef = useRef(Date.now());
 
-  // Lesson analytics (shown after finishing all exercises)
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
 
-  // Per-exercise analytics modal (opened from completion screen)
   const [exModalOpen, setExModalOpen] = useState(false);
   const [exModalLoading, setExModalLoading] = useState(false);
   const [exModalError, setExModalError] = useState(null);
@@ -224,7 +213,6 @@ export default function LessonPlayer() {
     !isReadingSection &&
     PHASE2_KINDS.has(String(currentExercise.kind || "").trim());
 
-  // Load onboarding once (for reading speed / level)
   useEffect(() => {
     const token = getToken();
     if (!token) return;
@@ -235,7 +223,6 @@ export default function LessonPlayer() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        // support different naming
         setUserLevel(data?.current_level || data?.level || data?.knowledge_level || null);
       } catch {
         // ignore
@@ -244,13 +231,11 @@ export default function LessonPlayer() {
   }, []);
 
   useEffect(() => {
-    // reset timer + actions on exercise change
     exerciseStartRef.current = Date.now();
     setPhase2Actions(null);
   }, [currentExercise?.id]);
 
   async function submitPhase2(payload) {
-    // payload: { isCorrect, skipped, answerText, selectedIndices }
     if (!currentExercise?.id) return;
     const token = getToken();
     const timeSpentMs = Date.now() - exerciseStartRef.current;
@@ -286,7 +271,6 @@ export default function LessonPlayer() {
             ? attempt.hearts_current
             : undefined;
         } else {
-          // fallback when backend doesn't respond with delta
           earnedDelta = isCorrect && !skipped ? Number(currentExercise?.xp ?? 0) : 0;
         }
       } catch (e) {
@@ -303,8 +287,6 @@ export default function LessonPlayer() {
       hearts,
     });
   }
-
-  // isPhase2 decides if we render the Phase2Exercise (unified bottom bar).
 
   // ---------- Load lesson ----------
 
@@ -323,12 +305,6 @@ export default function LessonPlayer() {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
-
-        console.log(
-          "[LessonPlayer] Lesson response:",
-          res.status,
-          Object.fromEntries(res.headers.entries())
-        );
 
         if (!res.ok) {
           const text = await res.text();
@@ -356,15 +332,6 @@ export default function LessonPlayer() {
         setAnalyticsLoading(false);
         setAnalyticsError(null);
         setAnalyticsData(null);
-
-        if (!data.exercises || data.exercises.length === 0) {
-          console.warn("[LessonPlayer] Lesson has no exercises array or it's empty.");
-        } else {
-          console.log(
-            "[LessonPlayer] Exercise kinds:",
-            data.exercises.map((e) => e.kind)
-          );
-        }
       } catch (err) {
         console.error("[LessonPlayer] Error loading lesson:", err);
         setLoadError("Network error when loading lesson. Check console and backend.");
@@ -381,6 +348,7 @@ export default function LessonPlayer() {
   const handleStepAnswer = (payload) => {
     const isCorrect = payload?.isCorrect === true;
     const skipped = payload?.skipped === true;
+    const autoAdvance = payload?.autoAdvance === true;
     const xpEarned = Number(payload?.xpEarned ?? 0) || 0;
 
     console.log("[LessonPlayer] Step answered:", {
@@ -397,6 +365,16 @@ export default function LessonPlayer() {
 
     if (!lesson || !lesson.exercises) return;
 
+    // Intro exercises (char_intro etc.) pass autoAdvance=true — skip the result
+    // sheet entirely and move straight to the next step.
+    if (autoAdvance) {
+      const nextIndex = currentIndex + 1;
+      const isLast = nextIndex >= lesson.exercises.length;
+      if (isLast) setHasFinishedAll(true);
+      else setCurrentIndex(nextIndex);
+      return;
+    }
+
     const nextIndex = currentIndex + 1;
     const isLast = nextIndex >= lesson.exercises.length;
 
@@ -407,9 +385,6 @@ export default function LessonPlayer() {
     }
 
     // Phase 2.5: unified result sheet
-    // - correct: continue/finish
-    // - skipped: continue/finish
-    // - wrong: retry same exercise
     setResultData({
       isCorrect,
       skipped,
@@ -438,7 +413,6 @@ export default function LessonPlayer() {
       return;
     }
     if (pn.type === "retry") {
-      // Re-mount the exercise component so local selection/input state resets.
       exerciseStartRef.current = Date.now();
       setPhase2Actions(null);
       setRenderNonce((n) => n + 1);
@@ -565,14 +539,7 @@ export default function LessonPlayer() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        // body not required — backend should infer user from JWT
       });
-
-      console.log(
-        "[LessonPlayer] Complete lesson response:",
-        res.status,
-        Object.fromEntries(res.headers.entries())
-      );
 
       if (!res.ok) {
         const text = await res.text();
@@ -592,7 +559,6 @@ export default function LessonPlayer() {
       const stats = await res.json();
       console.log("[LessonPlayer] Updated stats from backend:", stats);
 
-      // Simple approach: go back to dashboard (Dashboard should refetch /me)
       navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error("[LessonPlayer] Network error completing lesson:", err);
@@ -645,7 +611,6 @@ export default function LessonPlayer() {
     );
   }
 
-  // "Done" state should appear only after the last exercise is answered.
   const showDoneFooter = !!hasFinishedAll;
   const totalSteps = lesson.exercises?.length || 1;
 
@@ -693,7 +658,6 @@ export default function LessonPlayer() {
               section={currentExercise?.config?.section}
               userLevel={userLevel || lesson?.config?.reading_level}
               onNext={() => {
-                // Reading step has no correctness/result sheet; just move on.
                 const next = currentIndex + 1;
                 const total = lesson.exercises?.length || 0;
                 if (next >= total) {
@@ -720,7 +684,7 @@ export default function LessonPlayer() {
           )
         ) : null}
 
-        {/* If finished, show a clean completion card (no interactive exercise behind it) */}
+        {/* Completion screen */}
         {showDoneFooter ? (
           <LessonCompletionScreen
             lesson={lesson}
@@ -732,7 +696,6 @@ export default function LessonPlayer() {
             onRetry={async () => {
               const token = getToken();
               if (!token) {
-                // not logged in; just restart locally
                 setCurrentIndex(0);
                 setHasFinishedAll(false);
                 setLessonXpEarned(0);
@@ -754,7 +717,6 @@ export default function LessonPlayer() {
                 return;
               }
 
-              // restart
               setCurrentIndex(0);
               setHasFinishedAll(false);
               setLessonXpEarned(0);
@@ -767,7 +729,7 @@ export default function LessonPlayer() {
           />
         ) : null}
 
-        {/* Fallback if something is wrong with the lesson data */}
+        {/* Fallback */}
         {!showDoneFooter && !currentExercise ? (
           <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
             <p className="text-slate-700 mb-4">
