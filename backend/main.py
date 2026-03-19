@@ -132,7 +132,7 @@ origins = [
     "http://localhost:5173",  # Added for local development
     "http://localhost:3000",    # Added for local development
     "https://cms.haylingua.am",
-    https://synercraft.io/" # Added some unused domain
+    "https://synercraft.io/" # Added some unused domain
 ]
 
 app.add_middleware(
