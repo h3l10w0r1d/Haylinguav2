@@ -67,4 +67,18 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "streak_last_activity_date DATE")
         fill_nulls("users", "current_streak", "0")
 
+        # ---------- Account management audit columns ----------
+        # These are referenced by UPDATE statements in routes.py (2FA setup/disable,
+        # password change, email change).  Adding them as nullable with no default so
+        # existing rows stay valid and new writes succeed immediately.
+        add_col_if_missing("users", "updated_at TIMESTAMPTZ")
+        add_col_if_missing("users", "pending_email TEXT")
+        add_col_if_missing("users", "pending_email_code_hash TEXT")
+        add_col_if_missing("users", "pending_email_expires_at TIMESTAMPTZ")
+        add_col_if_missing("users", "email_verified BOOLEAN NOT NULL DEFAULT FALSE")
+        add_col_if_missing("users", "email_verified_at TIMESTAMPTZ")
+        add_col_if_missing("users", "totp_recovery_hashes JSONB NOT NULL DEFAULT '[]'::jsonb")
+        fill_nulls("users", "email_verified", "FALSE")
+        fill_nulls("users", "totp_recovery_hashes", "'[]'::jsonb")
+
     print("[ensure_schema] done")
