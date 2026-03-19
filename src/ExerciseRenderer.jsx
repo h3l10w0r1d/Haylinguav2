@@ -213,9 +213,8 @@ function getCorrectIndices(exercise, cfg, choices) {
    Individual Kind Components
 -------------------------- */
 
-// 1) char_intro
-function ExCharIntro({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
-  const { correct, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+// 1) char_intro — no result sheet, no Skip button
+function ExCharIntro({ exercise, cfg, submit }) {
   const prompt = exercise?.prompt || "";
   const letter = cfg.letter ?? "";
   const lower = cfg.lower ?? "";
@@ -241,9 +240,10 @@ function ExCharIntro({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         {hint && <Muted className="mt-2">{hint}</Muted>}
       </div>
 
-      <div className="mt-6 space-y-3">
-        <PrimaryButton onClick={() => correct(0)}>Continue</PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      <div className="mt-6">
+        <PrimaryButton onClick={() => submit?.({ isCorrect: true, autoAdvance: true, xpEarned: 0 })}>
+          Continue
+        </PrimaryButton>
       </div>
     </Card>
   );
@@ -315,11 +315,6 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
 
   const choices = getChoices(exercise, cfg);
 
-  // Supports both single-answer and multi-select ("select all that apply")
-  // Priority:
-  //  - DB-backed options with is_correct flags
-  //  - cfg.correctIndices / cfg.correctAnswers
-  //  - expected_answer as JSON array (for multi) or string (for single)
   const correctIndices = getCorrectIndices(exercise, cfg, choices);
   const isMulti =
     !!cfg.multi ||
@@ -331,12 +326,6 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
 
   const [selected, setSelected] = useState(isMulti ? [] : null);
 
-  // Duolingo-like behavior: auto-play the main sound for recognition-type tasks.
-  // Priority:
-  //  - CMS per-target audio key "prompt" (if present)
-  //  - Otherwise speak a short prompt (often the letter/word itself)
-  //  - Otherwise speak the expected answer (if it's a short letter/word)
-  // Can be disabled per exercise with cfg.autoplay === false
   const didAutoplayRef = useRef(false);
 
   async function playTarget(targetKey, text) {
@@ -357,14 +346,12 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
   useEffect(() => {
     if (!exercise?.id) return;
     if (cfg?.autoplay === false) return;
-    // Only once per exercise
     if (didAutoplayRef.current) return;
     didAutoplayRef.current = true;
 
     const p = (prompt || "").trim();
     const e = (singleAnswerText || "").trim();
 
-    // Heuristic: most letter/word prompts are short. Prefer speaking the prompt.
     const speak = (p && p.length <= 18) ? p : ((e && e.length <= 18) ? e : "");
     if (speak) playTarget("prompt", speak);
   }, [exercise?.id]);
@@ -394,7 +381,6 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
           selected={selected}
           onSelect={(next) => {
             setSelected(next);
-            // For single-choice recognition, play the selected choice immediately.
             if (!isMulti && Number.isFinite(next)) {
               const idx = Number(next);
               const txt = choices[idx] ?? "";
@@ -854,7 +840,6 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    // best effort: token index based on original tokens
                     const idx = tokens.indexOf(t);
                     playTarget(idx >= 0 ? `token_${idx}` : "token", t);
                   }}
@@ -1110,7 +1095,6 @@ function ExAudioChoiceTts({
       const url = await ttsFetch(apiBaseUrl, {
         text: ttsText,
         exerciseId: exercise?.id,
-        // Voice preference is resolved inside ttsFetch (onboarding/localStorage) unless overridden.
       });
       setAudioUrl(url);
       const audio = new Audio(url);
@@ -1167,10 +1151,6 @@ function ExAudioChoiceTts({
 
 /**
  * multi_select
- * Supports BOTH:
- *  - DB options: exercise.options with is_correct flags (best for CMS)
- *  - JSON config: { choices/options, correctIndices/correctAnswers, minSelect/maxSelect }
- *  - fallback: expected_answer as JSON array string
  */
 function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
@@ -1196,7 +1176,7 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
       else {
-        if (next.size >= maxSelect) return next; // enforce max
+        if (next.size >= maxSelect) return next;
         next.add(i);
       }
       return next;
@@ -1323,6 +1303,7 @@ export default function ExerciseRenderer({
       message: payload?.message ?? null,
       hearts:
         Number.isFinite(attempt?.hearts_current) ? attempt.hearts_current : undefined,
+      autoAdvance: payload?.autoAdvance === true,
     };
 
     onAnswer?.(resultPayload);
@@ -1342,10 +1323,6 @@ export default function ExerciseRenderer({
       <ExCharIntro
         exercise={exercise}
         cfg={cfg}
-        onCorrect={onCorrect}
-        onWrong={onWrong}
-        onSkip={onSkip}
-        onAnswer={onAnswer}
         submit={handleAnswer}
       />
     );
