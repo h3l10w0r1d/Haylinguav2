@@ -151,13 +151,11 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
 
   // ===== translate_mcq / char_mcq_sound / true_false (single-choice) =====
   const mcqChoices = useMemo(() => {
-    if (kind === "true_false") return ["True", "False"];
-    const opts = Array.isArray(exercise?.options) ? exercise.options : null;
-    if (opts?.length) return opts.map(getOptionText);
-    const c = cfg?.choices ?? cfg?.options;
-    if (Array.isArray(c)) return c.map(getOptionText);
-    return [];
-  }, [exercise?.options, cfg, kind]);
+    if (kind === "true_false") {
+  const correctBool = cfg?.correct === true;
+  const userPickedTrue = selected === 0;
+  return userPickedTrue === correctBool;
+}, [exercise?.options, cfg, kind]);
 
   const correctSet = useMemo(() => buildCorrectIndexSet(exercise, cfg), [exercise, cfg]);
   const correctTextCandidates = useMemo(
