@@ -15,8 +15,8 @@ router = APIRouter()
 
 
 # --- JWT helpers (copy-compatible with your routes.py style) ---
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or ""
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM") or "HS256"
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "" # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM") or "HS256" # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
 
 
 def _get_user_id_from_bearer(authorization: Optional[str]) -> Optional[int]:
