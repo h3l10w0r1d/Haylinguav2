@@ -19,7 +19,6 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    # (you can add profile fields later: first_name, last_name, etc.)
 
 
 class Lesson(Base):
