@@ -1,7 +1,4 @@
-"""
-backend/routes_audio.py
-Audio management for exercises - supports TTS generation, custom uploads, and browser recordings
-"""
+#backend/routes_audio.oy
 import os
 from typing import Optional, Literal
 
@@ -41,7 +38,7 @@ ELEVEN_API_URL = "https://api.elevenlabs.io/v1"
 
 # ElevenLabs TTS defaults (override via Render env vars)
 # Model IDs are defined by ElevenLabs; as of Feb 2026, Eleven v3 uses `eleven_v3`.
-ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3")
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
 
 def _env_float(name: str, default: float) -> float:
     raw = os.getenv(name)
@@ -64,6 +61,7 @@ ELEVEN_STYLE = _env_float("ELEVEN_STYLE", 0.0)
 ELEVEN_USE_SPEAKER_BOOST = _env_bool("ELEVEN_USE_SPEAKER_BOOST", True)
 
 # Default voice IDs
+#override if failed
 MALE_VOICE_ID = os.getenv("ELEVEN_MALE_VOICE", "pNInz6obpgDQGcFmaJgB")
 FEMALE_VOICE_ID = os.getenv("ELEVEN_FEMALE_VOICE", "EXAVITQu4vr4xnSDxMaL")
 
