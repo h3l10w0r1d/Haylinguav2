@@ -14,10 +14,10 @@ from database import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# ✅ Single source of truth for JWT config
-JWT_SECRET_KEY = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip()
-JWT_ALGORITHM = (os.getenv("JWT_ALGORITHM") or "HS256").strip()
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES") or "43200")  # 30 days
+# Single source of truth for JWT config
+JWT_SECRET_KEY = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
+JWT_ALGORITHM = (os.getenv("JWT_ALGORITHM") or "HS256").strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES") or "43200")  # 30 days, Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -32,7 +32,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_token(user_id: int) -> str:
     if not JWT_SECRET_KEY:
-        raise RuntimeError("JWT_SECRET_KEY (or SECRET_KEY) is not set")
+        raise RuntimeError("JWT_SECRET_KEY (or SECRET_KEY) is not set") 
 
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {"sub": str(user_id), "exp": expire}
