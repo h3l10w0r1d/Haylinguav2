@@ -5,19 +5,19 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.engine import Connection
 from sqlalchemy.pool import QueuePool
 
-DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql://postgres:postgres@localhost:5432/postgres"
+DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql://postgres:postgres@localhost:5432/postgres" # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
 
 # Create engine with improved connection pooling
 engine = create_engine(
     DATABASE_URL,
     future=True,
     poolclass=QueuePool,
-    pool_size=20,              # Increased from default 5
-    max_overflow=40,           # Increased from default 10
-    pool_timeout=15,           # Keep at 30 seconds
-    pool_recycle=3600,         # Recycle connections after 1 hour
-    pool_pre_ping=True,        # Test connections before using them
-    echo_pool=False,           # Set to True for debugging connection issues
+    pool_size=20,              # 
+    max_overflow=40,           # 
+    pool_timeout=15,           # 
+    pool_recycle=3600,         # 
+    pool_pre_ping=True,        # 
+    echo_pool=False,           # 
 )
 
 Base = declarative_base()
