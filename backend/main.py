@@ -1,21 +1,3 @@
-"""Haylingua backend app.
-
-Deployment note
----------------
-Some hosts (including Render) often start Uvicorn from the repository root
-(`uvicorn main:app`). In that scenario, modules inside the `backend/` folder
-like `routes.py` / `database.py` are **not** importable unless `backend/` is
-on `PYTHONPATH`.
-
-Historically you ran Uvicorn from inside `backend/`, so imports such as
-`from routes import router` worked. After the Brevo integration, the working
-directory / start command appears to have shifted, causing routers to never
-load and making every GET endpoint return 404 (while CORS still answers
-OPTIONS with 200).
-
-Fix: put the backend directory onto `sys.path` before importing local modules.
-"""
-
 # backend/main.py
 import os
 import sys
@@ -105,12 +87,6 @@ app.mount("/static/banners", StaticFiles(directory=BANNER_UPLOAD_DIR), name="ban
 
 ensure_schema()
 
-# Register all routers
-# NOTE: Some deployments historically mounted the API under /api.
-# To prevent route-prefix mismatches between frontend and backend,
-# we expose both:
-#   - unprefixed routes: /me/profile, /auth/login, ...
-#   - prefixed routes:   /api/me/profile, /api/auth/login, ...
 app.include_router(lesson_analytics_router)
 app.include_router(api_router)
 app.include_router(api_router, prefix="/api")
@@ -138,10 +114,10 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",  # ✅ allows Vercel preview URLs too
+    allow_origin_regex=r"https://.*\.vercel\.app",  # allows Vercel preview URLs too
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],  # ✅ needed for Authorization header preflight
+    allow_headers=["*"],  # needed for Authorization header preflight
 )
 
 
