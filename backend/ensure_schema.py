@@ -69,8 +69,6 @@ def ensure_schema() -> None:
 
         # ---------- Account management audit columns ----------
         # These are referenced by UPDATE statements in routes.py (2FA setup/disable,
-        # password change, email change).  Adding them as nullable with no default so
-        # existing rows stay valid and new writes succeed immediately.
         add_col_if_missing("users", "updated_at TIMESTAMPTZ")
         add_col_if_missing("users", "pending_email TEXT")
         add_col_if_missing("users", "pending_email_code_hash TEXT")
