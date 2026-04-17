@@ -53,7 +53,7 @@ router = APIRouter()
 # - After 5 failed attempts in 5 minutes (per account + IP), require CAPTCHA for 15 minutes.
 # - During CAPTCHA window, allow 10 further attempts; then lock for 2 hours.
 # Notes:
-# - This is in-memory for simplicity (single Render instance). For multi-instance scaling, back it with Redis.
+# - This is in-memory for simplicity (single Render instance). For multi-instance scaling, back it with Redis integration.
 
 import time
 import threading
@@ -87,7 +87,7 @@ def _key_for(identifier: str, ip: str) -> tuple[str, str]:
     ident = (identifier or '').strip().lower()
     return (f'acct:{ident}', f'ip:{ip}')
 
-
+# Tech debt, this function has some limittations, handle for the future. 
 def _cleanup_old(ts_list, now):
     cutoff = now - LOGIN_FAIL_WINDOW_SECONDS
     i = 0
@@ -185,7 +185,7 @@ def _clear_login_failures(keys):
 
 
 def _verify_turnstile(token: str, ip: str) -> bool:
-    secret = (os.getenv('TURNSTILE_SECRET_KEY') or '').strip()
+    secret = (os.getenv('TURNSTILE_SECRET_KEY') or '').strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
     if not secret:
         # Dev / not configured: treat any token as valid to avoid breaking login.
         return True
@@ -212,7 +212,7 @@ import random
 import smtplib
 from email.message import EmailMessage
 
-EMAIL_CODE_PEPPER = os.getenv("EMAIL_CODE_PEPPER", "change_me")
+EMAIL_CODE_PEPPER = os.getenv("EMAIL_CODE_PEPPER", "change_me") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
 
 def _gen_6digit_code() -> str:
     return f"{random.randint(0, 999999):06d}"
@@ -319,11 +319,11 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
     Returns:
         bool: True if email was sent via SMTP, False if only logged to console
     """
-    smtp_host = os.getenv("SMTP_HOST")
+    smtp_host = os.getenv("SMTP_HOST") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASS")
-    email_from = os.getenv("EMAIL_FROM", smtp_user or "no-reply@haylingua.local")
+    smtp_user = os.getenv("SMTP_USER") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    smtp_pass = os.getenv("SMTP_PASS") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    email_from = os.getenv("EMAIL_FROM", smtp_user or "no-reply@haylingua.local") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
 
     if not (smtp_host and smtp_user and smtp_pass):
         # Dev-safe fallback
@@ -348,10 +348,10 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
             s.login(smtp_user, smtp_pass)
             s.send_message(msg)
         
-        print(f"✅ Email sent successfully to {to_email}")
+        print(f" ✅ Email sent successfully to {to_email}")
         return True  # Email sent successfully
     except Exception as e:
-        print(f"❌ Email sending failed: {e}")
+        print(f" ❌ Email sending failed: {e}")
         # Still log to console in case of failure
         print("\n--- EMAIL (fallback after error) ---")
         print("To:", to_email)
@@ -1213,9 +1213,10 @@ def friends_remove(
 # ---------- TTS schema ----------
 
 ELEVEN_API_KEY = (
-    os.getenv("ELEVENLABS_API_KEY")
-    or os.getenv("ELEVEN_LABS_API_KEY")
-    or os.getenv("eleven_labs.io")
+    os.getenv("ELEVENLABS_API_KEY") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    or os.getenv("ELEVEN_LABS_API_KEY") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    or os.getenv("eleven_labs.io") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    # Note to the future me: "I didn't figure out which one works, so decided to use all of them, this can be considered as a future technical debt 💸"
 )
 DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
 
@@ -1298,8 +1299,8 @@ class OnboardingIn(BaseModel):
 
 # ---------- JWT helpers (for /complete) ----------
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or ""
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM") or "HS256"
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "" # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM") or "HS256" # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
 
 
 def _get_user_id_from_bearer(authorization: Optional[str]) -> Optional[int]:
@@ -3186,7 +3187,7 @@ def me_avatar_upload(
     # Prefer Render Persistent Disk when writable; otherwise fall back.
     def _pick_uploads_dir() -> str:
         candidates = []
-        env = os.getenv("UPLOADS_DIR")
+        env = os.getenv("UPLOADS_DIR") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
         if env:
             candidates.append(env)
         candidates.append("/var/data/uploads")
@@ -3486,29 +3487,29 @@ import hashlib
 from datetime import datetime, timedelta
 import pyotp
 
-CMS_INVITE_TTL_HOURS = int(os.getenv("CMS_INVITE_TTL_HOURS") or "72")
-CMS_INVITE_BASE_URL = (os.getenv("CMS_INVITE_BASE_URL") or "https://cms.haylingua.am").rstrip("/")
-CMS_BOOTSTRAP_EMAIL = (os.getenv("CMS_BOOTSTRAP_EMAIL") or "").strip().lower()
-CMS_BOOTSTRAP_SECRET = (os.getenv("CMS_BOOTSTRAP_SECRET") or "").strip()
+CMS_INVITE_TTL_HOURS = int(os.getenv("CMS_INVITE_TTL_HOURS") or "72") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+CMS_INVITE_BASE_URL = (os.getenv("CMS_INVITE_BASE_URL") or "https://cms.haylingua.am").rstrip("/") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+CMS_BOOTSTRAP_EMAIL = (os.getenv("CMS_BOOTSTRAP_EMAIL") or "").strip().lower() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+CMS_BOOTSTRAP_SECRET = (os.getenv("CMS_BOOTSTRAP_SECRET") or "").strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
 
 def _sha256_hex(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 def _cms_jwt_encode(payload: dict, minutes: int) -> str:
     # Reuse the same JWT secret as main auth
-    secret = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip()
+    secret = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
     if not secret:
         raise HTTPException(status_code=500, detail="JWT secret not configured on server")
-    alg = (os.getenv("JWT_ALGORITHM") or "HS256").strip()
+    alg = (os.getenv("JWT_ALGORITHM") or "HS256").strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
     exp = datetime.utcnow() + timedelta(minutes=minutes)
     full = {**payload, "exp": exp}
     return jwt.encode(full, secret, algorithm=alg)
 
 def _cms_jwt_decode(token: str) -> dict:
-    secret = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip()
+    secret = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
     if not secret:
         raise HTTPException(status_code=500, detail="JWT secret not configured on server")
-    alg = (os.getenv("JWT_ALGORITHM") or "HS256").strip()
+    alg = (os.getenv("JWT_ALGORITHM") or "HS256").strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
     try:
         return jwt.decode(token, secret, algorithms=[alg])
     except Exception:
@@ -3592,15 +3593,15 @@ def require_cms_temp(authorization: Optional[str] = Header(None), db=Depends(get
         raise HTTPException(status_code=403, detail="CMS user disabled or missing")
     return dict(row)
 
-def _send_invite_email(email: str, invite_url: str):
+def _send_invite_email(email: str, invite_url: str):  # Send email function, is a really helpful thing for email verification and overall systematic communication style.
     """
     Best-effort. If SMTP not configured, prints link to logs.
     """
-    host = os.getenv("SMTP_HOST")
-    port = int(os.getenv("SMTP_PORT") or "587")
-    user = os.getenv("SMTP_USER")
-    password = os.getenv("SMTP_PASS")
-    from_addr = os.getenv("EMAIL_FROM") or user or "no-reply@haylingua.am"
+    host = os.getenv("SMTP_HOST") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    port = int(os.getenv("SMTP_PORT") or "587") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    user = os.getenv("SMTP_USER") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    password = os.getenv("SMTP_PASS") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    from_addr = os.getenv("EMAIL_FROM") or user or "no-reply@haylingua.am" # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
 
     if not host or not user or not password:
         print(f"[cms_invite] Invite for {email}: {invite_url}")
@@ -4826,11 +4827,11 @@ import hashlib
 from pathlib import Path
 
 
-ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3")
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence, Eleven Labs Model is used for male, female feature. 
 
 
 def _tts_cache_dir() -> Path:
-    base = os.getenv("AUDIO_DIR", "")
+    base = os.getenv("AUDIO_DIR", "") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
     if base:
         return Path(base) / "tts_cache"
     return Path(__file__).resolve().parent / "uploads" / "tts_cache"
