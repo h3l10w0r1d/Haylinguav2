@@ -1551,6 +1551,73 @@ def _get_hearts(db: Connection, user_id: int) -> tuple[int, int]:
     st = _hearts_state(db, user_id)
     return (st["hearts_current"], st["hearts_max"])
 
+
+# ----------------------------
+# Leagues (Duolingo-style weekly divisions)
+# ----------------------------
+LEAGUE_TIERS = [
+    "Bronze", "Silver", "Gold", "Sapphire", "Ruby",
+    "Emerald", "Amethyst", "Pearl", "Obsidian", "Diamond",
+]
+LEAGUE_COHORT_SIZE = 30
+LEAGUE_PROMOTE_TOP = 7
+LEAGUE_DEMOTE_BOTTOM = 5
+
+
+def _current_iso_week() -> str:
+    iso = datetime.utcnow().isocalendar()
+    return f"{iso[0]}-W{int(iso[1]):02d}"
+
+
+def _ensure_league_assignment(db: Connection, user_id: int) -> None:
+    """Place the user into a cohort (≤30) of their tier for the current week.
+
+    Resets weekly XP at the start of each new week (lazy, on first XP of the week).
+    """
+    wk = _current_iso_week()
+    row = db.execute(
+        text("SELECT league_tier, league_week, league_cohort FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first()
+    if not row:
+        return
+    if row["league_week"] == wk and row["league_cohort"] is not None:
+        return  # already in this week's cohort
+
+    tier = int(row["league_tier"] or 0)
+    cohort = db.execute(
+        text(
+            """
+            SELECT league_cohort FROM users
+            WHERE league_tier = :t AND league_week = :wk AND league_cohort IS NOT NULL
+            GROUP BY league_cohort HAVING COUNT(*) < :cap
+            ORDER BY league_cohort ASC LIMIT 1
+            """
+        ),
+        {"t": tier, "wk": wk, "cap": LEAGUE_COHORT_SIZE},
+    ).scalar()
+    if cohort is None:
+        mx = db.execute(
+            text("SELECT COALESCE(MAX(league_cohort), -1) FROM users WHERE league_tier = :t AND league_week = :wk"),
+            {"t": tier, "wk": wk},
+        ).scalar()
+        cohort = int(mx) + 1
+
+    db.execute(
+        text("UPDATE users SET weekly_xp = 0, league_week = :wk, league_cohort = :c WHERE id = :u"),
+        {"wk": wk, "c": int(cohort), "u": user_id},
+    )
+
+
+def _award_weekly_xp(db: Connection, user_id: int, amount: int) -> None:
+    if amount <= 0:
+        return
+    _ensure_league_assignment(db, user_id)
+    db.execute(
+        text("UPDATE users SET weekly_xp = COALESCE(weekly_xp, 0) + :d WHERE id = :u"),
+        {"d": int(amount), "u": user_id},
+    )
+
 # ---------- Routes ----------
 
 @router.get("/")
@@ -2488,6 +2555,9 @@ def record_exercise_attempt(
     if earned_xp_delta < 0:
         earned_xp_delta = 0
 
+    # League: count this lesson's XP toward the user's weekly division total.
+    _award_weekly_xp(db, user_id, earned_xp_delta)
+
     # Hearts: lose one on a wrong answer (with regen applied first); premium
     # users keep unlimited hearts. DB is the source of truth.
     if not bool(is_correct):
@@ -2961,6 +3031,78 @@ def me_achievements(
         })
 
     return {"achievements": out, "earned": sum(1 for a in out if a["earned"]), "total": len(out)}
+
+
+@router.get("/me/league")
+def me_league(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """The user's current weekly league board (their division cohort) + a
+    friends board (the user + friends ranked by this week's XP)."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    wk = _current_iso_week()
+    me = db.execute(
+        text("SELECT league_tier, league_week, league_cohort FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first() or {}
+    tier = int(me.get("league_tier") or 0)
+    joined = (me.get("league_week") == wk and me.get("league_cohort") is not None)
+
+    division = []
+    if joined:
+        rows = db.execute(
+            text(
+                """
+                SELECT id AS user_id, username,
+                       COALESCE(NULLIF(display_name, ''), username, split_part(email, '@', 1)) AS name,
+                       avatar_url, COALESCE(weekly_xp, 0) AS weekly_xp
+                FROM users
+                WHERE league_tier = :t AND league_week = :wk AND league_cohort = :c
+                  AND NOT COALESCE(is_hidden, FALSE)
+                ORDER BY weekly_xp DESC, id ASC
+                LIMIT :cap
+                """
+            ),
+            {"t": tier, "wk": wk, "c": int(me["league_cohort"]), "cap": LEAGUE_COHORT_SIZE},
+        ).mappings().all()
+        division = [{**dict(r), "rank": i + 1, "is_self": int(r["user_id"]) == user_id} for i, r in enumerate(rows)]
+
+    friends_rows = db.execute(
+        text(
+            """
+            WITH fids AS (
+              SELECT friend_id AS id FROM friends WHERE user_id = :u
+              UNION SELECT :u AS id
+            )
+            SELECT u.id AS user_id, u.username,
+                   COALESCE(NULLIF(u.display_name, ''), u.username, split_part(u.email, '@', 1)) AS name,
+                   u.avatar_url,
+                   CASE WHEN u.league_week = :wk THEN COALESCE(u.weekly_xp, 0) ELSE 0 END AS weekly_xp
+            FROM users u JOIN fids ON fids.id = u.id
+            WHERE NOT COALESCE(u.is_hidden, FALSE)
+            ORDER BY weekly_xp DESC, u.id ASC
+            """
+        ),
+        {"u": user_id, "wk": wk},
+    ).mappings().all()
+    friends = [{**dict(r), "rank": i + 1, "is_self": int(r["user_id"]) == user_id} for i, r in enumerate(friends_rows)]
+
+    return {
+        "tier": tier,
+        "tier_name": LEAGUE_TIERS[min(tier, len(LEAGUE_TIERS) - 1)],
+        "max_tier": len(LEAGUE_TIERS) - 1,
+        "joined": joined,
+        "days_left": 7 - datetime.utcnow().isoweekday(),  # Mon=1..Sun=7
+        "promote_top": LEAGUE_PROMOTE_TOP,
+        "demote_bottom": (LEAGUE_DEMOTE_BOTTOM if tier > 0 else 0),
+        "division": division,
+        "has_friends": len(friends) > 1,
+        "friends": friends,
+    }
 
 
 @router.post("/me/exercises/{exercise_id}/report")
@@ -4137,6 +4279,54 @@ def support_resolve_report(
 ):
     db.execute(text("UPDATE exercise_reports SET status = 'resolved' WHERE id = :r"), {"r": rid})
     return {"ok": True}
+
+
+@router.post("/cms/support/leagues/rollover")
+def leagues_rollover(
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    """Weekly promotion/relegation — run once at each week boundary (e.g. cron).
+
+    Top of each cohort move up a tier, bottom move down; then everyone is reset
+    to re-join fresh next week (idempotent: re-running finds nothing to process).
+    """
+    cohorts = db.execute(
+        text(
+            """
+            SELECT DISTINCT league_tier, league_week, league_cohort
+            FROM users WHERE league_cohort IS NOT NULL AND league_week IS NOT NULL
+            """
+        )
+    ).mappings().all()
+
+    maxt = len(LEAGUE_TIERS) - 1
+    promoted = demoted = 0
+    for c in cohorts:
+        tier = int(c["league_tier"]); wk = c["league_week"]; coh = int(c["league_cohort"])
+        rows = db.execute(
+            text(
+                """
+                SELECT id, COALESCE(weekly_xp, 0) AS weekly_xp FROM users
+                WHERE league_tier = :t AND league_week = :wk AND league_cohort = :c
+                ORDER BY weekly_xp DESC, id ASC
+                """
+            ),
+            {"t": tier, "wk": wk, "c": coh},
+        ).mappings().all()
+        n = len(rows)
+        for idx, r in enumerate(rows):
+            if int(r["weekly_xp"]) <= 0:
+                continue  # inactive users don't promote
+            if idx < LEAGUE_PROMOTE_TOP and tier < maxt:
+                db.execute(text("UPDATE users SET league_tier = :nt WHERE id = :i"), {"nt": tier + 1, "i": r["id"]})
+                promoted += 1
+            elif idx >= n - LEAGUE_DEMOTE_BOTTOM and tier > 0:
+                db.execute(text("UPDATE users SET league_tier = :nt WHERE id = :i"), {"nt": tier - 1, "i": r["id"]})
+                demoted += 1
+
+    db.execute(text("UPDATE users SET weekly_xp = 0, league_cohort = NULL, league_week = NULL WHERE league_cohort IS NOT NULL"))
+    return {"ok": True, "promoted": promoted, "demoted": demoted, "cohorts": len(cohorts)}
 
 
 def _send_invite_email(email: str, invite_url: str):  # Send email function, is a really helpful thing for email verification and overall systematic communication style.

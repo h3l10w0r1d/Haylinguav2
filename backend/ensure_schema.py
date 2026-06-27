@@ -67,6 +67,14 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "premium_since TIMESTAMPTZ")
         fill_nulls("users", "is_premium", "FALSE")
 
+        # ---------- Leagues (Duolingo-style weekly divisions) ----------
+        add_col_if_missing("users", "league_tier INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("users", "weekly_xp INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("users", "league_week TEXT")
+        add_col_if_missing("users", "league_cohort INTEGER")
+        fill_nulls("users", "league_tier", "0")
+        fill_nulls("users", "weekly_xp", "0")
+
         # ---------- StreakManager ----------
         add_col_if_missing("users", "current_streak INTEGER NOT NULL DEFAULT 0")
         add_col_if_missing("users", "streak_last_activity_date DATE")

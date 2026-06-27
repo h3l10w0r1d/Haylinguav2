@@ -1,398 +1,158 @@
-// src/Leaderboard.jsx
-import { useEffect, useMemo, useState } from "react";
-import { Trophy, Crown, Medal, Flame, Loader2 } from "lucide-react";
-import HeaderLayout from "./HeaderLayout";
+// src/Leaderboard.jsx — Duolingo-style weekly leagues + a friends board.
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Shield, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
+import grandma from "./assets/character-grandma.png";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+function getToken() {
+  return localStorage.getItem("access_token") || localStorage.getItem("hay_token") || "";
+}
+
+// Bronze · Silver · Gold · Sapphire · Ruby · Emerald · Amethyst · Pearl · Obsidian · Diamond
+const TIER_COLORS = ["#B45309", "#94A3B8", "#F59E0B", "#1CB0F6", "#E11D48", "#10B981", "#8B5CF6", "#CBD5E1", "#334155", "#22D3EE"];
 
 function resolveUrl(u) {
   const s = String(u || "").trim();
   if (!s) return "";
-  if (/^https?:\/\//i.test(s)) return s;
-  if (s.startsWith("data:")) return s;
-  if (s.startsWith("blob:")) return s;
-  if (s.startsWith("static/")) return `${API_BASE}/${s}`;
-  // FIX: /static/ paths must be absolute (backend-hosted)
+  if (/^https?:\/\//i.test(s) || s.startsWith("data:") || s.startsWith("blob:")) return s;
   if (s.startsWith("/static/")) return `${API_BASE}${s}`;
-  if (s.startsWith("/")) return s;
+  if (s.startsWith("static/")) return `${API_BASE}/${s}`;
   return s;
 }
 
-export default function Leaderboard({ user, onLogout }) {
-  const navigate = useNavigate();
-  const currentUserName = user?.name || user?.email?.split("@")[0] || "You";
-
-  // Keep the old UI data as a fallback so the page never looks broken
-  const placeholderEntries = useMemo(
-    () => [
-      { id: 1, name: "Armen Petrosyan", xp: 4200, streak: 21, level: 10 },
-      { id: 2, name: "Lusine Hovhannisyan", xp: 3900, streak: 18, level: 9 },
-      { id: 3, name: "Tigran Sargsyan", xp: 3650, streak: 15, level: 9 },
-      {
-        id: 4,
-        name: currentUserName,
-        xp: user?.xp ?? 1500,
-        streak: user?.streak ?? 5,
-        level: user?.level ?? 4,
-        isYou: true,
-      },
-      { id: 5, name: "Anahit Grigoryan", xp: 1300, streak: 3, level: 4 },
-      { id: 6, name: "Davit Mkrtchyan", xp: 1100, streak: 4, level: 3 },
-    ],
-    [currentUserName, user]
-  );
-
-  const [entries, setEntries] = useState(placeholderEntries);
-  const [loading, setLoading] = useState(true);
-
-  const token = useMemo(
-    () =>
-      localStorage.getItem("hay_token") ||
-      localStorage.getItem("access_token") ||
-      "",
-    []
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLeaderboard() {
-      setLoading(true);
-
-      try {
-        const res = await fetch(`${API_BASE}/leaderboard?limit=50`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-
-        if (!res.ok) {
-          // If backend not ready, keep placeholder UI
-          throw new Error(`Leaderboard API failed (${res.status})`);
-        }
-
-        const data = await res.json();
-
-        // Expect: [{ user_id, email, name, xp, streak, level, rank }]
-        const normalized = Array.isArray(data)
-          ? data.map((r) => ({
-              id: r.user_id ?? r.id,
-              is_hidden: !!r.is_hidden,
-              username: r.is_hidden ? null : (r.username || null),
-              avatar_url: r.is_hidden ? null : (r.avatar_url || null),
-              name: r.is_hidden ? "Hidden" : (r.name ?? r.username ?? r.email?.split("@")[0] ?? "User"),
-              xp: r.is_hidden ? 0 : Number(r.xp ?? r.total_xp ?? 0),
-              streak: r.is_hidden ? 0 : Number(r.streak ?? 1),
-              level: Number(r.level ?? 1),
-              isYou: user?.email ? r.email === user.email : false,
-              rank: r.rank,
-            }))
-          : [];
-
-        if (!cancelled && normalized.length > 0) {
-          // Ensure current user gets the "You" badge even if backend doesn't mark it
-          const withYou = normalized.map((e) => ({
-            ...e,
-            isYou: e.isYou || e.name === currentUserName,
-          }));
-
-          setEntries(withYou);
-        }
-      } catch (err) {
-        console.warn("[Leaderboard] Using placeholder data:", err?.message || err);
-        if (!cancelled) setEntries(placeholderEntries);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadLeaderboard();
-    return () => {
-      cancelled = true;
-    };
-  }, [token, user?.email, currentUserName, placeholderEntries]);
-
+function Avatar({ name, url }) {
+  const src = resolveUrl(url);
   return (
-    <HeaderLayout user={user} onLogout={onLogout}>
-      <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
-        <div className="max-w-3xl mx-auto px-4 pt-4 pb-8 space-y-6">
-        {/* Header */}
-        <section className="rounded-3xl bg-white p-5 md:p-6 ring-1 ring-slate-200 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-pom-500 flex items-center justify-center text-white shadow-md">
-              <Trophy className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-lg md:text-xl font-display font-semibold text-slate-900">
-                Weekly Leaderboard
-              </h1>
-              <p className="text-xs text-slate-500">
-                Compete with other learners and climb the ranks.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {loading && (
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading…
-              </div>
-            )}
-            <div className="flex items-center gap-1.5 bg-brand-50 rounded-2xl px-3 py-2">
-              <Flame className="w-4 h-4 text-brand-500" />
-              <span className="text-xs font-medium text-slate-800">
-                Streak: {user?.streak ?? 1} days
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-gold-50 rounded-2xl px-3 py-2">
-              <StarMotif className="h-4 w-4 text-gold-500" />
-              <span className="text-xs font-display font-semibold text-slate-800">
-                XP: {user?.xp ?? 0}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Podium for top 3 */}
-        <section className="rounded-3xl bg-white p-5 md:p-6 ring-1 ring-slate-200 shadow-sm">
-          <h2 className="text-sm font-display font-semibold text-slate-900 mb-4">
-            Top learners this week
-          </h2>
-
-          <div className="grid grid-cols-3 gap-3 md:gap-4 items-end">
-            {/* 2nd */}
-            <PodiumCard
-              place={2}
-              name={entries?.[1]?.name ?? "—"}
-              avatarUrl={entries?.[1]?.avatar_url}
-              isHidden={entries?.[1]?.is_hidden}
-              xp={entries?.[1]?.xp ?? 0}
-              streak={entries?.[1]?.streak ?? 0}
-              level={entries?.[1]?.level ?? 1}
-              heightClass="h-28 md:h-32"
-            />
-            {/* 1st */}
-            <PodiumCard
-              place={1}
-              name={entries?.[0]?.name ?? "—"}
-              avatarUrl={entries?.[0]?.avatar_url}
-              isHidden={entries?.[0]?.is_hidden}
-              xp={entries?.[0]?.xp ?? 0}
-              streak={entries?.[0]?.streak ?? 0}
-              level={entries?.[0]?.level ?? 1}
-              heightClass="h-32 md:h-40"
-              highlight
-            />
-            {/* 3rd */}
-            <PodiumCard
-              place={3}
-              name={entries?.[2]?.name ?? "—"}
-              avatarUrl={entries?.[2]?.avatar_url}
-              isHidden={entries?.[2]?.is_hidden}
-              xp={entries?.[2]?.xp ?? 0}
-              streak={entries?.[2]?.streak ?? 0}
-              level={entries?.[2]?.level ?? 1}
-              heightClass="h-24 md:h-28"
-            />
-          </div>
-        </section>
-
-        {/* Full list */}
-        <section className="rounded-3xl bg-white p-5 md:p-6 ring-1 ring-slate-200 shadow-sm">
-          <h2 className="text-sm font-display font-semibold text-slate-900 mb-3">
-            All rankings
-          </h2>
-
-          <div className="space-y-1">
-            {entries.map((entry, index) => (
-              <RowEntry
-                key={entry.id ?? index}
-                rank={index + 1}
-                entry={entry}
-                onOpen={() => {
-                  // FIX: only navigate if username exists
-                  if (entry?.is_hidden) return;
-                  const u = String(entry?.username || "").trim();
-                  if (!u) return;
-                  navigate(`/u/${encodeURIComponent(u)}`);
-                }}
-              />
-            ))}
-          </div>
-
-        </section>
-        </div>
-      </div>
-    </HeaderLayout>
-  );
-}
-
-function PodiumCard({
-  place,
-  name,
-  avatarUrl,
-  isHidden,
-  xp,
-  streak,
-  level,
-  heightClass,
-  highlight = false,
-}) {
-  const placeColors = {
-    1: "from-gold-400 via-gold-500 to-brand-500",
-    2: "from-slate-300 to-slate-400",
-    3: "from-amber-500 to-pom-500",
-  };
-
-  const icon =
-    place === 1 ? <Crown className="w-5 h-5" /> : <Medal className="w-5 h-5" />;
-
-  const [firstName] = (name || "User").split(" ");
-  const avatarSrc = !isHidden ? resolveUrl(avatarUrl) : "";
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <div
-        className={`w-12 h-12 rounded-full bg-gradient-to-br ${
-          placeColors[place]
-        } flex items-center justify-center text-white text-sm font-semibold shadow-md overflow-hidden`}
-      >
-        {isHidden ? (
-          "?"
-        ) : avatarSrc ? (
-          <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = "none"; }} />
-        ) : (
-          firstName?.[0]?.toUpperCase() ?? "?"
-        )}
-      </div>
-
-      <span className="text-xs font-display font-semibold text-slate-800 truncate max-w-[80px] text-center">
-        {firstName || "—"}
-      </span>
-
-      <div
-        className={`mt-1 w-full rounded-2xl bg-slate-100 flex flex-col items-center justify-end ${heightClass} relative overflow-hidden`}
-      >
-        <div
-          className={`absolute inset-x-0 bottom-0 bg-gradient-to-t ${
-            placeColors[place]
-          }`}
-          style={{ height: "70%" }}
-        />
-        <div className="relative z-10 flex flex-col items-center pb-1">
-          <div className="flex items-center gap-1 text-white text-xs font-display font-semibold">
-            {icon}
-            <span>#{place}</span>
-          </div>
-          <span className="text-[11px] font-display text-white/90">
-            Lv {level} · {xp} XP
-          </span>
-        </div>
-      </div>
-
-      <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-        <Flame className="w-3 h-3 text-brand-500" />
-        {streak}d
-      </span>
+    <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-pom-500 font-display font-extrabold text-white">
+      {src ? (
+        <img src={src} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+      ) : (
+        (name?.[0] || "U").toUpperCase()
+      )}
     </div>
   );
 }
 
-function RowEntry({ rank, entry, onOpen }) {
-  const badgeColors = entry.isYou
-    ? "bg-brand-100 text-brand-700 border-brand-200"
-    : "bg-slate-50 text-slate-600 border-slate-100";
+function Row({ entry }) {
+  const rankColor =
+    entry.rank === 1 ? "text-gold-500" : entry.rank === 2 ? "text-slate-400" : entry.rank === 3 ? "text-amber-700" : "text-slate-400";
+  return (
+    <div className={"flex items-center gap-3 rounded-2xl px-3 py-2.5 " + (entry.is_self ? "bg-brand-50 ring-1 ring-brand-200" : "")}>
+      <div className={"w-6 shrink-0 text-center font-display text-base font-extrabold " + rankColor}>{entry.rank}</div>
+      <Avatar name={entry.name} url={entry.avatar_url} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-display text-sm font-extrabold text-slate-800">
+          {entry.name}
+          {entry.is_self ? <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700">YOU</span> : null}
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 font-display text-sm font-extrabold text-slate-700">
+        <StarMotif className="h-4 w-4 text-gold-500" />
+        {entry.weekly_xp}
+      </div>
+    </div>
+  );
+}
 
-  const rankBadge =
-    rank === 1
-      ? "bg-gold-100 text-gold-700"
-      : rank === 2
-      ? "bg-slate-200 text-slate-600"
-      : rank === 3
-      ? "bg-amber-100 text-amber-700"
-      : "text-slate-500";
+function ZoneDivider({ type }) {
+  const promote = type === "promote";
+  return (
+    <div className="my-1 flex items-center gap-2 px-2">
+      <div className={"h-0.5 flex-1 rounded-full " + (promote ? "bg-grass-400" : "bg-cardinal-300")} />
+      <span className={"inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide " + (promote ? "text-grass-600" : "text-cardinal-500")}>
+        {promote ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
+        {promote ? "Promotion" : "Demotion"} zone
+      </span>
+      <div className={"h-0.5 flex-1 rounded-full " + (promote ? "bg-grass-400" : "bg-cardinal-300")} />
+    </div>
+  );
+}
 
-  const isHidden = !!entry?.is_hidden;
-  const avatarSrc = !isHidden ? resolveUrl(entry?.avatar_url) : "";
-  const initial =
-    entry.name?.[0]?.toUpperCase() ?? entry.email?.[0]?.toUpperCase() ?? "?";
+function tabCls(active, disabled) {
+  return (
+    "rounded-2xl py-2.5 font-display text-sm font-extrabold transition " +
+    (active ? "bg-brand-500 text-white shadow-btn-brand" : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50") +
+    (disabled ? " cursor-not-allowed opacity-50" : "")
+  );
+}
 
-  // FIX: only clickable when username exists
-  const canClick = !isHidden && !!entry?.username;
+export default function Leaderboard() {
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("league");
+
+  useEffect(() => {
+    const t = getToken();
+    fetch(`${API_BASE}/me/league`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setData(d))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const tier = data?.tier ?? 0;
+  const tierColor = TIER_COLORS[Math.min(tier, TIER_COLORS.length - 1)];
+  const list = tab === "friends" ? data?.friends || [] : data?.division || [];
+  const promoteTop = data?.promote_top || 0;
+  const demoteBottom = tab === "league" ? data?.demote_bottom || 0 : 0;
+  const showZones = tab === "league" && data?.joined && list.length > promoteTop;
 
   return (
-    <div
-      className={`flex items-center gap-3 py-3 px-2 rounded-2xl ${
-        entry.isYou
-          ? "bg-brand-50 ring-1 ring-brand-200"
-          : canClick
-          ? "hover:bg-slate-50"
-          : ""
-      } transition-colors ${canClick ? "cursor-pointer" : ""}`}
-      onClick={canClick ? onOpen : undefined}
-      role={canClick ? "button" : undefined}
-      tabIndex={canClick ? 0 : undefined}
-      onKeyDown={(e) => {
-        if (canClick && (e.key === "Enter" || e.key === " ")) onOpen?.();
-      }}
-    >
-      <div
-        className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-xs font-display font-semibold ${rankBadge}`}
-      >
-        #{rank}
-      </div>
-
-      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-pom-500 flex items-center justify-center text-white text-sm font-display font-semibold overflow-hidden">
-        {isHidden ? (
-          "?"
-        ) : avatarSrc ? (
-          <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover"
-            onError={(e) => { e.currentTarget.style.display = "none"; }} />
-        ) : (
-          initial
-        )}
-      </div>
-
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-display font-semibold text-slate-900">
-            {isHidden ? "Hidden" : entry.name}
-          </span>
-          {entry.isYou && (
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeColors}`}
-            >
-              You
-            </span>
-          )}
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        {/* League header */}
+        <div className="rounded-3xl bg-white p-6 text-center ring-1 ring-slate-200 shadow-sm">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl text-white shadow-sm" style={{ background: tierColor }}>
+            <Shield className="h-8 w-8" />
+          </div>
+          <h1 className="mt-3 font-display text-2xl font-extrabold text-slate-800">{data?.tier_name || "Bronze"} League</h1>
+          <p className="mt-1 text-sm font-bold text-slate-500">
+            {Math.max(0, data?.days_left ?? 0)} day{(data?.days_left) === 1 ? "" : "s"} left · Top {promoteTop} promote
+          </p>
         </div>
 
-        {isHidden ? (
-          <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-            <span>This user is hidden.</span>
+        {/* Tabs */}
+        <div className="my-5 grid grid-cols-2 gap-2">
+          <button onClick={() => setTab("league")} className={tabCls(tab === "league")}>League</button>
+          <button
+            onClick={() => data?.has_friends && setTab("friends")}
+            disabled={!data?.has_friends}
+            title={data?.has_friends ? "" : "Add friends to compete with them"}
+            className={tabCls(tab === "friends", !data?.has_friends)}
+          >
+            Friends
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="font-semibold">Loading…</span>
+          </div>
+        ) : tab === "league" && !data?.joined ? (
+          <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200 shadow-sm">
+            <img src={grandma} alt="" className="mx-auto h-20 w-20 rounded-2xl object-cover" />
+            <div className="mt-3 font-display text-lg font-extrabold text-slate-800">Join this week’s league</div>
+            <p className="mt-1 font-semibold text-slate-500">Earn XP in a lesson to enter the {data?.tier_name || "Bronze"} division and start climbing.</p>
+            <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand mt-5 uppercase">Start a lesson</button>
+          </div>
+        ) : list.length === 0 ? (
+          <div className="rounded-3xl bg-white p-8 text-center font-semibold text-slate-500 ring-1 ring-slate-200">
+            {tab === "friends" ? "No friends in the league yet this week." : "No one here yet — be the first!"}
           </div>
         ) : (
-        <div className="flex items-center gap-4 text-[11px] text-slate-500 mt-0.5">
-          <span className="flex items-center gap-1">
-            <Trophy className="w-3 h-3 text-gold-500" />
-            Lv {entry.level}
-          </span>
-          <span className="flex items-center gap-1 font-display font-semibold text-slate-600">
-            <StarMotif className="h-3 w-3 text-gold-500" />
-            {entry.xp} XP
-          </span>
-          <span className="flex items-center gap-1">
-            <Flame className="w-3 h-3 text-brand-500" />
-            {entry.streak} day streak
-          </span>
-        </div>
+          <div className="rounded-3xl bg-white p-3 ring-1 ring-slate-200 shadow-sm">
+            {list.map((e, i) => (
+              <React.Fragment key={e.user_id ?? i}>
+                <Row entry={e} />
+                {showZones && i === promoteTop - 1 ? <ZoneDivider type="promote" /> : null}
+                {showZones && demoteBottom > 0 && i === list.length - demoteBottom - 1 && i >= promoteTop ? <ZoneDivider type="demote" /> : null}
+              </React.Fragment>
+            ))}
+          </div>
         )}
       </div>
     </div>
