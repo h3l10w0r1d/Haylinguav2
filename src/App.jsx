@@ -1,5 +1,5 @@
 // src/App.jsx - Simplified without separate /verify route
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -10,22 +10,32 @@ import {
 } from 'react-router-dom';
 
 import LandingPage from './LandingPage';
-import Dashboard from './Dashboard';
-import LessonPlayer from './LessonPlayer';
-import Premium from './Premium';
-import Achievements from './Achievements';
-import Friends from './Friends';
-import Leaderboard from './Leaderboard';
-import ProfilePage from './ProfilePage';
-import PublicUserPage from './PublicUserPage';
-import CmsGate from './cms/CmsGate';
-import CmsLogin from './cms/CmsLogin';
-import CmsSupport from './cms/CmsSupport';
-import CmsInvite from './cms/CmsInvite';
-import Cms2FASetup from './cms/Cms2FASetup';
-import CmsTeam from './cms/CmsTeam';
 import HeaderLayout from './HeaderLayout';
-import Onboarding from './Onboarding';
+
+// Code-split heavy routes so the initial bundle stays small.
+const Dashboard = lazy(() => import('./Dashboard'));
+const LessonPlayer = lazy(() => import('./LessonPlayer'));
+const Premium = lazy(() => import('./Premium'));
+const Achievements = lazy(() => import('./Achievements'));
+const Friends = lazy(() => import('./Friends'));
+const Leaderboard = lazy(() => import('./Leaderboard'));
+const ProfilePage = lazy(() => import('./ProfilePage'));
+const PublicUserPage = lazy(() => import('./PublicUserPage'));
+const Onboarding = lazy(() => import('./Onboarding'));
+const CmsGate = lazy(() => import('./cms/CmsGate'));
+const CmsLogin = lazy(() => import('./cms/CmsLogin'));
+const CmsSupport = lazy(() => import('./cms/CmsSupport'));
+const CmsInvite = lazy(() => import('./cms/CmsInvite'));
+const Cms2FASetup = lazy(() => import('./cms/Cms2FASetup'));
+const CmsTeam = lazy(() => import('./cms/CmsTeam'));
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50/40 to-white">
+      <div className="h-7 w-7 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
+    </div>
+  );
+}
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -303,6 +313,7 @@ function AppShell() {
   }
 
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       {/* Public user pages are accessible with or without auth */}
       <Route
@@ -427,6 +438,7 @@ function AppShell() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }
 
