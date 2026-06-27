@@ -1569,6 +1569,13 @@ def _current_iso_week() -> str:
     return f"{iso[0]}-W{int(iso[1]):02d}"
 
 
+def _week_seconds_left() -> int:
+    """Seconds until the ISO week ends (Sunday 23:59:59 UTC)."""
+    now = datetime.utcnow()
+    end = (now + timedelta(days=7 - now.isoweekday())).replace(hour=23, minute=59, second=59, microsecond=0)
+    return max(0, int((end - now).total_seconds()))
+
+
 def _ensure_league_assignment(db: Connection, user_id: int) -> None:
     """Place the user into a cohort (≤30) of their tier for the current week.
 
@@ -3097,6 +3104,7 @@ def me_league(
         "max_tier": len(LEAGUE_TIERS) - 1,
         "joined": joined,
         "days_left": 7 - datetime.utcnow().isoweekday(),  # Mon=1..Sun=7
+        "seconds_left": _week_seconds_left(),
         "promote_top": LEAGUE_PROMOTE_TOP,
         "demote_bottom": (LEAGUE_DEMOTE_BOTTOM if tier > 0 else 0),
         "division": division,
@@ -4281,16 +4289,9 @@ def support_resolve_report(
     return {"ok": True}
 
 
-@router.post("/cms/support/leagues/rollover")
-def leagues_rollover(
-    _: dict = Depends(require_cms_admin),
-    db: Connection = Depends(get_db),
-):
-    """Weekly promotion/relegation — run once at each week boundary (e.g. cron).
-
-    Top of each cohort move up a tier, bottom move down; then everyone is reset
-    to re-join fresh next week (idempotent: re-running finds nothing to process).
-    """
+def _run_league_rollover(db: Connection) -> Dict[str, Any]:
+    """Promote the top of each cohort up a tier, demote the bottom down, then
+    reset everyone so they re-join fresh next week (idempotent)."""
     cohorts = db.execute(
         text(
             """
@@ -4327,6 +4328,28 @@ def leagues_rollover(
 
     db.execute(text("UPDATE users SET weekly_xp = 0, league_cohort = NULL, league_week = NULL WHERE league_cohort IS NOT NULL"))
     return {"ok": True, "promoted": promoted, "demoted": demoted, "cohorts": len(cohorts)}
+
+
+@router.post("/cms/support/leagues/rollover")
+def leagues_rollover(
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    """Manual weekly promotion/relegation (CMS admin)."""
+    return _run_league_rollover(db)
+
+
+@router.post("/cron/leagues/rollover")
+def leagues_rollover_cron(
+    x_cron_secret: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Cron entry point for weekly promotion/relegation. Authenticated with a
+    shared secret (CRON_SECRET) so a scheduler can call it without a login."""
+    secret = (os.getenv("CRON_SECRET") or "").strip()
+    if not secret or not x_cron_secret or not hmac.compare_digest(x_cron_secret.strip(), secret):
+        raise HTTPException(status_code=403, detail="Invalid cron secret")
+    return _run_league_rollover(db)
 
 
 def _send_invite_email(email: str, invite_url: str):  # Send email function, is a really helpful thing for email verification and overall systematic communication style.
