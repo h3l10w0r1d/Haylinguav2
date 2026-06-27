@@ -1,6 +1,8 @@
 // src/ExerciseShell.jsx
 import React, { useEffect, useState } from "react";
 import { X, Heart } from "lucide-react";
+import { StarMotif, CarpetBorder } from "./lib/motifs";
+import grandma from "./assets/character-grandma.png";
 
 /** Live hearts badge — reads localStorage and the `hay_hearts` event that
  *  postAttempt dispatches, so it stays in sync without prop drilling. */
@@ -77,12 +79,33 @@ export default function ExerciseShell({
   }, [result, onResultPrimary]);
 
   const variant = result?.variant;
-  const sheetTone =
+  const tone =
     variant === "correct"
-      ? { wrap: "bg-grass-50 border-grass-100", title: "text-grass-700", btn: "btn3d-grass", icon: "✅" }
+      ? {
+          wrap: "bg-gradient-to-br from-amber-50 to-brand-50 border-gold-400",
+          carpet: "rgba(255,200,0,0.35)",
+          title: "text-brand-700",
+          heading: "Ապրե՛ս! · Correct",
+          btn: "btn3d-brand",
+          medallion: "bg-gold-500 text-white",
+        }
       : variant === "skipped"
-      ? { wrap: "bg-slate-50 border-slate-100", title: "text-slate-600", btn: "btn3d-neutral", icon: "⏭️" }
-      : { wrap: "bg-cardinal-50 border-cardinal-100", title: "text-cardinal-600", btn: "btn3d-cardinal", icon: "❌" };
+      ? {
+          wrap: "bg-slate-50 border-slate-200",
+          carpet: "rgba(100,116,139,0.18)",
+          title: "text-slate-600",
+          heading: "Skipped",
+          btn: "btn3d-neutral",
+          medallion: "bg-slate-200 text-slate-500",
+        }
+      : {
+          wrap: "bg-gradient-to-br from-cardinal-50 to-pom-50 border-cardinal-300",
+          carpet: "rgba(225,29,72,0.2)",
+          title: "text-cardinal-600",
+          heading: "Փորձիր նորից · Not quite",
+          btn: "btn3d-cardinal",
+          medallion: "bg-cardinal-500 text-white",
+        };
 
   return (
     <div className="min-h-screen bg-white">
@@ -140,7 +163,7 @@ export default function ExerciseShell({
                 type="button"
                 disabled={primaryDisabled}
                 onClick={onPrimary}
-                className="btn3d btn3d-grass ml-auto min-w-[140px] uppercase"
+                className="btn3d btn3d-brand ml-auto min-w-[140px] uppercase"
               >
                 {primaryLabel}
               </button>
@@ -149,49 +172,63 @@ export default function ExerciseShell({
         </div>
       ) : null}
 
-      {/* Result sheet */}
+      {/* Result panel */}
       {result ? (
         <div className="fixed inset-0 z-[60] flex items-end">
           <div className="absolute inset-0 bg-black/10" />
-          <div className={"relative w-full border-t-2 animate-pop " + sheetTone.wrap}>
+          <div className={"relative w-full animate-pop border-t-4 " + tone.wrap}>
+            <CarpetBorder color={tone.carpet} />
             <div className="mx-auto max-w-3xl px-4 py-5">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div
+              <div className="flex items-center gap-4">
+                {/* Tatik reacts */}
+                <div className="relative shrink-0">
+                  <img
+                    src={grandma}
+                    alt=""
                     className={
-                      "grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-2xl shadow-sm"
+                      "h-16 w-16 rounded-2xl object-cover shadow-sm " +
+                      (variant === "correct" ? "animate-bouncey" : "")
+                    }
+                  />
+                  <span
+                    className={
+                      "absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full ring-2 ring-white " +
+                      tone.medallion
                     }
                   >
-                    {sheetTone.icon}
+                    {variant === "correct" ? (
+                      <StarMotif className="h-4 w-4" />
+                    ) : variant === "skipped" ? (
+                      <span className="text-xs font-black">→</span>
+                    ) : (
+                      <span className="text-sm font-black">!</span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className={"font-display text-xl font-extrabold " + tone.title}>
+                    {tone.heading}
                   </div>
-                  <div>
-                    <div className={"font-display text-xl font-extrabold " + sheetTone.title}>
-                      {variant === "correct"
-                        ? "Շատ լավ! Correct!"
-                        : variant === "skipped"
-                        ? "Skipped"
-                        : "Not quite"}
-                    </div>
-                    <div className="text-sm font-bold text-slate-500">
-                      {variant === "correct"
-                        ? `+${Number(result.xpEarned || 0)} XP`
-                        : variant === "skipped"
-                        ? "No XP gained"
-                        : result.detail || "Try again — you’ve got this."}
-                    </div>
-                    {result.subtext ? (
-                      <div className="text-xs font-semibold text-slate-400">{result.subtext}</div>
-                    ) : null}
+                  <div className="text-sm font-bold text-slate-500">
+                    {variant === "correct"
+                      ? `+${Number(result.xpEarned || 0)} XP earned`
+                      : variant === "skipped"
+                      ? "No XP gained"
+                      : result.detail || "You’ve got this — give it another go."}
                   </div>
+                  {result.subtext ? (
+                    <div className="text-xs font-semibold text-slate-400">{result.subtext}</div>
+                  ) : null}
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={onResultPrimary}
-                className={"btn3d mt-4 w-full uppercase " + sheetTone.btn}
+                className={"btn3d mt-4 w-full uppercase " + tone.btn}
               >
-                {result.primaryLabel || (variant === "wrong" ? "Try again" : "Continue")}
+                {result.primaryLabel || (variant === "wrong" ? "Got it" : "Continue")}
               </button>
             </div>
           </div>

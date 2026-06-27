@@ -403,7 +403,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             placeholder="Type your answer"
-            className="w-full h-12 rounded-xl px-4 text-base font-semibold ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            className="w-full rounded-2xl bg-slate-50 px-4 py-4 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
             autoFocus
             autoCapitalize="none"
             autoCorrect="off"
@@ -571,19 +571,13 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
                   }
                 }
               }}
-              className={
-                "rounded-2xl px-4 py-4 text-left font-extrabold ring-1 transition-transform duration-150 " +
-                (active
-                  ? "bg-orange-50 ring-orange-300 text-orange-800"
-                  : "bg-white ring-slate-200 text-slate-800 hover:bg-slate-50") +
-                " hover:-translate-y-[1px] active:translate-y-0"
-              }
+              className={"tile text-lg " + (active ? "tile-selected" : "")}
             >
               <div className="flex items-center gap-3">
                 <div
                   className={
-                    "w-6 h-6 rounded-full ring-2 flex items-center justify-center text-xs font-black " +
-                    (active ? "ring-orange-400 bg-orange-100" : "ring-slate-200 bg-white")
+                    "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-extrabold ring-2 " +
+                    (active ? "bg-feather-500 text-white ring-feather-500" : "bg-white text-slate-400 ring-slate-200")
                   }
                 >
                   {idx + 1}
@@ -591,7 +585,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
                 <div className="leading-snug">{c}</div>
               </div>
               {isMulti && active ? (
-                <div className="mt-2 text-xs font-semibold text-orange-700">Selected</div>
+                <div className="mt-2 text-xs font-bold text-feather-700">Selected</div>
               ) : null}
             </button>
           );

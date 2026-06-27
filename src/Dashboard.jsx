@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Lock, MapPin, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
+import { StarMotif } from "./lib/motifs";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -13,15 +14,6 @@ const UNIT_THEMES = [
   { band: "from-pom-500 to-pom-600", shadow: "shadow-[0_4px_0_0_#8F1033]", dot: "bg-gold-400" },
   { band: "from-gold-500 to-gold-600", shadow: "shadow-[0_4px_0_0_#B45309]", dot: "bg-pom-400" },
 ];
-
-// An 8-pointed Armenian star — used to mark mastered lessons.
-function StarMotif({ className }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
-      <path d="M12 1.5l2.2 5.1 5.1-2.2-2.2 5.1 2.2 5.1-5.1-2.2L12 22.5l-2.2-5.1-5.1 2.2 2.2-5.1-2.2-5.1 5.1 2.2z" />
-    </svg>
-  );
-}
 
 // Stylized Mount Ararat (greater + lesser peaks) with a summit flag.
 function Ararat({ className }) {
