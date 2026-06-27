@@ -418,6 +418,8 @@ class AttemptOut(BaseModel):
     # Hearts system (lives)
     hearts_current: Optional[int] = None
     hearts_max: Optional[int] = None
+    is_premium: Optional[bool] = None
+    next_regen_seconds: Optional[int] = None
 
 
 class LogIn(BaseModel):
@@ -1453,17 +1455,100 @@ def _ensure_hearts_initialized(db: Connection, user_id: int) -> None:
     )
 
 
-def _get_hearts(db: Connection, user_id: int) -> tuple[int, int]:
+# Regenerate one heart every N minutes (Duolingo-style). Override via env.
+HEARTS_REGEN_MINUTES = int(os.getenv("HEARTS_REGEN_MINUTES") or "30")
+
+
+def _sync_hearts(db: Connection, user_id: int) -> None:
+    """Lazily refill hearts based on time elapsed since the last loss.
+
+    Premium users are skipped (they always have full/unlimited hearts).
+    `last_heart_lost_at` is the regen clock; it advances as hearts come back
+    and is cleared once the user is back to full.
+    """
+    interval = max(1, HEARTS_REGEN_MINUTES) * 60
+    db.execute(
+        text(
+            """
+            UPDATE users u SET
+              hearts_current = LEAST(u.hearts_max, u.hearts_current + t.ticks),
+              last_heart_lost_at = CASE
+                  WHEN u.hearts_current + t.ticks >= u.hearts_max THEN NULL
+                  ELSE u.last_heart_lost_at + ((t.ticks * :interval) * INTERVAL '1 second')
+              END
+            FROM (
+              SELECT id,
+                     FLOOR(EXTRACT(EPOCH FROM (NOW() - last_heart_lost_at)) / :interval)::int AS ticks
+              FROM users WHERE id = :u
+            ) t
+            WHERE u.id = t.id
+              AND NOT COALESCE(u.is_premium, FALSE)
+              AND u.last_heart_lost_at IS NOT NULL
+              AND u.hearts_current < u.hearts_max
+              AND t.ticks > 0
+            """
+        ),
+        {"u": user_id, "interval": interval},
+    )
+
+
+def _hearts_state(db: Connection, user_id: int) -> Dict[str, Any]:
+    """Authoritative hearts state (after regen), incl. premium + next-regen ETA."""
     _ensure_hearts_initialized(db, user_id)
+    _sync_hearts(db, user_id)
+    interval = max(1, HEARTS_REGEN_MINUTES) * 60
     row = db.execute(
-        text("SELECT hearts_current, hearts_max FROM users WHERE id = :u"),
-        {"u": user_id},
+        text(
+            """
+            SELECT COALESCE(is_premium, FALSE) AS is_premium,
+                   hearts_current, hearts_max,
+                   CASE
+                     WHEN COALESCE(is_premium, FALSE) THEN 0
+                     WHEN hearts_current >= hearts_max THEN 0
+                     WHEN last_heart_lost_at IS NULL THEN :interval
+                     ELSE CEIL(:interval - MOD(EXTRACT(EPOCH FROM (NOW() - last_heart_lost_at)), :interval))::int
+                   END AS next_regen_seconds
+            FROM users WHERE id = :u
+            """
+        ),
+        {"u": user_id, "interval": interval},
     ).mappings().first()
-    if not row:
-        return (DEFAULT_HEARTS_MAX, DEFAULT_HEARTS_MAX)
-    cur = int(row.get("hearts_current") or DEFAULT_HEARTS_MAX)
-    mx = int(row.get("hearts_max") or DEFAULT_HEARTS_MAX)
-    return (cur, mx)
+
+    mx = int((row and row["hearts_max"]) or DEFAULT_HEARTS_MAX)
+    is_prem = bool(row and row["is_premium"])
+    cur = mx if is_prem else int(
+        row["hearts_current"] if (row and row["hearts_current"] is not None) else mx
+    )
+    return {
+        "hearts_current": cur,
+        "hearts_max": mx,
+        "is_premium": is_prem,
+        "unlimited": is_prem,
+        "next_regen_seconds": 0 if is_prem else int((row and row["next_regen_seconds"]) or 0),
+    }
+
+
+def _lose_heart(db: Connection, user_id: int) -> Dict[str, Any]:
+    """Apply pending regen, then subtract one heart (no-op for premium)."""
+    _ensure_hearts_initialized(db, user_id)
+    _sync_hearts(db, user_id)
+    db.execute(
+        text(
+            """
+            UPDATE users SET
+              last_heart_lost_at = CASE WHEN hearts_current >= hearts_max THEN NOW() ELSE last_heart_lost_at END,
+              hearts_current = GREATEST(COALESCE(hearts_current, hearts_max) - 1, 0)
+            WHERE id = :u AND NOT COALESCE(is_premium, FALSE)
+            """
+        ),
+        {"u": user_id},
+    )
+    return _hearts_state(db, user_id)
+
+
+def _get_hearts(db: Connection, user_id: int) -> tuple[int, int]:
+    st = _hearts_state(db, user_id)
+    return (st["hearts_current"], st["hearts_max"])
 
 # ---------- Routes ----------
 
@@ -2402,24 +2487,12 @@ def record_exercise_attempt(
     if earned_xp_delta < 0:
         earned_xp_delta = 0
 
-    # Hearts: decrement on wrong answers (keep DB as source of truth)
-    _ensure_hearts_initialized(db, user_id)
+    # Hearts: lose one on a wrong answer (with regen applied first); premium
+    # users keep unlimited hearts. DB is the source of truth.
     if not bool(is_correct):
-        db.execute(
-            text(
-                """
-                UPDATE users
-                SET hearts_current = GREATEST(COALESCE(hearts_current, hearts_max, :mx) - 1, 0)
-                WHERE id = :uid
-                """
-            ),
-            {"uid": user_id, "mx": DEFAULT_HEARTS_MAX},
-        )
-
-    hearts = db.execute(
-        text("SELECT COALESCE(hearts_current, :mx) AS hearts_current, COALESCE(hearts_max, :mx) AS hearts_max FROM users WHERE id = :uid"),
-        {"uid": user_id, "mx": DEFAULT_HEARTS_MAX},
-    ).mappings().first() or {"hearts_current": DEFAULT_HEARTS_MAX, "hearts_max": DEFAULT_HEARTS_MAX}
+        hstate = _lose_heart(db, user_id)
+    else:
+        hstate = _hearts_state(db, user_id)
 
     return AttemptOut(
         ok=True,
@@ -2429,8 +2502,10 @@ def record_exercise_attempt(
         earned_xp_delta=int(earned_xp_delta),
         completion_ratio=float(progress["completion_ratio"]),
         completed=bool(progress["completed"]),
-        hearts_current=int(hearts["hearts_current"]),
-        hearts_max=int(hearts["hearts_max"]),
+        hearts_current=int(hstate["hearts_current"]),
+        hearts_max=int(hstate["hearts_max"]),
+        is_premium=bool(hstate["is_premium"]),
+        next_regen_seconds=int(hstate["next_regen_seconds"]),
         )
 
 
@@ -2741,8 +2816,57 @@ def me_hearts(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    cur, mx = _get_hearts(db, user_id)
-    return {"hearts_current": cur, "hearts_max": mx}
+    return _hearts_state(db, user_id)
+
+
+# ----------------------------
+# Premium (unlimited hearts). Payment is SIMULATED for now — replace
+# /me/premium/checkout with a real Stripe webhook later.
+# ----------------------------
+
+@router.get("/me/premium")
+def me_premium_status(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    row = db.execute(
+        text("SELECT COALESCE(is_premium, FALSE) AS is_premium, premium_since FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first()
+    return {
+        "is_premium": bool(row and row["is_premium"]),
+        "premium_since": (row["premium_since"].isoformat() if row and row["premium_since"] else None),
+    }
+
+
+@router.post("/me/premium/checkout")
+def me_premium_checkout(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """SIMULATED purchase — no real charge. Activates premium immediately.
+
+    TODO: replace with Stripe Checkout + webhook before going live.
+    """
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET is_premium = TRUE, premium_since = COALESCE(premium_since, NOW())
+            WHERE id = :u
+            """
+        ),
+        {"u": user_id},
+    )
+    st = _hearts_state(db, user_id)
+    return {"ok": True, **st}
 
 
 @router.put("/me/profile", response_model=MeOut)

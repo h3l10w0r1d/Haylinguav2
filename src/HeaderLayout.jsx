@@ -67,6 +67,8 @@ export default function HeaderLayout({ user, onLogout, children }) {
         const next = {
           current: Number(data.current ?? data.hearts_current ?? 0),
           max: Number(data.max ?? data.hearts_max ?? 0),
+          is_premium: !!(data.is_premium),
+          next_regen_seconds: Number(data.next_regen_seconds ?? 0),
         };
         setHearts(next);
         try {
@@ -83,6 +85,8 @@ export default function HeaderLayout({ user, onLogout, children }) {
       const next = {
         current: Number(detail.current ?? detail.hearts_current ?? 0),
         max: Number(detail.max ?? detail.hearts_max ?? 0),
+        is_premium: !!(detail.is_premium),
+        next_regen_seconds: Number(detail.next_regen_seconds ?? 0),
       };
       setHearts(next);
       try {
@@ -162,10 +166,15 @@ export default function HeaderLayout({ user, onLogout, children }) {
           <div className="flex items-center gap-3">
             {/* Quick stats */}
             <div className="hidden md:flex items-center gap-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
-                <Heart className="w-4 h-4" />
-                <span>{hearts ? `${hearts.current}/${hearts.max}` : "–"}</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/premium")}
+                title={hearts?.is_premium ? "Premium — unlimited hearts" : "Get unlimited hearts"}
+                className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+              >
+                <Heart className={"w-4 h-4 " + (hearts?.is_premium ? "fill-rose-500" : "")} />
+                <span>{hearts ? (hearts.is_premium ? "∞" : `${hearts.current}/${hearts.max}`) : "–"}</span>
+              </button>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700">
                 <Flame className="w-4 h-4" />
                 <span>{streak}</span>

@@ -2,28 +2,17 @@
 import React, { useEffect, useState } from "react";
 import { X, Heart } from "lucide-react";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
+import { readHearts } from "./lib/hearts";
 import grandma from "./assets/character-grandma.png";
 
-/** Live hearts badge — reads localStorage and the `hay_hearts` event that
- *  postAttempt dispatches, so it stays in sync without prop drilling. */
+/** Live hearts badge — reads localStorage and the `hay_hearts` event so it
+ *  stays in sync without prop drilling. Shows ∞ for premium users. */
 function HeartsBadge() {
-  const read = () => {
-    try {
-      const raw = localStorage.getItem("hay_hearts");
-      if (!raw) return null;
-      const v = JSON.parse(raw);
-      if (Number.isFinite(v?.current)) return Number(v.current);
-    } catch {}
-    return null;
-  };
-  const [hearts, setHearts] = useState(read);
+  const [hearts, setHearts] = useState(readHearts);
 
   useEffect(() => {
-    const onEvt = (e) => {
-      const c = e?.detail?.current;
-      if (Number.isFinite(c)) setHearts(Number(c));
-    };
-    const onStorage = () => setHearts(read());
+    const onEvt = (e) => { if (e?.detail) setHearts(e.detail); };
+    const onStorage = () => setHearts(readHearts());
     window.addEventListener("hay_hearts", onEvt);
     window.addEventListener("storage", onStorage);
     return () => {
@@ -36,7 +25,7 @@ function HeartsBadge() {
   return (
     <div className="flex items-center gap-1.5 font-display text-lg font-extrabold text-cardinal-500">
       <Heart className="h-6 w-6 fill-cardinal-500 text-cardinal-500" />
-      {hearts}
+      {hearts.is_premium ? "∞" : hearts.current}
     </div>
   );
 }

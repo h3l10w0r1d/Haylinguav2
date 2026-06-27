@@ -9,6 +9,8 @@ import LessonCompletionScreen from "./LessonCompletionScreen";
 import ExerciseAnalyticsModal from "./ExerciseAnalyticsModal";
 import ExerciseShell from "./ExerciseShell";
 import { sfx } from "./lib/sfx";
+import { readHearts, writeHearts } from "./lib/hearts";
+import OutOfHearts from "./OutOfHearts";
 
 // 🔧 Make sure this matches your backend URL
 const API_BASE =
@@ -166,6 +168,7 @@ export default function LessonPlayer() {
   const [pendingNext, setPendingNext] = useState(null);
   const [renderNonce, setRenderNonce] = useState(0);
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
+  const [heartsState, setHeartsState] = useState(readHearts);
 
   const [phase2Actions, setPhase2Actions] = useState(null);
 
@@ -266,6 +269,7 @@ export default function LessonPlayer() {
           hearts = Number.isFinite(attempt?.hearts_current)
             ? attempt.hearts_current
             : undefined;
+          writeHearts(attempt); // sync header / shell / gate
         } else {
           earnedDelta = isCorrect && !skipped ? Number(currentExercise?.xp ?? 0) : 0;
         }
@@ -283,6 +287,22 @@ export default function LessonPlayer() {
       hearts,
     });
   }
+
+  // ---------- Hearts (lives) sync ----------
+  useEffect(() => {
+    const onHearts = (e) => { if (e?.detail) setHeartsState(e.detail); };
+    window.addEventListener("hay_hearts", onHearts);
+    const token = getToken();
+    if (token) {
+      fetch(`${API_BASE}/me/hearts`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) writeHearts(d); })
+        .catch(() => {});
+    }
+    return () => window.removeEventListener("hay_hearts", onHearts);
+  }, []);
+
+  const outOfHearts = !!heartsState && !heartsState.is_premium && Number(heartsState.current) <= 0;
 
   // ---------- Load lesson ----------
 
@@ -610,12 +630,12 @@ export default function LessonPlayer() {
       step={Math.min(currentIndex + 1, totalSteps)}
       total={totalSteps}
       onBack={() => navigate("/dashboard")}
-      primaryLabel={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
-      primaryDisabled={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? !phase2Actions?.canCheck : null}
-      onPrimary={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? phase2Actions?.onCheck : null}
-      secondaryLabel={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.secondaryLabel ?? "Skip") : null}
-      secondaryDisabled={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? false : null}
-      onSecondary={!showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? phase2Actions?.onSkip : null}
+      primaryLabel={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
+      primaryDisabled={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? !phase2Actions?.canCheck : null}
+      onPrimary={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? phase2Actions?.onCheck : null}
+      secondaryLabel={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.secondaryLabel ?? "Skip") : null}
+      secondaryDisabled={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? false : null}
+      onSecondary={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? phase2Actions?.onSkip : null}
       result={
         resultOpen && resultData
           ? {
@@ -641,8 +661,18 @@ export default function LessonPlayer() {
       }
       onResultPrimary={proceedAfterResult}
     >
+        {/* Out of hearts — gate the lesson until they regen or go premium */}
+        {!showDoneFooter && outOfHearts ? (
+          <OutOfHearts
+            nextRegenSeconds={Number(heartsState?.next_regen_seconds) || 0}
+            onGoPremium={() => navigate("/premium")}
+            onBack={() => navigate("/dashboard")}
+            onRefilled={(state) => writeHearts(state)}
+          />
+        ) : null}
+
         {/* Current exercise */}
-        {!showDoneFooter && currentExercise ? (
+        {!showDoneFooter && !outOfHearts && currentExercise ? (
           isReadingSection ? (
             <ReadingSectionCard
               section={currentExercise?.config?.section}

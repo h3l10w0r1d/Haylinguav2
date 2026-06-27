@@ -62,6 +62,11 @@ def ensure_schema() -> None:
         # ---------- HeartSystem ----------
         add_col_if_missing("users", "last_heart_lost_at TIMESTAMPTZ")
 
+        # ---------- Premium ----------
+        add_col_if_missing("users", "is_premium BOOLEAN NOT NULL DEFAULT FALSE")
+        add_col_if_missing("users", "premium_since TIMESTAMPTZ")
+        fill_nulls("users", "is_premium", "FALSE")
+
         # ---------- StreakManager ----------
         add_col_if_missing("users", "current_streak INTEGER NOT NULL DEFAULT 0")
         add_col_if_missing("users", "streak_last_activity_date DATE")

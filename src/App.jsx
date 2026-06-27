@@ -12,6 +12,7 @@ import {
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
 import LessonPlayer from './LessonPlayer';
+import Premium from './Premium';
 import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
@@ -384,6 +385,14 @@ function AppShell() {
           element={
             <RequireOnboarded>
               <ProfilePage user={user} onUpdateUser={handleUpdateUser} />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/premium"
+          element={
+            <RequireOnboarded>
+              <Premium />
             </RequireOnboarded>
           }
         />

@@ -13,6 +13,7 @@ import {
   InlineInput,
 } from "./exercises/ui";
 import { ttsFetch } from "./exercises/tts";
+import { writeHearts } from "./lib/hearts";
 
 /**
  * Variant A: component-per-kind.
@@ -98,19 +99,9 @@ async function postAttempt({
       return;
     }
 
-    // Update hearts in header if backend returns them
+    // Update hearts everywhere (header / shell / lesson gate) if returned.
     const data = await res.json().catch(() => null);
-    if (data && typeof data === "object") {
-      const hc = data.hearts_current;
-      const hm = data.hearts_max;
-      if (Number.isFinite(hc) && Number.isFinite(hm)) {
-        const next = { current: Number(hc), max: Number(hm) };
-        try {
-          localStorage.setItem("hay_hearts", JSON.stringify(next));
-        } catch {}
-        window.dispatchEvent(new CustomEvent("hay_hearts", { detail: next }));
-      }
-    }
+    if (data && typeof data === "object") writeHearts(data);
     return data;
   } catch (e) {
     console.warn("[postAttempt] error:", e);
