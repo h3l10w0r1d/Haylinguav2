@@ -13,6 +13,7 @@ import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
 import LessonPlayer from './LessonPlayer';
 import Premium from './Premium';
+import Achievements from './Achievements';
 import Friends from './Friends';
 import Leaderboard from './Leaderboard';
 import ProfilePage from './ProfilePage';
@@ -385,6 +386,14 @@ function AppShell() {
           element={
             <RequireOnboarded>
               <Premium />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/achievements"
+          element={
+            <RequireOnboarded>
+              <Achievements />
             </RequireOnboarded>
           }
         />

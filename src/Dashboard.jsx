@@ -1,9 +1,78 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
+
+const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
+
+function DailyQuestsCard({ token }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/me/quests`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setData(d))
+      .catch(() => {});
+  }, [token]);
+  if (!data?.quests?.length) return null;
+  return (
+    <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="font-display text-base font-extrabold text-slate-800">Daily quests</div>
+        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-600">{data.completed}/{data.total}</span>
+      </div>
+      <div className="mt-3 space-y-3">
+        {data.quests.map((q) => {
+          const Icon = QICON[q.icon] || Target;
+          const pct = q.target ? Math.round((q.progress / q.target) * 100) : 0;
+          return (
+            <div key={q.id} className="flex items-center gap-3">
+              <div className={"grid h-9 w-9 shrink-0 place-items-center rounded-xl " + (q.done ? "bg-grass-100 text-grass-600" : "bg-brand-50 text-brand-500")}>
+                {q.done ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="truncate text-sm font-bold text-slate-700">{q.desc}</div>
+                  <div className="shrink-0 text-xs font-bold text-slate-400">{q.progress}/{q.target}</div>
+                </div>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className={"h-full rounded-full " + (q.done ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${Math.max(pct, 4)}%` }} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AchievementsCard({ token, onOpen }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/me/achievements`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setData(d))
+      .catch(() => {});
+  }, [token]);
+  return (
+    <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-50 text-gold-600">
+          <StarMotif className="h-5 w-5" />
+        </div>
+        <div className="font-display text-base font-extrabold text-slate-800">Achievements</div>
+      </div>
+      <p className="mt-3 text-sm font-semibold text-slate-500">
+        {data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn."}
+      </p>
+      <button onClick={onOpen} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-brand-500 hover:text-brand-600">
+        View all <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -323,6 +392,8 @@ export default function Dashboard({ user }) {
         {/* ── Sidebar (desktop only) ── */}
         <aside className="hidden w-80 shrink-0 lg:block">
           <div className="sticky top-24 space-y-4">
+            <DailyQuestsCard token={token} />
+
             <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50">
@@ -337,6 +408,8 @@ export default function Dashboard({ user }) {
                 {stats.streak > 0 ? "Practice today to keep it going!" : "Finish a lesson to start your streak."}
               </p>
             </div>
+
+            <AchievementsCard token={token} onOpen={() => navigate("/achievements")} />
 
             <SidebarCard
               icon={Trophy}

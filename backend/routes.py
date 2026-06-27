@@ -2869,6 +2869,99 @@ def me_premium_checkout(
     return {"ok": True, **st}
 
 
+# ----------------------------
+# Daily quests + achievements (computed from existing activity)
+# ----------------------------
+
+@router.get("/me/quests")
+def me_quests(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Today's quests, derived from today's exercise attempts (UTC day)."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    row = db.execute(
+        text(
+            """
+            SELECT
+              COUNT(*) FILTER (WHERE is_correct) AS correct_today,
+              COUNT(*) AS attempts_today,
+              COUNT(DISTINCT lesson_id) AS lessons_today
+            FROM user_exercise_attempts
+            WHERE user_id = :u AND created_at >= CURRENT_DATE
+            """
+        ),
+        {"u": user_id},
+    ).mappings().first() or {}
+
+    correct = int(row.get("correct_today") or 0)
+    attempts = int(row.get("attempts_today") or 0)
+    lessons = int(row.get("lessons_today") or 0)
+
+    quests = [
+        {"id": "correct10", "title": "Sharp shooter", "desc": "Get 10 correct answers", "icon": "target", "progress": min(correct, 10), "target": 10, "reward_xp": 15},
+        {"id": "lessons2", "title": "Daily practice", "desc": "Practice 2 lessons", "icon": "crown", "progress": min(lessons, 2), "target": 2, "reward_xp": 20},
+        {"id": "attempts20", "title": "Warm up", "desc": "Answer 20 questions", "icon": "zap", "progress": min(attempts, 20), "target": 20, "reward_xp": 10},
+    ]
+    for q in quests:
+        q["done"] = q["progress"] >= q["target"]
+
+    return {"quests": quests, "completed": sum(1 for q in quests if q["done"]), "total": len(quests)}
+
+
+@router.get("/me/achievements")
+def me_achievements(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Milestone badges, derived from cumulative stats."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    lp = db.execute(
+        text(
+            """
+            SELECT COALESCE(SUM(xp_earned), 0) AS total_xp,
+                   COUNT(DISTINCT lesson_id) FILTER (WHERE completed_at IS NOT NULL) AS lessons_completed
+            FROM user_lesson_progress WHERE user_id = :u
+            """
+        ),
+        {"u": user_id},
+    ).mappings().first() or {}
+    correct_total = int(
+        db.execute(
+            text("SELECT COUNT(*) FILTER (WHERE is_correct) FROM user_exercise_attempts WHERE user_id = :u"),
+            {"u": user_id},
+        ).scalar() or 0
+    )
+    streak = _compute_streak_days(db, user_id)
+    total_xp = int(lp.get("total_xp") or 0)
+    lessons = int(lp.get("lessons_completed") or 0)
+
+    defs = [
+        ("first_lesson", "First Steps", "Complete your first lesson", "star", lessons, 1),
+        ("five_lessons", "Getting Going", "Complete 5 lessons", "crown", lessons, 5),
+        ("streak7", "On Fire", "Reach a 7-day streak", "flame", streak, 7),
+        ("streak30", "Unstoppable", "Reach a 30-day streak", "flame", streak, 30),
+        ("xp500", "Word Collector", "Earn 500 XP", "zap", total_xp, 500),
+        ("xp2000", "Scholar", "Earn 2000 XP", "zap", total_xp, 2000),
+        ("correct100", "Sharp Mind", "Answer 100 questions correctly", "target", correct_total, 100),
+    ]
+    out = []
+    for (aid, title, desc, icon, metric, target) in defs:
+        out.append({
+            "id": aid, "title": title, "desc": desc, "icon": icon,
+            "progress": min(int(metric), int(target)), "target": int(target),
+            "earned": int(metric) >= int(target),
+        })
+
+    return {"achievements": out, "earned": sum(1 for a in out if a["earned"]), "total": len(out)}
+
+
 @router.put("/me/profile", response_model=MeOut)
 def me_profile_put(
     payload: MeProfileUpdateIn,
