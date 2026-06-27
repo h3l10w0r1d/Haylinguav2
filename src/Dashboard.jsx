@@ -1,7 +1,7 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, MapPin, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 
@@ -40,7 +40,7 @@ function Medallion({ status }) {
     return (
       <div className="relative grid h-14 w-14 place-items-center rounded-full bg-brand-500 text-white shadow-node-brand">
         <span className="absolute inset-0 animate-ringPulse rounded-full ring-4 ring-brand-300" />
-        <MapPin className="h-7 w-7" />
+        <Play className="h-6 w-6 fill-white" />
       </div>
     );
   }
@@ -107,7 +107,6 @@ function Milestone({ lesson, isLast, onStart }) {
               {isCompleted ? "Mastered" : isCurrent ? "In progress" : "Locked"}
             </div>
           </div>
-          {isCompleted && <StarMotif className="h-5 w-5 shrink-0 text-gold-500" />}
         </div>
 
         {/* Current: progress + continue */}
@@ -273,6 +272,8 @@ export default function Dashboard({ user }) {
           ) : (
             units.map((unit, ui) => {
               const theme = UNIT_THEMES[ui % UNIT_THEMES.length];
+              const uDone = unit.items.filter((l) => l.status === "completed").length;
+              const uTotal = unit.items.length;
               return (
                 <section key={unit.level} className="mb-8">
                   {/* Ornamental unit band */}
@@ -286,8 +287,8 @@ export default function Dashboard({ user }) {
                           {unit.items[0]?.unit_title || `Chapter ${unit.level}`}
                         </div>
                       </div>
-                      <span className={`grid h-8 w-8 place-items-center rounded-full ${theme.dot} text-white`}>
-                        <StarMotif className="h-5 w-5" />
+                      <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-extrabold tabular-nums">
+                        {uDone}/{uTotal}
                       </span>
                     </div>
                     {/* Armenian carpet-style zig-zag border */}
