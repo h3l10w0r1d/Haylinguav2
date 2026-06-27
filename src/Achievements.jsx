@@ -12,15 +12,36 @@ const ICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star 
 export default function Achievements() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState("");
 
-  useEffect(() => {
+  const load = () => {
     const t = getToken();
-    fetch(`${API_BASE}/me/achievements`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+    return fetch(`${API_BASE}/me/achievements`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    load().finally(() => setLoading(false));
   }, []);
+
+  async function claim(id) {
+    setClaiming(id);
+    try {
+      const t = getToken();
+      await fetch(`${API_BASE}/me/rewards/claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) },
+        body: JSON.stringify({ kind: "achievement", id }),
+      });
+      await load();
+      window.dispatchEvent(new CustomEvent("hay_xp_changed"));
+    } catch {
+    } finally {
+      setClaiming("");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
@@ -77,7 +98,17 @@ export default function Achievements() {
                       </div>
                       <div className="mt-1 text-xs font-bold text-slate-400">{a.progress}/{a.target}</div>
                     </div>
-                  ) : null}
+                  ) : a.claimable ? (
+                    <button
+                      onClick={() => claim(a.id)}
+                      disabled={claiming === a.id}
+                      className="mt-3 w-full rounded-xl bg-gold-500 py-2 text-sm font-extrabold uppercase text-white shadow-[0_4px_0_0_#B45309] transition active:translate-y-0.5 disabled:opacity-60"
+                    >
+                      {claiming === a.id ? "…" : `Claim +${a.reward_xp} XP`}
+                    </button>
+                  ) : (
+                    <div className="mt-3 text-xs font-extrabold uppercase tracking-wide text-grass-600">+{a.reward_xp} XP claimed ✓</div>
+                  )}
                 </div>
               );
             })}

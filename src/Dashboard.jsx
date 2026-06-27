@@ -9,12 +9,32 @@ const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star
 
 function DailyQuestsCard({ token }) {
   const [data, setData] = useState(null);
-  useEffect(() => {
+  const [claiming, setClaiming] = useState("");
+
+  const load = () =>
     fetch(`${API_BASE_URL}/me/quests`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setData(d))
       .catch(() => {});
-  }, [token]);
+
+  useEffect(() => { load(); }, [token]);
+
+  async function claim(id) {
+    setClaiming(id);
+    try {
+      await fetch(`${API_BASE_URL}/me/rewards/claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ kind: "quest", id }),
+      });
+      await load();
+      window.dispatchEvent(new CustomEvent("hay_xp_changed"));
+    } catch {
+    } finally {
+      setClaiming("");
+    }
+  }
+
   if (!data?.quests?.length) return null;
   return (
     <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
@@ -34,11 +54,25 @@ function DailyQuestsCard({ token }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="truncate text-sm font-bold text-slate-700">{q.desc}</div>
-                  <div className="shrink-0 text-xs font-bold text-slate-400">{q.progress}/{q.target}</div>
+                  {q.claimed ? (
+                    <span className="shrink-0 text-xs font-bold text-grass-600">Claimed ✓</span>
+                  ) : (
+                    <div className="shrink-0 text-xs font-bold text-slate-400">{q.progress}/{q.target}</div>
+                  )}
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className={"h-full rounded-full " + (q.done ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${Math.max(pct, 4)}%` }} />
-                </div>
+                {q.claimable ? (
+                  <button
+                    onClick={() => claim(q.id)}
+                    disabled={claiming === q.id}
+                    className="mt-1.5 w-full rounded-xl bg-gold-500 py-1.5 text-xs font-extrabold uppercase text-white shadow-[0_3px_0_0_#B45309] transition active:translate-y-0.5 disabled:opacity-60"
+                  >
+                    {claiming === q.id ? "…" : `Claim +${q.reward_xp} XP`}
+                  </button>
+                ) : (
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className={"h-full rounded-full " + (q.done ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${Math.max(pct, 4)}%` }} />
+                  </div>
+                )}
               </div>
             </div>
           );

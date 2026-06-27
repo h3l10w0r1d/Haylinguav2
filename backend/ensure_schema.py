@@ -92,6 +92,24 @@ def ensure_schema() -> None:
         fill_nulls("users", "email_verified", "FALSE")
         fill_nulls("users", "totp_recovery_hashes", "'[]'::jsonb")
 
+        # ---------- Reward XP (quests / achievements) ----------
+        add_col_if_missing("users", "bonus_xp INTEGER NOT NULL DEFAULT 0")
+        fill_nulls("users", "bonus_xp", "0")
+        ensure_table(
+            "reward_claims",
+            """
+            CREATE TABLE reward_claims (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                claim_key TEXT NOT NULL,
+                reward_xp INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (user_id, kind, claim_key)
+            )
+            """,
+        )
+
         # ---------- Exercise problem reports ----------
         ensure_table(
             "exercise_reports",

@@ -2353,6 +2353,10 @@ def get_stats(
     total_xp = int(r["total_xp"] or 0) if r else 0
     lessons_completed = int(r["lessons_completed"] or 0) if r else 0
 
+    # Include claimed quest/achievement reward XP in the headline total.
+    bonus = int(db.execute(text("SELECT COALESCE(bonus_xp, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+    total_xp += bonus
+
     streak = _compute_streak_days(db, user_id)
 
     return StatsOut(total_xp=total_xp, lessons_completed=lessons_completed, streak=streak)
@@ -2951,34 +2955,35 @@ def me_premium_checkout(
 # Daily quests + achievements (computed from existing activity)
 # ----------------------------
 
-@router.get("/me/quests")
-def me_quests(
-    authorization: Optional[str] = Header(default=None),
-    db: Connection = Depends(get_db),
-):
-    """Today's quests, derived from today's exercise attempts (UTC day)."""
-    user_id = _get_user_id_from_bearer(authorization)
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
+def _today_key() -> str:
+    return datetime.utcnow().strftime("%Y-%m-%d")
 
+
+def _claimed_keys(db: Connection, user_id: int, kind: str) -> set:
+    return set(
+        db.execute(
+            text("SELECT claim_key FROM reward_claims WHERE user_id = :u AND kind = :k"),
+            {"u": user_id, "k": kind},
+        ).scalars().all()
+    )
+
+
+def _compute_quests(db: Connection, user_id: int) -> list:
     row = db.execute(
         text(
             """
-            SELECT
-              COUNT(*) FILTER (WHERE is_correct) AS correct_today,
-              COUNT(*) AS attempts_today,
-              COUNT(DISTINCT lesson_id) AS lessons_today
+            SELECT COUNT(*) FILTER (WHERE is_correct) AS correct_today,
+                   COUNT(*) AS attempts_today,
+                   COUNT(DISTINCT lesson_id) AS lessons_today
             FROM user_exercise_attempts
             WHERE user_id = :u AND created_at >= CURRENT_DATE
             """
         ),
         {"u": user_id},
     ).mappings().first() or {}
-
     correct = int(row.get("correct_today") or 0)
     attempts = int(row.get("attempts_today") or 0)
     lessons = int(row.get("lessons_today") or 0)
-
     quests = [
         {"id": "correct10", "title": "Sharp shooter", "desc": "Get 10 correct answers", "icon": "target", "progress": min(correct, 10), "target": 10, "reward_xp": 15},
         {"id": "lessons2", "title": "Daily practice", "desc": "Practice 2 lessons", "icon": "crown", "progress": min(lessons, 2), "target": 2, "reward_xp": 20},
@@ -2986,20 +2991,10 @@ def me_quests(
     ]
     for q in quests:
         q["done"] = q["progress"] >= q["target"]
+    return quests
 
-    return {"quests": quests, "completed": sum(1 for q in quests if q["done"]), "total": len(quests)}
 
-
-@router.get("/me/achievements")
-def me_achievements(
-    authorization: Optional[str] = Header(default=None),
-    db: Connection = Depends(get_db),
-):
-    """Milestone badges, derived from cumulative stats."""
-    user_id = _get_user_id_from_bearer(authorization)
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
-
+def _compute_achievements(db: Connection, user_id: int) -> list:
     lp = db.execute(
         text(
             """
@@ -3019,25 +3014,117 @@ def me_achievements(
     streak = _compute_streak_days(db, user_id)
     total_xp = int(lp.get("total_xp") or 0)
     lessons = int(lp.get("lessons_completed") or 0)
-
     defs = [
-        ("first_lesson", "First Steps", "Complete your first lesson", "star", lessons, 1),
-        ("five_lessons", "Getting Going", "Complete 5 lessons", "crown", lessons, 5),
-        ("streak7", "On Fire", "Reach a 7-day streak", "flame", streak, 7),
-        ("streak30", "Unstoppable", "Reach a 30-day streak", "flame", streak, 30),
-        ("xp500", "Word Collector", "Earn 500 XP", "zap", total_xp, 500),
-        ("xp2000", "Scholar", "Earn 2000 XP", "zap", total_xp, 2000),
-        ("correct100", "Sharp Mind", "Answer 100 questions correctly", "target", correct_total, 100),
+        ("first_lesson", "First Steps", "Complete your first lesson", "star", lessons, 1, 20),
+        ("five_lessons", "Getting Going", "Complete 5 lessons", "crown", lessons, 5, 40),
+        ("streak7", "On Fire", "Reach a 7-day streak", "flame", streak, 7, 50),
+        ("streak30", "Unstoppable", "Reach a 30-day streak", "flame", streak, 30, 150),
+        ("xp500", "Word Collector", "Earn 500 XP", "zap", total_xp, 500, 30),
+        ("xp2000", "Scholar", "Earn 2000 XP", "zap", total_xp, 2000, 80),
+        ("correct100", "Sharp Mind", "Answer 100 questions correctly", "target", correct_total, 100, 40),
     ]
-    out = []
-    for (aid, title, desc, icon, metric, target) in defs:
-        out.append({
-            "id": aid, "title": title, "desc": desc, "icon": icon,
-            "progress": min(int(metric), int(target)), "target": int(target),
-            "earned": int(metric) >= int(target),
-        })
+    return [
+        {"id": aid, "title": title, "desc": desc, "icon": icon, "progress": min(int(m), int(t)), "target": int(t), "earned": int(m) >= int(t), "reward_xp": reward}
+        for (aid, title, desc, icon, m, t, reward) in defs
+    ]
 
-    return {"achievements": out, "earned": sum(1 for a in out if a["earned"]), "total": len(out)}
+
+@router.get("/me/quests")
+def me_quests(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Today's quests (challenges), derived from today's exercise attempts (UTC)."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    quests = _compute_quests(db, user_id)
+    today = _today_key()
+    claimed = _claimed_keys(db, user_id, "quest")
+    for q in quests:
+        q["claimed"] = f"{q['id']}:{today}" in claimed
+        q["claimable"] = q["done"] and not q["claimed"]
+
+    return {
+        "quests": quests,
+        "completed": sum(1 for q in quests if q["done"]),
+        "total": len(quests),
+        "claimable": sum(1 for q in quests if q["claimable"]),
+    }
+
+
+@router.get("/me/achievements")
+def me_achievements(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Milestone badges, derived from cumulative stats."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    ach = _compute_achievements(db, user_id)
+    claimed = _claimed_keys(db, user_id, "achievement")
+    for a in ach:
+        a["claimed"] = a["id"] in claimed
+        a["claimable"] = a["earned"] and not a["claimed"]
+
+    return {
+        "achievements": ach,
+        "earned": sum(1 for a in ach if a["earned"]),
+        "total": len(ach),
+        "claimable": sum(1 for a in ach if a["claimable"]),
+    }
+
+
+@router.post("/me/rewards/claim")
+def me_rewards_claim(
+    payload: Dict[str, Any] = Body(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Claim the XP reward for a completed quest or achievement (once each)."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    kind = str((payload or {}).get("kind") or "").strip()
+    item_id = str((payload or {}).get("id") or "").strip()
+    if kind not in ("quest", "achievement") or not item_id:
+        raise HTTPException(status_code=400, detail="Invalid claim")
+
+    if kind == "quest":
+        item = next((q for q in _compute_quests(db, user_id) if q["id"] == item_id), None)
+        done = bool(item and item["done"])
+        claim_key = f"{item_id}:{_today_key()}"
+    else:
+        item = next((a for a in _compute_achievements(db, user_id) if a["id"] == item_id), None)
+        done = bool(item and item["earned"])
+        claim_key = item_id
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Unknown reward")
+    if not done:
+        raise HTTPException(status_code=400, detail="Not completed yet")
+
+    reward = int(item.get("reward_xp") or 0)
+    res = db.execute(
+        text(
+            """
+            INSERT INTO reward_claims (user_id, kind, claim_key, reward_xp)
+            VALUES (:u, :k, :ck, :r)
+            ON CONFLICT (user_id, kind, claim_key) DO NOTHING
+            """
+        ),
+        {"u": user_id, "k": kind, "ck": claim_key, "r": reward},
+    )
+    newly = (res.rowcount or 0) > 0
+    if newly and reward > 0:
+        db.execute(text("UPDATE users SET bonus_xp = COALESCE(bonus_xp, 0) + :r WHERE id = :u"), {"r": reward, "u": user_id})
+        _award_weekly_xp(db, user_id, reward)  # also counts toward the weekly league
+
+    return {"ok": True, "claimed": True, "newly_claimed": newly, "reward_xp": (reward if newly else 0)}
 
 
 @router.get("/me/league")
