@@ -1,4 +1,4 @@
-// src/exercises/ui.js
+// src/exercises/ui.jsx
 import React from "react";
 
 export function normalizeConfig(config) {
@@ -29,9 +29,7 @@ export function Card({ children, className }) {
   return (
     <div
       className={cx(
-        // Less "CMS card", more game-like surface
-        "rounded-3xl bg-white shadow-md ring-1 ring-slate-200/70 p-5 md:p-7",
-        "transition-transform duration-200",
+        "rounded-3xl bg-white p-5 md:p-7 ring-1 ring-slate-200/80 shadow-sm",
         className
       )}
     >
@@ -42,64 +40,38 @@ export function Card({ children, className }) {
 
 export function Title({ children }) {
   return (
-    <div className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
+    <div className="font-display text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">
       {children}
     </div>
   );
 }
 
 export function Muted({ children, className }) {
-  return <div className={cx("text-sm text-slate-600", className)}>{children}</div>;
+  return <div className={cx("text-sm font-semibold text-slate-500", className)}>{children}</div>;
 }
 
-export function PrimaryButton({
-  children,
-  onClick,
-  disabled,
-  className,
-  type = "button",
-}) {
+/** Affirmative action (Check / Continue) — Duolingo green, pressable 3D. */
+export function PrimaryButton({ children, onClick, disabled, className, type = "button" }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={cx(
-        // Duolingo-like: gradient + subtle lift
-        "w-full rounded-2xl px-4 py-3.5 font-extrabold tracking-tight",
-        "shadow-md transition-transform duration-200",
-        "hover:scale-[1.01] active:scale-[0.99]",
-        disabled
-          ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-          : "cta-float bg-gradient-to-r from-orange-500 to-pink-500 text-white",
-        className
-      )}
+      className={cx("btn3d btn3d-grass w-full uppercase", className)}
     >
       {children}
     </button>
   );
 }
 
-export function SecondaryButton({
-  children,
-  onClick,
-  disabled,
-  className,
-  type = "button",
-}) {
+/** Neutral / secondary action (Skip, Reset). */
+export function SecondaryButton({ children, onClick, disabled, className, type = "button" }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={cx(
-        "w-full rounded-2xl px-4 py-3.5 font-semibold transition ring-1 ring-slate-200",
-        "hover:scale-[1.01] active:scale-[0.99]",
-        disabled
-          ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-          : "bg-white text-slate-800 hover:bg-slate-50 active:bg-slate-100",
-        className
-      )}
+      className={cx("btn3d btn3d-neutral w-full uppercase", className)}
     >
       {children}
     </button>
@@ -114,9 +86,6 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
       ? "grid-cols-1 sm:grid-cols-3"
       : "grid-cols-1 sm:grid-cols-2";
 
-  // selected:
-  //  - single mode: number | null
-  //  - multi mode: number[] (indices)
   const selectedSet = React.useMemo(() => {
     if (!multi) return null;
     const arr = Array.isArray(selected) ? selected : [];
@@ -125,7 +94,6 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
 
   function handleClick(idx) {
     if (!multi) return onSelect(idx);
-
     const cur = selectedSet ?? new Set();
     const next = new Set(cur);
     if (next.has(idx)) next.delete(idx);
@@ -141,17 +109,21 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
           <button
             key={idx}
             onClick={() => handleClick(idx)}
-            className={cx(
-              // Big tappable tiles (mobile-first)
-              "rounded-2xl px-4 py-4 text-left font-extrabold tracking-tight",
-              "transition-transform duration-150 ring-1",
-              "hover:scale-[1.01] active:scale-[0.99]",
-              isSelected
-                ? "bg-orange-50 ring-orange-300 text-slate-900"
-                : "bg-white ring-slate-200 hover:bg-slate-50"
-            )}
+            className={cx("tile text-lg", isSelected && "tile-selected")}
           >
-            {c}
+            <span className="flex items-center gap-3">
+              <span
+                className={cx(
+                  "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-extrabold ring-2",
+                  isSelected
+                    ? "bg-feather-500 text-white ring-feather-500"
+                    : "text-slate-400 ring-slate-200"
+                )}
+              >
+                {idx + 1}
+              </span>
+              <span>{c}</span>
+            </span>
           </button>
         );
       })}
@@ -165,13 +137,14 @@ export function Pill({ children, onClick, disabled, active = false }) {
       onClick={onClick}
       disabled={disabled}
       className={cx(
-        "rounded-full px-4 py-2 text-sm font-semibold ring-1 transition",
+        "rounded-2xl px-4 py-2.5 text-base font-bold ring-2 transition active:translate-y-0.5",
         disabled
-          ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed"
+          ? "bg-slate-50 text-slate-300 ring-slate-100 cursor-not-allowed"
           : active
-          ? "bg-orange-50 text-orange-800 ring-orange-300"
-          : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+          ? "bg-feather-50 text-feather-700 ring-feather-300"
+          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
       )}
+      style={!disabled ? { boxShadow: active ? "0 3px 0 0 #4EC2FF" : "0 3px 0 0 #E2E8F0" } : undefined}
     >
       {children}
     </button>
@@ -184,7 +157,7 @@ export function InlineInput({ value, onChange, placeholder }) {
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-2xl px-4 py-3.5 ring-1 ring-slate-200 focus:outline-none focus:ring-orange-300 text-base"
+      className="w-full rounded-2xl bg-slate-50 px-4 py-4 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
     />
   );
 }

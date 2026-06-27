@@ -117,34 +117,30 @@ function ReadingSectionCard({ section, userLevel, onNext }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200/80 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reading</div>
-            <h2 className="mt-1 text-lg font-bold">{section?.title || 'Read and listen'}</h2>
+            <div className="text-xs font-bold uppercase tracking-wide text-feather-500">Reading</div>
+            <h2 className="mt-1 font-display text-xl font-extrabold text-slate-800">{section?.title || 'Read and listen'}</h2>
           </div>
           <button
             type="button"
             onClick={play}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold hover:bg-slate-100"
+            className="btn3d btn3d-feather text-sm"
             disabled={isPlaying}
           >
-            {isPlaying ? 'Playing…' : 'Play'}
+            {isPlaying ? '🔊 Playing…' : '🔊 Play'}
           </button>
         </div>
 
-        <div className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-slate-800">
+        <div className="mt-4 whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
           {section?.text || ''}
         </div>
 
         <audio ref={audioRef} />
 
         <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={onNext}
-            className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-          >
+          <button type="button" onClick={onNext} className="btn3d btn3d-grass uppercase">
             Continue
           </button>
         </div>
@@ -572,9 +568,9 @@ export default function LessonPlayer() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex items-center gap-2 text-slate-600">
-          <Loader2 className="w-5 h-5 animate-spin" />
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="flex items-center gap-2 font-semibold text-slate-500">
+          <Loader2 className="h-5 w-5 animate-spin" />
           <span>Loading lesson…</span>
         </div>
       </div>
@@ -583,12 +579,9 @@ export default function LessonPlayer() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-4">
-        <p className="text-red-600 mb-3 text-center">{loadError}</p>
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="px-4 py-2 bg-orange-600 text-white rounded-xl text-sm"
-        >
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
+        <p className="mb-4 text-center font-semibold text-cardinal-600">{loadError}</p>
+        <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand uppercase">
           Back to dashboard
         </button>
       </div>
@@ -597,14 +590,11 @@ export default function LessonPlayer() {
 
   if (!lesson) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-4">
-        <p className="text-slate-700 mb-3">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
+        <p className="mb-4 font-semibold text-slate-600">
           Lesson data is empty. Check the console and backend logs.
         </p>
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="px-4 py-2 bg-orange-600 text-white rounded-xl text-sm"
-        >
+        <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand uppercase">
           Back to dashboard
         </button>
       </div>

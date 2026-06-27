@@ -210,3 +210,5 @@ node_modules/
 dist/
 .DS_Store
 .vscode/
+.claude/
+backend/uploads/

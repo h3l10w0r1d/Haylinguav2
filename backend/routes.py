@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import Connection
-import hashlib, traceback, datetime as dt
+import hashlib, hmac, traceback, datetime as dt
 from database import engine
 
 from database import get_db
@@ -27,6 +27,9 @@ from auth import (
 # JWT decode (for Bearer auth on /complete)
 from jose import jwt, JWTError
 
+# Authoritative, server-side answer grading (never trust client is_correct)
+from grading import grade_attempt
+
 # Brevo (Sendinblue) integration (contacts + events)
 try:
     from integrations.brevo import upsert_contact as _brevo_upsert_contact
@@ -34,6 +37,17 @@ try:
 except Exception:
     _brevo_upsert_contact = None
     _brevo_track_event = None
+
+
+def _expose_dev_codes() -> bool:
+    """Whether to return email verification / change codes in API responses.
+
+    🔒 SECURITY: this must be an explicit opt-in. Previously codes were returned
+    whenever SMTP send "failed" (e.g. an SMTP env var missing in prod), which
+    handed account-verification and email-change codes straight to the caller —
+    enabling self-verification of arbitrary signups and email-change takeover.
+    """
+    return (os.getenv("EXPOSE_DEV_CODES") or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 
@@ -185,10 +199,16 @@ def _clear_login_failures(keys):
 
 
 def _verify_turnstile(token: str, ip: str) -> bool:
-    secret = (os.getenv('TURNSTILE_SECRET_KEY') or '').strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    secret = (os.getenv('TURNSTILE_SECRET_KEY') or '').strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
     if not secret:
-        # Dev / not configured: treat any token as valid to avoid breaking login.
-        return True
+        # 🔒 SECURITY: fail CLOSED when the CAPTCHA secret is not configured.
+        # Previously this returned True for any token, so a missing/cleared
+        # secret silently disabled the brute-force CAPTCHA gate entirely.
+        # Set TURNSTILE_DEV_BYPASS=true ONLY in local dev to bypass.
+        if (os.getenv('TURNSTILE_DEV_BYPASS') or '').strip().lower() in {"1", "true", "yes", "on"}:
+            return True
+        print("⚠️  TURNSTILE_SECRET_KEY not set — CAPTCHA verification fails closed.")
+        return False
     token = (token or '').strip()
     if not token:
         return False
@@ -380,7 +400,9 @@ class AttemptIn(BaseModel):
     # FE historically sent no lesson_id. We can reliably derive it from exercise_id.
     lesson_id: Optional[int] = None
     attempt_no: int = 1
-    is_correct: bool
+    # NOTE: `is_correct` is accepted for backward-compat but IGNORED. Correctness
+    # is computed server-side (see grading.grade_attempt). Never trust the client.
+    is_correct: Optional[bool] = None
     answer_text: Optional[str] = None
     selected_indices: Optional[list[int]] = None  # for multiselect
     time_ms: Optional[int] = None
@@ -1640,9 +1662,8 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
         "email_verified": False,
     }
     
-    # In dev mode (when email wasn't actually sent), include the code in response
-    # This allows the frontend to display it to the user
-    if not email_sent:
+    # Dev-only: include the code in the response when explicitly enabled.
+    if not email_sent and _expose_dev_codes():
         response_data["verification_code"] = code
         print(f"⚠️  DEV MODE: Including verification code in response: {code}")
 
@@ -1711,7 +1732,7 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
         key = identifier.lower()
         row = db.execute(
             text("""
-                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes
+                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes, totp_recovery_hashes
                 FROM users
                 WHERE email = :email
             """),
@@ -1721,7 +1742,7 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
         key = identifier
         row = db.execute(
             text("""
-                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes
+                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes, totp_recovery_hashes
                 FROM users
                 WHERE LOWER(username) = LOWER(:u)
             """),
@@ -1773,28 +1794,35 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
             except Exception:
                 otp_ok = False
 
-        # Recovery code fallback
+        # Recovery code fallback.
+        # 🔒 Recovery codes are stored as SHA-256 hashes in `totp_recovery_hashes`
+        # by /me/2fa/confirm. The previous code read the wrong column
+        # (`recovery_codes`) and used bcrypt verification, so recovery login could
+        # never succeed. Compare the SHA-256 of the submitted code instead.
         if not otp_ok:
             try:
                 import json
-                codes = row.get('recovery_codes')
-                if isinstance(codes, str):
-                    codes_list = json.loads(codes)
+                hashes = row.get('totp_recovery_hashes')
+                if isinstance(hashes, str):
+                    hashes_list = json.loads(hashes)
                 else:
-                    codes_list = codes or []
+                    hashes_list = hashes or []
             except Exception:
-                codes_list = []
+                hashes_list = []
 
-            # stored as hashed? If hashed, compare via bcrypt-like verify_password
-            for hc in codes_list:
+            otp_hash = _sha256_hex(otp)
+            for hc in hashes_list:
                 if not hc:
                     continue
-                if verify_password(otp, hc):
+                if hmac.compare_digest(str(hc), otp_hash):
                     otp_ok = True
-                    # consume this recovery code
+                    # consume this recovery code (one-time use)
                     try:
-                        new_list = [x for x in codes_list if x != hc]
-                        db.execute(text("UPDATE users SET recovery_codes = CAST(:rc AS jsonb) WHERE id = :id"), {"rc": json.dumps(new_list), "id": int(row['id'])})
+                        new_list = [x for x in hashes_list if x != hc]
+                        db.execute(
+                            text("UPDATE users SET totp_recovery_hashes = CAST(:rc AS jsonb) WHERE id = :id"),
+                            {"rc": json.dumps(new_list), "id": int(row['id'])},
+                        )
                     except Exception:
                         pass
                     break
@@ -1943,8 +1971,8 @@ def resend_verification(
 
     response_data = ResendOut(ok=True, retry_after_s=60)
     
-    # In dev mode, add the code to the response
-    if not email_sent:
+    # Dev-only: add the code to the response when explicitly enabled.
+    if not email_sent and _expose_dev_codes():
         # Need to return dict instead of model to include verification_code
         response_data_dict = response_data.dict()
         response_data_dict["verification_code"] = code
@@ -2050,23 +2078,14 @@ def complete_lesson(
     - Old FE: JSON body { "email": "..." }
     """
 
-    # 1) Determine user_id (prefer JWT if present)
+    # 1) Determine user_id strictly from the Bearer token.
+    # 🔒 SECURITY: the legacy `{"email": ...}` fallback was an unauthenticated
+    # IDOR — anyone could complete lessons / award progress for any account just
+    # by knowing its email. The email in the body (if any) is now ignored.
     user_id = _get_user_id_from_bearer(authorization)
 
     if user_id is None:
-        # fallback to email payload
-        if payload is None or not payload.email:
-            raise HTTPException(status_code=401, detail="Missing credentials (token or email)")
-
-        user_row = db.execute(
-            text("SELECT id FROM users WHERE email = :email"),
-            {"email": payload.email},
-        ).mappings().first()
-
-        if user_row is None:
-            raise HTTPException(status_code=400, detail="User not found")
-
-        user_id = user_row["id"]
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
 
     # Gate lesson completion for unverified accounts
     _require_verified(db, int(user_id))
@@ -2151,23 +2170,12 @@ def get_stats(
     Email is now optional: if email is missing/blank we infer the user from the Bearer token.
     """
 
-    # Prefer auth-based lookup (safer, avoids leaking emails in URLs)
+    # 🔒 SECURITY: resolve the user ONLY from the Bearer token. The legacy
+    # `?email=` parameter let anyone read any user's stats and acted as an
+    # account-existence/enumeration oracle. It is now ignored.
     user_id = _get_user_id_from_bearer(authorization)
-
-    email = (email or "").strip()
-
-    # If no valid token and no email provided, we can't resolve a user.
-    if not user_id and not email:
+    if not user_id:
         raise HTTPException(status_code=401, detail="Missing or invalid authorization")
-
-    if email:
-        user = db.execute(
-            text("SELECT id FROM users WHERE email = :email"),
-            {"email": email},
-        ).mappings().first()
-        if not user:
-            return StatsOut(total_xp=0, lessons_completed=0, streak=0)
-        user_id = int(user["id"])
 
     r = db.execute(
         text(
@@ -2309,13 +2317,29 @@ def record_exercise_attempt(
 
     # Derive lesson_id from the exercise (FE historically didn't send it)
     ex_row = db.execute(
-        text("SELECT lesson_id FROM exercises WHERE id = :ex"),
+        text("SELECT lesson_id, kind, expected_answer, config FROM exercises WHERE id = :ex"),
         {"ex": exercise_id},
     ).mappings().first()
     if not ex_row:
         raise HTTPException(status_code=404, detail="Exercise not found")
 
     lesson_id = int(ex_row["lesson_id"])
+
+    # 🔒 SECURITY: grade the attempt on the server. The client-supplied
+    # `is_correct` is IGNORED — otherwise anyone could mint unlimited XP and
+    # top the leaderboard by POSTing {"is_correct": true}.
+    opt_rows = db.execute(
+        text("SELECT text, is_correct FROM exercise_options WHERE exercise_id = :ex ORDER BY id ASC"),
+        {"ex": exercise_id},
+    ).mappings().all()
+    is_correct = grade_attempt(
+        kind=ex_row["kind"],
+        expected_answer=ex_row["expected_answer"],
+        config=ex_row["config"],
+        options=[dict(o) for o in opt_rows],
+        answer_text=payload.answer_text,
+        selected_indices=payload.selected_indices,
+    )
     if payload.lesson_id is not None and int(payload.lesson_id) != lesson_id:
         raise HTTPException(status_code=400, detail="lesson_id does not match exercise")
 
@@ -2346,7 +2370,7 @@ def record_exercise_attempt(
             "l": lesson_id,
             "ex": exercise_id,
             "attempt_no": int(payload.attempt_no or 1),
-            "ok": bool(payload.is_correct),
+            "ok": bool(is_correct),
             "answer_text": payload.answer_text,
             "selected_indices": json.dumps(payload.selected_indices or []),
             "time_ms": payload.time_ms,
@@ -2359,9 +2383,9 @@ def record_exercise_attempt(
         user_id=user_id,
         lesson_id=lesson_id,
         exercise_id=exercise_id,
-        is_correct=bool(payload.is_correct),
+        is_correct=bool(is_correct),
     )
-    _update_review_queue(db, user_id, lesson_id, exercise_id, bool(payload.is_correct))
+    _update_review_queue(db, user_id, lesson_id, exercise_id, bool(is_correct))
     acc = _get_accuracy(db, user_id, lesson_id)
 
     # Snapshot XP before recompute so we can return per-attempt delta
@@ -2380,7 +2404,7 @@ def record_exercise_attempt(
 
     # Hearts: decrement on wrong answers (keep DB as source of truth)
     _ensure_hearts_initialized(db, user_id)
-    if not bool(payload.is_correct):
+    if not bool(is_correct):
         db.execute(
             text(
                 """
@@ -2919,8 +2943,8 @@ def me_change_email_start(
     email_sent = _send_email(to_email=new_email, subject=subject, body=plain, html_body=None)
 
     resp = {"ok": True, "email_sent": bool(email_sent)}
-    # Dev fallback (same as signup verify): include code when email didn't send.
-    if not email_sent:
+    # Dev-only: include the code in the response when explicitly enabled.
+    if not email_sent and _expose_dev_codes():
         resp["verification_code"] = code
     return resp
 

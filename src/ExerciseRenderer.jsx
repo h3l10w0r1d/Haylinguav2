@@ -946,11 +946,13 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , su
   const [selectedLeft, setSelectedLeft] = useState(null);
   const [matchedLeft, setMatchedLeft] = useState(new Set());
   const [matchedRight, setMatchedRight] = useState(new Set());
+  const [matchedPairs, setMatchedPairs] = useState([]);
 
   useEffect(() => {
     setSelectedLeft(null);
     setMatchedLeft(new Set());
     setMatchedRight(new Set());
+    setMatchedPairs([]);
   }, [exercise?.id]);
 
   const totalMatches = pairs.length;
@@ -972,7 +974,13 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , su
 
       setSelectedLeft(null);
 
-      if (nl.size === totalMatches) correct();
+      // Accumulate the matched pairs so the server can verify the full mapping.
+      const nextPairs = [...matchedPairs, { left: l, right: r }];
+      setMatchedPairs(nextPairs);
+
+      if (nl.size === totalMatches) {
+        correct({ answerText: JSON.stringify(nextPairs) });
+      }
     } else {
       wrong("Not a match. Try again.");
     }
@@ -1132,13 +1140,15 @@ function ExAudioChoiceTts({
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
+            const pick = choices[selectedIndex] ?? "";
+            // Send selection so the server can re-grade authoritatively.
+            const extra = { selectedIndices: [selectedIndex], answerText: pick };
             if (correctIndexFromDbOrCfg !== null) {
-              selectedIndex === correctIndexFromDbOrCfg ? correct() : wrong("Wrong choice. Try again.");
+              selectedIndex === correctIndexFromDbOrCfg ? correct(extra) : wrong("Wrong choice. Try again.", extra);
               return;
             }
-            const pick = choices[selectedIndex] ?? "";
-            if (answerText && normalizeText(pick) === normalizeText(answerText)) correct();
-            else wrong("Wrong choice. Try again.");
+            if (answerText && normalizeText(pick) === normalizeText(answerText)) correct(extra);
+            else wrong("Wrong choice. Try again.", extra);
           }}
         >
           Check
@@ -1226,8 +1236,13 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            if (isCorrectSelection()) correct();
-            else wrong("Not quite. Try selecting the correct set.");
+            // Send selection so the server can re-grade authoritatively.
+            const extra = {
+              selectedIndices: selectedArray,
+              answerText: selectedArray.map((i) => choices[i] ?? "").join(", "),
+            };
+            if (isCorrectSelection()) correct(extra);
+            else wrong("Not quite. Try selecting the correct set.", extra);
           }}
         >
           Check

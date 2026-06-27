@@ -1,6 +1,72 @@
+@import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ===========================================================================
+   Haylingua design system — Duolingo-style UX, Armenian-apricot brand.
+   ========================================================================= */
+@layer base {
+  html {
+    font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  }
+  body {
+    @apply text-slate-800 antialiased;
+  }
+  h1, h2, h3, .font-display {
+    font-family: "Baloo 2", "Nunito", ui-rounded, system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  /* The signature pressable 3D button. Add a color variant class with it. */
+  .btn3d {
+    @apply relative inline-flex items-center justify-center gap-2 select-none
+           rounded-2xl px-5 py-3.5 font-extrabold tracking-tight
+           transition-all duration-100 active:translate-y-1;
+    font-family: "Baloo 2", "Nunito", sans-serif;
+  }
+  .btn3d:active { box-shadow: none !important; }
+  .btn3d:disabled {
+    @apply translate-y-0 cursor-not-allowed opacity-100;
+    box-shadow: 0 4px 0 0 #CBD5E1 !important;
+  }
+
+  .btn3d-brand   { @apply bg-brand-500 text-white shadow-btn-brand hover:bg-brand-400; }
+  .btn3d-grass   { @apply bg-grass-500 text-white shadow-btn-grass hover:brightness-105; }
+  .btn3d-cardinal{ @apply bg-cardinal-500 text-white shadow-btn-cardinal hover:brightness-105; }
+  .btn3d-feather { @apply bg-feather-500 text-white shadow-btn-feather hover:brightness-105; }
+  .btn3d-neutral { @apply bg-white text-slate-600 shadow-btn-neutral ring-2 ring-slate-200 hover:bg-slate-50; }
+  .btn3d:disabled.btn3d-brand,
+  .btn3d:disabled.btn3d-grass,
+  .btn3d:disabled.btn3d-cardinal,
+  .btn3d:disabled.btn3d-feather { @apply bg-slate-200 text-slate-400; }
+
+  /* Selectable answer tile (MCQ / choices). */
+  .tile {
+    @apply relative w-full cursor-pointer rounded-2xl bg-white px-4 py-4 text-left
+           font-bold text-slate-700 ring-2 ring-slate-200 transition-all duration-100
+           hover:bg-slate-50 active:translate-y-0.5;
+    box-shadow: 0 3px 0 0 #E2E8F0;
+  }
+  .tile-selected {
+    @apply bg-feather-50 text-feather-700 ring-feather-400;
+    box-shadow: 0 3px 0 0 #4EC2FF;
+  }
+  .tile-correct {
+    @apply bg-grass-50 text-grass-700 ring-grass-400;
+    box-shadow: 0 3px 0 0 #7CE246;
+  }
+  .tile-wrong {
+    @apply bg-cardinal-50 text-cardinal-700 ring-cardinal-400;
+    box-shadow: 0 3px 0 0 #FF6B6B;
+  }
+}
+
+/* Hide scrollbars on the learning path while keeping scroll. */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* Animated â€œfloatingâ€ gradient for primary CTA */
 .cta-float {

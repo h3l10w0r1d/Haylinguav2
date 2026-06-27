@@ -108,13 +108,15 @@ origins = [
     "http://localhost:5173",  # Added for local development
     "http://localhost:3000",    # Added for local development
     "https://cms.haylingua.am",
-    "https://synercraft.io/" # Added some unused domain
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",  # allows Vercel preview URLs too
+    # 🔒 Scope Vercel previews to THIS project only. The previous
+    # `https://.*\.vercel\.app` combined with allow_credentials=True let any
+    # site hosted on *.vercel.app make credentialed cross-origin requests.
+    allow_origin_regex=r"https://haylinguav2[a-z0-9-]*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],  # needed for Authorization header preflight

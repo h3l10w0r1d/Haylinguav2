@@ -1,12 +1,14 @@
 # backend/middleware/rate_limit.py
 from __future__ import annotations
 
+import ipaddress
 import json
+import os
 import re
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Deque, Dict, Optional, Tuple
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -73,8 +75,53 @@ class InMemoryRateLimiter:
         return True, 0
 
 
+def _parse_trusted_proxies() -> List[Any]:
+    """CIDRs/IPs of proxies allowed to set CF-Connecting-IP / X-Forwarded-For.
+
+    Configure via TRUSTED_PROXY_IPS (comma-separated, e.g. Cloudflare ranges).
+    When set, forwarded IP headers are honored ONLY when the connecting peer is
+    one of these — otherwise an attacker hitting the origin directly could spoof
+    the headers to rotate the rate-limit key and bypass throttling.
+    """
+    raw = (os.getenv("TRUSTED_PROXY_IPS") or "").strip()
+    nets: List[Any] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            nets.append(ipaddress.ip_network(part, strict=False))
+        except ValueError:
+            pass
+    return nets
+
+
+_TRUSTED_PROXY_NETS = _parse_trusted_proxies()
+
+
+def _peer_is_trusted_proxy(request: Request) -> Optional[bool]:
+    # None  -> no allowlist configured (legacy behavior, honor headers)
+    # True  -> peer is a known proxy (honor headers)
+    # False -> peer is NOT trusted (ignore spoofable headers)
+    if not _TRUSTED_PROXY_NETS:
+        return None
+    host = request.client.host if request.client else None
+    if not host:
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(ip in net for net in _TRUSTED_PROXY_NETS)
+
+
 def _get_client_ip(request: Request) -> str:
-    # Cloudflare real IP
+    # If a trusted-proxy allowlist is configured and the direct peer is NOT in
+    # it, never trust client-supplied forwarding headers (anti-spoofing).
+    if _peer_is_trusted_proxy(request) is False:
+        return request.client.host if request.client else "unknown"
+
+    # Cloudflare real IP (set by Cloudflare; clients cannot override at the edge)
     cf_ip = request.headers.get("CF-Connecting-IP")
     if cf_ip:
         return cf_ip.strip()

@@ -10,8 +10,15 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from database import get_db
+# 🔒 CMS admin auth (Bearer cms token, role=admin, 2FA enforced). Defined in
+# routes.py; imported here to gate the content-management audio endpoints.
+from routes import require_cms_admin
 
 router = APIRouter()
+
+# Apply to every endpoint that creates, mutates, deletes, or spends money
+# (TTS) on audio. Read-only public playback routes stay open.
+CMS_AUTH = [Depends(require_cms_admin)]
 
 
 @router.get("/cms/audio/config")
@@ -176,7 +183,7 @@ def cms_list_audio_targets(
     return {"targets": [dict(r) for r in rows]}
 
 
-@router.post("/cms/audio/targets/generate-tts")
+@router.post("/cms/audio/targets/generate-tts", dependencies=CMS_AUTH)
 async def cms_generate_target_tts(payload: GenerateTargetTTSRequest, db: Connection = Depends(get_db)):
     exercise_id = int(payload.exercise_id or 0)
     target_key = (payload.target_key or "").strip()
@@ -236,7 +243,7 @@ async def cms_generate_target_tts(payload: GenerateTargetTTSRequest, db: Connect
     }
 
 
-@router.post("/cms/audio/generate-tts")
+@router.post("/cms/audio/generate-tts", dependencies=CMS_AUTH)
 async def generate_tts_audio(payload: GenerateTTSRequest, db: Connection = Depends(get_db)):
     voice_id = MALE_VOICE_ID if payload.voice_type == "male" else FEMALE_VOICE_ID
     audio_data = await generate_elevenlabs_tts(payload.text, voice_id)
@@ -268,7 +275,7 @@ async def generate_tts_audio(payload: GenerateTTSRequest, db: Connection = Depen
     }
 
 
-@router.post("/cms/audio/upload")
+@router.post("/cms/audio/upload", dependencies=CMS_AUTH)
 async def upload_custom_audio(
     exercise_id: int = Form(...),
     voice_type: str = Form(...),
@@ -307,7 +314,7 @@ async def upload_custom_audio(
     return {"success": True, "audio_id": result["id"], "voice_type": voice_type}
 
 
-@router.post("/cms/audio/save-recording")
+@router.post("/cms/audio/save-recording", dependencies=CMS_AUTH)
 async def save_browser_recording(
     exercise_id: int = Form(...),
     voice_type: str = Form(...),
@@ -315,7 +322,11 @@ async def save_browser_recording(
     db: Connection = Depends(get_db)
 ):
     audio_data = await audio_file.read()
-    
+    if not audio_data:
+        raise HTTPException(400, "Empty recording")
+    if len(audio_data) > MAX_AUDIO_SIZE:
+        raise HTTPException(400, f"File too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
+
     format_map = {'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/wav': 'wav'}
     audio_format = format_map.get(audio_file.content_type, 'webm')
     
@@ -342,7 +353,7 @@ async def save_browser_recording(
     return {"success": True, "audio_id": result["id"]}
 
 
-@router.post("/cms/audio/targets/upload")
+@router.post("/cms/audio/targets/upload", dependencies=CMS_AUTH)
 async def upload_target_audio(
     exercise_id: int = Form(...),
     target_key: str = Form(...),
@@ -408,7 +419,7 @@ async def upload_target_audio(
     return {"success": True, "audio_id": result["id"], "voice_type": voice_type, "target_key": target_key}
 
 
-@router.post("/cms/audio/targets/save-recording")
+@router.post("/cms/audio/targets/save-recording", dependencies=CMS_AUTH)
 async def save_target_recording(
     exercise_id: int = Form(...),
     target_key: str = Form(...),
@@ -421,6 +432,8 @@ async def save_target_recording(
     audio_data = await audio_file.read()
     if not audio_data:
         raise HTTPException(400, "Empty recording")
+    if len(audio_data) > MAX_AUDIO_SIZE:
+        raise HTTPException(400, f"File too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
     audio_format = format_map.get(audio_file.content_type, 'webm')
     # Reuse upload logic by creating a fake UploadFile isn't worth it; upsert directly.
     target_key = (target_key or "").strip()
@@ -466,7 +479,7 @@ async def save_target_recording(
     return {"success": True, "audio_id": result["id"], "target_key": target_key}
 
 
-@router.delete("/cms/audio/targets/{audio_id}")
+@router.delete("/cms/audio/targets/{audio_id}", dependencies=CMS_AUTH)
 def delete_target_audio(audio_id: int, db: Connection = Depends(get_db)):
     db.execute(text("DELETE FROM exercise_audio_targets WHERE id = :id"), {"id": audio_id})
     return {"success": True}
@@ -501,7 +514,7 @@ def preview_audio(audio_id: int, db: Connection = Depends(get_db)):
     return Response(content=bytes(row["audio_data"]), media_type=content_type)
 
 
-@router.delete("/cms/audio/{audio_id}")
+@router.delete("/cms/audio/{audio_id}", dependencies=CMS_AUTH)
 def delete_audio(audio_id: int, db: Connection = Depends(get_db)):
     result = db.execute(
         text("DELETE FROM exercise_audio WHERE id = :id RETURNING id"),
@@ -592,7 +605,7 @@ def get_target_audio_for_playback(
     )
 
 
-@router.post("/cms/audio/batch-generate")
+@router.post("/cms/audio/batch-generate", dependencies=CMS_AUTH)
 async def batch_generate_tts(
     lesson_id: int,
     voice_types: list[str],
