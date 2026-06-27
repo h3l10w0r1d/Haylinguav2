@@ -12,10 +12,11 @@ import {
   Inbox,
   Send,
   Trophy,
-  Star,
   Flame,
   EyeOff,
 } from "lucide-react";
+import { StarMotif } from "./lib/motifs";
+import grandma from "./assets/character-grandma.png";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -358,115 +359,91 @@ export default function Friends() {
 
   const handleMessage = (friend) => openPublicProfile(friend);
 
-  // ✅ MISSING BEFORE: JSX must be inside a return()
+  const TABS = [
+    { key: "friends", label: "Your friends" },
+    { key: "pending", label: "Pending", badge: incomingList.length + sentList.length },
+    { key: "discover", label: "Discover" },
+  ];
+
   return (
-    <div className="w-full">
-      {/* Title */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Friends</h1>
-          <p className="text-gray-600 mt-1">
-            Send requests, accept incoming, and learn together.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 bg-orange-50 text-orange-700 px-3 py-2 rounded-xl">
-          <Users className="w-4 h-4" />
-          <span className="text-sm font-medium">
-            {friendsList.length} friends
-          </span>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab("friends")}
-          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
-            activeTab === "friends"
-              ? "bg-orange-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          Your friends
-        </button>
-
-        <button
-          onClick={() => setActiveTab("pending")}
-          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
-            activeTab === "pending"
-              ? "bg-orange-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          Pending{" "}
-          {incomingList.length + sentList.length > 0 ? (
-            <span className="ml-2 inline-flex items-center justify-center text-xs font-semibold bg-white/30 px-2 py-0.5 rounded-full">
-              {incomingList.length + sentList.length}
-            </span>
-          ) : null}
-        </button>
-
-        <button
-          onClick={() => setActiveTab("discover")}
-          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
-            activeTab === "discover"
-              ? "bg-orange-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          Discover
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-        <input
-          type="text"
-          placeholder="Search by name or email..."
-          className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Main card */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        {!token ? (
-          <div className="text-center py-10">
-            <p className="text-gray-600 mb-2">
-              You need to be logged in to use Friends.
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+      <div className="mx-auto max-w-3xl px-4 py-8">
+        {/* Title */}
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800">Friends</h1>
+            <p className="mt-1 font-semibold text-slate-500">
+              Send requests, accept incoming, and learn together.
             </p>
           </div>
-        ) : loading ? (
-          <div className="text-center py-10">
-            <div className="animate-spin w-8 h-8 border-4 border-orange-200 border-t-orange-600 rounded-full mx-auto mb-4" />
-            <p className="text-gray-600">Loading…</p>
+          <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand-50 px-3 py-2 text-brand-600 ring-1 ring-brand-100">
+            <Users className="h-4 w-4" />
+            <span className="text-sm font-extrabold">{friendsList.length} friends</span>
           </div>
-        ) : (
-          <>
-            {/* FRIENDS TAB */}
-            {activeTab === "friends" ? (
-              <>
-                {applySearch(friendsList).length === 0 ? (
-                  <div className="text-center py-10">
-                    <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      No friends yet
-                    </h3>
-                    <p className="text-gray-600 mb-6">
-                      Go to Discover and send a friend request.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab("discover")}
-                      className="px-6 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-medium"
-                    >
-                      Discover people
-                    </button>
-                  </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-5 flex flex-wrap gap-2">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={
+                "rounded-2xl px-4 py-2.5 font-display text-sm font-extrabold transition " +
+                (activeTab === t.key
+                  ? "bg-brand-500 text-white shadow-btn-brand"
+                  : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50")
+              }
+            >
+              {t.label}
+              {t.badge > 0 ? (
+                <span
+                  className={
+                    "ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs " +
+                    (activeTab === t.key ? "bg-white/25" : "bg-brand-100 text-brand-700")
+                  }
+                >
+                  {t.badge}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-6">
+          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by name or email…"
+            className="w-full rounded-2xl bg-white py-3.5 pl-12 pr-4 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:outline-none focus:ring-brand-400 placeholder:text-slate-400"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* Main card */}
+        <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm sm:p-6">
+          {!token ? (
+            <EmptyState title="Log in to use Friends" text="You need to be logged in to send and accept friend requests." />
+          ) : loading ? (
+            <div className="py-12 text-center">
+              <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
+              <p className="font-semibold text-slate-500">Loading…</p>
+            </div>
+          ) : (
+            <>
+              {/* FRIENDS TAB */}
+              {activeTab === "friends" ? (
+                applySearch(friendsList).length === 0 ? (
+                  <EmptyState
+                    title="No friends yet"
+                    text="Head to Discover and send your first friend request."
+                    cta="Discover people"
+                    onCta={() => setActiveTab("discover")}
+                  />
                 ) : (
-                  <div className="grid gap-4">
+                  <div className="grid gap-3">
                     {applySearch(friendsList).map((p) => (
                       <PersonCard
                         key={p.id}
@@ -478,97 +455,65 @@ export default function Friends() {
                       />
                     ))}
                   </div>
-                )}
-              </>
-            ) : null}
+                )
+              ) : null}
 
-            {/* PENDING TAB */}
-            {activeTab === "pending" ? (
-              <>
-                {/* Incoming */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Inbox className="w-4 h-4 text-gray-700" />
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      Incoming requests
-                    </h3>
-                    {incomingList.length > 0 ? (
-                      <span className="text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded-full">
-                        {incomingList.length}
-                      </span>
-                    ) : null}
+              {/* PENDING TAB */}
+              {activeTab === "pending" ? (
+                <>
+                  {/* Incoming */}
+                  <div className="mb-6">
+                    <SectionLabel icon={Inbox} title="Incoming requests" count={incomingList.length} />
+                    {applySearch(incomingList).length === 0 ? (
+                      <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                        No incoming requests.
+                      </div>
+                    ) : (
+                      <div className="grid gap-3">
+                        {applySearch(incomingList).map((p) => (
+                          <PersonCard
+                            key={p.request_id}
+                            person={p}
+                            mode="incoming"
+                            onOpenProfile={() => openPublicProfile(p)}
+                            onAccept={() => acceptRequest(p.request_id)}
+                            onDecline={() => rejectRequest(p.request_id)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {applySearch(incomingList).length === 0 ? (
-                    <div className="text-sm text-gray-500 bg-gray-50 rounded-xl p-4">
-                      No incoming requests.
-                    </div>
-                  ) : (
-                    <div className="grid gap-4">
-                      {applySearch(incomingList).map((p) => (
-                        <PersonCard
-                          key={p.request_id}
-                          person={p}
-                          mode="incoming"
-                          onOpenProfile={() => openPublicProfile(p)}
-                          onAccept={() => acceptRequest(p.request_id)}
-                          onDecline={() => rejectRequest(p.request_id)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Sent */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Send className="w-4 h-4 text-gray-700" />
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      Sent requests
-                    </h3>
-                    {sentList.length > 0 ? (
-                      <span className="text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded-full">
-                        {sentList.length}
-                      </span>
-                    ) : null}
+                  {/* Sent */}
+                  <div>
+                    <SectionLabel icon={Send} title="Sent requests" count={sentList.length} />
+                    {applySearch(sentList).length === 0 ? (
+                      <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                        No sent requests.
+                      </div>
+                    ) : (
+                      <div className="grid gap-3">
+                        {applySearch(sentList).map((p) => (
+                          <PersonCard
+                            key={`${p.email}-${p.request_id ?? "x"}`}
+                            person={p}
+                            mode="sent"
+                            onOpenProfile={() => openPublicProfile(p)}
+                            onCancel={() => cancelSentRequest(p.email)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
+                </>
+              ) : null}
 
-                  {applySearch(sentList).length === 0 ? (
-                    <div className="text-sm text-gray-500 bg-gray-50 rounded-xl p-4">
-                      No sent requests.
-                    </div>
-                  ) : (
-                    <div className="grid gap-4">
-                      {applySearch(sentList).map((p) => (
-                        <PersonCard
-                          key={`${p.email}-${p.request_id ?? "x"}`}
-                          person={p}
-                          mode="sent"
-                          onOpenProfile={() => openPublicProfile(p)}
-                          onCancel={() => cancelSentRequest(p.email)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-
-              </>
-            ) : null}
-
-            {/* DISCOVER TAB */}
-            {activeTab === "discover" ? (
-              <>
-                {applySearch(discoverList).length === 0 ? (
-                  <div className="text-center py-10">
-                    <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      No people found
-                    </h3>
-                    <p className="text-gray-600">Try a different search term.</p>
-                  </div>
+              {/* DISCOVER TAB */}
+              {activeTab === "discover" ? (
+                applySearch(discoverList).length === 0 ? (
+                  <EmptyState title="No people found" text="Try a different search term." />
                 ) : (
-                  <div className="grid gap-4">
+                  <div className="grid gap-3">
                     {applySearch(discoverList).map((p) => {
                       const isFriend = friendsList.some((f) => f.email === p.email);
                       const isIncoming = incomingList.some((r) => r.email === p.email);
@@ -613,17 +558,46 @@ export default function Friends() {
                       );
                     })}
                   </div>
-                )}
-              </>
-            ) : null}
-          </>
-        )}
+                )
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-/* ---------- UI Card ---------- */
+/* ---------- Helpers ---------- */
+
+function SectionLabel({ icon: Icon, title, count }) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <Icon className="h-4 w-4 text-slate-500" />
+      <h3 className="font-display text-sm font-extrabold text-slate-700">{title}</h3>
+      {count > 0 ? (
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{count}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function EmptyState({ title, text, cta, onCta }) {
+  return (
+    <div className="py-10 text-center">
+      <img src={grandma} alt="" className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover" />
+      <h3 className="font-display text-lg font-extrabold text-slate-800">{title}</h3>
+      <p className="mx-auto mt-1 max-w-sm font-semibold text-slate-500">{text}</p>
+      {cta ? (
+        <button onClick={onCta} className="btn3d btn3d-brand mt-5 uppercase">
+          {cta}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/* ---------- Person card ---------- */
 
 function PersonCard({
   person,
@@ -645,17 +619,15 @@ function PersonCard({
 
   const isHidden = !!person?.is_hidden;
   const avatarSrc = !isHidden ? resolveUrl(person?.avatar_url) : "";
-
-  // FIX: only clickable when username exists
   const canNavigate = !isHidden && !!person?.username;
-
   const streak = Math.max(1, Number(person?.streak ?? 1) || 1);
 
   return (
     <div
-      className={`p-4 border border-gray-100 rounded-2xl transition-colors ${
-        isHidden ? "opacity-80" : canNavigate ? "hover:border-orange-200 cursor-pointer" : ""
-      }`}
+      className={
+        "rounded-2xl bg-white p-4 ring-1 ring-slate-200 transition " +
+        (isHidden ? "opacity-80 " : canNavigate ? "cursor-pointer hover:ring-brand-300 hover:shadow-sm " : "")
+      }
       onClick={() => (canNavigate ? onOpenProfile?.() : null)}
       role={canNavigate ? "button" : undefined}
       tabIndex={canNavigate ? 0 : undefined}
@@ -663,52 +635,48 @@ function PersonCard({
         if (canNavigate && (e.key === "Enter" || e.key === " ")) onOpenProfile?.();
       }}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-semibold overflow-hidden">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-pom-500 font-display font-extrabold text-white">
             {isHidden ? (
-              <EyeOff className="w-5 h-5" />
+              <EyeOff className="h-5 w-5" />
             ) : avatarSrc ? (
-              <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover"
-                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              <img
+                src={avatarSrc}
+                alt="Avatar"
+                className="h-full w-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
             ) : (
               initial
             )}
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">
+          <div className="min-w-0">
+            <h3 className="truncate font-display text-base font-extrabold text-slate-800">
               {isHidden ? "Hidden" : person.name}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="truncate text-sm font-semibold text-slate-400">
               {isHidden ? "This user is hidden" : (person.email || person.username || "")}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {mode === "friend" ? (
             <>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMessage?.();
-                }}
-                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                title="Message"
+                onClick={(e) => { e.stopPropagation(); onMessage?.(); }}
+                className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200"
+                title="Open profile"
               >
-                <MessageCircle className="w-5 h-5" />
+                <MessageCircle className="h-5 w-5" />
               </button>
-
               {onRemove ? (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove?.();
-                  }}
-                  className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
+                  className="btn3d btn3d-neutral !py-2 text-sm"
                 >
-                  <UserX className="w-4 h-4" />
-                  <span>Remove</span>
+                  <UserX className="h-4 w-4" /> Remove
                 </button>
               ) : null}
             </>
@@ -716,99 +684,49 @@ function PersonCard({
 
           {mode === "incoming" ? (
             <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDecline?.();
-                }}
-                className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
-              >
-                <UserX className="w-4 h-4" />
-                <span>Decline</span>
+              <button onClick={(e) => { e.stopPropagation(); onDecline?.(); }} className="btn3d btn3d-neutral !py-2 text-sm">
+                <UserX className="h-4 w-4" /> Decline
               </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAccept?.();
-                }}
-                className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-orange-600 text-white hover:bg-orange-700"
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>Accept</span>
+              <button onClick={(e) => { e.stopPropagation(); onAccept?.(); }} className="btn3d btn3d-brand !py-2 text-sm">
+                <UserCheck className="h-4 w-4" /> Accept
               </button>
             </>
           ) : null}
 
           {mode === "sent" ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onCancel?.();
-              }}
-              className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
-            >
-              <Mail className="w-4 h-4" />
-              <span>Cancel</span>
+            <button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="btn3d btn3d-neutral !py-2 text-sm">
+              <Mail className="h-4 w-4" /> Cancel
             </button>
           ) : null}
 
           {mode === "discover" ? (
             <>
               {isFriend ? (
-                <div className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 inline-flex items-center gap-2">
-                  <UserCheck className="w-4 h-4" />
-                  <span>Friends</span>
+                <div className="inline-flex items-center gap-2 rounded-2xl bg-grass-50 px-4 py-2 text-sm font-extrabold text-grass-700">
+                  <UserCheck className="h-4 w-4" /> Friends
                 </div>
               ) : null}
 
               {!isFriend && isIncoming ? (
                 <>
-                  <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDecline?.();
-                  }}
-                    className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  >
-                    <UserX className="w-4 h-4" />
-                    <span>Decline</span>
+                  <button onClick={(e) => { e.stopPropagation(); onDecline?.(); }} className="btn3d btn3d-neutral !py-2 text-sm">
+                    <UserX className="h-4 w-4" /> Decline
                   </button>
-                  <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAccept?.();
-                  }}
-                    className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-orange-600 text-white hover:bg-orange-700"
-                  >
-                    <UserCheck className="w-4 h-4" />
-                    <span>Accept</span>
+                  <button onClick={(e) => { e.stopPropagation(); onAccept?.(); }} className="btn3d btn3d-brand !py-2 text-sm">
+                    <UserCheck className="h-4 w-4" /> Accept
                   </button>
                 </>
               ) : null}
 
               {!isFriend && !isIncoming && isSent ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCancel?.();
-                  }}
-                  className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
-                >
-                  <Mail className="w-4 h-4" />
-                  <span>Requested</span>
+                <button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="btn3d btn3d-neutral !py-2 text-sm">
+                  <Mail className="h-4 w-4" /> Requested
                 </button>
               ) : null}
 
               {!isFriend && !isIncoming && !isSent ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSend?.();
-                  }}
-                  className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2 bg-orange-600 text-white hover:bg-orange-700"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Send request</span>
+                <button onClick={(e) => { e.stopPropagation(); onSend?.(); }} className="btn3d btn3d-brand !py-2 text-sm">
+                  <UserPlus className="h-4 w-4" /> Add
                 </button>
               ) : null}
             </>
@@ -817,26 +735,17 @@ function PersonCard({
       </div>
 
       {isHidden ? null : (
-      <div className="mt-4 flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 bg-orange-50 px-3 py-2 rounded-xl">
-          <Trophy className="w-4 h-4 text-orange-600" />
-          <span className="text-sm font-medium text-gray-900">
-            Lv {Number(person.level ?? 1) || 1}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand-50 px-3 py-1.5 text-sm font-bold text-slate-700">
+            <Trophy className="h-4 w-4 text-brand-500" /> Lv {Number(person.level ?? 1) || 1}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-sm font-bold text-slate-700">
+            <StarMotif className="h-4 w-4 text-gold-500" /> {Number(person.xp ?? 0) || 0} XP
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-cardinal-50 px-3 py-1.5 text-sm font-bold text-slate-700">
+            <Flame className="h-4 w-4 text-cardinal-500" /> {streak} day streak
           </span>
         </div>
-        <div className="flex items-center gap-2 bg-yellow-50 px-3 py-2 rounded-xl">
-          <Star className="w-4 h-4 text-yellow-600" />
-          <span className="text-sm font-medium text-gray-900">
-            {Number(person.xp ?? 0) || 0} XP
-          </span>
-        </div>
-        <div className="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-xl">
-          <Flame className="w-4 h-4 text-red-600" />
-          <span className="text-sm font-medium text-gray-900">
-            {streak} day streak
-          </span>
-        </div>
-      </div>
       )}
     </div>
   );

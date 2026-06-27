@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy,
   Flame,
-  Star,
   Palette,
   ShieldCheck,
   Mail,
@@ -14,6 +13,7 @@ import {
   EyeOff,
 } from "lucide-react";
 
+import { StarMotif } from "./lib/motifs";
 import av1 from "./assets/avatars/av1.png";
 import av2 from "./assets/avatars/av2.png";
 import av3 from "./assets/avatars/av3.png";
@@ -715,13 +715,13 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto px-4 py-10 text-gray-700">Loading…</div>;
+    return <div className="max-w-5xl mx-auto px-4 py-10 font-display font-extrabold text-slate-500">Loading…</div>;
   }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Header banner */}
-      <div className="rounded-3xl overflow-hidden shadow-sm border border-orange-100 bg-white">
+      <div className="rounded-3xl overflow-hidden shadow-sm ring-1 ring-slate-200 bg-white">
         <div
           className="relative h-40 md:h-52"
           style={
@@ -743,11 +743,11 @@ export default function ProfilePage() {
           <div className="absolute inset-0 p-4 md:p-6 flex items-end justify-between gap-3">
             <div className="flex items-end gap-4">
               <div className="relative">
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/80 backdrop-blur border border-white/60 flex items-center justify-center overflow-hidden shadow">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/85 backdrop-blur ring-2 ring-white/70 flex items-center justify-center overflow-hidden shadow-md">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xl md:text-2xl font-extrabold text-orange-700">
+                    <span className="font-display text-xl md:text-2xl font-extrabold text-brand-600">
                       {(firstName || username || "H")[0]?.toUpperCase()}
                     </span>
                   )}
@@ -756,16 +756,16 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={handleAvatarPick}
-                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                    className="btn3d btn3d-neutral text-xs px-2.5 py-1.5"
                   >
-                    <ImageIcon className="w-4 h-4 text-orange-700" />
+                    <ImageIcon className="w-4 h-4 text-brand-500" />
                     Upload
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setShowAvatarPresets((v) => !v)}
-                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                    className="btn3d btn3d-neutral text-xs px-2.5 py-1.5"
                   >
                     Presets
                   </button>
@@ -781,7 +781,7 @@ export default function ProfilePage() {
                         key={idx}
                         type="button"
                         onClick={() => handlePresetAvatarPick(url)}
-                        className={`h-10 w-10 rounded-full overflow-hidden border ${active ? "border-orange-400" : "border-white/60"} bg-white/70 backdrop-blur hover:border-orange-300`}
+                        className={`h-10 w-10 rounded-full overflow-hidden ring-2 ${active ? "ring-brand-400" : "ring-white/60"} bg-white/70 backdrop-blur hover:ring-brand-300`}
                         title={`Avatar ${idx + 1}`}
                       >
                         <img src={url} alt={`Avatar ${idx + 1}`} className="h-full w-full object-cover" />
@@ -792,15 +792,15 @@ export default function ProfilePage() {
               )}
 
               <div className="pb-1">
-                <div className="text-white drop-shadow text-lg md:text-xl font-bold">
+                <div className="font-display text-white drop-shadow text-lg md:text-xl font-extrabold">
                   {firstName || lastName ? `${firstName} ${lastName}`.trim() : username || "Your profile"}
                 </div>
-                <div className="text-white/90 drop-shadow text-xs md:text-sm flex items-center gap-2">
+                <div className="text-white/90 drop-shadow text-xs md:text-sm font-bold flex items-center gap-2">
                   <span className="inline-flex items-center gap-1">
                     <Trophy className="w-4 h-4" /> Lv {level}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <Star className="w-4 h-4" /> {xp} XP
+                    <StarMotif className="w-4 h-4 text-gold-400" /> {xp} XP
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Flame className="w-4 h-4" /> {streak} day streak
@@ -814,17 +814,17 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => setShowBannerPicker(true)}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                  className="btn3d btn3d-neutral text-sm"
                 >
-                  <ImageIcon className="w-4 h-4 text-orange-700" />
+                  <ImageIcon className="w-4 h-4 text-brand-500" />
                   Banner
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsHidden((v) => !v)}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold bg-white/90 hover:bg-white border border-orange-100 shadow-sm"
+                  className="btn3d btn3d-neutral text-sm"
                 >
-                  <EyeOff className="w-4 h-4 text-orange-700" />
+                  <EyeOff className="w-4 h-4 text-brand-500" />
                   {isHidden ? "Hidden" : "Public"}
                 </button>
               </div>
@@ -844,17 +844,17 @@ export default function ProfilePage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => (bannerBusy ? null : setShowBannerPicker(false))}
           />
-          <div className="relative w-full max-w-3xl rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+          <div className="relative w-full max-w-3xl rounded-3xl ring-1 ring-slate-200 bg-white shadow-xl overflow-hidden">
             <div className="p-5 md:p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <div className="text-sm font-semibold text-slate-900">Choose a banner</div>
-                <div className="text-xs text-slate-500 mt-0.5">Pick a preset or upload your own.</div>
+                <div className="font-display text-base font-extrabold text-slate-800">Choose a banner</div>
+                <div className="text-xs font-semibold text-slate-500 mt-0.5">Pick a preset or upload your own.</div>
               </div>
               <button
                 type="button"
                 disabled={bannerBusy}
                 onClick={() => setShowBannerPicker(false)}
-                className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                className="rounded-xl px-3 py-2 text-sm font-extrabold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
               >
                 Close
               </button>
@@ -870,10 +870,10 @@ export default function ProfilePage() {
                       type="button"
                       onClick={() => handleSelectPresetBanner(url)}
                       className={
-                        "group relative h-20 rounded-2xl overflow-hidden border transition " +
+                        "group relative h-20 rounded-2xl overflow-hidden ring-2 transition " +
                         (active
-                          ? "border-orange-400 ring-2 ring-orange-200"
-                          : "border-slate-200 hover:border-orange-200")
+                          ? "ring-brand-400"
+                          : "ring-slate-200 hover:ring-brand-300")
                       }
                       title="Select banner"
                     >
@@ -893,7 +893,7 @@ export default function ProfilePage() {
                     type="button"
                     disabled={bannerBusy}
                     onClick={handleUploadBanner}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 disabled:opacity-60"
+                    className="btn3d btn3d-brand text-sm"
                   >
                     <ImageIcon className="w-4 h-4" />
                     {bannerBusy ? "Uploading…" : "Upload banner"}
@@ -903,13 +903,13 @@ export default function ProfilePage() {
                     type="button"
                     disabled={bannerBusy}
                     onClick={handleRemoveBanner}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+                    className="btn3d btn3d-neutral text-sm"
                   >
                     Remove
                   </button>
                 </div>
 
-                <div className="text-xs text-slate-500">
+                <div className="text-xs font-semibold text-slate-500">
                   Tip: presets are fast; uploads let you personalize fully.
                 </div>
               </div>
@@ -919,16 +919,16 @@ export default function ProfilePage() {
       )}
 
       {/* Profile details (no display name, no avatar url) */}
-      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Profile details</h2>
+      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">Profile details</h2>
 
         <form onSubmit={handleSaveCore} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">First name</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">First name</label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="e.g. Armen"
@@ -937,10 +937,10 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Last name</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Last name</label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="e.g. Ghazaryan"
@@ -949,41 +949,41 @@ export default function ProfilePage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Public username</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Public username</label>
               <input
                 type="text"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="your-username"
                 autoComplete="username"
               />
               <div className="mt-2 flex items-center gap-2">
-                <div className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-700 truncate">
+                <div className="flex-1 rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-600 ring-2 ring-slate-200 truncate">
                   {publicProfileHref ? `${window.location.origin}${publicProfileHref}` : "—"}
                 </div>
                 {publicProfileHref ? (
                   <a
                     href={publicProfileHref}
-                    className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-extrabold bg-brand-50 text-brand-600 ring-2 ring-brand-100 hover:bg-brand-100 transition-colors"
                   >
                     <Link2 className="w-4 h-4" />
                     Open
                   </a>
                 ) : (
-                  <span className="text-xs text-gray-400">Set a username</span>
+                  <span className="text-xs font-semibold text-slate-400">Set a username</span>
                 )}
               </div>
-              <p className="mt-1 text-[11px] text-gray-400">
+              <p className="mt-1.5 text-xs font-semibold text-slate-400">
                 If the account is hidden, your public page will show only “This account is hidden”.
               </p>
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Bio</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Bio</label>
               <textarea
                 rows={3}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="Write something short…"
@@ -991,24 +991,24 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Email address</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Email address</label>
               <input
                 type="email"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-gray-50 text-gray-600 cursor-not-allowed"
+                className="w-full rounded-2xl bg-slate-100 px-4 py-3 font-semibold text-slate-500 ring-2 ring-slate-200 cursor-not-allowed"
                 value={email}
                 readOnly
                 disabled
               />
-              <p className="mt-1 text-[11px] text-gray-400">
+              <p className="mt-1.5 text-xs font-semibold text-slate-400">
                 Email can only be changed via Account security (with confirmation).
               </p>
             </div>
 
             <div className="flex items-center">
-              <label className="inline-flex items-center gap-2 text-sm text-gray-700 mt-6">
+              <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700 mt-6">
                 <input
                   type="checkbox"
-                  className="rounded border-gray-300"
+                  className="h-5 w-5 rounded-md border-slate-300 text-brand-500 focus:ring-brand-400"
                   checked={friendsPublic}
                   onChange={(e) => setFriendsPublic(e.target.checked)}
                 />
@@ -1021,7 +1021,7 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"
+              className="btn3d btn3d-brand uppercase text-sm"
             >
               {saving ? "Saving…" : "Save changes"}
             </button>
@@ -1036,14 +1036,14 @@ export default function ProfilePage() {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setEmailModalOpen(false)}
           />
-          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-orange-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="font-semibold text-gray-900 flex items-center gap-2">
-                <Mail className="w-4 h-4 text-orange-700" /> Change email
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-brand-500" /> Change email
               </div>
               <button
                 type="button"
-                className="h-9 w-9 rounded-xl hover:bg-gray-100 grid place-items-center"
+                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold"
                 onClick={() => setEmailModalOpen(false)}
                 aria-label="Close"
               >
@@ -1054,10 +1054,10 @@ export default function ProfilePage() {
             <div className="p-5">
               {emailStage === "start" ? (
                 <>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm font-semibold text-slate-600">
                     We’ll send a 6‑digit code to your new email address.
                   </p>
-                  <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">
+                  <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">
                     New email
                   </label>
                   <input
@@ -1065,12 +1065,12 @@ export default function ProfilePage() {
                     onChange={(e) => setNewEmail(e.target.value)}
                     type="email"
                     placeholder="name@example.com"
-                    className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                   />
                   <div className="mt-4 flex justify-end gap-2">
                     <button
                       type="button"
-                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-100 hover:bg-gray-200"
+                      className="btn3d btn3d-neutral text-sm"
                       onClick={() => setEmailModalOpen(false)}
                     >
                       Cancel
@@ -1078,7 +1078,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       disabled={emailBusy}
-                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                      className="btn3d btn3d-brand text-sm"
                       onClick={startEmailChange}
                     >
                       {emailBusy ? "Sending…" : "Send code"}
@@ -1087,26 +1087,26 @@ export default function ProfilePage() {
                 </>
               ) : (
                 <>
-                  <p className="text-sm text-gray-600">
-                    Enter the code sent to <span className="font-semibold text-gray-800">{newEmail}</span>.
+                  <p className="text-sm font-semibold text-slate-600">
+                    Enter the code sent to <span className="font-extrabold text-slate-800">{newEmail}</span>.
                   </p>
                   {!!emailDevCode && (
-                    <div className="mt-3 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
+                    <div className="mt-3 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">
                       Email delivery is not configured. Use this code: <span className="font-mono font-bold">{emailDevCode}</span>
                     </div>
                   )}
-                  <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">6‑digit code</label>
+                  <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">6‑digit code</label>
                   <input
                     value={emailCode}
                     onChange={(e) => setEmailCode(e.target.value)}
                     inputMode="numeric"
                     placeholder="123456"
-                    className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                   />
                   <div className="mt-4 flex justify-between gap-2">
                     <button
                       type="button"
-                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-100 hover:bg-gray-200"
+                      className="btn3d btn3d-neutral text-sm"
                       onClick={() => {
                         setEmailStage("start");
                         setEmailCode("");
@@ -1118,7 +1118,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       disabled={emailBusy}
-                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                      className="btn3d btn3d-brand text-sm"
                       onClick={confirmEmailChange}
                     >
                       {emailBusy ? "Confirming…" : "Confirm"}
@@ -1135,14 +1135,14 @@ export default function ProfilePage() {
       {pwModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPwModalOpen(false)} />
-          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-orange-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="font-semibold text-gray-900 flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-orange-700" /> Change password
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-brand-500" /> Change password
               </div>
               <button
                 type="button"
-                className="h-9 w-9 rounded-xl hover:bg-gray-100 grid place-items-center"
+                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold"
                 onClick={() => setPwModalOpen(false)}
                 aria-label="Close"
               >
@@ -1150,34 +1150,34 @@ export default function ProfilePage() {
               </button>
             </div>
             <div className="p-5">
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Current password</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Current password</label>
               <input
                 value={currentPw}
                 onChange={(e) => setCurrentPw(e.target.value)}
                 type="password"
-                className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
               />
 
-              <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">New password</label>
+              <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">New password</label>
               <input
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
                 type="password"
-                className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
               />
 
-              <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">Repeat new password</label>
+              <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">Repeat new password</label>
               <input
                 value={newPw2}
                 onChange={(e) => setNewPw2(e.target.value)}
                 type="password"
-                className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
               />
 
               <div className="mt-4 flex justify-end gap-2">
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-100 hover:bg-gray-200"
+                  className="btn3d btn3d-neutral text-sm"
                   onClick={() => setPwModalOpen(false)}
                 >
                   Cancel
@@ -1185,7 +1185,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   disabled={pwBusy}
-                  className="px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                  className="btn3d btn3d-brand text-sm"
                   onClick={changePassword}
                 >
                   {pwBusy ? "Saving…" : "Save"}
@@ -1200,14 +1200,14 @@ export default function ProfilePage() {
       {twoFaOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setTwoFaOpen(false)} />
-          <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-xl border border-orange-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="font-semibold text-gray-900 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-orange-700" /> Two‑factor authentication
+          <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-brand-500" /> Two‑factor authentication
               </div>
               <button
                 type="button"
-                className="h-9 w-9 rounded-xl hover:bg-gray-100 grid place-items-center"
+                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold"
                 onClick={() => setTwoFaOpen(false)}
                 aria-label="Close"
               >
@@ -1217,11 +1217,11 @@ export default function ProfilePage() {
 
             <div className="p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm text-gray-700">
+                <div className="text-sm font-bold text-slate-700">
                   Status: {twoFaEnabled ? (
-                    <span className="inline-flex items-center gap-1 font-semibold text-green-700">Enabled</span>
+                    <span className="inline-flex items-center gap-1 font-extrabold text-grass-600">Enabled</span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 font-semibold text-gray-500">Disabled</span>
+                    <span className="inline-flex items-center gap-1 font-extrabold text-slate-500">Disabled</span>
                   )}
                 </div>
 
@@ -1229,7 +1229,7 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     disabled={twoFaBusy}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                    className="btn3d btn3d-brand text-sm"
                     onClick={start2FASetup}
                   >
                     <LockKeyhole className="w-4 h-4" /> {twoFaBusy ? "Preparing…" : "Start setup"}
@@ -1238,7 +1238,7 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     disabled={twoFaBusy}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 disabled:opacity-60"
+                    className="btn3d btn3d-neutral text-sm"
                     onClick={disable2FA}
                   >
                     Disable 2FA
@@ -1248,39 +1248,39 @@ export default function ProfilePage() {
 
               {!twoFaEnabled && twoFaSetup && (
                 <div className="mt-5 grid md:grid-cols-[260px,1fr] gap-4">
-                  <div className="rounded-3xl border border-gray-200 p-4 bg-gray-50">
-                    <div className="text-xs font-semibold text-gray-700">Scan QR</div>
+                  <div className="rounded-3xl ring-1 ring-slate-200 p-4 bg-slate-50">
+                    <div className="text-xs font-extrabold text-slate-700">Scan QR</div>
                     <img
                       src={twoFaSetup.qr_png}
                       alt="2FA QR"
-                      className="mt-3 w-full rounded-2xl bg-white p-3 border border-gray-200"
+                      className="mt-3 w-full rounded-2xl bg-white p-3 ring-1 ring-slate-200"
                     />
-                    <div className="mt-3 text-[11px] text-gray-500">
+                    <div className="mt-3 text-xs font-semibold text-slate-500">
                       Or enter this secret manually:
                     </div>
-                    <div className="mt-1 font-mono text-xs bg-white border border-gray-200 rounded-2xl px-3 py-2">
+                    <div className="mt-1 font-mono text-xs bg-white ring-1 ring-slate-200 rounded-2xl px-3 py-2 text-slate-700">
                       {twoFaSetup.secret}
                     </div>
                   </div>
 
-                  <div className="rounded-3xl border border-gray-200 p-4">
-                    <div className="text-sm font-semibold text-gray-900">Verify</div>
-                    <p className="mt-1 text-sm text-gray-600">
+                  <div className="rounded-3xl ring-1 ring-slate-200 p-4">
+                    <div className="font-display text-sm font-extrabold text-slate-800">Verify</div>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">
                       After adding Haylingua to your authenticator app, enter the 6‑digit code.
                     </p>
-                    <label className="block mt-4 text-xs font-medium text-gray-600 mb-1.5">Code</label>
+                    <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">Code</label>
                     <input
                       value={twoFaCode}
                       onChange={(e) => setTwoFaCode(e.target.value)}
                       inputMode="numeric"
                       placeholder="123456"
-                      className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                     />
                     <div className="mt-4 flex justify-end">
                       <button
                         type="button"
                         disabled={twoFaBusy}
-                        className="px-4 py-2 rounded-2xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60"
+                        className="btn3d btn3d-brand text-sm"
                         onClick={confirm2FA}
                       >
                         {twoFaBusy ? "Enabling…" : "Enable 2FA"}
@@ -1291,29 +1291,29 @@ export default function ProfilePage() {
               )}
 
               {twoFaEnabled && (
-                <div className="mt-5 rounded-3xl border border-gray-200 p-4 bg-gray-50">
-                  <div className="text-sm font-semibold text-gray-900">Disable 2FA</div>
-                  <p className="mt-1 text-sm text-gray-600">
+                <div className="mt-5 rounded-3xl ring-1 ring-slate-200 p-4 bg-slate-50">
+                  <div className="font-display text-sm font-extrabold text-slate-800">Disable 2FA</div>
+                  <p className="mt-1 text-sm font-semibold text-slate-600">
                     For safety, provide either a current authenticator code or your password.
                   </p>
                   <div className="mt-4 grid md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Authenticator code</label>
+                      <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Authenticator code</label>
                       <input
                         value={twoFaDisableCode}
                         onChange={(e) => setTwoFaDisableCode(e.target.value)}
                         inputMode="numeric"
                         placeholder="123456"
-                        className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        className="w-full rounded-2xl bg-white px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Current password</label>
+                      <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Current password</label>
                       <input
                         value={twoFaDisablePw}
                         onChange={(e) => setTwoFaDisablePw(e.target.value)}
                         type="password"
-                        className="w-full rounded-2xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        className="w-full rounded-2xl bg-white px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
                       />
                     </div>
                   </div>
@@ -1321,7 +1321,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       disabled={twoFaBusy}
-                      className="px-4 py-2 rounded-2xl text-sm font-semibold bg-gray-900 text-white hover:bg-black disabled:opacity-60"
+                      className="btn3d btn3d-cardinal text-sm"
                       onClick={disable2FA}
                     >
                       {twoFaBusy ? "Disabling…" : "Disable"}
@@ -1329,16 +1329,16 @@ export default function ProfilePage() {
                   </div>
 
                   {twoFaRecovery?.length > 0 && (
-                    <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3">
-                      <div className="text-xs font-semibold text-orange-900">Recovery codes</div>
-                      <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-orange-900">
+                    <div className="mt-4 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3">
+                      <div className="text-xs font-extrabold text-brand-700">Recovery codes</div>
+                      <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-brand-800">
                         {twoFaRecovery.map((c) => (
-                          <div key={c} className="rounded-xl bg-white/70 border border-orange-100 px-3 py-2">
+                          <div key={c} className="rounded-xl bg-white/70 ring-1 ring-brand-100 px-3 py-2">
                             {c}
                           </div>
                         ))}
                       </div>
-                      <div className="mt-2 text-[11px] text-orange-800">
+                      <div className="mt-2 text-xs font-semibold text-brand-700">
                         Save these codes somewhere safe. Each code can be used once.
                       </div>
                     </div>
@@ -1347,16 +1347,16 @@ export default function ProfilePage() {
               )}
 
               {!twoFaEnabled && twoFaRecovery?.length > 0 && (
-                <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3">
-                  <div className="text-xs font-semibold text-orange-900">Recovery codes</div>
-                  <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-orange-900">
+                <div className="mt-5 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3">
+                  <div className="text-xs font-extrabold text-brand-700">Recovery codes</div>
+                  <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-brand-800">
                     {twoFaRecovery.map((c) => (
-                      <div key={c} className="rounded-xl bg-white/70 border border-orange-100 px-3 py-2">
+                      <div key={c} className="rounded-xl bg-white/70 ring-1 ring-brand-100 px-3 py-2">
                         {c}
                       </div>
                     ))}
                   </div>
-                  <div className="mt-2 text-[11px] text-orange-800">
+                  <div className="mt-2 text-xs font-semibold text-brand-700">
                     Save these codes somewhere safe. Each code can be used once.
                   </div>
                 </div>
@@ -1367,35 +1367,35 @@ export default function ProfilePage() {
       )}
 
       {/* Background (no submit button; autosaves) */}
-<section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
+<section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
   <div className="flex items-center justify-between gap-3 mb-4">
-    <h2 className="text-base md:text-lg font-semibold text-gray-900">Appearance</h2>
-    <div className="text-xs text-gray-500 flex items-center gap-2">
-      <Palette className="w-4 h-4" />
+    <h2 className="font-display text-lg font-extrabold text-slate-800">Appearance</h2>
+    <div className="text-xs font-bold text-slate-500 flex items-center gap-2">
+      <Palette className="w-4 h-4 text-brand-500" />
       {bgSaving ? "Saving…" : "Auto-saved"}
     </div>
   </div>
 
   <div className="grid md:grid-cols-2 gap-4">
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1.5">
+      <label className="block text-sm font-extrabold text-slate-700 mb-1.5">
         Background color
       </label>
       <input
         type="color"
-        className="w-14 h-10 rounded-xl border border-gray-200 p-1 bg-white"
+        className="w-14 h-10 rounded-xl ring-2 ring-slate-200 p-1 bg-white cursor-pointer"
         value={themeBg}
         onChange={(e) => setThemeBg(e.target.value)}
       />
-      <p className="mt-1 text-[11px] text-gray-400">Used if gradient is empty/invalid.</p>
+      <p className="mt-1.5 text-xs font-semibold text-slate-400">Used if gradient is empty/invalid.</p>
     </div>
 
     <div>
     </div>
   </div>
 
-  <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
-    <div className="px-4 py-3 text-xs font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">
+  <div className="mt-4 rounded-2xl ring-1 ring-slate-200 overflow-hidden">
+    <div className="px-4 py-3 text-xs font-extrabold text-slate-700 bg-slate-50 border-b border-slate-200">
       Preview
     </div>
     <div className="h-20" style={{ background: headerBackground }} />
@@ -1403,21 +1403,21 @@ export default function ProfilePage() {
 </section>
 
       {/* Account security placeholders */}
-      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Account security</h2>
+      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">Account security</h2>
 
         <div className="grid md:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-gray-200 p-4">
-            <div className="flex items-center gap-2 font-semibold text-gray-900">
-              <Mail className="w-4 h-4 text-orange-700" />
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+              <Mail className="w-4 h-4 text-brand-500" />
               Change email
             </div>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm font-semibold text-slate-600">
               Update your account email with a confirmation code sent to the new address.
             </p>
             <button
               type="button"
-              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              className="btn3d btn3d-neutral text-sm mt-3"
               onClick={() => {
                 setEmailModalOpen(true);
                 setEmailStage("start");
@@ -1426,21 +1426,21 @@ export default function ProfilePage() {
                 setEmailDevCode("");
               }}
             >
-              <Mail className="w-4 h-4" /> Start email change
+              <Mail className="w-4 h-4 text-brand-500" /> Start email change
             </button>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 p-4">
-            <div className="flex items-center gap-2 font-semibold text-gray-900">
-              <KeyRound className="w-4 h-4 text-orange-700" />
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+              <KeyRound className="w-4 h-4 text-brand-500" />
               Change password
             </div>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm font-semibold text-slate-600">
               Change your password securely (requires your current password).
             </p>
             <button
               type="button"
-              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              className="btn3d btn3d-neutral text-sm mt-3"
               onClick={() => {
                 setPwModalOpen(true);
                 setCurrentPw("");
@@ -1448,38 +1448,38 @@ export default function ProfilePage() {
                 setNewPw2("");
               }}
             >
-              <KeyRound className="w-4 h-4" /> Change password
+              <KeyRound className="w-4 h-4 text-brand-500" /> Change password
             </button>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 p-4 md:col-span-2">
-            <div className="flex items-center gap-2 font-semibold text-gray-900">
-              <ShieldCheck className="w-4 h-4 text-orange-700" />
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 md:col-span-2">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+              <ShieldCheck className="w-4 h-4 text-brand-500" />
               Two-factor authentication (2FA)
             </div>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm font-semibold text-slate-600">
               Add an extra security layer with an authenticator app (TOTP). You’ll receive recovery codes after enabling.
             </p>
             <button
               type="button"
-              className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              className="btn3d btn3d-neutral text-sm mt-3"
               onClick={open2FA}
             >
-              <LockKeyhole className="w-4 h-4" /> {twoFaEnabled ? "Manage 2FA" : "Enable 2FA"}
+              <LockKeyhole className="w-4 h-4 text-brand-500" /> {twoFaEnabled ? "Manage 2FA" : "Enable 2FA"}
             </button>
           </div>
         </div>
       </section>
 
       {/* Recent learning activity (kept) */}
-      <section className="bg-white rounded-2xl shadow-sm p-5 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">
           Recent learning activity
         </h2>
 
         <div className="grid md:grid-cols-[1fr,240px] gap-4">
-          <div className="rounded-2xl border border-gray-200 p-4">
-            <div className="text-xs font-semibold text-gray-700 mb-3">
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4">
+            <div className="text-xs font-extrabold text-slate-700 mb-3">
               Exercises completed in the last 7 days
             </div>
 
@@ -1499,7 +1499,7 @@ export default function ProfilePage() {
 
               if (!normalized.length) {
                 return (
-                  <div className="h-20 flex items-center justify-center text-sm text-gray-500">
+                  <div className="h-20 flex items-center justify-center text-sm font-semibold text-slate-500">
                     No activity yet — start a lesson to see your progress here.
                   </div>
                 );
@@ -1512,19 +1512,19 @@ export default function ProfilePage() {
                     return (
                       <div key={idx} className="flex flex-col items-center gap-2 flex-1">
                         <div className="w-full max-w-[46px]">
-                          <div className="relative h-20 w-full rounded-2xl bg-orange-50 overflow-hidden border border-orange-100">
+                          <div className="relative h-20 w-full rounded-2xl bg-brand-50 overflow-hidden ring-1 ring-brand-100">
                             <div
                               className="absolute bottom-0 left-0 right-0 rounded-2xl"
                               style={{
                                 height: `${allZero ? 8 : Math.max(8, h)}px`,
                                 background:
-                                  "linear-gradient(180deg, rgba(252,114,41,.95), rgba(252,76,48,.75))",
+                                  "linear-gradient(180deg, rgba(255,122,26,.95), rgba(232,95,0,.8))",
                               }}
                               title={`${x.label}: ${x.v}`}
                             />
                           </div>
                         </div>
-                        <div className="text-[11px] text-gray-500">{x.label}</div>
+                        <div className="text-[11px] font-bold text-slate-500">{x.label}</div>
                       </div>
                     );
                   })}
@@ -1534,19 +1534,19 @@ export default function ProfilePage() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between items-center bg-orange-50 rounded-xl px-3 py-2.5">
-              <span className="text-xs text-gray-600">Total lessons completed</span>
-              <span className="text-sm font-semibold text-gray-900">{lessonsCompleted}</span>
+            <div className="flex justify-between items-center bg-brand-50 rounded-2xl px-3 py-2.5">
+              <span className="text-xs font-bold text-slate-600">Total lessons completed</span>
+              <span className="font-display text-sm font-extrabold text-slate-800">{lessonsCompleted}</span>
             </div>
 
-            <div className="flex justify-between items-center bg-green-50 rounded-xl px-3 py-2.5">
-              <span className="text-xs text-gray-600">Best streak</span>
-              <span className="text-sm font-semibold text-gray-900">{streak} days</span>
+            <div className="flex justify-between items-center bg-grass-50 rounded-2xl px-3 py-2.5">
+              <span className="text-xs font-bold text-slate-600">Best streak</span>
+              <span className="font-display text-sm font-extrabold text-slate-800">{streak} days</span>
             </div>
 
-            <div className="flex justify-between items-center bg-blue-50 rounded-xl px-3 py-2.5">
-              <span className="text-xs text-gray-600">Lifetime XP</span>
-              <span className="text-sm font-semibold text-gray-900">{xp}</span>
+            <div className="flex justify-between items-center bg-feather-50 rounded-2xl px-3 py-2.5">
+              <span className="text-xs font-bold text-slate-600">Lifetime XP</span>
+              <span className="font-display text-sm font-extrabold text-slate-800">{xp}</span>
             </div>
           </div>
         </div>
@@ -1554,7 +1554,7 @@ export default function ProfilePage() {
       </section>
 
       {!!message && (
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+        <div className="rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3 text-sm font-bold text-brand-700">
           {message}
         </div>
       )}

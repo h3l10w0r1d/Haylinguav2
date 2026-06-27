@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { StarMotif } from "./lib/motifs";
 
 // IMPORTANT:
 // Public pages are served from the FE domain, but API lives on the backend.
@@ -157,13 +158,13 @@ function normalizeFriendshipStatus(raw) {
 function StatCard({ label, value }) {
   return (
     <div
-      className="rounded-3xl border px-5 py-4 shadow-sm backdrop-blur"
+      className="rounded-2xl border px-5 py-4 shadow-sm backdrop-blur"
       style={{ background: "var(--hl-card-bg)", borderColor: "var(--hl-card-border)" }}
     >
-      <div className="text-xs tracking-wide" style={{ color: "var(--hl-muted)" }}>
+      <div className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--hl-muted)" }}>
         {label}
       </div>
-      <div className="mt-1 text-2xl font-semibold" style={{ color: "var(--hl-text)" }}>
+      <div className="mt-1 font-display text-2xl font-extrabold" style={{ color: "var(--hl-text)" }}>
         {value}
       </div>
     </div>
@@ -182,19 +183,12 @@ function Card({ className = "", children }) {
 }
 
 function Button({ variant = "primary", disabled, onClick, children }) {
-  const base =
-    "inline-flex items-center justify-center rounded-2xl px-4 py-2 text-sm font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed";
   if (variant === "neutral") {
     return (
       <button
         disabled={disabled}
         onClick={onClick}
-        className={base}
-        style={{
-          color: "var(--hl-text)",
-          background: "rgba(255,255,255,0.18)",
-          border: `1px solid var(--hl-soft)`,
-        }}
+        className="btn3d btn3d-neutral text-sm uppercase"
       >
         {children}
       </button>
@@ -204,7 +198,7 @@ function Button({ variant = "primary", disabled, onClick, children }) {
     <button
       disabled={disabled}
       onClick={onClick}
-      className={`${base} bg-orange-500 hover:bg-orange-600 text-white shadow-sm`}
+      className="btn3d btn3d-brand text-sm uppercase"
     >
       {children}
     </button>
@@ -442,7 +436,7 @@ export default function PublicUserPage({ token }) {
         {loading ? (
           <div style={{ color: "var(--hl-muted)" }}>Loading…</div>
         ) : err ? (
-          <div className="text-red-600">{err}</div>
+          <div className="rounded-2xl bg-cardinal-50 px-4 py-3 font-semibold text-cardinal-600 ring-1 ring-cardinal-100">{err}</div>
         ) : !data ? (
           <div style={{ color: "var(--hl-muted)" }}>User not found.</div>
         ) : (
@@ -475,10 +469,10 @@ export default function PublicUserPage({ token }) {
                     </div>
 
                     <div className="pb-1">
-                      <div className="text-3xl sm:text-4xl font-semibold" style={{ color: "var(--hl-text)" }}>
+                      <div className="font-display text-3xl font-extrabold sm:text-4xl" style={{ color: "var(--hl-text)" }}>
                         {data.name || data.full_name || data.username}
                       </div>
-                      <div className="text-sm" style={{ color: "var(--hl-muted)" }}>
+                      <div className="text-sm font-semibold" style={{ color: "var(--hl-muted)" }}>
                         @{data.username}
                         {joinDate ? <span className="ml-2">• Joined {joinDate}</span> : null}
                       </div>
@@ -500,26 +494,26 @@ export default function PublicUserPage({ token }) {
               <div className="lg:col-span-2 space-y-6">
                 {isPrivateView ? (
                   <Card className="p-6">
-                    <div className="text-base font-semibold" style={{ color: "var(--hl-text)" }}>
+                    <div className="font-display text-lg font-extrabold" style={{ color: "var(--hl-text)" }}>
                       This profile is private
                     </div>
-                    <div className="mt-2 text-sm" style={{ color: "var(--hl-muted)" }}>
+                    <div className="mt-2 text-sm font-semibold" style={{ color: "var(--hl-muted)" }}>
                       Send a friend request to view learning stats and activity.
                     </div>
                   </Card>
                 ) : (
                   <Card className="p-6">
                     <div>
-                      <div className="text-lg font-semibold" style={{ color: "var(--hl-text)" }}>
+                      <div className="font-display text-lg font-extrabold" style={{ color: "var(--hl-text)" }}>
                         Recent learning activity
                       </div>
-                      <div className="text-sm" style={{ color: "var(--hl-muted)" }}>
+                      <div className="text-sm font-semibold" style={{ color: "var(--hl-muted)" }}>
                         Exercises completed in the last 7 days
                       </div>
                     </div>
 
                     {!activity?.days ? (
-                      <div className="mt-4 text-sm" style={{ color: "var(--hl-muted)" }}>
+                      <div className="mt-4 text-sm font-semibold" style={{ color: "var(--hl-muted)" }}>
                         No activity data yet.
                       </div>
                     ) : (
