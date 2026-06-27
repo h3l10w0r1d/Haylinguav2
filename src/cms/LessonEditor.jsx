@@ -10,9 +10,9 @@ function cx(...a) {
 function Field({ label, hint, children }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold text-slate-500">{label}</div>
+      <div className="text-sm font-extrabold text-slate-700">{label}</div>
       {children}
-      {hint ? <div className="text-xs text-slate-400">{hint}</div> : null}
+      {hint ? <div className="text-xs text-slate-500">{hint}</div> : null}
     </div>
   );
 }
@@ -22,7 +22,7 @@ function Input(props) {
     <input
       {...props}
       className={cx(
-        "w-full rounded-xl px-3 py-2 border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm",
+        "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none",
         props.className
       )}
     />
@@ -34,7 +34,7 @@ function Textarea(props) {
     <textarea
       {...props}
       className={cx(
-        "w-full rounded-xl px-3 py-2 border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm min-h-[96px]",
+        "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none min-h-[96px]",
         props.className
       )}
     />
@@ -353,7 +353,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
   return (
     <div className="space-y-4">
       {err ? (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-2xl p-4 text-sm font-semibold">
+        <div className="bg-cardinal-50 ring-1 ring-cardinal-200 text-cardinal-800 rounded-2xl p-4 text-sm font-semibold">
           {err}
         </div>
       ) : null}
@@ -387,7 +387,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
           <select
             value={lessonType}
             onChange={(e) => setLessonType(e.target.value)}
-            className="w-full rounded-xl px-3 py-2 border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm"
+            className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
           >
             <option value="standard">Standard</option>
             <option value="reading">Reading (Story)</option>
@@ -424,10 +424,10 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
       </div>
 
       {lessonType === "reading" ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+        <div className="rounded-3xl bg-white p-4 space-y-4 ring-1 ring-slate-200 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-extrabold text-slate-800">Reading Lesson Builder</div>
+              <div className="font-display text-sm font-extrabold text-slate-900">Reading Lesson Builder</div>
               <div className="text-xs text-slate-500">
                 Build a smooth reading flow. Add reading sections, then attach exercises as checkpoints.
               </div>
@@ -435,7 +435,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
             <button
               type="button"
               onClick={addSection}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
+              className="btn3d btn3d-neutral text-xs"
             >
               <Plus className="w-4 h-4" />
               Add section
@@ -449,24 +449,24 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
           ) : null}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-1 rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+            <div className="lg:col-span-1 rounded-2xl bg-slate-50 p-3 space-y-2 ring-1 ring-slate-200">
               <div className="flex items-center gap-2">
                 <Search className="w-4 h-4 text-slate-500" />
                 <input
                   value={exSearch}
                   onChange={(e) => setExSearch(e.target.value)}
                   placeholder="Search exercises (id, kind, prompt)…"
-                  className="w-full rounded-xl px-3 py-2 border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 text-xs"
+                  className="w-full rounded-2xl bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
                 />
               </div>
-              <div className="text-[11px] text-slate-500">Exercises in this lesson</div>
+              <div className="text-[11px] font-semibold text-slate-500">Exercises in this lesson</div>
               <div className="max-h-[420px] overflow-auto space-y-2 pr-1">
                 {filteredExercises.length ? (
                   filteredExercises.map((ex) => (
-                    <div key={ex.id} className="rounded-xl border border-slate-200 bg-white p-2">
+                    <div key={ex.id} className="rounded-2xl bg-white p-2 ring-1 ring-slate-200 shadow-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="text-xs font-bold text-slate-800">#{ex.id}</div>
-                        <div className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold">
+                        <div className="text-xs font-extrabold text-slate-800">#{ex.id}</div>
+                        <div className="text-[11px] px-2 py-0.5 rounded-full bg-brand-50 text-brand-800 font-semibold ring-1 ring-brand-200">
                           {ex.kind}
                         </div>
                       </div>
@@ -486,8 +486,8 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
 
             <div className="lg:col-span-2 space-y-3">
               {(reading.sections || []).length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                  <div className="text-sm font-bold text-slate-700">No sections yet</div>
+                <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                  <div className="text-sm font-extrabold text-slate-700">No sections yet</div>
                   <div className="text-xs text-slate-500 mt-1">
                     Add your first reading section. Then attach exercises as checkpoints.
                   </div>
@@ -497,7 +497,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
               {(reading.sections || []).map((s, idx) => (
                 <div
                   key={s.id}
-                  className="rounded-2xl border border-slate-200 bg-white overflow-hidden"
+                  className="rounded-2xl bg-white overflow-hidden ring-1 ring-slate-200 shadow-sm"
                   draggable
                   onDragStart={() => onSectionDragStart(idx)}
                   onDragOver={(e) => e.preventDefault()}
@@ -506,12 +506,12 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
                   <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-b border-slate-200">
                     <div className="flex items-center gap-2">
                       <GripVertical className="w-4 h-4 text-slate-400" />
-                      <div className="text-sm font-extrabold text-slate-800">Section {idx + 1}</div>
+                      <div className="font-display text-sm font-extrabold text-slate-800">Section {idx + 1}</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => removeSection(idx)}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-red-700 hover:text-red-800"
+                      className="inline-flex items-center gap-1 text-xs font-extrabold text-cardinal-700 hover:text-cardinal-800"
                       title="Remove section"
                     >
                       <X className="w-4 h-4" />
@@ -564,17 +564,17 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
                       </Field>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                    <div className="rounded-2xl bg-slate-50 p-3 space-y-2 ring-1 ring-slate-200">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div>
-                          <div className="text-xs font-extrabold text-slate-800">Checkpoint exercises</div>
+                          <div className="font-display text-xs font-extrabold text-slate-800">Checkpoint exercises</div>
                           <div className="text-[11px] text-slate-500">
                             Drag to reorder. Learners must complete these before continuing.
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <select
-                            className="rounded-xl px-3 py-2 border border-slate-200 bg-white text-xs"
+                            className="rounded-2xl bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
                             defaultValue=""
                             onChange={(e) => {
                               addExerciseToSection(idx, e.target.value);
@@ -600,7 +600,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
                             return (
                               <div
                                 key={`${s.id}:${eid}:${exIdx}`}
-                                className="rounded-xl border border-slate-200 bg-white p-2 flex items-start justify-between gap-2"
+                                className="rounded-2xl bg-white p-2 flex items-start justify-between gap-2 ring-1 ring-slate-200 shadow-sm"
                                 draggable
                                 onDragStart={() => onExerciseDragStart(idx, exIdx)}
                                 onDragOver={(e) => e.preventDefault()}
@@ -611,7 +611,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
                                   <div>
                                     <div className="text-xs font-extrabold text-slate-800">
                                       #{eid}{" "}
-                                      <span className="text-[11px] font-semibold text-slate-500">
+                                      <span className="text-[11px] font-semibold text-brand-600">
                                         {ex?.kind ? `· ${ex.kind}` : ""}
                                       </span>
                                     </div>
@@ -624,10 +624,10 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
                                 <button
                                   type="button"
                                   onClick={() => removeExerciseFromSection(idx, exIdx)}
-                                  className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-xl border border-slate-200 hover:bg-red-50"
+                                  className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-2xl ring-1 ring-slate-200 hover:bg-cardinal-50"
                                   title="Remove"
                                 >
-                                  <X className="w-4 h-4 text-red-700" />
+                                  <X className="w-4 h-4 text-cardinal-700" />
                                 </button>
                               </div>
                             );
@@ -650,7 +650,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
           type="button"
           onClick={save}
           disabled={saving}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-60"
+          className="btn3d btn3d-brand text-sm"
         >
           <Save className="w-4 h-4" />
           {saving ? "Saving…" : isEdit ? "Save changes" : "Create lesson"}
@@ -661,7 +661,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
             type="button"
             onClick={remove}
             disabled={saving}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50 disabled:opacity-60"
+            className="btn3d btn3d-cardinal text-sm"
           >
             <Trash2 className="w-4 h-4" />
             Delete

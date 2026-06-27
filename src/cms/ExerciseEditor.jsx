@@ -49,7 +49,7 @@ function normalizeStr(x) {
 function Field({ label, hint, children }) {
   return (
     <div className="space-y-1">
-      <div className="text-sm font-semibold text-slate-800">{label}</div>
+      <div className="text-sm font-extrabold text-slate-700">{label}</div>
       {hint ? <div className="text-xs text-slate-500">{hint}</div> : null}
       {children}
     </div>
@@ -61,8 +61,8 @@ function Input(props) {
     <input
       {...props}
       className={
-        "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none " +
-        "focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+        "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 " +
+        "focus:bg-white focus:ring-brand-400 focus:outline-none"
       }
     />
   );
@@ -73,22 +73,21 @@ function Textarea(props) {
     <textarea
       {...props}
       className={
-        "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none " +
-        "focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+        "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 " +
+        "focus:bg-white focus:ring-brand-400 focus:outline-none"
       }
     />
   );
 }
 
 function Button({ variant = "primary", className = "", ...props }) {
-  const base =
-    "rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed";
+  const base = "btn3d text-sm";
   const styles =
     variant === "primary"
-      ? "bg-orange-500 text-white hover:bg-orange-600"
+      ? "btn3d-brand"
       : variant === "danger"
-      ? "bg-rose-500 text-white hover:bg-rose-600"
-      : "bg-white text-slate-800 border border-slate-200 hover:bg-slate-50";
+      ? "btn3d-cardinal"
+      : "btn3d-neutral";
   return <button {...props} className={`${base} ${styles} ${className}`} />;
 }
 
@@ -119,13 +118,13 @@ function ChipsEditor({ items, onChange, placeholder = "Add item..." }) {
         {(items || []).map((t, idx) => (
           <span
             key={`${t}-${idx}`}
-            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm"
+            className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-800 ring-1 ring-brand-200"
           >
             {t}
             <button
               type="button"
               onClick={() => remove(idx)}
-              className="text-slate-500 hover:text-slate-900"
+              className="text-brand-500 hover:text-brand-700"
             >
               ✕
             </button>
@@ -185,14 +184,15 @@ function OptionsEditor({ choices, setChoices, correctIndices, setCorrectIndices,
           return (
             <div
               key={`${c}-${i}`}
-              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
+              className="flex items-center gap-3 rounded-2xl bg-white px-4 py-2.5 ring-1 ring-slate-200 shadow-sm"
             >
               <input
                 type={mode === "single" ? "radio" : "checkbox"}
                 checked={checked}
                 onChange={() => toggleCorrect(i)}
+                className="accent-brand-500"
               />
-              <div className="flex-1 text-sm">{c}</div>
+              <div className="flex-1 text-sm font-semibold text-slate-800">{c}</div>
               <Button type="button" variant="secondary" onClick={() => removeChoice(i)}>
                 Remove
               </Button>
@@ -380,7 +380,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
   function renderKindUI() {
     if (!cfgValid) {
       return (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="rounded-2xl bg-cardinal-50 p-3 text-sm font-semibold text-cardinal-800 ring-1 ring-cardinal-200">
           Config JSON is invalid. Open “Advanced” and fix it, or change kind to reset template.
         </div>
       );
@@ -499,7 +499,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
               }}
             />
           </Field>
-          <div className="text-xs text-slate-500">Tip: keep answer identical to a choice (same letter).</div>
+          <div className="text-xs font-semibold text-slate-500">Tip: keep answer identical to a choice (same letter).</div>
         </div>
       );
     }
@@ -562,12 +562,12 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
 
           <Field label="Correct answer">
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={cfg.correct === true} onChange={() => patchConfig({ correct: true })} />
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <input type="radio" checked={cfg.correct === true} onChange={() => patchConfig({ correct: true })} className="accent-brand-500" />
                 True
               </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={cfg.correct === false} onChange={() => patchConfig({ correct: false })} />
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <input type="radio" checked={cfg.correct === false} onChange={() => patchConfig({ correct: false })} className="accent-brand-500" />
                 False
               </label>
             </div>
@@ -595,7 +595,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
             />
           </Field>
 
-          <div className="text-xs text-slate-500">
+          <div className="text-xs font-semibold text-slate-500">
             Tip: solution should be same words as tokens, just ordered correctly.
           </div>
         </div>
@@ -627,7 +627,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
               {pairs.map((p, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-3"
+                  className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200 shadow-sm"
                 >
                   <Input value={p.left ?? ""} onChange={(e) => updatePair(i, { left: e.target.value })} placeholder="Left" />
                   <div className="flex gap-2">
@@ -741,8 +741,8 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
             />
           </Field>
 
-          <div className="text-xs text-slate-500">
-            This saves as <code className="px-1 rounded bg-slate-100">config.correctIndices</code>.
+          <div className="text-xs font-semibold text-slate-500">
+            This saves as <code className="px-1 rounded bg-slate-100 text-slate-700">config.correctIndices</code>.
           </div>
         </div>
       );
@@ -750,20 +750,20 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
 
     // fallback: still allow teacher editing of config text
     return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+      <div className="rounded-2xl bg-slate-50 p-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
         This kind doesn’t have a guided editor yet. Use Advanced JSON below.
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-5">
+    <div className="rounded-3xl bg-white p-5 space-y-5 ring-1 ring-slate-200 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-lg font-extrabold text-slate-900">
+          <div className="font-display text-lg font-extrabold text-slate-900">
             {isNew ? "New exercise" : `Edit exercise #${exercise.id}`}
           </div>
-          <div className="text-xs text-slate-500">Lesson ID: {lessonId}</div>
+          <div className="text-xs font-semibold text-slate-500">Lesson ID: {lessonId}</div>
         </div>
 
         <div className="flex gap-2">
@@ -788,7 +788,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           <select
             value={kind}
             onChange={(e) => setKind(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
           >
             {KIND_OPTIONS.map((k) => (
               <option key={k.value} value={k.value}>
@@ -813,16 +813,16 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
 
       {/* Teacher UI */}
       <div className="space-y-3">
-        <div className="text-sm font-extrabold text-slate-900">Exercise setup</div>
+        <div className="font-display text-sm font-extrabold text-slate-900">Exercise setup</div>
         {renderKindUI()}
       </div>
 
       {/* Pronunciation / Audio (NEW) */}
       <div className="space-y-3">
-        <div className="text-sm font-extrabold text-slate-900">Pronunciation (Audio)</div>
+        <div className="font-display text-sm font-extrabold text-slate-900">Pronunciation (Audio)</div>
 
         {isNew ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <div className="rounded-2xl bg-slate-50 p-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
             Save the exercise first, then you can add recordings (male/female) or generate AI audio.
           </div>
         ) : (
@@ -838,9 +838,9 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
       </div>
 
       {/* Advanced JSON */}
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-extrabold text-slate-900">Advanced (JSON)</div>
+          <div className="font-display text-sm font-extrabold text-slate-900">Advanced (JSON)</div>
           <Button type="button" variant="secondary" onClick={() => setShowAdvanced((v) => !v)}>
             {showAdvanced ? "Hide" : "Show"}
           </Button>
@@ -849,9 +849,9 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
         {showAdvanced ? (
           <div className="mt-3 space-y-2">
             {!cfgValid ? (
-              <div className="text-sm text-rose-700">Invalid JSON. Fix it below or switch kind to reset template.</div>
+              <div className="text-sm font-semibold text-cardinal-700">Invalid JSON. Fix it below or switch kind to reset template.</div>
             ) : (
-              <div className="text-xs text-slate-500">You usually don’t need this. It exists for edge-cases.</div>
+              <div className="text-xs font-semibold text-slate-500">You usually don’t need this. It exists for edge-cases.</div>
             )}
 
             <Textarea rows={12} value={configText} onChange={(e) => setConfigText(e.target.value)} />

@@ -65,18 +65,21 @@ export default function Cms2FASetup() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white flex items-center justify-center px-4">
+      <div className="w-full max-w-xl rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
         <div className="mb-5">
-          <div className="text-sm text-slate-500">Haylingua</div>
-          <h1 className="text-2xl font-bold text-slate-900">Enable 2FA</h1>
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500 text-white font-display text-xl font-extrabold">
+            H
+          </div>
+          <div className="text-sm font-extrabold text-brand-600">Haylingua</div>
+          <h1 className="font-display text-2xl font-extrabold text-slate-900">Enable 2FA</h1>
           <p className="text-slate-600 mt-1 text-sm">
             Scan the secret in Google Authenticator, then enter the 6-digit code.
           </p>
         </div>
 
         {err ? (
-          <div className="mb-4 text-sm bg-red-50 text-red-700 border border-red-100 rounded-xl p-3">
+          <div className="mb-4 text-sm bg-cardinal-50 text-cardinal-700 ring-1 ring-cardinal-100 rounded-2xl p-3">
             {err}
           </div>
         ) : null}
@@ -87,8 +90,8 @@ export default function Cms2FASetup() {
           </div>
         ) : (
           <>
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
-              <div className="text-sm font-semibold text-slate-900 mb-2">
+            <div className="bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-4">
+              <div className="text-sm font-extrabold text-slate-900 mb-2">
                 Add account in Google Authenticator
               </div>
 
@@ -97,7 +100,7 @@ export default function Cms2FASetup() {
                   <img
                     src={qr}
                     alt="2FA QR"
-                    className="w-48 h-48 rounded-2xl border border-slate-200 bg-white"
+                    className="w-48 h-48 rounded-2xl ring-1 ring-slate-200 bg-white"
                   />
                 </div>
               ) : null}
@@ -105,7 +108,7 @@ export default function Cms2FASetup() {
               <div className="text-sm text-slate-700">
                 <div className="mb-2">
                   <span className="text-slate-500">Secret:</span>{" "}
-                  <code className="px-2 py-1 rounded bg-white border border-slate-200">
+                  <code className="px-2 py-1 rounded-lg bg-white ring-1 ring-slate-200 font-semibold">
                     {secret || "…"}
                   </code>
                 </div>
@@ -117,7 +120,7 @@ export default function Cms2FASetup() {
 
             <form onSubmit={confirm} className="mt-4 space-y-3">
               <input
-                className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
                 placeholder="6-digit code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -125,14 +128,14 @@ export default function Cms2FASetup() {
               />
               <button
                 disabled={loading}
-                className="w-full py-3 rounded-2xl bg-orange-600 text-white font-semibold hover:bg-orange-700 transition-colors disabled:opacity-60"
+                className="btn3d btn3d-brand w-full text-sm"
               >
                 Confirm 2FA & enter CMS
               </button>
 
               <button
                 type="button"
-                className="w-full py-3 rounded-2xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors"
+                className="btn3d btn3d-neutral w-full text-sm"
                 onClick={() => nav("/cms/login")}
               >
                 Back to login

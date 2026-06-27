@@ -76,7 +76,7 @@ export default function CmsSupport() {
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
           <p className="font-semibold text-slate-600">Log in to the CMS to use Support.</p>
-          <a href="/cms/login" className="mt-4 inline-block rounded-xl bg-orange-600 px-5 py-2.5 font-semibold text-white">CMS login</a>
+          <a href="/cms/login" className="btn3d btn3d-brand mt-4 inline-block px-5 py-2.5 font-semibold">CMS login</a>
         </div>
       </div>
     );
@@ -96,19 +96,19 @@ export default function CmsSupport() {
           <a href="/cms" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-slate-900">
             <ArrowLeft className="h-4 w-4" /> CMS
           </a>
-          <div className="font-bold text-slate-900">Support</div>
+          <div className="font-display font-bold text-slate-900">Support</div>
         </div>
       </div>
 
       <div className="mx-auto max-w-4xl px-4 py-6">
         <div className="mb-5 flex gap-2">
-          <button onClick={() => switchTab("users")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "users" ? "bg-orange-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>Users</button>
-          <button onClick={() => switchTab("reports")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "reports" ? "bg-orange-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>
+          <button onClick={() => switchTab("users")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "users" ? "bg-brand-500 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>Users</button>
+          <button onClick={() => switchTab("reports")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "reports" ? "bg-brand-500 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>
             Reports{Array.isArray(reports) && reports.length ? ` (${reports.length})` : ""}
           </button>
         </div>
 
-        {err ? <div className="mb-4 rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-600 ring-1 ring-rose-100">{err}</div> : null}
+        {err ? <div className="mb-4 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600 ring-1 ring-cardinal-100">{err}</div> : null}
 
         {tab === "reports" ? (
           <ReportsList reports={reports} loading={loadingReports} busy={busy} onResolve={resolveReport} />
@@ -120,9 +120,9 @@ export default function CmsSupport() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by email, username, or user ID…"
-            className="w-full rounded-2xl bg-white py-3.5 pl-12 pr-28 font-semibold text-slate-800 ring-2 ring-slate-200 focus:outline-none focus:ring-orange-400"
+            className="w-full rounded-2xl bg-white py-3.5 pl-12 pr-28 font-semibold text-slate-800 ring-2 ring-slate-200 focus:outline-none focus:ring-brand-400"
           />
-          <button type="submit" disabled={searching} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700">
+          <button type="submit" disabled={searching} className="btn3d btn3d-brand absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 text-sm font-bold">
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
           </button>
         </form>
@@ -133,7 +133,7 @@ export default function CmsSupport() {
               <button
                 key={u.id}
                 onClick={() => openUser(u.id)}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white p-4 text-left ring-1 ring-slate-200 transition hover:ring-orange-300"
+                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white p-4 text-left ring-1 ring-slate-200 transition hover:ring-brand-300"
               >
                 <div className="flex items-center gap-3">
                   <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-500"><User className="h-5 w-5" /></div>
@@ -144,7 +144,7 @@ export default function CmsSupport() {
                 </div>
                 <div className="flex items-center gap-2">
                   {u.is_premium ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">Premium</span> : null}
-                  <span className={"rounded-full px-2 py-0.5 text-xs font-bold " + (u.email_verified ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+                  <span className={"rounded-full px-2 py-0.5 text-xs font-bold " + (u.email_verified ? "bg-grass-50 text-grass-700" : "bg-slate-100 text-slate-500")}>
                     {u.email_verified ? "Verified" : "Unverified"}
                   </span>
                 </div>
@@ -165,7 +165,7 @@ export default function CmsSupport() {
                 <div className="flex items-center gap-3">
                   <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-500"><User className="h-6 w-6" /></div>
                   <div>
-                    <div className="text-lg font-bold text-slate-900">{detail.display_name || detail.username || "—"}</div>
+                    <div className="font-display text-lg font-bold text-slate-900">{detail.display_name || detail.username || "—"}</div>
                     <div className="text-sm text-slate-500">{detail.email} · #{detail.id}</div>
                   </div>
                 </div>
@@ -179,7 +179,7 @@ export default function CmsSupport() {
 
                 <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                   <span className={"rounded-full px-2.5 py-1 " + (detail.is_premium ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500")}>{detail.is_premium ? "Premium" : "Free"}</span>
-                  <span className={"rounded-full px-2.5 py-1 " + (detail.email_verified ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500")}>{detail.email_verified ? "Email verified" : "Email unverified"}</span>
+                  <span className={"rounded-full px-2.5 py-1 " + (detail.email_verified ? "bg-grass-50 text-grass-700" : "bg-slate-100 text-slate-500")}>{detail.email_verified ? "Email verified" : "Email unverified"}</span>
                   {detail.totp_enabled ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">2FA on</span> : null}
                 </div>
 
@@ -195,7 +195,7 @@ export default function CmsSupport() {
                   <button
                     disabled={busy === "hearts"}
                     onClick={() => act("hearts", `/cms/support/users/${detail.id}/hearts-refill`)}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-600 disabled:opacity-60"
+                    className="btn3d btn3d-cardinal inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold disabled:opacity-60"
                   >
                     {busy === "hearts" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4" />} Refill hearts
                   </button>
@@ -203,7 +203,7 @@ export default function CmsSupport() {
                     <button
                       disabled={busy === "verify"}
                       onClick={() => act("verify", `/cms/support/users/${detail.id}/verify-email`)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60 sm:col-span-2"
+                      className="btn3d btn3d-grass inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold disabled:opacity-60 sm:col-span-2"
                     >
                       {busy === "verify" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />} Mark email verified
                     </button>
@@ -248,7 +248,7 @@ function ReportsList({ reports, loading, busy, onResolve }) {
             <button
               disabled={busy === "report-" + r.id}
               onClick={() => onResolve(r.id)}
-              className="shrink-0 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="btn3d btn3d-grass shrink-0 px-3 py-2 text-sm font-bold disabled:opacity-60"
             >
               {busy === "report-" + r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resolve"}
             </button>

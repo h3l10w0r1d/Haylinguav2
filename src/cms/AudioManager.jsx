@@ -20,14 +20,14 @@ function cmsHeaders(extra = {}) {
 // Avoid dynamic tailwind class names (Tailwind purge will remove them in prod).
 const STYLE = {
   female: {
-    panel: "border-2 border-pink-200 rounded-lg p-4 bg-pink-50",
-    title: "text-lg font-bold text-pink-900 mb-4",
-    primaryBtn: "bg-pink-600 hover:bg-pink-700",
+    panel: "rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm p-5",
+    title: "text-lg font-display font-bold text-slate-900 mb-4",
+    primaryBtn: "btn3d btn3d-brand text-sm w-full",
   },
   male: {
-    panel: "border-2 border-blue-200 rounded-lg p-4 bg-blue-50",
-    title: "text-lg font-bold text-blue-900 mb-4",
-    primaryBtn: "bg-blue-600 hover:bg-blue-700",
+    panel: "rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm p-5",
+    title: "text-lg font-display font-bold text-slate-900 mb-4",
+    primaryBtn: "btn3d btn3d-brand text-sm w-full",
   },
 };
 
@@ -337,50 +337,50 @@ export default function AudioManager({ exerciseId, exerciseText, targetKey = nul
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader className="w-6 h-6 animate-spin text-blue-600" />
+        <Loader className="w-6 h-6 animate-spin text-brand-500" />
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-5xl mx-auto">
+    <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Audio Manager</h2>
+        <h2 className="text-2xl font-display font-bold text-slate-900">Audio Manager</h2>
         {onClose && (
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X className="w-6 h-6" />
           </button>
         )}
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <span className="text-sm text-red-700">{error}</span>
+        <div className="mb-4 p-3 bg-cardinal-50 ring-1 ring-cardinal-200 rounded-2xl flex items-start gap-2">
+          <AlertCircle className="w-5 h-5 text-cardinal-600 flex-shrink-0 mt-0.5" />
+          <span className="text-sm text-cardinal-700">{error}</span>
           <button onClick={() => setError("")} className="ml-auto">
-            <X className="w-4 h-4 text-red-600" />
+            <X className="w-4 h-4 text-cardinal-600" />
           </button>
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded flex items-start gap-2">
-          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-          <span className="text-sm text-green-700">{success}</span>
+        <div className="mb-4 p-3 bg-grass-50 ring-1 ring-grass-200 rounded-2xl flex items-start gap-2">
+          <Check className="w-5 h-5 text-grass-600 flex-shrink-0 mt-0.5" />
+          <span className="text-sm text-grass-700">{success}</span>
           <button onClick={() => setSuccess("")} className="ml-auto">
-            <X className="w-4 h-4 text-green-600" />
+            <X className="w-4 h-4 text-grass-600" />
           </button>
         </div>
       )}
 
       {exerciseText ? (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-          <div className="text-xs font-bold text-blue-700 mb-1">EXERCISE TEXT FOR TTS:</div>
-          <div className="text-sm text-blue-900">{exerciseText}</div>
+        <div className="mb-6 p-4 bg-brand-50 ring-1 ring-brand-200 rounded-2xl">
+          <div className="text-xs font-extrabold text-brand-700 mb-1">EXERCISE TEXT FOR TTS:</div>
+          <div className="text-sm text-brand-900">{exerciseText}</div>
         </div>
       ) : (
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded">
-          <div className="text-xs font-bold text-amber-700 mb-1">WARNING:</div>
+        <div className="mb-6 p-4 bg-amber-50 ring-1 ring-amber-200 rounded-2xl">
+          <div className="text-xs font-extrabold text-amber-700 mb-1">WARNING:</div>
           <div className="text-sm text-amber-900">
             exerciseText is empty → AI generation is disabled. Make sure you pass the text into AudioManager.
           </div>
@@ -447,22 +447,22 @@ function VoicePanel({
       <h3 className={s.title}>{label} Voice</h3>
 
       {audio && (
-        <div className="mb-4 p-3 bg-white rounded border">
+        <div className="mb-4 p-3 bg-slate-50 rounded-2xl ring-1 ring-slate-200">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs font-semibold text-gray-700">
+            <div className="text-xs font-extrabold text-slate-700">
               {audio.source_type === "tts"
                 ? "🤖 AI Generated"
                 : audio.source_type === "recording"
                 ? "🎙️ Recorded"
                 : "📁 Uploaded"}
             </div>
-            <div className="text-xs text-gray-500">{(audio.audio_size / 1024).toFixed(1)} KB</div>
+            <div className="text-xs text-slate-500">{(audio.audio_size / 1024).toFixed(1)} KB</div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => onPlay(audio.id)}
-              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 ${s.primaryBtn} text-white rounded disabled:opacity-50`}
+              className={`flex-1 ${s.primaryBtn}`}
             >
               {playing === audio.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               {playing === audio.id ? "Stop" : "Play"}
@@ -470,7 +470,7 @@ function VoicePanel({
 
             <button
               onClick={() => onDelete(audio.id)}
-              className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"
+              className="btn3d btn3d-cardinal text-sm"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -482,7 +482,7 @@ function VoicePanel({
         <button
           onClick={onGenerateTTS}
           disabled={generating || !canGenerate}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${s.primaryBtn} text-white rounded disabled:opacity-50`}
+          className={s.primaryBtn}
           title={!canGenerate ? "exerciseText is empty" : ""}
         >
           {generating ? (
@@ -501,9 +501,7 @@ function VoicePanel({
         <button
           onClick={recording ? onStopRecord : onStartRecord}
           disabled={uploading}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${
-            recording ? "bg-red-600 hover:bg-red-700" : s.primaryBtn
-          } text-white rounded disabled:opacity-50`}
+          className={`text-sm w-full ${recording ? "btn3d btn3d-cardinal" : s.primaryBtn}`}
         >
           {recording ? (
             <>
@@ -519,7 +517,7 @@ function VoicePanel({
         </button>
 
         <label
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${s.primaryBtn} text-white rounded cursor-pointer disabled:opacity-50`}
+          className={`${s.primaryBtn} cursor-pointer`}
         >
           {uploading ? (
             <>

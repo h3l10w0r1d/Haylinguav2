@@ -11,14 +11,16 @@ function cx(...a) {
 
 function TopBar({ query, setQuery }) {
   return (
-    <div className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur border-b border-slate-200">
+    <div className="sticky top-0 z-10 bg-white/80 backdrop-blur ring-1 ring-slate-200/70">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-        <div className="flex items-center gap-2 font-semibold text-slate-900">
-          <div className="w-9 h-9 rounded-xl bg-orange-600 text-white flex items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-900">
+          <div className="w-10 h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center shadow-sm ring-1 ring-brand-600/20">
             <Settings2 className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-sm">Haylingua CMS</div>
+            <div className="text-sm font-display font-bold leading-tight">
+              Haylingua CMS
+            </div>
             <div className="text-xs text-slate-500 -mt-0.5">
               Lessons & exercises
             </div>
@@ -28,18 +30,18 @@ function TopBar({ query, setQuery }) {
         <div className="flex-1" />
 
         <div className="relative w-full max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search lessons…"
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 ring-2 ring-slate-200 font-semibold focus:bg-white focus:ring-brand-400 focus:outline-none"
           />
         </div>
 
         <a
           href="/cms/support"
-          className="shrink-0 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+          className="shrink-0 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 shadow-sm hover:bg-slate-50 transition"
         >
           Support
         </a>
@@ -54,21 +56,31 @@ function LessonRow({ lesson, active, onClick }) {
       type="button"
       onClick={onClick}
       className={cx(
-        "w-full text-left px-3 py-2 rounded-xl border transition",
+        "w-full text-left px-3.5 py-2.5 rounded-2xl ring-1 transition",
         active
-          ? "bg-orange-50 border-orange-200"
-          : "bg-white border-slate-200 hover:bg-slate-50"
+          ? "bg-brand-50 text-brand-700 ring-brand-200"
+          : "bg-white text-slate-900 ring-slate-200 hover:bg-slate-50"
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="font-semibold text-slate-900">{lesson.title}</div>
-          <div className="text-xs text-slate-500 mt-0.5">
+          <div className="font-semibold">{lesson.title}</div>
+          <div
+            className={cx(
+              "text-xs mt-0.5",
+              active ? "text-brand-600/80" : "text-slate-500"
+            )}
+          >
             slug: <span className="font-mono">{lesson.slug}</span> · level{" "}
             {lesson.level} · xp {lesson.xp}
           </div>
         </div>
-        <BookOpen className="w-4 h-4 text-slate-400 mt-1" />
+        <BookOpen
+          className={cx(
+            "w-4 h-4 mt-1",
+            active ? "text-brand-500" : "text-slate-400"
+          )}
+        />
       </div>
     </button>
   );
@@ -184,7 +196,9 @@ export default function CmsShell() {
         {/* LEFT: lessons list */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-slate-900">Lessons</div>
+            <div className="text-base font-display font-bold text-slate-900">
+              Lessons
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -192,14 +206,14 @@ export default function CmsShell() {
                 setSelectedExerciseId(null);
                 setMode("lesson");
               }}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700"
+              className="btn3d btn3d-brand text-sm !py-2 inline-flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
               New
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-2 space-y-2">
+          <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-2 space-y-2">
             {loading ? (
               <div className="p-4 text-sm text-slate-500">Loading…</div>
             ) : filteredLessons.length === 0 ? (
@@ -221,12 +235,14 @@ export default function CmsShell() {
           </div>
 
           {/* Exercises list for lesson */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-3">
+          <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-3">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold text-slate-900">
+              <div className="text-base font-display font-bold text-slate-900">
                 Exercises{" "}
                 {selectedLesson ? (
-                  <span className="text-slate-400">· {selectedLesson.slug}</span>
+                  <span className="font-sans text-sm font-semibold text-slate-400">
+                    · {selectedLesson.slug}
+                  </span>
                 ) : null}
               </div>
               <button
@@ -238,10 +254,10 @@ export default function CmsShell() {
                   setMode("exercise");
                 }}
                 className={cx(
-                  "px-3 py-2 rounded-xl text-sm font-semibold",
+                  "text-sm !py-2",
                   selectedLessonId
-                    ? "bg-slate-900 text-white hover:bg-slate-800"
-                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                    ? "btn3d btn3d-neutral"
+                    : "rounded-2xl bg-slate-100 px-4 py-2 font-semibold text-slate-400 cursor-not-allowed"
                 )}
               >
                 + New exercise
@@ -250,11 +266,11 @@ export default function CmsShell() {
 
             {/* ✅ NEW: lesson XP info */}
             {selectedLessonId ? (
-              <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <div className="text-xs text-slate-500">
+              <div className="mb-3 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-2.5">
+                <div className="text-xs font-semibold text-brand-600/80">
                   Total lesson XP (auto)
                 </div>
-                <div className="text-sm font-semibold text-slate-900">
+                <div className="text-sm font-display font-bold text-brand-700">
                   {lessonXpTotal} XP
                 </div>
               </div>
@@ -280,15 +296,22 @@ export default function CmsShell() {
                         setMode("exercise");
                       }}
                       className={cx(
-                        "w-full text-left px-3 py-2 rounded-xl border transition",
+                        "w-full text-left px-3.5 py-2.5 rounded-2xl ring-1 transition",
                         ex.id === selectedExerciseId
-                          ? "bg-orange-50 border-orange-200"
-                          : "bg-white border-slate-200 hover:bg-slate-50"
+                          ? "bg-brand-50 ring-brand-200"
+                          : "bg-white ring-slate-200 hover:bg-slate-50"
                       )}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div>
-                          <div className="text-sm font-semibold text-slate-900">
+                          <div
+                            className={cx(
+                              "text-sm font-semibold",
+                              ex.id === selectedExerciseId
+                                ? "text-brand-700"
+                                : "text-slate-900"
+                            )}
+                          >
                             #{ex.order ?? "?"} ·{" "}
                             <span className="font-mono">{ex.kind}</span>
                             <span className="ml-2 text-slate-400 font-mono">
@@ -311,10 +334,10 @@ export default function CmsShell() {
         </div>
 
         {/* RIGHT: editor */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-6">
+        <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-lg font-semibold text-slate-900">
+              <div className="text-xl font-display font-bold text-slate-900">
                 {rightTitle}
               </div>
               <div className="text-xs text-slate-500 mt-0.5">
@@ -336,7 +359,7 @@ export default function CmsShell() {
                     showToast(e.message || "Refresh failed", "err");
                   }
                 }}
-                className="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-50"
+                className="btn3d btn3d-neutral text-sm !py-2"
               >
                 Refresh
               </button>
@@ -382,10 +405,10 @@ export default function CmsShell() {
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50">
           <div
             className={cx(
-              "px-4 py-3 rounded-2xl shadow-lg border text-sm font-semibold",
+              "px-4 py-3 rounded-2xl shadow-lg ring-1 text-sm font-semibold",
               toast.kind === "err"
-                ? "bg-red-50 border-red-200 text-red-800"
-                : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                ? "bg-cardinal-50 ring-cardinal-200 text-cardinal-700"
+                : "bg-grass-50 ring-grass-200 text-grass-700"
             )}
           >
             {toast.msg}

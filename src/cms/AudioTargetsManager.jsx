@@ -130,7 +130,7 @@ export default function AudioTargetsManager({ exercise }) {
 
   return (
     <div className="space-y-3">
-      <div className="text-sm opacity-80">
+      <div className="text-sm text-slate-600">
         Add audio per *target* (full sentence, tokens, choices, letters). Learner playback prefers custom recordings over AI.
       </div>
 
@@ -138,15 +138,15 @@ export default function AudioTargetsManager({ exercise }) {
         {targets.map((t) => (
           <div
             key={t.key}
-            className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+            className="flex items-center justify-between rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm px-4 py-3"
           >
             <div className="min-w-0">
-              <div className="text-sm font-medium truncate">{t.label}</div>
-              <div className="text-xs opacity-70 truncate">{t.text}</div>
+              <div className="text-sm font-extrabold text-slate-800 truncate">{t.label}</div>
+              <div className="text-xs text-slate-500 truncate">{t.text}</div>
             </div>
             <div className="flex gap-2 shrink-0">
               <button
-                className="rounded-md bg-white/10 hover:bg-white/15 px-3 py-1 text-xs"
+                className="btn3d btn3d-neutral text-sm"
                 onClick={() => setActive(t)}
               >
                 Manage audio
@@ -156,7 +156,7 @@ export default function AudioTargetsManager({ exercise }) {
         ))}
 
         {targets.length === 0 ? (
-          <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm opacity-80">
+          <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-sm text-slate-600">
             No audio targets detected for this exercise yet.
           </div>
         ) : null}

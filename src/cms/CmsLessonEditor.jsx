@@ -10,7 +10,7 @@ function cx(...a) {
 function Field({ label, children, hint }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold text-slate-500">{label}</div>
+      <div className="text-sm font-extrabold text-slate-700">{label}</div>
       {children}
       {hint ? <div className="text-xs text-slate-400">{hint}</div> : null}
     </div>
@@ -22,7 +22,7 @@ function Input(props) {
     <input
       {...props}
       className={cx(
-        "w-full rounded-xl px-3 py-2 border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm",
+        "w-full rounded-2xl bg-slate-50 px-4 py-2.5 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none text-sm",
         props.className
       )}
     />
@@ -34,7 +34,7 @@ function Textarea(props) {
     <textarea
       {...props}
       className={cx(
-        "w-full rounded-xl px-3 py-2 border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 text-sm min-h-[96px]",
+        "w-full rounded-2xl bg-slate-50 px-4 py-2.5 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none text-sm min-h-[96px]",
         props.className
       )}
     />
@@ -173,14 +173,14 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
   return (
     <div className="space-y-4">
       {!apiReady ? (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-2xl p-4 text-sm font-semibold">
+        <div className="bg-cardinal-50 ring-1 ring-cardinal-200 text-cardinal-800 rounded-2xl p-4 text-sm font-semibold">
           CMS API is not initialized. Make sure you opened the CMS through the token route
           so `X-CMS-Token` is attached.
         </div>
       ) : null}
 
       {err ? (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-2xl p-4 text-sm font-semibold">
+        <div className="bg-cardinal-50 ring-1 ring-cardinal-200 text-cardinal-800 rounded-2xl p-4 text-sm font-semibold">
           {err}
         </div>
       ) : null}
@@ -242,7 +242,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
           type="button"
           onClick={save}
           disabled={saving}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-60"
+          className="btn3d btn3d-brand text-sm"
         >
           <Save className="w-4 h-4" />
           {saving ? "Saving…" : isEdit ? "Save changes" : "Create lesson"}
@@ -253,7 +253,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
             type="button"
             onClick={remove}
             disabled={saving}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50 disabled:opacity-60"
+            className="btn3d btn3d-cardinal text-sm"
           >
             <Trash2 className="w-4 h-4" />
             Delete

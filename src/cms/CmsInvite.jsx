@@ -52,18 +52,21 @@ export default function CmsInvite() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
         <div className="mb-5">
-          <div className="text-sm text-slate-500">Haylingua</div>
-          <h1 className="text-2xl font-bold text-slate-900">Accept CMS Invite</h1>
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500 text-white font-display text-xl font-extrabold">
+            H
+          </div>
+          <div className="text-sm font-extrabold text-brand-600">Haylingua</div>
+          <h1 className="font-display text-2xl font-extrabold text-slate-900">Accept CMS Invite</h1>
           <p className="text-slate-600 mt-1 text-sm">
             Set a password, then enable Google Authenticator.
           </p>
         </div>
 
         {err ? (
-          <div className="mb-4 text-sm bg-red-50 text-red-700 border border-red-100 rounded-xl p-3">
+          <div className="mb-4 text-sm bg-cardinal-50 text-cardinal-700 ring-1 ring-cardinal-100 rounded-2xl p-3">
             {err}
           </div>
         ) : null}
@@ -74,7 +77,7 @@ export default function CmsInvite() {
           </div>
         ) : (
           <form onSubmit={acceptInvite} className="space-y-3">
-            <div className="text-sm text-slate-700 bg-slate-50 border border-slate-100 rounded-xl p-3">
+            <div className="text-sm text-slate-700 bg-slate-50 ring-1 ring-slate-200 rounded-2xl p-3">
               <div><span className="text-slate-500">Email:</span> {email || "…"}</div>
               {expiresAt ? (
                 <div className="text-xs text-slate-500 mt-1">Expires: {expiresAt}</div>
@@ -83,7 +86,7 @@ export default function CmsInvite() {
 
             <input
               type="password"
-              className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
               placeholder="Create password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -92,14 +95,14 @@ export default function CmsInvite() {
 
             <button
               disabled={loading}
-              className="w-full py-3 rounded-2xl bg-orange-600 text-white font-semibold hover:bg-orange-700 transition-colors disabled:opacity-60"
+              className="btn3d btn3d-brand w-full text-sm"
             >
               Continue to 2FA setup
             </button>
 
             <button
               type="button"
-              className="w-full py-3 rounded-2xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors"
+              className="btn3d btn3d-neutral w-full text-sm"
               onClick={() => nav("/cms/login")}
             >
               Back to login
