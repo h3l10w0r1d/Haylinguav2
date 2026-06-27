@@ -97,9 +97,9 @@ export default function ExerciseShell({
         };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="lesson-shell flex flex-col bg-white">
       {/* Top bar */}
-      <header className="sticky top-0 z-20 bg-white">
+      <header className="shrink-0 bg-white">
         <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-4">
           <button
             type="button"
@@ -130,11 +130,11 @@ export default function ExerciseShell({
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-6 pb-36">{children}</main>
+      <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6">{children}</main>
 
-      {/* Bottom action bar */}
+      {/* Bottom action bar — in-flow so it's always visible on mobile */}
       {(primaryLabel || secondaryLabel) && !result ? (
-        <div className="fixed bottom-0 left-0 right-0 z-30 border-t-2 border-slate-100 bg-white">
+        <div className="safe-b shrink-0 border-t-2 border-slate-100 bg-white">
           <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4">
             {secondaryLabel ? (
               <button
@@ -167,7 +167,7 @@ export default function ExerciseShell({
           <div className="absolute inset-0 bg-black/10" />
           <div className={"relative w-full animate-pop border-t-4 " + tone.wrap}>
             <CarpetBorder color={tone.carpet} />
-            <div className="mx-auto max-w-3xl px-4 py-5">
+            <div className="safe-b mx-auto max-w-3xl px-4 py-5">
               <div className="flex items-center gap-4">
                 {/* Tatik reacts */}
                 <div className="relative shrink-0">

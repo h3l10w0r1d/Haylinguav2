@@ -68,6 +68,12 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Lesson shell locks to the *visible* viewport on mobile (dvh) so the action
+   bar is always reachable. Falls back to vh on browsers without dvh. */
+.lesson-shell { height: 100vh; height: 100dvh; }
+/* Respect the iPhone home-indicator safe area on the bottom action bar. */
+.safe-b { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+
 /* Animated â€œfloatingâ€ gradient for primary CTA */
 .cta-float {
   background-size: 200% 200%;
