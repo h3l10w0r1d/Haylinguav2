@@ -20,6 +20,24 @@ from lesson_analytics import router as lesson_analytics_router
 from routes_seo import router as seo_router
 
 
+# Error tracking — no-op unless SENTRY_DSN is set. Init before the app so the
+# FastAPI/Starlette integrations auto-instrument requests.
+_SENTRY_DSN = (os.getenv("SENTRY_DSN") or "").strip()
+if _SENTRY_DSN:
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=_SENTRY_DSN,
+            environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+            traces_sample_rate=float(os.getenv("SENTRY_TRACES_RATE") or "0.1"),
+            send_default_pii=False,
+        )
+        print("[sentry] error tracking enabled")
+    except Exception as e:  # never let observability break startup
+        print(f"[sentry] init skipped: {e}")
+
+
 app = FastAPI()
 
 

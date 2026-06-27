@@ -13,3 +13,4 @@ python-multipart
 qrcode[pil]==7.4.2
 pillow==11.1.0
 pyotp==2.9.0
+sentry-sdk[fastapi]
