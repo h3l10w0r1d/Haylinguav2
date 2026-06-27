@@ -36,6 +36,13 @@ function TopBar({ query, setQuery }) {
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
           />
         </div>
+
+        <a
+          href="/cms/support"
+          className="shrink-0 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+        >
+          Support
+        </a>
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ import ProfilePage from './ProfilePage';
 import PublicUserPage from './PublicUserPage';
 import CmsGate from './cms/CmsGate';
 import CmsLogin from './cms/CmsLogin';
+import CmsSupport from './cms/CmsSupport';
 import CmsInvite from './cms/CmsInvite';
 import Cms2FASetup from './cms/Cms2FASetup';
 import CmsTeam from './cms/CmsTeam';
@@ -420,6 +421,7 @@ function AppShell() {
       <Route path="/cms/invite" element={<CmsInvite />} />
       <Route path="/cms/2fa-setup" element={<Cms2FASetup />} />
       <Route path="/cms/team" element={<CmsTeam />} />
+      <Route path="/cms/support" element={<CmsSupport />} />
       <Route path="/cms" element={<CmsGate />} />
       <Route path="/cms/*" element={<CmsGate />} />
 

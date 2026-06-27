@@ -3951,6 +3951,126 @@ def require_cms_temp(authorization: Optional[str] = Header(None), db=Depends(get
         raise HTTPException(status_code=403, detail="CMS user disabled or missing")
     return dict(row)
 
+# ----------------------------
+# Support admin (CMS-admin only): look up users & resolve common issues
+# ----------------------------
+
+@router.get("/cms/support/users")
+def support_search_users(
+    q: Optional[str] = Query(None),
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    query = (q or "").strip()
+    if not query:
+        return {"users": []}
+    rows = db.execute(
+        text(
+            """
+            SELECT id, email, username, display_name, email_verified,
+                   COALESCE(is_premium, FALSE) AS is_premium
+            FROM users
+            WHERE CAST(id AS TEXT) = :exact
+               OR lower(email) LIKE :like
+               OR lower(username) LIKE :like
+            ORDER BY id
+            LIMIT 25
+            """
+        ),
+        {"exact": query, "like": f"%{query.lower()}%"},
+    ).mappings().all()
+    return {"users": [dict(r) for r in rows]}
+
+
+@router.get("/cms/support/users/{uid}")
+def support_user_detail(
+    uid: int,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    u = db.execute(
+        text(
+            """
+            SELECT id, email, username, display_name, first_name, last_name,
+                   email_verified, COALESCE(is_premium, FALSE) AS is_premium, premium_since,
+                   joined_at, COALESCE(current_streak, 0) AS current_streak,
+                   totp_enabled, is_hidden
+            FROM users WHERE id = :u
+            """
+        ),
+        {"u": uid},
+    ).mappings().first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    stats = db.execute(
+        text(
+            """
+            SELECT COALESCE(SUM(xp_earned), 0) AS total_xp,
+                   COUNT(DISTINCT lesson_id) FILTER (WHERE completed_at IS NOT NULL) AS lessons_completed
+            FROM user_lesson_progress WHERE user_id = :u
+            """
+        ),
+        {"u": uid},
+    ).mappings().first() or {}
+    hs = _hearts_state(db, uid)
+    return {
+        **dict(u),
+        "total_xp": int(stats.get("total_xp") or 0),
+        "lessons_completed": int(stats.get("lessons_completed") or 0),
+        "hearts_current": hs["hearts_current"],
+        "hearts_max": hs["hearts_max"],
+    }
+
+
+@router.post("/cms/support/users/{uid}/premium")
+def support_set_premium(
+    uid: int,
+    payload: Dict[str, Any] = Body(default=None),
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    active = bool((payload or {}).get("active"))
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET is_premium = :a,
+                premium_since = CASE WHEN :a AND premium_since IS NULL THEN NOW() ELSE premium_since END
+            WHERE id = :u
+            """
+        ),
+        {"a": active, "u": uid},
+    )
+    return {"ok": True, "is_premium": active}
+
+
+@router.post("/cms/support/users/{uid}/hearts-refill")
+def support_refill_hearts(
+    uid: int,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    db.execute(
+        text("UPDATE users SET hearts_current = COALESCE(hearts_max, :mx), last_heart_lost_at = NULL WHERE id = :u"),
+        {"u": uid, "mx": DEFAULT_HEARTS_MAX},
+    )
+    return {"ok": True, **_hearts_state(db, uid)}
+
+
+@router.post("/cms/support/users/{uid}/verify-email")
+def support_verify_email(
+    uid: int,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    db.execute(
+        text("UPDATE users SET email_verified = TRUE, email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = :u"),
+        {"u": uid},
+    )
+    return {"ok": True}
+
+
 def _send_invite_email(email: str, invite_url: str):  # Send email function, is a really helpful thing for email verification and overall systematic communication style.
     """
     Best-effort. If SMTP not configured, prints link to logs.
