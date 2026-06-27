@@ -15,6 +15,9 @@ export default function CmsSupport() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
+  const [tab, setTab] = useState("users");
+  const [reports, setReports] = useState(null);
+  const [loadingReports, setLoadingReports] = useState(false);
 
   async function api(path, opts = {}) {
     const res = await fetch(`${API_BASE}${path}`, {
@@ -51,6 +54,23 @@ export default function CmsSupport() {
     catch (e) { setErr(e.message); } finally { setBusy(""); }
   }
 
+  async function loadReports() {
+    setLoadingReports(true); setErr("");
+    try { const d = await api("/cms/support/reports?status=open"); setReports(d?.reports || []); }
+    catch (e) { setErr(e.message); } finally { setLoadingReports(false); }
+  }
+
+  function switchTab(t) {
+    setTab(t); setErr("");
+    if (t === "reports" && reports === null) loadReports();
+  }
+
+  async function resolveReport(id) {
+    setBusy("report-" + id);
+    try { await api(`/cms/support/reports/${id}/resolve`, { method: "POST" }); setReports((r) => (r || []).filter((x) => x.id !== id)); }
+    catch (e) { setErr(e.message); } finally { setBusy(""); }
+  }
+
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
@@ -81,6 +101,19 @@ export default function CmsSupport() {
       </div>
 
       <div className="mx-auto max-w-4xl px-4 py-6">
+        <div className="mb-5 flex gap-2">
+          <button onClick={() => switchTab("users")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "users" ? "bg-orange-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>Users</button>
+          <button onClick={() => switchTab("reports")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "reports" ? "bg-orange-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>
+            Reports{Array.isArray(reports) && reports.length ? ` (${reports.length})` : ""}
+          </button>
+        </div>
+
+        {err ? <div className="mb-4 rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-600 ring-1 ring-rose-100">{err}</div> : null}
+
+        {tab === "reports" ? (
+          <ReportsList reports={reports} loading={loadingReports} busy={busy} onResolve={resolveReport} />
+        ) : (
+        <>
         <form onSubmit={search} className="relative mb-5">
           <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input
@@ -93,8 +126,6 @@ export default function CmsSupport() {
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
           </button>
         </form>
-
-        {err ? <div className="mb-4 rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-600 ring-1 ring-rose-100">{err}</div> : null}
 
         {!detail ? (
           <div className="space-y-2">
@@ -182,7 +213,48 @@ export default function CmsSupport() {
             )}
           </div>
         )}
+        </>
+        )}
       </div>
+    </div>
+  );
+}
+
+function ReportsList({ reports, loading, busy, onResolve }) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-10 text-slate-500">
+        <Loader2 className="h-5 w-5 animate-spin" /> Loading reports…
+      </div>
+    );
+  }
+  if (!reports || reports.length === 0) {
+    return <div className="py-10 text-center text-sm font-semibold text-slate-400">No open reports 🎉</div>;
+  }
+  const LABEL = { wrong_answer: "Wrong answer", audio: "Audio problem", typo: "Typo", confusing: "Confusing", other: "Other" };
+  return (
+    <div className="space-y-2">
+      {reports.map((r) => (
+        <div key={r.id} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">{LABEL[r.reason] || r.reason}</span>
+                <span className="text-xs font-semibold text-slate-400">{r.lesson_title || "—"} · ex #{r.exercise_id}</span>
+              </div>
+              {r.exercise_prompt ? <div className="mt-1 truncate text-sm font-bold text-slate-800">{r.exercise_prompt}</div> : null}
+              {r.detail ? <div className="mt-1 text-sm text-slate-600">“{r.detail}”</div> : null}
+            </div>
+            <button
+              disabled={busy === "report-" + r.id}
+              onClick={() => onResolve(r.id)}
+              className="shrink-0 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {busy === "report-" + r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resolve"}
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

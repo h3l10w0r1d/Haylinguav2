@@ -84,4 +84,22 @@ def ensure_schema() -> None:
         fill_nulls("users", "email_verified", "FALSE")
         fill_nulls("users", "totp_recovery_hashes", "'[]'::jsonb")
 
+        # ---------- Exercise problem reports ----------
+        ensure_table(
+            "exercise_reports",
+            """
+            CREATE TABLE exercise_reports (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                exercise_id INTEGER,
+                lesson_id INTEGER,
+                reason TEXT,
+                detail TEXT,
+                answer_text TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+
     print("[ensure_schema] done")

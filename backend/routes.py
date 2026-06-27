@@ -2963,6 +2963,38 @@ def me_achievements(
     return {"achievements": out, "earned": sum(1 for a in out if a["earned"]), "total": len(out)}
 
 
+@router.post("/me/exercises/{exercise_id}/report")
+def report_exercise(
+    exercise_id: int,
+    payload: Dict[str, Any] = Body(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Learner flags a problem with an exercise (wrong answer, bad audio, …)."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    reason = str((payload or {}).get("reason") or "other").strip()[:60]
+    detail = str((payload or {}).get("detail") or "").strip()[:1000]
+    answer_text = str((payload or {}).get("answer_text") or "").strip()[:1000] or None
+
+    lesson_id = db.execute(
+        text("SELECT lesson_id FROM exercises WHERE id = :ex"), {"ex": exercise_id}
+    ).scalar()
+
+    db.execute(
+        text(
+            """
+            INSERT INTO exercise_reports (user_id, exercise_id, lesson_id, reason, detail, answer_text)
+            VALUES (:u, :ex, :l, :reason, :detail, :answer)
+            """
+        ),
+        {"u": user_id, "ex": exercise_id, "l": lesson_id, "reason": reason, "detail": detail, "answer": answer_text},
+    )
+    return {"ok": True}
+
+
 # ----------------------------
 # Account: data export + deletion (GDPR self-service)
 # ----------------------------
@@ -4068,6 +4100,42 @@ def support_verify_email(
         text("UPDATE users SET email_verified = TRUE, email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = :u"),
         {"u": uid},
     )
+    return {"ok": True}
+
+
+@router.get("/cms/support/reports")
+def support_list_reports(
+    status: Optional[str] = Query("open"),
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    rows = db.execute(
+        text(
+            """
+            SELECT r.id, r.exercise_id, r.lesson_id, r.reason, r.detail, r.answer_text,
+                   r.status, r.created_at,
+                   e.prompt AS exercise_prompt, e.kind AS exercise_kind,
+                   l.title AS lesson_title
+            FROM exercise_reports r
+            LEFT JOIN exercises e ON e.id = r.exercise_id
+            LEFT JOIN lessons l ON l.id = r.lesson_id
+            WHERE (:status = 'all' OR r.status = :status)
+            ORDER BY r.created_at DESC
+            LIMIT 200
+            """
+        ),
+        {"status": (status or "open")},
+    ).mappings().all()
+    return {"reports": [dict(r) for r in rows]}
+
+
+@router.post("/cms/support/reports/{rid}/resolve")
+def support_resolve_report(
+    rid: int,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    db.execute(text("UPDATE exercise_reports SET status = 'resolved' WHERE id = :r"), {"r": rid})
     return {"ok": True}
 
 

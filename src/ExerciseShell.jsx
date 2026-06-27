@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { X, Heart } from "lucide-react";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
 import { readHearts } from "./lib/hearts";
+import ReportProblem from "./ReportProblem";
 import grandma from "./assets/character-grandma.png";
 
 /** Live hearts badge — reads localStorage and the `hay_hearts` event so it
@@ -50,6 +51,8 @@ export default function ExerciseShell({
   onSecondary,
   result,
   onResultPrimary,
+  exerciseId,
+  lessonId,
   children,
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
@@ -120,6 +123,7 @@ export default function ExerciseShell({
           </div>
 
           <HeartsBadge />
+          <ReportProblem exerciseId={exerciseId} lessonId={lessonId} />
         </div>
         {title ? (
           <div className="mx-auto max-w-3xl px-4 pb-1">

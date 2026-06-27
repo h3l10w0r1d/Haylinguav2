@@ -660,6 +660,8 @@ export default function LessonPlayer() {
           : null
       }
       onResultPrimary={proceedAfterResult}
+      exerciseId={!isReadingSection ? currentExercise?.id : null}
+      lessonId={lesson?.id}
     >
         {/* Out of hearts — gate the lesson until they regen or go premium */}
         {!showDoneFooter && outOfHearts ? (
