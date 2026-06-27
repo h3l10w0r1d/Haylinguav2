@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query, UploadFile, File
 from fastapi.responses import Response, JSONResponse
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -2960,6 +2961,122 @@ def me_achievements(
         })
 
     return {"achievements": out, "earned": sum(1 for a in out if a["earned"]), "total": len(out)}
+
+
+# ----------------------------
+# Account: data export + deletion (GDPR self-service)
+# ----------------------------
+
+def _tables_with_user_id(db: Connection) -> list:
+    return list(
+        db.execute(
+            text(
+                """
+                SELECT table_name FROM information_schema.columns
+                WHERE table_schema = 'public' AND column_name = 'user_id'
+                ORDER BY table_name
+                """
+            )
+        ).scalars().all()
+    )
+
+
+@router.get("/me/export")
+def me_export(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Download all of the current user's data as JSON (excludes secrets)."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    profile = db.execute(
+        text(
+            """
+            SELECT id, email, username, display_name, first_name, last_name, bio,
+                   avatar_url, banner_url, profile_theme, friends_public, is_hidden,
+                   joined_at, country, timezone, email_verified, is_premium,
+                   premium_since, current_streak, hearts_current, hearts_max
+            FROM users WHERE id = :u
+            """
+        ),
+        {"u": user_id},
+    ).mappings().first()
+
+    data: Dict[str, Any] = {}
+    for tbl in _tables_with_user_id(db):
+        if tbl in ("users", "friends"):
+            continue
+        try:
+            rows = db.execute(text(f'SELECT * FROM "{tbl}" WHERE user_id = :u'), {"u": user_id}).mappings().all()
+            if rows:
+                data[tbl] = [dict(r) for r in rows]
+        except Exception:
+            pass
+
+    for label, sql in (
+        ("friends", "SELECT * FROM friends WHERE user_id = :u OR friend_id = :u"),
+        ("friend_requests", "SELECT * FROM friend_requests WHERE requester_id = :u OR addressee_id = :u"),
+    ):
+        try:
+            rows = db.execute(text(sql), {"u": user_id}).mappings().all()
+            if rows:
+                data[label] = [dict(r) for r in rows]
+        except Exception:
+            pass
+
+    payload = {
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "account": dict(profile) if profile else {},
+        "data": data,
+    }
+    return JSONResponse(content=jsonable_encoder(payload))
+
+
+@router.post("/me/delete")
+def me_delete(
+    payload: Dict[str, Any] = Body(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Permanently delete the current user's account and all their data.
+
+    Requires the account password as confirmation. Irreversible.
+    """
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    row = db.execute(text("SELECT password_hash FROM users WHERE id = :u"), {"u": user_id}).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    password = ((payload or {}).get("password") or "")
+    if not row.get("password_hash") or not verify_password(password, row["password_hash"]):
+        raise HTTPException(status_code=403, detail="Password is incorrect")
+
+    # Friendships + requests (both directions), then every user_id-keyed table,
+    # then the user row last (FK-safe). Atomic via the request transaction.
+    for sql in (
+        "DELETE FROM friends WHERE user_id = :u OR friend_id = :u",
+        "DELETE FROM friend_requests WHERE requester_id = :u OR addressee_id = :u",
+    ):
+        try:
+            db.execute(text(sql), {"u": user_id})
+        except Exception:
+            pass
+
+    for tbl in _tables_with_user_id(db):
+        if tbl in ("users", "friends"):
+            continue
+        try:
+            db.execute(text(f'DELETE FROM "{tbl}" WHERE user_id = :u'), {"u": user_id})
+        except Exception:
+            pass
+
+    db.execute(text("DELETE FROM users WHERE id = :u"), {"u": user_id})
+    return {"ok": True}
 
 
 @router.put("/me/profile", response_model=MeOut)

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { StarMotif } from "./lib/motifs";
+import AccountDangerZone from "./AccountDangerZone";
 import av1 from "./assets/avatars/av1.png";
 import av2 from "./assets/avatars/av2.png";
 import av3 from "./assets/avatars/av3.png";
@@ -1552,6 +1553,8 @@ export default function ProfilePage() {
         </div>
 
       </section>
+
+      <AccountDangerZone />
 
       {!!message && (
         <div className="rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3 text-sm font-bold text-brand-700">
