@@ -25,6 +25,8 @@ const KIND_OPTIONS = [
   { value: "audio_choice_tts", label: "Audio choice TTS (audio_choice_tts)" },
 
   { value: "multi_select", label: "Multi-select (multi_select)" },
+
+  { value: "speak", label: "Speak / pronounce (speak)" },
 ];
 
 function safeParseJson(text) {
@@ -233,6 +235,9 @@ function defaultConfigForKind(kind) {
     case "multi_select":
       return { question: "Select all correct options", choices: ["Option A", "Option B", "Option C"], correctIndices: [0] };
 
+    case "speak":
+      return { acceptedAnswers: [], language_code: "hye" };
+
     default:
       return {};
   }
@@ -422,6 +427,35 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           </Field>
           <Field label="Hint (optional)">
             <Input value={cfg.hint ?? ""} onChange={(e) => patchConfig({ hint: e.target.value })} />
+          </Field>
+        </div>
+      );
+    }
+
+    // speak: student records their voice; we transcribe (ElevenLabs Scribe) and compare.
+    if (kind === "speak") {
+      const accepted = Array.isArray(cfg.acceptedAnswers) ? cfg.acceptedAnswers : [];
+      return (
+        <div className="space-y-4">
+          <Field
+            label="Target phrase (what the student should say)"
+            hint="The learner sees this, taps the mic, and speaks it. We transcribe and compare."
+          >
+            <Input value={expectedAnswer} onChange={(e) => setExpectedAnswer(e.target.value)} placeholder="Բարև Ձեզ" />
+          </Field>
+          <Field label="Also accept (optional)" hint="Comma-separated alternative phrasings that should also count as correct.">
+            <Input
+              value={accepted.join(", ")}
+              onChange={(e) =>
+                patchConfig({
+                  acceptedAnswers: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                })
+              }
+              placeholder="բարև, ողջույն"
+            />
+          </Field>
+          <Field label="Language code" hint="ElevenLabs ISO-639-3 code. Armenian = hye.">
+            <Input value={cfg.language_code ?? "hye"} onChange={(e) => patchConfig({ language_code: e.target.value.trim() })} />
           </Field>
         </div>
       );

@@ -13,6 +13,8 @@ from database import get_db
 # 🔒 CMS admin auth (Bearer cms token, role=admin, 2FA enforced). Defined in
 # routes.py; imported here to gate the content-management audio endpoints.
 from routes import require_cms_admin
+# Learner auth for speech-to-text (per-user; each call costs an STT request).
+from auth import get_current_user
 
 router = APIRouter()
 
@@ -638,3 +640,46 @@ async def batch_generate_tts(
                 errors.append({"exercise_id": exercise["id"], "voice_type": voice_type, "error": str(e)})
     
     return {"success": True, "generated": len(generated), "errors": errors if errors else None}
+
+
+# ── Speech-to-text (learner pronunciation exercises) ──────────────────────────
+# Default Armenian (ElevenLabs uses ISO-639-3 codes; "hye" = Eastern Armenian).
+ELEVEN_STT_MODEL = os.getenv("ELEVEN_STT_MODEL", "scribe_v1")
+
+
+@router.post("/me/exercises/transcribe")
+async def transcribe_speech(
+    audio: UploadFile = File(...),
+    language_code: Optional[str] = Form(None),
+    user=Depends(get_current_user),  # 🔒 logged-in learners only (STT costs money)
+):
+    """Transcribe a learner's spoken answer via ElevenLabs Scribe."""
+    if not ELEVEN_API_KEY:
+        raise HTTPException(status_code=400, detail="Speech-to-text is not configured")
+
+    data = await audio.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty audio")
+    if len(data) > MAX_AUDIO_SIZE:
+        raise HTTPException(status_code=400, detail=f"Audio too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
+
+    files = {"file": (audio.filename or "speech.webm", data, audio.content_type or "audio/webm")}
+    form = {"model_id": ELEVEN_STT_MODEL, "language_code": (language_code or "hye").strip()}
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                f"{ELEVEN_API_URL}/speech-to-text",
+                headers={"xi-api-key": ELEVEN_API_KEY},
+                data=form,
+                files=files,
+            )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"STT request failed: {e}")
+
+    if resp.status_code != 200:
+        body = (resp.text or "").strip()[:300]
+        raise HTTPException(status_code=resp.status_code, detail=f"STT error: {body}")
+
+    j = resp.json() if resp.content else {}
+    return {"text": (j.get("text") or "").strip(), "language_code": j.get("language_code")}

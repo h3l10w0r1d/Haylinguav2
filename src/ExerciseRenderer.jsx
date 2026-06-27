@@ -1253,6 +1253,153 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
   );
 }
 
+// G) speak — record speech, transcribe via backend (ElevenLabs Scribe), compare
+function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Say the phrase out loud";
+  const target = String(exercise?.expected_answer ?? cfg.answer ?? cfg.target ?? cfg.phrase ?? "").trim();
+  const lang = cfg.language_code || cfg.lang || "hye";
+
+  const [recording, setRecording] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [error, setError] = useState("");
+  const mrRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  useEffect(() => {
+    setRecording(false);
+    setBusy(false);
+    setTranscript("");
+    setError("");
+  }, [exercise?.id]);
+
+  async function startRec() {
+    setError("");
+    setTranscript("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("Recording isn't supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        if (blob.size) await transcribe(blob);
+      };
+      mrRef.current = mr;
+      mr.start();
+      setRecording(true);
+    } catch {
+      setError("Microphone access was blocked.");
+    }
+  }
+
+  function stopRec() {
+    try { mrRef.current?.stop(); } catch {}
+    setRecording(false);
+  }
+
+  async function transcribe(blob) {
+    setBusy(true);
+    setError("");
+    try {
+      const token = getToken();
+      const fd = new FormData();
+      fd.append("audio", blob, "speech.webm");
+      if (lang) fd.append("language_code", lang);
+      const res = await fetch(`${API_BASE}/me/exercises/transcribe`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) { setError("Couldn’t understand that — try again."); return; }
+      const data = await res.json().catch(() => null);
+      setTranscript(String(data?.text || "").trim());
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function playTarget() {
+    if (!target) return;
+    try {
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
+      new Audio(url).play();
+    } catch (e) {
+      console.error("TTS failed", e);
+    }
+  }
+
+  const canCheck = !!transcript.trim() && !busy && !recording;
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+
+      {target ? (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          <div className="text-2xl font-extrabold text-slate-900">{target}</div>
+          <button type="button" onClick={playTarget} className="btn3d btn3d-neutral shrink-0 text-sm">
+            🔊 Listen
+          </button>
+        </div>
+      ) : null}
+
+      <div className="mt-6 flex flex-col items-center">
+        <button
+          type="button"
+          onClick={recording ? stopRec : startRec}
+          disabled={busy}
+          className={
+            "grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " +
+            (recording ? "bg-cardinal-500 animate-pulse" : busy ? "bg-slate-300" : "bg-brand-500")
+          }
+          aria-label={recording ? "Stop recording" : "Start recording"}
+        >
+          🎤
+        </button>
+        <div className="mt-2 text-sm font-bold text-slate-500">
+          {recording ? "Tap to stop" : busy ? "Transcribing…" : "Tap and speak"}
+        </div>
+      </div>
+
+      {transcript ? (
+        <div className="mt-5 rounded-2xl bg-feather-50 p-4 ring-1 ring-feather-100">
+          <div className="text-xs font-bold uppercase tracking-wide text-feather-600">We heard</div>
+          <div className="mt-1 text-lg font-extrabold text-slate-800">{transcript}</div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>
+      ) : null}
+
+      <div className="mt-6 space-y-3">
+        <PrimaryButton
+          disabled={!canCheck}
+          onClick={() => {
+            const t = normalizeText(transcript);
+            const g = normalizeText(target);
+            const ok = !!g && (t === g || t.includes(g) || g.includes(t));
+            if (ok) correct({ answerText: transcript });
+            else wrong("Not quite — listen and try again.", { answerText: transcript });
+          }}
+        >
+          Check
+        </PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
 /* -------------------------
    Main Renderer (no hooks)
 -------------------------- */
@@ -1505,6 +1652,21 @@ export default function ExerciseRenderer({
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
+        submit={handleAnswer}
+      />
+    );
+  }
+
+  if (kind === "speak") {
+    return (
+      <ExSpeak
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+        apiBaseUrl={apiBaseUrl}
         submit={handleAnswer}
       />
     );

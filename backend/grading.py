@@ -17,6 +17,7 @@ Anything the server cannot positively verify is graded as INCORRECT (no XP).
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
 import unicodedata
@@ -207,6 +208,29 @@ def grade_attempt(
         if not expected:
             return False
         return any(_eq(a, answer_text) for a in expected)
+
+    # Speech-to-text: `answer_text` is the transcript of the learner's speech.
+    # STT is imperfect, so accept a close-enough match (in addition to exact).
+    if kind in ("speak", "speech_to_text", "pronounce"):
+        expected = _expected_text_answers(cfg, expected_answer)
+        at = norm_text(answer_text)
+        if not expected or not at:
+            return False
+        threshold = cfg.get("match_threshold")
+        try:
+            threshold = float(threshold)
+        except (TypeError, ValueError):
+            threshold = 0.82
+        threshold = min(max(threshold, 0.5), 1.0)
+        for a in expected:
+            na = norm_text(a)
+            if not na:
+                continue
+            if na == at:
+                return True
+            if difflib.SequenceMatcher(None, na, at).ratio() >= threshold:
+                return True
+        return False
 
     # True / False — graded by the submitted label so it is robust to the two
     # differing index conventions in the legacy vs Phase2 renderers.
