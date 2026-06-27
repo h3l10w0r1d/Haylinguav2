@@ -357,14 +357,6 @@ function AppShell() {
           }
         />
         <Route
-          path="/lesson/:slug"
-          element={
-            <RequireOnboarded>
-              <LessonPlayer />
-            </RequireOnboarded>
-          }
-        />
-        <Route
           path="/friends"
           element={
             <RequireOnboarded>
@@ -397,7 +389,23 @@ function AppShell() {
           }
         />
       </Route>
-      
+
+      {/* Immersive lesson — full-screen, no global header/nav */}
+      <Route
+        path="/lesson/:slug"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <LessonPlayer />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
       {/* CMS (invite-only) */}
       <Route path="/cms/login" element={<CmsLogin />} />
       <Route path="/cms/invite" element={<CmsInvite />} />

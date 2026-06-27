@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { StarMotif } from "./lib/motifs";
+import grandma from "./assets/character-grandma.png";
 
 const API_BASE = "https://haylinguav2.onrender.com";
 
@@ -233,10 +235,10 @@ function Pill({ active, children, onClick }) {
       type="button"
       onClick={onClick}
       className={
-        "px-4 py-2 rounded-full text-sm border transition-all " +
+        "px-4 py-2 rounded-full text-sm font-semibold transition-all ring-2 " +
         (active
-          ? "bg-orange-600 text-white border-orange-600 shadow"
-          : "bg-white/60 text-gray-800 border-white/50 hover:bg-white")
+          ? "bg-brand-500 text-white ring-brand-500 shadow-sm"
+          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50")
       }
     >
       {children}
@@ -247,8 +249,8 @@ function Pill({ active, children, onClick }) {
 function FieldLabel({ title, subtitle }) {
   return (
     <div className="mb-3">
-      <div className="text-lg font-semibold text-gray-900">{title}</div>
-      {subtitle ? <div className="text-sm text-gray-600 mt-1">{subtitle}</div> : null}
+      <div className="font-display text-lg font-bold text-slate-900">{title}</div>
+      {subtitle ? <div className="text-sm text-slate-500 mt-1">{subtitle}</div> : null}
     </div>
   );
 }
@@ -469,60 +471,51 @@ export default function Onboarding({ token, onCompleted }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-orange-50">
-        <div className="text-gray-700">Loading…</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-brand-50/40 to-white">
+        <div className="font-semibold text-slate-600">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-orange-50 via-white to-orange-50">
-      {/* animated background */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="lp-orb lp-orb-a" />
-        <div className="lp-orb lp-orb-b" />
-        <div className="lp-orb lp-orb-c" />
-        <div className="lp-grid" />
-        <div className="lp-grain" />
-      </div>
-
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-brand-50/40 to-white">
       {/* Account for fixed header and mobile bottom nav */}
       <div className="relative max-w-5xl mx-auto px-4 pt-24 pb-28 md:pt-28 md:pb-10">
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/60 border border-white/60 px-3 py-1 text-xs font-semibold text-orange-700">
-              <span className="inline-block w-2 h-2 rounded-full bg-orange-600" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand-50 ring-1 ring-brand-200 px-3 py-1 text-xs font-semibold text-brand-700">
+              <StarMotif className="w-3.5 h-3.5 text-brand-500" />
               <span>Onboarding</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mt-3">
+            <h1 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 mt-3">
               {headerText.h}
             </h1>
-            <p className="text-gray-600 mt-2 max-w-2xl">{headerText.p}</p>
+            <p className="text-slate-500 mt-2 max-w-2xl">{headerText.p}</p>
           </div>
           <a
             href="https://blog.haylingua.am"
             target="_blank"
             rel="noreferrer"
-            className="hidden md:inline-flex px-4 py-2 rounded-full bg-white/60 border border-white/50 text-gray-800 hover:bg-white transition"
+            className="hidden md:inline-flex px-4 py-2 rounded-full bg-white ring-1 ring-slate-200 font-semibold text-slate-700 hover:bg-slate-50 transition"
           >
             blog.haylingua.am
           </a>
         </div>
 
-        <div className="bg-white/70 backdrop-blur-md border border-white/60 rounded-2xl shadow-xl overflow-hidden">
+        <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm overflow-hidden">
           <div className="px-6 pt-6">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm text-gray-600">Step {step} of {totalSteps}</div>
-              <div className="text-sm font-medium text-gray-800">{progressPct}%</div>
+              <div className="text-sm font-semibold text-slate-500">Step {step} of {totalSteps}</div>
+              <div className="text-sm font-bold text-brand-600">{progressPct}%</div>
             </div>
-            <div className="mt-3 h-2 bg-orange-100 rounded-full overflow-hidden">
-              <div className="h-full bg-orange-600 transition-all" style={{ width: `${progressPct}%` }} />
+            <div className="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
             </div>
           </div>
 
           <div className="p-6">
             {error ? (
-              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <div className="mb-5 rounded-2xl ring-1 ring-cardinal-200 bg-cardinal-50 px-4 py-3 text-sm font-semibold text-cardinal-700">
                 {error}
               </div>
             ) : null}
@@ -549,7 +542,7 @@ export default function Onboarding({ token, onCompleted }) {
                         setCountry(e.target.value);
                         setPlanningVisit(null);
                       }}
-                      className="w-full md:w-80 px-4 py-3 rounded-xl bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                      className="w-full md:w-80 rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
                     >
                       {COUNTRY_OPTIONS.map((c) => (
                         <option key={c} value={c}>
@@ -557,7 +550,7 @@ export default function Onboarding({ token, onCompleted }) {
                         </option>
                       ))}
                     </select>
-                    <div className="text-sm text-gray-600 flex-1 flex items-center">
+                    <div className="text-sm text-slate-500 flex-1 flex items-center">
                       If you’re outside Armenia, we’ll adapt travel and culture vocabulary.
                     </div>
                   </div>
@@ -646,9 +639,9 @@ export default function Onboarding({ token, onCompleted }) {
                       step={5}
                       value={dailyGoalMin}
                       onChange={(e) => setDailyGoalMin(Number(e.target.value))}
-                      className="w-full"
+                      className="w-full accent-brand-500"
                     />
-                    <div className="min-w-[72px] text-center px-3 py-2 rounded-xl bg-orange-50 border border-orange-100 font-semibold text-orange-800">
+                    <div className="min-w-[72px] text-center px-3 py-2 rounded-2xl bg-brand-50 ring-1 ring-brand-200 font-bold text-brand-700">
                       {dailyGoalMin} min
                     </div>
                   </div>
@@ -663,8 +656,9 @@ export default function Onboarding({ token, onCompleted }) {
                         type="checkbox"
                         checked={remindersEnabled}
                         onChange={(e) => setRemindersEnabled(e.target.checked)}
+                        className="accent-brand-500 w-4 h-4"
                       />
-                      <label htmlFor="rem" className="text-sm text-gray-800">Enable reminders</label>
+                      <label htmlFor="rem" className="text-sm font-semibold text-slate-700">Enable reminders</label>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {[
@@ -696,10 +690,13 @@ export default function Onboarding({ token, onCompleted }) {
                 <div>
                   <FieldLabel title="Voice preference" subtitle="Hearing multiple voices improves comprehension." />
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <label className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-gray-200 px-4 py-3 hover:bg-orange-50 transition">
+                    <label className={
+                      "flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-2 transition cursor-pointer " +
+                      (voiceMale ? "ring-brand-400 bg-brand-50" : "ring-slate-200 hover:bg-slate-50")
+                    }>
                       <div>
-                        <div className="font-semibold text-gray-900">Male voice</div>
-                        <div className="text-xs text-gray-600">Clear pronunciation & lower pitch</div>
+                        <div className="font-semibold text-slate-900">Male voice</div>
+                        <div className="text-xs text-slate-500">Clear pronunciation & lower pitch</div>
                       </div>
                       <input
                         type="checkbox"
@@ -708,13 +705,17 @@ export default function Onboarding({ token, onCompleted }) {
                           setVoiceMale(e.target.checked);
                           setVoiceRandom(false);
                         }}
+                        className="accent-brand-500 w-4 h-4"
                       />
                     </label>
 
-                    <label className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-gray-200 px-4 py-3 hover:bg-orange-50 transition">
+                    <label className={
+                      "flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-2 transition cursor-pointer " +
+                      (voiceFemale ? "ring-brand-400 bg-brand-50" : "ring-slate-200 hover:bg-slate-50")
+                    }>
                       <div>
-                        <div className="font-semibold text-gray-900">Female voice</div>
-                        <div className="text-xs text-gray-600">Natural pitch variation & clarity</div>
+                        <div className="font-semibold text-slate-900">Female voice</div>
+                        <div className="text-xs text-slate-500">Natural pitch variation & clarity</div>
                       </div>
                       <input
                         type="checkbox"
@@ -723,6 +724,7 @@ export default function Onboarding({ token, onCompleted }) {
                           setVoiceFemale(e.target.checked);
                           setVoiceRandom(false);
                         }}
+                        className="accent-brand-500 w-4 h-4"
                       />
                     </label>
 
@@ -734,25 +736,25 @@ export default function Onboarding({ token, onCompleted }) {
                         setVoiceFemale(true);
                       }}
                       className={
-                        "sm:col-span-2 flex items-center justify-between rounded-2xl px-4 py-3 border transition " +
+                        "sm:col-span-2 flex items-center justify-between rounded-2xl px-4 py-3 ring-2 transition " +
                         (voiceRandom
-                          ? "bg-orange-600 text-white border-orange-600 shadow"
-                          : "bg-white text-gray-900 border-gray-200 hover:bg-orange-50")
+                          ? "bg-brand-500 text-white ring-brand-500 shadow-sm"
+                          : "bg-white text-slate-900 ring-slate-200 hover:bg-slate-50")
                       }
                     >
                       <div>
                         <div className="font-semibold">Randomized voices</div>
-                        <div className={"text-xs " + (voiceRandom ? "text-orange-100" : "text-gray-600")}>
+                        <div className={"text-xs " + (voiceRandom ? "text-brand-100" : "text-slate-500")}>
                           Best for real-world listening variety
                         </div>
                       </div>
-                      <div className={"text-sm font-semibold " + (voiceRandom ? "text-white" : "text-gray-700")}>
+                      <div className={"text-sm font-semibold " + (voiceRandom ? "text-white" : "text-slate-600")}>
                         {voiceRandom ? "Enabled" : "Enable"}
                       </div>
                     </button>
 
-                    <div className="sm:col-span-2 text-xs text-gray-600">
-                      Selected: <span className="font-semibold text-gray-900">{computedVoicePref || "—"}</span>
+                    <div className="sm:col-span-2 text-xs text-slate-500">
+                      Selected: <span className="font-semibold text-slate-900">{computedVoicePref || "—"}</span>
                     </div>
                   </div>
                 </div>
@@ -761,15 +763,20 @@ export default function Onboarding({ token, onCompleted }) {
 
             {step === 4 ? (
               <div className="space-y-6">
-                <div className="rounded-2xl bg-orange-50 border border-orange-100 p-5">
-                  <div className="text-base font-semibold text-gray-900">Your plan</div>
-                  <div className="mt-2 text-sm text-gray-700 grid md:grid-cols-2 gap-2">
-                    <div><span className="font-medium">Level:</span> {knowledgeLevel || "—"}</div>
-                    <div><span className="font-medium">Dialect:</span> {dialect}</div>
-                    <div><span className="font-medium">Goal:</span> {primaryGoal || "—"}</div>
-                    <div><span className="font-medium">Daily:</span> {dailyGoalMin} minutes</div>
-                    <div><span className="font-medium">Voice:</span> {computedVoicePref}</div>
-                    <div><span className="font-medium">Reminders:</span> {remindersEnabled ? reminderTime : "Off"}</div>
+                <div className="rounded-2xl bg-brand-50 ring-1 ring-brand-200 p-5">
+                  <div className="flex items-start gap-4">
+                    <img src={grandma} alt="" className="hidden sm:block w-16 h-16 object-contain shrink-0 drop-shadow-sm" />
+                    <div className="flex-1">
+                      <div className="font-display text-base font-bold text-slate-900">Your plan</div>
+                      <div className="mt-2 text-sm text-slate-700 grid md:grid-cols-2 gap-2">
+                        <div><span className="font-semibold">Level:</span> {knowledgeLevel || "—"}</div>
+                        <div><span className="font-semibold">Dialect:</span> {dialect}</div>
+                        <div><span className="font-semibold">Goal:</span> {primaryGoal || "—"}</div>
+                        <div><span className="font-semibold">Daily:</span> {dailyGoalMin} minutes</div>
+                        <div><span className="font-semibold">Voice:</span> {computedVoicePref}</div>
+                        <div><span className="font-semibold">Reminders:</span> {remindersEnabled ? reminderTime : "Off"}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -779,11 +786,11 @@ export default function Onboarding({ token, onCompleted }) {
                       type="checkbox"
                       checked={marketingOptIn}
                       onChange={(e) => setMarketingOptIn(e.target.checked)}
-                      className="mt-1"
+                      className="mt-1 accent-brand-500 w-4 h-4"
                     />
                     <div>
-                      <div className="font-medium text-gray-900">Send me product updates and learning tips</div>
-                      <div className="text-sm text-gray-600">You can unsubscribe anytime.</div>
+                      <div className="font-semibold text-slate-900">Send me product updates and learning tips</div>
+                      <div className="text-sm text-slate-500">You can unsubscribe anytime.</div>
                     </div>
                   </label>
 
@@ -792,18 +799,18 @@ export default function Onboarding({ token, onCompleted }) {
                       type="checkbox"
                       checked={acceptedTerms}
                       onChange={(e) => setAcceptedTerms(e.target.checked)}
-                      className="mt-1"
+                      className="mt-1 accent-brand-500 w-4 h-4"
                     />
                     <div>
-                      <div className="font-medium text-gray-900">I accept the Terms & Conditions</div>
-                      <div className="text-sm text-gray-600">Required to start learning.</div>
+                      <div className="font-semibold text-slate-900">I accept the Terms & Conditions</div>
+                      <div className="text-sm text-slate-500">Required to start learning.</div>
                     </div>
                   </label>
                 </div>
 
-                <div className="rounded-2xl bg-white border border-gray-200 p-5">
-                  <div className="text-sm font-semibold text-gray-900">Why we ask these questions</div>
-                  <p className="text-sm text-gray-600 mt-2">
+                <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-5">
+                  <div className="font-display text-sm font-bold text-slate-900">Why we ask these questions</div>
+                  <p className="text-sm text-slate-500 mt-2">
                     Haylingua calibrates your starting point and vocabulary priorities. A diaspora Armenian who already speaks
                     the language shouldn’t be forced to grind the alphabet — and a total beginner shouldn’t be overwhelmed.
                   </p>
@@ -818,10 +825,8 @@ export default function Onboarding({ token, onCompleted }) {
               onClick={back}
               disabled={step === 1 || saving}
               className={
-                "px-5 py-3 rounded-xl border transition " +
-                (step === 1 || saving
-                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                  : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50")
+                "btn3d btn3d-neutral uppercase " +
+                (step === 1 || saving ? "opacity-50 cursor-not-allowed" : "")
               }
             >
               Back
@@ -832,7 +837,7 @@ export default function Onboarding({ token, onCompleted }) {
                 type="button"
                 onClick={next}
                 disabled={saving}
-                className="px-6 py-3 rounded-xl bg-orange-600 text-white font-semibold hover:bg-orange-700 shadow"
+                className="btn3d btn3d-brand uppercase"
               >
                 Continue
               </button>
@@ -841,10 +846,7 @@ export default function Onboarding({ token, onCompleted }) {
                 type="button"
                 onClick={submit}
                 disabled={saving}
-                className={
-                  "px-6 py-3 rounded-xl font-semibold shadow " +
-                  (saving ? "bg-orange-300 text-white" : "bg-orange-600 text-white hover:bg-orange-700")
-                }
+                className={"btn3d btn3d-brand uppercase " + (saving ? "opacity-70" : "")}
               >
                 {saving ? "Saving…" : "Start learning"}
               </button>
@@ -852,7 +854,7 @@ export default function Onboarding({ token, onCompleted }) {
           </div>
         </div>
 
-        <div className="mt-6 text-xs text-gray-500">
+        <div className="mt-6 text-xs text-slate-400">
           Tip: You can change most preferences later in your profile.
         </div>
       </div>
