@@ -28,6 +28,7 @@ const CmsSupport = lazy(() => import('./cms/CmsSupport'));
 const CmsInvite = lazy(() => import('./cms/CmsInvite'));
 const Cms2FASetup = lazy(() => import('./cms/Cms2FASetup'));
 const CmsTeam = lazy(() => import('./cms/CmsTeam'));
+const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 
 function RouteFallback() {
   return (
@@ -433,6 +434,7 @@ function AppShell() {
       <Route path="/cms/2fa-setup" element={<Cms2FASetup />} />
       <Route path="/cms/team" element={<CmsTeam />} />
       <Route path="/cms/support" element={<CmsSupport />} />
+      <Route path="/cms/chapters" element={<CmsChapters />} />
       <Route path="/cms" element={<CmsGate />} />
       <Route path="/cms/*" element={<CmsGate />} />
 

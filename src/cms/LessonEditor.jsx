@@ -51,6 +51,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
   const isEdit = !!lesson?.id;
 
   const [availableExercises, setAvailableExercises] = useState([]);
+  const [chapters, setChapters] = useState([]);
   const [exSearch, setExSearch] = useState("");
   const [lessonType, setLessonType] = useState("standard");
   const [reading, setReading] = useState({
@@ -67,6 +68,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
     level: 1,
     xp: 40,
     xp_reward: 40,
+    chapter_id: "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -82,6 +84,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
         level: lesson.level ?? 1,
         xp: lesson.xp ?? 40,
         xp_reward: lesson.xp_reward ?? 40,
+        chapter_id: lesson.chapter_id ?? "",
       });
 
       setLessonType(String(lesson.lesson_type || "standard"));
@@ -109,6 +112,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
         level: 1,
         xp: 40,
         xp_reward: 40,
+        chapter_id: "",
       });
 
       setLessonType("standard");
@@ -137,6 +141,22 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
       alive = false;
     };
   }, [isEdit, lesson?.id]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!cmsApi) return;
+      try {
+        const list = await cmsApi.listChapters();
+        if (alive) setChapters(Array.isArray(list) ? list : []);
+      } catch {
+        if (alive) setChapters([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const filteredExercises = useMemo(() => {
     const q = String(exSearch || "").trim().toLowerCase();
@@ -195,6 +215,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
         level: Number(form.level),
         xp: Number(form.xp),
         xp_reward: Number(form.xp_reward),
+        chapter_id: form.chapter_id === "" || form.chapter_id == null ? null : Number(form.chapter_id),
         lesson_type: String(lessonType || "standard"),
         config:
           String(lessonType || "standard") === "reading"
@@ -375,7 +396,22 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
           />
         </Field>
 
-        <Field label="Level">
+        <Field label="Chapter" hint="Groups this lesson into a chapter on the learner roadmap.">
+          <select
+            value={form.chapter_id ?? ""}
+            onChange={(e) => setForm({ ...form, chapter_id: e.target.value })}
+            className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          >
+            <option value="">— No chapter —</option>
+            {chapters.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Level" hint="Fallback ordering when no chapter is set.">
           <Input
             type="number"
             value={form.level}

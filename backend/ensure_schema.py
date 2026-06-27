@@ -110,6 +110,46 @@ def ensure_schema() -> None:
             """,
         )
 
+        # ---------- Chapters (lesson grouping on the learner roadmap) ----------
+        chapters_existed = table_exists("chapters")
+        ensure_table(
+            "chapters",
+            """
+            CREATE TABLE chapters (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                position INTEGER NOT NULL DEFAULT 0,
+                is_published BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        add_col_if_missing("lessons", "chapter_id INTEGER")
+        # One-time backfill: turn the existing implicit "level" groups into real
+        # chapters so the learner roadmap looks identical right after migration.
+        if not chapters_existed and table_exists("lessons"):
+            levels = [
+                int(r[0])
+                for r in conn.execute(
+                    text("SELECT DISTINCT level FROM lessons WHERE level IS NOT NULL ORDER BY level")
+                ).all()
+            ]
+            for lvl in levels:
+                cid = conn.execute(
+                    text(
+                        "INSERT INTO chapters (title, description, position, is_published) "
+                        "VALUES (:t, '', :p, TRUE) RETURNING id"
+                    ),
+                    {"t": f"Chapter {lvl}", "p": int(lvl)},
+                ).scalar()
+                conn.execute(
+                    text("UPDATE lessons SET chapter_id = :c WHERE level = :l AND chapter_id IS NULL"),
+                    {"c": int(cid), "l": int(lvl)},
+                )
+            if levels:
+                print(f"[ensure_schema] backfilled {len(levels)} chapters from lesson levels")
+
         # ---------- Exercise problem reports ----------
         ensure_table(
             "exercise_reports",

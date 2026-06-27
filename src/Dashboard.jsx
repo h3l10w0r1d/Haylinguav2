@@ -316,11 +316,19 @@ export default function Dashboard({ user }) {
   const units = useMemo(() => {
     const groups = new Map();
     lessons.forEach((l) => {
-      const key = Number(l.level ?? l.unit ?? 1);
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(l);
+      const hasChapter = l.chapter_id != null;
+      const key = hasChapter ? `c${l.chapter_id}` : `l${Number(l.level ?? l.unit ?? 1)}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          title: hasChapter ? l.chapter_title || "Chapter" : `Chapter ${Number(l.level ?? l.unit ?? 1)}`,
+          position: hasChapter ? Number(l.chapter_position ?? 9999) : Number(l.level ?? l.unit ?? 1),
+          items: [],
+        });
+      }
+      groups.get(key).items.push(l);
     });
-    return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([level, items]) => ({ level, items }));
+    return [...groups.values()].sort((a, b) => a.position - b.position);
   }, [lessons]);
 
   const totalLessons = lessons.length;
@@ -378,16 +386,16 @@ export default function Dashboard({ user }) {
               const uDone = unit.items.filter((l) => l.status === "completed").length;
               const uTotal = unit.items.length;
               return (
-                <section key={unit.level} className="mb-8">
+                <section key={unit.key} className="mb-8">
                   {/* Ornamental unit band */}
                   <div className={`mb-7 overflow-hidden rounded-2xl bg-gradient-to-r ${theme.band} ${theme.shadow}`}>
                     <div className="flex items-center justify-between px-5 py-3 text-white">
                       <div>
                         <div className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">
-                          Unit {unit.level}
+                          Unit {ui + 1}
                         </div>
                         <div className="font-display text-lg font-extrabold">
-                          {unit.items[0]?.unit_title || `Chapter ${unit.level}`}
+                          {unit.title}
                         </div>
                       </div>
                       <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-extrabold tabular-nums">

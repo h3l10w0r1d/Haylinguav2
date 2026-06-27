@@ -60,6 +60,17 @@ export function createCmsApi(accessToken) {
     return data;
   }
 
+  // Chapters
+  const listChapters = () => req("/cms/chapters");
+  const createChapter = (payload) =>
+    req("/cms/chapters", { method: "POST", body: JSON.stringify(payload) });
+  const updateChapter = (chapterId, payload) =>
+    req(`/cms/chapters/${chapterId}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteChapter = (chapterId) =>
+    req(`/cms/chapters/${chapterId}`, { method: "DELETE" });
+  const reorderChapters = (order) =>
+    req("/cms/chapters/reorder", { method: "POST", body: JSON.stringify({ order }) });
+
   // Lessons
   const listLessons = () => req("/cms/lessons");
   const getLesson = (lessonId) => req(`/cms/lessons/${lessonId}`);
@@ -112,6 +123,11 @@ export function createCmsApi(accessToken) {
     req("/cms/team/invite", { method: "POST", body: JSON.stringify({ email }) });
 
   return {
+    listChapters,
+    createChapter,
+    updateChapter,
+    deleteChapter,
+    reorderChapters,
     listLessons,
     getLesson,
     createLesson,

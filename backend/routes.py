@@ -2374,6 +2374,9 @@ class LessonProgressOut(BaseModel):
     exercises_completed: int
     completion_pct: float
     status: str  # completed | current | locked
+    chapter_id: int | None = None
+    chapter_title: str | None = None
+    chapter_position: int | None = None
 
 
 @router.get("/me/lessons/progress", response_model=list[LessonProgressOut])
@@ -2406,13 +2409,17 @@ def me_lessons_progress(
               COALESCE(ex.exercises_total, 0)::int AS exercises_total,
               COALESCE(ulp.exercises_completed, 0)::int AS exercises_completed,
               COALESCE(ulp.xp_earned, 0)::int AS xp_earned,
-              ulp.completed_at
+              ulp.completed_at,
+              l.chapter_id,
+              c.title AS chapter_title,
+              c.position AS chapter_position
             FROM lessons l
             LEFT JOIN ex ON ex.lesson_id = l.id
+            LEFT JOIN chapters c ON c.id = l.chapter_id
             LEFT JOIN user_lesson_progress ulp
               ON ulp.lesson_id = l.id
              AND ulp.user_id = :u
-            ORDER BY l.level ASC, l.id ASC
+            ORDER BY COALESCE(c.position, l.level) ASC, l.level ASC, l.id ASC
             """
         ),
         {"u": int(user_id)},
@@ -2463,6 +2470,9 @@ def me_lessons_progress(
                 exercises_completed=exercises_completed,
                 completion_pct=float(pct),
                 status=status,
+                chapter_id=(int(r["chapter_id"]) if r.get("chapter_id") is not None else None),
+                chapter_title=r.get("chapter_title"),
+                chapter_position=(int(r["chapter_position"]) if r.get("chapter_position") is not None else None),
             )
         )
 
@@ -5233,13 +5243,81 @@ def cms_team_invite(payload: Dict[str, Any] = Body(...), me: dict = Depends(requ
 # Backward-compatible legacy tokens (can be removed later)
 CMS_TOKENS = set()
 
+# -------------------- CHAPTERS --------------------
+
+@router.get("/cms/chapters")
+def cms_list_chapters(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT c.id, c.title, c.description, c.position, c.is_published,
+               COALESCE(n.cnt, 0)::int AS lesson_count
+        FROM chapters c
+        LEFT JOIN (SELECT chapter_id, COUNT(*) AS cnt FROM lessons GROUP BY chapter_id) n
+          ON n.chapter_id = c.id
+        ORDER BY c.position ASC, c.id ASC
+    """)).mappings().all()
+    return [dict(r) for r in rows]
+
+@router.post("/cms/chapters")
+async def cms_create_chapter(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    description = (body.get("description") or "").strip()
+    is_published = bool(body.get("is_published", True))
+    pos = body.get("position")
+    if pos is None:
+        pos = db.execute(text("SELECT COALESCE(MAX(position), 0) + 1 FROM chapters")).scalar() or 1
+    new_id = db.execute(
+        text("""
+            INSERT INTO chapters (title, description, position, is_published)
+            VALUES (:t, :d, :p, :pub) RETURNING id
+        """),
+        {"t": title, "d": description, "p": int(pos), "pub": is_published},
+    ).scalar_one()
+    return {"id": int(new_id)}
+
+@router.put("/cms/chapters/{chapter_id}")
+async def cms_update_chapter(chapter_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts = []
+    params = {"id": chapter_id}
+    for f in ["title", "description", "position", "is_published"]:
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = body[f]
+    if not set_parts:
+        return {"ok": True}
+    db.execute(text(f"UPDATE chapters SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/chapters/{chapter_id}")
+def cms_delete_chapter(chapter_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    # Keep the lessons; just detach them from the chapter.
+    db.execute(text("UPDATE lessons SET chapter_id = NULL WHERE chapter_id = :id"), {"id": chapter_id})
+    db.execute(text("DELETE FROM chapters WHERE id = :id"), {"id": chapter_id})
+    return {"ok": True}
+
+@router.post("/cms/chapters/reorder")
+async def cms_reorder_chapters(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    order = body.get("order") or []
+    for i, cid in enumerate(order):
+        db.execute(text("UPDATE chapters SET position = :p WHERE id = :id"), {"p": i + 1, "id": int(cid)})
+    return {"ok": True}
+
 # -------------------- LESSONS --------------------
 
 @router.get("/cms/lessons")
 def cms_list_lessons(request: Request, db=Depends(get_db)):
     require_cms(request, db)
     q = text("""
-    SELECT id, slug, title, description, level, xp, xp_reward, is_published,
+    SELECT id, slug, title, description, level, xp, xp_reward, is_published, chapter_id,
            COALESCE(lesson_type, 'standard') as lesson_type,
            COALESCE(config, '{}'::jsonb) as config
     FROM lessons
@@ -5267,13 +5345,16 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
     # publish by default so it appears in /lessons
     is_published = bool(body.get("is_published", True))
 
+    chapter_raw = body.get("chapter_id")
+    chapter_id = int(chapter_raw) if chapter_raw not in (None, "", "null") else None
+
     if not slug or not title:
         raise HTTPException(400, detail="slug and title are required")
 
     new_id = db.execute(
         text("""
-            INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published, lesson_type, config)
-            VALUES (:slug, :title, :description, :level, :xp, :xp_reward, :is_published, :lesson_type, CAST(:config AS jsonb))
+            INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published, lesson_type, config, chapter_id)
+            VALUES (:slug, :title, :description, :level, :xp, :xp_reward, :is_published, :lesson_type, CAST(:config AS jsonb), :chapter_id)
             RETURNING id
         """),
         {
@@ -5286,6 +5367,7 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
             "is_published": is_published,
             "lesson_type": lesson_type,
             "config": json.dumps(config),
+            "chapter_id": chapter_id,
         },
     ).scalar_one()
 
@@ -5297,11 +5379,14 @@ async def cms_update_lesson(lesson_id: int, request: Request, db=Depends(get_db)
     body = await request.json()
 
     # IMPORTANT: include lesson_type + config so Reading lessons persist correctly.
-    fields = ["slug", "title", "description", "level", "xp", "xp_reward", "is_published", "lesson_type", "config"]
+    fields = ["slug", "title", "description", "level", "xp", "xp_reward", "is_published", "lesson_type", "config", "chapter_id"]
     updates = {}
     for f in fields:
         if f in body:
             updates[f] = body[f]
+    if "chapter_id" in updates:
+        cr = updates["chapter_id"]
+        updates["chapter_id"] = int(cr) if cr not in (None, "", "null") else None
 
     if len(updates) == 0:
         return {"ok": True}

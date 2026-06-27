@@ -40,6 +40,13 @@ function TopBar({ query, setQuery }) {
         </div>
 
         <a
+          href="/cms/chapters"
+          className="shrink-0 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 shadow-sm hover:bg-slate-50 transition"
+        >
+          Chapters
+        </a>
+
+        <a
           href="/cms/support"
           className="shrink-0 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 shadow-sm hover:bg-slate-50 transition"
         >
