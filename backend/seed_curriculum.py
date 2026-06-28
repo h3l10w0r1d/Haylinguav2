@@ -129,13 +129,13 @@ CURRICULUM = [
 ]
 
 
-def seed_curriculum() -> None:
+def seed_curriculum() -> dict:
     with engine.begin() as conn:
         # Skip if our namespaced content already exists (idempotent, edit-safe).
         exists = conn.execute(text("SELECT 1 FROM lessons WHERE slug LIKE 'hl-%' LIMIT 1")).scalar()
         if exists:
             print("[seed_curriculum] Curriculum already present; skipping.")
-            return
+            return {"created": False, "chapters": len(CURRICULUM)}
 
         print("[seed_curriculum] Seeding 10 chapters / 50 exercises...")
         for pos, (ch_title, ch_desc, slug, l_title, exercises) in enumerate(CURRICULUM, start=1):
@@ -176,3 +176,4 @@ def seed_curriculum() -> None:
                 )
 
         print("[seed_curriculum] Done.")
+        return {"created": True, "chapters": len(CURRICULUM), "exercises": sum(len(c[4]) for c in CURRICULUM)}

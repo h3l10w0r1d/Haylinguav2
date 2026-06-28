@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff } from "lucide-react";
+import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff, Sparkles } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 
 function cx(...a) {
@@ -128,8 +128,35 @@ export default function CmsChapters() {
     }
   }
 
+  async function seed() {
+    if (!confirm("Add the built-in 10-chapter starter curriculum (Armenian basics)? This won't touch your existing chapters.")) return;
+    setBusy(true);
+    try {
+      const res = await api.seedCurriculum();
+      await refresh();
+      showToast(res?.created ? `Added ${res.chapters} chapters · ${res.exercises} exercises` : "Starter curriculum already present");
+    } catch (err) {
+      showToast(err.message || "Seeding failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <CmsLayout active="chapters" title="Chapters">
+    <CmsLayout
+      active="chapters"
+      title="Chapters"
+      actions={
+        <button
+          type="button"
+          onClick={seed}
+          disabled={busy}
+          className="btn3d btn3d-neutral text-sm !py-2 inline-flex items-center gap-2 disabled:opacity-60"
+        >
+          <Sparkles className="h-4 w-4 text-brand-500" /> Add starter curriculum
+        </button>
+      }
+    >
       <div className="space-y-5">
         {/* Create */}
         <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-5">

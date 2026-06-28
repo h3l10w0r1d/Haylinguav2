@@ -70,6 +70,7 @@ export function createCmsApi(accessToken) {
     req(`/cms/chapters/${chapterId}`, { method: "DELETE" });
   const reorderChapters = (order) =>
     req("/cms/chapters/reorder", { method: "POST", body: JSON.stringify({ order }) });
+  const seedCurriculum = () => req("/cms/seed/curriculum", { method: "POST" });
 
   // Lessons
   const listLessons = () => req("/cms/lessons");
@@ -141,6 +142,7 @@ export function createCmsApi(accessToken) {
     updateChapter,
     deleteChapter,
     reorderChapters,
+    seedCurriculum,
     listLessons,
     getLesson,
     createLesson,

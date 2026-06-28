@@ -5463,6 +5463,17 @@ async def cms_reorder_exercises(request: Request, db=Depends(get_db)):
         db.execute(text('UPDATE exercises SET "order" = :p WHERE id = :id'), {"p": i + 1, "id": int(eid)})
     return {"ok": True}
 
+@router.post("/cms/seed/curriculum")
+def cms_seed_curriculum(request: Request, db=Depends(get_db)):
+    """Populate the built-in 10-chapter starter curriculum on demand. Idempotent."""
+    require_cms(request, db)
+    from seed_curriculum import seed_curriculum
+    try:
+        res = seed_curriculum()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # -------------------- LESSONS --------------------
 
 @router.get("/cms/lessons")
