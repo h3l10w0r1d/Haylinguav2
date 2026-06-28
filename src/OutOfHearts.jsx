@@ -1,5 +1,5 @@
 // src/OutOfHearts.jsx — shown in a lesson when the learner runs out of hearts.
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Heart, Crown } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 
@@ -14,11 +14,9 @@ function fmt(total) {
 
 export default function OutOfHearts({ nextRegenSeconds = 0, onGoPremium, onBack, onRefilled }) {
   const [remaining, setRemaining] = useState(nextRegenSeconds || 0);
-  const checkedRef = useRef(false);
 
   useEffect(() => {
     setRemaining(nextRegenSeconds || 0);
-    checkedRef.current = false;
   }, [nextRegenSeconds]);
 
   useEffect(() => {
@@ -26,17 +24,38 @@ export default function OutOfHearts({ nextRegenSeconds = 0, onGoPremium, onBack,
     return () => clearInterval(id);
   }, []);
 
-  // When the timer hits 0, ask the server whether a heart regenerated.
+  // Once the timer reaches 0, keep polling the server until a heart is actually
+  // back. The server is the source of truth — if it regenerated one we unlock
+  // immediately; if not yet, we resync our countdown from its ETA and wait.
   useEffect(() => {
-    if (remaining > 0 || checkedRef.current) return;
-    checkedRef.current = true;
+    if (remaining > 0) return;
     const token = getToken();
     if (!token) return;
-    fetch(`${API_BASE}/me/hearts`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) onRefilled?.(d); })
-      .catch(() => {});
-  }, [remaining, onRefilled]);
+
+    let stopped = false;
+    const check = () => {
+      fetch(`${API_BASE}/me/hearts`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (stopped || !d) return;
+          const cur = Number(d.current ?? d.hearts_current ?? 0);
+          if (d.is_premium || cur >= 1) {
+            onRefilled?.(d); // a heart is available — parent dismisses the gate
+          } else {
+            const eta = Number(d.next_regen_seconds ?? 0);
+            if (eta > 0) setRemaining(eta); // resume an accurate countdown
+          }
+        })
+        .catch(() => {});
+    };
+
+    check(); // immediate check the moment we hit 0
+    const id = setInterval(check, 10000); // then retry until refilled
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, [remaining === 0, onRefilled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="mx-auto max-w-md rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200 shadow-sm">

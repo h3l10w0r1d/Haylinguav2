@@ -58,7 +58,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
     let cancelled = false;
 
-    (async () => {
+    const fetchHearts = async () => {
       try {
         const res = await apiFetch("/me/hearts", { token, method: "GET" });
         if (!res.ok) return;
@@ -77,7 +77,15 @@ export default function HeaderLayout({ user, onLogout, children }) {
       } catch {
         // ignore
       }
-    })();
+    };
+
+    // Initial load + poll so server-side regen shows up without a reload.
+    fetchHearts();
+    const poll = setInterval(fetchHearts, 60000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchHearts();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     const onHearts = (ev) => {
       const detail = ev?.detail;
@@ -101,6 +109,8 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
     return () => {
       cancelled = true;
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("haylingua:hearts", onHearts);
       window.removeEventListener("hay_hearts", onHearts);
     };
