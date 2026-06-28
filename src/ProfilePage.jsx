@@ -11,6 +11,12 @@ import {
   Link2,
   Image as ImageIcon,
   EyeOff,
+  Eye,
+  Camera,
+  Pencil,
+  Sparkles,
+  BookOpen,
+  ExternalLink,
 } from "lucide-react";
 
 import { StarMotif } from "./lib/motifs";
@@ -105,6 +111,35 @@ function resolveUrl(u) {
 // Preset banners shipped with the frontend (public/banners/*)
 const PRESET_BANNERS = Array.from({ length: 8 }).map((_, i) => `/banners/banner-${i + 1}.png`);
 
+function StatTile({ icon: Icon, label, value, tone }) {
+  return (
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+      <div className={"grid h-9 w-9 place-items-center rounded-xl " + tone}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="mt-2 font-display text-2xl font-extrabold tabular-nums text-slate-800">{value}</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
+    </div>
+  );
+}
+
+function TabButton({ active, onClick, icon: Icon, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "inline-flex items-center gap-2 whitespace-nowrap rounded-2xl px-4 py-2.5 font-display text-sm font-extrabold transition " +
+        (active
+          ? "bg-brand-500 text-white shadow-btn-brand"
+          : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50")
+      }
+    >
+      <Icon className="h-4 w-4" /> {children}
+    </button>
+  );
+}
+
 export default function ProfilePage() {
   const token = useMemo(() => getToken(), []);
   const [loading, setLoading] = useState(true);
@@ -162,6 +197,7 @@ export default function ProfilePage() {
   const [twoFaDisablePw, setTwoFaDisablePw] = useState("");
 
   // UX state
+  const [tab, setTab] = useState("overview"); // overview | edit | appearance | security
   const [saving, setSaving] = useState(false);
   const [bgSaving, setBgSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -716,15 +752,21 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <div className="max-w-5xl mx-auto px-4 py-10 font-display font-extrabold text-slate-500">Loading…</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+        <div className="max-w-5xl mx-auto px-4 py-10 font-display font-extrabold text-slate-500">Loading…</div>
+      </div>
+    );
   }
 
   return (
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      {/* Header banner */}
+      {/* ===================== HERO ===================== */}
       <div className="rounded-3xl overflow-hidden shadow-sm ring-1 ring-slate-200 bg-white">
+        {/* Banner */}
         <div
-          className="relative h-40 md:h-52"
+          className="relative h-40 md:h-48"
           style={
             bannerUrl
               ? {
@@ -736,106 +778,119 @@ export default function ProfilePage() {
           }
         >
           {bannerUrl ? (
-            <div
-              className="absolute inset-0 opacity-70"
-              style={{ background: headerBackground }}
-            />
+            <div className="absolute inset-0 opacity-30" style={{ background: headerBackground }} />
           ) : null}
-          <div className="absolute inset-0 p-4 md:p-6 flex items-end justify-between gap-3">
-            <div className="flex items-end gap-4">
-              <div className="relative">
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/85 backdrop-blur ring-2 ring-white/70 flex items-center justify-center overflow-hidden shadow-md">
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="font-display text-xl md:text-2xl font-extrabold text-brand-600">
-                      {(firstName || username || "H")[0]?.toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAvatarPick}
-                    className="btn3d btn3d-neutral text-xs px-2.5 py-1.5"
-                  >
-                    <ImageIcon className="w-4 h-4 text-brand-500" />
-                    Upload
-                  </button>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
 
-                  <button
-                    type="button"
-                    onClick={() => setShowAvatarPresets((v) => !v)}
-                    className="btn3d btn3d-neutral text-xs px-2.5 py-1.5"
-                  >
-                    Presets
-                  </button>
-                </div>
-              </div>
-
-              {showAvatarPresets && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {PRESET_AVATARS.map((url, idx) => {
-                    const active = avatarPreview === url || avatarPresetUrl === url;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handlePresetAvatarPick(url)}
-                        className={`h-10 w-10 rounded-full overflow-hidden ring-2 ${active ? "ring-brand-400" : "ring-white/60"} bg-white/70 backdrop-blur hover:ring-brand-300`}
-                        title={`Avatar ${idx + 1}`}
-                      >
-                        <img src={url} alt={`Avatar ${idx + 1}`} className="h-full w-full object-cover" />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="pb-1">
-                <div className="font-display text-white drop-shadow text-lg md:text-xl font-extrabold">
-                  {firstName || lastName ? `${firstName} ${lastName}`.trim() : username || "Your profile"}
-                </div>
-                <div className="text-white/90 drop-shadow text-xs md:text-sm font-bold flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1">
-                    <Trophy className="w-4 h-4" /> Lv {level}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <StarMotif className="w-4 h-4 text-gold-400" /> {xp} XP
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Flame className="w-4 h-4" /> {streak} day streak
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowBannerPicker(true)}
-                  className="btn3d btn3d-neutral text-sm"
-                >
-                  <ImageIcon className="w-4 h-4 text-brand-500" />
-                  Banner
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsHidden((v) => !v)}
-                  className="btn3d btn3d-neutral text-sm"
-                >
-                  <EyeOff className="w-4 h-4 text-brand-500" />
-                  {isHidden ? "Hidden" : "Public"}
-                </button>
-              </div>
-
-              <div className="text-[11px] text-white/90 drop-shadow">
-                {bgSaving ? "Saving…" : " "}
-              </div>
-            </div>
+          <div className="absolute right-3 top-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBannerPicker(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-1.5 text-xs font-extrabold text-slate-700 shadow-sm ring-1 ring-white/60 backdrop-blur transition hover:bg-white"
+            >
+              <ImageIcon className="h-4 w-4 text-brand-500" /> Banner
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsHidden((v) => !v)}
+              title={isHidden ? "Your public profile is hidden" : "Your profile is visible"}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-1.5 text-xs font-extrabold text-slate-700 shadow-sm ring-1 ring-white/60 backdrop-blur transition hover:bg-white"
+            >
+              {isHidden ? <EyeOff className="h-4 w-4 text-cardinal-500" /> : <Eye className="h-4 w-4 text-grass-500" />}
+              {isHidden ? "Hidden" : "Public"}
+            </button>
           </div>
         </div>
+
+        {/* Identity */}
+        <div className="px-5 pb-6 md:px-7">
+          <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex items-end gap-4">
+              <div className="relative shrink-0">
+                <div className="h-24 w-24 overflow-hidden rounded-3xl bg-white ring-4 ring-white shadow-md">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600">
+                      {(firstName || username || "H")[0]?.toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarPresets((v) => !v)}
+                  title="Change avatar"
+                  className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-brand-500 text-white shadow-md ring-2 ring-white transition hover:bg-brand-600"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="pb-1">
+                <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800">
+                  {firstName || lastName ? `${firstName} ${lastName}`.trim() : username || "Your profile"}
+                </h1>
+                <div className="text-sm font-bold text-slate-400">@{username || "set-a-username"}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {publicProfileHref ? (
+                <a href={publicProfileHref} className="btn3d btn3d-neutral text-sm">
+                  <ExternalLink className="h-4 w-4 text-brand-500" /> View public profile
+                </a>
+              ) : (
+                <button type="button" onClick={() => setTab("edit")} className="btn3d btn3d-brand text-sm">
+                  <Pencil className="h-4 w-4" /> Set a username
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Avatar picker (toggled) */}
+          {showAvatarPresets && (
+            <div className="mt-4 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={handleAvatarPick} className="btn3d btn3d-brand text-xs">
+                  <ImageIcon className="h-4 w-4" /> Upload
+                </button>
+                <span className="px-1 text-xs font-bold text-slate-400">or pick a preset</span>
+                {PRESET_AVATARS.map((url, idx) => {
+                  const active = avatarPreview === url || avatarPresetUrl === url;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handlePresetAvatarPick(url)}
+                      className={"h-10 w-10 overflow-hidden rounded-full ring-2 transition " + (active ? "ring-brand-400" : "ring-white hover:ring-brand-300")}
+                      title={`Avatar ${idx + 1}`}
+                    >
+                      <img src={url} alt={`Avatar ${idx + 1}`} className="h-full w-full object-cover" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {bio ? <p className="mt-4 max-w-2xl text-sm font-semibold text-slate-600">{bio}</p> : null}
+
+          {/* Stat tiles */}
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatTile icon={Trophy} tone="bg-brand-50 text-brand-600" label="Level" value={level} />
+            <StatTile icon={StarMotif} tone="bg-gold-100 text-gold-600" label="Total XP" value={xp} />
+            <StatTile icon={Flame} tone="bg-cardinal-50 text-cardinal-500" label="Day streak" value={streak} />
+            <StatTile icon={BookOpen} tone="bg-grass-50 text-grass-600" label="Lessons" value={lessonsCompleted} />
+          </div>
+        </div>
+      </div>
+
+      {/* ===================== TABS ===================== */}
+      <div className="flex flex-wrap gap-2">
+        <TabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={Sparkles}>Overview</TabButton>
+        <TabButton active={tab === "edit"} onClick={() => setTab("edit")} icon={Pencil}>Edit profile</TabButton>
+        <TabButton active={tab === "appearance"} onClick={() => setTab("appearance")} icon={Palette}>Appearance</TabButton>
+        <TabButton active={tab === "security"} onClick={() => setTab("security")} icon={ShieldCheck}>Security</TabButton>
       </div>
 
       {/* Banner picker modal */}
@@ -919,7 +974,8 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Profile details (no display name, no avatar url) */}
+      {/* ===== Edit profile tab ===== */}
+      {tab === "edit" && (
       <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
         <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">Profile details</h2>
 
@@ -1029,6 +1085,7 @@ export default function ProfilePage() {
           </div>
         </form>
       </section>
+      )}
 
       {/* Email change modal */}
       {emailModalOpen && (
@@ -1367,7 +1424,8 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Background (no submit button; autosaves) */}
+      {/* ===== Appearance tab ===== */}
+      {tab === "appearance" && (
 <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
   <div className="flex items-center justify-between gap-3 mb-4">
     <h2 className="font-display text-lg font-extrabold text-slate-800">Appearance</h2>
@@ -1402,8 +1460,10 @@ export default function ProfilePage() {
     <div className="h-20" style={{ background: headerBackground }} />
   </div>
 </section>
+      )}
 
-      {/* Account security placeholders */}
+      {/* ===== Security tab ===== */}
+      {tab === "security" && (
       <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
         <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">Account security</h2>
 
@@ -1471,8 +1531,10 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* Recent learning activity (kept) */}
+      {/* ===== Overview tab: recent learning activity ===== */}
+      {tab === "overview" && (
       <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
         <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">
           Recent learning activity
@@ -1553,14 +1615,16 @@ export default function ProfilePage() {
         </div>
 
       </section>
+      )}
 
-      <AccountDangerZone />
+      {tab === "security" && <AccountDangerZone />}
 
       {!!message && (
-        <div className="rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3 text-sm font-bold text-brand-700">
+        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-lg">
           {message}
         </div>
       )}
+    </div>
     </div>
   );
 }
