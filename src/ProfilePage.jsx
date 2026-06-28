@@ -17,6 +17,7 @@ import {
   Sparkles,
   BookOpen,
   ExternalLink,
+  Check,
 } from "lucide-react";
 
 import { StarMotif } from "./lib/motifs";
@@ -110,6 +111,21 @@ function resolveUrl(u) {
 
 // Preset banners shipped with the frontend (public/banners/*)
 const PRESET_BANNERS = Array.from({ length: 8 }).map((_, i) => `/banners/banner-${i + 1}.png`);
+
+// Curated profile themes — users pick one instead of typing raw RGB values.
+// `bg` is the solid fallback; `gradient` (when present) is what actually shows.
+const PRESET_THEMES = [
+  { id: "cream", label: "Cream", bg: "#FFF7ED" },
+  { id: "apricot", label: "Apricot", bg: "#E85F00", gradient: "linear-gradient(135deg,#FFB066,#E85F00)" },
+  { id: "pomegranate", label: "Pomegranate", bg: "#E11D48", gradient: "linear-gradient(135deg,#FF7A1A,#E11D48)" },
+  { id: "gold", label: "Golden hour", bg: "#F59E0B", gradient: "linear-gradient(135deg,#FCD34D,#F59E0B)" },
+  { id: "mint", label: "Mint", bg: "#10B981", gradient: "linear-gradient(135deg,#34D399,#059669)" },
+  { id: "sky", label: "Sky", bg: "#0EA5E9", gradient: "linear-gradient(135deg,#38BDF8,#0284C7)" },
+  { id: "lavender", label: "Lavender", bg: "#8B5CF6", gradient: "linear-gradient(135deg,#C4B5FD,#7C3AED)" },
+  { id: "rose", label: "Rose", bg: "#F43F5E", gradient: "linear-gradient(135deg,#FDA4AF,#E11D48)" },
+  { id: "teal", label: "Teal", bg: "#0D9488", gradient: "linear-gradient(135deg,#5EEAD4,#0D9488)" },
+  { id: "midnight", label: "Midnight", bg: "#1E293B", gradient: "linear-gradient(135deg,#475569,#0F172A)" },
+];
 
 function StatTile({ icon: Icon, label, value, tone }) {
   return (
@@ -1427,37 +1443,54 @@ export default function ProfilePage() {
       {/* ===== Appearance tab ===== */}
       {tab === "appearance" && (
 <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-  <div className="flex items-center justify-between gap-3 mb-4">
-    <h2 className="font-display text-lg font-extrabold text-slate-800">Appearance</h2>
+  <div className="flex items-center justify-between gap-3 mb-1">
+    <h2 className="font-display text-lg font-extrabold text-slate-800">Profile theme</h2>
     <div className="text-xs font-bold text-slate-500 flex items-center gap-2">
       <Palette className="w-4 h-4 text-brand-500" />
       {bgSaving ? "Saving…" : "Auto-saved"}
     </div>
   </div>
+  <p className="text-sm font-semibold text-slate-500 mb-4">
+    Pick a colour theme for your profile header. Changes save automatically.
+  </p>
 
-  <div className="grid md:grid-cols-2 gap-4">
-    <div>
-      <label className="block text-sm font-extrabold text-slate-700 mb-1.5">
-        Background color
-      </label>
-      <input
-        type="color"
-        className="w-14 h-10 rounded-xl ring-2 ring-slate-200 p-1 bg-white cursor-pointer"
-        value={themeBg}
-        onChange={(e) => setThemeBg(e.target.value)}
-      />
-      <p className="mt-1.5 text-xs font-semibold text-slate-400">Used if gradient is empty/invalid.</p>
-    </div>
-
-    <div>
-    </div>
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+    {PRESET_THEMES.map((t) => {
+      const value = t.gradient || t.bg;
+      const active = t.gradient ? themeGradient === t.gradient : (!themeGradient && themeBg === t.bg);
+      return (
+        <button
+          key={t.id}
+          type="button"
+          onClick={() => {
+            setThemeBg(t.bg);
+            setThemeGradient(t.gradient || "");
+          }}
+          title={t.label}
+          className={
+            "group relative h-20 overflow-hidden rounded-2xl ring-2 transition " +
+            (active ? "ring-brand-500 ring-offset-2" : "ring-slate-200 hover:ring-brand-300")
+          }
+          style={{ background: value }}
+        >
+          {active && (
+            <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-brand-600 shadow">
+              <Check className="h-4 w-4" strokeWidth={3} />
+            </span>
+          )}
+          <span className="absolute inset-x-0 bottom-0 bg-black/25 px-2 py-1 text-left text-[11px] font-extrabold text-white">
+            {t.label}
+          </span>
+        </button>
+      );
+    })}
   </div>
 
-  <div className="mt-4 rounded-2xl ring-1 ring-slate-200 overflow-hidden">
-    <div className="px-4 py-3 text-xs font-extrabold text-slate-700 bg-slate-50 border-b border-slate-200">
-      Preview
+  <div className="mt-5 rounded-2xl ring-1 ring-slate-200 overflow-hidden">
+    <div className="px-4 py-2.5 text-xs font-extrabold text-slate-700 bg-slate-50 border-b border-slate-200">
+      Live preview
     </div>
-    <div className="h-20" style={{ background: headerBackground }} />
+    <div className="h-24" style={{ background: headerBackground }} />
   </div>
 </section>
       )}
