@@ -134,8 +134,8 @@ function Ararat({ className }) {
 function Medallion({ status }) {
   if (status === "completed") {
     return (
-      <div className="grid h-14 w-14 place-items-center rounded-full bg-gold-500 text-white shadow-[0_4px_0_0_#B45309]">
-        <StarMotif className="h-7 w-7" />
+      <div className="grid h-14 w-14 place-items-center rounded-full bg-grass-500 text-white shadow-[0_4px_0_0_#3F8F2E]">
+        <Check className="h-7 w-7" strokeWidth={3.5} />
       </div>
     );
   }
@@ -168,7 +168,7 @@ function Milestone({ lesson, isLast, onStart }) {
         <div
           className={
             "absolute left-7 top-7 -bottom-2 w-1.5 -translate-x-1/2 rounded-full " +
-            (isCompleted ? "bg-brand-400" : "bg-slate-200")
+            (isCompleted ? "bg-grass-400" : "bg-slate-200")
           }
         />
       )}
@@ -176,7 +176,7 @@ function Milestone({ lesson, isLast, onStart }) {
       <div className="absolute left-7 top-0 z-10 -translate-x-1/2">
         <Medallion status={status} />
       </div>
-      <div className="absolute left-[3.4rem] top-7 h-1.5 w-6 rounded-full bg-slate-200" />
+      <div className={"absolute left-[3.4rem] top-7 h-1.5 w-6 rounded-full " + (isCompleted ? "bg-grass-400" : "bg-slate-200")} />
 
       {/* "You are here" tag for the current lesson */}
       {isCurrent && (
@@ -185,57 +185,67 @@ function Milestone({ lesson, isLast, onStart }) {
         </div>
       )}
 
-      {/* Milestone card */}
-      <div
-        className={
-          "rounded-2xl p-4 transition " +
-          (isCurrent
-            ? "bg-brand-50 ring-2 ring-brand-300 shadow-sm"
-            : isCompleted
-            ? "bg-white ring-1 ring-slate-200"
-            : "bg-slate-50 ring-1 ring-slate-200")
-        }
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div
-              className={
-                "font-display text-base font-extrabold leading-tight " +
-                (isLocked ? "text-slate-400" : "text-slate-800")
-              }
-            >
-              {lesson.title}
+      {/* Milestone card — completed cards are fully clickable (review) */}
+      {isCompleted ? (
+        <button
+          type="button"
+          onClick={() => onStart(lesson)}
+          className="block w-full rounded-2xl p-4 text-left bg-grass-50 ring-1 ring-grass-200 shadow-sm transition hover:bg-grass-100 hover:ring-grass-300 active:translate-y-0.5"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-display text-base font-extrabold leading-tight text-slate-800">
+                {lesson.title}
+              </div>
+              <div className="mt-0.5 inline-flex items-center gap-1 text-xs font-extrabold uppercase tracking-wide text-grass-600">
+                <Check className="h-3.5 w-3.5" strokeWidth={3} /> Completed
+              </div>
             </div>
-            <div className="mt-0.5 text-xs font-bold uppercase tracking-wide text-slate-400">
-              {isCompleted ? "Mastered" : isCurrent ? "In progress" : "Locked"}
+            <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-extrabold text-grass-700 ring-1 ring-grass-200">
+              <RotateCcw className="h-3.5 w-3.5" /> Review
+            </span>
+          </div>
+        </button>
+      ) : (
+        <div
+          className={
+            "rounded-2xl p-4 transition " +
+            (isCurrent
+              ? "bg-brand-50 ring-2 ring-brand-300 shadow-sm"
+              : "bg-slate-50 ring-1 ring-slate-200")
+          }
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div
+                className={
+                  "font-display text-base font-extrabold leading-tight " +
+                  (isLocked ? "text-slate-400" : "text-slate-800")
+                }
+              >
+                {lesson.title}
+              </div>
+              <div className="mt-0.5 text-xs font-bold uppercase tracking-wide text-slate-400">
+                {isCurrent ? "In progress" : "Locked"}
+              </div>
             </div>
           </div>
+
+          {/* Current: progress + continue */}
+          {isCurrent && (
+            <>
+              {pct > 0 && (
+                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white">
+                  <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 6)}%` }} />
+                </div>
+              )}
+              <button onClick={() => onStart(lesson)} className="btn3d btn3d-brand mt-3 w-full text-sm uppercase">
+                {pct > 0 ? "Continue" : "Start lesson"} <ArrowRight className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
-
-        {/* Current: progress + continue */}
-        {isCurrent && (
-          <>
-            {pct > 0 && (
-              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white">
-                <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 6)}%` }} />
-              </div>
-            )}
-            <button onClick={() => onStart(lesson)} className="btn3d btn3d-brand mt-3 w-full text-sm uppercase">
-              {pct > 0 ? "Continue" : "Start lesson"} <ArrowRight className="h-4 w-4" />
-            </button>
-          </>
-        )}
-
-        {/* Completed: review link */}
-        {isCompleted && (
-          <button
-            onClick={() => onStart(lesson)}
-            className="mt-2 inline-flex items-center gap-1 text-sm font-extrabold text-slate-500 hover:text-slate-700"
-          >
-            <RotateCcw className="h-4 w-4" /> Review
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 }
