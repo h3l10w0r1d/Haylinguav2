@@ -81,8 +81,21 @@ export function createCmsApi(accessToken) {
   const deleteLesson = (lessonId) =>
     req(`/cms/lessons/${lessonId}`, { method: "DELETE" });
 
+  // Achievements (CMS builder)
+  const listAchievements = () => req("/cms/achievements");
+  const createAchievement = (payload) =>
+    req("/cms/achievements", { method: "POST", body: JSON.stringify(payload) });
+  const updateAchievement = (id, payload) =>
+    req(`/cms/achievements/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteAchievement = (id) =>
+    req(`/cms/achievements/${id}`, { method: "DELETE" });
+  const reorderAchievements = (order) =>
+    req("/cms/achievements/reorder", { method: "POST", body: JSON.stringify({ order }) });
+
   // Exercises
   const listExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);
+  const reorderExercises = (order) =>
+    req("/cms/exercises/reorder", { method: "POST", body: JSON.stringify({ order }) });
   const getExercise = (exerciseId) => req(`/cms/exercises/${exerciseId}`);
   // Backwards/forwards compatible:
   // - Some callers use createExercise(payload)
@@ -133,7 +146,13 @@ export function createCmsApi(accessToken) {
     createLesson,
     updateLesson,
     deleteLesson,
+    listAchievements,
+    createAchievement,
+    updateAchievement,
+    deleteAchievement,
+    reorderAchievements,
     listExercises,
+    reorderExercises,
     getExercise,
     createExercise,
     updateExercise,

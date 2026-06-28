@@ -3036,19 +3036,58 @@ def _compute_achievements(db: Connection, user_id: int) -> list:
     streak = _compute_streak_days(db, user_id)
     total_xp = int(lp.get("total_xp") or 0)
     lessons = int(lp.get("lessons_completed") or 0)
-    defs = [
-        ("first_lesson", "First Steps", "Complete your first lesson", "star", lessons, 1, 20),
-        ("five_lessons", "Getting Going", "Complete 5 lessons", "crown", lessons, 5, 40),
-        ("streak7", "On Fire", "Reach a 7-day streak", "flame", streak, 7, 50),
-        ("streak30", "Unstoppable", "Reach a 30-day streak", "flame", streak, 30, 150),
-        ("xp500", "Word Collector", "Earn 500 XP", "zap", total_xp, 500, 30),
-        ("xp2000", "Scholar", "Earn 2000 XP", "zap", total_xp, 2000, 80),
-        ("correct100", "Sharp Mind", "Answer 100 questions correctly", "target", correct_total, 100, 40),
-    ]
-    return [
-        {"id": aid, "title": title, "desc": desc, "icon": icon, "progress": min(int(m), int(t)), "target": int(t), "earned": int(m) >= int(t), "reward_xp": reward}
-        for (aid, title, desc, icon, m, t, reward) in defs
-    ]
+
+    # Map each configurable metric to the learner's current value.
+    metric_values = {
+        "lessons_completed": lessons,
+        "streak_days": streak,
+        "total_xp": total_xp,
+        "correct_answers": correct_total,
+    }
+
+    # Achievements are CMS-editable rows in achievement_defs. Fall back to the
+    # original built-ins if the table is missing/empty (defensive).
+    rows = []
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT key, title, description, icon, metric, threshold, reward_xp
+                FROM achievement_defs
+                WHERE COALESCE(is_active, TRUE)
+                ORDER BY sort_order ASC, id ASC
+                """
+            )
+        ).mappings().all()
+    except Exception:
+        rows = []
+
+    if not rows:
+        rows = [
+            {"key": "first_lesson", "title": "First Steps", "description": "Complete your first lesson", "icon": "star", "metric": "lessons_completed", "threshold": 1, "reward_xp": 20},
+            {"key": "five_lessons", "title": "Getting Going", "description": "Complete 5 lessons", "icon": "crown", "metric": "lessons_completed", "threshold": 5, "reward_xp": 40},
+            {"key": "streak7", "title": "On Fire", "description": "Reach a 7-day streak", "icon": "flame", "metric": "streak_days", "threshold": 7, "reward_xp": 50},
+            {"key": "streak30", "title": "Unstoppable", "description": "Reach a 30-day streak", "icon": "flame", "metric": "streak_days", "threshold": 30, "reward_xp": 150},
+            {"key": "xp500", "title": "Word Collector", "description": "Earn 500 XP", "icon": "zap", "metric": "total_xp", "threshold": 500, "reward_xp": 30},
+            {"key": "xp2000", "title": "Scholar", "description": "Earn 2000 XP", "icon": "zap", "metric": "total_xp", "threshold": 2000, "reward_xp": 80},
+            {"key": "correct100", "title": "Sharp Mind", "description": "Answer 100 questions correctly", "icon": "target", "metric": "correct_answers", "threshold": 100, "reward_xp": 40},
+        ]
+
+    out = []
+    for r in rows:
+        m = int(metric_values.get(r["metric"], 0))
+        t = int(r["threshold"] or 0)
+        out.append({
+            "id": r["key"],
+            "title": r["title"],
+            "desc": r.get("description") or "",
+            "icon": r.get("icon") or "star",
+            "progress": min(m, t) if t else m,
+            "target": t,
+            "earned": (m >= t) if t else False,
+            "reward_xp": int(r.get("reward_xp") or 0),
+        })
+    return out
 
 
 @router.get("/me/quests")
@@ -4555,6 +4594,7 @@ class PublicUserOut(BaseModel):
     is_friend: bool
     friends_preview: list[dict] = []
     top_friends: list[dict] = []
+    achievements: list[dict] = []
 
 
 def _get_user_public_by_id(db: Connection, uid: int) -> dict:
@@ -4781,6 +4821,15 @@ def get_public_user(
             else []
         ),
         top_friends=top_friends,
+        achievements=(
+            [
+                {"id": a["id"], "title": a["title"], "desc": a["desc"], "icon": a["icon"]}
+                for a in _compute_achievements(db, target_id)
+                if a["earned"]
+            ]
+            if ((not bool(target.get("is_hidden"))) or is_friend or friendship == "self")
+            else []
+        ),
     )
 
 
@@ -5323,6 +5372,95 @@ async def cms_reorder_chapters(request: Request, db=Depends(get_db)):
     order = body.get("order") or []
     for i, cid in enumerate(order):
         db.execute(text("UPDATE chapters SET position = :p WHERE id = :id"), {"p": i + 1, "id": int(cid)})
+    return {"ok": True}
+
+# -------------------- ACHIEVEMENTS (CMS builder) --------------------
+
+ACHIEVEMENT_METRICS = {"lessons_completed", "streak_days", "total_xp", "correct_answers"}
+
+@router.get("/cms/achievements")
+def cms_list_achievements(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT id, key, title, description, icon, metric, threshold, reward_xp, sort_order, is_active
+        FROM achievement_defs
+        ORDER BY sort_order ASC, id ASC
+    """)).mappings().all()
+    return [dict(r) for r in rows]
+
+@router.post("/cms/achievements")
+async def cms_create_achievement(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    key = (body.get("key") or "").strip()
+    title = (body.get("title") or "").strip()
+    metric = (body.get("metric") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    if metric not in ACHIEVEMENT_METRICS:
+        raise HTTPException(status_code=400, detail=f"metric must be one of {sorted(ACHIEVEMENT_METRICS)}")
+    if not key:
+        key = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_") or "achievement"
+    # Ensure key is unique by suffixing if needed.
+    base, n = key, 1
+    while db.execute(text("SELECT 1 FROM achievement_defs WHERE key = :k"), {"k": key}).scalar():
+        n += 1
+        key = f"{base}_{n}"
+    pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM achievement_defs")).scalar() or 1
+    new_id = db.execute(
+        text("""
+            INSERT INTO achievement_defs (key, title, description, icon, metric, threshold, reward_xp, sort_order, is_active)
+            VALUES (:k, :t, :d, :i, :m, :thr, :r, :so, :act) RETURNING id
+        """),
+        {
+            "k": key, "t": title, "d": (body.get("description") or "").strip(),
+            "i": (body.get("icon") or "star").strip() or "star", "m": metric,
+            "thr": int(body.get("threshold") or 1), "r": int(body.get("reward_xp") or 0),
+            "so": int(pos), "act": bool(body.get("is_active", True)),
+        },
+    ).scalar_one()
+    return {"id": int(new_id), "key": key}
+
+@router.put("/cms/achievements/{ach_id}")
+async def cms_update_achievement(ach_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": ach_id}
+    for f in ("title", "description", "icon", "threshold", "reward_xp", "is_active"):
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = body[f]
+    if "metric" in body:
+        if body["metric"] not in ACHIEVEMENT_METRICS:
+            raise HTTPException(status_code=400, detail="invalid metric")
+        set_parts.append("metric = :metric")
+        params["metric"] = body["metric"]
+    if not set_parts:
+        return {"ok": True}
+    db.execute(text(f"UPDATE achievement_defs SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/achievements/{ach_id}")
+def cms_delete_achievement(ach_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM achievement_defs WHERE id = :id"), {"id": ach_id})
+    return {"ok": True}
+
+@router.post("/cms/achievements/reorder")
+async def cms_reorder_achievements(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    for i, aid in enumerate(body.get("order") or []):
+        db.execute(text("UPDATE achievement_defs SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(aid)})
+    return {"ok": True}
+
+@router.post("/cms/exercises/reorder")
+async def cms_reorder_exercises(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    # Persist the new sequence by rewriting each exercise's "order" field.
+    for i, eid in enumerate(body.get("order") or []):
+        db.execute(text('UPDATE exercises SET "order" = :p WHERE id = :id'), {"p": i + 1, "id": int(eid)})
     return {"ok": True}
 
 # -------------------- LESSONS --------------------

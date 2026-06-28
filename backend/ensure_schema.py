@@ -150,6 +150,50 @@ def ensure_schema() -> None:
             if levels:
                 print(f"[ensure_schema] backfilled {len(levels)} chapters from lesson levels")
 
+        # ---------- Achievement definitions (CMS-editable badges) ----------
+        ach_existed = table_exists("achievement_defs")
+        ensure_table(
+            "achievement_defs",
+            """
+            CREATE TABLE achievement_defs (
+                id SERIAL PRIMARY KEY,
+                key TEXT UNIQUE NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                icon TEXT NOT NULL DEFAULT 'star',
+                metric TEXT NOT NULL,
+                threshold INTEGER NOT NULL DEFAULT 1,
+                reward_xp INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        # Seed the original built-in achievements so behaviour is unchanged.
+        if not ach_existed:
+            seeds = [
+                ("first_lesson", "First Steps", "Complete your first lesson", "star", "lessons_completed", 1, 20),
+                ("five_lessons", "Getting Going", "Complete 5 lessons", "crown", "lessons_completed", 5, 40),
+                ("streak7", "On Fire", "Reach a 7-day streak", "flame", "streak_days", 7, 50),
+                ("streak30", "Unstoppable", "Reach a 30-day streak", "flame", "streak_days", 30, 150),
+                ("xp500", "Word Collector", "Earn 500 XP", "zap", "total_xp", 500, 30),
+                ("xp2000", "Scholar", "Earn 2000 XP", "zap", "total_xp", 2000, 80),
+                ("correct100", "Sharp Mind", "Answer 100 questions correctly", "target", "correct_answers", 100, 40),
+            ]
+            for i, (k, title, desc, icon, metric, thr, reward) in enumerate(seeds):
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO achievement_defs (key, title, description, icon, metric, threshold, reward_xp, sort_order)
+                        VALUES (:k, :t, :d, :i, :m, :thr, :r, :so)
+                        ON CONFLICT (key) DO NOTHING
+                        """
+                    ),
+                    {"k": k, "t": title, "d": desc, "i": icon, "m": metric, "thr": thr, "r": reward, "so": i},
+                )
+            print(f"[ensure_schema] seeded {len(seeds)} achievement_defs")
+
         # ---------- Exercise problem reports ----------
         ensure_table(
             "exercise_reports",

@@ -1,6 +1,7 @@
 // src/Achievements.jsx — milestone badges (computed server-side from stats).
 import React, { useEffect, useState } from "react";
-import { Target, Zap, Crown, Star, Flame, Check, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Target, Zap, Crown, Star, Flame, Check, Loader2, ArrowLeft } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -10,6 +11,7 @@ function getToken() {
 const ICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
 export default function Achievements() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState("");
@@ -46,6 +48,12 @@ export default function Achievements() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
       <div className="mx-auto max-w-3xl px-4 py-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-4 inline-flex items-center gap-1.5 rounded-2xl bg-white px-3.5 py-2 text-sm font-extrabold text-slate-600 ring-1 ring-slate-200 shadow-sm transition hover:bg-slate-50 hover:text-brand-600"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
         <div className="mb-6">
           <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800">Achievements</h1>
           <p className="mt-1 font-semibold text-slate-500">

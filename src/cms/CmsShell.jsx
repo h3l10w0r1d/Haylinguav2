@@ -1,7 +1,7 @@
 // src/cms/CmsShell.jsx
 import { useEffect, useMemo, useState } from "react";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, FileText } from "lucide-react";
+import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, FileText, ChevronUp, ChevronDown } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import LessonEditor from "./LessonEditor";
 import ExerciseEditor from "./ExerciseEditor";
@@ -83,6 +83,22 @@ export default function CmsShell() {
     if (!lessonId) return setExercises([]);
     const data = await api.listExercises(lessonId);
     setExercises(Array.isArray(data) ? data : []);
+  }
+
+  async function moveExercise(idx, dir) {
+    const arr = sortedExercises.slice();
+    const j = idx + dir;
+    if (j < 0 || j >= arr.length) return;
+    const [it] = arr.splice(idx, 1);
+    arr.splice(j, 0, it);
+    setExercises(arr.map((e, i) => ({ ...e, order: i + 1 }))); // optimistic
+    try {
+      await api.reorderExercises(arr.map((e) => e.id));
+      await refreshExercises(selectedLessonId);
+    } catch (e) {
+      showToast(e.message || "Reorder failed", "err");
+      await refreshExercises(selectedLessonId);
+    }
   }
 
   useEffect(() => {
@@ -321,27 +337,51 @@ export default function CmsShell() {
                     </div>
                   ) : (
                     <div className="space-y-2 rounded-3xl bg-white p-2 ring-1 ring-slate-200 shadow-sm">
-                      {sortedExercises.map((ex) => (
-                        <button
+                      {sortedExercises.map((ex, idx) => (
+                        <div
                           key={ex.id}
-                          type="button"
-                          onClick={() => setExEditing(ex.id)}
-                          className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white px-3.5 py-2.5 text-left ring-1 ring-slate-200 transition hover:bg-slate-50 hover:ring-brand-200"
+                          className="flex items-center gap-2 rounded-2xl bg-white px-2 py-1.5 ring-1 ring-slate-200 transition hover:ring-brand-200"
                         >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-100 font-display text-sm font-extrabold text-slate-500">
-                              {ex.order ?? "?"}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-bold text-slate-800">{ex.prompt || "(no prompt)"}</div>
-                              <div className="mt-0.5 text-xs font-semibold text-slate-400">
-                                <span className="rounded-full bg-brand-50 px-2 py-0.5 font-mono text-brand-700 ring-1 ring-brand-200">{ex.kind}</span>
-                                <span className="ml-2 font-mono">{Number(ex.xp || 0)} xp</span>
+                          <div className="flex flex-col">
+                            <button
+                              type="button"
+                              onClick={() => moveExercise(idx, -1)}
+                              disabled={idx === 0}
+                              title="Move up"
+                              className="grid h-6 w-6 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 disabled:opacity-30"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveExercise(idx, 1)}
+                              disabled={idx === sortedExercises.length - 1}
+                              title="Move down"
+                              className="grid h-6 w-6 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 disabled:opacity-30"
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setExEditing(ex.id)}
+                            className="flex min-w-0 flex-1 items-center justify-between gap-3 py-1 text-left"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-100 font-display text-sm font-extrabold text-slate-500">
+                                {ex.order ?? "?"}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-bold text-slate-800">{ex.prompt || "(no prompt)"}</div>
+                                <div className="mt-0.5 text-xs font-semibold text-slate-400">
+                                  <span className="rounded-full bg-brand-50 px-2 py-0.5 font-mono text-brand-700 ring-1 ring-brand-200">{ex.kind}</span>
+                                  <span className="ml-2 font-mono">{Number(ex.xp || 0)} xp</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <span className="shrink-0 font-mono text-xs text-slate-300">id:{ex.id}</span>
-                        </button>
+                            <span className="shrink-0 font-mono text-xs text-slate-300">id:{ex.id}</span>
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}

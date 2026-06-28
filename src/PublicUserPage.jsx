@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Trophy, Flame, BookOpen, Users, Loader2, Lock, UserPlus, Check, Clock } from "lucide-react";
+import { Trophy, Flame, BookOpen, Users, Loader2, Lock, UserPlus, Check, Clock, Target, Zap, Crown, Star, Award } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
+
+const ACH_ICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
 // IMPORTANT:
 // Public pages are served from the FE domain, but API lives on the backend.
@@ -188,6 +190,7 @@ export default function PublicUserPage({ token }) {
   const joinDate = fmtJoinDate(profile?.created_at || profile?.joined_at || data?.created_at || data?.joined_at || data?.createdAt);
   const bio = profile?.bio || profile?.about || data?.bio || data?.about || "";
   const displayName = data?.name || data?.full_name || data?.username || username;
+  const achievements = Array.isArray(data?.achievements) ? data.achievements : [];
 
   const topFriends = Array.isArray(data?.top_friends)
     ? data.top_friends
@@ -362,6 +365,34 @@ export default function PublicUserPage({ token }) {
                 {heroCta ? <div className="mt-5">{heroCta}</div> : null}
               </div>
             ) : (
+              <>
+              {/* achievements */}
+              {achievements.length > 0 && (
+                <Card className="mt-6 p-6">
+                  <div className="flex items-center gap-2">
+                    <Award className="h-5 w-5 text-gold-500" />
+                    <div className="font-display text-lg font-extrabold text-slate-800">Achievements</div>
+                    <span className="ml-1 rounded-full bg-gold-100 px-2 py-0.5 text-xs font-extrabold text-gold-600">{achievements.length}</span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {achievements.map((a) => {
+                      const Icon = ACH_ICON[a.icon] || Star;
+                      return (
+                        <div key={a.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 ring-1 ring-gold-200">
+                          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-500 text-white shadow-[0_3px_0_0_#B45309]">
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate font-display text-sm font-extrabold text-slate-800">{a.title}</div>
+                            <div className="truncate text-xs font-semibold text-slate-500">{a.desc}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
+
               <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* activity */}
                 <div className="lg:col-span-2">
@@ -447,6 +478,7 @@ export default function PublicUserPage({ token }) {
                   )}
                 </div>
               </div>
+              </>
             )}
           </>
         )}
