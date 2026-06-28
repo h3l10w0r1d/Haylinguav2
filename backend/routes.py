@@ -4614,11 +4614,13 @@ def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[d
         text(
             """
             WITH totals AS (
-              SELECT u.id, u.username, u.display_name,
+              SELECT u.id, u.username,
+                     COALESCE(NULLIF(u.display_name, ''), NULLIF(u.username, ''), split_part(u.email, '@', 1)) AS display_name,
+                     u.avatar_url,
                      COALESCE(SUM(lp.xp_earned), 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.username, u.display_name
+              GROUP BY u.id, u.username, u.display_name, u.email, u.avatar_url
             ), ranks AS (
               SELECT id,
                      RANK() OVER (ORDER BY total_xp DESC, id ASC) AS global_rank
@@ -4630,9 +4632,9 @@ def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[d
                      END AS fid
               FROM friends f
               WHERE (f.user_id = :uid OR f.friend_id = :uid)
-               
+
             )
-            SELECT t.username, t.display_name, r.global_rank
+            SELECT t.username, t.display_name, t.avatar_url, t.total_xp AS xp, r.global_rank
             FROM friend_ids fi
             JOIN totals t ON t.id = fi.fid
             JOIN ranks r ON r.id = fi.fid
@@ -4743,7 +4745,7 @@ def get_public_user(
           GROUP BY lp.user_id
         )
         SELECT u.username,
-               COALESCE(u.display_name, u.username) AS display_name,
+               COALESCE(NULLIF(u.display_name, ''), NULLIF(u.username, ''), split_part(u.email, '@', 1)) AS display_name,
                u.avatar_url,
                COALESCE(xp.xp, 0) AS xp
         FROM fr

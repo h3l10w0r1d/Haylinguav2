@@ -405,28 +405,35 @@ export default function PublicUserPage({ token }) {
                         </div>
                       ) : (
                         <div className="mt-4 space-y-2">
-                          {topFriends.slice(0, 5).map((f) => {
+                          {topFriends.slice(0, 5).map((f, idx) => {
                             const fAvatar = resolveUrl(f.avatar_url || f.avatar);
                             const fXp = f.total_xp ?? f.xp ?? 0;
+                            const fName = f.display_name || f.name || f.username || "Learner";
+                            const fHandle = String(f.username || "").trim();
+                            const clickable = !!fHandle;
+                            const Tag = clickable ? "button" : "div";
                             return (
-                              <button
-                                key={f.username}
-                                onClick={() => navigate(`/u/${encodeURIComponent(f.username)}`)}
-                                className="flex w-full items-center gap-3 rounded-2xl bg-white p-2.5 text-left ring-1 ring-slate-200 transition hover:bg-slate-50 hover:ring-brand-200"
+                              <Tag
+                                key={fHandle || idx}
+                                {...(clickable ? { onClick: () => navigate(`/u/${encodeURIComponent(fHandle)}`) } : {})}
+                                className={
+                                  "flex w-full items-center gap-3 rounded-2xl bg-white p-2.5 text-left ring-1 ring-slate-200 " +
+                                  (clickable ? "transition hover:bg-slate-50 hover:ring-brand-200" : "")
+                                }
                               >
                                 <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-50 font-display text-sm font-extrabold text-brand-600">
                                   {fAvatar ? (
                                     <img src={fAvatar} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                                   ) : (
-                                    String(f.name || f.username || "?")[0]?.toUpperCase()
+                                    String(fName)[0]?.toUpperCase()
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="truncate text-sm font-extrabold text-slate-800">{f.name || f.username}</div>
-                                  <div className="truncate text-xs font-semibold text-slate-400">@{f.username}</div>
+                                  <div className="truncate text-sm font-extrabold text-slate-800">{fName}</div>
+                                  {fHandle ? <div className="truncate text-xs font-semibold text-slate-400">@{fHandle}</div> : null}
                                 </div>
                                 <div className="shrink-0 font-display text-xs font-extrabold text-slate-400">{fXp} XP</div>
-                              </button>
+                              </Tag>
                             );
                           })}
                         </div>
