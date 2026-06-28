@@ -702,8 +702,20 @@ def _compute_streak_days(db: Connection, user_id: int) -> int:
         return 0
 
     today = datetime.utcnow().date()
+    yesterday = today - timedelta(days=1)
+
+    # The streak stays "alive" through all of today as long as the user practiced
+    # today OR yesterday — it only breaks once a full day passes with no activity.
+    # Anchor the count at the most recent active day (today if present, else
+    # yesterday) so the number doesn't drop to 0 every morning before practice.
+    if today in days:
+        cur = today
+    elif yesterday in days:
+        cur = yesterday
+    else:
+        return 0
+
     streak = 0
-    cur = today
     while cur in days:
         streak += 1
         cur = cur - timedelta(days=1)
