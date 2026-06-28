@@ -15,6 +15,7 @@ from middleware.rate_limit import RateLimitMiddleware
 from routes import router as api_router
 from routes_audio import router as audio_router  # NEW: Audio management
 from db_utils import seed_alphabet_lessons
+from seed_curriculum import seed_curriculum
 from ensure_schema import ensure_schema
 from lesson_analytics import router as lesson_analytics_router
 from routes_seo import router as seo_router
@@ -145,6 +146,10 @@ app.add_middleware(
 def on_startup():
     if os.getenv("SEED_ON_STARTUP", "false").lower() == "true":
         seed_alphabet_lessons()
+        try:
+            seed_curriculum()
+        except Exception as e:
+            print(f"[seed_curriculum] failed: {e}")
 
 
 @app.get("/health")
