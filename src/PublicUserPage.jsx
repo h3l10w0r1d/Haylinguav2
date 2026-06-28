@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Trophy, Flame, BookOpen, Users, Loader2, Lock, UserPlus, Check, Clock } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 
 // IMPORTANT:
@@ -12,94 +13,20 @@ const API_BASE =
 
 function isSafeGradient(v) {
   const s = String(v || "").trim();
-  return (
-    s.startsWith("linear-gradient(") ||
-    s.startsWith("radial-gradient(") ||
-    s.startsWith("conic-gradient(")
-  );
+  return s.startsWith("linear-gradient(") || s.startsWith("radial-gradient(") || s.startsWith("conic-gradient(");
 }
 
-function resolveProfileBackground({ themeBg, themeGradient }) {
-  const bg = String(themeBg || "").trim() || "#fff7ed";
+// The hero banner uses the learner's chosen theme (image > gradient > apricot
+// default). The page itself stays light & on-brand so it always looks crisp,
+// regardless of which theme the learner picked.
+function resolveBannerBackground({ themeBg, themeGradient }) {
   const g = String(themeGradient || "").trim();
   if (g && isSafeGradient(g)) return g;
-  return bg;
+  const bg = String(themeBg || "").trim();
+  if (bg) return bg;
+  return "linear-gradient(135deg,#FFB066,#E85F00)";
 }
 
-function parseHexColor(input) {
-  const s = String(input || "").trim();
-  const hex = s.startsWith("#") ? s.slice(1) : s;
-  if (![3, 6, 8].includes(hex.length)) return null;
-  const expand = (h) => (h.length === 1 ? `${h}${h}` : h);
-  const r = expand(hex.slice(0, hex.length === 3 ? 1 : 2));
-  const g = expand(hex.slice(hex.length === 3 ? 1 : 2, hex.length === 3 ? 2 : 4));
-  const b = expand(hex.slice(hex.length === 3 ? 2 : 3, hex.length === 3 ? 3 : 6));
-  const rr = parseInt(r, 16);
-  const gg = parseInt(g, 16);
-  const bb = parseInt(b, 16);
-  if ([rr, gg, bb].some((v) => Number.isNaN(v))) return null;
-  return { r: rr, g: gg, b: bb };
-}
-
-function parseRgbColor(input) {
-  const s = String(input || "").trim().toLowerCase();
-  const m = s.match(/^rgba?\(([^)]+)\)$/);
-  if (!m) return null;
-  const parts = m[1]
-    .split(",")
-    .map((x) => x.trim())
-    .slice(0, 3)
-    .map((x) => Number(x));
-  if (parts.length !== 3 || parts.some((v) => !Number.isFinite(v))) return null;
-  return { r: parts[0], g: parts[1], b: parts[2] };
-}
-
-function relativeLuminance({ r, g, b }) {
-  const srgb = [r, g, b].map((v) => {
-    const x = v / 255;
-    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
-}
-
-function pickThemeVars(pageBg, isGradient) {
-  if (isGradient) {
-    return {
-      "--hl-card-bg": "rgba(255,255,255,0.78)",
-      "--hl-card-border": "rgba(15,23,42,0.10)",
-      "--hl-text": "#0f172a",
-      "--hl-muted": "rgba(15,23,42,0.65)",
-      "--hl-soft": "rgba(15,23,42,0.08)",
-      "--hl-hero-overlay": "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(255,255,255,0.85) 55%, rgba(255,255,255,1) 100%)",
-    };
-  }
-
-  const rgb = parseHexColor(pageBg) || parseRgbColor(pageBg);
-  const lum = rgb ? relativeLuminance(rgb) : 0.9;
-  const isDark = lum < 0.42;
-
-  if (isDark) {
-    return {
-      "--hl-card-bg": "rgba(15,23,42,0.62)",
-      "--hl-card-border": "rgba(248,250,252,0.14)",
-      "--hl-text": "#f8fafc",
-      "--hl-muted": "rgba(248,250,252,0.72)",
-      "--hl-soft": "rgba(248,250,252,0.14)",
-      "--hl-hero-overlay": "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(2,6,23,0.65) 55%, rgba(2,6,23,0.88) 100%)",
-    };
-  }
-
-  return {
-    "--hl-card-bg": "rgba(255,255,255,0.78)",
-    "--hl-card-border": "rgba(15,23,42,0.10)",
-    "--hl-text": "#0f172a",
-    "--hl-muted": "rgba(15,23,42,0.65)",
-    "--hl-soft": "rgba(15,23,42,0.08)",
-    "--hl-hero-overlay": "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(255,255,255,0.85) 55%, rgba(255,255,255,1) 100%)",
-  };
-}
-
-// FIX: resolveUrl must handle /static/ (backend) vs /banners/ (frontend preset) correctly
 function resolveUrl(url) {
   if (!url) return "";
   const s = String(url).trim();
@@ -107,14 +34,11 @@ function resolveUrl(url) {
   if (/^https?:\/\//i.test(s)) return s;
   if (s.startsWith("data:")) return s;
   if (s.startsWith("blob:")) return s;
-  // Backend-hosted media — must be absolute
   if (s.startsWith("/static/")) return `${API_BASE}${s}`;
   if (s.startsWith("static/")) return `${API_BASE}/${s}`;
   if (s.startsWith("/uploads/")) return `${API_BASE}${s}`;
   if (s.startsWith("uploads/")) return `${API_BASE}/${s}`;
-  // Frontend preset banners served from Vercel — keep relative
   if (s.startsWith("/banners/") || s.startsWith("banners/")) return s.startsWith("/") ? s : `/${s}`;
-  // Any other absolute path — relative to current origin
   if (s.startsWith("/")) return s;
   return s;
 }
@@ -148,61 +72,25 @@ function normalizeFriendshipStatus(raw) {
   const s = String(raw || "none").toLowerCase().trim();
   if (["self", "me"].includes(s)) return "self";
   if (["friends", "friend", "accepted", "connected"].includes(s)) return "friends";
-  if (["incoming_pending", "incoming", "pending_in", "request_received", "received"].includes(s))
-    return "incoming_pending";
-  if (["outgoing_pending", "outgoing", "pending_out", "requested", "sent"].includes(s))
-    return "outgoing_pending";
+  if (["incoming_pending", "incoming", "pending_in", "request_received", "received"].includes(s)) return "incoming_pending";
+  if (["outgoing_pending", "outgoing", "pending_out", "requested", "sent"].includes(s)) return "outgoing_pending";
   return "none";
 }
 
-function StatCard({ label, value }) {
+function StatTile({ icon: Icon, label, value, tone }) {
   return (
-    <div
-      className="rounded-2xl border px-5 py-4 shadow-sm backdrop-blur"
-      style={{ background: "var(--hl-card-bg)", borderColor: "var(--hl-card-border)" }}
-    >
-      <div className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--hl-muted)" }}>
-        {label}
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+      <div className={"grid h-9 w-9 place-items-center rounded-xl " + tone}>
+        <Icon className="h-5 w-5" />
       </div>
-      <div className="mt-1 font-display text-2xl font-extrabold" style={{ color: "var(--hl-text)" }}>
-        {value}
-      </div>
+      <div className="mt-2 font-display text-2xl font-extrabold tabular-nums text-slate-800">{value}</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
     </div>
   );
 }
 
 function Card({ className = "", children }) {
-  return (
-    <div
-      className={`rounded-3xl border shadow-sm backdrop-blur ${className}`}
-      style={{ background: "var(--hl-card-bg)", borderColor: "var(--hl-card-border)" }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Button({ variant = "primary", disabled, onClick, children }) {
-  if (variant === "neutral") {
-    return (
-      <button
-        disabled={disabled}
-        onClick={onClick}
-        className="btn3d btn3d-neutral text-sm uppercase"
-      >
-        {children}
-      </button>
-    );
-  }
-  return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      className="btn3d btn3d-brand text-sm uppercase"
-    >
-      {children}
-    </button>
-  );
+  return <div className={`rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm ${className}`}>{children}</div>;
 }
 
 export default function PublicUserPage({ token }) {
@@ -226,7 +114,6 @@ export default function PublicUserPage({ token }) {
         );
         if (!cancelled) setData(json);
 
-        // Also load weekly activity for the public profile (same card as private).
         try {
           const a = await fetchJsonOrThrow(
             `${API_BASE}/users/${encodeURIComponent(username)}/activity/last7days`,
@@ -261,18 +148,6 @@ export default function PublicUserPage({ token }) {
   const stats = data?.stats || data?.user_stats || data?.public_stats || {};
 
   const profileTheme = profile?.profile_theme || data?.profile_theme || {};
-  const pageBg = resolveProfileBackground({
-    themeBg: profileTheme.background || profile?.bg_color || "#fff7ed",
-    themeGradient: profileTheme.gradient || "",
-  });
-  const isGradientBg = isSafeGradient(pageBg);
-  const themeVars = useMemo(() => pickThemeVars(pageBg, isGradientBg), [pageBg, isGradientBg]);
-  const headerBg =
-    profileTheme.header_background ||
-    (isSafeGradient(profileTheme.gradient) ? profileTheme.gradient : null) ||
-    "linear-gradient(135deg, rgba(255,122,0,.25), rgba(255,122,0,.05))";
-
-  // FIX: banner_url — check every field the backend might return it under
   const bannerUrl = resolveUrl(
     profile?.banner_url ||
       data?.banner_url ||
@@ -281,14 +156,12 @@ export default function PublicUserPage({ token }) {
       data?.profile_theme?.banner_url ||
       data?.profile_theme?.banner
   );
+  const bannerBg = resolveBannerBackground({
+    themeBg: profileTheme.background || profile?.bg_color || "",
+    themeGradient: profileTheme.header_background || profileTheme.gradient || "",
+  });
 
-  // FIX: avatar_url — check every field
-  const avatarUrl = resolveUrl(
-    profile?.avatar_url ||
-      profile?.avatar ||
-      data?.avatar_url ||
-      data?.avatar
-  );
+  const avatarUrl = resolveUrl(profile?.avatar_url || profile?.avatar || data?.avatar_url || data?.avatar);
 
   const totalXp = useMemo(() => {
     const v = stats?.total_xp ?? stats?.xp ?? profile?.total_xp ?? profile?.xp ?? data?.total_xp ?? data?.xp ?? 0;
@@ -299,17 +172,11 @@ export default function PublicUserPage({ token }) {
     return Number.isFinite(Number(v)) ? Number(v) : 0;
   }, [data, profile, stats]);
   const streak = useMemo(() => {
-    const v = stats?.streak ?? profile?.streak ?? data?.streak ?? 1;
+    const v = stats?.streak ?? profile?.streak ?? data?.streak ?? 0;
     return Number.isFinite(Number(v)) ? Number(v) : 0;
   }, [data, profile, stats]);
   const friendsCount = useMemo(() => {
-    const v =
-      stats?.friends_count ??
-      profile?.friends_count ??
-      profile?.friends ??
-      data?.friends_count ??
-      data?.friends ??
-      0;
+    const v = stats?.friends_count ?? profile?.friends_count ?? profile?.friends ?? data?.friends_count ?? data?.friends ?? 0;
     return Number.isFinite(Number(v)) ? Number(v) : 0;
   }, [data, profile, stats]);
   const level = useMemo(() => {
@@ -320,6 +187,7 @@ export default function PublicUserPage({ token }) {
 
   const joinDate = fmtJoinDate(profile?.created_at || profile?.joined_at || data?.created_at || data?.joined_at || data?.createdAt);
   const bio = profile?.bio || profile?.about || data?.bio || data?.about || "";
+  const displayName = data?.name || data?.full_name || data?.username || username;
 
   const topFriends = Array.isArray(data?.top_friends)
     ? data.top_friends
@@ -331,11 +199,7 @@ export default function PublicUserPage({ token }) {
 
   const relationship = String(data?.friendship || profile?.friendship || "none").toLowerCase();
   const friendRequestId =
-    data?.friend_request_id ??
-    profile?.friend_request_id ??
-    data?.friendship?.request_id ??
-    data?.friendship?.id ??
-    null;
+    data?.friend_request_id ?? profile?.friend_request_id ?? data?.friendship?.request_id ?? data?.friendship?.id ?? null;
   const friendStatus = normalizeFriendshipStatus(relationship);
   const canFriendActions = Boolean(token) && relationship !== "self" && data?.is_self !== true;
 
@@ -362,14 +226,10 @@ export default function PublicUserPage({ token }) {
     setActionBusy(true);
     try {
       let res;
-
       if (kind === "request") {
         res = await fetch(`${API_BASE}/friends/request`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify({ query: String(data.username || username || "").trim() }),
         });
       } else if (kind === "accept") {
@@ -387,7 +247,6 @@ export default function PublicUserPage({ token }) {
 
       if (!res) return;
       if (!res.ok) throw new Error(`Friend action failed (${res.status})`);
-      // reload
       const refreshed = await fetchJsonOrThrow(
         `${API_BASE}/users/${encodeURIComponent(username)}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -402,219 +261,188 @@ export default function PublicUserPage({ token }) {
 
   const heroCta = useMemo(() => {
     if (!canFriendActions) return null;
-
     if (friendStatus === "incoming_pending") {
       return (
-        <Button disabled={actionBusy} onClick={() => friendAction("accept")}>Confirm request</Button>
+        <button disabled={actionBusy} onClick={() => friendAction("accept")} className="btn3d btn3d-brand text-sm uppercase inline-flex items-center gap-2">
+          <Check className="h-4 w-4" /> Confirm request
+        </button>
       );
     }
-
     if (friendStatus === "outgoing_pending") {
       return (
-        <Button variant="neutral" disabled>Request sent</Button>
+        <button disabled className="btn3d btn3d-neutral text-sm uppercase inline-flex items-center gap-2">
+          <Clock className="h-4 w-4" /> Request sent
+        </button>
       );
     }
-
     if (friendStatus === "friends") {
       return (
-        <Button variant="neutral" disabled={actionBusy} onClick={() => friendAction("remove")}>Friends ✓</Button>
+        <button disabled={actionBusy} onClick={() => friendAction("remove")} className="btn3d btn3d-neutral text-sm uppercase inline-flex items-center gap-2">
+          <Check className="h-4 w-4 text-grass-500" /> Friends
+        </button>
       );
     }
-
     return (
-      <Button disabled={actionBusy} onClick={() => friendAction("request")}>Add friend</Button>
+      <button disabled={actionBusy} onClick={() => friendAction("request")} className="btn3d btn3d-brand text-sm uppercase inline-flex items-center gap-2">
+        <UserPlus className="h-4 w-4" /> Add friend
+      </button>
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canFriendActions, friendStatus, actionBusy, data, token, username]);
 
   const friendsCountDisplay = (!isPrivateView && canSeeFriendsSection) ? friendsCount : "—";
 
   return (
-    <div style={{ background: pageBg, ...themeVars }}>
-      <div className="min-h-[calc(100vh-64px)]" style={{ background: pageBg }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         {loading ? (
-          <div style={{ color: "var(--hl-muted)" }}>Loading…</div>
+          <div className="flex items-center justify-center gap-2 py-24 text-slate-500">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="font-semibold">Loading profile…</span>
+          </div>
         ) : err ? (
           <div className="rounded-2xl bg-cardinal-50 px-4 py-3 font-semibold text-cardinal-600 ring-1 ring-cardinal-100">{err}</div>
         ) : !data ? (
-          <div style={{ color: "var(--hl-muted)" }}>User not found.</div>
+          <div className="rounded-3xl bg-white p-12 text-center font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm">User not found.</div>
         ) : (
           <>
-            {/* HERO */}
-            <div className="relative rounded-3xl overflow-hidden" style={{ background: headerBg }}>
-              {bannerUrl ? (
-                <div className="h-44 sm:h-56 md:h-64 bg-center bg-cover" style={{ backgroundImage: `url(${bannerUrl})` }} />
-              ) : (
-                <div className="h-32 sm:h-40 md:h-48" />
-              )}
+            {/* ============ HERO ============ */}
+            <div className="overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm">
+              <div
+                className="relative h-40 md:h-52 bg-cover bg-center"
+                style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : { background: bannerBg }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+              </div>
 
-              <div className="absolute inset-0 pointer-events-none" style={{ background: "var(--hl-hero-overlay)" }} />
-
-              <div className="relative px-5 sm:px-7 pb-8 pt-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="px-5 pb-6 md:px-8">
+                <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex items-end gap-4">
-                    <div
-                      className="-mt-16 sm:-mt-20 w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden shadow-sm"
-                      style={{ background: "rgba(255,255,255,0.20)", border: `2px solid var(--hl-soft)` }}
-                    >
+                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-white ring-4 ring-white shadow-md">
                       {avatarUrl ? (
-                        <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover"
-                          onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                        <img src={avatarUrl} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                       ) : (
-                        <div className="w-full h-full grid place-items-center text-sm" style={{ color: "var(--hl-muted)" }}>
-                          No avatar
+                        <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600">
+                          {String(displayName || "H")[0]?.toUpperCase()}
                         </div>
                       )}
                     </div>
-
                     <div className="pb-1">
-                      <div className="font-display text-3xl font-extrabold sm:text-4xl" style={{ color: "var(--hl-text)" }}>
-                        {data.name || data.full_name || data.username}
-                      </div>
-                      <div className="text-sm font-semibold" style={{ color: "var(--hl-muted)" }}>
+                      <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800 sm:text-3xl">{displayName}</h1>
+                      <div className="text-sm font-bold text-slate-400">
                         @{data.username}
-                        {joinDate ? <span className="ml-2">• Joined {joinDate}</span> : null}
+                        {joinDate ? <span className="ml-1.5">· Joined {joinDate}</span> : null}
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">{heroCta}</div>
+                  {heroCta ? <div className="flex items-center gap-2">{heroCta}</div> : null}
                 </div>
 
-                {bio ? (
-                  <div className="mt-4 max-w-3xl text-sm sm:text-base" style={{ color: "var(--hl-text)" }}>
-                    {bio}
+                {bio ? <p className="mt-4 max-w-2xl text-sm font-semibold text-slate-600">{bio}</p> : null}
+
+                {!isPrivateView && (
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <StatTile icon={Trophy} tone="bg-brand-50 text-brand-600" label="Level" value={level} />
+                    <StatTile icon={StarMotif} tone="bg-gold-100 text-gold-600" label="Total XP" value={totalXp} />
+                    <StatTile icon={Flame} tone="bg-cardinal-50 text-cardinal-500" label="Day streak" value={streak} />
+                    <StatTile icon={Users} tone="bg-feather-50 text-feather-600" label="Friends" value={friendsCountDisplay} />
                   </div>
-                ) : null}
+                )}
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                {isPrivateView ? (
+            {/* ============ BODY ============ */}
+            {isPrivateView ? (
+              <div className="mt-6 grid place-items-center rounded-3xl bg-white p-12 text-center ring-1 ring-slate-200 shadow-sm">
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+                  <Lock className="h-7 w-7" />
+                </div>
+                <div className="mt-3 font-display text-lg font-extrabold text-slate-800">This profile is private</div>
+                <p className="mt-1 max-w-sm font-semibold text-slate-500">Send a friend request to see {displayName}'s learning stats and activity.</p>
+                {heroCta ? <div className="mt-5">{heroCta}</div> : null}
+              </div>
+            ) : (
+              <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {/* activity */}
+                <div className="lg:col-span-2">
                   <Card className="p-6">
-                    <div className="font-display text-lg font-extrabold" style={{ color: "var(--hl-text)" }}>
-                      This profile is private
-                    </div>
-                    <div className="mt-2 text-sm font-semibold" style={{ color: "var(--hl-muted)" }}>
-                      Send a friend request to view learning stats and activity.
-                    </div>
-                  </Card>
-                ) : (
-                  <Card className="p-6">
-                    <div>
-                      <div className="font-display text-lg font-extrabold" style={{ color: "var(--hl-text)" }}>
-                        Recent learning activity
-                      </div>
-                      <div className="text-sm font-semibold" style={{ color: "var(--hl-muted)" }}>
-                        Exercises completed in the last 7 days
-                      </div>
-                    </div>
-
+                    <div className="font-display text-lg font-extrabold text-slate-800">Recent learning activity</div>
+                    <div className="text-sm font-semibold text-slate-500">Exercises completed in the last 7 days</div>
                     {!activity?.days ? (
-                      <div className="mt-4 text-sm font-semibold" style={{ color: "var(--hl-muted)" }}>
-                        No activity data yet.
+                      <div className="mt-6 grid place-items-center rounded-2xl bg-slate-50 py-10 text-sm font-semibold text-slate-400 ring-1 ring-slate-100">
+                        No activity to show yet.
                       </div>
                     ) : (
                       <ActivityBars days={activity.days} />
                     )}
+                    <div className="mt-5 flex items-center gap-2 rounded-2xl bg-grass-50 px-4 py-2.5 ring-1 ring-grass-100">
+                      <BookOpen className="h-4 w-4 text-grass-600" />
+                      <span className="text-sm font-bold text-slate-600">Lessons completed</span>
+                      <span className="ml-auto font-display text-sm font-extrabold text-slate-800">{lessonsCompleted}</span>
+                    </div>
                   </Card>
-                )}
-              </div>
+                </div>
 
-              <div className="space-y-6">
-                <Card className="p-6">
-                  <div className="text-lg font-semibold" style={{ color: "var(--hl-text)" }}>
-                    Stats
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <StatCard label="Total XP" value={isPrivateView ? "—" : totalXp} />
-                    <StatCard label="Level" value={isPrivateView ? "—" : level} />
-                    <StatCard label="Streak" value={isPrivateView ? "—" : streak} />
-                    <StatCard label="Friends" value={friendsCountDisplay} />
-                  </div>
-                  {!isPrivateView ? (
-                    <div className="mt-4 text-sm" style={{ color: "var(--hl-muted)" }}>
-                      Lessons completed: <span style={{ color: "var(--hl-text)" }}>{lessonsCompleted}</span>
-                    </div>
-                  ) : null}
-                </Card>
-
-                {!isPrivateView && canSeeFriendsSection ? (
-                  <Card className="p-6">
-                    <div className="flex items-end justify-between gap-4">
-                      <div>
-                        <div className="text-lg font-semibold" style={{ color: "var(--hl-text)" }}>
-                          Friends
+                {/* friends */}
+                <div className="space-y-6">
+                  {canSeeFriendsSection ? (
+                    <Card className="p-6">
+                      <div className="flex items-end justify-between gap-4">
+                        <div>
+                          <div className="font-display text-lg font-extrabold text-slate-800">Friends</div>
+                          <div className="text-sm font-semibold text-slate-500">A peek at top friends</div>
                         </div>
-                        <div className="text-sm" style={{ color: "var(--hl-muted)" }}>
-                          A quick peek at top friends
-                        </div>
+                        {isSelf ? (
+                          <button onClick={() => navigate("/friends")} className="text-sm font-extrabold text-brand-600 hover:text-brand-700">
+                            View all
+                          </button>
+                        ) : null}
                       </div>
-                      <button
-                        onClick={() => navigate("/friends")}
-                        className="text-sm font-semibold hover:opacity-90"
-                        style={{ color: "var(--hl-text)" }}
-                      >
-                        View all
-                      </button>
-                    </div>
 
-                    {topFriends.length === 0 ? (
-                      <div className="mt-4 text-sm" style={{ color: "var(--hl-muted)" }}>
-                        No friends yet.
-                      </div>
-                    ) : (
-                      <div className="mt-4 space-y-3">
-                        {topFriends.slice(0, 3).map((f) => {
-                          const fAvatar = resolveUrl(f.avatar_url || f.avatar);
-                          const fXp = f.total_xp ?? f.xp ?? 0;
-                          return (
-                            <button
-                              key={f.username}
-                              onClick={() => navigate(`/u/${encodeURIComponent(f.username)}`)}
-                              className="w-full text-left rounded-2xl border p-3 transition hover:-translate-y-0.5"
-                              style={{ background: "rgba(255,255,255,0.08)", borderColor: "var(--hl-soft)" }}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-10 h-10 rounded-xl overflow-hidden grid place-items-center"
-                                  style={{ background: "rgba(255,255,255,0.10)", border: `1px solid var(--hl-soft)` }}
-                                >
+                      {topFriends.length === 0 ? (
+                        <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400 ring-1 ring-slate-100">
+                          No friends to show yet.
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-2">
+                          {topFriends.slice(0, 5).map((f) => {
+                            const fAvatar = resolveUrl(f.avatar_url || f.avatar);
+                            const fXp = f.total_xp ?? f.xp ?? 0;
+                            return (
+                              <button
+                                key={f.username}
+                                onClick={() => navigate(`/u/${encodeURIComponent(f.username)}`)}
+                                className="flex w-full items-center gap-3 rounded-2xl bg-white p-2.5 text-left ring-1 ring-slate-200 transition hover:bg-slate-50 hover:ring-brand-200"
+                              >
+                                <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-50 font-display text-sm font-extrabold text-brand-600">
                                   {fAvatar ? (
-                                    <img src={fAvatar} alt="" className="w-full h-full object-cover"
-                                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                                    <img src={fAvatar} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                                   ) : (
-                                    <div className="text-xs" style={{ color: "var(--hl-muted)" }}>
-                                      —
-                                    </div>
+                                    String(f.name || f.username || "?")[0]?.toUpperCase()
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="font-semibold truncate" style={{ color: "var(--hl-text)" }}>
-                                    {f.name || f.username}
-                                  </div>
-                                  <div className="text-sm truncate" style={{ color: "var(--hl-muted)" }}>
-                                    @{f.username}
-                                  </div>
+                                  <div className="truncate text-sm font-extrabold text-slate-800">{f.name || f.username}</div>
+                                  <div className="truncate text-xs font-semibold text-slate-400">@{f.username}</div>
                                 </div>
-                                <div className="text-sm" style={{ color: "var(--hl-muted)" }}>
-                                  {fXp} XP
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </Card>
-                ) : null}
+                                <div className="shrink-0 font-display text-xs font-extrabold text-slate-400">{fXp} XP</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Card>
+                  ) : (
+                    <Card className="p-6 text-center">
+                      <div className="font-display font-extrabold text-slate-800">Friends are private</div>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">{displayName} keeps their friends list private.</p>
+                    </Card>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
-        </div>
       </div>
     </div>
   );
@@ -635,30 +463,21 @@ function ActivityBars({ days }) {
 
   return (
     <div className="mt-5">
-      <div className="flex items-end gap-3 h-28">
+      <div className="flex h-28 items-end gap-3">
         {normalized.map((x) => {
-          const h = Math.round((x.v / maxV) * 88);
+          const h = Math.round((x.v / maxV) * 80);
           return (
-            <div key={x.key} className="flex flex-col items-center gap-2 flex-1">
+            <div key={x.key} className="flex flex-1 flex-col items-center gap-2">
               <div className="w-full max-w-[46px]">
-                <div
-                  className="relative h-20 w-full rounded-2xl overflow-hidden border"
-                  style={{ background: "rgba(255,255,255,0.10)", borderColor: "var(--hl-soft)" }}
-                >
+                <div className="relative h-20 w-full overflow-hidden rounded-2xl bg-brand-50 ring-1 ring-brand-100">
                   <div
-                    className="absolute bottom-0 left-0 right-0 rounded-2xl"
-                    style={{
-                      height: `${allZero ? 8 : Math.max(8, h)}px`,
-                      background:
-                        "linear-gradient(180deg, rgba(252,114,41,.95), rgba(252,76,48,.75))",
-                    }}
+                    className="absolute inset-x-0 bottom-0 rounded-2xl bg-gradient-to-t from-brand-600 to-brand-400"
+                    style={{ height: `${allZero ? 8 : Math.max(8, h)}px` }}
                     title={`${x.label}: ${x.v}`}
                   />
                 </div>
               </div>
-              <div className="text-[11px]" style={{ color: "var(--hl-muted)" }}>
-                {x.label}
-              </div>
+              <div className="text-[11px] font-bold text-slate-500">{x.label}</div>
             </div>
           );
         })}
