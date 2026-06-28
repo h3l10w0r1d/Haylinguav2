@@ -1,7 +1,7 @@
 // src/Leaderboard.jsx — Duolingo-style weekly leagues + a friends board.
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowUp, ArrowDown, Loader2, Clock } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { ArrowUp, ArrowDown, Loader2, Clock, ChevronRight } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import grandma from "./assets/character-grandma.png";
 
@@ -96,8 +96,12 @@ function Avatar({ name, url }) {
 }
 
 function Row({ entry }) {
-  return (
-    <div className={"flex items-center gap-3 rounded-2xl px-3 py-2.5 " + (entry.is_self ? "bg-brand-50" : "")}>
+  // Link to the learner's public profile (own row → settings). Rows without a
+  // username (no public page) stay non-clickable.
+  const to = entry.is_self ? "/profile" : entry.username ? `/u/${encodeURIComponent(entry.username)}` : null;
+
+  const inner = (
+    <>
       <RankBadge rank={entry.rank} />
       <Avatar name={entry.name} url={entry.avatar_url} />
       <div className="min-w-0 flex-1">
@@ -108,7 +112,17 @@ function Row({ entry }) {
       <div className={"font-display text-sm font-extrabold " + (entry.is_self ? "text-brand-600" : "text-slate-400")}>
         {entry.weekly_xp} XP
       </div>
-    </div>
+      {to ? <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" /> : null}
+    </>
+  );
+
+  const base = "flex items-center gap-3 rounded-2xl px-3 py-2.5 " + (entry.is_self ? "bg-brand-50" : "");
+
+  if (!to) return <div className={base}>{inner}</div>;
+  return (
+    <Link to={to} className={base + " transition hover:bg-slate-50 active:scale-[0.99]"}>
+      {inner}
+    </Link>
   );
 }
 
