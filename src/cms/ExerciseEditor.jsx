@@ -18,7 +18,10 @@ const KIND_OPTIONS = [
   { value: "word_spelling", label: "Spell word (word_spelling)" },
 
   { value: "fill_blank", label: "Fill blank (fill_blank)" },
+  { value: "select_missing_word", label: "Complete the sentence (select_missing_word)" },
   { value: "translate_mcq", label: "Translate MCQ (translate_mcq)" },
+  { value: "word_bank", label: "Translate — word bank (word_bank)" },
+  { value: "listen_type", label: "Listen & type (listen_type)" },
   { value: "true_false", label: "True/False (true_false)" },
   { value: "sentence_order", label: "Sentence order (sentence_order)" },
   { value: "match_pairs", label: "Match pairs (match_pairs)" },
@@ -237,6 +240,17 @@ function defaultConfigForKind(kind) {
 
     case "speak":
       return { acceptedAnswers: [], language_code: "hye" };
+
+    case "listen_type":
+      return { ttsText: "Բարև", acceptedAnswers: [], hint: "" };
+    case "word_bank":
+      return {
+        sentence: "Hello, how are you?",
+        tiles: ["Բարև", "ինչպես", "ես", "դու", "շնորհակալ"],
+        solution: ["Բարև", "ինչպես", "ես"],
+      };
+    case "select_missing_word":
+      return { before: "Ես", after: "ուսանող", choices: ["եմ", "ես", "է"], answerIndex: 0 };
 
     default:
       return {};
@@ -744,6 +758,75 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           <div className="text-xs font-semibold text-slate-500">
             This saves as <code className="px-1 rounded bg-slate-100 text-slate-700">config.correctIndices</code>.
           </div>
+        </div>
+      );
+    }
+
+    // listen_type (dictation): hear audio, type what you heard
+    if (kind === "listen_type") {
+      const accepted = Array.isArray(cfg.acceptedAnswers) ? cfg.acceptedAnswers : [];
+      return (
+        <div className="space-y-4">
+          <Field label="Text spoken & expected" hint="The student hears this (TTS / recording) and must type it back.">
+            <Input value={cfg.ttsText ?? ""} onChange={(e) => patchConfig({ ttsText: e.target.value })} placeholder="Բարև Ձեզ" />
+          </Field>
+          <Field label="Also accept (optional)" hint="Comma-separated alternative spellings that should also count.">
+            <Input
+              value={accepted.join(", ")}
+              onChange={(e) => patchConfig({ acceptedAnswers: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+              placeholder="բարև, ողջույն"
+            />
+          </Field>
+          <Field label="Hint (optional)">
+            <Input value={cfg.hint ?? ""} onChange={(e) => patchConfig({ hint: e.target.value })} />
+          </Field>
+          <div className="text-xs font-semibold text-slate-500">Add a recording or generate AI audio below so the student can listen.</div>
+        </div>
+      );
+    }
+
+    // word_bank: translate by tapping word tiles (with distractors)
+    if (kind === "word_bank") {
+      const tiles = Array.isArray(cfg.tiles) ? cfg.tiles : [];
+      const solution = Array.isArray(cfg.solution) ? cfg.solution : [];
+      return (
+        <div className="space-y-4">
+          <Field label="Sentence to translate" hint="Shown above the word bank (e.g. the English prompt).">
+            <Input value={cfg.sentence ?? ""} onChange={(e) => patchConfig({ sentence: e.target.value })} placeholder="Hello, how are you?" />
+          </Field>
+          <Field label="Word tiles" hint="All tappable words — include a few distractors the student must avoid.">
+            <ChipsEditor items={tiles} onChange={(next) => patchConfig({ tiles: next })} placeholder="Add a word tile..." />
+          </Field>
+          <Field label="Correct answer (in order)" hint="The words that form the answer, in sequence. All must appear in the tiles above.">
+            <ChipsEditor items={solution} onChange={(next) => patchConfig({ solution: next })} placeholder="Add solution word in order..." />
+          </Field>
+        </div>
+      );
+    }
+
+    // select_missing_word: complete the sentence (cloze MCQ)
+    if (kind === "select_missing_word") {
+      const choices = Array.isArray(cfg.choices) ? cfg.choices : [];
+      const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : 0;
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Text before the gap">
+              <Input value={cfg.before ?? ""} onChange={(e) => patchConfig({ before: e.target.value })} placeholder="Ես" />
+            </Field>
+            <Field label="Text after the gap">
+              <Input value={cfg.after ?? ""} onChange={(e) => patchConfig({ after: e.target.value })} placeholder="ուսանող" />
+            </Field>
+          </div>
+          <Field label="Choices + correct answer" hint="The word that fills the gap.">
+            <OptionsEditor
+              choices={choices}
+              setChoices={(next) => patchConfig({ choices: next })}
+              correctIndices={[correctIndex]}
+              setCorrectIndices={(arr) => patchConfig({ answerIndex: arr?.[0] ?? 0 })}
+              mode="single"
+            />
+          </Field>
         </div>
       );
     }

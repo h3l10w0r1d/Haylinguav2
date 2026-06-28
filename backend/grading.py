@@ -149,7 +149,7 @@ def _expected_text_answers(cfg: dict, expected_answer: Any) -> List[str]:
     """Accepted free-text answers for typing/spelling/fill kinds."""
     out: List[str] = []
     _push(out, expected_answer)
-    for k in ("expected", "expectedAnswer", "expected_answer", "answer"):
+    for k in ("expected", "expectedAnswer", "expected_answer", "answer", "ttsText", "tts_text", "text"):
         _push(out, cfg.get(k))
     for k in ("answers", "acceptedAnswers", "accepted_answers"):
         arr = cfg.get(k)
@@ -202,8 +202,8 @@ def grade_attempt(
     if kind in _INFO_KINDS:
         return True
 
-    # Free-text input
-    if kind in ("letter_typing", "word_spelling", "fill_blank"):
+    # Free-text input (incl. dictation: type what you heard)
+    if kind in ("letter_typing", "word_spelling", "fill_blank", "listen_type"):
         expected = _expected_text_answers(cfg, expected_answer)
         if not expected:
             return False
@@ -263,10 +263,11 @@ def grade_attempt(
         return len(picked) > 0 and picked == cand
 
     # Single-choice MCQ variants.
-    if kind in ("translate_mcq", "char_mcq_sound", "audio_choice_tts", "multiple_choice"):
+    if kind in ("translate_mcq", "char_mcq_sound", "audio_choice_tts", "multiple_choice", "select_missing_word"):
         return _grade_single_choice(options, cfg, expected_answer, sel, answer_text)
 
-    if kind == "sentence_order":
+    # Ordered-token answers (arrange tokens / tap a word bank to build the answer).
+    if kind in ("sentence_order", "word_bank"):
         cands: List[str] = []
         sol = cfg.get("solution")
         if isinstance(sol, list):

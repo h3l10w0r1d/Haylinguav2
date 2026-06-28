@@ -1391,6 +1391,237 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   );
 }
 
+// H) listen_type — dictation: hear TTS audio, type what you heard
+function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Type what you hear";
+  const target = String(exercise?.expected_answer ?? cfg.ttsText ?? cfg.text ?? cfg.answer ?? "").trim();
+  const accepted = Array.isArray(cfg.acceptedAnswers) ? cfg.acceptedAnswers : [];
+  const hint = cfg.hint;
+
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const didAutoplay = useRef(false);
+
+  useEffect(() => {
+    setValue("");
+    didAutoplay.current = false;
+  }, [exercise?.id]);
+
+  async function play() {
+    if (!target) return;
+    try {
+      setBusy(true);
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
+      await new Audio(url).play();
+    } catch (e) {
+      console.error("TTS failed", e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!exercise?.id || !target || didAutoplay.current) return;
+    if (cfg?.autoplay === false) return;
+    didAutoplay.current = true;
+    play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
+
+  const canCheck = normalizeText(value).length > 0;
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+
+      <div className="mt-5 flex flex-col items-center">
+        <button
+          type="button"
+          onClick={play}
+          disabled={busy || !target}
+          className={
+            "grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " +
+            (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")
+          }
+          aria-label="Play audio"
+        >
+          🔊
+        </button>
+        <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
+      </div>
+
+      {hint ? <Muted className="mt-3">Hint: {hint}</Muted> : null}
+
+      <div className="mt-4">
+        <InlineInput value={value} onChange={setValue} placeholder="Type what you heard…" />
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <PrimaryButton
+          disabled={!canCheck}
+          onClick={() => {
+            const t = normalizeText(value);
+            const ok = [target, ...accepted].some((a) => {
+              const na = normalizeText(a);
+              return na && na === t;
+            });
+            if (ok) correct({ answerText: value });
+            else wrong("Not quite — listen again and try.", { answerText: value });
+          }}
+        >
+          Check
+        </PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// I) word_bank — translate by tapping word tiles (with distractors)
+function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Translate this";
+  const source = cfg.sentence ?? cfg.prompt ?? "";
+  const tiles = Array.isArray(cfg.tiles) ? cfg.tiles : [];
+  const solution = Array.isArray(cfg.solution) ? cfg.solution : [];
+
+  const [picked, setPicked] = useState([]); // [{ t, key }]
+  const [available, setAvailable] = useState([]);
+
+  useEffect(() => {
+    setPicked([]);
+    setAvailable(tiles.map((t, i) => ({ t, key: `${i}-${t}` })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
+
+  const built = picked.map((p) => p.t).join(" ");
+  const canCheck = picked.length > 0;
+
+  function add(idx) {
+    const item = available[idx];
+    if (!item) return;
+    setAvailable((a) => a.filter((_, i) => i !== idx));
+    setPicked((p) => [...p, item]);
+  }
+  function remove(idx) {
+    const item = picked[idx];
+    if (!item) return;
+    setPicked((p) => p.filter((_, i) => i !== idx));
+    setAvailable((a) => [...a, item]);
+  }
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+
+      {source ? (
+        <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
+          <div className="text-lg md:text-xl font-semibold text-slate-900">{source}</div>
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
+        {picked.length === 0 ? (
+          <Muted>Tap words to build your answer…</Muted>
+        ) : (
+          picked.map((p, i) => (
+            <Pill key={p.key} active onClick={() => remove(i)}>
+              {p.t}
+            </Pill>
+          ))
+        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {available.map((p, i) => (
+          <Pill key={p.key} onClick={() => add(i)}>
+            {p.t}
+          </Pill>
+        ))}
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <PrimaryButton
+          disabled={!canCheck}
+          onClick={() => {
+            const picks = picked.map((p) => p.t);
+            const ok =
+              solution.length === picks.length &&
+              solution.every((v, i) => normalizeText(v) === normalizeText(picks[i]));
+            const altOk = normalizeText(built) === normalizeText(solution.join(" "));
+            if (ok || altOk) correct({ answerText: built });
+            else wrong("Not quite — check the word order.", { answerText: built });
+          }}
+        >
+          Check
+        </PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// J) select_missing_word — complete the sentence (cloze multiple choice)
+function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Complete the sentence";
+  const before = cfg.before ?? exercise?.sentence_before ?? "";
+  const after = cfg.after ?? exercise?.sentence_after ?? "";
+  const choices = getChoices(exercise, cfg);
+  const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
+  const answerText = exercise?.expected_answer ?? cfg.answer ?? null;
+
+  const [sel, setSel] = useState(null);
+  useEffect(() => setSel(null), [exercise?.id]);
+
+  const canCheck = sel !== null;
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+
+      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
+        <div className="text-lg md:text-xl font-semibold text-slate-900">
+          {before}{" "}
+          <span
+            className={cx(
+              "rounded-lg px-2 py-1 ring-1",
+              sel !== null ? "bg-orange-50 text-orange-800 ring-orange-300" : "bg-white text-slate-400 ring-slate-200"
+            )}
+          >
+            {sel !== null ? (choices[sel] ?? "…") : "…"}
+          </span>{" "}
+          {after}
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} />
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <PrimaryButton
+          disabled={!canCheck}
+          onClick={() => {
+            const pick = choices[sel] ?? "";
+            const extra = { selectedIndices: [sel], answerText: pick };
+            if (correctIndex !== null) {
+              sel === correctIndex ? correct(extra) : wrong("Not quite. Try again.", extra);
+              return;
+            }
+            if (answerText && normalizeText(pick) === normalizeText(answerText)) correct(extra);
+            else wrong("Not quite. Try again.", extra);
+          }}
+        >
+          Check
+        </PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
 /* -------------------------
    Main Renderer (no hooks)
 -------------------------- */
@@ -1658,6 +1889,49 @@ export default function ExerciseRenderer({
         onSkip={onSkip}
         onAnswer={onAnswer}
         apiBaseUrl={apiBaseUrl}
+        submit={handleAnswer}
+      />
+    );
+  }
+
+  if (kind === "listen_type") {
+    return (
+      <ExListenType
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+        apiBaseUrl={apiBaseUrl}
+        submit={handleAnswer}
+      />
+    );
+  }
+
+  if (kind === "word_bank") {
+    return (
+      <ExWordBank
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
+        submit={handleAnswer}
+      />
+    );
+  }
+
+  if (kind === "select_missing_word") {
+    return (
+      <ExSelectMissingWord
+        exercise={exercise}
+        cfg={cfg}
+        onCorrect={onCorrect}
+        onWrong={onWrong}
+        onSkip={onSkip}
+        onAnswer={onAnswer}
         submit={handleAnswer}
       />
     );
