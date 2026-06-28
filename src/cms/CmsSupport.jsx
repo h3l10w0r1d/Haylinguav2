@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Search, Crown, Heart, MailCheck, Loader2, User, ArrowLeft, Check, X } from "lucide-react";
 import { getCmsToken } from "./api";
+import CmsLayout from "./CmsLayout";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -90,17 +91,8 @@ export default function CmsSupport() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
-          <a href="/cms" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-slate-900">
-            <ArrowLeft className="h-4 w-4" /> CMS
-          </a>
-          <div className="font-display font-bold text-slate-900">Support</div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-4xl px-4 py-6">
+    <CmsLayout active="learners" title="Learners">
+      <div>
         <div className="mb-5 flex gap-2">
           <button onClick={() => switchTab("users")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "users" ? "bg-brand-500 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>Users</button>
           <button onClick={() => switchTab("reports")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "reports" ? "bg-brand-500 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>
@@ -216,7 +208,7 @@ export default function CmsSupport() {
         </>
         )}
       </div>
-    </div>
+    </CmsLayout>
   );
 }
 

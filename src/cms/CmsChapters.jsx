@@ -2,36 +2,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Layers, Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff } from "lucide-react";
+import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff } from "lucide-react";
+import CmsLayout from "./CmsLayout";
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
-}
-
-function TopBar() {
-  return (
-    <div className="sticky top-0 z-10 bg-white/80 backdrop-blur ring-1 ring-slate-200/70">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-        <div className="flex items-center gap-3 text-slate-900">
-          <div className="w-10 h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center shadow-sm ring-1 ring-brand-600/20">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-sm font-display font-bold leading-tight">Chapters</div>
-            <div className="text-xs text-slate-500 -mt-0.5">Group lessons on the roadmap</div>
-          </div>
-        </div>
-        <div className="flex-1" />
-        <a
-          href="/cms"
-          className="shrink-0 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 shadow-sm hover:bg-slate-50 transition inline-flex items-center gap-2"
-        >
-          <BookOpen className="w-4 h-4" />
-          Lessons
-        </a>
-      </div>
-    </div>
-  );
 }
 
 export default function CmsChapters() {
@@ -154,10 +129,8 @@ export default function CmsChapters() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <TopBar />
-
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+    <CmsLayout active="chapters" title="Chapters">
+      <div className="space-y-5">
         {/* Create */}
         <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-5">
           <div className="font-display text-base font-bold text-slate-900 mb-3">New chapter</div>
@@ -302,6 +275,6 @@ export default function CmsChapters() {
           </div>
         </div>
       )}
-    </div>
+    </CmsLayout>
   );
 }
