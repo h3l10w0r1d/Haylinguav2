@@ -157,25 +157,25 @@ export default function HeaderLayout({ user, onLogout, children }) {
     <div className="min-h-screen bg-orange-50">
       {/* Top header (desktop & tablet) */}
       <header className="fixed top-0 inset-x-0 z-20 bg-white/90 backdrop-blur shadow-sm">
-        <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 px-4 py-3">
           {/* Logo / home */}
           <button
             onClick={() => navigate(user ? "/dashboard" : "/leaderboard")}
-            className="flex items-center gap-2"
+            className="flex shrink-0 items-center gap-2"
           >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg">
               Հ
             </div>
-            <div className="flex flex-col items-start">
-              <span className="font-bold text-lg text-gray-900">Haylingua</span>
-              <span className="text-[11px] text-gray-500 leading-tight">
+            <div className="hidden flex-col items-start sm:flex">
+              <span className="font-bold text-lg leading-tight text-gray-900">Haylingua</span>
+              <span className="whitespace-nowrap text-[11px] leading-tight text-gray-500">
                 Armenian made playful
               </span>
             </div>
           </button>
 
           {/* Center nav – hidden on mobile */}
-          <nav className="hidden md:flex items-center gap-2">
+          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
             <NavLink to="/dashboard" className={navLinkClass}>
               <Home className="w-4 h-4" />
               <span>Learn</span>
@@ -199,9 +199,9 @@ export default function HeaderLayout({ user, onLogout, children }) {
           </nav>
 
           {/* Right side: avatar + logout */}
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 lg:gap-3">
             {/* Quick stats */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => navigate("/premium")}
@@ -245,7 +245,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
                 <button
                   onClick={() => onLogout?.()}
-                  className="hidden md:inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-full transition-colors"
+                  className="hidden md:inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-full transition-colors"
                 >
                   <LogOut className="w-3 h-3" />
                   <span>Log out</span>
