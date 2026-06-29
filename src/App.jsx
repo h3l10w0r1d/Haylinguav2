@@ -11,12 +11,14 @@ import {
 
 import LandingPage from './LandingPage';
 import HeaderLayout from './HeaderLayout';
+import LoadingScreen from './lib/LoadingScreen';
 
 // Code-split heavy routes so the initial bundle stays small.
 const Dashboard = lazy(() => import('./Dashboard'));
 const LessonPlayer = lazy(() => import('./LessonPlayer'));
 const Premium = lazy(() => import('./Premium'));
 const Achievements = lazy(() => import('./Achievements'));
+const Shop = lazy(() => import('./Shop'));
 const Friends = lazy(() => import('./Friends'));
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const ProfilePage = lazy(() => import('./ProfilePage'));
@@ -32,11 +34,7 @@ const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 
 function RouteFallback() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50/40 to-white">
-      <div className="h-7 w-7 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
-    </div>
-  );
+  return <LoadingScreen />;
 }
 
 const API_BASE = 'https://haylinguav2.onrender.com';
@@ -408,6 +406,14 @@ function AppShell() {
           element={
             <RequireOnboarded>
               <Achievements />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/shop"
+          element={
+            <RequireOnboarded>
+              <Shop />
             </RequireOnboarded>
           }
         />

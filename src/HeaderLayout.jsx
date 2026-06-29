@@ -1,7 +1,7 @@
 // src/HeaderLayout.jsx
 import { useEffect, useMemo, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap } from "lucide-react";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store } from "lucide-react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -39,6 +39,7 @@ async function apiFetch(path, { token, ...opts } = {}) {
 
 export default function HeaderLayout({ user, onLogout, children }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [hearts, setHearts] = useState(() => {
     try {
@@ -51,6 +52,27 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
   const xp = useMemo(() => Number(user?.xp ?? 0) || 0, [user?.xp]);
   const streak = useMemo(() => Math.max(1, Number(user?.streak ?? 1) || 1), [user?.streak]);
+
+  const [gems, setGems] = useState(null);
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    const load = () => {
+      apiFetch("/me/wallet", { token, method: "GET" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d && !cancelled) setGems(Number(d.gems ?? 0)); })
+        .catch(() => {});
+    };
+    load();
+    const onWallet = (ev) => {
+      const g = ev?.detail?.gems;
+      if (Number.isFinite(g)) setGems(Number(g));
+      else load();
+    };
+    window.addEventListener("hay_wallet", onWallet);
+    return () => { cancelled = true; window.removeEventListener("hay_wallet", onWallet); };
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -166,6 +188,10 @@ export default function HeaderLayout({ user, onLogout, children }) {
               <Trophy className="w-4 h-4" />
               <span>Leaderboard</span>
             </NavLink>
+            <NavLink to="/shop" className={navLinkClass}>
+              <Store className="w-4 h-4" />
+              <span>Shop</span>
+            </NavLink>
             <NavLink to="/profile" className={navLinkClass}>
               <User className="w-4 h-4" />
               <span>Profile</span>
@@ -193,6 +219,15 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 <Zap className="w-4 h-4" />
                 <span>{xp}</span>
               </div>
+              <button
+                type="button"
+                onClick={() => navigate("/shop")}
+                title="Spend your gems in the shop"
+                className="inline-flex items-center gap-1.5 rounded-full bg-feather-50 px-3 py-1.5 text-xs font-semibold text-feather-600 transition hover:bg-feather-100"
+              >
+                <Gem className="w-4 h-4" />
+                <span>{gems == null ? "–" : gems}</span>
+              </button>
             </div>
             {user ? (
               <>
@@ -281,10 +316,13 @@ export default function HeaderLayout({ user, onLogout, children }) {
         </div>
       </nav>
 
-      {/* Main content under header, above mobile nav */}
+      {/* Main content under header, above mobile nav. Keyed by route so each
+          page fades/slides in on navigation. */}
       <main className="pt-16 pb-14 md:pb-0">
-        {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
-        {children ?? <Outlet />}
+        <div key={location.pathname} className="page-in">
+          {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
+          {children ?? <Outlet />}
+        </div>
       </main>
     </div>
   );

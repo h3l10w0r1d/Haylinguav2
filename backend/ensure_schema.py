@@ -101,6 +101,12 @@ def ensure_schema() -> None:
         # ---------- Reward XP (quests / achievements) ----------
         add_col_if_missing("users", "bonus_xp INTEGER NOT NULL DEFAULT 0")
         fill_nulls("users", "bonus_xp", "0")
+
+        # ---------- Economy: gems currency + chests ----------
+        add_col_if_missing("users", "gems INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("users", "chests INTEGER NOT NULL DEFAULT 0")
+        fill_nulls("users", "gems", "0")
+        fill_nulls("users", "chests", "0")
         ensure_table(
             "reward_claims",
             """

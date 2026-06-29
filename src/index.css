@@ -168,6 +168,66 @@
   .flame-flicker, .flame-inner { animation: emberPulse 2.4s ease-in-out infinite; }
 }
 
+/* ----- Realistic fire (SVG turbulence + sway + sparks) ----- */
+.hl-fire { position: relative; display: inline-block; filter: drop-shadow(0 0 7px rgba(255,120,20,.55)); animation: fireGlowSoft 2.4s ease-in-out infinite; }
+.hl-fire-sway { transform-origin: 50% 96%; animation: fireSway 2.6s ease-in-out infinite; }
+.hl-fire-core { transform-origin: 50% 92%; animation: fireCore 1.3s ease-in-out infinite; }
+@keyframes fireSway {
+  0%, 100% { transform: rotate(-2deg) scaleY(1) scaleX(1); }
+  33%      { transform: rotate(1.5deg) scaleY(1.06) scaleX(0.97); }
+  66%      { transform: rotate(-1deg) scaleY(0.97) scaleX(1.03); }
+}
+@keyframes fireCore {
+  0%, 100% { transform: scaleY(1) translateY(0); opacity: .92; }
+  50%      { transform: scaleY(1.14) translateY(1px); opacity: 1; }
+}
+@keyframes fireGlowSoft {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(255,120,20,.5)); }
+  50%      { filter: drop-shadow(0 0 14px rgba(255,160,40,.85)); }
+}
+.hl-spark {
+  position: absolute; bottom: 20%; width: 4px; height: 4px; border-radius: 9999px;
+  background: #FFCB57; opacity: 0; animation: hlSpark 1.9s ease-out infinite;
+}
+@keyframes hlSpark {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  12%  { opacity: 1; }
+  100% { transform: translateY(-130%) scale(0.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hl-fire-sway, .hl-fire-core, .hl-fire, .hl-spark { animation: emberPulse 2.6s ease-in-out infinite; }
+  .hl-spark { display: none; }
+}
+
+/* ----- Page transitions ----- */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-in { animation: pageIn 0.3s cubic-bezier(.2, .7, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .page-in { animation: none; } }
+
+/* ----- Branded loading screen ----- */
+@keyframes hlLoadPop {
+  0%, 100% { transform: translateY(0) scale(1) rotate(-2deg); }
+  50%      { transform: translateY(-10px) scale(1.05) rotate(2deg); }
+}
+@keyframes hlLoadDot {
+  0%, 100% { opacity: .3; transform: scale(.7); }
+  50%      { opacity: 1; transform: scale(1); }
+}
+@keyframes hlLoadRing {
+  0%   { transform: scale(0.9); opacity: .5; }
+  70%  { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.hl-load-pop  { animation: hlLoadPop 1.4s ease-in-out infinite; }
+.hl-load-ring { animation: hlLoadRing 1.6s ease-out infinite; }
+.hl-load-dot  { width: 9px; height: 9px; border-radius: 9999px; background: #FF7A1A; display: inline-block; animation: hlLoadDot 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hl-load-pop, .hl-load-ring, .hl-load-dot { animation: none; }
+}
+
 /* ----- Streak milestone celebration ----- */
 @keyframes confettiFall {
   0%   { transform: translate3d(0, -10vh, 0) rotate(0deg); }

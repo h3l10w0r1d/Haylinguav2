@@ -1,7 +1,7 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Plus } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Plus, Gem, Gift } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
@@ -84,9 +84,76 @@ function DailyQuestsCard({ token }) {
   );
 }
 
+function ChestCard({ token }) {
+  const [chests, setChests] = useState(0);
+  const [opening, setOpening] = useState(false);
+  const [reward, setReward] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/me/wallet`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setChests(Number(d.chests || 0)))
+      .catch(() => {});
+  }, [token]);
+
+  async function open() {
+    setOpening(true);
+    setReward(null);
+    try {
+      const r = await fetch(`${API_BASE_URL}/me/chests/open`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const d = await r.json().catch(() => null);
+      if (r.ok && d) {
+        setReward(Number(d.reward_gems || 0));
+        setChests(Number(d.chests || 0));
+        window.dispatchEvent(new CustomEvent("hay_wallet", { detail: { gems: d.gems } }));
+      }
+    } catch {
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  if (chests <= 0 && reward == null) return null;
+
+  return (
+    <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-gold-100 to-white p-5 text-center shadow-sm ring-1 ring-gold-200">
+      <div className="text-5xl" style={opening ? { animation: "celebPop .5s ease-in-out" } : undefined}>🎁</div>
+      {reward != null ? (
+        <>
+          <div className="mt-2 inline-flex items-center gap-1.5 font-display text-2xl font-extrabold text-feather-600" style={{ animation: "celebPop .45s cubic-bezier(.2,.8,.2,1)" }}>
+            <Gem className="h-6 w-6" /> +{reward}
+          </div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">gems earned</div>
+          {chests > 0 ? (
+            <button onClick={open} disabled={opening} className="btn3d btn3d-brand mt-4 w-full text-sm uppercase disabled:opacity-60">
+              {opening ? "Opening…" : `Open another (${chests})`}
+            </button>
+          ) : (
+            <p className="mt-3 text-sm font-semibold text-slate-500">Finish lessons to earn more chests!</p>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="mt-2 font-display text-base font-extrabold text-slate-800">
+            {chests} chest{chests > 1 ? "s" : ""} to open!
+          </div>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Open for a random gem reward.</p>
+          <button onClick={open} disabled={opening} className="btn3d btn3d-brand mt-4 w-full text-sm uppercase disabled:opacity-60">
+            <Gift className="h-4 w-4" /> {opening ? "Opening…" : "Open chest"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function StreakCard({ token, streak }) {
   const [days, setDays] = useState(null);
   const [freeze, setFreeze] = useState({ freezes: 0, freeze_cap: 2 });
+  const [practicedToday, setPracticedToday] = useState(true);
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -97,7 +164,11 @@ function StreakCard({ token, streak }) {
       .catch(() => {});
     fetch(`${API_BASE_URL}/me/streak`, { headers: h })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setFreeze({ freezes: Number(d.freezes || 0), freeze_cap: Number(d.freeze_cap || 2) }))
+      .then((d) => {
+        if (!d) return;
+        setFreeze({ freezes: Number(d.freezes || 0), freeze_cap: Number(d.freeze_cap || 2) });
+        setPracticedToday(!!d.practiced_today);
+      })
       .catch(() => {});
   }, [token]);
 
@@ -117,12 +188,15 @@ function StreakCard({ token, streak }) {
   }
 
   const n = Number(streak) || 0;
-  const lit = n > 0;
+  // The flame only burns once today's practice is done — otherwise it's an
+  // "at risk" ember even if the streak number is > 0.
+  const lit = n > 0 && practicedToday;
+  const atRisk = n > 0 && !practicedToday;
   const week = Array.isArray(days) ? days.slice(-7) : [];
   const cap = freeze.freeze_cap || 2;
 
   return (
-    <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (lit ? "bg-gradient-to-br from-brand-50 to-white ring-brand-100" : "bg-white ring-slate-200")}>
+    <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (lit ? "bg-gradient-to-br from-brand-50 to-white ring-brand-100" : atRisk ? "bg-brand-50/40 ring-brand-100" : "bg-white ring-slate-200")}>
       <div className="flex items-center gap-3">
         <StreakFlame size={60} lit={lit} />
         <div>
@@ -153,7 +227,11 @@ function StreakCard({ token, streak }) {
       )}
 
       <p className="mt-3 text-sm font-semibold text-slate-500">
-        {lit ? "Practice today to keep your flame alive!" : "Finish a lesson to light your streak."}
+        {lit
+          ? "Nice — your flame is lit for today! 🔥"
+          : atRisk
+          ? "Practice today to light your flame and keep the streak!"
+          : "Finish a lesson to light your streak."}
       </p>
 
       {/* Streak freezes — protect your streak from one missed day */}
@@ -546,6 +624,7 @@ export default function Dashboard({ user }) {
         {/* ── Sidebar (desktop only) ── */}
         <aside className="hidden w-80 shrink-0 lg:block">
           <div className="sticky top-24 space-y-4">
+            <ChestCard token={token} />
             <DailyQuestsCard token={token} />
 
             <StreakCard token={token} streak={stats.streak} />

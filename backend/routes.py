@@ -2631,12 +2631,13 @@ def record_exercise_attempt(
     _update_review_queue(db, user_id, lesson_id, exercise_id, bool(is_correct))
     acc = _get_accuracy(db, user_id, lesson_id)
 
-    # Snapshot XP before recompute so we can return per-attempt delta
-    prev_xp = db.execute(
-        text("SELECT xp_earned FROM user_lesson_progress WHERE user_id = :uid AND lesson_id = :lid"),
+    # Snapshot XP + completion state before recompute (delta + first-time reward).
+    prev_row = db.execute(
+        text("SELECT xp_earned, completed_at FROM user_lesson_progress WHERE user_id = :uid AND lesson_id = :lid"),
         {"uid": user_id, "lid": lesson_id},
-    ).scalar_one_or_none()
-    prev_xp = int(prev_xp or 0)
+    ).mappings().first() or {}
+    prev_xp = int(prev_row.get("xp_earned") or 0)
+    was_completed = prev_row.get("completed_at") is not None
 
     # ✅ NEW: recompute lesson completion / xp-based progress
     progress = recompute_lesson_progress(db, user_id, lesson_id)
@@ -2647,6 +2648,11 @@ def record_exercise_attempt(
 
     # League: count this lesson's XP toward the user's weekly division total.
     _award_weekly_xp(db, user_id, earned_xp_delta)
+
+    # Reward a chest the FIRST time a lesson is completed (not on replays), so
+    # the gem economy can't be farmed by re-doing the same lesson.
+    if bool(progress.get("completed")) and not was_completed:
+        db.execute(text("UPDATE users SET chests = COALESCE(chests, 0) + 1 WHERE id = :u"), {"u": user_id})
 
     # Hearts: lose one on a wrong answer (with regen applied first); premium
     # users keep unlimited hearts. DB is the source of truth.
@@ -2991,7 +2997,13 @@ def me_streak(authorization: Optional[str] = Header(default=None), db: Connectio
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     streak = _compute_streak_days(db, user_id)
     freezes = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
-    return {"streak": streak, "freezes": freezes, "freeze_cap": STREAK_FREEZE_CAP}
+    practiced_today = bool(
+        db.execute(
+            text("SELECT 1 FROM user_exercise_attempts WHERE user_id = :u AND DATE(created_at) = :d LIMIT 1"),
+            {"u": user_id, "d": datetime.utcnow().date()},
+        ).scalar()
+    )
+    return {"streak": streak, "freezes": freezes, "freeze_cap": STREAK_FREEZE_CAP, "practiced_today": practiced_today}
 
 
 @router.post("/me/streak/freeze")
@@ -3008,6 +3020,111 @@ def me_streak_freeze(authorization: Optional[str] = Header(default=None), db: Co
         {"u": user_id, "cap": STREAK_FREEZE_CAP},
     )
     return {"ok": True, "freezes": cur + 1, "freeze_cap": STREAK_FREEZE_CAP, "added": True}
+
+
+# ==========================================================================
+# Economy: gems currency, random chests, marketplace
+# ==========================================================================
+
+# Chest reward table — gem amount + relative weight (rarer = bigger).
+_CHEST_REWARDS = [(10, 30), (15, 25), (20, 18), (25, 12), (30, 8), (40, 5), (60, 2)]
+
+# Marketplace catalogue. Each item is granted by _grant_shop_item below.
+SHOP_ITEMS = [
+    {"id": "streak_freeze", "title": "Streak Freeze", "desc": "Protects your streak from one missed day.", "price": 50, "icon": "snowflake"},
+    {"id": "hearts_refill", "title": "Refill Hearts", "desc": "Restore all your hearts instantly.", "price": 30, "icon": "heart"},
+    {"id": "gem_double_quest", "title": "XP Boost (15 XP)", "desc": "Instantly add 15 XP to your total.", "price": 20, "icon": "zap"},
+]
+_SHOP_BY_ID = {it["id"]: it for it in SHOP_ITEMS}
+
+
+def _wallet(db: Connection, user_id: int) -> dict:
+    row = db.execute(
+        text("SELECT COALESCE(gems, 0) AS gems, COALESCE(chests, 0) AS chests FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first() or {}
+    return {"gems": int(row.get("gems") or 0), "chests": int(row.get("chests") or 0)}
+
+
+@router.get("/me/wallet")
+def me_wallet(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    return _wallet(db, user_id)
+
+
+@router.post("/me/chests/open")
+def me_open_chest(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """Open one owned chest → a random gem reward (server-authoritative)."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    chests = int(db.execute(text("SELECT COALESCE(chests, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+    if chests <= 0:
+        raise HTTPException(status_code=400, detail="No chests to open")
+
+    amounts = [a for a, _ in _CHEST_REWARDS]
+    weights = [w for _, w in _CHEST_REWARDS]
+    reward = int(random.choices(amounts, weights=weights, k=1)[0])
+
+    db.execute(
+        text("UPDATE users SET chests = GREATEST(COALESCE(chests, 0) - 1, 0), gems = COALESCE(gems, 0) + :r WHERE id = :u"),
+        {"r": reward, "u": user_id},
+    )
+    w = _wallet(db, user_id)
+    return {"ok": True, "reward_gems": reward, **w}
+
+
+@router.get("/me/shop")
+def me_shop(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    w = _wallet(db, user_id)
+    items = [{**it, "affordable": w["gems"] >= it["price"]} for it in SHOP_ITEMS]
+    return {"gems": w["gems"], "items": items}
+
+
+@router.post("/me/shop/buy")
+def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    item_id = str((payload or {}).get("item") or "").strip()
+    item = _SHOP_BY_ID.get(item_id)
+    if not item:
+        raise HTTPException(status_code=400, detail="Unknown item")
+
+    gems = int(db.execute(text("SELECT COALESCE(gems, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+    price = int(item["price"])
+    if gems < price:
+        raise HTTPException(status_code=400, detail="Not enough gems")
+
+    # Validate the grant is useful before charging.
+    if item_id == "streak_freeze":
+        cur = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+        if cur >= STREAK_FREEZE_CAP:
+            raise HTTPException(status_code=400, detail="You already have the maximum streak freezes")
+    elif item_id == "hearts_refill":
+        hs = _hearts_state(db, user_id)
+        if hs.get("is_premium"):
+            raise HTTPException(status_code=400, detail="Premium already has unlimited hearts")
+        if int(hs.get("hearts_current") or 0) >= int(hs.get("hearts_max") or 0):
+            raise HTTPException(status_code=400, detail="Your hearts are already full")
+
+    # Charge, then grant.
+    db.execute(text("UPDATE users SET gems = GREATEST(COALESCE(gems, 0) - :p, 0) WHERE id = :u"), {"p": price, "u": user_id})
+
+    if item_id == "streak_freeze":
+        db.execute(text("UPDATE users SET streak_freezes = LEAST(COALESCE(streak_freezes, 0) + 1, :cap) WHERE id = :u"), {"u": user_id, "cap": STREAK_FREEZE_CAP})
+    elif item_id == "hearts_refill":
+        db.execute(text("UPDATE users SET hearts_current = COALESCE(hearts_max, :mx), last_heart_lost_at = NULL WHERE id = :u"), {"u": user_id, "mx": DEFAULT_HEARTS_MAX})
+    elif item_id == "gem_double_quest":
+        db.execute(text("UPDATE users SET bonus_xp = COALESCE(bonus_xp, 0) + 15 WHERE id = :u"), {"u": user_id})
+        _award_weekly_xp(db, user_id, 15)
+
+    return {"ok": True, "item": item_id, **_wallet(db, user_id)}
 
 
 # ----------------------------

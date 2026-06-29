@@ -1,44 +1,60 @@
-// src/lib/StreakFlame.jsx — animated flickering flame for streaks (Duolingo-style).
+// src/lib/StreakFlame.jsx — a realistic animated fire for streaks.
+// Uses an SVG fractal-noise displacement filter so the flame edges ripple like
+// real fire, plus a gentle sway, a pulsing inner core, glow and rising sparks.
 import React from "react";
 
-/**
- * Props:
- *  - size: px (default 56)
- *  - lit: boolean — colored & animated when true, grey ember when false
- */
+const OUTER = "M32 3 C39 19, 52 26, 50 46 C49 61, 41 77, 32 77 C23 77, 14 62, 15 46 C16 34, 24 33, 26 22 C27 16, 30 11, 32 3 Z";
+const INNER = "M32 29 C37 37, 43 44, 41 54 C40 64, 35 73, 32 73 C27 73, 22 64, 23 54 C24 46, 29 41, 32 29 Z";
+
 export default function StreakFlame({ size = 56, lit = true }) {
-  const uid = React.useId();
-  const gradId = `flame-${uid}`;
+  const raw = React.useId();
+  const id = String(raw).replace(/[^a-zA-Z0-9]/g, "");
+
+  if (!lit) {
+    // Calm grey ember — no animation.
+    return (
+      <svg width={size} height={size} viewBox="0 0 64 80" fill="none" aria-hidden="true" style={{ overflow: "visible", opacity: 0.65 }}>
+        <path d={OUTER} fill="#CBD5E1" />
+        <path d={INNER} fill="#E2E8F0" />
+      </svg>
+    );
+  }
+
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 56"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ overflow: "visible" }}
-      aria-hidden="true"
-    >
-      <g className={lit ? "flame-flicker" : ""} style={lit ? undefined : { opacity: 0.6 }}>
-        {/* outer flame */}
-        <path
-          d="M24 1 C26 12, 36 16, 37 30 C38 44, 31 54, 24 54 C17 54, 10 45, 11 32 C12 24, 17 22, 18 16 C19 11, 22 8, 24 1 Z"
-          fill={lit ? `url(#${gradId})` : "#CBD5E1"}
-        />
-        {/* inner flame */}
-        <path
-          className={lit ? "flame-inner" : ""}
-          d="M24 19 C27 25, 31 30, 30 38 C29 47, 25 51, 24 51 C20 51, 17 46, 18 38 C19 31, 22 27, 24 19 Z"
-          fill={lit ? "#FFE08A" : "#E2E8F0"}
-        />
-      </g>
-      <defs>
-        <linearGradient id={gradId} x1="24" y1="1" x2="24" y2="54" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FFB347" />
-          <stop offset="0.55" stopColor="#FF7A1A" />
-          <stop offset="1" stopColor="#E8590C" />
-        </linearGradient>
-      </defs>
-    </svg>
+    <span className="hl-fire" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox="0 0 64 80" fill="none" aria-hidden="true" style={{ overflow: "visible" }}>
+        <defs>
+          <filter id={`turb${id}`} x="-50%" y="-50%" width="200%" height="200%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.018 0.045" numOctaves="2" seed="5" result="n">
+              <animate
+                attributeName="baseFrequency"
+                dur="4.6s"
+                values="0.018 0.045; 0.02 0.072; 0.017 0.05; 0.022 0.063; 0.018 0.045"
+                repeatCount="indefinite"
+              />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <linearGradient id={`go${id}`} x1="32" y1="4" x2="32" y2="78" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#FFD24D" />
+            <stop offset="0.45" stopColor="#FF7A1A" />
+            <stop offset="1" stopColor="#E8400C" />
+          </linearGradient>
+          <linearGradient id={`gi${id}`} x1="32" y1="29" x2="32" y2="73" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#FFF4C2" />
+            <stop offset="1" stopColor="#FFC24B" />
+          </linearGradient>
+        </defs>
+        <g filter={`url(#turb${id})`}>
+          <g className="hl-fire-sway">
+            <path d={OUTER} fill={`url(#go${id})`} />
+            <path className="hl-fire-core" d={INNER} fill={`url(#gi${id})`} />
+          </g>
+        </g>
+      </svg>
+      <span className="hl-spark" style={{ left: "38%", animationDelay: "0s" }} />
+      <span className="hl-spark" style={{ left: "56%", animationDelay: "0.7s" }} />
+      <span className="hl-spark" style={{ left: "47%", animationDelay: "1.3s" }} />
+    </span>
   );
 }
