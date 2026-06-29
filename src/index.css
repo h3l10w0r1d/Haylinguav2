@@ -212,6 +212,58 @@
 }
 @media (prefers-reduced-motion: reduce) { .hl-ember { animation: none; } }
 
+/* ----- Chest opening (Duolingo / Brawl-Stars style reward) ----- */
+@keyframes chestPopIn {
+  0%   { transform: scale(.3) translateY(30px); opacity: 0; }
+  60%  { transform: scale(1.08) translateY(0); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes chestShake {
+  0%, 100% { transform: rotate(0deg); }
+  12% { transform: rotate(-8deg); }  24% { transform: rotate(8deg); }
+  36% { transform: rotate(-8deg); }  48% { transform: rotate(7deg); }
+  60% { transform: rotate(-5deg); }  72% { transform: rotate(5deg); }
+  84% { transform: rotate(-2deg); }
+}
+@keyframes chestJump {
+  0% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-22px) scale(1.08); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes lidOpen {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-118deg); }
+}
+@keyframes rayBurst {
+  0% { transform: scale(.2); opacity: 0; }
+  35% { opacity: .9; }
+  100% { transform: scale(1.15); opacity: .8; }
+}
+@keyframes raySpin { to { transform: rotate(360deg); } }
+@keyframes flashFade {
+  0% { opacity: 0; } 18% { opacity: .95; } 100% { opacity: 0; }
+}
+@keyframes rewardRise {
+  0% { transform: translateY(28px) scale(.4); opacity: 0; }
+  55% { transform: translateY(-10px) scale(1.18); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes burstOut {
+  0% { transform: translate(0,0) scale(1) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--tx,0), var(--ty,0)) scale(.4) rotate(var(--rot,180deg)); opacity: 0; }
+}
+.chest-pop  { animation: chestPopIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.chest-shake{ animation: chestShake .85s ease-in-out; }
+.chest-jump { animation: chestJump .5s ease-out; }
+.chest-lid  { transform-box: fill-box; transform-origin: center bottom; }
+.chest-lid-open { animation: lidOpen .5s cubic-bezier(.34,1.56,.5,1) forwards; }
+.chest-rays { animation: rayBurst .6s ease-out forwards, raySpin 10s linear infinite .6s; transform-origin: center; }
+.chest-flash{ animation: flashFade .65s ease-out forwards; }
+.reward-rise{ animation: rewardRise .6s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .chest-shake, .chest-jump, .chest-rays { animation: none; }
+}
+
 /* ----- Page transitions ----- */
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(10px); }

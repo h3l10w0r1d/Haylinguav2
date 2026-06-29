@@ -6,6 +6,7 @@ import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
 import StreakCelebration from "./lib/StreakCelebration";
+import ChestOpening from "./lib/ChestOpening";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -87,7 +88,7 @@ function DailyQuestsCard({ token }) {
 function ChestCard({ token }) {
   const [chests, setChests] = useState(0);
   const [opening, setOpening] = useState(false);
-  const [reward, setReward] = useState(null);
+  const [overlayReward, setOverlayReward] = useState(null); // number → show opening animation
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/me/wallet`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
@@ -97,8 +98,8 @@ function ChestCard({ token }) {
   }, [token]);
 
   async function open() {
+    if (opening) return;
     setOpening(true);
-    setReward(null);
     try {
       const r = await fetch(`${API_BASE_URL}/me/chests/open`, {
         method: "POST",
@@ -106,9 +107,9 @@ function ChestCard({ token }) {
       });
       const d = await r.json().catch(() => null);
       if (r.ok && d) {
-        setReward(Number(d.reward_gems || 0));
         setChests(Number(d.chests || 0));
         window.dispatchEvent(new CustomEvent("hay_wallet", { detail: { gems: d.gems } }));
+        setOverlayReward(Number(d.reward_gems || 0)); // fire the full-screen reward
       }
     } catch {
     } finally {
@@ -116,37 +117,29 @@ function ChestCard({ token }) {
     }
   }
 
-  if (chests <= 0 && reward == null) return null;
+  if (chests <= 0 && overlayReward == null) return null;
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-gold-100 to-white p-5 text-center shadow-sm ring-1 ring-gold-200">
-      <div className="text-5xl" style={opening ? { animation: "celebPop .5s ease-in-out" } : undefined}>🎁</div>
-      {reward != null ? (
-        <>
-          <div className="mt-2 inline-flex items-center gap-1.5 font-display text-2xl font-extrabold text-feather-600" style={{ animation: "celebPop .45s cubic-bezier(.2,.8,.2,1)" }}>
-            <Gem className="h-6 w-6" /> +{reward}
-          </div>
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">gems earned</div>
-          {chests > 0 ? (
-            <button onClick={open} disabled={opening} className="btn3d btn3d-brand mt-4 w-full text-sm uppercase disabled:opacity-60">
-              {opening ? "Opening…" : `Open another (${chests})`}
-            </button>
-          ) : (
-            <p className="mt-3 text-sm font-semibold text-slate-500">Finish lessons to earn more chests!</p>
-          )}
-        </>
-      ) : (
-        <>
-          <div className="mt-2 font-display text-base font-extrabold text-slate-800">
-            {chests} chest{chests > 1 ? "s" : ""} to open!
-          </div>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Open for a random gem reward.</p>
-          <button onClick={open} disabled={opening} className="btn3d btn3d-brand mt-4 w-full text-sm uppercase disabled:opacity-60">
-            <Gift className="h-4 w-4" /> {opening ? "Opening…" : "Open chest"}
-          </button>
-        </>
+    <>
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-gold-100 to-white p-5 text-center shadow-sm ring-1 ring-gold-200">
+        <div className="text-5xl" style={opening ? { animation: "chestShake .85s ease-in-out" } : undefined}>🎁</div>
+        <div className="mt-2 font-display text-base font-extrabold text-slate-800">
+          {chests} chest{chests === 1 ? "" : "s"} to open!
+        </div>
+        <p className="mt-1 text-sm font-semibold text-slate-500">Open for a random gem reward.</p>
+        <button
+          onClick={open}
+          disabled={opening || chests <= 0}
+          className="btn3d btn3d-brand mt-4 w-full text-sm uppercase disabled:opacity-60"
+        >
+          <Gift className="h-4 w-4" /> {opening ? "Opening…" : "Open chest"}
+        </button>
+      </div>
+
+      {overlayReward != null && (
+        <ChestOpening reward={overlayReward} onClose={() => setOverlayReward(null)} />
       )}
-    </div>
+    </>
   );
 }
 
