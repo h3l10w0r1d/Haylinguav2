@@ -186,7 +186,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 <span>{hearts ? (hearts.is_premium ? "∞" : `${hearts.current}/${hearts.max}`) : "–"}</span>
               </button>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700">
-                <Flame className="w-4 h-4" />
+                <Flame className={"w-4 h-4 fill-orange-500 text-orange-500" + (streak > 0 ? " flame-flicker" : "")} />
                 <span>{streak}</span>
               </div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-yellow-700">

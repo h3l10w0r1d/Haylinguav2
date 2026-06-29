@@ -143,6 +143,31 @@
   100% { transform: translate3d(0, 0, 0) scale(1); }
 }
 
+/* ----- Streak flame ----- */
+@keyframes flameFlicker {
+  0%, 100% { transform: scaleY(1) scaleX(1) translateY(0) rotate(-0.5deg); }
+  25%      { transform: scaleY(1.08) scaleX(0.95) translateY(-1px) rotate(0.6deg); }
+  50%      { transform: scaleY(0.94) scaleX(1.05) translateY(1px) rotate(-0.4deg); }
+  75%      { transform: scaleY(1.05) scaleX(0.97) translateY(-0.5px) rotate(0.3deg); }
+}
+@keyframes flameInner {
+  0%, 100% { transform: scaleY(1) translateY(0); opacity: .95; }
+  50%      { transform: scaleY(1.14) translateY(1px); opacity: 1; }
+}
+@keyframes flameGlow {
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(255,122,26,.55)); }
+  50%      { filter: drop-shadow(0 0 13px rgba(255,159,40,.9)); }
+}
+@keyframes emberPulse {
+  0%, 100% { opacity: .85; }
+  50%      { opacity: 1; }
+}
+.flame-flicker { transform-origin: 50% 90%; animation: flameFlicker 1.1s ease-in-out infinite, flameGlow 2.2s ease-in-out infinite; }
+.flame-inner   { transform-origin: 50% 88%; animation: flameInner 0.9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .flame-flicker, .flame-inner { animation: emberPulse 2.4s ease-in-out infinite; }
+}
+
 .lp-grid {
   background-image:
     radial-gradient(circle at 1px 1px, rgba(17, 24, 39, 0.08) 1px, transparent 0);

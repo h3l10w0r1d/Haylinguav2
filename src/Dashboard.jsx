@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
+import StreakFlame from "./lib/StreakFlame";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -78,6 +79,57 @@ function DailyQuestsCard({ token }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function StreakCard({ token, streak }) {
+  const [days, setDays] = useState(null);
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/me/activity/last7days`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.days && setDays(d.days))
+      .catch(() => {});
+  }, [token]);
+
+  const n = Number(streak) || 0;
+  const lit = n > 0;
+  const week = Array.isArray(days) ? days.slice(-7) : [];
+
+  return (
+    <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (lit ? "bg-gradient-to-br from-brand-50 to-white ring-brand-100" : "bg-white ring-slate-200")}>
+      <div className="flex items-center gap-3">
+        <StreakFlame size={60} lit={lit} />
+        <div>
+          <div className="font-display text-3xl font-extrabold leading-none text-slate-800 tabular-nums">{n}</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">day streak</div>
+        </div>
+      </div>
+
+      {week.length > 0 && (
+        <div className="mt-4 flex items-center justify-between">
+          {week.map((d, i) => {
+            const on = Number(d?.value ?? 0) > 0;
+            const label = (String(d?.label ?? "").trim()[0] || "·").toUpperCase();
+            return (
+              <div
+                key={i}
+                title={`${d?.label ?? ""}: ${Number(d?.value ?? 0)}`}
+                className={
+                  "grid h-7 w-7 place-items-center rounded-full text-[11px] font-extrabold " +
+                  (on ? "bg-brand-500 text-white shadow-[0_2px_0_0_#C2410C]" : "bg-slate-100 text-slate-400")
+                }
+              >
+                {label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="mt-3 text-sm font-semibold text-slate-500">
+        {lit ? "Practice today to keep your flame alive!" : "Finish a lesson to light your streak."}
+      </p>
     </div>
   );
 }
@@ -446,20 +498,7 @@ export default function Dashboard({ user }) {
           <div className="sticky top-24 space-y-4">
             <DailyQuestsCard token={token} />
 
-            <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50">
-                  <Flame className="h-6 w-6 fill-brand-500 text-brand-500" />
-                </div>
-                <div>
-                  <div className="font-display text-2xl font-extrabold leading-none text-slate-800">{stats.streak}</div>
-                  <div className="text-xs font-bold uppercase tracking-wide text-slate-400">day streak</div>
-                </div>
-              </div>
-              <p className="mt-3 text-sm font-semibold text-slate-500">
-                {stats.streak > 0 ? "Practice today to keep it going!" : "Finish a lesson to start your streak."}
-              </p>
-            </div>
+            <StreakCard token={token} streak={stats.streak} />
 
             <AchievementsCard token={token} onOpen={() => navigate("/achievements")} />
 
