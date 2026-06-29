@@ -1622,6 +1622,283 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
   );
 }
 
+function exImgUrl(u) {
+  const s = String(u || "").trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s) || s.startsWith("data:") || s.startsWith("blob:")) return s;
+  if (s.startsWith("/static/") || s.startsWith("/uploads/")) return `${API_BASE}${s}`;
+  return s;
+}
+
+// K) listen_word_bank — hear a sentence (TTS) and tap word tiles to rebuild it
+function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Tap what you hear";
+  const target = String(cfg.ttsText ?? cfg.text ?? exercise?.expected_answer ?? "").trim();
+  const tiles = Array.isArray(cfg.tiles) ? cfg.tiles : [];
+  const solution = Array.isArray(cfg.solution) && cfg.solution.length ? cfg.solution : (target ? target.split(/\s+/) : []);
+
+  const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState([]);
+  const [available, setAvailable] = useState([]);
+  const didAutoplay = useRef(false);
+
+  useEffect(() => {
+    setPicked([]);
+    setAvailable(tiles.map((t, i) => ({ t, key: `${i}-${t}` })));
+    didAutoplay.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
+
+  async function play() {
+    if (!target) return;
+    try {
+      setBusy(true);
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
+      await new Audio(url).play();
+    } catch (e) {
+      console.error("TTS failed", e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!exercise?.id || !target || didAutoplay.current) return;
+    if (cfg?.autoplay === false) return;
+    didAutoplay.current = true;
+    play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
+
+  const built = picked.map((p) => p.t).join(" ");
+  function add(i) { const it = available[i]; if (!it) return; setAvailable((a) => a.filter((_, x) => x !== i)); setPicked((p) => [...p, it]); }
+  function remove(i) { const it = picked[i]; if (!it) return; setPicked((p) => p.filter((_, x) => x !== i)); setAvailable((a) => [...a, it]); }
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      <div className="mt-5 flex flex-col items-center">
+        <button type="button" onClick={play} disabled={busy || !target} aria-label="Play audio"
+          className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
+        <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
+      </div>
+      <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
+        {picked.length === 0 ? <Muted>Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active onClick={() => remove(i)}>{p.t}</Pill>)}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">{available.map((p, i) => <Pill key={p.key} onClick={() => add(i)}>{p.t}</Pill>)}</div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={picked.length === 0} onClick={() => {
+          const picks = picked.map((p) => p.t);
+          const ok = solution.length === picks.length && solution.every((v, i) => normalizeText(v) === normalizeText(picks[i]));
+          const alt = normalizeText(built) === normalizeText(solution.join(" "));
+          (ok || alt) ? correct({ answerText: built }) : wrong("Not quite — listen again.", { answerText: built });
+        }}>Check</PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// L) dialogue_mcq — complete the conversation by choosing the missing reply
+function ExDialogueMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Complete the conversation";
+  const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
+  const choices = getChoices(exercise, cfg);
+  const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
+  const answerText = exercise?.expected_answer ?? cfg.answer ?? null;
+  const [sel, setSel] = useState(null);
+  useEffect(() => setSel(null), [exercise?.id]);
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      <div className="mt-4 space-y-2">
+        {lines.map((l, i) => {
+          const mine = l?.from === "you" || l?.from === "me";
+          return (
+            <div key={i} className={"flex " + (mine ? "justify-end" : "justify-start")}>
+              <div className={"max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold " + (mine ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-800")}>{l?.text}</div>
+            </div>
+          );
+        })}
+        <div className="flex justify-end">
+          <div className="max-w-[80%] rounded-2xl border-2 border-dashed border-brand-300 bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-700">
+            {sel !== null ? (choices[sel] ?? "…") : "…"}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} /></div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={sel === null} onClick={() => {
+          const pick = choices[sel] ?? "";
+          const extra = { selectedIndices: [sel], answerText: pick };
+          if (correctIndex !== null) { sel === correctIndex ? correct(extra) : wrong("Not quite. Try again.", extra); return; }
+          if (answerText && normalizeText(pick) === normalizeText(answerText)) correct(extra); else wrong("Not quite. Try again.", extra);
+        }}>Check</PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// M) dialogue_order — arrange the conversation lines in the right order
+function ExDialogueOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Put the conversation in order";
+  const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
+  const solution = Array.isArray(cfg.solution) ? cfg.solution : [];
+  const [picked, setPicked] = useState([]);
+  const [available, setAvailable] = useState([]);
+  useEffect(() => {
+    setPicked([]);
+    setAvailable(lines.map((t, i) => ({ t, key: `${i}-${t}` })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
+  const built = picked.map((p) => p.t).join(" ");
+  function add(i) { const it = available[i]; if (!it) return; setAvailable((a) => a.filter((_, x) => x !== i)); setPicked((p) => [...p, it]); }
+  function remove(i) { const it = picked[i]; if (!it) return; setPicked((p) => p.filter((_, x) => x !== i)); setAvailable((a) => [...a, it]); }
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      <div className="mt-4 min-h-[3rem] space-y-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+        {picked.length === 0 ? <Muted>Tap the lines in the right order…</Muted> : picked.map((p, i) => (
+          <button key={p.key} type="button" onClick={() => remove(i)} className="block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-brand-200">{i + 1}. {p.t}</button>
+        ))}
+      </div>
+      <div className="mt-4 space-y-2">{available.map((p, i) => (
+        <button key={p.key} type="button" onClick={() => add(i)} className="block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-50">{p.t}</button>
+      ))}</div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={picked.length === 0} onClick={() => {
+          const picks = picked.map((p) => p.t);
+          const ok = solution.length === picks.length && solution.every((v, i) => normalizeText(v) === normalizeText(picks[i]));
+          ok ? correct({ answerText: built }) : wrong("Not in order yet — try again.", { answerText: built });
+        }}>Check</PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// N) image_select — pick the correct picture
+function ExImageSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Which one is it?";
+  const items = Array.isArray(cfg.choices) ? cfg.choices : [];
+  const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : items.findIndex((o) => o?.is_correct);
+  const [sel, setSel] = useState(null);
+  useEffect(() => setSel(null), [exercise?.id]);
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {items.map((it, i) => {
+          const active = sel === i;
+          return (
+            <button key={i} type="button" onClick={() => setSel(i)}
+              className={"overflow-hidden rounded-2xl ring-2 transition " + (active ? "ring-brand-400" : "ring-slate-200 hover:ring-brand-300")}>
+              <div className="aspect-square w-full bg-slate-50">
+                {it?.image ? <img src={exImgUrl(it.image)} alt={it?.label || ""} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-xs font-semibold text-slate-300">no image</div>}
+              </div>
+              {it?.label ? <div className={"px-2 py-1.5 text-center text-sm font-bold " + (active ? "bg-brand-50 text-brand-700" : "text-slate-700")}>{it.label}</div> : null}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={sel === null} onClick={() => {
+          const it = items[sel] || {};
+          const extra = { selectedIndices: [sel], answerText: it.label || "" };
+          (correctIndex >= 0 && sel === correctIndex) ? correct(extra) : wrong("Not quite. Try again.", extra);
+        }}>Check</PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// O) reading_comprehension — read a passage, answer a question
+function ExReadingComprehension({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Read and answer";
+  const passage = cfg.passage ?? cfg.text ?? "";
+  const question = cfg.question ?? "";
+  const choices = getChoices(exercise, cfg);
+  const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
+  const [sel, setSel] = useState(null);
+  useEffect(() => setSel(null), [exercise?.id]);
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      {passage ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-base leading-relaxed text-slate-800 ring-1 ring-slate-200">{passage}</div> : null}
+      {question ? <div className="mt-4 font-display text-lg font-extrabold text-slate-800">{question}</div> : null}
+      <div className="mt-3"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} /></div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={sel === null} onClick={() => {
+          const pick = choices[sel] ?? "";
+          const extra = { selectedIndices: [sel], answerText: pick };
+          (correctIndex !== null && sel === correctIndex) ? correct(extra) : wrong("Not quite — re-read the passage.", extra);
+        }}>Check</PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// P) minimal_pairs — "which word did you hear?"
+function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Which word did you hear?";
+  const target = String(cfg.ttsText ?? cfg.text ?? "").trim();
+  const choices = getChoices(exercise, cfg);
+  const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
+  const [sel, setSel] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const didAutoplay = useRef(false);
+  useEffect(() => { setSel(null); didAutoplay.current = false; }, [exercise?.id]);
+
+  async function play() {
+    if (!target) return;
+    try {
+      setBusy(true);
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
+      await new Audio(url).play();
+    } catch (e) { console.error("TTS failed", e); } finally { setBusy(false); }
+  }
+  useEffect(() => {
+    if (!exercise?.id || !target || didAutoplay.current) return;
+    if (cfg?.autoplay === false) return;
+    didAutoplay.current = true;
+    play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      <div className="mt-5 flex flex-col items-center">
+        <button type="button" onClick={play} disabled={busy || !target} aria-label="Play audio"
+          className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
+        <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
+      </div>
+      <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} /></div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={sel === null} onClick={() => {
+          const pick = choices[sel] ?? "";
+          const extra = { selectedIndices: [sel], answerText: pick };
+          (correctIndex !== null && sel === correctIndex) ? correct(extra) : wrong("Not quite — listen again.", extra);
+        }}>Check</PrimaryButton>
+        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
+      </div>
+    </Card>
+  );
+}
+
 /* -------------------------
    Main Renderer (no hooks)
 -------------------------- */
@@ -1935,6 +2212,25 @@ export default function ExerciseRenderer({
         submit={handleAnswer}
       />
     );
+  }
+
+  if (kind === "listen_word_bank") {
+    return <ExListenWordBank exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} />;
+  }
+  if (kind === "dialogue_mcq") {
+    return <ExDialogueMcq exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+  if (kind === "dialogue_order") {
+    return <ExDialogueOrder exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+  if (kind === "image_select") {
+    return <ExImageSelect exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+  if (kind === "reading_comprehension") {
+    return <ExReadingComprehension exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+  if (kind === "minimal_pairs") {
+    return <ExMinimalPairs exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} />;
   }
 
   // Fallback for unknown exercise kinds

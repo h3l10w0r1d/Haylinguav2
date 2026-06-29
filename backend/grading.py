@@ -263,11 +263,14 @@ def grade_attempt(
         return len(picked) > 0 and picked == cand
 
     # Single-choice MCQ variants.
-    if kind in ("translate_mcq", "char_mcq_sound", "audio_choice_tts", "multiple_choice", "select_missing_word"):
+    if kind in (
+        "translate_mcq", "char_mcq_sound", "audio_choice_tts", "multiple_choice", "select_missing_word",
+        "dialogue_mcq", "image_select", "reading_comprehension", "minimal_pairs",
+    ):
         return _grade_single_choice(options, cfg, expected_answer, sel, answer_text)
 
     # Ordered-token answers (arrange tokens / tap a word bank to build the answer).
-    if kind in ("sentence_order", "word_bank"):
+    if kind in ("sentence_order", "word_bank", "listen_word_bank", "dialogue_order"):
         cands: List[str] = []
         sol = cfg.get("solution")
         if isinstance(sol, list):

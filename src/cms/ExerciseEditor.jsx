@@ -22,9 +22,15 @@ const KIND_OPTIONS = [
   { value: "translate_mcq", label: "Translate MCQ (translate_mcq)" },
   { value: "word_bank", label: "Translate — word bank (word_bank)" },
   { value: "listen_type", label: "Listen & type (listen_type)" },
+  { value: "listen_word_bank", label: "Tap what you hear (listen_word_bank)" },
   { value: "true_false", label: "True/False (true_false)" },
   { value: "sentence_order", label: "Sentence order (sentence_order)" },
+  { value: "dialogue_mcq", label: "Complete the conversation (dialogue_mcq)" },
+  { value: "dialogue_order", label: "Order the conversation (dialogue_order)" },
   { value: "match_pairs", label: "Match pairs (match_pairs)" },
+  { value: "image_select", label: "Pick the picture (image_select)" },
+  { value: "reading_comprehension", label: "Reading comprehension (reading_comprehension)" },
+  { value: "minimal_pairs", label: "Which did you hear? (minimal_pairs)" },
   { value: "audio_choice_tts", label: "Audio choice TTS (audio_choice_tts)" },
 
   { value: "multi_select", label: "Multi-select (multi_select)" },
@@ -251,6 +257,26 @@ function defaultConfigForKind(kind) {
       };
     case "select_missing_word":
       return { before: "Ես", after: "ուսանող", choices: ["եմ", "ես", "է"], answerIndex: 0 };
+
+    case "listen_word_bank":
+      return { ttsText: "Բարև ինչպես ես", tiles: ["Բարև", "ինչպես", "ես", "դու", "լավ"], solution: ["Բարև", "ինչպես", "ես"] };
+    case "dialogue_mcq":
+      return {
+        lines: [{ from: "them", text: "Բարև! Ինչպե՞ս ես" }],
+        choices: ["Լավ եմ, շնորհակալություն", "Ցտեսություն", "Ոչ"],
+        answerIndex: 0,
+      };
+    case "dialogue_order":
+      return {
+        lines: ["Բարև!", "Ինչպե՞ս ես", "Լավ եմ, շնորհակալություն"],
+        solution: ["Բարև!", "Ինչպե՞ս ես", "Լավ եմ, շնորհակալություն"],
+      };
+    case "image_select":
+      return { choices: [{ image: "", label: "խնձոր" }, { image: "", label: "հաց" }, { image: "", label: "ջուր" }, { image: "", label: "կաթ" }], answerIndex: 0 };
+    case "reading_comprehension":
+      return { passage: "", question: "", choices: ["", ""], answerIndex: 0 };
+    case "minimal_pairs":
+      return { ttsText: "բար", choices: ["բար", "պար"], answerIndex: 0 };
 
     default:
       return {};
@@ -826,6 +852,130 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
               setCorrectIndices={(arr) => patchConfig({ answerIndex: arr?.[0] ?? 0 })}
               mode="single"
             />
+          </Field>
+        </div>
+      );
+    }
+
+    // listen_word_bank: hear a sentence, tap tiles to rebuild it
+    if (kind === "listen_word_bank") {
+      const tiles = Array.isArray(cfg.tiles) ? cfg.tiles : [];
+      const solution = Array.isArray(cfg.solution) ? cfg.solution : [];
+      return (
+        <div className="space-y-4">
+          <Field label="Sentence spoken (TTS) & expected answer" hint="The learner hears this and rebuilds it from tiles.">
+            <Input value={cfg.ttsText ?? ""} onChange={(e) => patchConfig({ ttsText: e.target.value })} placeholder="Բարև ինչպես ես" />
+          </Field>
+          <Field label="Word tiles" hint="Include a few distractor words.">
+            <ChipsEditor items={tiles} onChange={(next) => patchConfig({ tiles: next })} placeholder="Add a word tile..." />
+          </Field>
+          <Field label="Correct order (solution)" hint="The exact words of the sentence, in order.">
+            <ChipsEditor items={solution} onChange={(next) => patchConfig({ solution: next })} placeholder="Add solution word in order..." />
+          </Field>
+        </div>
+      );
+    }
+
+    // dialogue_mcq: complete the conversation by choosing the missing reply
+    if (kind === "dialogue_mcq") {
+      const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
+      const choices = Array.isArray(cfg.choices) ? cfg.choices : [];
+      const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : 0;
+      const updLine = (i, patch) => patchConfig({ lines: lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) });
+      return (
+        <div className="space-y-4">
+          <Field label="Conversation" hint="Lines shown as a chat. The learner picks the missing reply.">
+            <div className="space-y-2">
+              {lines.map((l, i) => (
+                <div key={i} className="flex gap-2">
+                  <select
+                    value={l.from || "them"}
+                    onChange={(e) => updLine(i, { from: e.target.value })}
+                    className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+                  >
+                    <option value="them">Them</option>
+                    <option value="you">You</option>
+                  </select>
+                  <Input value={l.text || ""} onChange={(e) => updLine(i, { text: e.target.value })} placeholder="Line text" />
+                  <Button type="button" variant="secondary" onClick={() => patchConfig({ lines: lines.filter((_, idx) => idx !== i) })}>Remove</Button>
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={() => patchConfig({ lines: [...lines, { from: "them", text: "" }] })}>Add line</Button>
+            </div>
+          </Field>
+          <Field label="Reply choices + correct answer">
+            <OptionsEditor choices={choices} setChoices={(next) => patchConfig({ choices: next })} correctIndices={[correctIndex]} setCorrectIndices={(arr) => patchConfig({ answerIndex: arr?.[0] ?? 0 })} mode="single" />
+          </Field>
+        </div>
+      );
+    }
+
+    // dialogue_order: arrange the conversation lines
+    if (kind === "dialogue_order") {
+      const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
+      const solution = Array.isArray(cfg.solution) ? cfg.solution : [];
+      return (
+        <div className="space-y-4">
+          <Field label="Conversation lines" hint="Shown shuffled to the learner.">
+            <ChipsEditor items={lines} onChange={(next) => patchConfig({ lines: next })} placeholder="Add a line..." />
+          </Field>
+          <Field label="Correct order" hint="The same lines, in the right sequence.">
+            <ChipsEditor items={solution} onChange={(next) => patchConfig({ solution: next })} placeholder="Add line in correct order..." />
+          </Field>
+        </div>
+      );
+    }
+
+    // image_select: pick the correct picture
+    if (kind === "image_select") {
+      const items = Array.isArray(cfg.choices) ? cfg.choices : [];
+      const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : 0;
+      const upd = (i, patch) => patchConfig({ choices: items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) });
+      return (
+        <div className="space-y-3">
+          <div className="text-xs font-semibold text-slate-500">Paste an image URL for each option and tick the correct one.</div>
+          {items.map((it, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-2xl bg-white p-2 ring-1 ring-slate-200">
+              <input type="radio" checked={correctIndex === i} onChange={() => patchConfig({ answerIndex: i })} className="accent-brand-500" title="Correct" />
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-50">
+                {it.image ? <img src={it.image} alt="" className="h-full w-full object-cover" /> : null}
+              </div>
+              <Input value={it.image || ""} onChange={(e) => upd(i, { image: e.target.value })} placeholder="Image URL (https://…)" />
+              <Input value={it.label || ""} onChange={(e) => upd(i, { label: e.target.value })} placeholder="Label" />
+              <Button type="button" variant="secondary" onClick={() => patchConfig({ choices: items.filter((_, idx) => idx !== i) })}>✕</Button>
+            </div>
+          ))}
+          <Button type="button" variant="secondary" onClick={() => patchConfig({ choices: [...items, { image: "", label: "" }] })}>Add image option</Button>
+        </div>
+      );
+    }
+
+    // reading_comprehension: passage + question + MCQ
+    if (kind === "reading_comprehension") {
+      const choices = Array.isArray(cfg.choices) ? cfg.choices : [];
+      const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : 0;
+      return (
+        <div className="space-y-4">
+          <Field label="Passage"><Textarea value={cfg.passage ?? ""} onChange={(e) => patchConfig({ passage: e.target.value })} placeholder="Short reading passage…" /></Field>
+          <Field label="Question"><Input value={cfg.question ?? ""} onChange={(e) => patchConfig({ question: e.target.value })} placeholder="What does the text say about…?" /></Field>
+          <Field label="Answers + correct answer">
+            <OptionsEditor choices={choices} setChoices={(next) => patchConfig({ choices: next })} correctIndices={[correctIndex]} setCorrectIndices={(arr) => patchConfig({ answerIndex: arr?.[0] ?? 0 })} mode="single" />
+          </Field>
+        </div>
+      );
+    }
+
+    // minimal_pairs: which similar-sounding word did you hear?
+    if (kind === "minimal_pairs") {
+      const choices = Array.isArray(cfg.choices) ? cfg.choices : [];
+      const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : 0;
+      return (
+        <div className="space-y-4">
+          <Field label="Word spoken (TTS)" hint="Must match the correct choice exactly.">
+            <Input value={cfg.ttsText ?? ""} onChange={(e) => patchConfig({ ttsText: e.target.value })} placeholder="բար" />
+          </Field>
+          <Field label="Choices + correct (the one that was spoken)">
+            <OptionsEditor choices={choices} setChoices={(next) => patchConfig({ choices: next })} correctIndices={[correctIndex]} setCorrectIndices={(arr) => patchConfig({ answerIndex: arr?.[0] ?? 0 })} mode="single" />
           </Field>
         </div>
       );
