@@ -166,7 +166,7 @@ function StreakCard({ token, streak }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return;
-        setFreeze({ freezes: Number(d.freezes || 0), freeze_cap: Number(d.freeze_cap || 2) });
+        setFreeze({ freezes: Number(d.freezes || 0), freeze_cap: Number(d.freeze_cap || 2), frozen: !!d.frozen });
         setPracticedToday(!!d.practiced_today);
       })
       .catch(() => {});
@@ -188,17 +188,19 @@ function StreakCard({ token, streak }) {
   }
 
   const n = Number(streak) || 0;
+  const frozen = !!freeze.frozen;
   // The flame only burns once today's practice is done — otherwise it's an
-  // "at risk" ember even if the streak number is > 0.
-  const lit = n > 0 && practicedToday;
-  const atRisk = n > 0 && !practicedToday;
+  // "at risk" ember even if the streak number is > 0. When a freeze is holding
+  // the streak, show the icy "frozen" flame instead.
+  const lit = n > 0 && practicedToday && !frozen;
+  const atRisk = n > 0 && !practicedToday && !frozen;
   const week = Array.isArray(days) ? days.slice(-7) : [];
   const cap = freeze.freeze_cap || 2;
 
   return (
-    <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (lit ? "bg-gradient-to-br from-brand-50 to-white ring-brand-100" : atRisk ? "bg-brand-50/40 ring-brand-100" : "bg-white ring-slate-200")}>
+    <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (frozen ? "bg-gradient-to-br from-feather-50 to-white ring-feather-100" : lit ? "bg-gradient-to-br from-brand-50 to-white ring-brand-100" : atRisk ? "bg-brand-50/40 ring-brand-100" : "bg-white ring-slate-200")}>
       <div className="flex items-center gap-3">
-        <StreakFlame size={60} lit={lit} />
+        <StreakFlame size={60} lit={lit} frozen={frozen} />
         <div>
           <div className="font-display text-3xl font-extrabold leading-none text-slate-800 tabular-nums">{n}</div>
           <div className="text-xs font-bold uppercase tracking-wide text-slate-400">day streak</div>
@@ -227,7 +229,9 @@ function StreakCard({ token, streak }) {
       )}
 
       <p className="mt-3 text-sm font-semibold text-slate-500">
-        {lit
+        {frozen
+          ? "Your streak is frozen ❄️ — a freeze saved it. Practice today to thaw the flame!"
+          : lit
           ? "Nice — your flame is lit for today! 🔥"
           : atRisk
           ? "Practice today to light your flame and keep the streak!"
