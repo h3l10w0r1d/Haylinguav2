@@ -29,20 +29,40 @@ function ensureDotLottie() {
 const OUTER = "M32 3 C39 19, 52 26, 50 46 C49 61, 41 77, 32 77 C23 77, 14 62, 15 46 C16 34, 24 33, 26 22 C27 16, 30 11, 32 3 Z";
 const INNER = "M32 29 C37 37, 43 44, 41 54 C40 64, 35 73, 32 73 C27 73, 22 64, 23 54 C24 46, 29 41, 32 29 Z";
 
-// tone: "fire" | "frozen" | "ember"
+// tone: "fire" | "frozen" (used only as the brief loading fallback)
 const TONES = {
-  fire: { outer: "#FF7A1A", inner: "#FFE08A", opacity: 1 },
-  frozen: { outer: "#38BDF8", inner: "#E0F2FE", opacity: 1 },
-  ember: { outer: "#CBD5E1", inner: "#E2E8F0", opacity: 0.65 },
+  fire: { outer: "#FF7A1A", inner: "#FFE08A" },
+  frozen: { outer: "#38BDF8", inner: "#E0F2FE" },
 };
 
 function SvgFlame({ size, tone }) {
   const t = TONES[tone] || TONES.fire;
   return (
-    <svg width={size} height={size} viewBox="0 0 64 80" fill="none" aria-hidden="true" style={{ overflow: "visible", opacity: t.opacity }}>
+    <svg width={size} height={size} viewBox="0 0 64 80" fill="none" aria-hidden="true" style={{ overflow: "visible" }}>
       <path d={OUTER} fill={t.outer} />
       <path d={INNER} fill={t.inner} />
     </svg>
+  );
+}
+
+// 0-streak "unlit" flame — warm, soft and gently breathing (NOT dead grey),
+// so it reads as "ready to light" rather than broken.
+function EmberFlame({ size }) {
+  const raw = React.useId();
+  const id = String(raw).replace(/[^a-zA-Z0-9]/g, "");
+  return (
+    <span className="hl-ember" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox="0 0 64 80" fill="none" aria-hidden="true" style={{ overflow: "visible" }}>
+        <defs>
+          <linearGradient id={`em${id}`} x1="32" y1="4" x2="32" y2="78" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#FFE7D1" />
+            <stop offset="1" stopColor="#FFC79A" />
+          </linearGradient>
+        </defs>
+        <path d={OUTER} fill={`url(#em${id})`} stroke="#FDBA74" strokeWidth="2.5" strokeLinejoin="round" />
+        <path d={INNER} fill="#FFF6EC" opacity="0.85" />
+      </svg>
+    </span>
   );
 }
 
@@ -63,8 +83,8 @@ export default function StreakFlame({ size = 56, lit = true, frozen = false }) {
     };
   }, [animated, ready]);
 
-  // 0-day streak → calm grey ember, no animation.
-  if (!animated) return <SvgFlame size={size} tone="ember" />;
+  // 0-day streak → warm, gently breathing "unlit" flame (ready to light).
+  if (!animated) return <EmberFlame size={size} />;
 
   // While the Lottie web component loads, show the static SVG flame.
   if (!ready) return <SvgFlame size={size} tone={frozen ? "frozen" : "fire"} />;
