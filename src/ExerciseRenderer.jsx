@@ -247,9 +247,11 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
   const options = cfg.options ?? [];
   const correctIndex = Number(cfg.correctIndex ?? -1);
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [graded, setGraded] = useState(null);
 
   useEffect(() => {
     setSelectedIndex(null);
+    setGraded(null);
   }, [exercise?.id]);
 
   const canCheck = selectedIndex !== null;
@@ -277,13 +279,15 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
           selected={selectedIndex}
           onSelect={setSelectedIndex}
           columns={2}
+          graded={graded}
         />
       </div>
 
       <div className="mt-6 space-y-3">
         <PrimaryButton
-          disabled={!canCheck}
+          disabled={!canCheck || !!graded}
           onClick={() => {
+            setGraded({ correct: correctIndex, picked: selectedIndex });
             if (selectedIndex === correctIndex) correct();
             else wrong("Try again.");
           }}
@@ -651,7 +655,8 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
   const answerText = expected ?? cfg.answer ?? null;
 
   const [selectedIndex, setSelectedIndex] = useState(null);
-  useEffect(() => setSelectedIndex(null), [exercise?.id]);
+  const [graded, setGraded] = useState(null);
+  useEffect(() => { setSelectedIndex(null); setGraded(null); }, [exercise?.id]);
 
   const canCheck = selectedIndex !== null;
 
@@ -671,18 +676,21 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
           selected={selectedIndex}
           onSelect={setSelectedIndex}
           columns={2}
+          graded={graded}
         />
       </div>
 
       <div className="mt-6 space-y-3">
         <PrimaryButton
-          disabled={!canCheck}
+          disabled={!canCheck || !!graded}
           onClick={() => {
             const pick = choices[selectedIndex] ?? "";
             const extra = {
               selectedIndices: [selectedIndex],
               answerText: pick,
             };
+            const ci = correctIndexFromDbOrCfg !== null ? correctIndexFromDbOrCfg : choices.findIndex((c) => normalizeText(c) === normalizeText(answerText));
+            setGraded({ correct: ci, picked: selectedIndex });
 
             if (correctIndexFromDbOrCfg !== null) {
               if (selectedIndex === correctIndexFromDbOrCfg) correct(extra);
@@ -1067,6 +1075,7 @@ function ExAudioChoiceTts({
   const answerText = expected ?? cfg.answer ?? null;
 
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [graded, setGraded] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const audioRef = useRef(null);
@@ -1074,6 +1083,7 @@ function ExAudioChoiceTts({
 
   useEffect(() => {
     setSelectedIndex(null);
+    setGraded(null);
     setBusy(false);
 
     if (audioRef.current) {
@@ -1124,16 +1134,19 @@ function ExAudioChoiceTts({
           selected={selectedIndex}
           onSelect={setSelectedIndex}
           columns={2}
+          graded={graded}
         />
       </div>
 
       <div className="mt-6 space-y-3">
         <PrimaryButton
-          disabled={!canCheck}
+          disabled={!canCheck || !!graded}
           onClick={() => {
             const pick = choices[selectedIndex] ?? "";
             // Send selection so the server can re-grade authoritatively.
             const extra = { selectedIndices: [selectedIndex], answerText: pick };
+            const ci = correctIndexFromDbOrCfg !== null ? correctIndexFromDbOrCfg : choices.findIndex((c) => normalizeText(c) === normalizeText(answerText));
+            setGraded({ correct: ci, picked: selectedIndex });
             if (correctIndexFromDbOrCfg !== null) {
               selectedIndex === correctIndexFromDbOrCfg ? correct(extra) : wrong("Wrong choice. Try again.", extra);
               return;
@@ -1573,7 +1586,8 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
   const answerText = exercise?.expected_answer ?? cfg.answer ?? null;
 
   const [sel, setSel] = useState(null);
-  useEffect(() => setSel(null), [exercise?.id]);
+  const [graded, setGraded] = useState(null);
+  useEffect(() => { setSel(null); setGraded(null); }, [exercise?.id]);
 
   const canCheck = sel !== null;
 
@@ -1597,15 +1611,17 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
       </div>
 
       <div className="mt-4">
-        <ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} />
+        <ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} />
       </div>
 
       <div className="mt-6 space-y-3">
         <PrimaryButton
-          disabled={!canCheck}
+          disabled={!canCheck || !!graded}
           onClick={() => {
             const pick = choices[sel] ?? "";
             const extra = { selectedIndices: [sel], answerText: pick };
+            const ci = correctIndex !== null ? correctIndex : choices.findIndex((c) => normalizeText(c) === normalizeText(answerText));
+            setGraded({ correct: ci, picked: sel });
             if (correctIndex !== null) {
               sel === correctIndex ? correct(extra) : wrong("Not quite. Try again.", extra);
               return;
@@ -1709,7 +1725,8 @@ function ExDialogueMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
   const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
   const answerText = exercise?.expected_answer ?? cfg.answer ?? null;
   const [sel, setSel] = useState(null);
-  useEffect(() => setSel(null), [exercise?.id]);
+  const [graded, setGraded] = useState(null);
+  useEffect(() => { setSel(null); setGraded(null); }, [exercise?.id]);
 
   return (
     <Card>
@@ -1729,11 +1746,13 @@ function ExDialogueMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
           </div>
         </div>
       </div>
-      <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} /></div>
+      <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} graded={graded} /></div>
       <div className="mt-6 space-y-3">
-        <PrimaryButton disabled={sel === null} onClick={() => {
+        <PrimaryButton disabled={sel === null || !!graded} onClick={() => {
           const pick = choices[sel] ?? "";
           const extra = { selectedIndices: [sel], answerText: pick };
+          const ci = correctIndex !== null ? correctIndex : choices.findIndex((c) => normalizeText(c) === normalizeText(answerText));
+          setGraded({ correct: ci, picked: sel });
           if (correctIndex !== null) { sel === correctIndex ? correct(extra) : wrong("Not quite. Try again.", extra); return; }
           if (answerText && normalizeText(pick) === normalizeText(answerText)) correct(extra); else wrong("Not quite. Try again.", extra);
         }}>Check</PrimaryButton>
@@ -1830,18 +1849,20 @@ function ExReadingComprehension({ exercise, cfg, onCorrect, onWrong, onSkip, onA
   const choices = getChoices(exercise, cfg);
   const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
   const [sel, setSel] = useState(null);
-  useEffect(() => setSel(null), [exercise?.id]);
+  const [graded, setGraded] = useState(null);
+  useEffect(() => { setSel(null); setGraded(null); }, [exercise?.id]);
 
   return (
     <Card>
       <Title>{prompt}</Title>
       {passage ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-base leading-relaxed text-slate-800 ring-1 ring-slate-200">{passage}</div> : null}
       {question ? <div className="mt-4 font-display text-lg font-extrabold text-slate-800">{question}</div> : null}
-      <div className="mt-3"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} /></div>
+      <div className="mt-3"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} graded={graded} /></div>
       <div className="mt-6 space-y-3">
-        <PrimaryButton disabled={sel === null} onClick={() => {
+        <PrimaryButton disabled={sel === null || !!graded} onClick={() => {
           const pick = choices[sel] ?? "";
           const extra = { selectedIndices: [sel], answerText: pick };
+          setGraded({ correct: correctIndex, picked: sel });
           (correctIndex !== null && sel === correctIndex) ? correct(extra) : wrong("Not quite — re-read the passage.", extra);
         }}>Check</PrimaryButton>
         <SecondaryButton onClick={skip}>Skip</SecondaryButton>
@@ -1858,9 +1879,10 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
   const choices = getChoices(exercise, cfg);
   const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
   const [sel, setSel] = useState(null);
+  const [graded, setGraded] = useState(null);
   const [busy, setBusy] = useState(false);
   const didAutoplay = useRef(false);
-  useEffect(() => { setSel(null); didAutoplay.current = false; }, [exercise?.id]);
+  useEffect(() => { setSel(null); setGraded(null); didAutoplay.current = false; }, [exercise?.id]);
 
   async function play() {
     if (!target) return;
@@ -1886,11 +1908,12 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
           className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
         <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
       </div>
-      <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} /></div>
+      <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} /></div>
       <div className="mt-6 space-y-3">
-        <PrimaryButton disabled={sel === null} onClick={() => {
+        <PrimaryButton disabled={sel === null || !!graded} onClick={() => {
           const pick = choices[sel] ?? "";
           const extra = { selectedIndices: [sel], answerText: pick };
+          setGraded({ correct: correctIndex, picked: sel });
           (correctIndex !== null && sel === correctIndex) ? correct(extra) : wrong("Not quite — listen again.", extra);
         }}>Check</PrimaryButton>
         <SecondaryButton onClick={skip}>Skip</SecondaryButton>

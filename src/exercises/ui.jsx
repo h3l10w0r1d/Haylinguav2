@@ -78,7 +78,13 @@ export function SecondaryButton({ children, onClick, disabled, className, type =
   );
 }
 
-export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = false }) {
+/**
+ * ChoiceGrid
+ *  - `graded`: when set, locks the grid and reveals answers (Duolingo-style).
+ *    Shape: { correct: number|number[], picked: number|number[] } — correct
+ *    tiles turn green (✓), an incorrectly-picked tile turns red (✕).
+ */
+export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = false, graded = null }) {
   const colClass =
     columns === 1
       ? "grid-cols-1"
@@ -92,7 +98,12 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
     return new Set(arr.map((n) => Number(n)));
   }, [multi, selected]);
 
+  const toSet = (v) => new Set((Array.isArray(v) ? v : [v]).filter((x) => x != null && x !== -1).map(Number));
+  const correctSet = React.useMemo(() => (graded ? toSet(graded.correct) : null), [graded]);
+  const pickedSet = React.useMemo(() => (graded ? toSet(graded.picked) : null), [graded]);
+
   function handleClick(idx) {
+    if (graded) return; // locked once checked
     if (!multi) return onSelect(idx);
     const cur = selectedSet ?? new Set();
     const next = new Set(cur);
@@ -105,22 +116,28 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
     <div className={cx("grid gap-3", colClass)}>
       {choices.map((c, idx) => {
         const isSelected = multi ? (selectedSet?.has(idx) ?? false) : selected === idx;
+        const isCorrect = graded && correctSet?.has(idx);
+        const isWrongPick = graded && !isCorrect && pickedSet?.has(idx);
+
+        const tileState = isCorrect ? "tile-correct" : isWrongPick ? "tile-wrong" : isSelected ? "tile-selected" : "";
+        const badgeState = isCorrect
+          ? "bg-grass-500 text-white ring-grass-500"
+          : isWrongPick
+          ? "bg-cardinal-500 text-white ring-cardinal-500"
+          : isSelected
+          ? "bg-feather-500 text-white ring-feather-500"
+          : "text-slate-400 ring-slate-200";
+        const badge = isCorrect ? "✓" : isWrongPick ? "✕" : idx + 1;
+
         return (
           <button
             key={idx}
             onClick={() => handleClick(idx)}
-            className={cx("tile text-lg", isSelected && "tile-selected")}
+            className={cx("tile text-lg", tileState, graded && "pointer-events-none")}
           >
             <span className="flex items-center gap-3">
-              <span
-                className={cx(
-                  "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-extrabold ring-2",
-                  isSelected
-                    ? "bg-feather-500 text-white ring-feather-500"
-                    : "text-slate-400 ring-slate-200"
-                )}
-              >
-                {idx + 1}
+              <span className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-extrabold ring-2", badgeState)}>
+                {badge}
               </span>
               <span>{c}</span>
             </span>
