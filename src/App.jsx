@@ -32,6 +32,7 @@ const Cms2FASetup = lazy(() => import('./cms/Cms2FASetup'));
 const CmsTeam = lazy(() => import('./cms/CmsTeam'));
 const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
+const CmsShop = lazy(() => import('./cms/CmsShop'));
 
 function RouteFallback() {
   return <LoadingScreen />;
@@ -443,6 +444,7 @@ function AppShell() {
       <Route path="/cms/support" element={<CmsSupport />} />
       <Route path="/cms/chapters" element={<CmsChapters />} />
       <Route path="/cms/achievements" element={<CmsAchievements />} />
+      <Route path="/cms/shop" element={<CmsShop />} />
       <Route path="/cms" element={<CmsGate />} />
       <Route path="/cms/*" element={<CmsGate />} />
 

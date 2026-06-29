@@ -2996,14 +2996,38 @@ def me_streak(authorization: Optional[str] = Header(default=None), db: Connectio
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     streak = _compute_streak_days(db, user_id)
-    freezes = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+    urow = db.execute(
+        text("SELECT COALESCE(streak_freezes, 0) AS f, COALESCE(streak_frozen_days, '[]'::jsonb) AS fd FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first() or {}
+    freezes = int(urow.get("f") or 0)
+    frozen_raw = urow.get("fd") or []
+    if isinstance(frozen_raw, str):
+        try:
+            frozen_raw = json.loads(frozen_raw)
+        except Exception:
+            frozen_raw = []
+    frozen_days = {str(x) for x in (frozen_raw or [])}
+
+    today = datetime.utcnow().date()
     practiced_today = bool(
         db.execute(
             text("SELECT 1 FROM user_exercise_attempts WHERE user_id = :u AND DATE(created_at) = :d LIMIT 1"),
-            {"u": user_id, "d": datetime.utcnow().date()},
+            {"u": user_id, "d": today},
         ).scalar()
     )
-    return {"streak": streak, "freezes": freezes, "freeze_cap": STREAK_FREEZE_CAP, "practiced_today": practiced_today}
+    # The streak is currently "frozen" when it's alive only because a freeze
+    # bridged yesterday's missed day and today's practice isn't done yet.
+    yesterday = (today - timedelta(days=1)).isoformat()
+    frozen = bool(streak > 0 and not practiced_today and yesterday in frozen_days)
+
+    return {
+        "streak": streak,
+        "freezes": freezes,
+        "freeze_cap": STREAK_FREEZE_CAP,
+        "practiced_today": practiced_today,
+        "frozen": frozen,
+    }
 
 
 @router.post("/me/streak/freeze")
@@ -3026,16 +3050,52 @@ def me_streak_freeze(authorization: Optional[str] = Header(default=None), db: Co
 # Economy: gems currency, random chests, marketplace
 # ==========================================================================
 
-# Chest reward table — gem amount + relative weight (rarer = bigger).
-_CHEST_REWARDS = [(10, 30), (15, 25), (20, 18), (25, 12), (30, 8), (40, 5), (60, 2)]
+# Grant effects a shop item can have (the backend knows how to apply these).
+SHOP_EFFECTS = {"streak_freeze", "hearts_refill", "xp_boost"}
 
-# Marketplace catalogue. Each item is granted by _grant_shop_item below.
-SHOP_ITEMS = [
-    {"id": "streak_freeze", "title": "Streak Freeze", "desc": "Protects your streak from one missed day.", "price": 50, "icon": "snowflake"},
-    {"id": "hearts_refill", "title": "Refill Hearts", "desc": "Restore all your hearts instantly.", "price": 30, "icon": "heart"},
-    {"id": "gem_double_quest", "title": "XP Boost (15 XP)", "desc": "Instantly add 15 XP to your total.", "price": 20, "icon": "zap"},
+# Fallbacks used only if the DB tables are missing/empty (defensive).
+_FALLBACK_CHEST = [(10, 30), (15, 25), (20, 18), (25, 12), (30, 8), (40, 5), (60, 2)]
+_FALLBACK_SHOP = [
+    {"id": "streak_freeze", "title": "Streak Freeze", "desc": "Protects your streak from one missed day.", "price": 50, "icon": "snowflake", "effect": "streak_freeze", "effect_amount": 0},
+    {"id": "hearts_refill", "title": "Refill Hearts", "desc": "Restore all your hearts instantly.", "price": 30, "icon": "heart", "effect": "hearts_refill", "effect_amount": 0},
+    {"id": "xp_boost", "title": "XP Boost", "desc": "Instantly add 15 XP to your total.", "price": 20, "icon": "zap", "effect": "xp_boost", "effect_amount": 15},
 ]
-_SHOP_BY_ID = {it["id"]: it for it in SHOP_ITEMS}
+
+
+def _load_shop_items(db: Connection) -> list[dict]:
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT id, title, description, icon, price, effect, effect_amount
+                FROM shop_items WHERE COALESCE(is_active, TRUE)
+                ORDER BY sort_order ASC, id ASC
+                """
+            )
+        ).mappings().all()
+    except Exception:
+        rows = []
+    if not rows:
+        return [dict(it) for it in _FALLBACK_SHOP]
+    return [
+        {
+            "id": r["id"], "title": r["title"], "desc": r.get("description") or "",
+            "icon": r.get("icon") or "gem", "price": int(r["price"]),
+            "effect": r["effect"], "effect_amount": int(r.get("effect_amount") or 0),
+        }
+        for r in rows
+    ]
+
+
+def _load_chest_rewards(db: Connection) -> list[tuple]:
+    try:
+        rows = db.execute(text("SELECT gems, weight FROM chest_rewards ORDER BY sort_order ASC, id ASC")).mappings().all()
+        out = [(int(r["gems"]), max(1, int(r["weight"]))) for r in rows if int(r["weight"]) > 0]
+        if out:
+            return out
+    except Exception:
+        pass
+    return _FALLBACK_CHEST
 
 
 def _wallet(db: Connection, user_id: int) -> dict:
@@ -3064,8 +3124,9 @@ def me_open_chest(authorization: Optional[str] = Header(default=None), db: Conne
     if chests <= 0:
         raise HTTPException(status_code=400, detail="No chests to open")
 
-    amounts = [a for a, _ in _CHEST_REWARDS]
-    weights = [w for _, w in _CHEST_REWARDS]
+    rewards = _load_chest_rewards(db)
+    amounts = [a for a, _ in rewards]
+    weights = [w for _, w in rewards]
     reward = int(random.choices(amounts, weights=weights, k=1)[0])
 
     db.execute(
@@ -3082,7 +3143,10 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     w = _wallet(db, user_id)
-    items = [{**it, "affordable": w["gems"] >= it["price"]} for it in SHOP_ITEMS]
+    items = [
+        {"id": it["id"], "title": it["title"], "desc": it["desc"], "icon": it["icon"], "price": it["price"], "affordable": w["gems"] >= it["price"]}
+        for it in _load_shop_items(db)
+    ]
     return {"gems": w["gems"], "items": items}
 
 
@@ -3091,8 +3155,8 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
     user_id = _get_user_id_from_bearer(authorization)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
-    item_id = str((payload or {}).get("item") or "").strip()
-    item = _SHOP_BY_ID.get(item_id)
+    raw_id = (payload or {}).get("item")
+    item = next((it for it in _load_shop_items(db) if str(it["id"]) == str(raw_id)), None)
     if not item:
         raise HTTPException(status_code=400, detail="Unknown item")
 
@@ -3101,12 +3165,15 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
     if gems < price:
         raise HTTPException(status_code=400, detail="Not enough gems")
 
+    effect = item["effect"]
+    amount = int(item.get("effect_amount") or 0)
+
     # Validate the grant is useful before charging.
-    if item_id == "streak_freeze":
+    if effect == "streak_freeze":
         cur = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
         if cur >= STREAK_FREEZE_CAP:
             raise HTTPException(status_code=400, detail="You already have the maximum streak freezes")
-    elif item_id == "hearts_refill":
+    elif effect == "hearts_refill":
         hs = _hearts_state(db, user_id)
         if hs.get("is_premium"):
             raise HTTPException(status_code=400, detail="Premium already has unlimited hearts")
@@ -3116,15 +3183,16 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
     # Charge, then grant.
     db.execute(text("UPDATE users SET gems = GREATEST(COALESCE(gems, 0) - :p, 0) WHERE id = :u"), {"p": price, "u": user_id})
 
-    if item_id == "streak_freeze":
+    if effect == "streak_freeze":
         db.execute(text("UPDATE users SET streak_freezes = LEAST(COALESCE(streak_freezes, 0) + 1, :cap) WHERE id = :u"), {"u": user_id, "cap": STREAK_FREEZE_CAP})
-    elif item_id == "hearts_refill":
+    elif effect == "hearts_refill":
         db.execute(text("UPDATE users SET hearts_current = COALESCE(hearts_max, :mx), last_heart_lost_at = NULL WHERE id = :u"), {"u": user_id, "mx": DEFAULT_HEARTS_MAX})
-    elif item_id == "gem_double_quest":
-        db.execute(text("UPDATE users SET bonus_xp = COALESCE(bonus_xp, 0) + 15 WHERE id = :u"), {"u": user_id})
-        _award_weekly_xp(db, user_id, 15)
+    elif effect == "xp_boost":
+        amt = amount if amount > 0 else 15
+        db.execute(text("UPDATE users SET bonus_xp = COALESCE(bonus_xp, 0) + :a WHERE id = :u"), {"a": amt, "u": user_id})
+        _award_weekly_xp(db, user_id, amt)
 
-    return {"ok": True, "item": item_id, **_wallet(db, user_id)}
+    return {"ok": True, "item": item["id"], **_wallet(db, user_id)}
 
 
 # ----------------------------
@@ -5677,6 +5745,102 @@ def cms_seed_curriculum(request: Request, db=Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
+
+# -------------------- SHOP & ECONOMY (CMS) --------------------
+
+@router.get("/cms/shop/items")
+def cms_list_shop_items(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT id, title, description, icon, price, effect, effect_amount, sort_order, is_active
+        FROM shop_items ORDER BY sort_order ASC, id ASC
+    """)).mappings().all()
+    return {"items": [dict(r) for r in rows], "effects": sorted(SHOP_EFFECTS)}
+
+@router.post("/cms/shop/items")
+async def cms_create_shop_item(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    title = (body.get("title") or "").strip()
+    effect = (body.get("effect") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    if effect not in SHOP_EFFECTS:
+        raise HTTPException(status_code=400, detail=f"effect must be one of {sorted(SHOP_EFFECTS)}")
+    pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM shop_items")).scalar() or 1
+    new_id = db.execute(
+        text("""
+            INSERT INTO shop_items (title, description, icon, price, effect, effect_amount, sort_order, is_active)
+            VALUES (:t, :d, :ic, :pr, :eff, :amt, :so, :act) RETURNING id
+        """),
+        {
+            "t": title, "d": (body.get("description") or "").strip(), "ic": (body.get("icon") or "gem").strip() or "gem",
+            "pr": int(body.get("price") or 0), "eff": effect, "amt": int(body.get("effect_amount") or 0),
+            "so": int(pos), "act": bool(body.get("is_active", True)),
+        },
+    ).scalar_one()
+    return {"id": int(new_id)}
+
+@router.put("/cms/shop/items/{item_id}")
+async def cms_update_shop_item(item_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": item_id}
+    for f in ("title", "description", "icon", "price", "effect_amount", "is_active"):
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = body[f]
+    if "effect" in body:
+        if body["effect"] not in SHOP_EFFECTS:
+            raise HTTPException(status_code=400, detail="invalid effect")
+        set_parts.append("effect = :effect")
+        params["effect"] = body["effect"]
+    if not set_parts:
+        return {"ok": True}
+    db.execute(text(f"UPDATE shop_items SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/shop/items/{item_id}")
+def cms_delete_shop_item(item_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM shop_items WHERE id = :id"), {"id": item_id})
+    return {"ok": True}
+
+@router.post("/cms/shop/items/reorder")
+async def cms_reorder_shop_items(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    for i, iid in enumerate(body.get("order") or []):
+        db.execute(text("UPDATE shop_items SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(iid)})
+    return {"ok": True}
+
+@router.get("/cms/shop/chest")
+def cms_get_chest(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("SELECT id, gems, weight FROM chest_rewards ORDER BY sort_order ASC, id ASC")).mappings().all()
+    return {"rewards": [dict(r) for r in rows]}
+
+@router.put("/cms/shop/chest")
+async def cms_set_chest(request: Request, db=Depends(get_db)):
+    """Replace the whole chest reward table with the posted rows: [{gems, weight}]."""
+    require_cms(request, db)
+    body = await request.json()
+    rows = body.get("rewards") or []
+    cleaned = []
+    for r in rows:
+        try:
+            g = int(r.get("gems"))
+            w = int(r.get("weight"))
+        except (TypeError, ValueError):
+            continue
+        if g >= 0 and w > 0:
+            cleaned.append((g, w))
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Provide at least one reward with weight > 0")
+    db.execute(text("DELETE FROM chest_rewards"))
+    for i, (g, w) in enumerate(cleaned):
+        db.execute(text("INSERT INTO chest_rewards (gems, weight, sort_order) VALUES (:g, :w, :so)"), {"g": g, "w": w, "so": i})
+    return {"ok": True, "count": len(cleaned)}
 
 # -------------------- LESSONS --------------------
 

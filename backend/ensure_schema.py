@@ -107,6 +107,63 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "chests INTEGER NOT NULL DEFAULT 0")
         fill_nulls("users", "gems", "0")
         fill_nulls("users", "chests", "0")
+
+        # ---------- Economy: CMS-editable shop items + chest odds ----------
+        shop_existed = table_exists("shop_items")
+        ensure_table(
+            "shop_items",
+            """
+            CREATE TABLE shop_items (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                icon TEXT NOT NULL DEFAULT 'gem',
+                price INTEGER NOT NULL DEFAULT 10,
+                effect TEXT NOT NULL,
+                effect_amount INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        if not shop_existed:
+            seed_items = [
+                ("Streak Freeze", "Protects your streak from one missed day.", "snowflake", 50, "streak_freeze", 0),
+                ("Refill Hearts", "Restore all your hearts instantly.", "heart", 30, "hearts_refill", 0),
+                ("XP Boost", "Instantly add 15 XP to your total.", "zap", 20, "xp_boost", 15),
+            ]
+            for i, (t, d, ic, pr, eff, amt) in enumerate(seed_items):
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO shop_items (title, description, icon, price, effect, effect_amount, sort_order)
+                        VALUES (:t, :d, :ic, :pr, :eff, :amt, :so)
+                        """
+                    ),
+                    {"t": t, "d": d, "ic": ic, "pr": pr, "eff": eff, "amt": amt, "so": i},
+                )
+            print("[ensure_schema] seeded shop_items")
+
+        chest_existed = table_exists("chest_rewards")
+        ensure_table(
+            "chest_rewards",
+            """
+            CREATE TABLE chest_rewards (
+                id SERIAL PRIMARY KEY,
+                gems INTEGER NOT NULL,
+                weight INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 0
+            )
+            """,
+        )
+        if not chest_existed:
+            for i, (g, w) in enumerate([(10, 30), (15, 25), (20, 18), (25, 12), (30, 8), (40, 5), (60, 2)]):
+                conn.execute(
+                    text("INSERT INTO chest_rewards (gems, weight, sort_order) VALUES (:g, :w, :so)"),
+                    {"g": g, "w": w, "so": i},
+                )
+            print("[ensure_schema] seeded chest_rewards")
         ensure_table(
             "reward_claims",
             """

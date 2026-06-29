@@ -93,6 +93,15 @@ export function createCmsApi(accessToken) {
   const reorderAchievements = (order) =>
     req("/cms/achievements/reorder", { method: "POST", body: JSON.stringify({ order }) });
 
+  // Shop & economy
+  const listShopItems = () => req("/cms/shop/items");
+  const createShopItem = (payload) => req("/cms/shop/items", { method: "POST", body: JSON.stringify(payload) });
+  const updateShopItem = (id, payload) => req(`/cms/shop/items/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteShopItem = (id) => req(`/cms/shop/items/${id}`, { method: "DELETE" });
+  const reorderShopItems = (order) => req("/cms/shop/items/reorder", { method: "POST", body: JSON.stringify({ order }) });
+  const getChestConfig = () => req("/cms/shop/chest");
+  const setChestConfig = (rewards) => req("/cms/shop/chest", { method: "PUT", body: JSON.stringify({ rewards }) });
+
   // Exercises
   const listExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);
   const reorderExercises = (order) =>
@@ -153,6 +162,13 @@ export function createCmsApi(accessToken) {
     updateAchievement,
     deleteAchievement,
     reorderAchievements,
+    listShopItems,
+    createShopItem,
+    updateShopItem,
+    deleteShopItem,
+    reorderShopItems,
+    getChestConfig,
+    setChestConfig,
     listExercises,
     reorderExercises,
     getExercise,

@@ -4,12 +4,13 @@
 // Every CMS screen renders inside this so navigation is consistent and you
 // always know where you are.
 import { Link, useNavigate } from "react-router-dom";
-import { BookOpen, Layers, LifeBuoy, Users, LogOut, ChevronRight, Trophy } from "lucide-react";
+import { BookOpen, Layers, LifeBuoy, Users, LogOut, ChevronRight, Trophy, Store } from "lucide-react";
 
 const NAV = [
   { key: "lessons", label: "Lessons", icon: BookOpen, to: "/cms" },
   { key: "chapters", label: "Chapters", icon: Layers, to: "/cms/chapters" },
   { key: "achievements", label: "Achievements", icon: Trophy, to: "/cms/achievements" },
+  { key: "shop", label: "Shop & Economy", icon: Store, to: "/cms/shop" },
   { key: "learners", label: "Learners", icon: LifeBuoy, to: "/cms/support" },
   { key: "team", label: "Team", icon: Users, to: "/cms/team" },
 ];
