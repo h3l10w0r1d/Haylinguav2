@@ -1,10 +1,11 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Plus } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
+import StreakCelebration from "./lib/StreakCelebration";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -85,16 +86,40 @@ function DailyQuestsCard({ token }) {
 
 function StreakCard({ token, streak }) {
   const [days, setDays] = useState(null);
+  const [freeze, setFreeze] = useState({ freezes: 0, freeze_cap: 2 });
+  const [adding, setAdding] = useState(false);
+
   useEffect(() => {
-    fetch(`${API_BASE_URL}/me/activity/last7days`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    const h = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`${API_BASE_URL}/me/activity/last7days`, { headers: h })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d?.days && setDays(d.days))
       .catch(() => {});
+    fetch(`${API_BASE_URL}/me/streak`, { headers: h })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setFreeze({ freezes: Number(d.freezes || 0), freeze_cap: Number(d.freeze_cap || 2) }))
+      .catch(() => {});
   }, [token]);
+
+  async function addFreeze() {
+    setAdding(true);
+    try {
+      const r = await fetch(`${API_BASE_URL}/me/streak/freeze`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const d = await r.json().catch(() => null);
+      if (d) setFreeze((f) => ({ ...f, freezes: Number(d.freezes ?? f.freezes) }));
+    } catch {
+    } finally {
+      setAdding(false);
+    }
+  }
 
   const n = Number(streak) || 0;
   const lit = n > 0;
   const week = Array.isArray(days) ? days.slice(-7) : [];
+  const cap = freeze.freeze_cap || 2;
 
   return (
     <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (lit ? "bg-gradient-to-br from-brand-50 to-white ring-brand-100" : "bg-white ring-slate-200")}>
@@ -130,6 +155,30 @@ function StreakCard({ token, streak }) {
       <p className="mt-3 text-sm font-semibold text-slate-500">
         {lit ? "Practice today to keep your flame alive!" : "Finish a lesson to light your streak."}
       </p>
+
+      {/* Streak freezes — protect your streak from one missed day */}
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-brand-100/70 pt-3">
+        <div className="flex items-center gap-1.5" title="A streak freeze covers one missed day so your streak survives.">
+          {Array.from({ length: cap }).map((_, i) => (
+            <Snowflake
+              key={i}
+              className={"h-5 w-5 " + (i < freeze.freezes ? "fill-feather-200 text-feather-500" : "text-slate-300")}
+            />
+          ))}
+          <span className="ml-1 text-xs font-extrabold text-slate-500">
+            {freeze.freezes}/{cap} freeze{cap === 1 ? "" : "s"}
+          </span>
+        </div>
+        {freeze.freezes < cap ? (
+          <button
+            onClick={addFreeze}
+            disabled={adding}
+            className="inline-flex items-center gap-1 rounded-xl bg-feather-50 px-2.5 py-1.5 text-xs font-extrabold text-feather-600 ring-1 ring-feather-100 transition hover:bg-feather-100 disabled:opacity-60"
+          >
+            <Plus className="h-3.5 w-3.5" /> Get
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -399,6 +448,7 @@ export default function Dashboard({ user }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+      <StreakCelebration streak={stats.streak} />
       <div className="mx-auto flex max-w-5xl gap-8 px-4 py-8">
         {/* ── Roadmap column ── */}
         <main className="mx-auto w-full max-w-xl lg:mx-0 lg:flex-1">

@@ -679,46 +679,103 @@ class StatsOut(BaseModel):
     streak: int = 0
 
 
-def _compute_streak_days(db: Connection, user_id: int) -> int:
-    """Compute current streak (consecutive days ending today) based on ANY exercise attempt.
+def _compute_streak(active_dates, today, freezes: int = 0, frozen_dates=None):
+    """Pure streak calculation (no DB), so it can be unit-tested.
 
-    Uses UTC dates (DATE(created_at)).
+    - active_dates / frozen_dates: sets of `date` (days practiced / days already
+      bridged by a freeze).
+    - Walks back from today. Today not yet practiced is a grace day (doesn't
+      count, doesn't break). A single missing day is bridged by a freeze ONLY
+      when the day before it is covered (i.e. it genuinely connects two active
+      stretches); the bridged day does not add to the count.
+
+    Returns (streak_count, newly_frozen) — newly_frozen are gap days a freeze was
+    spent on, for the caller to persist.
     """
-    # Last 365 days is plenty for streak calculation
+    one = timedelta(days=1)
+    frozen_dates = set(frozen_dates or set())
+    covered = set(active_dates) | frozen_dates
+    if not covered:
+        return 0, []
+
+    newly = []
+    avail = int(freezes or 0)
+    streak = 0
+    cur = today
+    first = True
+    while True:
+        if cur in covered:
+            if cur in active_dates:
+                streak += 1  # only real practice days add to the number
+            first = False
+            cur -= one
+            continue
+        if first and cur == today:
+            first = False  # today not practiced yet — grace, keep going
+            cur -= one
+            continue
+        # gap day — bridge with a freeze only if the day before is covered
+        if avail > 0 and (cur - one) in covered:
+            avail -= 1
+            newly.append(cur)
+            cur -= one
+            continue
+        break
+    return streak, newly
+
+
+def _compute_streak_days(db: Connection, user_id: int) -> int:
+    """Current streak from exercise attempts (UTC dates), freeze-aware.
+
+    Spends/persists streak freezes lazily when they bridge a missed day.
+    """
     rows = db.execute(
         text(
             """
             SELECT DISTINCT DATE(created_at) AS d
             FROM user_exercise_attempts
             WHERE user_id = :u
-              AND created_at >= NOW() - INTERVAL '365 days'
+              AND created_at >= NOW() - INTERVAL '400 days'
             """
         ),
         {"u": user_id},
     ).mappings().all()
+    active = {r["d"] for r in rows if r.get("d") is not None}
 
-    days = {r["d"] for r in rows if r.get("d") is not None}
-    if not days:
-        return 0
+    urow = db.execute(
+        text("SELECT COALESCE(streak_freezes, 0) AS f, COALESCE(streak_frozen_days, '[]'::jsonb) AS fd FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first() or {}
+    freezes = int(urow.get("f") or 0)
+    frozen_raw = urow.get("fd") or []
+    if isinstance(frozen_raw, str):
+        try:
+            frozen_raw = json.loads(frozen_raw)
+        except Exception:
+            frozen_raw = []
+    frozen = set()
+    for s in (frozen_raw or []):
+        try:
+            frozen.add(datetime.strptime(str(s), "%Y-%m-%d").date())
+        except Exception:
+            pass
 
     today = datetime.utcnow().date()
-    yesterday = today - timedelta(days=1)
+    streak, newly = _compute_streak(active, today, freezes, frozen)
 
-    # The streak stays "alive" through all of today as long as the user practiced
-    # today OR yesterday — it only breaks once a full day passes with no activity.
-    # Anchor the count at the most recent active day (today if present, else
-    # yesterday) so the number doesn't drop to 0 every morning before practice.
-    if today in days:
-        cur = today
-    elif yesterday in days:
-        cur = yesterday
-    else:
-        return 0
-
-    streak = 0
-    while cur in days:
-        streak += 1
-        cur = cur - timedelta(days=1)
+    if newly:
+        merged = sorted({*(d.isoformat() for d in frozen), *(d.isoformat() for d in newly)})
+        db.execute(
+            text(
+                """
+                UPDATE users
+                SET streak_freezes = GREATEST(COALESCE(streak_freezes, 0) - :n, 0),
+                    streak_frozen_days = CAST(:fd AS jsonb)
+                WHERE id = :u
+                """
+            ),
+            {"n": len(newly), "fd": json.dumps(merged), "u": user_id},
+        )
     return streak
 
 
@@ -2921,6 +2978,36 @@ def me_hearts(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     return _hearts_state(db, user_id)
+
+
+STREAK_FREEZE_CAP = 2
+
+
+@router.get("/me/streak")
+def me_streak(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """Current streak + owned streak freezes."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    streak = _compute_streak_days(db, user_id)
+    freezes = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+    return {"streak": streak, "freezes": freezes, "freeze_cap": STREAK_FREEZE_CAP}
+
+
+@router.post("/me/streak/freeze")
+def me_streak_freeze(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """Equip a streak freeze (capped). It auto-protects against one missed day."""
+    user_id = _get_user_id_from_bearer(authorization)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    cur = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+    if cur >= STREAK_FREEZE_CAP:
+        return {"ok": True, "freezes": cur, "freeze_cap": STREAK_FREEZE_CAP, "added": False}
+    db.execute(
+        text("UPDATE users SET streak_freezes = LEAST(COALESCE(streak_freezes, 0) + 1, :cap) WHERE id = :u"),
+        {"u": user_id, "cap": STREAK_FREEZE_CAP},
+    )
+    return {"ok": True, "freezes": cur + 1, "freeze_cap": STREAK_FREEZE_CAP, "added": True}
 
 
 # ----------------------------

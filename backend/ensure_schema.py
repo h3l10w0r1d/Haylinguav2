@@ -79,6 +79,12 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "current_streak INTEGER NOT NULL DEFAULT 0")
         add_col_if_missing("users", "streak_last_activity_date DATE")
         fill_nulls("users", "current_streak", "0")
+        # Streak freezes: an owned protection that bridges one missed day so the
+        # streak doesn't reset. streak_frozen_days records days already covered.
+        add_col_if_missing("users", "streak_freezes INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("users", "streak_frozen_days JSONB NOT NULL DEFAULT '[]'::jsonb")
+        fill_nulls("users", "streak_freezes", "0")
+        fill_nulls("users", "streak_frozen_days", "'[]'::jsonb")
 
         # ---------- Account management audit columns ----------
         # These are referenced by UPDATE statements in routes.py (2FA setup/disable,
