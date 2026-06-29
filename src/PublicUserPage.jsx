@@ -103,6 +103,11 @@ export default function PublicUserPage({ token }) {
   const [err, setErr] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [activity, setActivity] = useState(null);
+  const [avatarBroken, setAvatarBroken] = useState(false);
+
+  useEffect(() => {
+    setAvatarBroken(false); // reset when navigating to a different profile
+  }, [username]);
 
   useEffect(() => {
     let cancelled = false;
@@ -321,9 +326,14 @@ export default function PublicUserPage({ token }) {
               <div className="px-5 pb-6 md:px-8">
                 <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex items-end gap-4">
-                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-white ring-4 ring-white shadow-md">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-brand-50 ring-4 ring-white shadow-md">
+                      {avatarUrl && !avatarBroken ? (
+                        <img
+                          src={avatarUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={() => setAvatarBroken(true)}
+                        />
                       ) : (
                         <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600">
                           {String(displayName || "H")[0]?.toUpperCase()}
@@ -452,12 +462,16 @@ export default function PublicUserPage({ token }) {
                                   (clickable ? "transition hover:bg-slate-50 hover:ring-brand-200" : "")
                                 }
                               >
-                                <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-50 font-display text-sm font-extrabold text-brand-600">
+                                <div className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-50 font-display text-sm font-extrabold text-brand-600">
+                                  <span>{String(fName)[0]?.toUpperCase()}</span>
                                   {fAvatar ? (
-                                    <img src={fAvatar} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                                  ) : (
-                                    String(fName)[0]?.toUpperCase()
-                                  )}
+                                    <img
+                                      src={fAvatar}
+                                      alt=""
+                                      className="absolute inset-0 h-full w-full object-cover"
+                                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                    />
+                                  ) : null}
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate text-sm font-extrabold text-slate-800">{fName}</div>
