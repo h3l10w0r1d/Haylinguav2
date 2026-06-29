@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { StarMotif } from "./lib/motifs";
+import ActivityChart from "./lib/ActivityChart";
 import AccountDangerZone from "./AccountDangerZone";
 import av1 from "./assets/avatars/av1.png";
 import av2 from "./assets/avatars/av2.png";
@@ -1579,54 +1580,13 @@ export default function ProfilePage() {
               Exercises completed in the last 7 days
             </div>
 
-            {(() => {
-              const items = Array.isArray(last7) && last7.length ? last7 : [];
-              const normalized = items.map((d, i) => {
-                const v = Number(d?.value ?? 0);
-                const label = String(d?.label ?? "").trim();
-                const date = String(d?.date ?? "").trim();
-                // Fallback label from date (YYYY-MM-DD -> first letter of weekday is unknown w/o tz; keep short).
-                const safeLabel = label || (date ? date.slice(5) : String(i + 1));
-                return { v: Number.isFinite(v) ? v : 0, label: safeLabel };
-              });
-              const values = normalized.map((x) => x.v);
-              const maxV = Math.max(1, ...values);
-              const allZero = values.every((x) => x === 0);
-
-              if (!normalized.length) {
-                return (
-                  <div className="h-20 flex items-center justify-center text-sm font-semibold text-slate-500">
-                    No activity yet — start a lesson to see your progress here.
-                  </div>
-                );
-              }
-
-              return (
-                <div className="flex items-end gap-3 h-28">
-                  {normalized.map((x, idx) => {
-                    const h = Math.round((x.v / maxV) * 88);
-                    return (
-                      <div key={idx} className="flex flex-col items-center gap-2 flex-1">
-                        <div className="w-full max-w-[46px]">
-                          <div className="relative h-20 w-full rounded-2xl bg-brand-50 overflow-hidden ring-1 ring-brand-100">
-                            <div
-                              className="absolute bottom-0 left-0 right-0 rounded-2xl"
-                              style={{
-                                height: `${allZero ? 8 : Math.max(8, h)}px`,
-                                background:
-                                  "linear-gradient(180deg, rgba(255,122,26,.95), rgba(232,95,0,.8))",
-                              }}
-                              title={`${x.label}: ${x.v}`}
-                            />
-                          </div>
-                        </div>
-                        <div className="text-[11px] font-bold text-slate-500">{x.label}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+            {Array.isArray(last7) && last7.length ? (
+              <ActivityChart days={last7} />
+            ) : (
+              <div className="flex h-20 items-center justify-center text-sm font-semibold text-slate-500">
+                No activity yet — start a lesson to see your progress here.
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Trophy, Flame, BookOpen, Users, Loader2, Lock, UserPlus, Check, Clock, Target, Zap, Crown, Star, Award } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
+import ActivityChart from "./lib/ActivityChart";
 
 const ACH_ICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -414,7 +415,7 @@ export default function PublicUserPage({ token }) {
                         No activity to show yet.
                       </div>
                     ) : (
-                      <ActivityBars days={activity.days} />
+                      <ActivityChart days={activity.days} />
                     )}
                     <div className="mt-5 flex items-center gap-2 rounded-2xl bg-grass-50 px-4 py-2.5 ring-1 ring-grass-100">
                       <BookOpen className="h-4 w-4 text-grass-600" />
@@ -501,40 +502,3 @@ export default function PublicUserPage({ token }) {
   );
 }
 
-function ActivityBars({ days }) {
-  const normalized = (Array.isArray(days) ? days : []).map((d, i) => {
-    const v = Number(d?.value ?? 0);
-    const label = String(d?.label ?? "").trim();
-    const date = String(d?.date ?? "").trim();
-    const safeLabel = label || (date ? date.slice(5) : String(i + 1));
-    return { key: d?.date || String(i), v: Number.isFinite(v) ? v : 0, label: safeLabel };
-  });
-
-  const values = normalized.map((x) => x.v);
-  const maxV = Math.max(1, ...values);
-  const allZero = values.every((x) => x === 0);
-
-  return (
-    <div className="mt-5">
-      <div className="flex h-28 items-end gap-3">
-        {normalized.map((x) => {
-          const h = Math.round((x.v / maxV) * 80);
-          return (
-            <div key={x.key} className="flex flex-1 flex-col items-center gap-2">
-              <div className="w-full max-w-[46px]">
-                <div className="relative h-20 w-full overflow-hidden rounded-2xl bg-brand-50 ring-1 ring-brand-100">
-                  <div
-                    className="absolute inset-x-0 bottom-0 rounded-2xl bg-gradient-to-t from-brand-600 to-brand-400"
-                    style={{ height: `${allZero ? 8 : Math.max(8, h)}px` }}
-                    title={`${x.label}: ${x.v}`}
-                  />
-                </div>
-              </div>
-              <div className="text-[11px] font-bold text-slate-500">{x.label}</div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
