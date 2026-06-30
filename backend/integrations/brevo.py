@@ -92,6 +92,65 @@ def upsert_contact(
             pass
 
 
+def send_transactional_email(
+    *,
+    to_email: str,
+    subject: str,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    sender_email: Optional[str] = None,
+    sender_name: Optional[str] = None,
+    timeout_s: float = 8.0,
+) -> bool:
+    """Send a transactional email via Brevo's HTTP API (POST /v3/smtp/email).
+
+    This works on hosts that block outbound SMTP ports (e.g. Render), because it
+    uses plain HTTPS. Requires BREVO_API_KEY and a verified sender (EMAIL_FROM or
+    BREVO_SENDER_EMAIL). NOT gated on BREVO_ENABLED so account/security emails
+    work even when marketing-contact sync is off. Returns True on success.
+    """
+    api_key = _api_key()
+    if not api_key:
+        return False
+
+    sender_email = (sender_email or os.getenv("BREVO_SENDER_EMAIL") or os.getenv("EMAIL_FROM") or "").strip()
+    sender_name = (sender_name or os.getenv("BREVO_SENDER_NAME") or "Haylingua").strip()
+    if not sender_email:
+        print("[brevo] send_transactional_email skipped: no sender (set EMAIL_FROM or BREVO_SENDER_EMAIL)")
+        return False
+
+    payload: Dict[str, Any] = {
+        "sender": {"email": sender_email, "name": sender_name},
+        "to": [{"email": to_email}],
+        "subject": subject,
+    }
+    if html:
+        payload["htmlContent"] = html
+    if text:
+        payload["textContent"] = text
+    if not html and not text:
+        payload["textContent"] = subject
+
+    url = f"{BREVO_API_BASE}/smtp/email"
+    try:
+        with httpx.Client(timeout=timeout_s) as client:
+            r = client.post(url, headers=_headers(), json=payload)
+        if 200 <= r.status_code < 300:
+            print(f"[brevo] email sent to {to_email} ({r.status_code})")
+            return True
+        try:
+            print("[brevo] send_transactional_email failed", r.status_code, r.text[:800])
+        except Exception:
+            pass
+        return False
+    except Exception as e:
+        try:
+            print("[brevo] send_transactional_email exception", repr(e))
+        except Exception:
+            pass
+        return False
+
+
 def track_event(
     *,
     email: str,

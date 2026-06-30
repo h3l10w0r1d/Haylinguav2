@@ -340,20 +340,34 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
     Returns:
         bool: True if email was sent via SMTP, False if only logged to console
     """
-    smtp_host = os.getenv("SMTP_HOST") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    # 1) Preferred: Brevo transactional HTTP API. Works even when the host blocks
+    #    outbound SMTP ports (Render does), and reuses the existing BREVO_API_KEY.
+    try:
+        from integrations.brevo import send_transactional_email as _brevo_send
+    except Exception:
+        _brevo_send = None
+    if _brevo_send is not None:
+        try:
+            if _brevo_send(to_email=to_email, subject=subject, text=body, html=html_body):
+                return True
+        except Exception as e:
+            print(f" ⚠️  Brevo email error, trying SMTP: {e}")
+
+    # 2) Fallback: classic SMTP (if configured).
+    smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
-    smtp_pass = os.getenv("SMTP_PASS") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
-    email_from = os.getenv("EMAIL_FROM", smtp_user or "no-reply@haylingua.local") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+    email_from = os.getenv("EMAIL_FROM", smtp_user or "no-reply@haylingua.local")
 
     if not (smtp_host and smtp_user and smtp_pass):
-        # Dev-safe fallback
-        print("\n--- EMAIL (dev mode) ---")
+        # Dev-safe fallback — nothing configured, log only.
+        print("\n--- EMAIL (not sent: no Brevo key + no SMTP) ---")
         print("To:", to_email)
         print("Subject:", subject)
         print(body)
         print("--- END EMAIL ---\n")
-        return False  # Email not sent, only logged
+        return False
 
     try:
         msg = EmailMessage()
@@ -364,16 +378,23 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
         if html_body:
             msg.add_alternative(html_body, subtype="html")
 
-        with smtplib.SMTP(smtp_host, smtp_port) as s:
-            s.starttls()
-            s.login(smtp_user, smtp_pass)
-            s.send_message(msg)
-        
-        print(f" ✅ Email sent successfully to {to_email}")
-        return True  # Email sent successfully
+        # Port 465 = implicit TLS (SMTPS); everything else = STARTTLS. Time out
+        # quickly so a blocked port doesn't hang the request.
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as s:
+                s.login(smtp_user, smtp_pass)
+                s.send_message(msg)
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as s:
+                s.ehlo()
+                s.starttls()
+                s.login(smtp_user, smtp_pass)
+                s.send_message(msg)
+
+        print(f" ✅ Email sent via SMTP to {to_email}")
+        return True
     except Exception as e:
-        print(f" ❌ Email sending failed: {e}")
-        # Still log to console in case of failure
+        print(f" ❌ SMTP email failed: {e}")
         print("\n--- EMAIL (fallback after error) ---")
         print("To:", to_email)
         print("Subject:", subject)
@@ -4776,32 +4797,16 @@ def _send_invite_email(email: str, invite_url: str):  # Send email function, is 
     """
     Best-effort. If SMTP not configured, prints link to logs.
     """
-    host = os.getenv("SMTP_HOST") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
-    port = int(os.getenv("SMTP_PORT") or "587") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
-    user = os.getenv("SMTP_USER") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
-    password = os.getenv("SMTP_PASS") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
-    from_addr = os.getenv("EMAIL_FROM") or user or "no-reply@haylingua.am" # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
-
-    if not host or not user or not password:
-        print(f"[cms_invite] Invite for {email}: {invite_url}")
-        return
-
-    import smtplib
-    from email.mime.text import MIMEText
-
-    msg = MIMEText(
-        f"You were invited to Haylingua CMS.\n\nOpen this link to set your password and enable 2FA:\n{invite_url}\n\nThis link expires soon.",
-        "plain",
-        "utf-8",
+    body = (
+        "You were invited to Haylingua CMS.\n\n"
+        f"Open this link to set your password and enable 2FA:\n{invite_url}\n\n"
+        "This link expires soon."
     )
-    msg["Subject"] = "Haylingua CMS invitation"
-    msg["From"] = from_addr
-    msg["To"] = email
-
-    with smtplib.SMTP(host, port) as s:
-        s.starttls()
-        s.login(user, password)
-        s.sendmail(from_addr, [email], msg.as_string())
+    # Route through the shared sender (Brevo HTTP API first, SMTP fallback) so an
+    # invite never 500s when SMTP ports are blocked.
+    sent = _send_email(to_email=email, subject="Haylingua CMS invitation", body=body)
+    if not sent:
+        print(f"[cms_invite] Invite for {email}: {invite_url}")
 
 def _bootstrap_invite_if_needed(db):
     """
