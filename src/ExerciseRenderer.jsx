@@ -1900,6 +1900,326 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
   );
 }
 
+// Q) flashcard — active recall: flip the card, then continue (info-style)
+function ExFlashcard({ exercise, cfg, submit }) {
+  const front = cfg.front ?? exercise?.prompt ?? "";
+  const back = cfg.back ?? cfg.translation ?? "";
+  const hint = cfg.hint ?? "";
+  const [flipped, setFlipped] = useState(false);
+  useEffect(() => setFlipped(false), [exercise?.id]);
+
+  return (
+    <Card>
+      <Title>{exercise?.prompt && cfg.front ? exercise.prompt : "Do you remember this?"}</Title>
+      <button
+        type="button"
+        onClick={() => setFlipped((f) => !f)}
+        className="mt-5 grid min-h-[10rem] w-full place-items-center rounded-3xl bg-gradient-to-br from-brand-50 to-white px-6 py-8 text-center ring-2 ring-brand-100 transition active:scale-[0.99]"
+      >
+        <div className="font-display text-3xl font-extrabold text-slate-800">{flipped ? back : front}</div>
+        <div className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">{flipped ? "answer" : "tap to flip"}</div>
+        {flipped && hint ? <div className="mt-2 text-sm font-semibold text-slate-500">{hint}</div> : null}
+      </button>
+      <div className="mt-6">
+        <PrimaryButton onClick={() => submit?.({ isCorrect: true, autoAdvance: true, xpEarned: 0 })}>Continue</PrimaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// R) categorize — sort each word into the right bucket
+function ExCategorize({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Sort each into the right group";
+  const buckets = Array.isArray(cfg.buckets) ? cfg.buckets : [];
+  const items = Array.isArray(cfg.items) ? cfg.items : [];
+
+  const [assign, setAssign] = useState({}); // item text -> bucket
+  useEffect(() => setAssign({}), [exercise?.id]);
+
+  const unassigned = items.map((it) => it.text).filter((t) => !(t in assign));
+  const allDone = items.length > 0 && unassigned.length === 0;
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+
+      {/* unassigned chips */}
+      <div className="mt-4 flex min-h-[3rem] flex-wrap gap-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+        {unassigned.length === 0 ? <Muted>All sorted — tap Check.</Muted> : unassigned.map((t) => (
+          <Pill key={t} onClick={() => {
+            // assign to the next bucket on tap-cycle; simpler: assign to first empty-ish bucket via prompt
+            // Tap a chip then tap a bucket below.
+            setAssign((a) => ({ ...a, __active: t }));
+          }} active={assign.__active === t}>{t}</Pill>
+        ))}
+      </div>
+
+      {/* buckets */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {buckets.map((b) => {
+          const inBucket = Object.entries(assign).filter(([k, v]) => k !== "__active" && v === b).map(([k]) => k);
+          return (
+            <button
+              key={b}
+              type="button"
+              onClick={() => {
+                const active = assign.__active;
+                if (!active) return;
+                setAssign((a) => { const n = { ...a, [active]: b }; delete n.__active; return n; });
+              }}
+              className="rounded-2xl bg-white p-3 text-left ring-2 ring-slate-200 transition hover:ring-brand-300"
+            >
+              <div className="font-display text-sm font-extrabold text-slate-800">{b}</div>
+              <div className="mt-2 flex min-h-[2rem] flex-wrap gap-1.5">
+                {inBucket.length === 0 ? <span className="text-xs font-semibold text-slate-300">tap a word, then this group</span> : inBucket.map((t) => (
+                  <span key={t} onClick={(e) => { e.stopPropagation(); setAssign((a) => { const n = { ...a }; delete n[t]; return n; }); }}
+                    className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 ring-1 ring-brand-200">{t} ✕</span>
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={!allDone} onClick={() => {
+          const built = items.map((it) => ({ text: it.text, bucket: assign[it.text] }));
+          const ok = items.every((it) => normalizeText(assign[it.text]) === normalizeText(it.bucket));
+          ok ? correct({ answerText: JSON.stringify(built) }) : wrong("Not quite — check your groups.", { answerText: JSON.stringify(built) });
+        }}>Check</PrimaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// S) highlight_grammar — tap the word(s) that match the rule
+function ExHighlightGrammar({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Tap the right word(s)";
+  const tokens = Array.isArray(cfg.tokens) ? cfg.tokens : [];
+  const correctIdx = (Array.isArray(cfg.correctIndices) ? cfg.correctIndices : []).map(Number);
+
+  const [picked, setPicked] = useState(new Set());
+  const [graded, setGraded] = useState(false);
+  useEffect(() => { setPicked(new Set()); setGraded(false); }, [exercise?.id]);
+
+  function toggle(i) {
+    if (graded) return;
+    setPicked((p) => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
+  }
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      <div className="mt-5 flex flex-wrap gap-2">
+        {tokens.map((t, i) => {
+          const on = picked.has(i);
+          const isCorrect = graded && correctIdx.includes(i);
+          const isWrong = graded && on && !correctIdx.includes(i);
+          return (
+            <button key={i} type="button" onClick={() => toggle(i)}
+              className={cx(
+                "rounded-2xl px-4 py-2.5 text-lg font-bold ring-2 transition",
+                isCorrect ? "bg-grass-50 text-grass-700 ring-grass-400" : isWrong ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-400" : on ? "bg-feather-50 text-feather-700 ring-feather-400" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
+              )}>{t}</button>
+          );
+        })}
+      </div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={picked.size === 0 || graded} onClick={() => {
+          const sel = Array.from(picked).sort((a, b) => a - b);
+          const target = [...correctIdx].sort((a, b) => a - b);
+          const ok = sel.length === target.length && sel.every((v, i) => v === target[i]);
+          setGraded(true);
+          ok ? correct({ selectedIndices: sel, answerText: sel.map((i) => tokens[i]).join(", ") })
+             : wrong("Not quite — tap again.", { selectedIndices: sel, answerText: sel.map((i) => tokens[i]).join(", ") });
+        }}>Check</PrimaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// T) conjugation — fill the verb paradigm
+function ExConjugation({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Complete the forms";
+  const verb = cfg.verb ?? "";
+  const cells = Array.isArray(cfg.cells) ? cfg.cells : [];
+
+  const [vals, setVals] = useState([]);
+  useEffect(() => setVals(cells.map(() => "")), [exercise?.id]);
+
+  const canCheck = vals.length === cells.length && vals.every((v) => normalizeText(v).length > 0);
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      {verb ? <Muted className="mt-2">Verb: <span className="font-extrabold text-slate-800">{verb}</span></Muted> : null}
+      <div className="mt-4 space-y-2">
+        {cells.map((c, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="w-28 shrink-0 text-sm font-extrabold text-slate-600">{c.label}</div>
+            <input
+              value={vals[i] ?? ""}
+              onChange={(e) => setVals((arr) => arr.map((v, x) => (x === i ? e.target.value : v)))}
+              placeholder="…"
+              className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 font-bold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:outline-none focus:ring-brand-400"
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={!canCheck} onClick={() => {
+          const ok = cells.every((c, i) => normalizeText(vals[i]) === normalizeText(c.answer));
+          const extra = { answerText: JSON.stringify(vals) };
+          ok ? correct(extra) : wrong("Some forms are off — try again.", extra);
+        }}>Check</PrimaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// U) speak_line — say your line in a conversation
+function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Say your line";
+  const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
+  const target = String(exercise?.expected_answer ?? cfg.target ?? cfg.answer ?? "").trim();
+  const lang = cfg.language_code || cfg.lang || "hye";
+
+  const [recording, setRecording] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [error, setError] = useState("");
+  const mrRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  useEffect(() => { setRecording(false); setBusy(false); setTranscript(""); setError(""); }, [exercise?.id]);
+
+  async function startRec() {
+    setError(""); setTranscript("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { setError("Recording isn't supported here."); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data?.size) chunksRef.current.push(e.data); };
+      mr.onstop = async () => { stream.getTracks().forEach((t) => t.stop()); const blob = new Blob(chunksRef.current, { type: "audio/webm" }); if (blob.size) await transcribe(blob); };
+      mrRef.current = mr; mr.start(); setRecording(true);
+    } catch { setError("Microphone access was blocked."); }
+  }
+  function stopRec() { try { mrRef.current?.stop(); } catch {} setRecording(false); }
+  async function transcribe(blob) {
+    setBusy(true); setError("");
+    try {
+      const token = getToken();
+      const fd = new FormData(); fd.append("audio", blob, "speech.webm"); if (lang) fd.append("language_code", lang);
+      const res = await fetch(`${API_BASE}/me/exercises/transcribe`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd });
+      if (!res.ok) { setError("Couldn’t understand that — try again."); return; }
+      const data = await res.json().catch(() => null);
+      setTranscript(String(data?.text || "").trim());
+    } catch { setError("Network error. Try again."); } finally { setBusy(false); }
+  }
+  async function playLine(text) {
+    if (!text) return;
+    try { const url = await ttsFetch(apiBaseUrl || API_BASE, { text, exerciseId: exercise?.id }); new Audio(url).play(); } catch (e) { console.error(e); }
+  }
+
+  const canCheck = !!transcript.trim() && !busy && !recording;
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      <div className="mt-4 space-y-2">
+        {lines.map((l, i) => {
+          const mine = l?.from === "you" || l?.from === "me";
+          return (
+            <div key={i} className={"flex " + (mine ? "justify-end" : "justify-start")}>
+              <div className={"max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold " + (mine ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-800")}>{l?.text}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {target ? (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Your line</div>
+            <div className="text-xl font-extrabold text-slate-900">{target}</div>
+          </div>
+          <button type="button" onClick={() => playLine(target)} className="btn3d btn3d-neutral shrink-0 text-sm">🔊 Listen</button>
+        </div>
+      ) : null}
+
+      <div className="mt-5 flex flex-col items-center">
+        <button type="button" onClick={recording ? stopRec : startRec} disabled={busy}
+          className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (recording ? "bg-cardinal-500 animate-pulse" : busy ? "bg-slate-300" : "bg-brand-500")}
+          aria-label={recording ? "Stop" : "Record"}>🎤</button>
+        <div className="mt-2 text-sm font-bold text-slate-500">{recording ? "Tap to stop" : busy ? "Transcribing…" : "Tap and say it"}</div>
+      </div>
+
+      {transcript ? (
+        <div className="mt-5 rounded-2xl bg-feather-50 p-4 ring-1 ring-feather-100">
+          <div className="text-xs font-bold uppercase tracking-wide text-feather-600">We heard</div>
+          <div className="mt-1 text-lg font-extrabold text-slate-800">{transcript}</div>
+        </div>
+      ) : null}
+      {error ? <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div> : null}
+
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={!canCheck} onClick={() => {
+          const t = normalizeText(transcript); const g = normalizeText(target);
+          const ok = !!g && (t === g || t.includes(g) || g.includes(t));
+          ok ? correct({ answerText: transcript }) : wrong("Not quite — listen and try again.", { answerText: transcript });
+        }}>Check</PrimaryButton>
+      </div>
+    </Card>
+  );
+}
+
+// V) write_translate — open-ended writing (graded vs accepted answers)
+function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Write your answer";
+  const source = cfg.source ?? cfg.sentence ?? "";
+  const accepted = [
+    String(exercise?.expected_answer ?? "").trim(),
+    ...(Array.isArray(cfg.acceptedAnswers) ? cfg.acceptedAnswers : []),
+    ...(Array.isArray(cfg.answers) ? cfg.answers : []),
+  ].filter(Boolean);
+  const [value, setValue] = useState("");
+  useEffect(() => setValue(""), [exercise?.id]);
+  const canCheck = normalizeText(value).length > 0;
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      {source ? (
+        <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
+          <div className="text-lg md:text-xl font-semibold text-slate-900">{source}</div>
+        </div>
+      ) : null}
+      <div className="mt-4">
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Write your translation…"
+          rows={3}
+          className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
+        />
+      </div>
+      <div className="mt-6 space-y-3">
+        <PrimaryButton disabled={!canCheck} onClick={() => {
+          const t = normalizeText(value);
+          const ok = accepted.some((a) => normalizeText(a) === t);
+          ok ? correct({ answerText: value }) : wrong("Not an accepted answer — check spelling & word order.", { answerText: value });
+        }}>Check</PrimaryButton>
+      </div>
+    </Card>
+  );
+}
+
 /* -------------------------
    Main Renderer (no hooks)
 -------------------------- */
@@ -2232,6 +2552,24 @@ export default function ExerciseRenderer({
   }
   if (kind === "minimal_pairs") {
     return <ExMinimalPairs exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} />;
+  }
+  if (kind === "flashcard") {
+    return <ExFlashcard exercise={exercise} cfg={cfg} submit={handleAnswer} />;
+  }
+  if (kind === "categorize") {
+    return <ExCategorize exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+  if (kind === "highlight_grammar") {
+    return <ExHighlightGrammar exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+  if (kind === "conjugation") {
+    return <ExConjugation exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+  if (kind === "speak_line") {
+    return <ExSpeakLine exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} />;
+  }
+  if (kind === "write_translate") {
+    return <ExWriteTranslate exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
   }
 
   // Fallback for unknown exercise kinds

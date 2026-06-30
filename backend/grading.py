@@ -32,7 +32,7 @@ _ODD_SPACE_RE = re.compile("[   ]")
 _WS_RE = re.compile(r"\s+")
 
 # Kinds that are pure information cards with no gradable answer.
-_INFO_KINDS = {"char_intro", "reading_section"}
+_INFO_KINDS = {"char_intro", "reading_section", "flashcard"}
 
 
 def norm_text(x: Any) -> str:
@@ -202,8 +202,9 @@ def grade_attempt(
     if kind in _INFO_KINDS:
         return True
 
-    # Free-text input (incl. dictation: type what you heard)
-    if kind in ("letter_typing", "word_spelling", "fill_blank", "listen_type"):
+    # Free-text input (incl. dictation, and open-ended writing graded against a
+    # teacher-provided set of acceptable answers).
+    if kind in ("letter_typing", "word_spelling", "fill_blank", "listen_type", "write_translate"):
         expected = _expected_text_answers(cfg, expected_answer)
         if not expected:
             return False
@@ -211,7 +212,7 @@ def grade_attempt(
 
     # Speech-to-text: `answer_text` is the transcript of the learner's speech.
     # STT is imperfect, so accept a close-enough match (in addition to exact).
-    if kind in ("speak", "speech_to_text", "pronounce"):
+    if kind in ("speak", "speech_to_text", "pronounce", "speak_line"):
         expected = _expected_text_answers(cfg, expected_answer)
         at = norm_text(answer_text)
         if not expected or not at:
@@ -244,8 +245,57 @@ def grade_attempt(
             return (sel[0] == 0) == correct_bool
         return False
 
+    # Categorize: drag each item into a bucket. answer_text is a JSON list of
+    # {item/text/left, bucket/group/right} pairs; every item must land in the
+    # bucket the author assigned.
+    if kind == "categorize":
+        items = cfg.get("items")
+        if not isinstance(items, list) or not items:
+            return False
+        valid = {}
+        for it in items:
+            if isinstance(it, dict):
+                txt = norm_text(it.get("text") or it.get("item") or it.get("left"))
+                bucket = norm_text(it.get("bucket") or it.get("group") or it.get("right"))
+                if txt:
+                    valid[txt] = bucket
+        try:
+            built = json.loads(answer_text) if isinstance(answer_text, str) else None
+        except Exception:
+            built = None
+        if not isinstance(built, list) or len(built) != len(valid):
+            return False
+        seen: Set[str] = set()
+        for entry in built:
+            if not isinstance(entry, dict):
+                return False
+            txt = norm_text(entry.get("text") or entry.get("item") or entry.get("left"))
+            bucket = norm_text(entry.get("bucket") or entry.get("group") or entry.get("right"))
+            if txt not in valid or valid[txt] != bucket:
+                return False
+            seen.add(txt)
+        return len(seen) == len(valid)
+
+    # Conjugation: fill a paradigm. answer_text is a JSON list of strings (one per
+    # cell, in order) compared against each cell's expected answer.
+    if kind == "conjugation":
+        cells = cfg.get("cells")
+        if not isinstance(cells, list) or not cells:
+            return False
+        try:
+            typed = json.loads(answer_text) if isinstance(answer_text, str) else None
+        except Exception:
+            typed = None
+        if not isinstance(typed, list) or len(typed) != len(cells):
+            return False
+        for i, c in enumerate(cells):
+            ans = c.get("answer") if isinstance(c, dict) else None
+            if not _eq(typed[i], ans):
+                return False
+        return True
+
     # Multi-select kinds: picked index set must equal the correct index set.
-    if kind in ("letter_recognition", "multi_select"):
+    if kind in ("letter_recognition", "multi_select", "highlight_grammar"):
         flagged = _flagged_option_indices(options)
         if options and flagged:
             return len(sel) > 0 and set(sel) == flagged

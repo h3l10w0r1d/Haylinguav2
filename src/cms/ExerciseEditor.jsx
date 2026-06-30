@@ -31,6 +31,12 @@ const KIND_OPTIONS = [
   { value: "image_select", label: "Pick the picture (image_select)" },
   { value: "reading_comprehension", label: "Reading comprehension (reading_comprehension)" },
   { value: "minimal_pairs", label: "Which did you hear? (minimal_pairs)" },
+  { value: "categorize", label: "Sort into groups (categorize)" },
+  { value: "highlight_grammar", label: "Tap the word(s) (highlight_grammar)" },
+  { value: "conjugation", label: "Conjugation table (conjugation)" },
+  { value: "flashcard", label: "Flashcard (flashcard)" },
+  { value: "speak_line", label: "Say your line (speak_line)" },
+  { value: "write_translate", label: "Open writing (write_translate)" },
   { value: "audio_choice_tts", label: "Audio choice TTS (audio_choice_tts)" },
 
   { value: "multi_select", label: "Multi-select (multi_select)" },
@@ -277,6 +283,19 @@ function defaultConfigForKind(kind) {
       return { passage: "", question: "", choices: ["", ""], answerIndex: 0 };
     case "minimal_pairs":
       return { ttsText: "բար", choices: ["բար", "պար"], answerIndex: 0 };
+
+    case "categorize":
+      return { buckets: ["Food", "Drink"], items: [{ text: "հաց", bucket: "Food" }, { text: "ջուր", bucket: "Drink" }, { text: "խնձոր", bucket: "Food" }, { text: "կաթ", bucket: "Drink" }] };
+    case "highlight_grammar":
+      return { tokens: ["Ես", "սիրում", "եմ", "հայերեն"], correctIndices: [1] };
+    case "conjugation":
+      return { verb: "լինել (to be)", cells: [{ label: "Ես (I)", answer: "եմ" }, { label: "Դու (you)", answer: "ես" }, { label: "Նա (he/she)", answer: "է" }] };
+    case "flashcard":
+      return { front: "Շնորհակալություն", back: "Thank you", hint: "" };
+    case "speak_line":
+      return { lines: [{ from: "them", text: "Բարև! Ինչպե՞ս ես" }], target: "Լավ եմ, շնորհակալություն", language_code: "hye" };
+    case "write_translate":
+      return { source: "I am learning Armenian", acceptedAnswers: ["Ես հայերեն եմ սովորում", "Ես սովորում եմ հայերեն"] };
 
     default:
       return {};
@@ -977,6 +996,145 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           <Field label="Choices + correct (the one that was spoken)">
             <OptionsEditor choices={choices} setChoices={(next) => patchConfig({ choices: next })} correctIndices={[correctIndex]} setCorrectIndices={(arr) => patchConfig({ answerIndex: arr?.[0] ?? 0 })} mode="single" />
           </Field>
+        </div>
+      );
+    }
+
+    // categorize: words sorted into buckets
+    if (kind === "categorize") {
+      const buckets = Array.isArray(cfg.buckets) ? cfg.buckets : [];
+      const items = Array.isArray(cfg.items) ? cfg.items : [];
+      const updItem = (i, patch) => patchConfig({ items: items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)) });
+      return (
+        <div className="space-y-4">
+          <Field label="Groups (buckets)" hint="The categories learners sort into.">
+            <ChipsEditor items={buckets} onChange={(next) => patchConfig({ buckets: next })} placeholder="Add a group..." />
+          </Field>
+          <Field label="Items + their correct group">
+            <div className="space-y-2">
+              {items.map((it, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input value={it.text || ""} onChange={(e) => updItem(i, { text: e.target.value })} placeholder="Word" />
+                  <select value={it.bucket || ""} onChange={(e) => updItem(i, { bucket: e.target.value })} className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none">
+                    <option value="">— group —</option>
+                    {buckets.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                  <Button type="button" variant="secondary" onClick={() => patchConfig({ items: items.filter((_, idx) => idx !== i) })}>✕</Button>
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={() => patchConfig({ items: [...items, { text: "", bucket: "" }] })}>Add item</Button>
+            </div>
+          </Field>
+        </div>
+      );
+    }
+
+    // highlight_grammar: tap the right token(s)
+    if (kind === "highlight_grammar") {
+      const tokens = Array.isArray(cfg.tokens) ? cfg.tokens : [];
+      const correctIndices = Array.isArray(cfg.correctIndices) ? cfg.correctIndices.map(Number) : [];
+      const toggle = (i) => {
+        const has = correctIndices.includes(i);
+        patchConfig({ correctIndices: (has ? correctIndices.filter((x) => x !== i) : [...correctIndices, i]).sort((a, b) => a - b) });
+      };
+      return (
+        <div className="space-y-4">
+          <Field label="Sentence tokens" hint="Each chip is a tappable word.">
+            <ChipsEditor items={tokens} onChange={(next) => patchConfig({ tokens: next })} placeholder="Add a word..." />
+          </Field>
+          <Field label="Correct word(s)" hint="Tick the words the learner should tap.">
+            <div className="flex flex-wrap gap-2">
+              {tokens.map((t, i) => (
+                <button key={i} type="button" onClick={() => toggle(i)}
+                  className={cx("rounded-2xl px-3 py-2 text-sm font-bold ring-2 transition", correctIndices.includes(i) ? "bg-grass-50 text-grass-700 ring-grass-400" : "bg-white text-slate-600 ring-slate-200")}>{t}</button>
+              ))}
+            </div>
+          </Field>
+        </div>
+      );
+    }
+
+    // conjugation: paradigm table
+    if (kind === "conjugation") {
+      const cells = Array.isArray(cfg.cells) ? cfg.cells : [];
+      const updCell = (i, patch) => patchConfig({ cells: cells.map((c, idx) => (idx === i ? { ...c, ...patch } : c)) });
+      return (
+        <div className="space-y-4">
+          <Field label="Verb (shown to the learner)">
+            <Input value={cfg.verb ?? ""} onChange={(e) => patchConfig({ verb: e.target.value })} placeholder="լինել (to be)" />
+          </Field>
+          <Field label="Forms" hint="Label (e.g. “Ես (I)”) + the form the learner must type.">
+            <div className="space-y-2">
+              {cells.map((c, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input value={c.label || ""} onChange={(e) => updCell(i, { label: e.target.value })} placeholder="Ես (I)" />
+                  <Input value={c.answer || ""} onChange={(e) => updCell(i, { answer: e.target.value })} placeholder="answer" />
+                  <Button type="button" variant="secondary" onClick={() => patchConfig({ cells: cells.filter((_, idx) => idx !== i) })}>✕</Button>
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={() => patchConfig({ cells: [...cells, { label: "", answer: "" }] })}>Add form</Button>
+            </div>
+          </Field>
+        </div>
+      );
+    }
+
+    // flashcard: front / back
+    if (kind === "flashcard") {
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Front (prompt)"><Input value={cfg.front ?? ""} onChange={(e) => patchConfig({ front: e.target.value })} placeholder="Շնորհակալություն" /></Field>
+            <Field label="Back (answer)"><Input value={cfg.back ?? ""} onChange={(e) => patchConfig({ back: e.target.value })} placeholder="Thank you" /></Field>
+          </div>
+          <Field label="Hint (optional)"><Input value={cfg.hint ?? ""} onChange={(e) => patchConfig({ hint: e.target.value })} /></Field>
+        </div>
+      );
+    }
+
+    // speak_line: say your line in a conversation
+    if (kind === "speak_line") {
+      const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
+      const updLine = (i, patch) => patchConfig({ lines: lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) });
+      return (
+        <div className="space-y-4">
+          <Field label="Conversation (the lines before the learner speaks)">
+            <div className="space-y-2">
+              {lines.map((l, i) => (
+                <div key={i} className="flex gap-2">
+                  <select value={l.from || "them"} onChange={(e) => updLine(i, { from: e.target.value })} className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none">
+                    <option value="them">Them</option>
+                    <option value="you">You</option>
+                  </select>
+                  <Input value={l.text || ""} onChange={(e) => updLine(i, { text: e.target.value })} placeholder="Line text" />
+                  <Button type="button" variant="secondary" onClick={() => patchConfig({ lines: lines.filter((_, idx) => idx !== i) })}>Remove</Button>
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={() => patchConfig({ lines: [...lines, { from: "them", text: "" }] })}>Add line</Button>
+            </div>
+          </Field>
+          <Field label="The line the learner must say" hint="They record it; we transcribe and compare.">
+            <Input value={cfg.target ?? ""} onChange={(e) => patchConfig({ target: e.target.value })} placeholder="Լավ եմ, շնորհակալություն" />
+          </Field>
+          <Field label="Language code" hint="ElevenLabs ISO-639-3. Armenian = hye.">
+            <Input value={cfg.language_code ?? "hye"} onChange={(e) => patchConfig({ language_code: e.target.value.trim() })} />
+          </Field>
+        </div>
+      );
+    }
+
+    // write_translate: open writing graded against accepted answers
+    if (kind === "write_translate") {
+      const accepted = Array.isArray(cfg.acceptedAnswers) ? cfg.acceptedAnswers : [];
+      return (
+        <div className="space-y-4">
+          <Field label="Prompt to translate / write" hint="Shown above the writing box.">
+            <Input value={cfg.source ?? ""} onChange={(e) => patchConfig({ source: e.target.value })} placeholder="I am learning Armenian" />
+          </Field>
+          <Field label="Accepted answers" hint="List every correct phrasing (order/spelling variations).">
+            <ChipsEditor items={accepted} onChange={(next) => patchConfig({ acceptedAnswers: next })} placeholder="Add an accepted answer..." />
+          </Field>
+          <div className="text-xs font-semibold text-slate-500">Tip: list a few valid variants. (AI grading for free variations can be added later.)</div>
         </div>
       );
     }
