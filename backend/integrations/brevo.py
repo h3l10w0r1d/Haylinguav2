@@ -92,7 +92,7 @@ def upsert_contact(
             pass
 
 
-def send_transactional_email(
+def send_transactional_email_result(
     *,
     to_email: str,
     subject: str,
@@ -101,23 +101,17 @@ def send_transactional_email(
     sender_email: Optional[str] = None,
     sender_name: Optional[str] = None,
     timeout_s: float = 8.0,
-) -> bool:
-    """Send a transactional email via Brevo's HTTP API (POST /v3/smtp/email).
-
-    This works on hosts that block outbound SMTP ports (e.g. Render), because it
-    uses plain HTTPS. Requires BREVO_API_KEY and a verified sender (EMAIL_FROM or
-    BREVO_SENDER_EMAIL). NOT gated on BREVO_ENABLED so account/security emails
-    work even when marketing-contact sync is off. Returns True on success.
-    """
+) -> Dict[str, Any]:
+    """Like send_transactional_email but returns a diagnostic dict:
+    {ok, reason, status?, error?, sender?} — used by the CMS email tester."""
     api_key = _api_key()
     if not api_key:
-        return False
+        return {"ok": False, "reason": "no_api_key"}
 
     sender_email = (sender_email or os.getenv("BREVO_SENDER_EMAIL") or os.getenv("EMAIL_FROM") or "").strip()
     sender_name = (sender_name or os.getenv("BREVO_SENDER_NAME") or "Haylingua").strip()
     if not sender_email:
-        print("[brevo] send_transactional_email skipped: no sender (set EMAIL_FROM or BREVO_SENDER_EMAIL)")
-        return False
+        return {"ok": False, "reason": "no_sender"}
 
     payload: Dict[str, Any] = {
         "sender": {"email": sender_email, "name": sender_name},
@@ -137,18 +131,41 @@ def send_transactional_email(
             r = client.post(url, headers=_headers(), json=payload)
         if 200 <= r.status_code < 300:
             print(f"[brevo] email sent to {to_email} ({r.status_code})")
-            return True
+            return {"ok": True, "status": r.status_code, "sender": sender_email}
+        err = ""
         try:
-            print("[brevo] send_transactional_email failed", r.status_code, r.text[:800])
+            err = r.text[:800]
         except Exception:
             pass
-        return False
+        print("[brevo] send failed", r.status_code, err)
+        return {"ok": False, "reason": "http_error", "status": r.status_code, "error": err, "sender": sender_email}
     except Exception as e:
-        try:
-            print("[brevo] send_transactional_email exception", repr(e))
-        except Exception:
-            pass
-        return False
+        print("[brevo] send exception", repr(e))
+        return {"ok": False, "reason": "exception", "error": repr(e), "sender": sender_email}
+
+
+def send_transactional_email(
+    *,
+    to_email: str,
+    subject: str,
+    text: Optional[str] = None,
+    html: Optional[str] = None,
+    sender_email: Optional[str] = None,
+    sender_name: Optional[str] = None,
+    timeout_s: float = 8.0,
+) -> bool:
+    """Send a transactional email via Brevo's HTTP API (POST /v3/smtp/email).
+
+    This works on hosts that block outbound SMTP ports (e.g. Render), because it
+    uses plain HTTPS. Requires BREVO_API_KEY and a verified sender (EMAIL_FROM or
+    BREVO_SENDER_EMAIL). NOT gated on BREVO_ENABLED so account/security emails
+    work even when marketing-contact sync is off. Returns True on success.
+    """
+    res = send_transactional_email_result(
+        to_email=to_email, subject=subject, text=text, html=html,
+        sender_email=sender_email, sender_name=sender_name, timeout_s=timeout_s,
+    )
+    return bool(res.get("ok"))
 
 
 def track_event(

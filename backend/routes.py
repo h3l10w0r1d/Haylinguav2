@@ -3330,12 +3330,43 @@ def _compute_achievements(db: Connection, user_id: int) -> list:
     total_xp = int(lp.get("total_xp") or 0)
     lessons = int(lp.get("lessons_completed") or 0)
 
+    # Extra metrics (guarded — schema may differ across environments).
+    def _scalar(sql: str) -> int:
+        try:
+            return int(db.execute(text(sql), {"u": user_id}).scalar() or 0)
+        except Exception:
+            return 0
+
+    days_active = _scalar("SELECT COUNT(DISTINCT DATE(created_at)) FROM user_exercise_attempts WHERE user_id = :u")
+    friends_count = _scalar("SELECT COUNT(*) FROM friends WHERE user_id = :u OR friend_id = :u")
+    gems = _scalar("SELECT COALESCE(gems, 0) FROM users WHERE id = :u")
+    chapters_completed = _scalar(
+        """
+        SELECT COUNT(*) FROM (
+          SELECT l.chapter_id
+          FROM lessons l
+          WHERE l.chapter_id IS NOT NULL AND COALESCE(l.is_published, TRUE)
+          GROUP BY l.chapter_id
+          HAVING COUNT(*) = COUNT(*) FILTER (
+            WHERE l.id IN (
+              SELECT lesson_id FROM user_lesson_progress
+              WHERE user_id = :u AND completed_at IS NOT NULL
+            )
+          )
+        ) t
+        """
+    )
+
     # Map each configurable metric to the learner's current value.
     metric_values = {
         "lessons_completed": lessons,
         "streak_days": streak,
         "total_xp": total_xp,
         "correct_answers": correct_total,
+        "days_active": days_active,
+        "friends_count": friends_count,
+        "chapters_completed": chapters_completed,
+        "gems": gems,
     }
 
     # Achievements are CMS-editable rows in achievement_defs. Fall back to the
@@ -3345,7 +3376,9 @@ def _compute_achievements(db: Connection, user_id: int) -> list:
         rows = db.execute(
             text(
                 """
-                SELECT key, title, description, icon, metric, threshold, reward_xp
+                SELECT key, title, description, icon,
+                       COALESCE(color, '#F59E0B') AS color,
+                       metric, threshold, reward_xp
                 FROM achievement_defs
                 WHERE COALESCE(is_active, TRUE)
                 ORDER BY sort_order ASC, id ASC
@@ -3375,6 +3408,7 @@ def _compute_achievements(db: Connection, user_id: int) -> list:
             "title": r["title"],
             "desc": r.get("description") or "",
             "icon": r.get("icon") or "star",
+            "color": r.get("color") or "#F59E0B",
             "progress": min(m, t) if t else m,
             "target": t,
             "earned": (m >= t) if t else False,
@@ -5112,7 +5146,7 @@ def get_public_user(
         top_friends=top_friends,
         achievements=(
             [
-                {"id": a["id"], "title": a["title"], "desc": a["desc"], "icon": a["icon"]}
+                {"id": a["id"], "title": a["title"], "desc": a["desc"], "icon": a["icon"], "color": a.get("color")}
                 for a in _compute_achievements(db, target_id)
                 if a["earned"]
             ]
@@ -5762,6 +5796,45 @@ def cms_seed_curriculum(request: Request, db=Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
+
+# -------------------- EMAIL DIAGNOSTICS (CMS) --------------------
+
+@router.get("/cms/email/status")
+def cms_email_status(request: Request, db=Depends(get_db)):
+    """Report which email channel is configured (no secrets) so admins can debug delivery."""
+    require_cms(request, db)
+    brevo_key = bool((os.getenv("BREVO_API_KEY") or "").strip())
+    sender = (os.getenv("BREVO_SENDER_EMAIL") or os.getenv("EMAIL_FROM") or "").strip() or None
+    smtp = bool(os.getenv("SMTP_HOST") and os.getenv("SMTP_USER") and os.getenv("SMTP_PASS"))
+    return {
+        "brevo_api_key_set": brevo_key,
+        "brevo_enabled_flag": (os.getenv("BREVO_ENABLED") or "").strip().lower() in ("1", "true", "yes", "on"),
+        "sender": sender,
+        "smtp_configured": smtp,
+        "ready": (brevo_key and bool(sender)) or smtp,
+    }
+
+
+@router.post("/cms/email/test")
+async def cms_email_test(request: Request, db=Depends(get_db)):
+    """Send a real test email and return the exact outcome (incl. the Brevo error)."""
+    require_cms(request, db)
+    body = await request.json()
+    to = str((body or {}).get("to") or "").strip()
+    if not to or "@" not in to:
+        raise HTTPException(status_code=400, detail="A valid 'to' email is required")
+    try:
+        from integrations.brevo import send_transactional_email_result
+    except Exception as e:
+        return {"ok": False, "reason": "import_error", "error": repr(e)}
+    res = send_transactional_email_result(
+        to_email=to,
+        subject="Haylingua — test email ✅",
+        text="This is a test email from Haylingua. If you got this, email delivery works.",
+        html="<div style='font-family:sans-serif'><h2>It works! ✅</h2><p>This is a test email from Haylingua. Email delivery is configured correctly.</p></div>",
+    )
+    return res
+
 
 # -------------------- SHOP & ECONOMY (CMS) --------------------
 

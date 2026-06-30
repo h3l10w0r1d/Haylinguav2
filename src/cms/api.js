@@ -93,6 +93,10 @@ export function createCmsApi(accessToken) {
   const reorderAchievements = (order) =>
     req("/cms/achievements/reorder", { method: "POST", body: JSON.stringify({ order }) });
 
+  // Email diagnostics
+  const emailStatus = () => req("/cms/email/status");
+  const sendTestEmail = (to) => req("/cms/email/test", { method: "POST", body: JSON.stringify({ to }) });
+
   // Shop & economy
   const listShopItems = () => req("/cms/shop/items");
   const createShopItem = (payload) => req("/cms/shop/items", { method: "POST", body: JSON.stringify(payload) });
@@ -162,6 +166,8 @@ export function createCmsApi(accessToken) {
     updateAchievement,
     deleteAchievement,
     reorderAchievements,
+    emailStatus,
+    sendTestEmail,
     listShopItems,
     createShopItem,
     updateShopItem,
