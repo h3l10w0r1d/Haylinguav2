@@ -1,6 +1,6 @@
 // src/cms/CmsSupport.jsx — support admin: look up users & resolve common issues.
 // CMS-admin only (uses the CMS bearer token; backend gates with require_cms_admin).
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Crown, Heart, MailCheck, Loader2, User, ArrowLeft, Check, X } from "lucide-react";
 import { getCmsToken } from "./api";
 import CmsLayout from "./CmsLayout";
@@ -35,13 +35,19 @@ export default function CmsSupport() {
 
   async function search(e) {
     e?.preventDefault?.();
-    if (!q.trim()) return;
+    // Empty query → the backend returns the most recent learners (full list).
     setErr(""); setSearching(true); setDetail(null);
     try {
       const d = await api(`/cms/support/users?q=${encodeURIComponent(q.trim())}`);
       setResults(d?.users || []);
     } catch (e) { setErr(e.message); } finally { setSearching(false); }
   }
+
+  // Load the learner list on first open so the panel isn't empty.
+  useEffect(() => {
+    search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function openUser(id) {
     setErr(""); setLoadingDetail(true);
@@ -142,7 +148,15 @@ export default function CmsSupport() {
                 </div>
               </button>
             ))}
-            {results.length === 0 && !searching ? <div className="py-10 text-center text-sm font-semibold text-slate-400">Search for a user to get started.</div> : null}
+            {searching && results.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm font-semibold text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading learners…
+              </div>
+            ) : results.length === 0 ? (
+              <div className="py-10 text-center text-sm font-semibold text-slate-400">
+                {q.trim() ? "No learners match your search." : "No learners yet."}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">

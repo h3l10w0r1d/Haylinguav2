@@ -4585,8 +4585,20 @@ def support_search_users(
     db: Connection = Depends(get_db),
 ):
     query = (q or "").strip()
+    # No query → show the most recent learners so the panel isn't empty.
     if not query:
-        return {"users": []}
+        rows = db.execute(
+            text(
+                """
+                SELECT id, email, username, display_name, email_verified,
+                       COALESCE(is_premium, FALSE) AS is_premium
+                FROM users
+                ORDER BY id DESC
+                LIMIT 100
+                """
+            )
+        ).mappings().all()
+        return {"users": [dict(r) for r in rows]}
     rows = db.execute(
         text(
             """
@@ -4597,7 +4609,7 @@ def support_search_users(
                OR lower(email) LIKE :like
                OR lower(username) LIKE :like
             ORDER BY id
-            LIMIT 25
+            LIMIT 50
             """
         ),
         {"exact": query, "like": f"%{query.lower()}%"},
