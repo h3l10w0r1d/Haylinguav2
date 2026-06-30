@@ -90,6 +90,7 @@ function StatCard({ icon: Icon, value, label, tone = "brand" }) {
 
 export default function LessonCompletionScreen({
   sessionXpEarned,
+  mistakes = 0,
   analytics,
   analyticsLoading,
   analyticsError,
@@ -98,6 +99,7 @@ export default function LessonCompletionScreen({
   onDone,
   isSaving,
 }) {
+  const perfect = Number(mistakes) === 0;
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const ratio = useMemo(() => clamp01(analytics?.completion_ratio), [analytics]);
@@ -135,11 +137,18 @@ export default function LessonCompletionScreen({
           />
 
           <h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight text-brand-500 sm:text-5xl">
-            Lesson Complete!
+            {perfect ? "Perfect Lesson!" : "Lesson Complete!"}
           </h2>
           <p className="mt-2 text-base font-semibold text-slate-500">
-            Դու հիանալի ես! You’re making amazing progress.
+            {perfect
+              ? "Կեցցե՛ս! Flawless — not a single mistake. 🎉"
+              : `Done! ${mistakes} mistake${Number(mistakes) === 1 ? "" : "s"} along the way — review them to master it.`}
           </p>
+          {perfect ? (
+            <div className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-gold-100 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-gold-600">
+              ★ No mistakes
+            </div>
+          ) : null}
 
           <div className="mt-8 grid grid-cols-3 gap-3">
             <StatCard icon={Zap} value={`+${sessionXpEarned ?? earnedXp}`} label="XP" tone="brand" />

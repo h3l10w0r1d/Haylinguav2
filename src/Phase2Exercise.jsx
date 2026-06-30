@@ -343,10 +343,6 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     });
   };
 
-  const onSkip = () => {
-    submit?.({ skipped: true, isCorrect: false });
-  };
-
   // Register actions with parent — ref ensures parent always calls the latest onCheck,
   // preventing stale-closure bugs when the user changes their selection between renders
   // (e.g. clicks "False" first, then switches to "True" — without this the registered
@@ -358,13 +354,11 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     registerActions?.({
       canCheck,
       onCheck: (...args) => onCheckRef.current(...args),
-      onSkip,
       primaryLabel: "Check",
-      secondaryLabel: "Skip",
     });
   }, [registerActions, canCheck]);
 
-  // Keyboard shortcuts: Enter = Check, Esc = Skip, 1-9 to pick option (single-choice)
+  // Keyboard shortcuts: Enter = Check, 1-9 to pick option (single-choice)
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === "Enter") {
@@ -372,10 +366,6 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
           e.preventDefault();
           onCheckRef.current();
         }
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onSkip();
       }
       // numeric shortcuts for single-choice MCQ
       if (!isMulti && !isTyping && !isSentenceOrder && !isBuildWord) {

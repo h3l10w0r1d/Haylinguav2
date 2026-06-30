@@ -168,6 +168,7 @@ export default function LessonPlayer() {
   const [pendingNext, setPendingNext] = useState(null);
   const [renderNonce, setRenderNonce] = useState(0);
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
+  const [mistakes, setMistakes] = useState(0);
   const [heartsState, setHeartsState] = useState(readHearts);
 
   const [phase2Actions, setPhase2Actions] = useState(null);
@@ -344,6 +345,7 @@ export default function LessonPlayer() {
         setLesson(normalized);
         setCurrentIndex(0);
         setHasFinishedAll(false);
+        setMistakes(0);
         setLessonXpEarned(0);
         setAnalyticsLoading(false);
         setAnalyticsError(null);
@@ -400,7 +402,15 @@ export default function LessonPlayer() {
       else sfx.wrong();
     }
 
-    // Phase 2.5: unified result sheet
+    // Track mistakes so the lesson can't be "completed" by getting things wrong:
+    // Duolingo-style, any non-correct answer (including a skip) re-shows the
+    // exercise — you only advance once you answer correctly.
+    if (!isCorrect) {
+      setMistakes((m) => m + 1);
+    }
+
+    // Phase 2.5: unified result sheet. A skip is shown as "not quite" (it does
+    // not pass the exercise).
     setResultData({
       isCorrect,
       skipped,
@@ -409,7 +419,7 @@ export default function LessonPlayer() {
       hearts: payload?.hearts,
     });
 
-    if (!skipped && !isCorrect) {
+    if (!isCorrect) {
       setPendingNext({ type: "retry" });
     } else {
       setPendingNext(isLast ? { type: "finish" } : { type: "next", index: nextIndex });
@@ -633,17 +643,13 @@ export default function LessonPlayer() {
       primaryLabel={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
       primaryDisabled={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? !phase2Actions?.canCheck : null}
       onPrimary={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? phase2Actions?.onCheck : null}
-      secondaryLabel={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.secondaryLabel ?? "Skip") : null}
-      secondaryDisabled={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? false : null}
-      onSecondary={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? phase2Actions?.onSkip : null}
+      secondaryLabel={null}
+      secondaryDisabled={null}
+      onSecondary={null}
       result={
         resultOpen && resultData
           ? {
-              variant: resultData.isCorrect
-                ? "correct"
-                : resultData.skipped
-                ? "skipped"
-                : "wrong",
+              variant: resultData.isCorrect ? "correct" : "wrong",
               xpEarned: resultData.xpEarned,
               subtext:
                 Number.isFinite(resultData.hearts)
@@ -711,6 +717,7 @@ export default function LessonPlayer() {
           <LessonCompletionScreen
             lesson={lesson}
             sessionXpEarned={lessonXpEarned}
+            mistakes={mistakes}
             analytics={analyticsData}
             analyticsLoading={analyticsLoading}
             analyticsError={analyticsError}

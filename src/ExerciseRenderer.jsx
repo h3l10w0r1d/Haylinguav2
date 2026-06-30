@@ -294,7 +294,6 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -424,7 +423,6 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -509,7 +507,6 @@ function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -545,7 +542,6 @@ function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -583,7 +579,6 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -637,7 +632,6 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -705,7 +699,6 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -769,7 +762,6 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -917,7 +909,6 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
           Check
         </PrimaryButton>
 
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1047,7 +1038,6 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , su
       </div>
 
       <div className="mt-6 space-y-3">
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1157,7 +1147,6 @@ function ExAudioChoiceTts({
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1251,7 +1240,6 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1398,7 +1386,6 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1485,7 +1472,6 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1569,7 +1555,6 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1632,7 +1617,6 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         >
           Check
         </PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1710,7 +1694,6 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
           const alt = normalizeText(built) === normalizeText(solution.join(" "));
           (ok || alt) ? correct({ answerText: built }) : wrong("Not quite — listen again.", { answerText: built });
         }}>Check</PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1756,7 +1739,6 @@ function ExDialogueMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
           if (correctIndex !== null) { sel === correctIndex ? correct(extra) : wrong("Not quite. Try again.", extra); return; }
           if (answerText && normalizeText(pick) === normalizeText(answerText)) correct(extra); else wrong("Not quite. Try again.", extra);
         }}>Check</PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1796,7 +1778,6 @@ function ExDialogueOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, 
           const ok = solution.length === picks.length && solution.every((v, i) => normalizeText(v) === normalizeText(picks[i]));
           ok ? correct({ answerText: built }) : wrong("Not in order yet — try again.", { answerText: built });
         }}>Check</PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1834,7 +1815,6 @@ function ExImageSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
           const extra = { selectedIndices: [sel], answerText: it.label || "" };
           (correctIndex >= 0 && sel === correctIndex) ? correct(extra) : wrong("Not quite. Try again.", extra);
         }}>Check</PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1865,7 +1845,6 @@ function ExReadingComprehension({ exercise, cfg, onCorrect, onWrong, onSkip, onA
           setGraded({ correct: correctIndex, picked: sel });
           (correctIndex !== null && sel === correctIndex) ? correct(extra) : wrong("Not quite — re-read the passage.", extra);
         }}>Check</PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
@@ -1916,7 +1895,6 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
           setGraded({ correct: correctIndex, picked: sel });
           (correctIndex !== null && sel === correctIndex) ? correct(extra) : wrong("Not quite — listen again.", extra);
         }}>Check</PrimaryButton>
-        <SecondaryButton onClick={skip}>Skip</SecondaryButton>
       </div>
     </Card>
   );
