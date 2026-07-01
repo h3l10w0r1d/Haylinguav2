@@ -158,7 +158,8 @@ export default function LessonPlayer() {
 
   const [lesson, setLesson] = useState(null);
   const [userLevel, setUserLevel] = useState(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [exerciseQueue, setExerciseQueue] = useState([]);
+  const [originalTotal, setOriginalTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -186,9 +187,8 @@ export default function LessonPlayer() {
   const [exModalExerciseId, setExModalExerciseId] = useState(null);
 
   const currentExercise = useMemo(() => {
-    if (!lesson || !lesson.exercises || lesson.exercises.length === 0) return null;
-    return lesson.exercises[currentIndex] || null;
-  }, [lesson, currentIndex]);
+    return exerciseQueue[0] || null;
+  }, [exerciseQueue]);
 
   const isReadingSection = String(currentExercise?.kind || "") === "reading_section";
 
@@ -343,7 +343,8 @@ export default function LessonPlayer() {
         }
 
         setLesson(normalized);
-        setCurrentIndex(0);
+        setExerciseQueue(normalized.exercises ? [...normalized.exercises] : []);
+        setOriginalTotal(normalized.exercises?.length || 0);
         setHasFinishedAll(false);
         setMistakes(0);
         setLessonXpEarned(0);
@@ -370,7 +371,7 @@ export default function LessonPlayer() {
     const xpEarned = Number(payload?.xpEarned ?? 0) || 0;
 
     console.log("[LessonPlayer] Step answered:", {
-      index: currentIndex,
+      queueLength: exerciseQueue.length,
       isCorrect,
       skipped,
       xpEarned,
@@ -386,15 +387,16 @@ export default function LessonPlayer() {
     // Intro exercises (char_intro etc.) pass autoAdvance=true — skip the result
     // sheet entirely and move straight to the next step.
     if (autoAdvance) {
-      const nextIndex = currentIndex + 1;
-      const isLast = nextIndex >= lesson.exercises.length;
-      if (isLast) setHasFinishedAll(true);
-      else setCurrentIndex(nextIndex);
+      if (exerciseQueue.length <= 1) {
+        setHasFinishedAll(true);
+      } else {
+        setExerciseQueue((q) => q.slice(1));
+        setRenderNonce((n) => n + 1);
+      }
       return;
     }
 
-    const nextIndex = currentIndex + 1;
-    const isLast = nextIndex >= lesson.exercises.length;
+    const isLast = exerciseQueue.length <= 1;
 
     // Play SFX (after user interaction)
     if (!skipped) {
@@ -420,9 +422,9 @@ export default function LessonPlayer() {
     });
 
     if (!isCorrect) {
-      setPendingNext({ type: "retry" });
+      setPendingNext({ type: "requeue" });
     } else {
-      setPendingNext(isLast ? { type: "finish" } : { type: "next", index: nextIndex });
+      setPendingNext(isLast ? { type: "finish" } : { type: "next" });
     }
     setResultOpen(true);
   };
@@ -433,18 +435,24 @@ export default function LessonPlayer() {
     setResultData(null);
     setPendingNext(null);
 
-    if (!pn || !lesson || !lesson.exercises) return;
+    if (!pn) return;
     if (pn.type === "next") {
-      setCurrentIndex(pn.index);
+      setExerciseQueue((q) => q.slice(1));
+      setRenderNonce((n) => n + 1);
       return;
     }
-    if (pn.type === "retry") {
+    if (pn.type === "requeue") {
+      // Wrong answer: move the current exercise to the end of the queue so it
+      // comes back after the remaining exercises. The learner must answer it
+      // correctly before the lesson can finish.
+      setExerciseQueue((q) => [...q.slice(1), q[0]]);
       exerciseStartRef.current = Date.now();
       setPhase2Actions(null);
       setRenderNonce((n) => n + 1);
       return;
     }
-    // finish
+    // finish — correct answer on the last remaining exercise
+    setExerciseQueue((q) => q.slice(1));
     setHasFinishedAll(true);
   };
 
@@ -632,12 +640,13 @@ export default function LessonPlayer() {
   }
 
   const showDoneFooter = !!hasFinishedAll;
-  const totalSteps = lesson.exercises?.length || 1;
+  const totalSteps = originalTotal || 1;
+  const completedSteps = originalTotal - exerciseQueue.length;
 
   return (
     <ExerciseShell
       title={lesson.title}
-      step={Math.min(currentIndex + 1, totalSteps)}
+      step={Math.min(completedSteps + 1, totalSteps)}
       total={totalSteps}
       onBack={() => navigate("/dashboard")}
       primaryLabel={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
@@ -659,8 +668,8 @@ export default function LessonPlayer() {
               primaryLabel:
                 pendingNext?.type === "finish"
                   ? "Finish"
-                  : pendingNext?.type === "retry"
-                  ? "Try again"
+                  : pendingNext?.type === "requeue"
+                  ? "Got it"
                   : "Continue",
             }
           : null
@@ -686,13 +695,11 @@ export default function LessonPlayer() {
               section={currentExercise?.config?.section}
               userLevel={userLevel || lesson?.config?.reading_level}
               onNext={() => {
-                const next = currentIndex + 1;
-                const total = lesson.exercises?.length || 0;
-                if (next >= total) {
+                if (exerciseQueue.length <= 1) {
                   setHasFinishedAll(true);
                   return;
                 }
-                setCurrentIndex(next);
+                setExerciseQueue((q) => q.slice(1));
                 setRenderNonce((n) => n + 1);
               }}
             />
@@ -725,9 +732,11 @@ export default function LessonPlayer() {
             onRetry={async () => {
               const token = getToken();
               if (!token) {
-                setCurrentIndex(0);
+                setExerciseQueue(lesson.exercises ? [...lesson.exercises] : []);
+                setOriginalTotal(lesson.exercises?.length || 0);
                 setHasFinishedAll(false);
                 setLessonXpEarned(0);
+                setMistakes(0);
                 return;
               }
 
@@ -746,9 +755,11 @@ export default function LessonPlayer() {
                 return;
               }
 
-              setCurrentIndex(0);
+              setExerciseQueue(lesson.exercises ? [...lesson.exercises] : []);
+              setOriginalTotal(lesson.exercises?.length || 0);
               setHasFinishedAll(false);
               setLessonXpEarned(0);
+              setMistakes(0);
               setAnalyticsData(null);
               setAnalyticsError(null);
               setAnalyticsLoading(false);
@@ -762,7 +773,7 @@ export default function LessonPlayer() {
         {!showDoneFooter && !currentExercise ? (
           <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
             <p className="text-slate-700 mb-4">
-              No exercise found for index {currentIndex}. Check console logs for
+              No exercise found (queue empty). Check console logs for
               lesson data and exercise kinds.
             </p>
             <button
