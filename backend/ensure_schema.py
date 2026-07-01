@@ -262,6 +262,9 @@ def ensure_schema() -> None:
                     {"k": k, "t": title, "d": desc, "i": icon, "m": metric, "thr": thr, "r": reward, "so": i},
                 )
             print(f"[ensure_schema] seeded {len(seeds)} achievement_defs")
+        # Per-badge colour (icon tile background), added after the table existed.
+        add_col_if_missing("achievement_defs", "color TEXT NOT NULL DEFAULT '#F59E0B'")
+        fill_nulls("achievement_defs", "color", "'#F59E0B'")
 
         # ---------- Exercise problem reports ----------
         ensure_table(

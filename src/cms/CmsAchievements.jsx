@@ -9,15 +9,53 @@ const ICONS = { star: Star, crown: Crown, flame: Flame, zap: Zap, target: Target
 const ICON_OPTS = ["star", "crown", "flame", "zap", "target"];
 const METRICS = [
   { value: "lessons_completed", label: "Lessons completed", unit: "lessons" },
+  { value: "chapters_completed", label: "Chapters completed", unit: "chapters" },
   { value: "streak_days", label: "Day streak", unit: "days" },
+  { value: "days_active", label: "Days practiced (total)", unit: "days" },
   { value: "total_xp", label: "Total XP", unit: "XP" },
   { value: "correct_answers", label: "Correct answers", unit: "answers" },
+  { value: "friends_count", label: "Friends added", unit: "friends" },
+  { value: "gems", label: "Gems owned", unit: "gems" },
 ];
 const METRIC_UNIT = Object.fromEntries(METRICS.map((m) => [m.value, m.unit]));
-const METRIC_LABEL = Object.fromEntries(METRICS.map((m) => [m.value, m.label.toLowerCase()]));
+
+// Curated badge colours (icon-tile background).
+const COLORS = ["#F59E0B", "#FF7A1A", "#E11D48", "#22B07D", "#0EA5E9", "#8B5CF6", "#0D9488", "#EC4899", "#475569", "#FACC15"];
+const DEFAULT_COLOR = "#F59E0B";
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
+}
+
+function ColorPicker({ value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {COLORS.map((c) => {
+        const on = String(value || "").toLowerCase() === c.toLowerCase();
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(c)}
+            title={c}
+            aria-label={`Colour ${c}`}
+            className={cx("h-8 w-8 rounded-full ring-2 transition", on ? "scale-110 ring-slate-800" : "ring-white hover:scale-105")}
+            style={{ background: c }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function BadgeTile({ icon, color, size = "md" }) {
+  const I = ICONS[icon] || Star;
+  const dim = size === "lg" ? "h-11 w-11" : "h-10 w-10";
+  return (
+    <div className={cx("grid shrink-0 place-items-center rounded-2xl text-white shadow-[0_3px_0_0_rgba(0,0,0,0.22)]", dim)} style={{ background: color || DEFAULT_COLOR }}>
+      <I className={size === "lg" ? "h-5 w-5" : "h-5 w-5"} />
+    </div>
+  );
 }
 
 const inputCls =
@@ -77,7 +115,7 @@ export default function CmsAchievements() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
-  const [draft, setDraft] = useState({ title: "", description: "", metric: "lessons_completed", threshold: 1, reward_xp: 20, icon: "star" });
+  const [draft, setDraft] = useState({ title: "", description: "", metric: "lessons_completed", threshold: 1, reward_xp: 20, icon: "star", color: DEFAULT_COLOR });
 
   function showToast(msg, kind = "ok") {
     setToast({ msg, kind });
@@ -94,6 +132,7 @@ export default function CmsAchievements() {
         title: a.title || "",
         description: a.description || "",
         icon: a.icon || "star",
+        color: a.color || DEFAULT_COLOR,
         metric: a.metric || "lessons_completed",
         threshold: a.threshold ?? 1,
         reward_xp: a.reward_xp ?? 0,
@@ -130,8 +169,9 @@ export default function CmsAchievements() {
         threshold: Number(draft.threshold) || 1,
         reward_xp: Number(draft.reward_xp) || 0,
         icon: draft.icon,
+        color: draft.color,
       });
-      setDraft({ title: "", description: "", metric: "lessons_completed", threshold: 1, reward_xp: 20, icon: "star" });
+      setDraft({ title: "", description: "", metric: "lessons_completed", threshold: 1, reward_xp: 20, icon: "star", color: DEFAULT_COLOR });
       await refresh();
       showToast("Achievement created");
     } catch (err) {
@@ -149,6 +189,7 @@ export default function CmsAchievements() {
         title: (e.title || "").trim(),
         description: (e.description || "").trim(),
         icon: e.icon,
+        color: e.color || DEFAULT_COLOR,
         metric: e.metric,
         threshold: Number(e.threshold) || 1,
         reward_xp: Number(e.reward_xp) || 0,
@@ -242,6 +283,13 @@ export default function CmsAchievements() {
             </Field>
           </div>
 
+          {/* Colour */}
+          <div className="mt-4">
+            <Field label="Badge colour" hint="Make special badges stand out">
+              <ColorPicker value={draft.color} onChange={(color) => setDraft({ ...draft, color })} />
+            </Field>
+          </div>
+
           {/* Rule */}
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="Measure (what counts)">
@@ -266,9 +314,7 @@ export default function CmsAchievements() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             {/* live preview */}
             <div className="inline-flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gold-500 text-white shadow-[0_3px_0_0_#B45309]">
-                <DraftIcon className="h-5 w-5" />
-              </div>
+              <BadgeTile icon={draft.icon} color={draft.color} />
               <div className="leading-tight">
                 <div className="font-display text-sm font-extrabold text-slate-800">{draft.title || "Badge title"}</div>
                 <div className="text-xs font-semibold text-slate-500">{draft.description || ruleText(draft)}</div>
@@ -305,9 +351,7 @@ export default function CmsAchievements() {
                       {/* preview + actions */}
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="inline-flex items-center gap-3">
-                          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-500 text-white shadow-[0_3px_0_0_#B45309]">
-                            <Icon className="h-5 w-5" />
-                          </div>
+                          <BadgeTile icon={e.icon} color={e.color} size="lg" />
                           <div className="leading-tight">
                             <div className="font-display text-base font-extrabold text-slate-800">{e.title || "Untitled"}</div>
                             <div className="text-xs font-semibold text-slate-500">{e.description || "—"}</div>
@@ -337,6 +381,11 @@ export default function CmsAchievements() {
                           <input value={e.description || ""} onChange={(ev) => patch(a.id, { description: ev.target.value })} className={inputCls} />
                         </Field>
                       </div>
+
+                      {/* colour */}
+                      <Field label="Badge colour">
+                        <ColorPicker value={e.color || DEFAULT_COLOR} onChange={(color) => patch(a.id, { color })} />
+                      </Field>
 
                       {/* rule fields */}
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

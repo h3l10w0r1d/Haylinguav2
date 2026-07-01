@@ -83,9 +83,11 @@ export default function Achievements() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={
-                        "grid h-12 w-12 shrink-0 place-items-center rounded-2xl " +
-                        (a.earned ? "bg-gold-500 text-white shadow-[0_4px_0_0_#B45309]" : "bg-slate-200 text-slate-400")
+                      className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white"
+                      style={
+                        a.earned
+                          ? { background: a.color || "#F59E0B", boxShadow: "0 4px 0 0 rgba(0,0,0,0.22)" }
+                          : { background: "#E2E8F0", color: "#94A3B8" }
                       }
                     >
                       <Icon className="h-6 w-6" />

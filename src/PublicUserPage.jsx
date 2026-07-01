@@ -390,7 +390,10 @@ export default function PublicUserPage({ token }) {
                       const Icon = ACH_ICON[a.icon] || Star;
                       return (
                         <div key={a.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 ring-1 ring-gold-200">
-                          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-500 text-white shadow-[0_3px_0_0_#B45309]">
+                          <div
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white"
+                            style={{ background: a.color || "#F59E0B", boxShadow: "0 3px 0 0 rgba(0,0,0,0.22)" }}
+                          >
                             <Icon className="h-5 w-5" />
                           </div>
                           <div className="min-w-0">

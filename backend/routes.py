@@ -5699,13 +5699,17 @@ async def cms_reorder_chapters(request: Request, db=Depends(get_db)):
 
 # -------------------- ACHIEVEMENTS (CMS builder) --------------------
 
-ACHIEVEMENT_METRICS = {"lessons_completed", "streak_days", "total_xp", "correct_answers"}
+ACHIEVEMENT_METRICS = {
+    "lessons_completed", "streak_days", "total_xp", "correct_answers",
+    "days_active", "friends_count", "chapters_completed", "gems",
+}
 
 @router.get("/cms/achievements")
 def cms_list_achievements(request: Request, db=Depends(get_db)):
     require_cms(request, db)
     rows = db.execute(text("""
-        SELECT id, key, title, description, icon, metric, threshold, reward_xp, sort_order, is_active
+        SELECT id, key, title, description, icon, COALESCE(color, '#F59E0B') AS color,
+               metric, threshold, reward_xp, sort_order, is_active
         FROM achievement_defs
         ORDER BY sort_order ASC, id ASC
     """)).mappings().all()
@@ -5732,12 +5736,14 @@ async def cms_create_achievement(request: Request, db=Depends(get_db)):
     pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM achievement_defs")).scalar() or 1
     new_id = db.execute(
         text("""
-            INSERT INTO achievement_defs (key, title, description, icon, metric, threshold, reward_xp, sort_order, is_active)
-            VALUES (:k, :t, :d, :i, :m, :thr, :r, :so, :act) RETURNING id
+            INSERT INTO achievement_defs (key, title, description, icon, color, metric, threshold, reward_xp, sort_order, is_active)
+            VALUES (:k, :t, :d, :i, :color, :m, :thr, :r, :so, :act) RETURNING id
         """),
         {
             "k": key, "t": title, "d": (body.get("description") or "").strip(),
-            "i": (body.get("icon") or "star").strip() or "star", "m": metric,
+            "i": (body.get("icon") or "star").strip() or "star",
+            "color": (body.get("color") or "#F59E0B").strip() or "#F59E0B",
+            "m": metric,
             "thr": int(body.get("threshold") or 1), "r": int(body.get("reward_xp") or 0),
             "so": int(pos), "act": bool(body.get("is_active", True)),
         },
@@ -5749,7 +5755,7 @@ async def cms_update_achievement(ach_id: int, request: Request, db=Depends(get_d
     require_cms(request, db)
     body = await request.json()
     set_parts, params = [], {"id": ach_id}
-    for f in ("title", "description", "icon", "threshold", "reward_xp", "is_active"):
+    for f in ("title", "description", "icon", "color", "threshold", "reward_xp", "is_active"):
         if f in body:
             set_parts.append(f"{f} = :{f}")
             params[f] = body[f]
