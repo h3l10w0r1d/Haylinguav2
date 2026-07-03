@@ -257,11 +257,15 @@
 .chest-jump { animation: chestJump .5s ease-out; }
 .chest-lid  { transform-box: fill-box; transform-origin: center bottom; }
 .chest-lid-open { animation: lidOpen .5s cubic-bezier(.34,1.56,.5,1) forwards; }
-.chest-rays { animation: rayBurst .6s ease-out forwards, raySpin 10s linear infinite .6s; transform-origin: center; }
+/* Rays: outer wrapper spins, inner element bursts (scale + fade).
+   Keeping on separate elements avoids the transform property conflict
+   that occurred when both animations were on the same div. */
+.chest-rays-spin  { animation: raySpin 10s linear infinite; transform-origin: center; }
+.chest-rays-burst { animation: rayBurst .6s ease-out forwards; transform-origin: center; }
 .chest-flash{ animation: flashFade .65s ease-out forwards; }
 .reward-rise{ animation: rewardRise .6s cubic-bezier(.2,.8,.2,1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .chest-shake, .chest-jump, .chest-rays { animation: none; }
+  .chest-shake, .chest-jump, .chest-rays-spin, .chest-rays-burst { animation: none; }
 }
 
 /* ----- Page transitions ----- */

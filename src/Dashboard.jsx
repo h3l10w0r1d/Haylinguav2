@@ -88,6 +88,7 @@ function DailyQuestsCard({ token }) {
 function ChestCard({ token }) {
   const [chests, setChests] = useState(0);
   const [opening, setOpening] = useState(false);
+  const [openErr, setOpenErr] = useState(false);
   const [overlayReward, setOverlayReward] = useState(null); // number → show opening animation
 
   useEffect(() => {
@@ -100,6 +101,7 @@ function ChestCard({ token }) {
   async function open() {
     if (opening) return;
     setOpening(true);
+    setOpenErr(false);
     try {
       const r = await fetch(`${API_BASE_URL}/me/chests/open`, {
         method: "POST",
@@ -109,9 +111,12 @@ function ChestCard({ token }) {
       if (r.ok && d) {
         setChests(Number(d.chests || 0));
         window.dispatchEvent(new CustomEvent("hay_wallet", { detail: { gems: d.gems } }));
-        setOverlayReward(Number(d.reward_gems || 0)); // fire the full-screen reward
+        setOverlayReward(Number(d.reward_gems || 0));
+      } else {
+        setOpenErr(true);
       }
     } catch {
+      setOpenErr(true);
     } finally {
       setOpening(false);
     }
@@ -121,12 +126,15 @@ function ChestCard({ token }) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-gold-100 to-white p-5 text-center shadow-sm ring-1 ring-gold-200">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-amber-50 to-white p-5 text-center shadow-sm ring-1 ring-amber-200">
         <div className="text-5xl" style={opening ? { animation: "chestShake .85s ease-in-out" } : undefined}>🎁</div>
         <div className="mt-2 font-display text-base font-extrabold text-slate-800">
           {chests} chest{chests === 1 ? "" : "s"} to open!
         </div>
         <p className="mt-1 text-sm font-semibold text-slate-500">Open for a random gem reward.</p>
+        {openErr && (
+          <p className="mt-2 text-xs font-semibold text-red-500">Couldn't open — try again.</p>
+        )}
         <button
           onClick={open}
           disabled={opening || chests <= 0}

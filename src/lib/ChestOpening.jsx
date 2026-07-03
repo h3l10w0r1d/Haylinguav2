@@ -108,20 +108,24 @@ export default function ChestOpening({ reward = 0, onClose }) {
       <div className="relative flex flex-col items-center">
         {/* chest stage — rays + confetti are centered on the chest itself */}
         <div className="relative" style={{ width: 200, height: 180 }}>
-          {/* light rays behind the chest */}
+          {/* light rays behind the chest — outer div spins, inner div bursts (scale+fade).
+               Two elements so their transforms don't fight each other. */}
           {opened && (
             <div
-              className="chest-rays pointer-events-none absolute left-1/2 top-1/2 z-0 h-[480px] w-[480px]"
-              style={{
-                marginLeft: "-240px",
-                marginTop: "-240px",
-                background:
-                  "repeating-conic-gradient(from 0deg, rgba(255,214,120,.55) 0deg 9deg, rgba(255,214,120,0) 9deg 18deg)",
-                borderRadius: "9999px",
-                maskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
-                WebkitMaskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
-              }}
-            />
+              className="chest-rays-spin pointer-events-none absolute left-1/2 top-1/2 z-0 h-[480px] w-[480px]"
+              style={{ marginLeft: "-240px", marginTop: "-240px" }}
+            >
+              <div
+                className="chest-rays-burst h-full w-full"
+                style={{
+                  background:
+                    "repeating-conic-gradient(from 0deg, rgba(255,214,120,.55) 0deg 9deg, rgba(255,214,120,0) 9deg 18deg)",
+                  borderRadius: "9999px",
+                  maskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
+                  WebkitMaskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
+                }}
+              />
+            </div>
           )}
 
           {/* confetti burst — emitted from the chest center */}
@@ -146,9 +150,12 @@ export default function ChestOpening({ reward = 0, onClose }) {
             </div>
           )}
 
-          {/* chest */}
-          <div className={"absolute inset-0 z-10 chest-pop " + (phase === "shake" ? "chest-shake" : opened ? "chest-jump" : "")}>
-            <ChestSvg open={opened} />
+          {/* chest — outer div pops in on mount; inner div handles shake/jump so
+               the pop-in animation isn't overridden by the later class rules */}
+          <div className="absolute inset-0 z-10 chest-pop">
+            <div className={phase === "shake" ? "chest-shake h-full w-full" : opened ? "chest-jump h-full w-full" : "h-full w-full"}>
+              <ChestSvg open={opened} />
+            </div>
           </div>
         </div>
 
@@ -156,7 +163,7 @@ export default function ChestOpening({ reward = 0, onClose }) {
         {phase === "reward" && (
           <div className="reward-rise relative mt-2 flex flex-col items-center">
             <div className="flex items-center gap-2 font-display text-5xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.4)]">
-              <Gem className="h-10 w-10 text-feather-300" />
+              <Gem className="h-10 w-10 text-feather-400" />
               <span className="tabular-nums">+{count}</span>
             </div>
             <div className="mt-1 text-sm font-extrabold uppercase tracking-[0.2em] text-white/80">gems earned</div>

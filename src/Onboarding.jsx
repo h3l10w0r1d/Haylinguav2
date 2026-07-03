@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Check, ChevronDown, Search } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import grandma from "./assets/character-grandma.png";
 
@@ -255,6 +256,138 @@ function FieldLabel({ title, subtitle }) {
   );
 }
 
+// Each entry is "🇦🇲 Armenia" (flag emoji = 4 JS chars, then space, then name), except "Other".
+// Falls back gracefully for plain names (e.g. "Armenia") stored by older app versions.
+function splitCountry(opt) {
+  if (!opt || opt === "Other") return { flag: "🌐", name: opt || "" };
+  // If the value matches a COUNTRY_OPTIONS entry exactly, split at the known boundary.
+  // Flag emoji = 2 regional-indicator code points = 4 JS chars, then a space.
+  const firstChar = opt.codePointAt(0);
+  const isRegionalIndicator = firstChar >= 0x1f1e6 && firstChar <= 0x1f1ff;
+  if (isRegionalIndicator) return { flag: opt.slice(0, 4), name: opt.slice(5) };
+  // Plain name (no flag prefix) — look up the matching option to get the flag.
+  const match = COUNTRY_OPTIONS.find((c) => c !== "Other" && c.slice(5) === opt);
+  if (match) return { flag: match.slice(0, 4), name: opt };
+  return { flag: "🌐", name: opt };
+}
+
+function CountryPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  // Auto-focus search and reset query when opening
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setTimeout(() => inputRef.current?.focus(), 30);
+    }
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return COUNTRY_OPTIONS;
+    return COUNTRY_OPTIONS.filter((c) => c.toLowerCase().includes(q));
+  }, [query]);
+
+  const { flag, name } = splitCountry(value);
+
+  return (
+    <div ref={wrapRef} className="relative w-full md:w-80">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={
+          "w-full flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 transition-all text-left " +
+          (open ? "ring-brand-400 bg-white" : "ring-slate-200 hover:ring-brand-300")
+        }
+      >
+        <span className="text-2xl leading-none w-8 text-center shrink-0">{flag}</span>
+        <span className="flex-1 truncate">{name || "Select country"}</span>
+        <ChevronDown
+          className={"h-4 w-4 text-slate-400 transition-transform shrink-0 " + (open ? "rotate-180" : "")}
+        />
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-full min-w-[280px] rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 overflow-hidden">
+          {/* Search bar */}
+          <div className="p-2 border-b border-slate-100">
+            <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200 focus-within:ring-brand-400 focus-within:bg-white transition-all">
+              <Search className="h-4 w-4 text-slate-400 shrink-0" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search countries…"
+                className="flex-1 bg-transparent text-sm font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setOpen(false);
+                  if (e.key === "Enter" && filtered.length === 1) {
+                    onChange(filtered[0]);
+                    setOpen(false);
+                  }
+                }}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="text-slate-400 hover:text-slate-600 text-xs leading-none"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="max-h-64 overflow-y-auto overscroll-contain py-1">
+            {filtered.length === 0 ? (
+              <div className="px-4 py-4 text-sm text-slate-400 text-center">No countries found</div>
+            ) : (
+              filtered.map((c) => {
+                const { flag: f, name: n } = splitCountry(c);
+                const selected = c === value;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => { onChange(c); setOpen(false); }}
+                    className={
+                      "w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-left transition-colors " +
+                      (selected
+                        ? "bg-brand-50 text-brand-700"
+                        : "text-slate-800 hover:bg-slate-50 active:bg-slate-100")
+                    }
+                  >
+                    <span className="text-xl leading-none w-7 text-center shrink-0">{f}</span>
+                    <span className="flex-1">{n}</span>
+                    {selected && <Check className="h-4 w-4 text-brand-500 shrink-0" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Onboarding({ token, onCompleted }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -264,7 +397,7 @@ export default function Onboarding({ token, onCompleted }) {
 
   // Screen 1
   const [ageRange, setAgeRange] = useState("");
-  const [country, setCountry] = useState("Armenia");
+  const [country, setCountry] = useState("🇦🇲 Armenia");
   const [planningVisit, setPlanningVisit] = useState(null); // bool | null
 
   // Screen 2
@@ -535,22 +668,12 @@ export default function Onboarding({ token, onCompleted }) {
 
                 <div>
                   <FieldLabel title="Where are you located?" subtitle="Helps us optimize content and examples." />
-                  <div className="flex flex-col md:flex-row gap-3">
-                    <select
+                  <div className="flex flex-col md:flex-row gap-3 items-start">
+                    <CountryPicker
                       value={country}
-                      onChange={(e) => {
-                        setCountry(e.target.value);
-                        setPlanningVisit(null);
-                      }}
-                      className="w-full md:w-80 rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
-                    >
-                      {COUNTRY_OPTIONS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="text-sm text-slate-500 flex-1 flex items-center">
+                      onChange={(c) => { setCountry(c); setPlanningVisit(null); }}
+                    />
+                    <div className="text-sm text-slate-500 flex-1 flex items-center pt-1">
                       If you’re outside Armenia, we’ll adapt travel and culture vocabulary.
                     </div>
                   </div>
