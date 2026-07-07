@@ -316,9 +316,9 @@ export default function PublicUserPage({ token }) {
         ) : (
           <>
             {/* ============ HERO ============ */}
-            <div className="overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm">
+            <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm">
               <div
-                className="relative h-40 md:h-52 bg-cover bg-center"
+                className="relative h-40 overflow-hidden rounded-t-3xl md:h-52 bg-cover bg-center"
                 style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : { background: bannerBg }}
               >
                 <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
@@ -327,7 +327,7 @@ export default function PublicUserPage({ token }) {
               <div className="px-5 pb-6 md:px-8">
                 <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex items-end gap-4">
-                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-brand-50 ring-4 ring-white shadow-md">
+                    <div className="relative z-10 h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-brand-50 ring-4 ring-white shadow-md">
                       {avatarUrl && !avatarBroken ? (
                         <img
                           src={avatarUrl}
