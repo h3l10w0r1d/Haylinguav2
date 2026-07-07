@@ -226,8 +226,8 @@ export default function Onboarding({ token, onCompleted }) {
   const [reminderTime, setReminderTime] = useState("20:00");
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [voiceRandom, setVoiceRandom] = useState(false);
-  const [voiceMale, setVoiceMale] = useState(true);
-  const [voiceFemale, setVoiceFemale] = useState(true);
+  const [voiceMale, setVoiceMale] = useState(false);
+  const [voiceFemale, setVoiceFemale] = useState(false);
 
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
