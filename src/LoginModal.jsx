@@ -1,8 +1,10 @@
 // src/LoginModal.jsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Turnstile from "./lib/Turnstile";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
 function GoogleIcon() {
   return (
@@ -21,6 +23,7 @@ export default function LoginModal({
   onLogin,
   onSignup,
   onSwitchMode,
+  onAuthSuccess,
 }) {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -34,8 +37,51 @@ export default function LoginModal({
   const [lockedUntil, setLockedUntil] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const tgContainerRef = useRef(null);
 
   const isLogin = mode === "login";
+
+  // Telegram widget — inject script once when bot username is configured
+  useEffect(() => {
+    if (!TELEGRAM_BOT_USERNAME || !tgContainerRef.current) return;
+    // Clean up any previous widget
+    tgContainerRef.current.innerHTML = "";
+
+    // Register global callback BEFORE script loads
+    window.onTelegramAuth = async (tgUser) => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(`${API_BASE}/auth/telegram`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(tgUser),
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d?.detail || "Telegram sign-in failed");
+        }
+        const data = await res.json();
+        if (onAuthSuccess) onAuthSuccess(data);
+        onClose();
+      } catch (err) {
+        setError(err.message || "Telegram sign-in failed");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-onauth", "onTelegramAuth(user)");
+    script.setAttribute("data-request-access", "write");
+    script.async = true;
+    tgContainerRef.current.appendChild(script);
+
+    return () => { delete window.onTelegramAuth; };
+  }, [TELEGRAM_BOT_USERNAME, onClose, onAuthSuccess]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -96,16 +142,23 @@ export default function LoginModal({
           </button>
         </div>
 
-        {/* Google OAuth button */}
-        {GOOGLE_CLIENT_ID && (
+        {/* Social OAuth buttons */}
+        {(GOOGLE_CLIENT_ID || TELEGRAM_BOT_USERNAME) && (
           <>
-            <a
-              href={`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin + "/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account`}
-              className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-300"
-            >
-              <GoogleIcon />
-              Continue with Google
-            </a>
+            <div className="flex flex-col gap-2">
+              {GOOGLE_CLIENT_ID && (
+                <a
+                  href={`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin + "/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account`}
+                  className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-300"
+                >
+                  <GoogleIcon />
+                  Continue with Google
+                </a>
+              )}
+              {TELEGRAM_BOT_USERNAME && (
+                <div className="flex w-full justify-center overflow-hidden rounded-xl" ref={tgContainerRef} />
+              )}
+            </div>
             <div className="relative my-1 flex items-center gap-3">
               <div className="h-px flex-1 bg-gray-200" />
               <span className="text-xs font-semibold text-gray-400">or</span>

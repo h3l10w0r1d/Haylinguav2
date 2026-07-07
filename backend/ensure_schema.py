@@ -284,8 +284,9 @@ def ensure_schema() -> None:
             """,
         )
 
-        # ---------- Google OAuth ----------
+        # ---------- Google / Telegram OAuth ----------
         add_col_if_missing("users", "google_id TEXT")
+        add_col_if_missing("users", "telegram_id TEXT")
         add_col_if_missing("users", "oauth_provider TEXT")
         # Ensure google_id is unique (only add constraint if column just appeared)
         try:
@@ -293,7 +294,13 @@ def ensure_schema() -> None:
                 "ALTER TABLE users ADD CONSTRAINT users_google_id_unique UNIQUE (google_id)"
             ))
         except Exception:
-            pass  # constraint already exists
+            pass
+        try:
+            conn.execute(text(
+                "ALTER TABLE users ADD CONSTRAINT users_telegram_id_unique UNIQUE (telegram_id)"
+            ))
+        except Exception:
+            pass
 
         # ---------- Admin notes on learners ----------
         ensure_table(

@@ -10,7 +10,9 @@ import {
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 
-const API_BASE = "https://haylinguav2.onrender.com";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "";
 
 const FEATURES = [
   { icon: Languages, title: "Alphabet from scratch", text: "Master all 39 Armenian letters with bite-sized intro, recognition, and typing drills.", tone: "brand" },
@@ -68,6 +70,47 @@ export default function LandingPage({ onLogin, onSignup }) {
   // UI-only state
   const [faqOpen, setFaqOpen] = useState(0);
   const authRef = useRef(null);
+  const tgRef = useRef(null);
+
+  // Telegram widget — inject once when bot username is set
+  useEffect(() => {
+    if (!TELEGRAM_BOT_USERNAME || !tgRef.current) return;
+    tgRef.current.innerHTML = "";
+    window.onTelegramAuth = async (tgUser) => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(`${API_BASE}/auth/telegram`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(tgUser),
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d?.detail || "Telegram sign-in failed");
+        }
+        const data = await res.json();
+        const t = data.access_token;
+        localStorage.setItem("hay_token", t);
+        localStorage.setItem("access_token", t);
+        const u = { id: 1, email: data.email, name: data.email.split("@")[0], email_verified: true };
+        localStorage.setItem("hay_user", JSON.stringify(u));
+        window.location.href = data.needs_onboarding ? "/onboarding" : "/dashboard";
+      } catch (err) {
+        setError(err.message || "Telegram sign-in failed");
+        setLoading(false);
+      }
+    };
+    const s = document.createElement("script");
+    s.src = "https://telegram.org/js/telegram-widget.js?22";
+    s.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
+    s.setAttribute("data-size", "large");
+    s.setAttribute("data-onauth", "onTelegramAuth(user)");
+    s.setAttribute("data-request-access", "write");
+    s.async = true;
+    tgRef.current.appendChild(s);
+    return () => { delete window.onTelegramAuth; };
+  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -293,6 +336,29 @@ export default function LandingPage({ onLogin, onSignup }) {
           </button>
         ))}
       </div>
+
+      {/* Social sign-in */}
+      {(GOOGLE_CLIENT_ID || TELEGRAM_BOT_USERNAME) && (
+        <div className="mb-4 space-y-2">
+          {GOOGLE_CLIENT_ID && (
+            <a
+              href={`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin + "/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account`}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908C16.658 14.015 17.64 11.707 17.64 9.2z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+              Continue with Google
+            </a>
+          )}
+          {TELEGRAM_BOT_USERNAME && (
+            <div className="flex w-full justify-center" ref={tgRef} />
+          )}
+          <div className="relative flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs font-semibold text-slate-400">or</span>
+            <div className="h-px flex-1 bg-slate-200" />
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === "signup" && (

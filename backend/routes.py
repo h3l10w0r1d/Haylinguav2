@@ -2306,6 +2306,136 @@ def auth_google(
     return {"access_token": jwt, "email": g_email, "email_verified": True, "needs_onboarding": True}
 
 
+# ── Telegram OAuth ────────────────────────────────────────────────────────────
+@router.post("/auth/telegram")
+def auth_telegram(
+    payload: Dict[str, Any] = Body(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Verify Telegram Login Widget data and return a Haylingua JWT.
+
+    Telegram sends: { id, first_name, last_name, username, photo_url, auth_date, hash }
+    We verify the HMAC-SHA256 signature using SHA256(bot_token) as the key.
+    """
+    import hashlib as _hashlib
+    import hmac as _hmac
+    import time as _time
+    import re as _re
+
+    bot_token = os.getenv("TELEGRAM_BOT_KEY", "")
+    if not bot_token:
+        raise HTTPException(status_code=503, detail="Telegram OAuth is not configured on this server")
+
+    data = dict(payload or {})
+    received_hash = data.pop("hash", "")
+    if not received_hash:
+        raise HTTPException(status_code=400, detail="Missing Telegram hash")
+
+    # Build check string: sorted key=value pairs joined by \n
+    check_string = "\n".join(f"{k}={v}" for k, v in sorted(data.items()) if v is not None)
+
+    # Key is SHA256 of the bot token (NOT the token itself)
+    secret_key = _hashlib.sha256(bot_token.encode()).digest()
+    expected_hash = _hmac.new(secret_key, check_string.encode(), _hashlib.sha256).hexdigest()
+
+    if not _hmac.compare_digest(expected_hash, received_hash):
+        raise HTTPException(status_code=401, detail="Invalid Telegram signature")
+
+    # Reject stale auth data (older than 24 hours)
+    auth_date = int(data.get("auth_date") or 0)
+    if _time.time() - auth_date > 86400:
+        raise HTTPException(status_code=401, detail="Telegram auth data expired — please try again")
+
+    tg_id = str(data.get("id") or "")
+    tg_first = (data.get("first_name") or "").strip()
+    tg_last = (data.get("last_name") or "").strip()
+    tg_username = (data.get("username") or "").strip()
+    tg_photo = (data.get("photo_url") or "").strip()
+    tg_display = " ".join(filter(None, [tg_first, tg_last])) or tg_username or "Haylingua User"
+
+    if not tg_id:
+        raise HTTPException(status_code=400, detail="No Telegram user ID returned")
+
+    def _ob_check(uid):
+        ob = db.execute(
+            text("SELECT completed FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+            {"u": uid},
+        ).mappings().first()
+        return not (ob and ob.get("completed"))
+
+    # 1) Find by telegram_id → login
+    row = db.execute(
+        text("SELECT id, email FROM users WHERE telegram_id = :tid LIMIT 1"),
+        {"tid": tg_id},
+    ).mappings().first()
+    if row:
+        user_id = int(row["id"])
+        db.execute(text("UPDATE users SET last_active_at = NOW() WHERE id = :u"), {"u": user_id})
+        _brevo_sync_user(db, user_id, event="login_telegram")
+        return {"access_token": create_token(user_id), "email": row["email"],
+                "email_verified": True, "needs_onboarding": _ob_check(user_id)}
+
+    # 2) Find by matching Telegram username → link
+    if tg_username:
+        row = db.execute(
+            text("SELECT id, email FROM users WHERE LOWER(username) = LOWER(:u) LIMIT 1"),
+            {"u": tg_username},
+        ).mappings().first()
+        if row:
+            user_id = int(row["id"])
+            db.execute(
+                text("UPDATE users SET telegram_id = :tid, last_active_at = NOW() WHERE id = :u"),
+                {"tid": tg_id, "u": user_id},
+            )
+            _brevo_sync_user(db, user_id, event="telegram_linked")
+            return {"access_token": create_token(user_id), "email": row["email"],
+                    "email_verified": True, "needs_onboarding": _ob_check(user_id)}
+
+    # 3) Create new user
+    base = _re.sub(r"[^a-z0-9_]", "_", (tg_username or tg_first or "user").lower())[:15] or "user"
+    username = base
+    for _ in range(10):
+        taken = db.execute(
+            text("SELECT 1 FROM users WHERE LOWER(username) = LOWER(:u)"), {"u": username}
+        ).scalar()
+        if not taken:
+            break
+        import random as _rand
+        username = f"{base}_{_rand.randint(1000, 9999)}"
+
+    # Telegram doesn't provide email — generate a placeholder
+    placeholder_email = f"tg_{tg_id}@telegram.haylingua.local"
+
+    new_row = db.execute(
+        text("""
+            INSERT INTO users
+                (email, password_hash, username, display_name, avatar_url,
+                 telegram_id, oauth_provider,
+                 email_verified, email_verified_at, joined_at, last_active_at)
+            VALUES
+                (:email, '', :username, :display_name, :avatar_url,
+                 :tid, 'telegram',
+                 TRUE, NOW(), NOW(), NOW())
+            RETURNING id
+        """),
+        {
+            "email": placeholder_email,
+            "username": username,
+            "display_name": tg_display,
+            "avatar_url": tg_photo,
+            "tid": tg_id,
+        },
+    ).mappings().first()
+
+    if not new_row:
+        raise HTTPException(status_code=500, detail="Could not create user")
+
+    user_id = int(new_row["id"])
+    _brevo_sync_user(db, user_id, event="user_registered")
+    return {"access_token": create_token(user_id), "email": placeholder_email,
+            "email_verified": True, "needs_onboarding": True}
+
+
 @router.post("/auth/verify-email")
 def verify_email(
     payload: VerifyEmailIn,
