@@ -325,7 +325,7 @@ export default function PublicUserPage({ token }) {
               </div>
 
               <div className="px-5 pb-6 md:px-8">
-                <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="-mt-14 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex items-end gap-4">
                     <div className="relative z-10 h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-brand-50 ring-4 ring-white shadow-md">
                       {avatarUrl && !avatarBroken ? (
