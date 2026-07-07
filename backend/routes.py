@@ -4791,14 +4791,31 @@ def support_user_detail(
         {"u": uid},
     ).mappings().all()
 
-    # Last 14 days activity (XP per day)
+    # Last 30 days activity (XP per day)
     activity = db.execute(
         text(
             """
             SELECT DATE(completed_at) AS day, SUM(xp_earned) AS xp
             FROM lesson_progress
-            WHERE user_id = :u AND completed_at >= NOW() - INTERVAL '14 days'
+            WHERE user_id = :u AND completed_at >= NOW() - INTERVAL '30 days'
             GROUP BY day ORDER BY day
+            """
+        ),
+        {"u": uid},
+    ).mappings().all()
+
+    # Lesson history (most recent 50)
+    lesson_history = db.execute(
+        text(
+            """
+            SELECT l.title, l.slug, lp.xp_earned, lp.completed_at,
+                   c.title AS chapter_title
+            FROM lesson_progress lp
+            JOIN lessons l ON l.id = lp.lesson_id
+            LEFT JOIN chapters c ON c.id = l.chapter_id
+            WHERE lp.user_id = :u AND lp.completed_at IS NOT NULL
+            ORDER BY lp.completed_at DESC
+            LIMIT 50
             """
         ),
         {"u": uid},
@@ -4811,6 +4828,13 @@ def support_user_detail(
     exercises_done = int(exercises.get("exercises_done") or 0)
     correct = int(exercises.get("correct") or 0)
     accuracy = round(correct / exercises_done * 100) if exercises_done > 0 else 0
+    days_since_active = None
+    if u.get("last_active_at"):
+        from datetime import timezone as _tz
+        _laa = u["last_active_at"]
+        if hasattr(_laa, "replace"):
+            _laa = _laa.replace(tzinfo=_tz.utc) if _laa.tzinfo is None else _laa
+            days_since_active = (datetime.now(_tz.utc) - _laa).days
 
     return {
         **dict(u),
@@ -4824,10 +4848,21 @@ def support_user_detail(
         "accuracy_pct": accuracy,
         "friends_count": int(friends_count),
         "current_streak": int(streak),
+        "days_since_active": days_since_active,
         "hearts_current": hs["hearts_current"],
         "hearts_max": hs["hearts_max"],
         "achievements": [dict(a) for a in achievements],
         "activity": [{"day": str(a["day"]), "xp": int(a["xp"])} for a in activity],
+        "lesson_history": [
+            {
+                "title": r["title"],
+                "slug": r["slug"],
+                "xp_earned": int(r["xp_earned"] or 0),
+                "completed_at": str(r["completed_at"]),
+                "chapter_title": r["chapter_title"] or "",
+            }
+            for r in lesson_history
+        ],
     }
 
 
