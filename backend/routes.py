@@ -35,9 +35,11 @@ from grading import grade_attempt
 try:
     from integrations.brevo import upsert_contact as _brevo_upsert_contact
     from integrations.brevo import track_event as _brevo_track_event
+    from integrations.brevo import _iso
 except Exception:
     _brevo_upsert_contact = None
     _brevo_track_event = None
+    def _iso(dt): return dt.isoformat() if dt else None  # fallback
 
 
 def _expose_dev_codes() -> bool:
@@ -821,7 +823,13 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
             text(
                 """
                 SELECT id, email, username, display_name, first_name, last_name, bio,
-                       avatar_url, banner_url, friends_public, is_hidden, email_verified
+                       avatar_url, banner_url, friends_public, is_hidden, email_verified,
+                       country, timezone, joined_at, last_active_at,
+                       is_premium, premium_since,
+                       gems, chests, weekly_xp, league_tier,
+                       streak_freezes, current_streak,
+                       hearts_current, hearts_max,
+                       totp_enabled, bonus_xp
                 FROM users
                 WHERE id = :id
                 """
@@ -831,41 +839,76 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
         if not u:
             return
 
-        # Stats tables/columns have evolved; use the canonical table used elsewhere in this project.
-        # user_lesson_progress columns: xp_earned, completed_at, lesson_id
         stats = db.execute(
             text(
                 """
                 SELECT
-                  COALESCE(SUM(ulp.xp_earned), 0) AS total_xp,
-                  COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
-                  (SELECT COUNT(*) FROM user_exercise_logs l WHERE l.user_id = :u) AS exercises_done
-                FROM user_lesson_progress ulp
-                WHERE ulp.user_id = :u
+                  COALESCE(SUM(lp.xp_earned), 0)                                              AS total_xp,
+                  COUNT(DISTINCT lp.lesson_id) FILTER (WHERE lp.completed_at IS NOT NULL)     AS lessons_completed,
+                  (SELECT COUNT(*) FROM user_exercise_logs l WHERE l.user_id = :u)            AS exercises_done,
+                  COUNT(DISTINCT DATE(lp.completed_at))                                       AS days_active,
+                  (SELECT COUNT(*) FROM friends f WHERE f.user_id = :u)                       AS friends_count,
+                  (SELECT COUNT(*) FROM (
+                     SELECT c.id FROM chapters c
+                     JOIN lessons ls ON ls.chapter_id = c.id
+                     LEFT JOIN lesson_progress lp2 ON lp2.lesson_id = ls.id AND lp2.user_id = :u AND lp2.completed_at IS NOT NULL
+                     GROUP BY c.id
+                     HAVING COUNT(ls.id) > 0 AND COUNT(ls.id) = COUNT(lp2.lesson_id)
+                   ) _cc)                                                                     AS chapters_completed,
+                  (SELECT COALESCE(SUM(el.is_correct::int), 0)
+                     FROM user_exercise_logs el WHERE el.user_id = :u)                        AS correct_answers
+                FROM lesson_progress lp
+                WHERE lp.user_id = :u
                 """
             ),
             {"u": int(user_id)},
         ).mappings().first() or {}
 
         streak = _compute_streak_days(db, int(user_id))
+        bonus_xp = int(u.get("bonus_xp") or 0)
+        total_xp = int(stats.get("total_xp") or 0) + bonus_xp
 
-        # "As much data as possible" – send what we have today.
         attrs = {
+            # Identity
             "HAYLINGUA_USER_ID": int(u.get("id")),
             "USERNAME": (u.get("username") or "") or None,
             "DISPLAY_NAME": (u.get("display_name") or "") or None,
-            "FIRST_NAME": (u.get("first_name") or "") or None,
-            "LAST_NAME": (u.get("last_name") or "") or None,
+            "FIRSTNAME": (u.get("first_name") or "") or None,
+            "LASTNAME": (u.get("last_name") or "") or None,
             "BIO": (u.get("bio") or "") or None,
             "AVATAR_URL": (u.get("avatar_url") or "") or None,
             "BANNER_URL": (u.get("banner_url") or "") or None,
+            "COUNTRY": (u.get("country") or "") or None,
+            "TIMEZONE": (u.get("timezone") or "") or None,
+            # Account state
+            "EMAIL_VERIFIED": bool(u.get("email_verified")),
+            "IS_PREMIUM": bool(u.get("is_premium")),
+            "PREMIUM_SINCE": _iso(u.get("premium_since")) if u.get("premium_since") else None,
+            "JOINED_AT": _iso(u.get("joined_at")) if u.get("joined_at") else None,
+            "LAST_ACTIVE_AT": _iso(u.get("last_active_at")) if u.get("last_active_at") else None,
+            "TOTP_ENABLED": bool(u.get("totp_enabled")),
             "FRIENDS_PUBLIC": bool(u.get("friends_public")),
             "IS_HIDDEN": bool(u.get("is_hidden")),
-            "EMAIL_VERIFIED": bool(u.get("email_verified")),
-            "XP_TOTAL": int(stats.get("total_xp") or 0),
+            # Progress
+            "XP_TOTAL": total_xp,
             "LESSONS_COMPLETED": int(stats.get("lessons_completed") or 0),
             "EXERCISES_COMPLETED": int(stats.get("exercises_done") or 0),
+            "CORRECT_ANSWERS": int(stats.get("correct_answers") or 0),
+            "DAYS_ACTIVE": int(stats.get("days_active") or 0),
+            "CHAPTERS_COMPLETED": int(stats.get("chapters_completed") or 0),
+            "FRIENDS_COUNT": int(stats.get("friends_count") or 0),
+            # Streak
             "STREAK_DAYS": int(streak),
+            "STREAK_FREEZES": int(u.get("streak_freezes") or 0),
+            # Economy
+            "GEMS": int(u.get("gems") or 0),
+            "CHESTS": int(u.get("chests") or 0),
+            "WEEKLY_XP": int(u.get("weekly_xp") or 0),
+            "LEAGUE_TIER": int(u.get("league_tier") or 0),
+            # Hearts
+            "HEARTS_CURRENT": int(u.get("hearts_current") or 0) if u.get("hearts_current") is not None else None,
+            "HEARTS_MAX": int(u.get("hearts_max") or 0) if u.get("hearts_max") is not None else None,
+            # Meta
             "LANGUAGE": "Armenian",
         }
 
@@ -881,8 +924,11 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
                 {
                     "user_id": int(u.get("id")),
                     "username": (u.get("username") or "") or None,
-                    "total_xp": int(stats.get("total_xp") or 0),
+                    "total_xp": total_xp,
                     "streak_days": int(streak),
+                    "lessons_completed": int(stats.get("lessons_completed") or 0),
+                    "gems": int(u.get("gems") or 0),
+                    "is_premium": bool(u.get("is_premium")),
                 }
             )
             _brevo_track_event(email=email, event=event, properties=props)
@@ -1254,6 +1300,7 @@ def friends_request_accept(
         {"a": requester_id, "b": user_id},
     )
 
+    _brevo_sync_user(db, int(user_id), event="friend_added")
     return {"ok": True, "status": "accepted"}
 
 @router.post("/friends/requests/{request_id}/reject")
@@ -2401,6 +2448,11 @@ def complete_lesson(
     ).mappings().first()
 
     streak = _compute_streak_days(db, int(user_id))
+    _brevo_sync_user(db, int(user_id), event="lesson_completed", event_props={
+        "lesson_slug": slug,
+        "xp_earned": xp_value,
+        "streak": int(streak),
+    })
     return StatsOut(
         total_xp=int(stats_row["total_xp"]),
         lessons_completed=int(stats_row["lessons_completed"]),
@@ -3155,6 +3207,7 @@ def me_open_chest(authorization: Optional[str] = Header(default=None), db: Conne
         {"r": reward, "u": user_id},
     )
     w = _wallet(db, user_id)
+    _brevo_sync_user(db, int(user_id), event="chest_opened", event_props={"gems_won": reward})
     return {"ok": True, "reward_gems": reward, **w}
 
 
@@ -3213,7 +3266,13 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         db.execute(text("UPDATE users SET bonus_xp = COALESCE(bonus_xp, 0) + :a WHERE id = :u"), {"a": amt, "u": user_id})
         _award_weekly_xp(db, user_id, amt)
 
-    return {"ok": True, "item": item["id"], **_wallet(db, user_id)}
+    result = {"ok": True, "item": item["id"], **_wallet(db, user_id)}
+    _brevo_sync_user(db, int(user_id), event="shop_purchase", event_props={
+        "item_title": item["title"],
+        "effect": effect,
+        "price_gems": price,
+    })
+    return result
 
 
 # ----------------------------
@@ -3512,6 +3571,12 @@ def me_rewards_claim(
         db.execute(text("UPDATE users SET bonus_xp = COALESCE(bonus_xp, 0) + :r WHERE id = :u"), {"r": reward, "u": user_id})
         _award_weekly_xp(db, user_id, reward)  # also counts toward the weekly league
 
+    if newly:
+        _brevo_sync_user(db, int(user_id), event="reward_claimed", event_props={
+            "kind": kind,
+            "claim_key": claim_key,
+            "reward_xp": reward,
+        })
     return {"ok": True, "claimed": True, "newly_claimed": newly, "reward_xp": (reward if newly else 0)}
 
 
