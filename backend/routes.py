@@ -4726,9 +4726,17 @@ def support_user_detail(
         text(
             """
             SELECT id, email, username, display_name, first_name, last_name,
+                   bio, avatar_url, country, timezone,
                    email_verified, COALESCE(is_premium, FALSE) AS is_premium, premium_since,
-                   joined_at, COALESCE(current_streak, 0) AS current_streak,
-                   totp_enabled, is_hidden
+                   joined_at, last_active_at,
+                   COALESCE(current_streak, 0) AS current_streak,
+                   COALESCE(streak_freezes, 0) AS streak_freezes,
+                   totp_enabled, is_hidden, friends_public,
+                   COALESCE(gems, 0) AS gems,
+                   COALESCE(chests, 0) AS chests,
+                   COALESCE(weekly_xp, 0) AS weekly_xp,
+                   COALESCE(league_tier, 0) AS league_tier,
+                   COALESCE(bonus_xp, 0) AS bonus_xp
             FROM users WHERE id = :u
             """
         ),
@@ -4740,20 +4748,86 @@ def support_user_detail(
     stats = db.execute(
         text(
             """
-            SELECT COALESCE(SUM(xp_earned), 0) AS total_xp,
-                   COUNT(DISTINCT lesson_id) FILTER (WHERE completed_at IS NOT NULL) AS lessons_completed
-            FROM user_lesson_progress WHERE user_id = :u
+            SELECT
+              COALESCE(SUM(lp.xp_earned), 0)                                           AS total_xp,
+              COUNT(DISTINCT lp.lesson_id) FILTER (WHERE lp.completed_at IS NOT NULL)  AS lessons_completed,
+              COUNT(DISTINCT DATE(lp.completed_at))                                    AS days_active,
+              MIN(lp.completed_at)                                                     AS first_lesson_at,
+              MAX(lp.completed_at)                                                     AS last_lesson_at
+            FROM lesson_progress lp WHERE lp.user_id = :u
             """
         ),
         {"u": uid},
     ).mappings().first() or {}
+
+    exercises = db.execute(
+        text(
+            """
+            SELECT
+              COUNT(*)                                      AS exercises_done,
+              COALESCE(SUM(is_correct::int), 0)            AS correct,
+              COUNT(DISTINCT DATE(created_at))             AS practice_days
+            FROM user_exercise_logs WHERE user_id = :u
+            """
+        ),
+        {"u": uid},
+    ).mappings().first() or {}
+
+    friends_count = db.execute(
+        text("SELECT COUNT(*) FROM friends WHERE user_id = :u"),
+        {"u": uid},
+    ).scalar() or 0
+
+    achievements = db.execute(
+        text(
+            """
+            SELECT ad.title, ad.icon, ad.color, rc.created_at AS claimed_at
+            FROM reward_claims rc
+            JOIN achievement_defs ad ON ad.key = rc.claim_key
+            WHERE rc.user_id = :u AND rc.kind = 'achievement'
+            ORDER BY rc.created_at DESC
+            """
+        ),
+        {"u": uid},
+    ).mappings().all()
+
+    # Last 14 days activity (XP per day)
+    activity = db.execute(
+        text(
+            """
+            SELECT DATE(completed_at) AS day, SUM(xp_earned) AS xp
+            FROM lesson_progress
+            WHERE user_id = :u AND completed_at >= NOW() - INTERVAL '14 days'
+            GROUP BY day ORDER BY day
+            """
+        ),
+        {"u": uid},
+    ).mappings().all()
+
     hs = _hearts_state(db, uid)
+    streak = _compute_streak_days(db, uid)
+    bonus_xp = int(u.get("bonus_xp") or 0)
+    total_xp = int(stats.get("total_xp") or 0) + bonus_xp
+    exercises_done = int(exercises.get("exercises_done") or 0)
+    correct = int(exercises.get("correct") or 0)
+    accuracy = round(correct / exercises_done * 100) if exercises_done > 0 else 0
+
     return {
         **dict(u),
-        "total_xp": int(stats.get("total_xp") or 0),
+        "total_xp": total_xp,
         "lessons_completed": int(stats.get("lessons_completed") or 0),
+        "days_active": int(stats.get("days_active") or 0),
+        "first_lesson_at": str(stats.get("first_lesson_at") or ""),
+        "last_lesson_at": str(stats.get("last_lesson_at") or ""),
+        "exercises_done": exercises_done,
+        "correct_answers": correct,
+        "accuracy_pct": accuracy,
+        "friends_count": int(friends_count),
+        "current_streak": int(streak),
         "hearts_current": hs["hearts_current"],
         "hearts_max": hs["hearts_max"],
+        "achievements": [dict(a) for a in achievements],
+        "activity": [{"day": str(a["day"]), "xp": int(a["xp"])} for a in activity],
     }
 
 
