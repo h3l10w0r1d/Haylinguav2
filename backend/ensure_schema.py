@@ -288,19 +288,19 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "google_id TEXT")
         add_col_if_missing("users", "telegram_id TEXT")
         add_col_if_missing("users", "oauth_provider TEXT")
-        # Ensure google_id is unique (only add constraint if column just appeared)
-        try:
-            conn.execute(text(
-                "ALTER TABLE users ADD CONSTRAINT users_google_id_unique UNIQUE (google_id)"
-            ))
-        except Exception:
-            pass
-        try:
-            conn.execute(text(
-                "ALTER TABLE users ADD CONSTRAINT users_telegram_id_unique UNIQUE (telegram_id)"
-            ))
-        except Exception:
-            pass
+        # Ensure google_id / telegram_id are unique.
+        # Each attempt needs its own savepoint: if the constraint already exists
+        # PostgreSQL aborts the whole transaction, so a bare try/except is not enough.
+        for constraint_sql, sp in [
+            ("ALTER TABLE users ADD CONSTRAINT users_google_id_unique UNIQUE (google_id)", "sp_gid"),
+            ("ALTER TABLE users ADD CONSTRAINT users_telegram_id_unique UNIQUE (telegram_id)", "sp_tid"),
+        ]:
+            try:
+                conn.execute(text(f"SAVEPOINT {sp}"))
+                conn.execute(text(constraint_sql))
+                conn.execute(text(f"RELEASE SAVEPOINT {sp}"))
+            except Exception:
+                conn.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
 
         # ---------- Admin notes on learners ----------
         ensure_table(
