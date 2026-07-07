@@ -2140,6 +2140,172 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
     return AuthResponse(access_token=token, email=row["email"])
 
 
+# ── Google OAuth ──────────────────────────────────────────────────────────────
+@router.post("/auth/google")
+def auth_google(
+    payload: Dict[str, Any] = Body(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Exchange Google OAuth authorization code for a Haylingua JWT.
+
+    Flow:
+      1. Frontend sends { code, redirect_uri } after Google redirects back.
+      2. We exchange the code with Google's token endpoint.
+      3. We get user info (email, name, picture, sub) from Google.
+      4. Find user by google_id → login.
+         Find by email → link google_id → login.
+         Otherwise → create new verified user (no password needed).
+      5. Return same AuthResponse as password login.
+    """
+    import re as _re
+
+    code = ((payload or {}).get("code") or "").strip()
+    redirect_uri = ((payload or {}).get("redirect_uri") or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing OAuth code")
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=503, detail="Google OAuth is not configured on this server")
+
+    # 1) Exchange code for tokens
+    try:
+        token_resp = httpx.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google token exchange failed: {exc}")
+
+    if token_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Google rejected the authorization code")
+
+    token_data = token_resp.json()
+    access_token_google = token_data.get("access_token")
+    if not access_token_google:
+        raise HTTPException(status_code=400, detail="No access token returned by Google")
+
+    # 2) Get user info from Google
+    try:
+        info_resp = httpx.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token_google}"},
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not fetch Google user info: {exc}")
+
+    if info_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to get user info from Google")
+
+    ginfo = info_resp.json()
+    google_id = ginfo.get("sub") or ""
+    g_email = (ginfo.get("email") or "").strip().lower()
+    g_name = ginfo.get("name") or ""
+    g_picture = ginfo.get("picture") or ""
+
+    if not google_id or not g_email:
+        raise HTTPException(status_code=400, detail="Google did not return a valid email or user ID")
+
+    # 3a) Find by google_id
+    user_row = db.execute(
+        text("SELECT id, email FROM users WHERE google_id = :gid LIMIT 1"),
+        {"gid": google_id},
+    ).mappings().first()
+
+    if user_row:
+        # existing OAuth user → just log in
+        user_id = int(user_row["id"])
+        db.execute(text("UPDATE users SET last_active_at = NOW() WHERE id = :u"), {"u": user_id})
+        jwt = create_token(user_id)
+        _brevo_sync_user(db, user_id, event="login_google")
+        ob = db.execute(
+            text("SELECT completed FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+            {"u": user_id},
+        ).mappings().first()
+        needs_onboarding = not (ob and ob.get("completed"))
+        return {"access_token": jwt, "email": user_row["email"], "email_verified": True, "needs_onboarding": needs_onboarding}
+
+    # 3b) Find by email → link account
+    user_row = db.execute(
+        text("SELECT id, email FROM users WHERE LOWER(email) = :e LIMIT 1"),
+        {"e": g_email},
+    ).mappings().first()
+
+    if user_row:
+        user_id = int(user_row["id"])
+        db.execute(
+            text("""
+                UPDATE users
+                SET google_id = :gid, oauth_provider = 'google',
+                    email_verified = TRUE,
+                    email_verified_at = COALESCE(email_verified_at, NOW()),
+                    last_active_at = NOW()
+                WHERE id = :u
+            """),
+            {"gid": google_id, "u": user_id},
+        )
+        jwt = create_token(user_id)
+        _brevo_sync_user(db, user_id, event="google_linked")
+        ob = db.execute(
+            text("SELECT completed FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+            {"u": user_id},
+        ).mappings().first()
+        needs_onboarding = not (ob and ob.get("completed"))
+        return {"access_token": jwt, "email": user_row["email"], "email_verified": True, "needs_onboarding": needs_onboarding}
+
+    # 3c) Create new user
+    # Generate a unique username from the email prefix
+    base = _re.sub(r"[^a-z0-9_]", "_", g_email.split("@")[0].lower())[:15] or "user"
+    username = base
+    for _ in range(10):
+        taken = db.execute(
+            text("SELECT 1 FROM users WHERE LOWER(username) = LOWER(:u)"),
+            {"u": username},
+        ).scalar()
+        if not taken:
+            break
+        import random as _rand
+        username = f"{base}_{_rand.randint(1000, 9999)}"
+
+    new_row = db.execute(
+        text("""
+            INSERT INTO users
+                (email, password_hash, username, display_name, avatar_url,
+                 google_id, oauth_provider,
+                 email_verified, email_verified_at, joined_at, last_active_at)
+            VALUES
+                (:email, '', :username, :display_name, :avatar_url,
+                 :gid, 'google',
+                 TRUE, NOW(), NOW(), NOW())
+            RETURNING id
+        """),
+        {
+            "email": g_email,
+            "username": username,
+            "display_name": g_name or username,
+            "avatar_url": g_picture,
+            "gid": google_id,
+        },
+    ).mappings().first()
+
+    if not new_row:
+        raise HTTPException(status_code=500, detail="Could not create user")
+
+    user_id = int(new_row["id"])
+    jwt = create_token(user_id)
+    _brevo_sync_user(db, user_id, event="user_registered")
+    return {"access_token": jwt, "email": g_email, "email_verified": True, "needs_onboarding": True}
+
+
 @router.post("/auth/verify-email")
 def verify_email(
     payload: VerifyEmailIn,

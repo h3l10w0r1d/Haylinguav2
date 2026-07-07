@@ -33,6 +33,7 @@ const CmsTeam = lazy(() => import('./cms/CmsTeam'));
 const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
+const AuthCallback = lazy(() => import('./AuthCallback'));
 
 function RouteFallback() {
   return <LoadingScreen />;
@@ -448,6 +449,7 @@ function AppShell() {
       <Route path="/cms" element={<CmsGate />} />
       <Route path="/cms/*" element={<CmsGate />} />
 
+      <Route path="/auth/google/callback" element={<AuthCallback />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>

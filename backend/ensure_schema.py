@@ -284,6 +284,17 @@ def ensure_schema() -> None:
             """,
         )
 
+        # ---------- Google OAuth ----------
+        add_col_if_missing("users", "google_id TEXT")
+        add_col_if_missing("users", "oauth_provider TEXT")
+        # Ensure google_id is unique (only add constraint if column just appeared)
+        try:
+            conn.execute(text(
+                "ALTER TABLE users ADD CONSTRAINT users_google_id_unique UNIQUE (google_id)"
+            ))
+        except Exception:
+            pass  # constraint already exists
+
         # ---------- Admin notes on learners ----------
         ensure_table(
             "admin_notes",
