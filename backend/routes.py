@@ -855,7 +855,7 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
                      GROUP BY c.id
                      HAVING COUNT(ls.id) > 0 AND COUNT(ls.id) = COUNT(lp2.lesson_id)
                    ) _cc)                                                                     AS chapters_completed,
-                  (SELECT COALESCE(SUM(el.is_correct::int), 0)
+                  (SELECT COALESCE(SUM(el.correct::int), 0)
                      FROM user_exercise_logs el WHERE el.user_id = :u)                        AS correct_answers
                 FROM lesson_progress lp
                 WHERE lp.user_id = :u
@@ -4765,7 +4765,7 @@ def support_user_detail(
             """
             SELECT
               COUNT(*)                                      AS exercises_done,
-              COALESCE(SUM(is_correct::int), 0)            AS correct,
+              COALESCE(SUM(correct::int), 0)               AS correct,
               COUNT(DISTINCT DATE(created_at))             AS practice_days
             FROM user_exercise_logs WHERE user_id = :u
             """
