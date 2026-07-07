@@ -155,11 +155,14 @@ const DETAIL_TABS = [
   { id: "overview", label: "Overview" },
   { id: "lessons", label: "Lessons" },
   { id: "achievements", label: "Achievements" },
+  { id: "timeline", label: "Timeline" },
+  { id: "notes", label: "Notes" },
   { id: "profile", label: "Profile" },
 ];
 
 function UserDetail({ detail: d, busy, act, onBack }) {
   const [activeTab, setActiveTab] = useState("overview");
+  const token = getCmsToken();
 
   const engagementScore = Math.min(100, Math.round(
     (Math.min(d.total_xp, 2000) / 2000) * 40 +
@@ -265,9 +268,11 @@ function UserDetail({ detail: d, busy, act, onBack }) {
           ))}
         </div>
 
-        {activeTab === "overview" && <OverviewTab d={d} engagementScore={engagementScore} churnRisk={churnRisk} churnColor={churnColor} />}
+        {activeTab === "overview" && <OverviewTab d={d} engagementScore={engagementScore} churnRisk={churnRisk} churnColor={churnColor} churnReason={churnReason} />}
         {activeTab === "lessons" && <LessonsTab d={d} />}
         {activeTab === "achievements" && <AchievementsTab d={d} />}
+        {activeTab === "timeline" && <TimelineTab d={d} />}
+        {activeTab === "notes" && <NotesTab d={d} token={token} />}
         {activeTab === "profile" && <ProfileTab d={d} />}
       </div>
     </div>
@@ -275,17 +280,38 @@ function UserDetail({ detail: d, busy, act, onBack }) {
 }
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ d, engagementScore, churnRisk, churnColor }) {
-  const activity = d.activity || [];
-  const activityMap = {};
-  activity.forEach((a) => { activityMap[a.day] = a.xp; });
+function OverviewTab({ d, engagementScore, churnRisk, churnColor, churnReason }) {
+  // 90-day heatmap
+  const activity90 = d.activity90 || [];
+  const heatMap = {};
+  activity90.forEach((a) => { heatMap[a.day] = a.xp; });
   const today = new Date();
-  const days30 = Array.from({ length: 30 }, (_, i) => {
-    const dt = new Date(today); dt.setDate(dt.getDate() - (29 - i));
+  const days90 = Array.from({ length: 91 }, (_, i) => {
+    const dt = new Date(today); dt.setDate(dt.getDate() - (90 - i));
     const key = dt.toISOString().slice(0, 10);
-    return { key, xp: activityMap[key] || 0, label: dt.getDate() };
+    return { key, xp: heatMap[key] || 0, dow: dt.getDay(), date: dt };
   });
-  const maxXp = Math.max(...days30.map((d) => d.xp), 1);
+  const maxXp = Math.max(...days90.map((d) => d.xp), 1);
+  const heatColor = (xp) => {
+    if (!xp) return "#F1F5F9";
+    const pct = xp / maxXp;
+    if (pct < 0.25) return "#FED7AA";
+    if (pct < 0.5)  return "#FB923C";
+    if (pct < 0.75) return "#F97316";
+    return "#EA580C";
+  };
+
+  // Group into weeks (columns)
+  const weeks = [];
+  let week = [];
+  days90.forEach((day, i) => {
+    if (i === 0) {
+      for (let p = 0; p < day.dow; p++) week.push(null);
+    }
+    week.push(day);
+    if (day.dow === 6) { weeks.push(week); week = []; }
+  });
+  if (week.length) weeks.push(week);
 
   return (
     <div className="space-y-4">
@@ -319,27 +345,39 @@ function OverviewTab({ d, engagementScore, churnRisk, churnColor }) {
         />
       </div>
 
-      {/* Activity chart */}
+      {/* 90-day heatmap */}
       <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="font-display text-sm font-extrabold text-slate-700">30-day activity</div>
-          <div className="text-xs font-semibold text-slate-400">{d.days_active} days practiced total</div>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="font-display text-sm font-extrabold text-slate-700">90-day activity</div>
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400">
+            Less
+            {["#F1F5F9","#FED7AA","#FB923C","#F97316","#EA580C"].map(c => (
+              <span key={c} className="inline-block h-3 w-3 rounded-sm" style={{ background: c }} />
+            ))}
+            More
+          </div>
         </div>
-        <div className="flex items-end gap-0.5 h-24">
-          {days30.map((day) => (
-            <div key={day.key} className="group relative flex flex-1 flex-col items-center">
-              <div className="w-full rounded-sm transition-all"
-                style={{ height: `${Math.max((day.xp / maxXp) * 88, day.xp > 0 ? 6 : 2)}px`, background: day.xp > 0 ? "#F97316" : "#E2E8F0" }} />
-              {day.xp > 0 && (
-                <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 hidden rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-bold text-white group-hover:block whitespace-nowrap shadow-lg">
-                  {day.xp} XP
-                </div>
-              )}
+        <div className="flex gap-0.5 overflow-x-auto pb-1">
+          {weeks.map((wk, wi) => (
+            <div key={wi} className="flex flex-col gap-0.5">
+              {Array.from({ length: 7 }, (_, dow) => {
+                const day = wk.find((d) => d && d.dow === dow) || null;
+                return (
+                  <div key={dow} className="group relative h-3 w-3 rounded-sm"
+                    style={{ background: day ? heatColor(day.xp) : "#F8FAFC" }}>
+                    {day && day.xp > 0 && (
+                      <div className="pointer-events-none absolute -top-7 left-1/2 z-10 -translate-x-1/2 hidden rounded bg-slate-900 px-1.5 py-0.5 text-[9px] font-bold text-white group-hover:block whitespace-nowrap shadow">
+                        {day.key}: {day.xp} XP
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
         <div className="mt-2 flex justify-between text-[9px] font-semibold text-slate-300">
-          <span>30 days ago</span><span>Today</span>
+          <span>90 days ago</span><span>Today</span>
         </div>
       </div>
 
@@ -368,6 +406,124 @@ function OverviewTab({ d, engagementScore, churnRisk, churnColor }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Timeline tab ──────────────────────────────────────────────────────────────
+const TL_ICON = {
+  user:      <User className="h-3.5 w-3.5" />,
+  mailcheck: <MailCheck className="h-3.5 w-3.5" />,
+  crown:     <Crown className="h-3.5 w-3.5" />,
+  book:      <BookOpen className="h-3.5 w-3.5" />,
+  award:     <Award className="h-3.5 w-3.5" />,
+};
+function TimelineTab({ d }) {
+  const events = [...(d.timeline || [])].reverse();
+  if (!events.length) return (
+    <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200 text-sm font-semibold text-slate-400">No events yet.</div>
+  );
+  return (
+    <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
+      <div className="relative">
+        <div className="absolute left-[18px] top-0 bottom-0 w-px bg-slate-100" />
+        <div className="space-y-0">
+          {events.map((ev, i) => (
+            <div key={i} className="relative flex gap-4 pb-6 last:pb-0">
+              <div className="relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full text-white shadow-sm"
+                style={{ background: ev.color || "#64748B" }}>
+                {TL_ICON[ev.icon] || <Star className="h-3.5 w-3.5" />}
+              </div>
+              <div className="pt-1.5 min-w-0">
+                <div className="text-sm font-bold text-slate-800">{ev.label}</div>
+                <div className="text-xs font-semibold text-slate-400">{fmtDate(ev.ts)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Notes tab ─────────────────────────────────────────────────────────────────
+function NotesTab({ d, token }) {
+  const [notes, setNotes] = useState(d.notes || []);
+  const [body, setBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(null);
+  const [err, setErr] = useState("");
+
+  async function addNote() {
+    if (!body.trim()) return;
+    setSaving(true); setErr("");
+    try {
+      const res = await fetch(`${API_BASE}/cms/support/users/${d.id}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ body: body.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed to save note");
+      const note = await res.json();
+      setNotes([note, ...notes]);
+      setBody("");
+    } catch (e) { setErr(e.message); } finally { setSaving(false); }
+  }
+
+  async function deleteNote(id) {
+    setDeleting(id); setErr("");
+    try {
+      await fetch(`${API_BASE}/cms/support/users/${d.id}/notes/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotes(notes.filter((n) => n.id !== id));
+    } catch (e) { setErr(e.message); } finally { setDeleting(null); }
+  }
+
+  return (
+    <div className="space-y-4">
+      {err && <div className="rounded-xl bg-cardinal-50 px-4 py-2 text-sm font-semibold text-cardinal-600">{err}</div>}
+
+      {/* Add note */}
+      <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
+        <div className="mb-3 text-sm font-extrabold text-slate-700">Add note</div>
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={3}
+          placeholder="Write an internal note about this learner…"
+          className="w-full resize-none rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 focus:outline-none focus:ring-brand-400 placeholder:text-slate-400"
+        />
+        <div className="mt-3 flex justify-end">
+          <button disabled={saving || !body.trim()} onClick={addNote}
+            className="btn3d btn3d-brand px-5 py-2 text-sm font-bold disabled:opacity-50">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save note"}
+          </button>
+        </div>
+      </div>
+
+      {/* Notes list */}
+      {notes.length === 0 ? (
+        <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200 text-sm font-semibold text-slate-400">No notes yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {notes.map((n) => (
+            <div key={n.id} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="whitespace-pre-wrap text-sm font-semibold text-slate-800">{n.body}</p>
+                  <div className="mt-2 text-xs font-semibold text-slate-400">{n.author_email} · {fmtDate(n.created_at)}</div>
+                </div>
+                <button disabled={deleting === n.id} onClick={() => deleteNote(n.id)}
+                  className="shrink-0 rounded-xl p-1.5 text-slate-300 transition hover:bg-cardinal-50 hover:text-cardinal-500 disabled:opacity-40">
+                  {deleting === n.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="text-base leading-none">×</span>}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

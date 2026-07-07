@@ -4865,6 +4865,50 @@ def support_user_detail(
         hs["hearts_current"],
     )
 
+    # 90-day activity heatmap
+    activity90 = db.execute(
+        text(
+            """
+            SELECT DATE(completed_at) AS day, SUM(xp_earned) AS xp
+            FROM lesson_progress
+            WHERE user_id = :u AND completed_at >= NOW() - INTERVAL '90 days'
+            GROUP BY day ORDER BY day
+            """
+        ),
+        {"u": uid},
+    ).mappings().all()
+
+    # Admin notes
+    notes = db.execute(
+        text(
+            """
+            SELECT id, author_email, body, created_at
+            FROM admin_notes WHERE user_id = :u ORDER BY created_at DESC
+            """
+        ),
+        {"u": uid},
+    ).mappings().all()
+
+    # Account timeline — key events in chronological order
+    timeline = []
+    def _tl(dt, label, icon, color):
+        if dt:
+            try:
+                ts = str(dt)
+                timeline.append({"ts": ts, "label": label, "icon": icon, "color": color})
+            except Exception:
+                pass
+
+    _tl(u.get("joined_at"),          "Account created",          "user",     "#64748B")
+    _tl(u.get("email_verified_at"),   "Email verified",           "mailcheck","#22B07D")
+    _tl(u.get("premium_since"),       "Upgraded to Premium",      "crown",    "#F59E0B")
+    _tl(stats.get("first_lesson_at"), "First lesson completed",   "book",     "#0EA5E9")
+    # Achievements claimed
+    for a in achievements:
+        _tl(a.get("claimed_at"), f"Achievement: {a['title']}", "award", "#8B5CF6")
+
+    timeline.sort(key=lambda x: x["ts"])
+
     return {
         **dict(u),
         "total_xp": total_xp,
@@ -4884,6 +4928,17 @@ def support_user_detail(
         "hearts_max": hs["hearts_max"],
         "achievements": [dict(a) for a in achievements],
         "activity": [{"day": str(a["day"]), "xp": int(a["xp"])} for a in activity],
+        "activity90": [{"day": str(a["day"]), "xp": int(a["xp"])} for a in activity90],
+        "notes": [
+            {
+                "id": n["id"],
+                "author_email": n["author_email"],
+                "body": n["body"],
+                "created_at": str(n["created_at"]),
+            }
+            for n in notes
+        ],
+        "timeline": timeline,
         "lesson_history": [
             {
                 "title": r["title"],
@@ -4895,6 +4950,48 @@ def support_user_detail(
             for r in lesson_history
         ],
     }
+
+
+@router.get("/cms/support/users/{uid}/notes")
+def get_user_notes(
+    uid: int,
+    _cms: dict = Depends(require_cms),
+    db: Connection = Depends(get_db),
+):
+    rows = db.execute(
+        text("SELECT id, author_email, body, created_at FROM admin_notes WHERE user_id = :u ORDER BY created_at DESC"),
+        {"u": uid},
+    ).mappings().all()
+    return {"notes": [{"id": r["id"], "author_email": r["author_email"], "body": r["body"], "created_at": str(r["created_at"])} for r in rows]}
+
+
+@router.post("/cms/support/users/{uid}/notes")
+def add_user_note(
+    uid: int,
+    payload: Dict[str, Any] = Body(default=None),
+    cms_user: dict = Depends(require_cms),
+    db: Connection = Depends(get_db),
+):
+    body = ((payload or {}).get("body") or "").strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Note body is required")
+    author = cms_user.get("email") or "admin"
+    row = db.execute(
+        text("INSERT INTO admin_notes (user_id, author_email, body) VALUES (:u, :a, :b) RETURNING id, created_at"),
+        {"u": uid, "a": author, "b": body},
+    ).mappings().first()
+    return {"id": row["id"], "author_email": author, "body": body, "created_at": str(row["created_at"])}
+
+
+@router.delete("/cms/support/users/{uid}/notes/{note_id}")
+def delete_user_note(
+    uid: int,
+    note_id: int,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    db.execute(text("DELETE FROM admin_notes WHERE id = :nid AND user_id = :u"), {"nid": note_id, "u": uid})
+    return {"ok": True}
 
 
 @router.post("/cms/support/users/{uid}/premium")

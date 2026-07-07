@@ -284,4 +284,18 @@ def ensure_schema() -> None:
             """,
         )
 
+        # ---------- Admin notes on learners ----------
+        ensure_table(
+            "admin_notes",
+            """
+            CREATE TABLE admin_notes (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                author_email TEXT NOT NULL,
+                body TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+
     print("[ensure_schema] done")
