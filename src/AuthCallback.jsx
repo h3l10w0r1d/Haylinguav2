@@ -23,7 +23,7 @@ export default function AuthCallback() {
       return;
     }
 
-    const redirectUri = window.location.origin + "/auth/google/callback";
+    const redirectUri = "https://haylingua.am/auth/google/callback";
 
     fetch(`${API_BASE}/auth/google`, {
       method: "POST",
