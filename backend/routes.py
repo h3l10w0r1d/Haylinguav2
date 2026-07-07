@@ -2228,10 +2228,10 @@ def auth_google(
         jwt = create_token(user_id)
         _brevo_sync_user(db, user_id, event="login_google")
         ob = db.execute(
-            text("SELECT completed FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+            text("SELECT completed_at FROM user_onboarding WHERE user_id = :u LIMIT 1"),
             {"u": user_id},
         ).mappings().first()
-        needs_onboarding = not (ob and ob.get("completed"))
+        needs_onboarding = not (ob and ob.get("completed_at"))
         return {"access_token": jwt, "email": user_row["email"], "email_verified": True, "needs_onboarding": needs_onboarding}
 
     # 3b) Find by email → link account
@@ -2256,10 +2256,10 @@ def auth_google(
         jwt = create_token(user_id)
         _brevo_sync_user(db, user_id, event="google_linked")
         ob = db.execute(
-            text("SELECT completed FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+            text("SELECT completed_at FROM user_onboarding WHERE user_id = :u LIMIT 1"),
             {"u": user_id},
         ).mappings().first()
-        needs_onboarding = not (ob and ob.get("completed"))
+        needs_onboarding = not (ob and ob.get("completed_at"))
         return {"access_token": jwt, "email": user_row["email"], "email_verified": True, "needs_onboarding": needs_onboarding}
 
     # 3c) Create new user
@@ -2358,10 +2358,10 @@ def auth_telegram(
 
     def _ob_check(uid):
         ob = db.execute(
-            text("SELECT completed FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+            text("SELECT completed_at FROM user_onboarding WHERE user_id = :u LIMIT 1"),
             {"u": uid},
         ).mappings().first()
-        return not (ob and ob.get("completed"))
+        return not (ob and ob.get("completed_at"))
 
     # 1) Find by telegram_id → login
     row = db.execute(
