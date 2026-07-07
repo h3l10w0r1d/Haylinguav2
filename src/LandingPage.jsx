@@ -11,7 +11,7 @@ import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "";
 
 const FEATURES = [
@@ -464,7 +464,6 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
 
           <div className="relative">
-            <img src={grandma} alt="" className="absolute -left-6 -top-10 hidden h-24 w-24 animate-floaty rounded-2xl object-cover shadow-lg lg:block" />
             {authCard}
           </div>
         </div>
