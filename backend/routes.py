@@ -4836,6 +4836,35 @@ def support_user_detail(
             _laa = _laa.replace(tzinfo=_tz.utc) if _laa.tzinfo is None else _laa
             days_since_active = (datetime.now(_tz.utc) - _laa).days
 
+    # Churn risk scoring
+    def _churn_risk(days_inactive, streak_val, lessons_done, weekly_xp_val, hearts_val):
+        if days_inactive is None:
+            # Never been active — new user risk
+            if lessons_done == 0:
+                return "high", "Never completed a lesson"
+            return "medium", "No recent activity recorded"
+        if days_inactive >= 14:
+            return "high", f"Inactive for {days_inactive} days"
+        if days_inactive >= 7:
+            return "high", f"Inactive for {days_inactive} days"
+        if days_inactive >= 3:
+            return "medium", f"Inactive for {days_inactive} days"
+        if streak_val == 0 and days_inactive >= 1:
+            return "medium", "Streak just broke"
+        if hearts_val is not None and hearts_val == 0:
+            return "medium", "Out of hearts — blocked from playing"
+        if weekly_xp_val == 0 and lessons_done > 0:
+            return "low", "No XP this week"
+        return "low", "Active recently"
+
+    churn_level, churn_reason = _churn_risk(
+        days_since_active,
+        int(streak),
+        int(stats.get("lessons_completed") or 0),
+        int(u.get("weekly_xp") or 0),
+        hs["hearts_current"],
+    )
+
     return {
         **dict(u),
         "total_xp": total_xp,
@@ -4849,6 +4878,8 @@ def support_user_detail(
         "friends_count": int(friends_count),
         "current_streak": int(streak),
         "days_since_active": days_since_active,
+        "churn_risk": churn_level,
+        "churn_reason": churn_reason,
         "hearts_current": hs["hearts_current"],
         "hearts_max": hs["hearts_max"],
         "achievements": [dict(a) for a in achievements],

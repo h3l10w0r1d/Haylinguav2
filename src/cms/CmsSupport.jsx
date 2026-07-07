@@ -167,10 +167,13 @@ function UserDetail({ detail: d, busy, act, onBack }) {
     (Math.min(d.lessons_completed, 20) / 20) * 30
   ));
 
-  const churnRisk = d.days_since_active == null ? "Unknown"
+  const churnRisk = d.churn_risk
+    ? d.churn_risk.charAt(0).toUpperCase() + d.churn_risk.slice(1)
+    : d.days_since_active == null ? "Unknown"
     : d.days_since_active <= 2 ? "Low"
     : d.days_since_active <= 7 ? "Medium"
     : "High";
+  const churnReason = d.churn_reason || (d.days_since_active != null ? `${d.days_since_active}d since last activity` : "No activity recorded");
   const churnColor = { Low: "text-grass-600", Medium: "text-amber-500", High: "text-cardinal-500", Unknown: "text-slate-400" }[churnRisk];
 
   return (
@@ -301,7 +304,7 @@ function OverviewTab({ d, engagementScore, churnRisk, churnColor }) {
           icon={<AlertTriangle className="h-4 w-4 text-cardinal-500" />}
           label="Churn risk"
           value={<span className={churnColor + " text-2xl font-extrabold"}>{churnRisk}</span>}
-          sub={d.days_since_active != null ? `${d.days_since_active}d since last activity` : "No activity recorded"}
+          sub={churnReason}
           bar={churnRisk === "High" ? 90 : churnRisk === "Medium" ? 50 : churnRisk === "Low" ? 15 : 0}
           barColor={churnRisk === "High" ? "#E11D48" : churnRisk === "Medium" ? "#F59E0B" : "#22B07D"}
         />
