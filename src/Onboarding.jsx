@@ -1,274 +1,95 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, ChevronDown, Search } from "lucide-react";
-import { StarMotif } from "./lib/motifs";
+import { Check, ChevronDown, Search, Sun, Moon, Coffee, BellOff, Volume2, Shuffle, User, Users } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 
 const API_BASE = "https://haylinguav2.onrender.com";
 
-
 const COUNTRY_OPTIONS = [
-  "🇦🇲 Armenia",
-  "🇷🇺 Russia",
-  "🇺🇸 United States",
-  "🇫🇷 France",
-  "🇩🇪 Germany",
-  "🇬🇧 United Kingdom",
-  "🇪🇸 Spain",
-  "🇮🇹 Italy",
-  "🇨🇦 Canada",
-  "🇦🇺 Australia",
-  "🇦🇫 Afghanistan",
-  "🇦🇽 Åland Islands",
-  "🇦🇱 Albania",
-  "🇩🇿 Algeria",
-  "🇦🇸 American Samoa",
-  "🇦🇩 Andorra",
-  "🇦🇴 Angola",
-  "🇦🇮 Anguilla",
-  "🇦🇶 Antarctica",
-  "🇦🇬 Antigua and Barbuda",
-  "🇦🇷 Argentina",
-  "🇦🇼 Aruba",
-  "🇦🇹 Austria",
-  "🇦🇿 Azerbaijan",
-  "🇧🇸 Bahamas",
-  "🇧🇭 Bahrain",
-  "🇧🇩 Bangladesh",
-  "🇧🇧 Barbados",
-  "🇧🇾 Belarus",
-  "🇧🇪 Belgium",
-  "🇧🇿 Belize",
-  "🇧🇯 Benin",
-  "🇧🇲 Bermuda",
-  "🇧🇹 Bhutan",
-  "🇧🇴 Bolivia",
-  "🇧🇦 Bosnia and Herzegovina",
-  "🇧🇼 Botswana",
-  "🇧🇷 Brazil",
-  "🇻🇬 British Virgin Islands",
-  "🇧🇳 Brunei",
-  "🇧🇬 Bulgaria",
-  "🇧🇫 Burkina Faso",
-  "🇧🇮 Burundi",
-  "🇰🇭 Cambodia",
-  "🇨🇲 Cameroon",
-  "🇨🇻 Cape Verde",
-  "🇰🇾 Cayman Islands",
-  "🇨🇫 Central African Republic",
-  "🇹🇩 Chad",
-  "🇨🇱 Chile",
-  "🇨🇳 China",
-  "🇨🇴 Colombia",
-  "🇰🇲 Comoros",
-  "🇨🇬 Congo - Brazzaville",
-  "🇨🇩 Congo - Kinshasa",
-  "🇨🇰 Cook Islands",
-  "🇨🇷 Costa Rica",
-  "🇨🇮 Côte d’Ivoire",
-  "🇭🇷 Croatia",
-  "🇨🇺 Cuba",
-  "🇨🇼 Curaçao",
-  "🇨🇾 Cyprus",
-  "🇨🇿 Czechia",
-  "🇩🇰 Denmark",
-  "🇩🇯 Djibouti",
-  "🇩🇲 Dominica",
-  "🇩🇴 Dominican Republic",
-  "🇪🇨 Ecuador",
-  "🇪🇬 Egypt",
-  "🇸🇻 El Salvador",
-  "🇬🇶 Equatorial Guinea",
-  "🇪🇷 Eritrea",
-  "🇪🇪 Estonia",
-  "🇸🇿 Eswatini",
-  "🇪🇹 Ethiopia",
-  "🇫🇯 Fiji",
-  "🇫🇮 Finland",
-  "🇬🇫 French Guiana",
-  "🇵🇫 French Polynesia",
-  "🇬🇦 Gabon",
-  "🇬🇲 Gambia",
-  "🇬🇪 Georgia",
-  "🇬🇭 Ghana",
-  "🇬🇮 Gibraltar",
-  "🇬🇷 Greece",
-  "🇬🇱 Greenland",
-  "🇬🇩 Grenada",
-  "🇬🇵 Guadeloupe",
-  "🇬🇺 Guam",
-  "🇬🇹 Guatemala",
-  "🇬🇬 Guernsey",
-  "🇬🇳 Guinea",
-  "🇬🇼 Guinea-Bissau",
-  "🇬🇾 Guyana",
-  "🇭🇹 Haiti",
-  "🇭🇳 Honduras",
-  "🇭🇰 Hong Kong",
-  "🇭🇺 Hungary",
-  "🇮🇸 Iceland",
-  "🇮🇳 India",
-  "🇮🇩 Indonesia",
-  "🇮🇷 Iran",
-  "🇮🇶 Iraq",
-  "🇮🇪 Ireland",
-  "🇮🇲 Isle of Man",
-  "🇮🇱 Israel",
-  "🇯🇲 Jamaica",
-  "🇯🇵 Japan",
-  "🇯🇪 Jersey",
-  "🇯🇴 Jordan",
-  "🇰🇿 Kazakhstan",
-  "🇰🇪 Kenya",
-  "🇰🇮 Kiribati",
-  "🇰🇼 Kuwait",
-  "🇰🇬 Kyrgyzstan",
-  "🇱🇦 Laos",
-  "🇱🇻 Latvia",
-  "🇱🇧 Lebanon",
-  "🇱🇸 Lesotho",
-  "🇱🇷 Liberia",
-  "🇱🇾 Libya",
-  "🇱🇮 Liechtenstein",
-  "🇱🇹 Lithuania",
-  "🇱🇺 Luxembourg",
-  "🇲🇴 Macao",
-  "🇲🇬 Madagascar",
-  "🇲🇼 Malawi",
-  "🇲🇾 Malaysia",
-  "🇲🇻 Maldives",
-  "🇲🇱 Mali",
-  "🇲🇹 Malta",
-  "🇲🇭 Marshall Islands",
-  "🇲🇶 Martinique",
-  "🇲🇷 Mauritania",
-  "🇲🇺 Mauritius",
-  "🇾🇹 Mayotte",
-  "🇲🇽 Mexico",
-  "🇫🇲 Micronesia",
-  "🇲🇩 Moldova",
-  "🇲🇨 Monaco",
-  "🇲🇳 Mongolia",
-  "🇲🇪 Montenegro",
-  "🇲🇸 Montserrat",
-  "🇲🇦 Morocco",
-  "🇲🇿 Mozambique",
-  "🇲🇲 Myanmar",
-  "🇳🇦 Namibia",
-  "🇳🇷 Nauru",
-  "🇳🇵 Nepal",
-  "🇳🇱 Netherlands",
-  "🇳🇨 New Caledonia",
-  "🇳🇿 New Zealand",
-  "🇳🇮 Nicaragua",
-  "🇳🇪 Niger",
-  "🇳🇬 Nigeria",
-  "🇰🇵 North Korea",
-  "🇲🇰 North Macedonia",
-  "🇳🇴 Norway",
-  "🇴🇲 Oman",
-  "🇵🇰 Pakistan",
-  "🇵🇼 Palau",
-  "🇵🇸 Palestine",
-  "🇵🇦 Panama",
-  "🇵🇬 Papua New Guinea",
-  "🇵🇾 Paraguay",
-  "🇵🇪 Peru",
-  "🇵🇭 Philippines",
-  "🇵🇱 Poland",
-  "🇵🇹 Portugal",
-  "🇵🇷 Puerto Rico",
-  "🇶🇦 Qatar",
-  "🇷🇪 Réunion",
-  "🇷🇴 Romania",
-  "🇷🇼 Rwanda",
-  "🇼🇸 Samoa",
-  "🇸🇲 San Marino",
-  "🇸🇦 Saudi Arabia",
-  "🇸🇳 Senegal",
-  "🇷🇸 Serbia",
-  "🇸🇨 Seychelles",
-  "🇸🇱 Sierra Leone",
-  "🇸🇬 Singapore",
-  "🇸🇰 Slovakia",
-  "🇸🇮 Slovenia",
-  "🇸🇧 Solomon Islands",
-  "🇸🇴 Somalia",
-  "🇿🇦 South Africa",
-  "🇰🇷 South Korea",
-  "🇸🇸 South Sudan",
-  "🇱🇰 Sri Lanka",
-  "🇸🇩 Sudan",
-  "🇸🇷 Suriname",
-  "🇸🇪 Sweden",
-  "🇨🇭 Switzerland",
-  "🇸🇾 Syria",
-  "🇹🇼 Taiwan",
-  "🇹🇯 Tajikistan",
-  "🇹🇿 Tanzania",
-  "🇹🇭 Thailand",
-  "🇹🇱 Timor-Leste",
-  "🇹🇬 Togo",
-  "🇹🇴 Tonga",
-  "🇹🇹 Trinidad and Tobago",
-  "🇹🇳 Tunisia",
-  "🇹🇷 Turkey",
-  "🇹🇲 Turkmenistan",
-  "🇹🇻 Tuvalu",
-  "🇺🇬 Uganda",
-  "🇺🇦 Ukraine",
-  "🇦🇪 United Arab Emirates",
-  "🇺🇾 Uruguay",
-  "🇺🇿 Uzbekistan",
-  "🇻🇺 Vanuatu",
-  "🇻🇦 Vatican City",
-  "🇻🇪 Venezuela",
-  "🇻🇳 Vietnam",
-  "🇾🇪 Yemen",
-  "🇿🇲 Zambia",
-  "🇿🇼 Zimbabwe",
-  "Other",
+  "🇦🇲 Armenia","🇷🇺 Russia","🇺🇸 United States","🇫🇷 France","🇩🇪 Germany","🇬🇧 United Kingdom",
+  "🇪🇸 Spain","🇮🇹 Italy","🇨🇦 Canada","🇦🇺 Australia","🇦🇫 Afghanistan","🇦🇽 Åland Islands",
+  "🇦🇱 Albania","🇩🇿 Algeria","🇦🇸 American Samoa","🇦🇩 Andorra","🇦🇴 Angola","🇦🇮 Anguilla",
+  "🇦🇶 Antarctica","🇦🇬 Antigua and Barbuda","🇦🇷 Argentina","🇦🇼 Aruba","🇦🇹 Austria",
+  "🇦🇿 Azerbaijan","🇧🇸 Bahamas","🇧🇭 Bahrain","🇧🇩 Bangladesh","🇧🇧 Barbados","🇧🇾 Belarus",
+  "🇧🇪 Belgium","🇧🇿 Belize","🇧🇯 Benin","🇧🇲 Bermuda","🇧🇹 Bhutan","🇧🇴 Bolivia",
+  "🇧🇦 Bosnia and Herzegovina","🇧🇼 Botswana","🇧🇷 Brazil","🇻🇬 British Virgin Islands",
+  "🇧🇳 Brunei","🇧🇬 Bulgaria","🇧🇫 Burkina Faso","🇧🇮 Burundi","🇰🇭 Cambodia","🇨🇲 Cameroon",
+  "🇨🇻 Cape Verde","🇰🇾 Cayman Islands","🇨🇫 Central African Republic","🇹🇩 Chad","🇨🇱 Chile",
+  "🇨🇳 China","🇨🇴 Colombia","🇰🇲 Comoros","🇨🇬 Congo - Brazzaville","🇨🇩 Congo - Kinshasa",
+  "🇨🇰 Cook Islands","🇨🇷 Costa Rica","🇨🇮 Côte d'Ivoire","🇭🇷 Croatia","🇨🇺 Cuba","🇨🇼 Curaçao",
+  "🇨🇾 Cyprus","🇨🇿 Czechia","🇩🇰 Denmark","🇩🇯 Djibouti","🇩🇲 Dominica","🇩🇴 Dominican Republic",
+  "🇪🇨 Ecuador","🇪🇬 Egypt","🇸🇻 El Salvador","🇬🇶 Equatorial Guinea","🇪🇷 Eritrea","🇪🇪 Estonia",
+  "🇸🇿 Eswatini","🇪🇹 Ethiopia","🇫🇯 Fiji","🇫🇮 Finland","🇬🇫 French Guiana","🇵🇫 French Polynesia",
+  "🇬🇦 Gabon","🇬🇲 Gambia","🇬🇪 Georgia","🇬🇭 Ghana","🇬🇮 Gibraltar","🇬🇷 Greece","🇬🇱 Greenland",
+  "🇬🇩 Grenada","🇬🇵 Guadeloupe","🇬🇺 Guam","🇬🇹 Guatemala","🇬🇬 Guernsey","🇬🇳 Guinea",
+  "🇬🇼 Guinea-Bissau","🇬🇾 Guyana","🇭🇹 Haiti","🇭🇳 Honduras","🇭🇰 Hong Kong","🇭🇺 Hungary",
+  "🇮🇸 Iceland","🇮🇳 India","🇮🇩 Indonesia","🇮🇷 Iran","🇮🇶 Iraq","🇮🇪 Ireland","🇮🇲 Isle of Man",
+  "🇮🇱 Israel","🇯🇲 Jamaica","🇯🇵 Japan","🇯🇪 Jersey","🇯🇴 Jordan","🇰🇿 Kazakhstan","🇰🇪 Kenya",
+  "🇰🇮 Kiribati","🇰🇼 Kuwait","🇰🇬 Kyrgyzstan","🇱🇦 Laos","🇱🇻 Latvia","🇱🇧 Lebanon","🇱🇸 Lesotho",
+  "🇱🇷 Liberia","🇱🇾 Libya","🇱🇮 Liechtenstein","🇱🇹 Lithuania","🇱🇺 Luxembourg","🇲🇴 Macao",
+  "🇲🇬 Madagascar","🇲🇼 Malawi","🇲🇾 Malaysia","🇲🇻 Maldives","🇲🇱 Mali","🇲🇹 Malta",
+  "🇲🇭 Marshall Islands","🇲🇶 Martinique","🇲🇷 Mauritania","🇲🇺 Mauritius","🇾🇹 Mayotte","🇲🇽 Mexico",
+  "🇫🇲 Micronesia","🇲🇩 Moldova","🇲🇨 Monaco","🇲🇳 Mongolia","🇲🇪 Montenegro","🇲🇸 Montserrat",
+  "🇲🇦 Morocco","🇲🇿 Mozambique","🇲🇲 Myanmar","🇳🇦 Namibia","🇳🇷 Nauru","🇳🇵 Nepal",
+  "🇳🇱 Netherlands","🇳🇨 New Caledonia","🇳🇿 New Zealand","🇳🇮 Nicaragua","🇳🇪 Niger","🇳🇬 Nigeria",
+  "🇰🇵 North Korea","🇲🇰 North Macedonia","🇳🇴 Norway","🇴🇲 Oman","🇵🇰 Pakistan","🇵🇼 Palau",
+  "🇵🇸 Palestine","🇵🇦 Panama","🇵🇬 Papua New Guinea","🇵🇾 Paraguay","🇵🇪 Peru","🇵🇭 Philippines",
+  "🇵🇱 Poland","🇵🇹 Portugal","🇵🇷 Puerto Rico","🇶🇦 Qatar","🇷🇪 Réunion","🇷🇴 Romania","🇷🇼 Rwanda",
+  "🇼🇸 Samoa","🇸🇲 San Marino","🇸🇦 Saudi Arabia","🇸🇳 Senegal","🇷🇸 Serbia","🇸🇨 Seychelles",
+  "🇸🇱 Sierra Leone","🇸🇬 Singapore","🇸🇰 Slovakia","🇸🇮 Slovenia","🇸🇧 Solomon Islands","🇸🇴 Somalia",
+  "🇿🇦 South Africa","🇰🇷 South Korea","🇸🇸 South Sudan","🇱🇰 Sri Lanka","🇸🇩 Sudan","🇸🇷 Suriname",
+  "🇸🇪 Sweden","🇨🇭 Switzerland","🇸🇾 Syria","🇹🇼 Taiwan","🇹🇯 Tajikistan","🇹🇿 Tanzania",
+  "🇹🇭 Thailand","🇹🇱 Timor-Leste","🇹🇬 Togo","🇹🇴 Tonga","🇹🇹 Trinidad and Tobago","🇹🇳 Tunisia",
+  "🇹🇷 Turkey","🇹🇲 Turkmenistan","🇹🇻 Tuvalu","🇺🇬 Uganda","🇺🇦 Ukraine","🇦🇪 United Arab Emirates",
+  "🇺🇾 Uruguay","🇺🇿 Uzbekistan","🇻🇺 Vanuatu","🇻🇦 Vatican City","🇻🇪 Venezuela","🇻🇳 Vietnam",
+  "🇾🇪 Yemen","🇿🇲 Zambia","🇿🇼 Zimbabwe","Other",
 ];
 
-function Pill({ active, children, onClick }) {
+function splitCountry(opt) {
+  if (!opt || opt === "Other") return { flag: "🌐", name: opt || "" };
+  const firstChar = opt.codePointAt(0);
+  const isRegionalIndicator = firstChar >= 0x1f1e6 && firstChar <= 0x1f1ff;
+  if (isRegionalIndicator) return { flag: opt.slice(0, 4), name: opt.slice(5) };
+  const match = COUNTRY_OPTIONS.find((c) => c !== "Other" && c.slice(5) === opt);
+  if (match) return { flag: match.slice(0, 4), name: opt };
+  return { flag: "🌐", name: opt };
+}
+
+// Large selectable card
+function OptionCard({ active, onClick, icon, label, sub }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={
-        "px-4 py-2 rounded-full text-sm font-semibold transition-all ring-2 " +
+        "group relative flex items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all w-full ring-2 " +
         (active
-          ? "bg-brand-500 text-white ring-brand-500 shadow-sm"
-          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50")
+          ? "bg-brand-500 ring-brand-500 shadow-[0_4px_0_0_#c2430a] text-white"
+          : "bg-white ring-slate-200 hover:ring-brand-300 hover:bg-brand-50/40 text-slate-800")
       }
     >
-      {children}
+      {icon ? (
+        <span className={
+          "text-xl leading-none shrink-0 grid place-items-center w-9 h-9 rounded-xl " +
+          (active ? "bg-white/20" : "bg-slate-100 group-hover:bg-brand-100/60")
+        }>{icon}</span>
+      ) : null}
+      <div className="flex-1 min-w-0">
+        <div className={"font-display font-extrabold text-sm leading-tight " + (active ? "text-white" : "text-slate-900")}>{label}</div>
+        {sub ? <div className={"text-xs mt-0.5 " + (active ? "text-brand-100" : "text-slate-500")}>{sub}</div> : null}
+      </div>
+      {active ? <Check className="h-4 w-4 shrink-0 text-white" /> : null}
     </button>
   );
 }
 
-function FieldLabel({ title, subtitle }) {
+function SectionLabel({ title, subtitle }) {
   return (
-    <div className="mb-3">
-      <div className="font-display text-lg font-bold text-slate-900">{title}</div>
-      {subtitle ? <div className="text-sm text-slate-500 mt-1">{subtitle}</div> : null}
+    <div className="mb-4">
+      <div className="font-display text-base font-extrabold text-slate-900">{title}</div>
+      {subtitle ? <div className="text-sm text-slate-500 mt-0.5">{subtitle}</div> : null}
     </div>
   );
-}
-
-// Each entry is "🇦🇲 Armenia" (flag emoji = 4 JS chars, then space, then name), except "Other".
-// Falls back gracefully for plain names (e.g. "Armenia") stored by older app versions.
-function splitCountry(opt) {
-  if (!opt || opt === "Other") return { flag: "🌐", name: opt || "" };
-  // If the value matches a COUNTRY_OPTIONS entry exactly, split at the known boundary.
-  // Flag emoji = 2 regional-indicator code points = 4 JS chars, then a space.
-  const firstChar = opt.codePointAt(0);
-  const isRegionalIndicator = firstChar >= 0x1f1e6 && firstChar <= 0x1f1ff;
-  if (isRegionalIndicator) return { flag: opt.slice(0, 4), name: opt.slice(5) };
-  // Plain name (no flag prefix) — look up the matching option to get the flag.
-  const match = COUNTRY_OPTIONS.find((c) => c !== "Other" && c.slice(5) === opt);
-  if (match) return { flag: match.slice(0, 4), name: opt };
-  return { flag: "🌐", name: opt };
 }
 
 function CountryPicker({ value, onChange }) {
@@ -277,7 +98,6 @@ function CountryPicker({ value, onChange }) {
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     function onDown(e) {
@@ -287,7 +107,6 @@ function CountryPicker({ value, onChange }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  // Auto-focus search and reset query when opening
   useEffect(() => {
     if (open) {
       setQuery("");
@@ -304,27 +123,22 @@ function CountryPicker({ value, onChange }) {
   const { flag, name } = splitCountry(value);
 
   return (
-    <div ref={wrapRef} className="relative w-full md:w-80">
-      {/* Trigger */}
+    <div ref={wrapRef} className="relative w-full">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={
-          "w-full flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 transition-all text-left " +
-          (open ? "ring-brand-400 bg-white" : "ring-slate-200 hover:ring-brand-300")
+          "w-full flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 font-semibold text-slate-800 ring-2 transition-all text-left shadow-sm " +
+          (open ? "ring-brand-400" : "ring-slate-200 hover:ring-brand-300")
         }
       >
         <span className="text-2xl leading-none w-8 text-center shrink-0">{flag}</span>
-        <span className="flex-1 truncate">{name || "Select country"}</span>
-        <ChevronDown
-          className={"h-4 w-4 text-slate-400 transition-transform shrink-0 " + (open ? "rotate-180" : "")}
-        />
+        <span className="flex-1 truncate text-sm">{name || "Select country"}</span>
+        <ChevronDown className={"h-4 w-4 text-slate-400 transition-transform shrink-0 " + (open ? "rotate-180" : "")} />
       </button>
 
-      {/* Dropdown */}
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-full min-w-[280px] rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 overflow-hidden">
-          {/* Search bar */}
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-full rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 overflow-hidden">
           <div className="p-2 border-b border-slate-100">
             <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200 focus-within:ring-brand-400 focus-within:bg-white transition-all">
               <Search className="h-4 w-4 text-slate-400 shrink-0" />
@@ -336,25 +150,14 @@ function CountryPicker({ value, onChange }) {
                 className="flex-1 bg-transparent text-sm font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none"
                 onKeyDown={(e) => {
                   if (e.key === "Escape") setOpen(false);
-                  if (e.key === "Enter" && filtered.length === 1) {
-                    onChange(filtered[0]);
-                    setOpen(false);
-                  }
+                  if (e.key === "Enter" && filtered.length === 1) { onChange(filtered[0]); setOpen(false); }
                 }}
               />
               {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  className="text-slate-400 hover:text-slate-600 text-xs leading-none"
-                >
-                  ✕
-                </button>
+                <button type="button" onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
               )}
             </div>
           </div>
-
-          {/* List */}
           <div className="max-h-64 overflow-y-auto overscroll-contain py-1">
             {filtered.length === 0 ? (
               <div className="px-4 py-4 text-sm text-slate-400 text-center">No countries found</div>
@@ -369,9 +172,7 @@ function CountryPicker({ value, onChange }) {
                     onClick={() => { onChange(c); setOpen(false); }}
                     className={
                       "w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-left transition-colors " +
-                      (selected
-                        ? "bg-brand-50 text-brand-700"
-                        : "text-slate-800 hover:bg-slate-50 active:bg-slate-100")
+                      (selected ? "bg-brand-50 text-brand-700" : "text-slate-800 hover:bg-slate-50")
                     }
                   >
                     <span className="text-xl leading-none w-7 text-center shrink-0">{f}</span>
@@ -388,6 +189,23 @@ function CountryPicker({ value, onChange }) {
   );
 }
 
+const STEP_META = [
+  { emoji: "👤", label: "About you" },
+  { emoji: "📚", label: "Curriculum" },
+  { emoji: "🎯", label: "Daily plan" },
+  { emoji: "✅", label: "Confirm" },
+];
+
+const GOAL_OPTIONS = [
+  { min: 5,  label: "5 min",  sub: "Casual" },
+  { min: 10, label: "10 min", sub: "Regular" },
+  { min: 15, label: "15 min", sub: "Committed" },
+  { min: 20, label: "20 min", sub: "Serious" },
+  { min: 30, label: "30 min", sub: "Intensive" },
+  { min: 45, label: "45 min", sub: "Hardcore" },
+  { min: 60, label: "60 min", sub: "Mastery" },
+];
+
 export default function Onboarding({ token, onCompleted }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -395,69 +213,43 @@ export default function Onboarding({ token, onCompleted }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Screen 1
   const [ageRange, setAgeRange] = useState("");
   const [country, setCountry] = useState("🇦🇲 Armenia");
-  const [planningVisit, setPlanningVisit] = useState(null); // bool | null
+  const [planningVisit, setPlanningVisit] = useState(null);
 
-  // Screen 2
   const [knowledgeLevel, setKnowledgeLevel] = useState("");
   const [dialect, setDialect] = useState("Eastern");
   const [primaryGoal, setPrimaryGoal] = useState("");
-  // Source language removed from UI (kept as a hidden default for backend compatibility)
-  const [sourceLanguage, setSourceLanguage] = useState("English");
+  const [sourceLanguage] = useState("English");
 
-  // Screen 3
   const [dailyGoalMin, setDailyGoalMin] = useState(10);
   const [reminderTime, setReminderTime] = useState("20:00");
   const [remindersEnabled, setRemindersEnabled] = useState(true);
-  // Voice selection UX: allow selecting Male/Female independently, compute "Both".
   const [voiceRandom, setVoiceRandom] = useState(false);
   const [voiceMale, setVoiceMale] = useState(true);
   const [voiceFemale, setVoiceFemale] = useState(true);
 
-  // Screen 4
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const totalSteps = 4;
-  const progressPct = Math.round((step / totalSteps) * 100);
   const showPlanningVisit = (country || "").trim() !== "" && country !== "Armenia";
 
   const computedVoicePref = useMemo(() => {
     if (voiceRandom) return "Random";
-    // "Both" is deprecated; treat it as Random.
     if (voiceMale && voiceFemale) return "Random";
     if (voiceMale) return "Male";
     if (voiceFemale) return "Female";
     return "";
   }, [voiceRandom, voiceMale, voiceFemale]);
 
-  const headerText = useMemo(() => {
-    if (step === 1) return { h: "Let’s personalize your path", p: "A few quick questions so we start you at the right level." };
-    if (step === 2) return { h: "Curriculum calibration", p: "Pick the level, dialect, and what you’re learning for." };
-    if (step === 3) return { h: "Daily setup", p: "Set a realistic goal and how you want to study." };
-    return { h: "Almost done", p: "Confirm preferences and you’re in." };
-  }, [step]);
-
   useEffect(() => {
-    // If we already have onboarding saved, we can skip.
     const run = async () => {
-      if (!token) {
-        navigate("/", { replace: true });
-        return;
-      }
+      if (!token) { navigate("/", { replace: true }); return; }
       try {
-        const res = await fetch(`${API_BASE}/me/onboarding`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(`${API_BASE}/me/onboarding`, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json().catch(() => null);
-        if (res.ok && data?.completed) {
-          onCompleted?.(data);
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-        // Prefill if any partial exists
+        if (res.ok && data?.completed) { onCompleted?.(data); navigate("/dashboard", { replace: true }); return; }
         if (res.ok && data?.data) {
           const d = data.data;
           if (d.age_range) setAgeRange(d.age_range);
@@ -466,52 +258,29 @@ export default function Onboarding({ token, onCompleted }) {
           if (d.knowledge_level) setKnowledgeLevel(d.knowledge_level);
           if (d.dialect) setDialect(d.dialect);
           if (d.primary_goal) setPrimaryGoal(d.primary_goal);
-          if (d.source_language) setSourceLanguage(d.source_language);
           if (typeof d.daily_goal_min === "number") setDailyGoalMin(d.daily_goal_min);
-          if (d.reminder_time) {
-            setReminderTime(d.reminder_time);
-            setRemindersEnabled(true);
-          }
+          if (d.reminder_time) { setReminderTime(d.reminder_time); setRemindersEnabled(true); }
           if (d.voice_pref) {
             const v = String(d.voice_pref);
-            if (v === "Random") {
-              setVoiceRandom(true);
-              setVoiceMale(true);
-              setVoiceFemale(true);
-            } else if (v === "Both") {
-              // Backward-compat: treat Both as Random.
-              setVoiceRandom(true);
-              setVoiceMale(true);
-              setVoiceFemale(true);
-            } else if (v === "Male") {
-              setVoiceRandom(false);
-              setVoiceMale(true);
-              setVoiceFemale(false);
-            } else if (v === "Female") {
-              setVoiceRandom(false);
-              setVoiceMale(false);
-              setVoiceFemale(true);
-            }
+            if (v === "Random" || v === "Both") { setVoiceRandom(true); setVoiceMale(true); setVoiceFemale(true); }
+            else if (v === "Male") { setVoiceRandom(false); setVoiceMale(true); setVoiceFemale(false); }
+            else if (v === "Female") { setVoiceRandom(false); setVoiceMale(false); setVoiceFemale(true); }
           }
           if (typeof d.marketing_opt_in === "boolean") setMarketingOptIn(d.marketing_opt_in);
           if (typeof d.accepted_terms === "boolean") setAcceptedTerms(d.accepted_terms);
         }
-      } catch (e) {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
+      } catch {}
+      finally { setLoading(false); }
     };
     run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canNext = () => {
     setError("");
     if (step === 1) {
       if (!ageRange) return "Please select your age range.";
       if (!country) return "Please select your country.";
-      if (showPlanningVisit && planningVisit === null) return "Please tell us if you’re planning to visit Armenia.";
+      if (showPlanningVisit && planningVisit === null) return "Please tell us if you're planning to visit Armenia.";
       return "";
     }
     if (step === 2) {
@@ -521,9 +290,7 @@ export default function Onboarding({ token, onCompleted }) {
       return "";
     }
     if (step === 3) {
-      if (!computedVoicePref) return "Please select at least one voice (or choose Random).";
-      if (dailyGoalMin < 5 || dailyGoalMin > 60) return "Daily goal must be between 5 and 60 minutes.";
-      if (remindersEnabled && !reminderTime) return "Select a reminder time or disable reminders.";
+      if (!computedVoicePref) return "Please select at least one voice preference.";
       return "";
     }
     if (step === 4) {
@@ -533,453 +300,390 @@ export default function Onboarding({ token, onCompleted }) {
     return "";
   };
 
-  const next = () => {
-    const msg = canNext();
-    if (msg) {
-      setError(msg);
-      return;
-    }
-    setStep((s) => Math.min(totalSteps, s + 1));
-  };
-
-  const back = () => {
-    setError("");
-    setStep((s) => Math.max(1, s - 1));
-  };
+  const next = () => { const msg = canNext(); if (msg) { setError(msg); return; } setStep((s) => Math.min(totalSteps, s + 1)); };
+  const back = () => { setError(""); setStep((s) => Math.max(1, s - 1)); };
 
   const submit = async () => {
     const msg = canNext();
-    if (msg) {
-      setError(msg);
-      return;
-    }
-    setSaving(true);
-    setError("");
+    if (msg) { setError(msg); return; }
+    setSaving(true); setError("");
     try {
       const payload = {
-        age_range: ageRange,
-        country,
+        age_range: ageRange, country,
         planning_visit_armenia: showPlanningVisit ? Boolean(planningVisit) : null,
-        knowledge_level: knowledgeLevel,
-        dialect,
-        primary_goal: primaryGoal,
-        source_language: sourceLanguage,
-        daily_goal_min: Number(dailyGoalMin),
+        knowledge_level: knowledgeLevel, dialect, primary_goal: primaryGoal,
+        source_language: sourceLanguage, daily_goal_min: Number(dailyGoalMin),
         reminder_time: remindersEnabled ? reminderTime : null,
-        voice_pref: computedVoicePref,
-        marketing_opt_in: Boolean(marketingOptIn),
+        voice_pref: computedVoicePref, marketing_opt_in: Boolean(marketingOptIn),
         accepted_terms: Boolean(acceptedTerms),
       };
-
       const res = await fetch(`${API_BASE}/me/onboarding`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const detail = data?.detail || "Could not save onboarding";
         setError(typeof detail === "string" ? detail : JSON.stringify(detail));
-        setSaving(false);
-        return;
+        setSaving(false); return;
       }
-
-      // Persist voice preference for exercise audio selection.
-      try {
-        localStorage.setItem("hay_voice_pref", computedVoicePref || "Random");
-      } catch {}
-
+      try { localStorage.setItem("hay_voice_pref", computedVoicePref || "Random"); } catch {}
       onCompleted?.(data);
       navigate("/dashboard", { replace: true });
-    } catch (e) {
-      setError("Network error. Please try again.");
-    } finally {
-      setSaving(false);
-    }
+    } catch { setError("Network error. Please try again."); }
+    finally { setSaving(false); }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-brand-50/40 to-white">
-        <div className="font-semibold text-slate-600">Loading…</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-brand-50/50 to-white">
+        <div className="font-semibold text-slate-500">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-brand-50/40 to-white">
-      {/* Account for fixed header and mobile bottom nav */}
-      <div className="relative max-w-5xl mx-auto px-4 pt-24 pb-28 md:pt-28 md:pb-10">
-        <div className="flex items-center justify-between gap-3 mb-6">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-brand-50 ring-1 ring-brand-200 px-3 py-1 text-xs font-semibold text-brand-700">
-              <StarMotif className="w-3.5 h-3.5 text-brand-500" />
-              <span>Onboarding</span>
-            </div>
-            <h1 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 mt-3">
-              {headerText.h}
-            </h1>
-            <p className="text-slate-500 mt-2 max-w-2xl">{headerText.p}</p>
-          </div>
-          <a
-            href="https://blog.haylingua.am"
-            target="_blank"
-            rel="noreferrer"
-            className="hidden md:inline-flex px-4 py-2 rounded-full bg-white ring-1 ring-slate-200 font-semibold text-slate-700 hover:bg-slate-50 transition"
-          >
-            blog.haylingua.am
-          </a>
+    <div className="min-h-screen bg-gradient-to-br from-brand-50/60 via-white to-feather-50/40 flex flex-col items-center justify-start py-8 px-4">
+      {/* Logo mark */}
+      <div className="mb-6 flex items-center gap-2.5">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-500 text-white shadow-[0_4px_0_0_#c2430a]">
+          <span className="font-display text-xl font-extrabold leading-none">Հ</span>
         </div>
+        <span className="font-display text-lg font-extrabold text-slate-900">Haylingua</span>
+      </div>
 
-        <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-slate-500">Step {step} of {totalSteps}</div>
-              <div className="text-sm font-bold text-brand-600">{progressPct}%</div>
-            </div>
-            <div className="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
-            </div>
+      {/* Step indicator */}
+      <div className="flex items-center gap-2 mb-8">
+        {STEP_META.map((m, i) => {
+          const idx = i + 1;
+          const done = step > idx;
+          const active = step === idx;
+          return (
+            <React.Fragment key={idx}>
+              <div className={
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all text-xs font-bold " +
+                (active ? "bg-brand-500 text-white shadow-sm" :
+                  done ? "bg-grass-100 text-grass-700" :
+                    "bg-slate-100 text-slate-400")
+              }>
+                {done ? <Check className="h-3 w-3" /> : <span>{m.emoji}</span>}
+                <span className="hidden sm:inline">{m.label}</span>
+                {!done && !active && <span className="sm:hidden">{idx}</span>}
+              </div>
+              {idx < totalSteps && (
+                <div className={"h-0.5 w-6 rounded-full transition-all " + (done ? "bg-grass-400" : "bg-slate-200")} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* Card */}
+      <div className="w-full max-w-lg">
+        <div className="rounded-3xl bg-white shadow-xl ring-1 ring-slate-200/80 overflow-hidden">
+          {/* Card header */}
+          <div className="px-6 pt-6 pb-5 border-b border-slate-100">
+            <div className="text-2xl mb-1">{STEP_META[step - 1].emoji}</div>
+            <h1 className="font-display text-xl font-extrabold text-slate-900 leading-snug">
+              {step === 1 && "Let's personalize your path"}
+              {step === 2 && "Curriculum calibration"}
+              {step === 3 && "Set your daily plan"}
+              {step === 4 && "Almost done"}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {step === 1 && "A few quick questions so we start you at the right level."}
+              {step === 2 && "Pick your level, dialect, and what you're learning for."}
+              {step === 3 && "Set a realistic goal — consistency beats intensity every time."}
+              {step === 4 && "Review your setup and confirm to start learning."}
+            </p>
           </div>
 
-          <div className="p-6">
-            {error ? (
-              <div className="mb-5 rounded-2xl ring-1 ring-cardinal-200 bg-cardinal-50 px-4 py-3 text-sm font-semibold text-cardinal-700">
+          {/* Card body */}
+          <div className="p-6 space-y-7">
+            {error && (
+              <div className="rounded-2xl bg-cardinal-50 ring-1 ring-cardinal-200 px-4 py-3 text-sm font-semibold text-cardinal-700">
                 {error}
               </div>
-            ) : null}
+            )}
 
-            {step === 1 ? (
-              <div className="space-y-7">
+            {/* ── STEP 1 ── */}
+            {step === 1 && (
+              <>
                 <div>
-                  <FieldLabel title="How old are you?" subtitle="We use this to tailor pacing and tone." />
-                  <div className="flex flex-wrap gap-2">
-                    {["Under 13", "13–17", "18–24", "25–34", "35–44", "45+"].map((x) => (
-                      <Pill key={x} active={ageRange === x} onClick={() => setAgeRange(x)}>
-                        {x}
-                      </Pill>
+                  <SectionLabel title="How old are you?" subtitle="We use this to tailor pacing and tone." />
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { v: "Under 13", e: "🧒" },
+                      { v: "13–17", e: "🎒" },
+                      { v: "18–24", e: "🎓" },
+                      { v: "25–34", e: "💼" },
+                      { v: "35–44", e: "🏡" },
+                      { v: "45+", e: "🌿" },
+                    ].map(({ v, e }) => (
+                      <OptionCard key={v} active={ageRange === v} onClick={() => setAgeRange(v)} icon={e} label={v} />
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <FieldLabel title="Where are you located?" subtitle="Helps us optimize content and examples." />
-                  <div className="flex flex-col md:flex-row gap-3 items-start">
-                    <CountryPicker
-                      value={country}
-                      onChange={(c) => { setCountry(c); setPlanningVisit(null); }}
-                    />
-                    <div className="text-sm text-slate-500 flex-1 flex items-center pt-1">
-                      If you’re outside Armenia, we’ll adapt travel and culture vocabulary.
-                    </div>
-                  </div>
+                  <SectionLabel title="Where are you located?" subtitle="Helps us optimize content and examples." />
+                  <CountryPicker value={country} onChange={(c) => { setCountry(c); setPlanningVisit(null); }} />
                 </div>
 
-                {showPlanningVisit ? (
+                {showPlanningVisit && (
                   <div>
-                    <FieldLabel
-                      title="Are you planning to visit Armenia soon?"
-                      subtitle="If yes, we’ll prioritize travel phrases earlier."
-                    />
-                    <div className="flex gap-2">
-                      <Pill active={planningVisit === true} onClick={() => setPlanningVisit(true)}>Yes</Pill>
-                      <Pill active={planningVisit === false} onClick={() => setPlanningVisit(false)}>No</Pill>
+                    <SectionLabel title="Planning to visit Armenia soon?" subtitle="If yes, we'll prioritize travel phrases earlier." />
+                    <div className="grid grid-cols-2 gap-3">
+                      <OptionCard active={planningVisit === true} onClick={() => setPlanningVisit(true)} icon="✈️" label="Yes, planning a trip" />
+                      <OptionCard active={planningVisit === false} onClick={() => setPlanningVisit(false)} icon="🏠" label="Not right now" />
                     </div>
                   </div>
-                ) : null}
-              </div>
-            ) : null}
+                )}
+              </>
+            )}
 
-            {step === 2 ? (
-              <div className="space-y-7">
+            {/* ── STEP 2 ── */}
+            {step === 2 && (
+              <>
                 <div>
-                  <FieldLabel
-                    title="How much Armenian do you already know?"
-                    subtitle="We don’t want to start you too easy or too hard."
-                  />
-                  <div className="flex flex-wrap gap-2">
+                  <SectionLabel title="Your current level" subtitle="We don't want to start you too easy or too hard." />
+                  <div className="space-y-2">
                     {[
-                      { k: "Total Beginner", t: "Total Beginner (I don't know the alphabet)" },
-                      { k: "False Beginner", t: "False Beginner (I know a few words/letters)" },
-                      { k: "Intermediate", t: "Intermediate (basic conversations)" },
-                      { k: "Advanced", t: "Advanced (perfect grammar)" },
-                    ].map((x) => (
-                      <Pill key={x.k} active={knowledgeLevel === x.k} onClick={() => setKnowledgeLevel(x.k)}>
-                        {x.t}
-                      </Pill>
+                      { k: "Total Beginner", e: "🌱", sub: "Don't know the alphabet yet" },
+                      { k: "False Beginner", e: "🌿", sub: "Know a few words or letters" },
+                      { k: "Intermediate", e: "🌳", sub: "Can hold basic conversations" },
+                      { k: "Advanced", e: "🏆", sub: "Strong grammar, wide vocabulary" },
+                    ].map(({ k, e, sub }) => (
+                      <OptionCard key={k} active={knowledgeLevel === k} onClick={() => setKnowledgeLevel(k)} icon={e} label={k} sub={sub} />
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <FieldLabel
-                    title="Which dialect do you want to learn?"
-                    subtitle="Eastern is official in Armenia; Western is common in the diaspora."
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {["Eastern", "Western"].map((x) => (
-                      <Pill key={x} active={dialect === x} onClick={() => setDialect(x)}>
-                        {x === "Eastern" ? "Eastern Armenian" : "Western Armenian"}
-                      </Pill>
-                    ))}
+                  <SectionLabel title="Which dialect?" subtitle="Eastern is official in Armenia; Western is diaspora Armenian." />
+                  <div className="grid grid-cols-2 gap-3">
+                    <OptionCard active={dialect === "Eastern"} onClick={() => setDialect("Eastern")} icon="🇦🇲" label="Eastern Armenian" sub="Spoken in Armenia" />
+                    <OptionCard active={dialect === "Western"} onClick={() => setDialect("Western")} icon="🌍" label="Western Armenian" sub="Diaspora Armenian" />
                   </div>
                 </div>
 
                 <div>
-                  <FieldLabel title="Why are you learning Armenian?" subtitle="We’ll prioritize the vocabulary that matters to you." />
-                  <div className="flex flex-wrap gap-2">
+                  <SectionLabel title="Why are you learning?" subtitle="We'll prioritize vocabulary that matters to you." />
+                  <div className="space-y-2">
                     {[
-                      "Connecting with heritage/family",
-                      "Planning a trip to Armenia",
-                      "Business/Work",
-                      "Partner/Spouse",
-                      "Just for fun/Brain training",
-                    ].map((x) => (
-                      <Pill key={x} active={primaryGoal === x} onClick={() => setPrimaryGoal(x)}>
-                        {x}
-                      </Pill>
+                      { v: "Connecting with heritage/family", e: "🫂", sub: "Heritage & identity" },
+                      { v: "Planning a trip to Armenia", e: "✈️", sub: "Travel & tourism" },
+                      { v: "Business/Work", e: "💼", sub: "Professional use" },
+                      { v: "Partner/Spouse", e: "💛", sub: "For a loved one" },
+                      { v: "Just for fun/Brain training", e: "🧠", sub: "Curiosity & enjoyment" },
+                    ].map(({ v, e, sub }) => (
+                      <OptionCard key={v} active={primaryGoal === v} onClick={() => setPrimaryGoal(v)} icon={e} label={v} sub={sub} />
                     ))}
                   </div>
                 </div>
+              </>
+            )}
 
-                {/* Source language removed from UX per request; kept server-side as default */}
-              </div>
-            ) : null}
-
-            {step === 3 ? (
-              <div className="space-y-7">
+            {/* ── STEP 3 ── */}
+            {step === 3 && (
+              <>
                 <div>
-                  <FieldLabel title="Daily goal" subtitle="Choose a target you can actually keep — consistency wins." />
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="range"
-                      min={5}
-                      max={60}
-                      step={5}
-                      value={dailyGoalMin}
-                      onChange={(e) => setDailyGoalMin(Number(e.target.value))}
-                      className="w-full accent-brand-500"
-                    />
-                    <div className="min-w-[72px] text-center px-3 py-2 rounded-2xl bg-brand-50 ring-1 ring-brand-200 font-bold text-brand-700">
-                      {dailyGoalMin} min
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <FieldLabel title="Reminders" subtitle="A study reminder is the single best retention lever." />
-                  <div className="flex flex-col md:flex-row md:items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        id="rem"
-                        type="checkbox"
-                        checked={remindersEnabled}
-                        onChange={(e) => setRemindersEnabled(e.target.checked)}
-                        className="accent-brand-500 w-4 h-4"
-                      />
-                      <label htmlFor="rem" className="text-sm font-semibold text-slate-700">Enable reminders</label>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { t: "Morning (08:00)", v: "08:00" },
-                        { t: "Lunch (13:00)", v: "13:00" },
-                        { t: "Evening (20:00)", v: "20:00" },
-                      ].map((x) => (
-                        <Pill
-                          key={x.v}
-                          active={reminderTime === x.v && remindersEnabled}
-                          onClick={() => {
-                            setReminderTime(x.v);
-                            setRemindersEnabled(true);
-                          }}
-                        >
-                          {x.t}
-                        </Pill>
-                      ))}
-                      <Pill
-                        active={!remindersEnabled}
-                        onClick={() => setRemindersEnabled(false)}
+                  <SectionLabel title="Daily goal" subtitle="Pick a target you can actually keep — small habits beat big bursts." />
+                  <div className="grid grid-cols-4 gap-2">
+                    {GOAL_OPTIONS.map(({ min, label, sub }) => (
+                      <button
+                        key={min}
+                        type="button"
+                        onClick={() => setDailyGoalMin(min)}
+                        className={
+                          "flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all ring-2 font-display font-extrabold " +
+                          (dailyGoalMin === min
+                            ? "bg-brand-500 ring-brand-500 shadow-[0_4px_0_0_#c2430a] text-white"
+                            : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800")
+                        }
                       >
-                        No reminders
-                      </Pill>
-                    </div>
+                        <span className="text-base leading-none">{label}</span>
+                        <span className={"text-[10px] mt-1 font-semibold " + (dailyGoalMin === min ? "text-brand-100" : "text-slate-400")}>{sub}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 <div>
-                  <FieldLabel title="Voice preference" subtitle="Hearing multiple voices improves comprehension." />
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <label className={
-                      "flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-2 transition cursor-pointer " +
-                      (voiceMale ? "ring-brand-400 bg-brand-50" : "ring-slate-200 hover:bg-slate-50")
-                    }>
-                      <div>
-                        <div className="font-semibold text-slate-900">Male voice</div>
-                        <div className="text-xs text-slate-500">Clear pronunciation & lower pitch</div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={voiceMale}
-                        onChange={(e) => {
-                          setVoiceMale(e.target.checked);
-                          setVoiceRandom(false);
-                        }}
-                        className="accent-brand-500 w-4 h-4"
-                      />
-                    </label>
-
-                    <label className={
-                      "flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-2 transition cursor-pointer " +
-                      (voiceFemale ? "ring-brand-400 bg-brand-50" : "ring-slate-200 hover:bg-slate-50")
-                    }>
-                      <div>
-                        <div className="font-semibold text-slate-900">Female voice</div>
-                        <div className="text-xs text-slate-500">Natural pitch variation & clarity</div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={voiceFemale}
-                        onChange={(e) => {
-                          setVoiceFemale(e.target.checked);
-                          setVoiceRandom(false);
-                        }}
-                        className="accent-brand-500 w-4 h-4"
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVoiceRandom(true);
-                        setVoiceMale(true);
-                        setVoiceFemale(true);
-                      }}
-                      className={
-                        "sm:col-span-2 flex items-center justify-between rounded-2xl px-4 py-3 ring-2 transition " +
-                        (voiceRandom
-                          ? "bg-brand-500 text-white ring-brand-500 shadow-sm"
-                          : "bg-white text-slate-900 ring-slate-200 hover:bg-slate-50")
-                      }
-                    >
-                      <div>
-                        <div className="font-semibold">Randomized voices</div>
-                        <div className={"text-xs " + (voiceRandom ? "text-brand-100" : "text-slate-500")}>
-                          Best for real-world listening variety
-                        </div>
-                      </div>
-                      <div className={"text-sm font-semibold " + (voiceRandom ? "text-white" : "text-slate-600")}>
-                        {voiceRandom ? "Enabled" : "Enable"}
-                      </div>
-                    </button>
-
-                    <div className="sm:col-span-2 text-xs text-slate-500">
-                      Selected: <span className="font-semibold text-slate-900">{computedVoicePref || "—"}</span>
-                    </div>
+                  <SectionLabel title="Study reminder" subtitle="A daily nudge is the single biggest retention lever." />
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { t: "Morning", sub: "08:00", v: "08:00", Icon: Sun },
+                      { t: "Lunch", sub: "13:00", v: "13:00", Icon: Coffee },
+                      { t: "Evening", sub: "20:00", v: "20:00", Icon: Moon },
+                      { t: "No reminder", sub: "I'll open the app myself", v: null, Icon: BellOff },
+                    ].map(({ t, sub, v, Icon }) => {
+                      const active = v === null ? !remindersEnabled : (remindersEnabled && reminderTime === v);
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => {
+                            if (v === null) { setRemindersEnabled(false); }
+                            else { setReminderTime(v); setRemindersEnabled(true); }
+                          }}
+                          className={
+                            "flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all ring-2 " +
+                            (active
+                              ? "bg-brand-500 ring-brand-500 shadow-[0_3px_0_0_#c2430a] text-white"
+                              : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800")
+                          }
+                        >
+                          <Icon className={"h-4 w-4 shrink-0 " + (active ? "text-white" : "text-slate-400")} />
+                          <div>
+                            <div className={"font-display font-extrabold text-sm " + (active ? "text-white" : "text-slate-900")}>{t}</div>
+                            <div className={"text-xs " + (active ? "text-brand-100" : "text-slate-400")}>{sub}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
-            ) : null}
 
-            {step === 4 ? (
-              <div className="space-y-6">
+                <div>
+                  <SectionLabel title="Voice preference" subtitle="Hearing multiple voices improves comprehension." />
+                  <div className="space-y-2">
+                    {[
+                      { key: "male", Icon: User, label: "Male voice", sub: "Clear pronunciation & lower pitch",
+                        active: !voiceRandom && voiceMale && !voiceFemale,
+                        onSelect: () => { setVoiceRandom(false); setVoiceMale(true); setVoiceFemale(false); } },
+                      { key: "female", Icon: User, label: "Female voice", sub: "Natural pitch variation & clarity",
+                        active: !voiceRandom && voiceFemale && !voiceMale,
+                        onSelect: () => { setVoiceRandom(false); setVoiceMale(false); setVoiceFemale(true); } },
+                      { key: "random", Icon: Shuffle, label: "Mix both voices", sub: "Best for real-world listening variety",
+                        active: voiceRandom || (voiceMale && voiceFemale),
+                        onSelect: () => { setVoiceRandom(true); setVoiceMale(true); setVoiceFemale(true); } },
+                    ].map(({ key, Icon, label, sub, active, onSelect }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={onSelect}
+                        className={
+                          "w-full flex items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all ring-2 " +
+                          (active
+                            ? "bg-brand-500 ring-brand-500 shadow-[0_3px_0_0_#c2430a] text-white"
+                            : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800")
+                        }
+                      >
+                        <span className={"grid place-items-center w-9 h-9 rounded-xl shrink-0 " + (active ? "bg-white/20" : "bg-slate-100")}>
+                          <Icon className={"h-4 w-4 " + (active ? "text-white" : "text-slate-500")} />
+                        </span>
+                        <div className="flex-1">
+                          <div className={"font-display font-extrabold text-sm " + (active ? "text-white" : "text-slate-900")}>{label}</div>
+                          <div className={"text-xs " + (active ? "text-brand-100" : "text-slate-500")}>{sub}</div>
+                        </div>
+                        {active && <Check className="h-4 w-4 shrink-0 text-white" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── STEP 4 ── */}
+            {step === 4 && (
+              <>
+                {/* Summary card */}
                 <div className="rounded-2xl bg-brand-50 ring-1 ring-brand-200 p-5">
                   <div className="flex items-start gap-4">
                     <img src={grandma} alt="" className="hidden sm:block w-16 h-16 object-contain shrink-0 drop-shadow-sm" />
                     <div className="flex-1">
-                      <div className="font-display text-base font-bold text-slate-900">Your plan</div>
-                      <div className="mt-2 text-sm text-slate-700 grid md:grid-cols-2 gap-2">
-                        <div><span className="font-semibold">Level:</span> {knowledgeLevel || "—"}</div>
-                        <div><span className="font-semibold">Dialect:</span> {dialect}</div>
-                        <div><span className="font-semibold">Goal:</span> {primaryGoal || "—"}</div>
-                        <div><span className="font-semibold">Daily:</span> {dailyGoalMin} minutes</div>
-                        <div><span className="font-semibold">Voice:</span> {computedVoicePref}</div>
-                        <div><span className="font-semibold">Reminders:</span> {remindersEnabled ? reminderTime : "Off"}</div>
+                      <div className="font-display text-base font-extrabold text-slate-900 mb-3">Your plan</div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        {[
+                          ["Level", knowledgeLevel || "—"],
+                          ["Dialect", dialect],
+                          ["Goal", primaryGoal || "—"],
+                          ["Daily", `${dailyGoalMin} min`],
+                          ["Voice", computedVoicePref],
+                          ["Reminder", remindersEnabled ? reminderTime : "Off"],
+                        ].map(([k, v]) => (
+                          <div key={k} className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">{k}</span>
+                            <span className="font-semibold text-slate-900 text-sm leading-snug">{v}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Checkboxes */}
                 <div className="space-y-3">
-                  <label className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={marketingOptIn}
-                      onChange={(e) => setMarketingOptIn(e.target.checked)}
-                      className="mt-1 accent-brand-500 w-4 h-4"
-                    />
-                    <div>
-                      <div className="font-semibold text-slate-900">Send me product updates and learning tips</div>
-                      <div className="text-sm text-slate-500">You can unsubscribe anytime.</div>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={acceptedTerms}
-                      onChange={(e) => setAcceptedTerms(e.target.checked)}
-                      className="mt-1 accent-brand-500 w-4 h-4"
-                    />
-                    <div>
-                      <div className="font-semibold text-slate-900">I accept the Terms & Conditions</div>
-                      <div className="text-sm text-slate-500">Required to start learning.</div>
-                    </div>
-                  </label>
+                  {[
+                    { id: "mkt", checked: marketingOptIn, onChange: setMarketingOptIn,
+                      label: "Send me learning tips and product updates", sub: "You can unsubscribe anytime." },
+                    { id: "terms", checked: acceptedTerms, onChange: setAcceptedTerms,
+                      label: "I accept the Terms & Conditions", sub: "Required to start learning." },
+                  ].map(({ id, checked, onChange, label, sub }) => (
+                    <label key={id} className={
+                      "flex items-start gap-3 rounded-2xl p-4 cursor-pointer transition-all ring-2 " +
+                      (checked ? "bg-brand-50 ring-brand-300" : "bg-white ring-slate-200 hover:ring-brand-200")
+                    }>
+                      <div className={
+                        "mt-0.5 h-5 w-5 shrink-0 rounded-lg grid place-items-center transition-all " +
+                        (checked ? "bg-brand-500" : "bg-slate-100 ring-1 ring-slate-300")
+                      }>
+                        {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                      </div>
+                      <input type="checkbox" className="sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+                      <div>
+                        <div className="font-semibold text-slate-900 text-sm">{label}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{sub}</div>
+                      </div>
+                    </label>
+                  ))}
                 </div>
 
-                <div className="rounded-2xl bg-white ring-1 ring-slate-200 p-5">
-                  <div className="font-display text-sm font-bold text-slate-900">Why we ask these questions</div>
-                  <p className="text-sm text-slate-500 mt-2">
-                    Haylingua calibrates your starting point and vocabulary priorities. A diaspora Armenian who already speaks
-                    the language shouldn’t be forced to grind the alphabet — and a total beginner shouldn’t be overwhelmed.
+                <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4">
+                  <div className="font-display text-sm font-bold text-slate-900 mb-1">Why we ask these questions</div>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Haylingua calibrates your starting point and vocabulary priorities. A diaspora Armenian who already speaks the language shouldn't grind the alphabet — and a total beginner shouldn't be overwhelmed.
                   </p>
                 </div>
-              </div>
-            ) : null}
+              </>
+            )}
           </div>
 
-          <div className="px-6 pb-6 flex items-center justify-between gap-3">
+          {/* Footer nav */}
+          <div className="px-6 pb-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
             <button
               type="button"
               onClick={back}
               disabled={step === 1 || saving}
               className={
-                "btn3d btn3d-neutral uppercase " +
-                (step === 1 || saving ? "opacity-50 cursor-not-allowed" : "")
+                "rounded-2xl bg-slate-100 px-5 py-2.5 text-sm font-extrabold text-slate-700 transition hover:bg-slate-200 " +
+                (step === 1 || saving ? "opacity-40 cursor-not-allowed" : "")
               }
             >
               Back
             </button>
 
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: totalSteps }, (_, i) => (
+                <div key={i} className={"h-1.5 rounded-full transition-all " + (i + 1 === step ? "w-6 bg-brand-500" : i + 1 < step ? "w-3 bg-grass-400" : "w-3 bg-slate-200")} />
+              ))}
+            </div>
+
             {step < totalSteps ? (
-              <button
-                type="button"
-                onClick={next}
-                disabled={saving}
-                className="btn3d btn3d-brand uppercase"
-              >
-                Continue
+              <button type="button" onClick={next} disabled={saving} className="btn3d btn3d-brand text-sm uppercase tracking-wide">
+                Continue →
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={submit}
-                disabled={saving}
-                className={"btn3d btn3d-brand uppercase " + (saving ? "opacity-70" : "")}
-              >
-                {saving ? "Saving…" : "Start learning"}
+              <button type="button" onClick={submit} disabled={saving} className={"btn3d btn3d-brand text-sm uppercase tracking-wide " + (saving ? "opacity-70" : "")}>
+                {saving ? "Saving…" : "Start learning →"}
               </button>
             )}
           </div>
         </div>
 
-        <div className="mt-6 text-xs text-slate-400">
-          Tip: You can change most preferences later in your profile.
-        </div>
+        <p className="mt-4 text-center text-xs text-slate-400">You can change all preferences later in your profile.</p>
       </div>
     </div>
   );
