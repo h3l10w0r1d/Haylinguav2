@@ -10,9 +10,27 @@ import ChestOpening from "./lib/ChestOpening";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
+// Animated checkmark — the stroke draws itself in via CSS (.quest-tick-path).
+function QuestTick({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M5 12.5l4.2 4.2L19 7"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="quest-tick-path"
+      />
+    </svg>
+  );
+}
+
 function DailyQuestsCard({ token }) {
   const [data, setData] = useState(null);
   const [claiming, setClaiming] = useState("");
+  const [celebrating, setCelebrating] = useState(false);
+  const prevAllDone = React.useRef(null);
 
   const load = () =>
     fetch(`${API_BASE_URL}/me/quests`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
@@ -21,6 +39,27 @@ function DailyQuestsCard({ token }) {
       .catch(() => {});
 
   useEffect(() => { load(); }, [token]);
+
+  // "All done" = every quest completed and nothing left to claim.
+  const quests = data?.quests || [];
+  const allDone =
+    quests.length > 0 &&
+    quests.every((q) => q.done) &&
+    !quests.some((q) => q.claimable);
+
+  // Play the big celebration only on a real transition into "all done"
+  // (e.g. right after claiming the last quest) — not on a fresh page load
+  // where they were already complete.
+  useEffect(() => {
+    if (!data) return;
+    const prev = prevAllDone.current;
+    prevAllDone.current = allDone;
+    if (prev === false && allDone) {
+      setCelebrating(true);
+      const t = setTimeout(() => setCelebrating(false), 1900);
+      return () => clearTimeout(t);
+    }
+  }, [allDone, data]);
 
   async function claim(id) {
     setClaiming(id);
@@ -39,6 +78,40 @@ function DailyQuestsCard({ token }) {
   }
 
   if (!data?.quests?.length) return null;
+
+  // Completed state — big celebratory tick, then a compact "done" card.
+  if (allDone) {
+    if (celebrating) {
+      return (
+        <div className="quests-celebrate flex flex-col items-center overflow-hidden rounded-3xl bg-gradient-to-br from-grass-50 to-white p-6 text-center ring-1 ring-grass-200 shadow-sm">
+          <div className="relative grid place-items-center">
+            <span className="quests-ring absolute h-16 w-16 rounded-full bg-grass-300/50" />
+            <span className="quests-ring quests-ring-2 absolute h-16 w-16 rounded-full bg-grass-300/40" />
+            <div className="quests-badge-pop relative grid h-16 w-16 place-items-center rounded-full bg-grass-500 text-white shadow-[0_6px_0_0_#3f8f34]">
+              <QuestTick className="h-9 w-9" />
+            </div>
+          </div>
+          <div className="mt-4 font-display text-base font-extrabold text-slate-800">All quests complete! 🎉</div>
+          <div className="mt-0.5 text-xs font-semibold text-slate-500">Amazing work today — come back tomorrow.</div>
+        </div>
+      );
+    }
+    return (
+      <div className="quests-collapse flex items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-grass-50 to-white p-4 ring-1 ring-grass-200 shadow-sm">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-grass-500 text-white">
+          <QuestTick className="h-6 w-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-sm font-extrabold text-slate-800">Daily quests complete</div>
+          <div className="text-xs font-semibold text-slate-500">All {quests.length} done — back tomorrow!</div>
+        </div>
+        <span className="shrink-0 rounded-full bg-grass-100 px-2 py-0.5 text-xs font-bold text-grass-600">
+          {quests.length}/{quests.length}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
       <div className="flex items-center justify-between">

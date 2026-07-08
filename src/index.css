@@ -355,8 +355,54 @@
   mix-blend-mode: multiply;
 }
 
+/* ----- Daily quests completion celebration ----- */
+@keyframes questBadgePop {
+  0%   { transform: scale(0.3); opacity: 0; }
+  55%  { transform: scale(1.18); opacity: 1; }
+  75%  { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+.quests-badge-pop { animation: questBadgePop 620ms cubic-bezier(.2,.85,.3,1) both; }
+
+@keyframes questTickDraw {
+  from { stroke-dashoffset: 30; }
+  to   { stroke-dashoffset: 0; }
+}
+.quest-tick-path {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: questTickDraw 420ms ease-out 260ms forwards;
+}
+
+@keyframes questRingPulse {
+  0%   { transform: scale(0.7); opacity: .55; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+.quests-ring { animation: questRingPulse 1000ms ease-out 180ms forwards; }
+.quests-ring-2 { animation-delay: 420ms; }
+
+@keyframes questsCelebrateIn {
+  0%   { transform: scale(.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.quests-celebrate { animation: questsCelebrateIn 300ms ease-out both; }
+
+/* Collapse-in: settles from slightly larger down to the compact size, so it
+   reads as the card "shrinking" once everything's complete. */
+@keyframes questsCollapseIn {
+  0%   { transform: scale(1.06); opacity: .3; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.quests-collapse { animation: questsCollapseIn 380ms cubic-bezier(.2,.8,.2,1) both; }
+
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .lp-orb { animation: none !important; }
   .cta-float { animation: none !important; }
+  .quests-badge-pop,
+  .quest-tick-path,
+  .quests-ring,
+  .quests-celebrate,
+  .quests-collapse { animation: none !important; }
+  .quest-tick-path { stroke-dashoffset: 0; }
 }
