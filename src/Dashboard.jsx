@@ -1,7 +1,7 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ChevronDown, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
@@ -184,7 +184,7 @@ function ChestCard({ token }) {
       if (r.ok && d) {
         setChests(Number(d.chests || 0));
         window.dispatchEvent(new CustomEvent("hay_wallet", { detail: { gems: d.gems } }));
-        setOverlayReward(Number(d.reward_gems || 0));
+        setOverlayReward({ type: d.reward_type || "gems", gems: Number(d.reward_gems || 0) });
       } else {
         setOpenErr(true);
       }
@@ -204,7 +204,7 @@ function ChestCard({ token }) {
         <div className="mt-2 font-display text-base font-extrabold text-slate-800">
           {chests} chest{chests === 1 ? "" : "s"} to open!
         </div>
-        <p className="mt-1 text-sm font-semibold text-slate-500">Open for a random gem reward.</p>
+        <p className="mt-1 text-sm font-semibold text-slate-500">Open for gems or an XP boost!</p>
         {openErr && (
           <p className="mt-2 text-xs font-semibold text-red-500">Couldn't open — try again.</p>
         )}
@@ -442,129 +442,212 @@ function Ararat({ className }) {
   );
 }
 
-function Medallion({ status }) {
-  if (status === "completed") {
-    return (
-      <div className="grid h-14 w-14 place-items-center rounded-full bg-grass-500 text-white shadow-[0_4px_0_0_#3F8F2E]">
-        <Check className="h-7 w-7" strokeWidth={3.5} />
-      </div>
-    );
-  }
-  if (status === "current") {
-    return (
-      <div className="relative grid h-14 w-14 place-items-center rounded-full bg-brand-500 text-white shadow-node-brand">
-        <span className="absolute inset-0 animate-ringPulse rounded-full ring-4 ring-brand-300" />
-        <Play className="h-6 w-6 fill-white" />
-      </div>
-    );
-  }
+// Compact stat pills — shown on mobile only (the top header already shows
+// these on md+). Keeps hearts/streak/XP/gems visible on phones.
+function StatStrip({ token, streak, xp }) {
+  const [hearts, setHearts] = useState(null);
+  const [gems, setGems] = useState(null);
+
+  useEffect(() => {
+    const h = token ? { Authorization: `Bearer ${token}` } : {};
+    const loadHearts = () =>
+      fetch(`${API_BASE_URL}/me/hearts`, { headers: h })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => d && setHearts(d))
+        .catch(() => {});
+    const loadWallet = () =>
+      fetch(`${API_BASE_URL}/me/wallet`, { headers: h })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => d && setGems(Number(d.gems || 0)))
+        .catch(() => {});
+    loadHearts();
+    loadWallet();
+    const onHearts = () => loadHearts();
+    const onWallet = (e) =>
+      Number.isFinite(e?.detail?.gems) ? setGems(Number(e.detail.gems)) : loadWallet();
+    window.addEventListener("hay_hearts", onHearts);
+    window.addEventListener("haylingua:hearts", onHearts);
+    window.addEventListener("hay_wallet", onWallet);
+    return () => {
+      window.removeEventListener("hay_hearts", onHearts);
+      window.removeEventListener("haylingua:hearts", onHearts);
+      window.removeEventListener("hay_wallet", onWallet);
+    };
+  }, [token]);
+
+  const heartLabel = hearts
+    ? hearts.is_premium
+      ? "∞"
+      : `${hearts.current ?? hearts.hearts_current ?? 0}`
+    : "–";
+
+  const Pill = ({ icon: Icon, tone, children }) => (
+    <div className={"flex flex-1 items-center justify-center gap-1.5 rounded-2xl px-2 py-2 text-sm font-extrabold " + tone}>
+      <Icon className="h-4 w-4" />
+      <span className="tabular-nums">{children}</span>
+    </div>
+  );
+
   return (
-    <div className="grid h-14 w-14 place-items-center rounded-full bg-slate-200 text-slate-400 shadow-node">
-      <Lock className="h-6 w-6" />
+    <div className="mb-4 flex items-center gap-2 md:hidden">
+      <Pill icon={Heart} tone="bg-cardinal-50 text-cardinal-600">{heartLabel}</Pill>
+      <Pill icon={Flame} tone="bg-brand-50 text-brand-600">{streak}</Pill>
+      <Pill icon={Zap} tone="bg-gold-50 text-gold-600">{xp}</Pill>
+      <Pill icon={Gem} tone="bg-feather-50 text-feather-600">{gems == null ? "–" : gems}</Pill>
     </div>
   );
 }
 
-function Milestone({ lesson, isLast, onStart }) {
-  const status = lesson.status || "locked";
-  const isCompleted = status === "completed";
-  const isCurrent = status === "current";
-  const isLocked = status === "locked";
-  const pct = Math.max(0, Math.min(100, Number(lesson.completion_pct || (isCompleted ? 100 : 0))));
-
-  return (
-    <div className="relative pl-[5.5rem]">
-      {/* Spine segment (filled up to & including completed lessons) */}
-      {!isLast && (
-        <div
-          className={
-            "absolute left-7 top-7 -bottom-2 w-1.5 -translate-x-1/2 rounded-full " +
-            (isCompleted ? "bg-grass-400" : "bg-slate-200")
-          }
-        />
-      )}
-      {/* Node on the spine + short connector to the card */}
-      <div className="absolute left-7 top-0 z-10 -translate-x-1/2">
-        <Medallion status={status} />
-      </div>
-      <div className={"absolute left-[3.4rem] top-7 h-1.5 w-6 rounded-full " + (isCompleted ? "bg-grass-400" : "bg-slate-200")} />
-
-      {/* "You are here" tag for the current lesson */}
-      {isCurrent && (
-        <div className="absolute left-7 -top-5 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-sm">
-          You are here
+// The single most important element: resume the current lesson.
+function ResumeHero({ lesson, unitTitle, loading, onStart }) {
+  if (loading) {
+    return <div className="mb-6 h-28 animate-pulse rounded-3xl bg-brand-50 ring-1 ring-brand-100" />;
+  }
+  if (!lesson) {
+    return (
+      <div className="mb-6 flex items-center gap-4 rounded-3xl bg-grass-50 p-5 ring-1 ring-grass-200">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-grass-500 text-white">
+          <Check className="h-7 w-7" strokeWidth={3} />
         </div>
-      )}
-
-      {/* Milestone card — completed cards are fully clickable (review) */}
-      {isCompleted ? (
-        <button
-          type="button"
-          onClick={() => onStart(lesson)}
-          className="block w-full rounded-2xl p-4 text-left bg-grass-50 ring-1 ring-grass-200 shadow-sm transition hover:bg-grass-100 hover:ring-grass-300 active:translate-y-0.5"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="font-display text-base font-extrabold leading-tight text-slate-800">
-                {lesson.title}
-              </div>
-              <div className="mt-0.5 inline-flex items-center gap-1 text-xs font-extrabold uppercase tracking-wide text-grass-600">
-                <Check className="h-3.5 w-3.5" strokeWidth={3} /> Completed
-              </div>
-              <div className="mt-1 flex items-center gap-0.5">
-                {Array.from({ length: 5 }, (_, i) => {
-                  const stars = pct >= 100 ? 5 : pct >= 90 ? 4 : pct >= 70 ? 3 : pct >= 50 ? 2 : 1;
-                  return (
-                    <Star
-                      key={i}
-                      className={"h-3.5 w-3.5 " + (i < stars ? "fill-gold-400 text-gold-400" : "fill-slate-200 text-slate-200")}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-            <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-extrabold text-grass-700 ring-1 ring-grass-200">
-              <RotateCcw className="h-3.5 w-3.5" /> Review
-            </span>
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-lg font-extrabold text-slate-800">You're all caught up! 🎉</div>
+          <div className="text-sm font-semibold text-slate-500">Review a lesson below or practice your weak spots.</div>
+        </div>
+      </div>
+    );
+  }
+  const pct = Math.max(0, Math.min(100, Number(lesson.completion_pct || 0)));
+  return (
+    <button
+      type="button"
+      onClick={() => onStart(lesson)}
+      className="mb-6 flex w-full items-center gap-4 rounded-3xl bg-white p-5 text-left ring-2 ring-brand-400 shadow-sm transition hover:ring-brand-500 active:translate-y-0.5"
+    >
+      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-500">
+        <Play className="h-7 w-7 fill-brand-500" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[11px] font-extrabold uppercase tracking-wide text-brand-500">
+          Continue{unitTitle ? ` · ${unitTitle}` : ""}
+        </div>
+        <div className="truncate font-display text-lg font-extrabold text-slate-800">{lesson.title}</div>
+        {pct > 0 && (
+          <div className="mt-2 h-2 max-w-xs overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 6)}%` }} />
           </div>
-        </button>
-      ) : (
-        <div
-          className={
-            "rounded-2xl p-4 transition " +
-            (isCurrent
-              ? "bg-brand-50 ring-2 ring-brand-300 shadow-sm"
-              : "bg-slate-50 ring-1 ring-slate-200")
-          }
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div
-                className={
-                  "font-display text-base font-extrabold leading-tight " +
-                  (isLocked ? "text-slate-400" : "text-slate-800")
-                }
-              >
-                {lesson.title}
-              </div>
-              <div className="mt-0.5 text-xs font-bold uppercase tracking-wide text-slate-400">
-                {isCurrent ? "In progress" : "Locked"}
-              </div>
-            </div>
-          </div>
+        )}
+      </div>
+      <span className="hidden shrink-0 items-center gap-1 rounded-2xl bg-brand-500 px-5 py-3 text-sm font-extrabold uppercase text-white shadow-btn-brand sm:inline-flex">
+        {pct > 0 ? "Continue" : "Start"} <ArrowRight className="h-4 w-4" />
+      </span>
+    </button>
+  );
+}
 
-          {/* Current: progress + continue */}
-          {isCurrent && (
-            <>
-              {pct > 0 && (
-                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white">
-                  <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 6)}%` }} />
-                </div>
-              )}
-              <button onClick={() => onStart(lesson)} className="btn3d btn3d-brand mt-3 w-full text-sm uppercase">
-                {pct > 0 ? "Continue" : "Start lesson"} <ArrowRight className="h-4 w-4" />
-              </button>
-            </>
+// One lesson row inside a unit card.
+function LessonRow({ lesson, onStart }) {
+  const status = lesson.status || "locked";
+  const done = status === "completed";
+  const current = status === "current";
+  const locked = status === "locked";
+  const pct = Math.max(0, Math.min(100, Number(lesson.completion_pct || (done ? 100 : 0))));
+  return (
+    <button
+      type="button"
+      disabled={locked}
+      onClick={() => !locked && onStart(lesson)}
+      className={
+        "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition " +
+        (current
+          ? "bg-brand-50 ring-1 ring-brand-300 hover:bg-brand-100"
+          : done
+          ? "bg-grass-50/70 ring-1 ring-grass-100 hover:bg-grass-50"
+          : "bg-slate-50 ring-1 ring-slate-100 cursor-default")
+      }
+    >
+      <span
+        className={
+          "grid h-8 w-8 shrink-0 place-items-center rounded-full " +
+          (done ? "bg-grass-500 text-white" : current ? "bg-brand-500 text-white" : "bg-slate-200 text-slate-400")
+        }
+      >
+        {done ? (
+          <Check className="h-4 w-4" strokeWidth={3} />
+        ) : current ? (
+          <Play className="h-4 w-4 fill-white" />
+        ) : (
+          <Lock className="h-3.5 w-3.5" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={"block truncate text-sm font-bold " + (locked ? "text-slate-400" : "text-slate-800")}>
+          {lesson.title}
+        </span>
+        {current && pct > 0 && (
+          <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white">
+            <span className="block h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 8)}%` }} />
+          </span>
+        )}
+      </span>
+      <span className="shrink-0 text-xs font-extrabold uppercase tracking-wide">
+        {done ? (
+          <span className="inline-flex items-center gap-1 text-grass-600"><RotateCcw className="h-3.5 w-3.5" /></span>
+        ) : current ? (
+          <span className="text-brand-500">{pct > 0 ? "Continue" : "Start"}</span>
+        ) : (
+          <span className="text-slate-300">Locked</span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+// A unit as an expandable card (rethought roadmap).
+function UnitCard({ unit, index, expanded, onToggle, onStart, onCheckpoint }) {
+  const theme = UNIT_THEMES[index % UNIT_THEMES.length];
+  const total = unit.items.length;
+  const done = unit.items.filter((l) => l.status === "completed").length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const complete = total > 0 && done === total;
+  return (
+    <div className="overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm">
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 p-4 text-left">
+        <div className={"grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-white font-display text-lg font-extrabold " + theme.band + " " + theme.shadow}>
+          {index + 1}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Unit {index + 1}</div>
+          <div className="truncate font-display text-base font-extrabold text-slate-800">{unit.title}</div>
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <div className={"h-full rounded-full " + (complete ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${pct}%` }} />
+            </div>
+            <span className="shrink-0 text-xs font-extrabold tabular-nums text-slate-500">{done}/{total}</span>
+          </div>
+        </div>
+        <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 transition-transform " + (expanded ? "rotate-180" : "")} />
+      </button>
+
+      {expanded && (
+        <div className="space-y-2 px-4 pb-4">
+          {unit.items.map((lesson) => (
+            <LessonRow key={lesson.id ?? lesson.slug} lesson={lesson} onStart={onStart} />
+          ))}
+          {complete && (
+            <button
+              type="button"
+              onClick={() => onCheckpoint(unit)}
+              className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-gold-400 bg-amber-50 p-3 text-left transition hover:border-gold-500 active:translate-y-0.5"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold-500 text-white">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-display text-sm font-extrabold text-slate-800">Unit Checkpoint</span>
+                <span className="block text-xs font-semibold text-slate-500">Test your {unit.title} knowledge</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-gold-500" />
+            </button>
           )}
         </div>
       )}
@@ -572,24 +655,34 @@ function Milestone({ lesson, isLast, onStart }) {
   );
 }
 
-function SidebarCard({ icon: Icon, tone, title, text, cta, onClick }) {
+// Compact quick-access tiles (replaces the tall sidebar card stack).
+function QuickTiles({ navigate }) {
+  const tiles = [
+    { icon: Dumbbell, label: "Practice", to: "/practice", tone: "bg-brand-50 text-brand-600" },
+    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", tone: "bg-amber-50 text-gold-600" },
+    { icon: Users, label: "Friends", to: "/friends", tone: "bg-feather-50 text-feather-600" },
+    { icon: Store, label: "Shop", to: "/shop", tone: "bg-pom-50 text-pom-500" },
+    { icon: Star, label: "Achievements", to: "/achievements", tone: "bg-gold-50 text-gold-600" },
+  ];
   return (
-    <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className={`grid h-10 w-10 place-items-center rounded-2xl ${tone}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="font-display text-base font-extrabold text-slate-800">{title}</div>
-      </div>
-      <p className="mt-3 text-sm font-semibold text-slate-500">{text}</p>
-      {cta && (
-        <button onClick={onClick} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-brand-500 hover:text-brand-600">
-          {cta} <ChevronRight className="h-4 w-4" />
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      {tiles.map((t) => (
+        <button
+          key={t.to}
+          type="button"
+          onClick={() => navigate(t.to)}
+          className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3 ring-1 ring-slate-200 shadow-sm transition hover:ring-brand-200 active:translate-y-0.5"
+        >
+          <span className={"grid h-10 w-10 place-items-center rounded-2xl " + t.tone}>
+            <t.icon className="h-5 w-5" />
+          </span>
+          <span className="text-center text-xs font-extrabold text-slate-600">{t.label}</span>
         </button>
-      )}
+      ))}
     </div>
   );
 }
+
 
 export default function Dashboard({ user }) {
   const navigate = useNavigate();
@@ -671,174 +764,124 @@ export default function Dashboard({ user }) {
   const doneLessons = lessons.filter((l) => l.status === "completed").length;
   const journeyPct = totalLessons ? Math.round((doneLessons / totalLessons) * 100) : 0;
 
+  // The one lesson the user should resume, and the unit that contains it.
+  const currentLesson = useMemo(() => lessons.find((l) => l.status === "current") || null, [lessons]);
+  const currentUnitKey = useMemo(() => {
+    if (!currentLesson) return null;
+    const key = currentLesson.id ?? currentLesson.slug;
+    const u = units.find((unit) => unit.items.some((l) => (l.id ?? l.slug) === key));
+    return u ? u.key : null;
+  }, [units, currentLesson]);
+  const currentUnitTitle = useMemo(() => {
+    const u = units.find((unit) => unit.key === currentUnitKey);
+    return u ? u.title : "";
+  }, [units, currentUnitKey]);
+
+  // Accordion: open the current unit by default (first unit as fallback).
+  const [expandedKey, setExpandedKey] = useState(null);
+  useEffect(() => {
+    setExpandedKey((prev) => prev ?? currentUnitKey ?? units[0]?.key ?? null);
+  }, [currentUnitKey, units]);
+
+  const openCheckpoint = (unit) => {
+    const ids = unit.items.map((l) => l.id).filter((id) => id != null).join(",");
+    navigate(`/checkpoint?lessons=${encodeURIComponent(ids)}&title=${encodeURIComponent(unit.title)}`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
       <StreakCelebration streak={stats.streak} />
-      <div className="mx-auto flex max-w-5xl gap-8 px-4 py-8">
-        {/* ── Roadmap column ── */}
-        <main className="mx-auto w-full max-w-xl lg:mx-0 lg:flex-1">
-          {/* Journey hero with Ararat goal */}
-          <div className="mb-8 overflow-hidden rounded-3xl bg-brand-50 ring-1 ring-brand-100">
-            <div className="flex items-center gap-4 p-5">
-              <img src={grandma} alt="" className="h-16 w-16 shrink-0 animate-floaty rounded-2xl object-cover" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-display text-lg font-extrabold text-slate-800">
-                  Բարև{firstName ? `, ${firstName}` : ""}! 👋
-                </div>
-                <div className="text-sm font-semibold text-slate-500">
-                  Your journey to <span className="font-extrabold text-brand-600">conversational Armenian</span>.
-                </div>
-              </div>
-              <Ararat className="hidden h-16 w-24 shrink-0 sm:block" />
+      <div className="mx-auto max-w-2xl px-4 py-6">
+        {/* Greeting + overall journey progress */}
+        <div className="mb-4 flex items-center gap-3">
+          <img src={grandma} alt="" className="h-12 w-12 shrink-0 animate-floaty rounded-2xl object-cover" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-display text-xl font-extrabold text-slate-800">
+              Բարև{firstName ? `, ${firstName}` : ""}! 👋
             </div>
-            <div className="bg-white/60 px-5 py-3">
-              <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wide text-slate-500">
-                <span>{doneLessons} of {totalLessons || "…"} lessons climbed</span>
-                <span className="text-brand-600">{journeyPct}%</span>
-              </div>
-              <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-white ring-1 ring-brand-100">
-                <div className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-600" style={{ width: `${journeyPct}%` }} />
-              </div>
+            <div className="text-sm font-semibold text-slate-500">
+              {doneLessons} of {totalLessons || "…"} lessons · {journeyPct}% to fluency
             </div>
-            {/* Placement test nudge — only shown to brand-new users with nothing done yet */}
-            {!loadingLessons && doneLessons === 0 && totalLessons > 0 && (
-              <button
-                type="button"
-                onClick={() => navigate("/placement")}
-                className="flex w-full items-center gap-3 border-t border-brand-100 bg-brand-50/60 px-5 py-3 text-left transition hover:bg-brand-50 active:opacity-80"
-              >
-                <Target className="h-4 w-4 shrink-0 text-brand-500" />
-                <span className="flex-1 text-sm font-bold text-brand-700">Not a beginner? Take the placement test</span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-brand-400" />
-              </button>
-            )}
           </div>
+          <Ararat className="hidden h-12 w-16 shrink-0 sm:block" />
+        </div>
 
-          {error && (
-            <div className="mb-4 rounded-2xl border-2 border-cardinal-100 bg-cardinal-50 px-4 py-3 text-sm font-semibold text-cardinal-600">
-              {error}
-            </div>
-          )}
+        {/* Stat strip (mobile only — header already shows these on md+) */}
+        <StatStrip token={token} streak={stats.streak} xp={stats.total_xp} />
 
-          {loadingLessons ? (
-            <div className="flex items-center justify-center gap-2 py-20 text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span className="font-semibold">Mapping your journey…</span>
-            </div>
-          ) : units.length === 0 ? (
-            <div className="rounded-3xl bg-white p-8 text-center font-semibold text-slate-600 ring-1 ring-slate-200">
-              No lessons available yet. Check back soon!
-            </div>
-          ) : (
-            units.map((unit, ui) => {
-              const theme = UNIT_THEMES[ui % UNIT_THEMES.length];
-              const uDone = unit.items.filter((l) => l.status === "completed").length;
-              const uTotal = unit.items.length;
-              return (
-                <section key={unit.key} className="mb-8">
-                  {/* Ornamental unit band */}
-                  <div className={`mb-7 overflow-hidden rounded-2xl bg-gradient-to-r ${theme.band} ${theme.shadow}`}>
-                    <div className="flex items-center justify-between px-5 py-3 text-white">
-                      <div>
-                        <div className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">
-                          Unit {ui + 1}
-                        </div>
-                        <div className="font-display text-lg font-extrabold">
-                          {unit.title}
-                        </div>
-                      </div>
-                      <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-extrabold tabular-nums">
-                        {uDone}/{uTotal}
-                      </span>
-                    </div>
-                    {/* Armenian carpet-style zig-zag border */}
-                    <div
-                      className="h-2"
-                      style={{
-                        backgroundImage:
-                          "linear-gradient(135deg, rgba(255,255,255,.5) 25%, transparent 25%), linear-gradient(225deg, rgba(255,255,255,.5) 25%, transparent 25%)",
-                        backgroundSize: "12px 8px",
-                        backgroundPosition: "0 0",
-                      }}
-                    />
-                  </div>
+        {/* Placement nudge for brand-new users */}
+        {!loadingLessons && doneLessons === 0 && totalLessons > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate("/placement")}
+            className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-left ring-1 ring-brand-100 transition hover:bg-brand-100"
+          >
+            <Target className="h-4 w-4 shrink-0 text-brand-500" />
+            <span className="flex-1 text-sm font-bold text-brand-700">Not a beginner? Take the placement test</span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-brand-400" />
+          </button>
+        )}
 
-                  {/* Roadmap timeline */}
-                  <div className="space-y-4">
-                    {unit.items.map((lesson, i) => (
-                      <Milestone
-                        key={lesson.id ?? lesson.slug}
-                        lesson={lesson}
-                        isLast={i === unit.items.length - 1}
-                        onStart={handleStart}
-                      />
-                    ))}
-                  </div>
+        {/* Resume hero — the primary action */}
+        <ResumeHero
+          lesson={currentLesson}
+          unitTitle={currentUnitTitle}
+          loading={loadingLessons}
+          onStart={handleStart}
+        />
 
-                  {/* Checkpoint badge — unlocks when all lessons in unit are done */}
-                  {uDone === uTotal && uTotal > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const ids = unit.items.map((l) => l.id).filter((id) => id != null).join(",");
-                        navigate(`/checkpoint?lessons=${encodeURIComponent(ids)}&title=${encodeURIComponent(unit.title)}`);
-                      }}
-                      className="mt-5 flex w-full items-center gap-4 rounded-2xl border-2 border-dashed border-gold-400 bg-gradient-to-r from-amber-50 to-white p-4 text-left transition hover:border-gold-500 hover:bg-amber-50 active:translate-y-0.5"
-                    >
-                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gold-500 text-white shadow-md">
-                        <ShieldCheck className="h-6 w-6" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-display text-base font-extrabold text-slate-800">Unit Checkpoint</div>
-                        <div className="text-sm font-semibold text-slate-500">Test your {unit.title} knowledge</div>
-                      </div>
-                      <ChevronRight className="h-5 w-5 shrink-0 text-gold-500" />
-                    </button>
-                  )}
-                </section>
-              );
-            })
-          )}
-        </main>
+        {/* Today: daily goal + quests */}
+        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+          <DailyGoalCard todayXp={stats.today_xp} />
+          <DailyQuestsCard token={token} />
+        </div>
 
-        {/* ── Sidebar (desktop only) ── */}
-        <aside className="hidden w-80 shrink-0 lg:block">
-          <div className="sticky top-24 space-y-4">
-            <ChestCard token={token} />
-            <DailyQuestsCard token={token} />
-
-            <DailyGoalCard todayXp={stats.today_xp} />
-
-            <StreakCard token={token} streak={stats.streak} />
-
-            <AchievementsCard token={token} onOpen={() => navigate("/achievements")} />
-
-            <SidebarCard
-              icon={Dumbbell}
-              tone="bg-brand-50 text-brand-600"
-              title="Practice"
-              text="Review your weak spots with spaced repetition."
-              cta="Start practicing"
-              onClick={() => navigate("/practice")}
-            />
-            <SidebarCard
-              icon={Trophy}
-              tone="bg-amber-50 text-gold-600"
-              title="Leaderboard"
-              text="See how you stack up against other learners this week."
-              cta="View leaderboard"
-              onClick={() => navigate("/leaderboard")}
-            />
-            <SidebarCard
-              icon={Users}
-              tone="bg-feather-50 text-feather-600"
-              title="Learn with friends"
-              text="Add friends and keep each other motivated."
-              cta="Find friends"
-              onClick={() => navigate("/friends")}
-            />
+        {error && (
+          <div className="mb-4 rounded-2xl border-2 border-cardinal-100 bg-cardinal-50 px-4 py-3 text-sm font-semibold text-cardinal-600">
+            {error}
           </div>
-        </aside>
+        )}
+
+        {/* Learning path — units as expandable cards */}
+        <div className="mb-2 flex items-center justify-between">
+          <div className="font-display text-lg font-extrabold text-slate-800">Your path</div>
+          <Ararat className="h-6 w-9" />
+        </div>
+        {loadingLessons ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="font-semibold">Mapping your journey…</span>
+          </div>
+        ) : units.length === 0 ? (
+          <div className="rounded-3xl bg-white p-8 text-center font-semibold text-slate-600 ring-1 ring-slate-200">
+            No lessons available yet. Check back soon!
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {units.map((unit, ui) => (
+              <UnitCard
+                key={unit.key}
+                unit={unit}
+                index={ui}
+                expanded={expandedKey === unit.key}
+                onToggle={() => setExpandedKey((k) => (k === unit.key ? null : unit.key))}
+                onStart={handleStart}
+                onCheckpoint={openCheckpoint}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Streak + chest */}
+        <div className="mt-6 space-y-4">
+          <StreakCard token={token} streak={stats.streak} />
+          <ChestCard token={token} />
+        </div>
+
+        {/* Quick access */}
+        <div className="mt-6">
+          <QuickTiles navigate={navigate} />
+        </div>
       </div>
     </div>
   );

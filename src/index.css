@@ -265,16 +265,33 @@
 .chest-flash{ animation: flashFade .65s ease-out forwards; }
 .reward-rise{ animation: rewardRise .6s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes sparklePop {
-  0%, 100% { transform: scale(0.6) rotate(0deg); opacity: 0.4; }
-  50%       { transform: scale(1.2) rotate(22deg); opacity: 1; }
+  0%, 100% { transform: scale(0.55) rotate(0deg); opacity: 0.35; }
+  50%       { transform: scale(1.25) rotate(25deg); opacity: 1; }
 }
-@keyframes chestRevealSlide {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+@keyframes pillarRise {
+  0%   { transform: translateX(-50%) scaleY(0); opacity: 0; transform-origin: bottom; }
+  30%  { opacity: 1; }
+  100% { transform: translateX(-50%) scaleY(1); opacity: 0.9; transform-origin: bottom; }
 }
-.chest-sparkle { animation: sparklePop 2.2s ease-in-out infinite; }
+@keyframes rewardPop {
+  0%   { transform: scale(0.45) translateY(24px); opacity: 0; }
+  65%  { transform: scale(1.07) translateY(-6px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes chestGlow {
+  0%, 100% { box-shadow: 0 0 0px 0px rgba(255,220,60,0); }
+  50%       { box-shadow: 0 0 48px 16px rgba(255,220,60,0.45); }
+}
+@keyframes gemCount {
+  from { transform: scale(0.7); }
+  to   { transform: scale(1); }
+}
+.chest-sparkle { animation: sparklePop 2.4s ease-in-out infinite; }
+.reward-pop    { animation: rewardPop 0.55s cubic-bezier(0.34,1.56,0.5,1) both; }
+.chest-glow    { animation: chestGlow 0.9s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .chest-shake, .chest-jump, .chest-rays-spin, .chest-rays-burst, .chest-sparkle { animation: none; }
+  .chest-shake, .chest-jump, .chest-rays-spin, .chest-rays-burst,
+  .chest-sparkle, .reward-pop, .chest-glow { animation: none; }
 }
 
 /* ----- Answer flash overlay (green = correct, red = wrong) ----- */

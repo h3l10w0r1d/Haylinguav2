@@ -4000,26 +4000,39 @@ def me_wallet(authorization: Optional[str] = Header(default=None), db: Connectio
 
 @router.post("/me/chests/open")
 def me_open_chest(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    """Open one owned chest → a random gem reward (server-authoritative)."""
+    """Open one owned chest → gems (75 %) or an XP-boost (25 %), server-authoritative."""
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
-    rewards = _load_chest_rewards(db)
-    amounts = [a for a, _ in rewards]
-    weights = [w for _, w in rewards]
-    reward = int(random.choices(amounts, weights=weights, k=1)[0])
 
-    # Atomic decrement: only succeeds if the user actually has a chest.
-    # Prevents double-tap races from awarding two rewards from one chest.
-    opened = db.execute(
-        text("UPDATE users SET chests = chests - 1, gems = COALESCE(gems, 0) + :r WHERE id = :u AND COALESCE(chests, 0) > 0"),
-        {"r": reward, "u": user_id},
-    )
+    # Roll reward type before touching the DB.
+    reward_type = "xp_boost" if random.random() < 0.25 else "gems"
+    reward_gems = 0
+
+    if reward_type == "gems":
+        rewards = _load_chest_rewards(db)
+        amounts = [a for a, _ in rewards]
+        weights = [w for _, w in rewards]
+        reward_gems = int(random.choices(amounts, weights=weights, k=1)[0])
+        # Atomic: decrement chest + credit gems in one statement.
+        opened = db.execute(
+            text("UPDATE users SET chests = chests - 1, gems = COALESCE(gems, 0) + :r WHERE id = :u AND COALESCE(chests, 0) > 0"),
+            {"r": reward_gems, "u": user_id},
+        )
+    else:
+        # Atomic: decrement chest + activate XP multiplier for next lesson.
+        opened = db.execute(
+            text("UPDATE users SET chests = chests - 1, xp_multiplier_active = TRUE WHERE id = :u AND COALESCE(chests, 0) > 0"),
+            {"u": user_id},
+        )
+
     if opened.rowcount == 0:
         raise HTTPException(status_code=400, detail="No chests to open")
+
     w = _wallet(db, user_id)
-    _brevo_sync_user(db, int(user_id), event="chest_opened", event_props={"gems_won": reward})
-    return {"ok": True, "reward_gems": reward, **w}
+    _brevo_sync_user(db, int(user_id), event="chest_opened",
+                     event_props={"reward_type": reward_type, "gems_won": reward_gems})
+    return {"ok": True, "reward_type": reward_type, "reward_gems": reward_gems, **w}
 
 
 @router.get("/me/shop")
