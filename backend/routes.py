@@ -4226,7 +4226,7 @@ def _claimed_keys(db: Connection, user_id: int, kind: str) -> set:
 
 
 # How many daily quests to show each day.
-DAILY_QUEST_COUNT = 3
+DAILY_QUEST_COUNT = 4
 
 # Full pool of quest templates. Each has a metric (mapped to today's activity),
 # a target, and an XP reward. Every day a deterministic per-user shuffle picks
@@ -4236,20 +4236,30 @@ _QUEST_POOL = [
     {"id": "correct5",  "title": "Sharp shooter", "desc": "Get 5 correct answers",   "icon": "target", "metric": "correct",  "target": 5,  "reward_xp": 10},
     {"id": "correct10", "title": "Sharp shooter", "desc": "Get 10 correct answers",  "icon": "target", "metric": "correct",  "target": 10, "reward_xp": 15},
     {"id": "correct15", "title": "Marksman",      "desc": "Get 15 correct answers",  "icon": "target", "metric": "correct",  "target": 15, "reward_xp": 20},
+    {"id": "correct20", "title": "Marksman",      "desc": "Get 20 correct answers",  "icon": "target", "metric": "correct",  "target": 20, "reward_xp": 25},
     {"id": "correct25", "title": "Sniper",        "desc": "Get 25 correct answers",  "icon": "target", "metric": "correct",  "target": 25, "reward_xp": 30},
+    {"id": "correct40", "title": "Dead-eye",      "desc": "Get 40 correct answers",  "icon": "target", "metric": "correct",  "target": 40, "reward_xp": 45},
     # total questions answered today
-    {"id": "attempts10", "title": "Warm up",   "desc": "Answer 10 questions", "icon": "zap", "metric": "attempts", "target": 10, "reward_xp": 8},
-    {"id": "attempts20", "title": "Warm up",   "desc": "Answer 20 questions", "icon": "zap", "metric": "attempts", "target": 20, "reward_xp": 12},
-    {"id": "attempts30", "title": "Grinder",   "desc": "Answer 30 questions", "icon": "zap", "metric": "attempts", "target": 30, "reward_xp": 18},
-    {"id": "attempts50", "title": "Marathon",  "desc": "Answer 50 questions", "icon": "zap", "metric": "attempts", "target": 50, "reward_xp": 30},
+    {"id": "attempts10",  "title": "Warm up",   "desc": "Answer 10 questions",  "icon": "zap", "metric": "attempts", "target": 10,  "reward_xp": 8},
+    {"id": "attempts20",  "title": "Warm up",   "desc": "Answer 20 questions",  "icon": "zap", "metric": "attempts", "target": 20,  "reward_xp": 12},
+    {"id": "attempts30",  "title": "Grinder",   "desc": "Answer 30 questions",  "icon": "zap", "metric": "attempts", "target": 30,  "reward_xp": 18},
+    {"id": "attempts50",  "title": "Marathon",  "desc": "Answer 50 questions",  "icon": "zap", "metric": "attempts", "target": 50,  "reward_xp": 30},
+    {"id": "attempts75",  "title": "Iron will", "desc": "Answer 75 questions",  "icon": "zap", "metric": "attempts", "target": 75,  "reward_xp": 45},
+    {"id": "attempts100", "title": "Unstoppable","desc": "Answer 100 questions", "icon": "zap", "metric": "attempts", "target": 100, "reward_xp": 60},
     # distinct lessons practiced today
     {"id": "lessons1", "title": "Get started",    "desc": "Practice 1 lesson",   "icon": "crown", "metric": "lessons", "target": 1, "reward_xp": 10},
     {"id": "lessons2", "title": "Daily practice", "desc": "Practice 2 lessons",  "icon": "crown", "metric": "lessons", "target": 2, "reward_xp": 20},
     {"id": "lessons3", "title": "Dedicated",      "desc": "Practice 3 lessons",  "icon": "crown", "metric": "lessons", "target": 3, "reward_xp": 30},
+    {"id": "lessons4", "title": "Relentless",     "desc": "Practice 4 lessons",  "icon": "crown", "metric": "lessons", "target": 4, "reward_xp": 40},
+    # lessons finished today
+    {"id": "complete1", "title": "Finisher",  "desc": "Complete 1 lesson",  "icon": "flame", "metric": "completed", "target": 1, "reward_xp": 12},
+    {"id": "complete2", "title": "Closer",    "desc": "Complete 2 lessons", "icon": "flame", "metric": "completed", "target": 2, "reward_xp": 24},
+    {"id": "complete3", "title": "Powerhouse","desc": "Complete 3 lessons", "icon": "flame", "metric": "completed", "target": 3, "reward_xp": 36},
     # XP earned today
-    {"id": "xp30",  "title": "Point hunter",  "desc": "Earn 30 XP today",  "icon": "star", "metric": "xp", "target": 30,  "reward_xp": 10},
-    {"id": "xp60",  "title": "Point hunter",  "desc": "Earn 60 XP today",  "icon": "star", "metric": "xp", "target": 60,  "reward_xp": 20},
-    {"id": "xp100", "title": "Overachiever",  "desc": "Earn 100 XP today", "icon": "star", "metric": "xp", "target": 100, "reward_xp": 35},
+    {"id": "xp30",  "title": "Point hunter", "desc": "Earn 30 XP today",  "icon": "star", "metric": "xp", "target": 30,  "reward_xp": 10},
+    {"id": "xp60",  "title": "Point hunter", "desc": "Earn 60 XP today",  "icon": "star", "metric": "xp", "target": 60,  "reward_xp": 20},
+    {"id": "xp100", "title": "Overachiever", "desc": "Earn 100 XP today", "icon": "star", "metric": "xp", "target": 100, "reward_xp": 35},
+    {"id": "xp150", "title": "XP machine",   "desc": "Earn 150 XP today", "icon": "star", "metric": "xp", "target": 150, "reward_xp": 50},
 ]
 
 
@@ -4271,28 +4281,31 @@ def _compute_quests(db: Connection, user_id: int) -> list:
     ).mappings().first() or {}
 
     xp_today = 0
+    completed_today = 0
     try:
-        xp_today = int(
-            db.execute(
-                text(
-                    """
-                    SELECT COALESCE(SUM(xp_earned), 0)
-                    FROM lesson_progress
-                    WHERE user_id = :u
-                      AND DATE(completed_at AT TIME ZONE 'UTC') = CURRENT_DATE
-                    """
-                ),
-                {"u": user_id},
-            ).scalar()
-            or 0
-        )
+        crow = db.execute(
+            text(
+                """
+                SELECT COALESCE(SUM(xp_earned), 0) AS xp_today,
+                       COUNT(DISTINCT lesson_id) FILTER (WHERE completed_at IS NOT NULL) AS completed_today
+                FROM lesson_progress
+                WHERE user_id = :u
+                  AND DATE(completed_at AT TIME ZONE 'UTC') = CURRENT_DATE
+                """
+            ),
+            {"u": user_id},
+        ).mappings().first() or {}
+        xp_today = int(crow.get("xp_today") or 0)
+        completed_today = int(crow.get("completed_today") or 0)
     except Exception:
         xp_today = 0
+        completed_today = 0
 
     metric_values = {
         "correct": int(row.get("correct_today") or 0),
         "attempts": int(row.get("attempts_today") or 0),
         "lessons": int(row.get("lessons_today") or 0),
+        "completed": completed_today,
         "xp": xp_today,
     }
 
