@@ -156,6 +156,8 @@ export default function LessonPlayer() {
   const { slug } = useParams();
   const navigate = useNavigate();
 
+  const progressKey = slug ? `hay_lesson_${slug}` : null;
+
   const [lesson, setLesson] = useState(null);
   const [userLevel, setUserLevel] = useState(null);
   const [exerciseQueue, setExerciseQueue] = useState([]);
@@ -306,6 +308,21 @@ export default function LessonPlayer() {
     return () => window.removeEventListener("hay_hearts", onHearts);
   }, []);
 
+  // Persist remaining exercise IDs so a page refresh resumes from the same spot.
+  useEffect(() => {
+    if (!progressKey || exerciseQueue.length === 0) return;
+    try {
+      localStorage.setItem(progressKey, JSON.stringify(exerciseQueue.map((e) => e.id)));
+    } catch {}
+  }, [exerciseQueue, progressKey]);
+
+  // Clear progress when the lesson is fully completed.
+  useEffect(() => {
+    if (hasFinishedAll && progressKey) {
+      try { localStorage.removeItem(progressKey); } catch {}
+    }
+  }, [hasFinishedAll, progressKey]);
+
   // Only block on hearts at lesson entry — once the learner has answered their
   // first exercise they're mid-session and must be allowed to finish.
   const outOfHearts = !hasAnswered && !!heartsState && !heartsState.is_premium && Number(heartsState.current) <= 0;
@@ -348,8 +365,23 @@ export default function LessonPlayer() {
         }
 
         setLesson(normalized);
-        setExerciseQueue(normalized.exercises ? [...normalized.exercises] : []);
-        setOriginalTotal(normalized.exercises?.length || 0);
+
+        // Restore mid-lesson position from localStorage
+        const allExercises = normalized.exercises || [];
+        let startQueue = [...allExercises];
+        if (progressKey) {
+          try {
+            const saved = JSON.parse(localStorage.getItem(progressKey) || "null");
+            if (Array.isArray(saved) && saved.length > 0 && saved.length < allExercises.length) {
+              const savedSet = new Set(saved.map(Number));
+              const restored = allExercises.filter((e) => savedSet.has(Number(e.id)));
+              if (restored.length > 0) startQueue = restored;
+            }
+          } catch {}
+        }
+
+        setExerciseQueue(startQueue);
+        setOriginalTotal(allExercises.length);
         setHasFinishedAll(false);
         setMistakes(0);
         setLessonXpEarned(0);
@@ -809,6 +841,7 @@ export default function LessonPlayer() {
             onOpenExercise={openExerciseAnalytics}
             onRetry={async () => {
               const token = getToken();
+              if (progressKey) { try { localStorage.removeItem(progressKey); } catch {} }
               if (!token) {
                 setExerciseQueue(lesson.exercises ? [...lesson.exercises] : []);
                 setOriginalTotal(lesson.exercises?.length || 0);
