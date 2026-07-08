@@ -6205,6 +6205,7 @@ class PublicUserOut(BaseModel):
     friends_preview: list[dict] = []
     top_friends: list[dict] = []
     achievements: list[dict] = []
+    lessons_completed: int = 0
 
 
 def _get_user_public_by_id(db: Connection, uid: int) -> dict:
@@ -6381,6 +6382,15 @@ def get_public_user(
                     "outgoing_pending" if int(rr["requester_id"]) == int(viewer_id) else "incoming_pending"
                 )
 
+    # Lessons completed count
+    lc_row = db.execute(
+        text(
+            "SELECT COUNT(DISTINCT lesson_id)::int AS c FROM lesson_progress WHERE user_id = :uid AND completed_at IS NOT NULL"
+        ),
+        {"uid": target_id},
+    ).mappings().first()
+    lessons_completed = int(lc_row["c"]) if lc_row else 0
+
     # Top friends (3) by XP
     q_top = text(
         """
@@ -6440,6 +6450,7 @@ def get_public_user(
             if ((not bool(target.get("is_hidden"))) or is_friend or friendship == "self")
             else []
         ),
+        lessons_completed=lessons_completed,
     )
 
 
