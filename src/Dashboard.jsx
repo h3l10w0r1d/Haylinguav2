@@ -354,8 +354,9 @@ function DailyGoalCard({ todayXp }) {
         {DAILY_GOAL_OPTIONS.map((g) => (
           <button
             key={g}
-            onClick={() => pickGoal(g)}
-            className={"flex-1 rounded-xl py-1 text-xs font-extrabold transition " + (goal === g ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+            disabled={done}
+            onClick={() => !done && pickGoal(g)}
+            className={"flex-1 rounded-xl py-1 text-xs font-extrabold transition " + (done ? (goal === g ? "bg-grass-500 text-white cursor-default" : "bg-slate-100 text-slate-300 cursor-default") : goal === g ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
           >
             {g}
           </button>
