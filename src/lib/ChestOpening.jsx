@@ -103,12 +103,12 @@ export default function ChestOpening({ reward = 0, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={() => phase === "reward" && onClose?.()}>
-      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" />
+      <div className="absolute inset-0 z-0 bg-slate-900/70 backdrop-blur-sm" />
 
       {/* white flash on burst */}
-      {opened && <div className="chest-flash pointer-events-none absolute inset-0 bg-white" />}
+      {opened && <div className="chest-flash pointer-events-none absolute inset-0 z-10 bg-white" />}
 
-      <div className="relative flex flex-col items-center">
+      <div className="relative z-20 flex flex-col items-center">
         {/* chest stage — rays + confetti are centered on the chest itself */}
         <div className="relative" style={{ width: 200, height: 180 }}>
           {/* light rays behind the chest — outer div spins, inner div bursts (scale+fade).
