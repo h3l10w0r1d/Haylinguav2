@@ -208,7 +208,16 @@ export default function ExerciseShell({
                       ? `+${Number(result.xpEarned || 0)} XP earned`
                       : variant === "skipped"
                       ? "No XP gained"
-                      : result.detail || "You’ve got this — give it another go."}
+                      : (
+                        <>
+                          {result.correctAnswer ? (
+                            <div className="mb-0.5 font-display text-base font-extrabold text-cardinal-700">
+                              Correct answer: <span className="text-slate-800">{result.correctAnswer}</span>
+                            </div>
+                          ) : null}
+                          <div>{result.detail || "You’ve got this — give it another go."}</div>
+                        </>
+                      )}
                   </div>
                   {result.subtext ? (
                     <div className="text-xs font-semibold text-slate-400">{result.subtext}</div>

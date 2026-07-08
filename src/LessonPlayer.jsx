@@ -160,6 +160,7 @@ export default function LessonPlayer() {
   const [userLevel, setUserLevel] = useState(null);
   const [exerciseQueue, setExerciseQueue] = useState([]);
   const [originalTotal, setOriginalTotal] = useState(0);
+  const [hasAnswered, setHasAnswered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -303,7 +304,9 @@ export default function LessonPlayer() {
     return () => window.removeEventListener("hay_hearts", onHearts);
   }, []);
 
-  const outOfHearts = !!heartsState && !heartsState.is_premium && Number(heartsState.current) <= 0;
+  // Only block on hearts at lesson entry — once the learner has answered their
+  // first exercise they're mid-session and must be allowed to finish.
+  const outOfHearts = !hasAnswered && !!heartsState && !heartsState.is_premium && Number(heartsState.current) <= 0;
 
   // ---------- Load lesson ----------
 
@@ -364,6 +367,33 @@ export default function LessonPlayer() {
 
   // ---------- Handling answers from ExerciseRenderer ----------
 
+  function deriveCorrectAnswer(exercise) {
+    if (!exercise) return null;
+    const cfg = exercise.config || {};
+
+    // Option-list exercises: find the marked-correct choice
+    const opts = cfg.options || exercise.options || [];
+    if (opts.length > 0) {
+      const hit = opts.find((o) => o?.is_correct === true || o?.isCorrect === true);
+      if (hit) return hit.text || hit.label || null;
+      const idx = cfg.correctIndex ?? cfg.correct_index;
+      if (idx !== undefined) return opts[idx]?.text || null;
+    }
+
+    // Text-based: expected_answer or explicit correct_text field
+    const explicit = cfg.correct_text || cfg.correctText || cfg.answer;
+    if (explicit) return String(explicit);
+
+    // Flat expected_answer on the exercise row itself
+    if (exercise.expected_answer) return String(exercise.expected_answer);
+
+    // Array of acceptable answers — show the first
+    const arr = cfg.correctAnswers || cfg.correct_answers;
+    if (Array.isArray(arr) && arr.length > 0) return String(arr[0]);
+
+    return null;
+  }
+
   const handleStepAnswer = (payload) => {
     const isCorrect = payload?.isCorrect === true;
     const skipped = payload?.skipped === true;
@@ -407,6 +437,8 @@ export default function LessonPlayer() {
     // Track mistakes so the lesson can't be "completed" by getting things wrong:
     // Duolingo-style, any non-correct answer (including a skip) re-shows the
     // exercise — you only advance once you answer correctly.
+    setHasAnswered(true);
+
     if (!isCorrect) {
       setMistakes((m) => m + 1);
     }
@@ -419,6 +451,7 @@ export default function LessonPlayer() {
       xpEarned,
       message: payload?.message,
       hearts: payload?.hearts,
+      correctAnswer: isCorrect ? null : deriveCorrectAnswer(currentExercise),
     });
 
     if (!isCorrect) {
@@ -646,7 +679,7 @@ export default function LessonPlayer() {
   return (
     <ExerciseShell
       title={lesson.title}
-      step={Math.min(completedSteps + 1, totalSteps)}
+      step={completedSteps}
       total={totalSteps}
       onBack={() => navigate("/dashboard")}
       primaryLabel={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
@@ -660,6 +693,7 @@ export default function LessonPlayer() {
           ? {
               variant: resultData.isCorrect ? "correct" : "wrong",
               xpEarned: resultData.xpEarned,
+              correctAnswer: resultData.correctAnswer || null,
               subtext:
                 Number.isFinite(resultData.hearts)
                   ? `Hearts left: ${resultData.hearts}`
@@ -735,6 +769,7 @@ export default function LessonPlayer() {
                 setExerciseQueue(lesson.exercises ? [...lesson.exercises] : []);
                 setOriginalTotal(lesson.exercises?.length || 0);
                 setHasFinishedAll(false);
+                setHasAnswered(false);
                 setLessonXpEarned(0);
                 setMistakes(0);
                 return;
@@ -758,6 +793,7 @@ export default function LessonPlayer() {
               setExerciseQueue(lesson.exercises ? [...lesson.exercises] : []);
               setOriginalTotal(lesson.exercises?.length || 0);
               setHasFinishedAll(false);
+              setHasAnswered(false);
               setLessonXpEarned(0);
               setMistakes(0);
               setAnalyticsData(null);
