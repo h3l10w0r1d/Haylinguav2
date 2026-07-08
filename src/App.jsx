@@ -263,6 +263,14 @@ function AppShell() {
     if (v === '1') setOnboardingCompleted(true);
   }, []);
 
+  // Keep the Render backend warm so cold-start 502s don't break OAuth redirects.
+  useEffect(() => {
+    const ping = () => fetch(`${API_BASE}/health`, { method: 'GET' }).catch(() => {});
+    ping();
+    const id = setInterval(ping, 4 * 60 * 1000); // every 4 minutes
+    return () => clearInterval(id);
+  }, []);
+
   const RequireVerified = ({ children }) => {
     if (!user) return <Navigate to="/" replace />;
     if (user.email_verified === false) {
