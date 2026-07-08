@@ -9,7 +9,7 @@ import AudioTargetsManager from "./AudioTargetsManager";
  * - Still supports Advanced JSON editing
  */
 
-const KIND_OPTIONS = [
+export const KIND_OPTIONS = [
   { value: "char_intro", label: "Letter intro (char_intro)" },
   { value: "char_mcq_sound", label: "Sound MCQ (char_mcq_sound)" },
   { value: "letter_recognition", label: "Letter recognition (letter_recognition)" },
@@ -43,6 +43,45 @@ const KIND_OPTIONS = [
 
   { value: "speak", label: "Speak / pronounce (speak)" },
 ];
+
+// Groups the ~28 exercise kinds into teacher-facing categories. Used to
+// group the exercise picker in LessonEditor's reading-lesson builder.
+export const KIND_CATEGORY = {
+  char_intro: "Alphabet & Sounds",
+  char_mcq_sound: "Alphabet & Sounds",
+  letter_recognition: "Alphabet & Sounds",
+  char_build_word: "Alphabet & Sounds",
+  letter_typing: "Alphabet & Sounds",
+  minimal_pairs: "Alphabet & Sounds",
+
+  translate_mcq: "Vocabulary",
+  word_bank: "Vocabulary",
+  flashcard: "Vocabulary",
+  image_select: "Vocabulary",
+  categorize: "Vocabulary",
+
+  listen_type: "Listening & Speaking",
+  listen_word_bank: "Listening & Speaking",
+  audio_choice_tts: "Listening & Speaking",
+  speak: "Listening & Speaking",
+  speak_line: "Listening & Speaking",
+
+  word_spelling: "Writing & Spelling",
+  fill_blank: "Writing & Spelling",
+  select_missing_word: "Writing & Spelling",
+  write_translate: "Writing & Spelling",
+
+  true_false: "Grammar",
+  highlight_grammar: "Grammar",
+  conjugation: "Grammar",
+  multi_select: "Grammar",
+
+  sentence_order: "Reading & Conversation",
+  dialogue_mcq: "Reading & Conversation",
+  dialogue_order: "Reading & Conversation",
+  match_pairs: "Reading & Conversation",
+  reading_comprehension: "Reading & Conversation",
+};
 
 function safeParseJson(text) {
   try {

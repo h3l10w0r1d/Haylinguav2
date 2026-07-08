@@ -2,6 +2,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cmsApi } from "./api";
 import { Save, Trash2, Plus, GripVertical, X, Search } from "lucide-react";
+import SearchableSelect from "./SearchableSelect";
+import { KIND_OPTIONS, KIND_CATEGORY } from "./ExerciseEditor";
+
+const KIND_LABEL = Object.fromEntries(KIND_OPTIONS.map((k) => [k.value, k.label]));
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
@@ -397,18 +401,17 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
         </Field>
 
         <Field label="Chapter" hint="Groups this lesson into a chapter on the learner roadmap.">
-          <select
+          <SearchableSelect
             value={form.chapter_id ?? ""}
-            onChange={(e) => setForm({ ...form, chapter_id: e.target.value })}
-            className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
-          >
-            <option value="">— No chapter —</option>
-            {chapters.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setForm({ ...form, chapter_id: v })}
+            placeholder="— No chapter —"
+            searchPlaceholder="Search chapters…"
+            emptyText="No chapters found"
+            options={[
+              { value: "", label: "— No chapter —" },
+              ...chapters.map((c) => ({ value: String(c.id), label: c.title })),
+            ]}
+          />
         </Field>
 
         <Field label="Level" hint="Fallback ordering when no chapter is set.">
@@ -609,23 +612,20 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <select
-                            className="rounded-2xl bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
-                            defaultValue=""
-                            onChange={(e) => {
-                              addExerciseToSection(idx, e.target.value);
-                              e.target.value = "";
-                            }}
+                          <SearchableSelect
+                            className="w-56"
+                            value=""
+                            onChange={(v) => addExerciseToSection(idx, v)}
+                            placeholder="+ Add exercise…"
+                            searchPlaceholder="Search by id, kind, prompt…"
+                            emptyText="No exercises found"
                             disabled={!isEdit}
-                            title={!isEdit ? "Create lesson first" : "Add an exercise"}
-                          >
-                            <option value="">+ Add exercise…</option>
-                            {availableExercises.map((ex) => (
-                              <option key={ex.id} value={ex.id}>
-                                #{ex.id} · {ex.kind}
-                              </option>
-                            ))}
-                          </select>
+                            options={availableExercises.map((ex) => ({
+                              value: String(ex.id),
+                              label: `#${ex.id} · ${KIND_LABEL[ex.kind] || ex.kind}${ex.prompt ? ` — ${String(ex.prompt).slice(0, 40)}` : ""}`,
+                              group: KIND_CATEGORY[ex.kind] || "Other",
+                            }))}
+                          />
                         </div>
                       </div>
 
