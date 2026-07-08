@@ -525,9 +525,9 @@ export default function Friends() {
               {/* ACTIVITY TAB */}
               {activeTab === "activity" ? (
                 activityLoading ? (
-                  <div className="py-12 text-center">
-                    <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
-                    <p className="font-semibold text-slate-500">Loading activity…</p>
+                  <div className="flex flex-col items-center gap-3 py-16">
+                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
+                    <p className="font-semibold text-slate-400">Loading activity…</p>
                   </div>
                 ) : activity.length === 0 ? (
                   <EmptyState
@@ -537,42 +537,7 @@ export default function Friends() {
                     onCta={() => setActiveTab("discover")}
                   />
                 ) : (
-                  <div className="space-y-3">
-                    {activity.map((a, i) => {
-                      const initials = (a.name || "?").slice(0, 2).toUpperCase();
-                      const timeAgo = (() => {
-                        if (!a.completed_at) return "";
-                        const diff = Date.now() - new Date(a.completed_at).getTime();
-                        const mins = Math.floor(diff / 60000);
-                        if (mins < 60) return `${mins}m ago`;
-                        const hrs = Math.floor(mins / 60);
-                        if (hrs < 24) return `${hrs}h ago`;
-                        return `${Math.floor(hrs / 24)}d ago`;
-                      })();
-                      return (
-                        <div key={i} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                          {a.avatar_url ? (
-                            <img src={resolveUrl(a.avatar_url)} className="h-10 w-10 shrink-0 rounded-full object-cover" alt="" />
-                          ) : (
-                            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-100 font-extrabold text-brand-700 text-sm">
-                              {initials}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-bold text-slate-800 truncate">
-                              <span className="text-brand-600">{a.name}</span>
-                              {" "}completed{" "}
-                              <span className="font-extrabold">"{a.lesson_title}"</span>
-                            </div>
-                            <div className="text-xs font-semibold text-slate-400 mt-0.5">
-                              +{a.xp_earned} XP · {timeAgo}
-                            </div>
-                          </div>
-                          <Zap className="h-4 w-4 shrink-0 text-brand-400" />
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <ActivityFeed activity={activity} onOpenProfile={(a) => a.username && navigate(`/u/${encodeURIComponent(a.username)}`)} />
                 )
               ) : null}
 
@@ -687,6 +652,125 @@ export default function Friends() {
 }
 
 /* ---------- Helpers ---------- */
+
+// ── Activity feed ─────────────────────────────────────────────────────────────
+const XP_COLORS = [
+  "from-brand-400 to-brand-600",
+  "from-grass-400 to-grass-600",
+  "from-feather-400 to-feather-600",
+  "from-gold-400 to-gold-500",
+];
+
+function timeAgo(isoStr) {
+  if (!isoStr) return "";
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "yesterday";
+  return `${days}d ago`;
+}
+
+function dayLabel(isoStr) {
+  if (!isoStr) return "";
+  const d = new Date(isoStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+}
+
+function Avatar({ name, avatarUrl, size = 12, ring = false }) {
+  const initials = (name || "?").slice(0, 2).toUpperCase();
+  const cls = `h-${size} w-${size} shrink-0 rounded-full object-cover`;
+  return avatarUrl ? (
+    <img src={resolveUrl(avatarUrl)} className={cls + (ring ? " ring-2 ring-white ring-offset-1 ring-offset-brand-500" : "")} alt="" />
+  ) : (
+    <div className={`grid place-items-center rounded-full bg-gradient-to-br from-brand-300 to-brand-500 font-extrabold text-white ${cls}`}
+      style={{ fontSize: size < 10 ? 11 : 14 }}>
+      {initials}
+    </div>
+  );
+}
+
+function ActivityFeed({ activity, onOpenProfile }) {
+  // Group by day
+  const groups = [];
+  let lastDay = null;
+  activity.forEach((a) => {
+    const day = a.completed_at ? new Date(a.completed_at).toDateString() : "Unknown";
+    if (day !== lastDay) {
+      groups.push({ day, label: dayLabel(a.completed_at), items: [] });
+      lastDay = day;
+    }
+    groups[groups.length - 1].items.push(a);
+  });
+
+  return (
+    <div className="space-y-6">
+      {groups.map((group, gi) => (
+        <div key={gi}>
+          {/* Day separator */}
+          <div className="mb-3 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-100" />
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">{group.label}</span>
+            <div className="h-px flex-1 bg-slate-100" />
+          </div>
+
+          <div className="space-y-2">
+            {group.items.map((a, i) => {
+              const color = XP_COLORS[(a.friend_id ?? i) % XP_COLORS.length];
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onOpenProfile?.(a)}
+                  className="group w-full text-left"
+                >
+                  <div className="flex items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-slate-50 active:bg-slate-100">
+                    {/* Avatar with XP ring */}
+                    <div className="relative shrink-0">
+                      <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-br ${color} opacity-0 transition group-hover:opacity-100`} />
+                      <div className="relative">
+                        <Avatar name={a.name} avatarUrl={a.avatar_url} size={12} />
+                      </div>
+                      {/* Completion badge */}
+                      <span className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-grass-500 ring-2 ring-white text-white">
+                        <svg viewBox="0 0 10 10" className="h-3 w-3 fill-white">
+                          <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    </div>
+
+                    {/* Text */}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm leading-snug text-slate-700">
+                        <span className="font-extrabold text-slate-900">{a.name}</span>
+                        {" finished "}
+                        <span className="font-bold text-brand-600">"{a.lesson_title}"</span>
+                      </p>
+                      <p className="mt-0.5 text-xs font-semibold text-slate-400">{timeAgo(a.completed_at)}</p>
+                    </div>
+
+                    {/* XP pill */}
+                    <div className={`shrink-0 rounded-full bg-gradient-to-r ${color} px-2.5 py-1 text-xs font-extrabold text-white shadow-sm`}>
+                      +{a.xp_earned} XP
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SectionLabel({ icon: Icon, title, count }) {
   return (
