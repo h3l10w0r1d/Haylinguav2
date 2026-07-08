@@ -1,8 +1,14 @@
 {
-  "routes": [
-    { "src": "/sitemap.xml", "dest": "https://haylinguav2.onrender.com/sitemap.xml" },
-
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "haylingua.am" }],
+      "destination": "https://www.haylingua.am/:path*",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://haylinguav2.onrender.com/sitemap.xml" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
