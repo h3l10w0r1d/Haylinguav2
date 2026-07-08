@@ -33,9 +33,10 @@ const CmsTeam = lazy(() => import('./cms/CmsTeam'));
 const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
-const CmsAnalytics = lazy(() => import('./cms/CmsAnalytics'));
+const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
 const AuthCallback = lazy(() => import('./AuthCallback'));
 const PracticeMode = lazy(() => import('./PracticeMode'));
+const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
 
 function RouteFallback() {
   return <LoadingScreen />;
@@ -435,6 +436,22 @@ function AppShell() {
             <RequireVerified>
               <RequireOnboarded>
                 <PracticeMode />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* Unit checkpoint test */}
+      <Route
+        path="/checkpoint"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <CheckpointPlayer />
               </RequireOnboarded>
             </RequireVerified>
           ) : (
