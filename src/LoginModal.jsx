@@ -145,18 +145,24 @@ export default function LoginModal({
         {/* Social OAuth buttons */}
         {(GOOGLE_CLIENT_ID || TELEGRAM_BOT_USERNAME) && (
           <>
-            <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              {TELEGRAM_BOT_USERNAME && (
+                <div className="relative w-14 h-14">
+                  {/* Invisible Telegram widget — receives clicks */}
+                  <div ref={tgContainerRef} style={{ position: "absolute", inset: 0, opacity: 0, overflow: "hidden" }} />
+                  {/* Visible icon — pointer-events:none so clicks pass to iframe */}
+                  <div style={{ pointerEvents: "none" }} className="absolute inset-0 flex items-center justify-center rounded-2xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition cursor-pointer">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                </div>
+              )}
               {GOOGLE_CLIENT_ID && (
                 <a
                   href={`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account`}
-                  className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-300"
+                  className="flex w-14 h-14 items-center justify-center rounded-2xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition"
                 >
                   <GoogleIcon />
-                  Continue with Google
                 </a>
-              )}
-              {TELEGRAM_BOT_USERNAME && (
-                <div className="flex w-full justify-center overflow-hidden rounded-xl" ref={tgContainerRef} />
               )}
             </div>
             <div className="relative my-1 flex items-center gap-3">
