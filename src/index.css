@@ -244,9 +244,9 @@
   0% { opacity: 0; } 18% { opacity: .95; } 100% { opacity: 0; }
 }
 @keyframes rewardRise {
-  0% { transform: translateY(28px) scale(.4); opacity: 0; }
-  55% { transform: translateY(-10px) scale(1.18); opacity: 1; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+  0% { transform: translateY(28px) scale(.4); }
+  55% { transform: translateY(-10px) scale(1.18); }
+  100% { transform: translateY(0) scale(1); }
 }
 @keyframes burstOut {
   0% { transform: translate(0,0) scale(1) rotate(0); opacity: 1; }

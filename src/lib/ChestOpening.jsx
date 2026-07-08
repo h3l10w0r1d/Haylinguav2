@@ -1,44 +1,31 @@
-// src/lib/ChestOpening.jsx — full-screen, juicy chest-opening reward sequence.
-// Phases: shake (anticipation) → open (lid pops, light burst + confetti) →
-// reward (gems rise & count up). Plays a celebratory sound on open.
+// src/lib/ChestOpening.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Gem } from "lucide-react";
 import { sfx } from "./sfx";
 
-const CONFETTI_COLORS = ["#FF7A1A", "#FFB347", "#FFE08A", "#22B07D", "#1CB0F6", "#E11D48", "#9B5DE5", "#FCD34D"];
+const CONFETTI_COLORS = ["#FF7A1A","#FFB347","#FFE08A","#22B07D","#1CB0F6","#E11D48","#9B5DE5","#FCD34D"];
 
 function ChestSvg({ open }) {
   return (
     <svg width="200" height="180" viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "visible" }}>
       <defs>
         <linearGradient id="chestBody" x1="100" y1="86" x2="100" y2="168" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#B45309" />
-          <stop offset="1" stopColor="#7C3A06" />
+          <stop stopColor="#B45309" /><stop offset="1" stopColor="#7C3A06" />
         </linearGradient>
         <linearGradient id="chestLid" x1="100" y1="40" x2="100" y2="92" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#D97706" />
-          <stop offset="1" stopColor="#B45309" />
+          <stop stopColor="#D97706" /><stop offset="1" stopColor="#B45309" />
         </linearGradient>
         <linearGradient id="chestGold" x1="100" y1="0" x2="100" y2="180" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FDE68A" />
-          <stop offset="1" stopColor="#F59E0B" />
+          <stop stopColor="#FDE68A" /><stop offset="1" stopColor="#F59E0B" />
         </linearGradient>
       </defs>
-
-      {/* glow inside when open */}
       {open && <ellipse cx="100" cy="90" rx="58" ry="22" fill="#FFE9A8" opacity="0.9" />}
-
-      {/* body */}
       <rect x="34" y="86" width="132" height="82" rx="12" fill="url(#chestBody)" />
       <rect x="34" y="118" width="132" height="12" fill="url(#chestGold)" />
-      {/* gold corners */}
       <rect x="34" y="86" width="10" height="82" fill="url(#chestGold)" opacity="0.85" />
       <rect x="156" y="86" width="10" height="82" fill="url(#chestGold)" opacity="0.85" />
-      {/* lock */}
       <rect x="90" y="112" width="20" height="24" rx="4" fill="url(#chestGold)" />
       <circle cx="100" cy="122" r="4" fill="#7C3A06" />
-
-      {/* lid (rotates open) */}
       <g className={open ? "chest-lid chest-lid-open" : "chest-lid"}>
         <path d="M34 92 V70 C34 49 62 38 100 38 C138 38 166 49 166 70 V92 Z" fill="url(#chestLid)" />
         <rect x="34" y="84" width="132" height="10" rx="3" fill="url(#chestGold)" />
@@ -50,27 +37,28 @@ function ChestSvg({ open }) {
 
 export default function ChestOpening({ reward = 0, onClose }) {
   const [phase, setPhase] = useState("shake"); // shake → open → reward
+  // `shown` drives CSS transitions — never relies on animation-fill-mode
+  const [shown, setShown] = useState(false);
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    // Double rAF: paints opacity:0/scale:0.3 first, then transitions to visible
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setShown(true))
+    );
     const t1 = setTimeout(() => {
       setPhase("open");
       try { sfx.complete(); } catch {}
     }, 850);
     const t2 = setTimeout(() => setPhase("reward"), 1250);
-    // Auto-dismiss 3 seconds after reward is fully shown
-    const t3 = setTimeout(() => onClose?.(), 1250 + 900 + 3000);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
+    const t3 = setTimeout(() => onClose?.(), 5200);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   useEffect(() => {
     if (phase !== "reward") return;
     const target = Number(reward) || 0;
-    if (target <= 0) return;
+    if (!target) return;
     let cur = 0;
     const step = Math.max(1, Math.round(target / 24));
     const id = setInterval(() => {
@@ -83,111 +71,148 @@ export default function ChestOpening({ reward = 0, onClose }) {
 
   const opened = phase === "open" || phase === "reward";
 
-  const confetti = useMemo(
-    () =>
-      Array.from({ length: 36 }).map(() => {
-        const ang = Math.random() * Math.PI * 2;
-        const dist = 120 + Math.random() * 220;
-        return {
-          tx: Math.cos(ang) * dist,
-          ty: Math.sin(ang) * dist - 60, // bias upward
-          color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-          size: 7 + Math.round(Math.random() * 7),
-          rot: `${Math.round(Math.random() * 540 - 270)}deg`,
-          delay: Math.random() * 0.12,
-          dur: 0.9 + Math.random() * 0.7,
-        };
-      }),
-    []
+  const confetti = useMemo(() =>
+    Array.from({ length: 36 }).map(() => {
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 120 + Math.random() * 200;
+      return {
+        tx: Math.cos(ang) * dist,
+        ty: Math.sin(ang) * dist - 60,
+        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+        size: 7 + Math.round(Math.random() * 7),
+        rot: `${Math.round(Math.random() * 540 - 270)}deg`,
+        delay: Math.random() * 0.12,
+        dur: 0.9 + Math.random() * 0.6,
+      };
+    }), []
   );
 
   return (
     <div
-      className="fixed inset-0 z-[120]"
+      onClick={() => phase === "reward" && onClose?.()}
       role="dialog"
       aria-modal="true"
-      onClick={() => phase === "reward" && onClose?.()}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        backgroundColor: "rgba(15,23,42,0.88)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+        // Fade in via React state — no animation-fill-mode involved
+        opacity: shown ? 1 : 0,
+        transition: "opacity 0.25s ease",
+      }}
     >
-      {/* Backdrop first in DOM — always behind every sibling that follows */}
-      <div className="absolute inset-0 bg-slate-900/80" />
-
-      {/* Everything below is painted on top of the backdrop (later in DOM = higher) */}
-
-      {/* white flash on burst */}
-      {opened && <div className="chest-flash pointer-events-none absolute inset-0 bg-white" />}
-
-      {/* Content wrapper — centered, pointer-events threaded so click-to-dismiss works */}
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="flex flex-col items-center">
-          {/* chest stage */}
-          <div className="relative" style={{ width: 200, height: 180 }}>
-            {/* light rays — first child so chest renders on top */}
-            {opened && (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {/* Chest stage */}
+        <div style={{ position: "relative", width: 200, height: 180 }}>
+          {/* Rays — rendered behind chest by DOM order */}
+          {opened && (
+            <div
+              className="chest-rays-spin"
+              style={{
+                position: "absolute", left: "50%", top: "50%",
+                width: 480, height: 480,
+                marginLeft: -240, marginTop: -240,
+                pointerEvents: "none",
+              }}
+            >
               <div
-                className="chest-rays-spin pointer-events-none absolute left-1/2 top-1/2 h-[480px] w-[480px]"
-                style={{ marginLeft: "-240px", marginTop: "-240px" }}
-              >
-                <div
-                  className="chest-rays-burst h-full w-full"
-                  style={{
-                    background:
-                      "repeating-conic-gradient(from 0deg, rgba(255,214,120,.55) 0deg 9deg, rgba(255,214,120,0) 9deg 18deg)",
-                    borderRadius: "9999px",
-                    maskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
-                    WebkitMaskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
-                  }}
-                />
-              </div>
-            )}
-
-            {/* chest — after rays in DOM so it paints on top */}
-            <div className="absolute inset-0 chest-pop">
-              <div className={phase === "shake" ? "chest-shake h-full w-full" : opened ? "chest-jump h-full w-full" : "h-full w-full"}>
-                <ChestSvg open={opened} />
-              </div>
+                className="chest-rays-burst"
+                style={{
+                  width: "100%", height: "100%",
+                  background: "repeating-conic-gradient(from 0deg,rgba(255,214,120,.55) 0deg 9deg,rgba(255,214,120,0) 9deg 18deg)",
+                  borderRadius: "50%",
+                  maskImage: "radial-gradient(circle,#000 35%,transparent 70%)",
+                  WebkitMaskImage: "radial-gradient(circle,#000 35%,transparent 70%)",
+                }}
+              />
             </div>
+          )}
 
-            {/* confetti — last in stage DOM so it paints above chest */}
-            {opened && (
-              <div className="pointer-events-none absolute left-1/2 top-1/2">
-                {confetti.map((p, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      position: "absolute",
-                      width: `${p.size}px`,
-                      height: `${Math.round(p.size * 1.5)}px`,
-                      background: p.color,
-                      borderRadius: "2px",
-                      "--tx": `${p.tx}px`,
-                      "--ty": `${p.ty}px`,
-                      "--rot": p.rot,
-                      animation: `burstOut ${p.dur}s ease-out ${p.delay}s forwards`,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+          {/* Chest — scale-in via React transition, opacity always 1 */}
+          <div
+            style={{
+              position: "absolute", inset: 0,
+              transform: shown ? "scale(1) translateY(0)" : "scale(0.3) translateY(30px)",
+              transition: "transform 0.45s cubic-bezier(0.2,0.8,0.2,1)",
+            }}
+          >
+            <div
+              className={phase === "shake" ? "chest-shake" : opened ? "chest-jump" : ""}
+              style={{ width: "100%", height: "100%" }}
+            >
+              <ChestSvg open={opened} />
+            </div>
           </div>
 
-          {/* reward */}
-          {phase === "reward" && (
-            <div className="reward-rise mt-2 flex flex-col items-center">
-              <div className="flex items-center gap-2 font-display text-5xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.4)]">
-                <Gem className="h-10 w-10 text-feather-400" />
-                <span className="tabular-nums">+{count}</span>
-              </div>
-              <div className="mt-1 text-sm font-extrabold uppercase tracking-[0.2em] text-white/80">gems earned</div>
-              <button onClick={(e) => { e.stopPropagation(); onClose?.(); }} className="btn3d btn3d-brand mt-6 w-56 uppercase">
-                Collect
-              </button>
+          {/* Confetti — rendered after chest so it appears in front */}
+          {opened && (
+            <div style={{ position: "absolute", left: "50%", top: "50%", pointerEvents: "none" }}>
+              {confetti.map((p, i) => (
+                <span
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    width: p.size, height: Math.round(p.size * 1.5),
+                    background: p.color, borderRadius: 2,
+                    "--tx": `${p.tx}px`, "--ty": `${p.ty}px`, "--rot": p.rot,
+                    animation: `burstOut ${p.dur}s ease-out ${p.delay}s forwards`,
+                  }}
+                />
+              ))}
             </div>
           )}
-
-          {phase !== "reward" && (
-            <div className="mt-6 font-display text-lg font-extrabold text-white/90">Opening…</div>
-          )}
         </div>
+
+        {/* "Opening..." label */}
+        {phase !== "reward" && (
+          <p style={{
+            marginTop: 24,
+            color: "rgba(255,255,255,0.9)",
+            fontFamily: "'Baloo 2','Nunito',sans-serif",
+            fontWeight: 800, fontSize: 18,
+            margin: "24px 0 0",
+          }}>
+            Opening…
+          </p>
+        )}
+
+        {/* Reward panel — uses reward-rise animation (scale only, no opacity) */}
+        {phase === "reward" && (
+          <div
+            className="reward-rise"
+            style={{ marginTop: 8, display: "flex", flexDirection: "column", alignItems: "center" }}
+          >
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              fontFamily: "'Baloo 2','Nunito',sans-serif",
+              fontSize: 48, fontWeight: 800, color: "white",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,.4))",
+            }}>
+              <Gem style={{ width: 40, height: 40, color: "#38bdf8" }} />
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>+{count}</span>
+            </div>
+            <p style={{
+              margin: "4px 0 0",
+              fontSize: 12, fontWeight: 800,
+              letterSpacing: "0.2em", textTransform: "uppercase",
+              color: "rgba(255,255,255,0.8)",
+            }}>
+              gems earned
+            </p>
+            <button
+              onClick={(e) => { e.stopPropagation(); onClose?.(); }}
+              className="btn3d btn3d-brand"
+              style={{ marginTop: 24, width: 224, textTransform: "uppercase" }}
+            >
+              Collect
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
