@@ -68,19 +68,38 @@ export default function CheckpointPlayer() {
     if (!token) { navigate("/login"); return; }
     if (!lessonIds) { setError("No lessons specified."); setLoading(false); return; }
 
-    fetch(`${API_BASE}/me/checkpoint?lesson_ids=${encodeURIComponent(lessonIds)}&count=15`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const exs = data.exercises || [];
-        if (exs.length === 0) { setError(data.message || "No exercises found."); return; }
-        setExerciseQueue(exs);
-        setOriginalTotal(exs.length);
-        setPhase("playing");
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    const delays = [0, 2000, 5000]; // retry after 2s then 5s on network failure
+
+    async function load() {
+      for (let i = 0; i < delays.length; i++) {
+        if (cancelled) return;
+        if (delays[i]) await new Promise((r) => setTimeout(r, delays[i]));
+        if (cancelled) return;
+        try {
+          const res = await fetch(
+            `${API_BASE}/me/checkpoint?lesson_ids=${encodeURIComponent(lessonIds)}&count=15`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const data = await res.json();
+          if (cancelled) return;
+          const exs = data.exercises || [];
+          if (exs.length === 0) { setError(data.message || "No exercises found for this unit."); setLoading(false); return; }
+          setExerciseQueue(exs);
+          setOriginalTotal(exs.length);
+          setPhase("playing");
+          setLoading(false);
+          return;
+        } catch (e) {
+          if (i === delays.length - 1) {
+            if (!cancelled) { setError("Could not reach the server. Please check your connection and try again."); setLoading(false); }
+          }
+          // else retry
+        }
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, [lessonIds]);
 
   const outOfHearts = !hasAnswered && !!heartsState && !heartsState.is_premium && Number(heartsState.current) <= 0;
