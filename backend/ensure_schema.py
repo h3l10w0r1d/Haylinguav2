@@ -112,6 +112,15 @@ def ensure_schema() -> None:
         fill_nulls("users", "gems", "0")
         fill_nulls("users", "chests", "0")
 
+        # ---------- Shop power-ups (single-use active states) ----------
+        add_col_if_missing("users", "heart_shield_active BOOLEAN NOT NULL DEFAULT FALSE")
+        add_col_if_missing("users", "xp_multiplier_active BOOLEAN NOT NULL DEFAULT FALSE")
+
+        # ---------- Cosmetics (owned inventory) ----------
+        add_col_if_missing("users", "owned_frames JSONB NOT NULL DEFAULT '[]'::jsonb")
+        add_col_if_missing("users", "owned_themes JSONB NOT NULL DEFAULT '[]'::jsonb")
+        add_col_if_missing("users", "active_frame TEXT")
+
         # ---------- Economy: CMS-editable shop items + chest odds ----------
         shop_existed = table_exists("shop_items")
         ensure_table(

@@ -1836,20 +1836,26 @@ def _hearts_state(db: Connection, user_id: int) -> Dict[str, Any]:
 
 
 def _lose_heart(db: Connection, user_id: int) -> Dict[str, Any]:
-    """Apply pending regen, then subtract one heart (no-op for premium)."""
+    """Apply pending regen, then subtract one heart (no-op for premium or heart shield)."""
     _ensure_hearts_initialized(db, user_id)
     _sync_hearts(db, user_id)
-    db.execute(
-        text(
-            """
-            UPDATE users SET
-              last_heart_lost_at = CASE WHEN hearts_current >= hearts_max THEN NOW() ELSE last_heart_lost_at END,
-              hearts_current = GREATEST(COALESCE(hearts_current, hearts_max) - 1, 0)
-            WHERE id = :u AND NOT COALESCE(is_premium, FALSE)
-            """
-        ),
+    # Consume heart shield if active — block the deduction and clear the shield.
+    shielded = db.execute(
+        text("UPDATE users SET heart_shield_active = FALSE WHERE id = :u AND heart_shield_active = TRUE"),
         {"u": user_id},
-    )
+    ).rowcount > 0
+    if not shielded:
+        db.execute(
+            text(
+                """
+                UPDATE users SET
+                  last_heart_lost_at = CASE WHEN hearts_current >= hearts_max THEN NOW() ELSE last_heart_lost_at END,
+                  hearts_current = GREATEST(COALESCE(hearts_current, hearts_max) - 1, 0)
+                WHERE id = :u AND NOT COALESCE(is_premium, FALSE)
+                """
+            ),
+            {"u": user_id},
+        )
     return _hearts_state(db, user_id)
 
 
@@ -2889,6 +2895,14 @@ def complete_lesson(
     progress = recompute_lesson_progress(db, int(user_id), lesson_id)
     xp_value = int(progress.get("earned_xp") or 0)
 
+    # Consume Double XP power-up if active.
+    multiplied = db.execute(
+        text("UPDATE users SET xp_multiplier_active = FALSE WHERE id = :u AND xp_multiplier_active = TRUE"),
+        {"u": int(user_id)},
+    ).rowcount > 0
+    if multiplied:
+        xp_value = xp_value * 2
+
     # 3) Upsert into lesson_progress (no double-count protection here; your schema updates the same row)
     db.execute(
         text(
@@ -3884,14 +3898,25 @@ def me_streak_freeze(authorization: Optional[str] = Header(default=None), db: Co
 # ==========================================================================
 
 # Grant effects a shop item can have (the backend knows how to apply these).
-SHOP_EFFECTS = {"streak_freeze", "hearts_refill", "xp_boost"}
+SHOP_EFFECTS = {
+    "streak_freeze", "hearts_refill", "xp_boost",
+    "streak_repair", "heart_shield", "xp_multiplier",
+    "avatar_frame", "profile_theme",
+}
 
 # Fallbacks used only if the DB tables are missing/empty (defensive).
 _FALLBACK_CHEST = [(10, 30), (15, 25), (20, 18), (25, 12), (30, 8), (40, 5), (60, 2)]
 _FALLBACK_SHOP = [
-    {"id": "streak_freeze", "title": "Streak Freeze", "desc": "Protects your streak from one missed day.", "price": 50, "icon": "snowflake", "effect": "streak_freeze", "effect_amount": 0},
-    {"id": "hearts_refill", "title": "Refill Hearts", "desc": "Restore all your hearts instantly.", "price": 30, "icon": "heart", "effect": "hearts_refill", "effect_amount": 0},
-    {"id": "xp_boost", "title": "XP Boost", "desc": "Instantly add 15 XP to your total.", "price": 20, "icon": "zap", "effect": "xp_boost", "effect_amount": 15},
+    {"id": "streak_freeze",        "title": "Streak Freeze",   "desc": "Protects your streak from one missed day.",               "price": 50,  "icon": "snowflake",    "effect": "streak_freeze",  "effect_amount": 1},
+    {"id": "hearts_refill",        "title": "Refill Hearts",   "desc": "Restore all your hearts instantly.",                      "price": 30,  "icon": "heart",        "effect": "hearts_refill",  "effect_amount": 0},
+    {"id": "xp_boost",             "title": "XP Boost",        "desc": "Instantly add 15 XP to your total.",                     "price": 20,  "icon": "zap",          "effect": "xp_boost",       "effect_amount": 15},
+    {"id": "xp_surge_50",          "title": "Mega XP Surge",   "desc": "Instantly earn 50 XP.",                                  "price": 60,  "icon": "zap",          "effect": "xp_boost",       "effect_amount": 50},
+    {"id": "weekend_pack",         "title": "Weekend Pack",    "desc": "Protect your streak for 2 consecutive days.",            "price": 80,  "icon": "snowflake",    "effect": "streak_freeze",  "effect_amount": 2},
+    {"id": "streak_repair",        "title": "Streak Repair",   "desc": "Restore a streak you lost in the last 3 days.",          "price": 150, "icon": "shield",       "effect": "streak_repair",  "effect_amount": 0},
+    {"id": "heart_shield",         "title": "Heart Shield",    "desc": "Your next lesson won't cost any hearts.",                "price": 45,  "icon": "shield-check", "effect": "heart_shield",   "effect_amount": 0},
+    {"id": "double_xp",            "title": "Double XP",       "desc": "Earn 2× XP on your next lesson.",                       "price": 80,  "icon": "trending-up",  "effect": "xp_multiplier",  "effect_amount": 0},
+    {"id": "frame_gold",           "title": "Gold Frame",      "desc": "A gleaming gold border around your avatar.",             "price": 200, "icon": "award",        "effect": "avatar_frame",   "effect_amount": 0},
+    {"id": "banner_ararat",        "title": "Ararat Banner",   "desc": "Mount Ararat profile banner for your public page.",      "price": 300, "icon": "image",        "effect": "profile_theme",  "effect_amount": 0},
 ]
 
 
@@ -3933,10 +3958,36 @@ def _load_chest_rewards(db: Connection) -> list[tuple]:
 
 def _wallet(db: Connection, user_id: int) -> dict:
     row = db.execute(
-        text("SELECT COALESCE(gems, 0) AS gems, COALESCE(chests, 0) AS chests FROM users WHERE id = :u"),
+        text(
+            """
+            SELECT COALESCE(gems, 0) AS gems, COALESCE(chests, 0) AS chests,
+                   COALESCE(heart_shield_active, FALSE) AS heart_shield_active,
+                   COALESCE(xp_multiplier_active, FALSE) AS xp_multiplier_active,
+                   COALESCE(owned_frames, '[]'::jsonb) AS owned_frames,
+                   COALESCE(owned_themes, '[]'::jsonb) AS owned_themes,
+                   active_frame
+            FROM users WHERE id = :u
+            """
+        ),
         {"u": user_id},
     ).mappings().first() or {}
-    return {"gems": int(row.get("gems") or 0), "chests": int(row.get("chests") or 0)}
+    owned_frames = row.get("owned_frames") or []
+    if isinstance(owned_frames, str):
+        try: owned_frames = json.loads(owned_frames)
+        except Exception: owned_frames = []
+    owned_themes = row.get("owned_themes") or []
+    if isinstance(owned_themes, str):
+        try: owned_themes = json.loads(owned_themes)
+        except Exception: owned_themes = []
+    return {
+        "gems": int(row.get("gems") or 0),
+        "chests": int(row.get("chests") or 0),
+        "heart_shield_active": bool(row.get("heart_shield_active")),
+        "xp_multiplier_active": bool(row.get("xp_multiplier_active")),
+        "owned_frames": owned_frames,
+        "owned_themes": owned_themes,
+        "active_frame": row.get("active_frame"),
+    }
 
 
 @router.get("/me/wallet")
@@ -4009,6 +4060,36 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
             raise HTTPException(status_code=400, detail="Premium already has unlimited hearts")
         if int(hs.get("hearts_current") or 0) >= int(hs.get("hearts_max") or 0):
             raise HTTPException(status_code=400, detail="Your hearts are already full")
+    elif effect == "heart_shield":
+        already = db.execute(text("SELECT heart_shield_active FROM users WHERE id = :u"), {"u": user_id}).scalar()
+        if already:
+            raise HTTPException(status_code=400, detail="Heart Shield is already active")
+    elif effect == "xp_multiplier":
+        already = db.execute(text("SELECT xp_multiplier_active FROM users WHERE id = :u"), {"u": user_id}).scalar()
+        if already:
+            raise HTTPException(status_code=400, detail="Double XP is already active")
+    elif effect == "streak_repair":
+        from datetime import date as _date, timedelta as _td
+        u_row = db.execute(
+            text("SELECT current_streak, streak_last_activity_date FROM users WHERE id = :u"),
+            {"u": user_id},
+        ).mappings().first()
+        last_date = u_row["streak_last_activity_date"] if u_row else None
+        today = _date.today()
+        if not last_date or (today - last_date).days < 2 or (today - last_date).days > 4:
+            raise HTTPException(status_code=400, detail="Streak Repair only works if your streak broke in the last 2–3 days")
+    elif effect == "avatar_frame":
+        owned = db.execute(text("SELECT owned_frames FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
+        if isinstance(owned, str):
+            import json as _json; owned = _json.loads(owned)
+        if str(item["id"]) in owned:
+            raise HTTPException(status_code=400, detail="You already own this frame")
+    elif effect == "profile_theme":
+        owned = db.execute(text("SELECT owned_themes FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
+        if isinstance(owned, str):
+            import json as _json; owned = _json.loads(owned)
+        if str(item["id"]) in owned:
+            raise HTTPException(status_code=400, detail="You already own this theme")
 
     # Atomic charge: deduct gems only if balance is sufficient. This prevents
     # a double-tap race where two concurrent requests both pass the pre-flight check.
@@ -4020,13 +4101,53 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         raise HTTPException(status_code=400, detail="Not enough gems")
 
     if effect == "streak_freeze":
-        db.execute(text("UPDATE users SET streak_freezes = LEAST(COALESCE(streak_freezes, 0) + 1, :cap) WHERE id = :u"), {"u": user_id, "cap": STREAK_FREEZE_CAP})
+        qty = amount if amount > 0 else 1
+        db.execute(text("UPDATE users SET streak_freezes = LEAST(COALESCE(streak_freezes, 0) + :qty, :cap) WHERE id = :u"), {"u": user_id, "qty": qty, "cap": STREAK_FREEZE_CAP})
     elif effect == "hearts_refill":
         db.execute(text("UPDATE users SET hearts_current = COALESCE(hearts_max, :mx), last_heart_lost_at = NULL WHERE id = :u"), {"u": user_id, "mx": DEFAULT_HEARTS_MAX})
     elif effect == "xp_boost":
         amt = amount if amount > 0 else 15
         db.execute(text("UPDATE users SET bonus_xp = COALESCE(bonus_xp, 0) + :a WHERE id = :u"), {"a": amt, "u": user_id})
         _award_weekly_xp(db, user_id, amt)
+    elif effect == "heart_shield":
+        db.execute(text("UPDATE users SET heart_shield_active = TRUE WHERE id = :u"), {"u": user_id})
+    elif effect == "xp_multiplier":
+        db.execute(text("UPDATE users SET xp_multiplier_active = TRUE WHERE id = :u"), {"u": user_id})
+    elif effect == "streak_repair":
+        from datetime import date as _date, timedelta as _td
+        last_date = db.execute(
+            text("SELECT MAX(DATE(completed_at)) AS d FROM lesson_progress WHERE user_id = :u"),
+            {"u": user_id},
+        ).scalar()
+        if last_date:
+            active_days_rows = db.execute(
+                text("SELECT DISTINCT DATE(completed_at)::text AS d FROM lesson_progress WHERE user_id = :u AND completed_at >= CURRENT_DATE - INTERVAL '90 days'"),
+                {"u": user_id},
+            ).scalars().all()
+            active_days = set(active_days_rows)
+            streak_count = 0
+            check = last_date
+            while str(check) in active_days:
+                streak_count += 1
+                check = check - _td(days=1)
+            db.execute(
+                text("UPDATE users SET current_streak = :c, streak_last_activity_date = CURRENT_DATE - 1 WHERE id = :u"),
+                {"c": streak_count, "u": user_id},
+            )
+    elif effect == "avatar_frame":
+        import json as _json
+        owned = db.execute(text("SELECT owned_frames FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
+        if isinstance(owned, str): owned = _json.loads(owned)
+        if str(item["id"]) not in owned:
+            owned.append(str(item["id"]))
+        db.execute(text("UPDATE users SET owned_frames = :v::jsonb WHERE id = :u"), {"u": user_id, "v": _json.dumps(owned)})
+    elif effect == "profile_theme":
+        import json as _json
+        owned = db.execute(text("SELECT owned_themes FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
+        if isinstance(owned, str): owned = _json.loads(owned)
+        if str(item["id"]) not in owned:
+            owned.append(str(item["id"]))
+        db.execute(text("UPDATE users SET owned_themes = :v::jsonb WHERE id = :u"), {"u": user_id, "v": _json.dumps(owned)})
 
     result = {"ok": True, "item": item["id"], **_wallet(db, user_id)}
     _brevo_sync_user(db, int(user_id), event="shop_purchase", event_props={
