@@ -3714,18 +3714,14 @@ def me_streak(authorization: Optional[str] = Header(default=None), db: Connectio
 
 @router.post("/me/streak/freeze")
 def me_streak_freeze(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    """Equip a streak freeze (capped). It auto-protects against one missed day."""
+    """DEPRECATED: streak freezes are no longer granted for free.
+    Purchase them from the shop (POST /me/shop/buy with item 'streak_freeze'),
+    which charges gems. This endpoint is kept only so old clients get a clear
+    error instead of a silent free grant."""
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
-    cur = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
-    if cur >= STREAK_FREEZE_CAP:
-        return {"ok": True, "freezes": cur, "freeze_cap": STREAK_FREEZE_CAP, "added": False}
-    db.execute(
-        text("UPDATE users SET streak_freezes = LEAST(COALESCE(streak_freezes, 0) + 1, :cap) WHERE id = :u"),
-        {"u": user_id, "cap": STREAK_FREEZE_CAP},
-    )
-    return {"ok": True, "freezes": cur + 1, "freeze_cap": STREAK_FREEZE_CAP, "added": True}
+    raise HTTPException(status_code=400, detail="Streak freezes are available in the shop.")
 
 
 # ==========================================================================

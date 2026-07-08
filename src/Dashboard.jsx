@@ -1,7 +1,7 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Plus, Gem, Gift, Dumbbell, ShieldCheck } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
@@ -152,10 +152,10 @@ function ChestCard({ token }) {
 }
 
 function StreakCard({ token, streak }) {
+  const navigate = useNavigate();
   const [days, setDays] = useState(null);
   const [freeze, setFreeze] = useState({ freezes: 0, freeze_cap: 2 });
   const [practicedToday, setPracticedToday] = useState(true);
-  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     const h = token ? { Authorization: `Bearer ${token}` } : {};
@@ -172,21 +172,6 @@ function StreakCard({ token, streak }) {
       })
       .catch(() => {});
   }, [token]);
-
-  async function addFreeze() {
-    setAdding(true);
-    try {
-      const r = await fetch(`${API_BASE_URL}/me/streak/freeze`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const d = await r.json().catch(() => null);
-      if (d) setFreeze((f) => ({ ...f, freezes: Number(d.freezes ?? f.freezes) }));
-    } catch {
-    } finally {
-      setAdding(false);
-    }
-  }
 
   const n = Number(streak) || 0;
   const frozen = !!freeze.frozen;
@@ -246,21 +231,20 @@ function StreakCard({ token, streak }) {
             ⚠️ Streak at risk — no freezes left!
           </p>
           <p className="mt-0.5 text-[11px] font-semibold text-red-500">
-            Get a free freeze now to protect it if you miss today.
+            Buy a freeze in the shop to protect it if you miss today.
           </p>
           <button
-            onClick={addFreeze}
-            disabled={adding}
-            className="mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-feather-500 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-feather-600 disabled:opacity-60"
+            onClick={() => navigate("/shop")}
+            className="mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-feather-500 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-feather-600"
           >
-            <Snowflake className="h-3.5 w-3.5" /> Get free freeze
+            <Gem className="h-3.5 w-3.5" /> Buy a freeze
           </button>
         </div>
       )}
 
       {/* Streak freezes — protect your streak from one missed day */}
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-brand-100/70 pt-3">
-        <div className="flex items-center gap-1.5" title="A streak freeze covers one missed day so your streak survives.">
+        <div className="flex items-center gap-1.5" title="A streak freeze covers one missed day so your streak survives. Buy freezes in the shop with gems.">
           {Array.from({ length: cap }).map((_, i) => (
             <Snowflake
               key={i}
@@ -273,11 +257,10 @@ function StreakCard({ token, streak }) {
         </div>
         {freeze.freezes < cap && !(atRisk && freeze.freezes === 0) ? (
           <button
-            onClick={addFreeze}
-            disabled={adding}
-            className="inline-flex items-center gap-1 rounded-xl bg-feather-50 px-2.5 py-1.5 text-xs font-extrabold text-feather-600 ring-1 ring-feather-100 transition hover:bg-feather-100 disabled:opacity-60"
+            onClick={() => navigate("/shop")}
+            className="inline-flex items-center gap-1 rounded-xl bg-feather-50 px-2.5 py-1.5 text-xs font-extrabold text-feather-600 ring-1 ring-feather-100 transition hover:bg-feather-100"
           >
-            <Plus className="h-3.5 w-3.5" /> Get
+            <Gem className="h-3.5 w-3.5" /> Buy
           </button>
         ) : null}
       </div>
