@@ -465,7 +465,7 @@ export default function Dashboard({ user }) {
     () => localStorage.getItem("hay_token") || localStorage.getItem("access_token") || "",
     []
   );
-  const firstName = (user?.display_name || user?.first_name || user?.email || "").split(/[@ ]/)[0];
+  const firstName = (user?.display_name || user?.first_name || user?.name || user?.username || user?.email || "").split(/[@ .]/)[0];
 
   useEffect(() => {
     (async () => {
