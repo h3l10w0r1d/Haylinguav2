@@ -135,16 +135,16 @@ async def generate_elevenlabs_tts(text: str, voice_id: str) -> bytes:
             pass
 
     if response.status_code != 200:
-            # keep it short, but useful (Eleven can return HTML on errors sometimes)
-            body = (response.text or "").strip()
-            if len(body) > 600:
-                body = body[:600] + "…"
-            raise HTTPException(
-                response.status_code,
-                f"ElevenLabs error ({response.status_code}). voice_id={voice_id}. body={body}",
-            )
+        # keep it short, but useful (Eleven can return HTML on errors sometimes)
+        body = (response.text or "").strip()
+        if len(body) > 600:
+            body = body[:600] + "…"
+        raise HTTPException(
+            response.status_code,
+            f"ElevenLabs error ({response.status_code}). voice_id={voice_id}. body={body}",
+        )
 
-        return response.content
+    return response.content
 
 
 @router.get("/cms/exercises/{exercise_id}/audio")
