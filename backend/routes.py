@@ -3285,6 +3285,111 @@ def _recommend_next_exercise(db: Connection, user_id: int, lesson_id: int) -> di
 
     return {"status": "practice", "exercise_id": best["exercise_id"]}
 
+@router.get("/me/checkpoint")
+def me_checkpoint(
+    lesson_ids: str = "",
+    count: int = 15,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """
+    Return a shuffled sample of exercises from a list of lessons for a checkpoint test.
+    Query params:
+      - lesson_ids: comma-separated list of lesson IDs
+      - count: how many exercises to return (default 15)
+    Only includes exercises the user has attempted at least once (familiar content).
+    Falls back to any exercises in the lessons if no attempts exist yet.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
+
+    # Parse lesson_ids
+    try:
+        ids = [int(x.strip()) for x in lesson_ids.split(",") if x.strip()]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid lesson_ids")
+
+    if not ids:
+        raise HTTPException(status_code=400, detail="lesson_ids required")
+
+    count = max(5, min(count, 30))
+
+    # Prefer exercises the user has actually attempted
+    tried_rows = db.execute(
+        text("""
+            SELECT DISTINCT e.id AS exercise_id
+            FROM exercises e
+            JOIN user_exercise_attempts a ON a.exercise_id = e.id AND a.user_id = :u
+            WHERE e.lesson_id = ANY(:ids)
+            ORDER BY e.id
+        """),
+        {"u": user_id, "ids": ids},
+    ).mappings().all()
+
+    ex_ids = [int(r["exercise_id"]) for r in tried_rows]
+
+    if len(ex_ids) < count:
+        # Supplement with unатtempted exercises
+        extra = db.execute(
+            text("""
+                SELECT id AS exercise_id
+                FROM exercises
+                WHERE lesson_id = ANY(:ids)
+                  AND id <> ALL(:tried)
+                ORDER BY id
+            """),
+            {"ids": ids, "tried": ex_ids or [-1]},
+        ).mappings().all()
+        ex_ids += [int(r["exercise_id"]) for r in extra]
+
+    if not ex_ids:
+        return {"exercises": [], "message": "No exercises found for these lessons."}
+
+    # Shuffle and cap
+    import random as _random
+    _random.shuffle(ex_ids)
+    ex_ids = ex_ids[:count]
+
+    # Fetch exercise objects
+    ex_rows = db.execute(
+        text("""
+            SELECT id, lesson_id, kind, prompt, expected_answer, sentence_before, sentence_after, "order", config
+            FROM exercises
+            WHERE id = ANY(:ids)
+        """),
+        {"ids": ex_ids},
+    ).mappings().all()
+
+    ex_map = {int(r["id"]): dict(r) for r in ex_rows}
+
+    opt_rows = db.execute(
+        text("""
+            SELECT id, exercise_id, text, is_correct, side, match_key
+            FROM exercise_options
+            WHERE exercise_id = ANY(:ids)
+            ORDER BY exercise_id ASC, id ASC
+        """),
+        {"ids": ex_ids},
+    ).mappings().all()
+
+    options_by_ex: dict[int, list[dict]] = {eid: [] for eid in ex_ids}
+    for o in opt_rows:
+        eid = int(o["exercise_id"])
+        if eid in options_by_ex:
+            options_by_ex[eid].append(dict(o))
+
+    exercises_out = [
+        {**ex_map[eid], "options": options_by_ex.get(eid, [])}
+        for eid in ex_ids
+        if eid in ex_map
+    ]
+
+    return {"exercises": exercises_out}
+
+
 @router.get("/me/practice")
 def me_practice(
     authorization: Optional[str] = Header(default=None),

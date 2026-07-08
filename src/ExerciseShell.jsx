@@ -1,5 +1,5 @@
 // src/ExerciseShell.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X, Heart, Volume2 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -25,12 +25,25 @@ import ReportProblem from "./ReportProblem";
 import grandma from "./assets/character-grandma.png";
 
 /** Live hearts badge — reads localStorage and the `hay_hearts` event so it
- *  stays in sync without prop drilling. Shows ∞ for premium users. */
+ *  stays in sync without prop drilling. Shows ∞ for premium users.
+ *  Shakes + flashes red whenever a heart is lost. */
 function HeartsBadge() {
   const [hearts, setHearts] = useState(readHearts);
+  const [shaking, setShaking] = useState(false);
+  const prevCount = useRef(null);
 
   useEffect(() => {
-    const onEvt = (e) => { if (e?.detail) setHearts(e.detail); };
+    const onEvt = (e) => {
+      if (!e?.detail) return;
+      const d = e.detail;
+      const next = Number(d.current ?? d.hearts_current ?? Infinity);
+      if (prevCount.current !== null && !d.is_premium && next < prevCount.current) {
+        setShaking(true);
+        setTimeout(() => setShaking(false), 600);
+      }
+      prevCount.current = next;
+      setHearts(d);
+    };
     const onStorage = () => setHearts(readHearts());
     window.addEventListener("hay_hearts", onEvt);
     window.addEventListener("storage", onStorage);
@@ -42,8 +55,8 @@ function HeartsBadge() {
 
   if (hearts == null) return null;
   return (
-    <div className="flex items-center gap-1.5 font-display text-lg font-extrabold text-cardinal-500">
-      <Heart className="h-6 w-6 fill-cardinal-500 text-cardinal-500" />
+    <div className={"flex items-center gap-1.5 font-display text-lg font-extrabold " + (shaking ? "heart-shake text-red-600" : "text-cardinal-500")}>
+      <Heart className={"h-6 w-6 " + (shaking ? "fill-red-600 text-red-600" : "fill-cardinal-500 text-cardinal-500")} />
       {hearts.is_premium ? "∞" : hearts.current}
     </div>
   );
@@ -75,6 +88,19 @@ export default function ExerciseShell({
   children,
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
+
+  // Brief full-screen flash when an answer is submitted (green correct, red wrong).
+  const [flashClass, setFlashClass] = useState(null);
+  const [flashKey, setFlashKey] = useState(0);
+  useEffect(() => {
+    if (!result) return;
+    const cls = result.variant === "correct" ? "answer-flash-correct" : result.variant === "wrong" ? "answer-flash-wrong" : null;
+    if (!cls) return;
+    setFlashKey((k) => k + 1);
+    setFlashClass(cls);
+    const t = setTimeout(() => setFlashClass(null), 520);
+    return () => clearTimeout(t);
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When the result sheet is open, Enter triggers the primary action.
   useEffect(() => {
@@ -119,7 +145,16 @@ export default function ExerciseShell({
         };
 
   return (
-    <div className="lesson-shell flex flex-col bg-white">
+    <div className="lesson-shell relative flex flex-col bg-white">
+      {/* Full-screen answer flash */}
+      {flashClass ? (
+        <div
+          key={flashKey.current}
+          className={"pointer-events-none absolute inset-0 z-50 " + flashClass}
+          aria-hidden
+        />
+      ) : null}
+
       {/* Top bar */}
       <header className="shrink-0 bg-white">
         <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-4">

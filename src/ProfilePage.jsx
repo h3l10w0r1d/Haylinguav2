@@ -190,6 +190,7 @@ export default function ProfilePage() {
   const [xp, setXp] = useState(0);
   const [streak, setStreak] = useState(0);
   const [last7, setLast7] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [lessonsCompleted, setLessonsCompleted] = useState(0);
 
   // Account security
@@ -340,9 +341,15 @@ export default function ProfilePage() {
 
       // Load activity/stats (best-effort; do not block page)
       try {
-        const a = await apiFetch("/me/activity/last7days", { token });
+        const a = await apiFetch("/me/activity?days=30", { token });
         const ad = await safeJsonParse(a);
         if (!cancelled && a.ok && ad?.days) setLast7(ad.days);
+      } catch {}
+
+      try {
+        const sm = await apiFetch("/me/learning/summary", { token });
+        const smd = await safeJsonParse(sm);
+        if (!cancelled && sm.ok && smd) setSummary(smd);
       } catch {}
 
       try {
@@ -1746,42 +1753,70 @@ export default function ProfilePage() {
       {tab === "overview" && (
       <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
         <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">
-          Recent learning activity
+          Learning activity
         </h2>
 
-        <div className="grid md:grid-cols-[1fr,240px] gap-4">
-          <div className="rounded-2xl ring-1 ring-slate-200 p-4">
-            <div className="text-xs font-extrabold text-slate-700 mb-3">
-              Exercises completed in the last 7 days
-            </div>
-
-            {Array.isArray(last7) && last7.length ? (
-              <ActivityChart days={last7} />
-            ) : (
-              <div className="flex h-20 items-center justify-center text-sm font-semibold text-slate-500">
-                No activity yet — start a lesson to see your progress here.
+        {/* 30-day heatmap */}
+        <div className="mb-5">
+          <div className="text-xs font-extrabold text-slate-500 mb-2 uppercase tracking-wide">
+            Last 30 days
+          </div>
+          {Array.isArray(last7) && last7.length ? (
+            <div>
+              <div className="flex flex-wrap gap-1">
+                {last7.map((d) => {
+                  const v = Number(d?.value ?? 0);
+                  const opacity = v === 0 ? 0 : Math.max(0.2, Math.min(1, v / 3));
+                  return (
+                    <div
+                      key={d?.date || d?.label}
+                      title={`${d?.date || d?.label}: ${v} lesson${v !== 1 ? "s" : ""}`}
+                      className="rounded-sm"
+                      style={{
+                        width: 18,
+                        height: 18,
+                        backgroundColor: v === 0
+                          ? "#f1f5f9"
+                          : `rgba(234, 88, 12, ${opacity})`,
+                        flexShrink: 0,
+                      }}
+                    />
+                  );
+                })}
               </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center bg-brand-50 rounded-2xl px-3 py-2.5">
-              <span className="text-xs font-bold text-slate-600">Total lessons completed</span>
-              <span className="font-display text-sm font-extrabold text-slate-800">{lessonsCompleted}</span>
+              <div className="mt-1 flex justify-between text-[11px] font-semibold text-slate-400">
+                <span>30 days ago</span>
+                <span>Today</span>
+              </div>
             </div>
-
-            <div className="flex justify-between items-center bg-grass-50 rounded-2xl px-3 py-2.5">
-              <span className="text-xs font-bold text-slate-600">Best streak</span>
-              <span className="font-display text-sm font-extrabold text-slate-800">{streak} days</span>
+          ) : (
+            <div className="flex h-14 items-center justify-center text-sm font-semibold text-slate-400">
+              No activity yet — start a lesson to see your progress here.
             </div>
-
-            <div className="flex justify-between items-center bg-feather-50 rounded-2xl px-3 py-2.5">
-              <span className="text-xs font-bold text-slate-600">Lifetime XP</span>
-              <span className="font-display text-sm font-extrabold text-slate-800">{xp}</span>
-            </div>
-          </div>
+          )}
         </div>
 
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="flex flex-col items-center rounded-2xl bg-brand-50 px-3 py-3">
+            <span className="font-display text-2xl font-extrabold text-slate-800">{lessonsCompleted}</span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Lessons<br/>completed</span>
+          </div>
+          <div className="flex flex-col items-center rounded-2xl bg-grass-50 px-3 py-3">
+            <span className="font-display text-2xl font-extrabold text-slate-800">{streak}</span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Day<br/>streak</span>
+          </div>
+          <div className="flex flex-col items-center rounded-2xl bg-feather-50 px-3 py-3">
+            <span className="font-display text-2xl font-extrabold text-slate-800">{xp}</span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Lifetime<br/>XP</span>
+          </div>
+          <div className="flex flex-col items-center rounded-2xl bg-gold-50 px-3 py-3">
+            <span className="font-display text-2xl font-extrabold text-slate-800">
+              {summary ? `${Math.round(summary.accuracy)}%` : "–"}
+            </span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Accuracy<br/>(14 days)</span>
+          </div>
+        </div>
       </section>
       )}
 

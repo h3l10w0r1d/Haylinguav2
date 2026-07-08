@@ -119,11 +119,15 @@ def _correct_index_set(options: List[dict], cfg: dict, expected_answer: Any) -> 
     # (mn>=1 and mx<=n) was too aggressive — it misfired on already-0-based data such
     # as a 3-option exercise with the correct answer at index 2 (0-based), converting
     # it to index 1 and permanently misgrading the question.
+    # Guard: filter out negative results after shifting so a mixed set (e.g. {0, 3})
+    # doesn't produce index -1 as a valid answer when the whole set is shifted down.
     if n > 0 and s:
         vals = list(s)
         mx = max(vals)
         if mx >= n:
-            return {v - 1 for v in vals}
+            shifted = {v - 1 for v in vals if v - 1 >= 0}
+            if shifted:
+                return shifted
 
     return s
 

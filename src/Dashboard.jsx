@@ -1,7 +1,7 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Plus, Gem, Gift } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Plus, Gem, Gift, Dumbbell } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
@@ -239,6 +239,25 @@ function StreakCard({ token, streak }) {
           : "Finish a lesson to light your streak."}
       </p>
 
+      {/* Streak at-risk banner when user has no freezes */}
+      {atRisk && freeze.freezes === 0 && (
+        <div className="mt-3 rounded-2xl bg-red-50 px-3 py-2.5 ring-1 ring-red-100">
+          <p className="text-xs font-extrabold text-red-600">
+            ⚠️ Streak at risk — no freezes left!
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-red-500">
+            Get a free freeze now to protect it if you miss today.
+          </p>
+          <button
+            onClick={addFreeze}
+            disabled={adding}
+            className="mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-feather-500 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-feather-600 disabled:opacity-60"
+          >
+            <Snowflake className="h-3.5 w-3.5" /> Get free freeze
+          </button>
+        </div>
+      )}
+
       {/* Streak freezes — protect your streak from one missed day */}
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-brand-100/70 pt-3">
         <div className="flex items-center gap-1.5" title="A streak freeze covers one missed day so your streak survives.">
@@ -252,7 +271,7 @@ function StreakCard({ token, streak }) {
             {freeze.freezes}/{cap} freeze{cap === 1 ? "" : "s"}
           </span>
         </div>
-        {freeze.freezes < cap ? (
+        {freeze.freezes < cap && !(atRisk && freeze.freezes === 0) ? (
           <button
             onClick={addFreeze}
             disabled={adding}
@@ -434,6 +453,17 @@ function Milestone({ lesson, isLast, onStart }) {
               </div>
               <div className="mt-0.5 inline-flex items-center gap-1 text-xs font-extrabold uppercase tracking-wide text-grass-600">
                 <Check className="h-3.5 w-3.5" strokeWidth={3} /> Completed
+              </div>
+              <div className="mt-1 flex items-center gap-0.5">
+                {Array.from({ length: 5 }, (_, i) => {
+                  const stars = pct >= 100 ? 5 : pct >= 90 ? 4 : pct >= 70 ? 3 : pct >= 50 ? 2 : 1;
+                  return (
+                    <Star
+                      key={i}
+                      className={"h-3.5 w-3.5 " + (i < stars ? "fill-gold-400 text-gold-400" : "fill-slate-200 text-slate-200")}
+                    />
+                  );
+                })}
               </div>
             </div>
             <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-extrabold text-grass-700 ring-1 ring-grass-200">
@@ -693,6 +723,14 @@ export default function Dashboard({ user }) {
 
             <AchievementsCard token={token} onOpen={() => navigate("/achievements")} />
 
+            <SidebarCard
+              icon={Dumbbell}
+              tone="bg-brand-50 text-brand-600"
+              title="Practice"
+              text="Review your weak spots with spaced repetition."
+              cta="Start practicing"
+              onClick={() => navigate("/practice")}
+            />
             <SidebarCard
               icon={Trophy}
               tone="bg-amber-50 text-gold-600"

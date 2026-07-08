@@ -268,6 +268,38 @@
   .chest-shake, .chest-jump, .chest-rays-spin, .chest-rays-burst { animation: none; }
 }
 
+/* ----- Answer flash overlay (green = correct, red = wrong) ----- */
+@keyframes answerFlashGreen {
+  0%   { opacity: .28; }
+  60%  { opacity: .18; }
+  100% { opacity: 0; }
+}
+@keyframes answerFlashRed {
+  0%   { opacity: .22; }
+  30%  { opacity: .30; }
+  100% { opacity: 0; }
+}
+.answer-flash-correct { animation: answerFlashGreen 450ms ease-out forwards; background: #16a34a; }
+.answer-flash-wrong   { animation: answerFlashRed   500ms ease-out forwards; background: #dc2626; }
+
+/* Heart-lost shake */
+@keyframes heartShake {
+  0%, 100% { transform: translateX(0)    scale(1);    }
+  20%       { transform: translateX(-5px) scale(1.2); }
+  40%       { transform: translateX(5px)  scale(1.15); }
+  60%       { transform: translateX(-4px) scale(1.1); }
+  80%       { transform: translateX(3px)  scale(1.05); }
+}
+.heart-shake { animation: heartShake 520ms cubic-bezier(.4,0,.2,1); }
+
+/* Word-bank tile entrance */
+@keyframes tilePop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  70%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.tile-pop { animation: tilePop 180ms cubic-bezier(.2,.8,.2,1) both; }
+
 /* ----- Page transitions ----- */
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(10px); }

@@ -113,21 +113,28 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
   }
 
   // Keyboard shortcut: press 1–4 to select the corresponding choice.
+  // Use a ref so the listener always sees fresh state without re-registering.
+  const handleClickRef = React.useRef(handleClick);
+  handleClickRef.current = handleClick;
+  const choicesLenRef = React.useRef(choices.length);
+  choicesLenRef.current = choices.length;
+  const gradedRef = React.useRef(graded);
+  gradedRef.current = graded;
   React.useEffect(() => {
-    if (graded) return;
     function onKey(e) {
+      if (gradedRef.current) return;
       const tag = document.activeElement?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       const n = parseInt(e.key, 10);
-      if (n >= 1 && n <= choices.length) {
+      if (n >= 1 && n <= choicesLenRef.current) {
         e.preventDefault();
-        handleClick(n - 1);
+        handleClickRef.current(n - 1);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }); // no dep array — re-register each render to avoid stale closure
+  }, []); // register once; refs keep values fresh
 
   return (
     <div className={cx("grid gap-3", colClass)}>
@@ -165,7 +172,7 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
   );
 }
 
-export function Pill({ children, onClick, disabled, active = false }) {
+export function Pill({ children, onClick, disabled, active = false, className }) {
   return (
     <button
       onClick={onClick}
@@ -176,7 +183,8 @@ export function Pill({ children, onClick, disabled, active = false }) {
           ? "bg-slate-50 text-slate-300 ring-slate-100 cursor-not-allowed"
           : active
           ? "bg-feather-50 text-feather-700 ring-feather-300"
-          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
+          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50",
+        className
       )}
       style={!disabled ? { boxShadow: active ? "0 3px 0 0 #4EC2FF" : "0 3px 0 0 #E2E8F0" } : undefined}
     >

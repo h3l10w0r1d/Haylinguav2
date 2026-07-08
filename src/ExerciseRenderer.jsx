@@ -773,12 +773,18 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
 
-  const tokens = cfg.tokens ?? [];
+  const rawTokens = cfg.tokens ?? [];
   const solution = cfg.solution ?? null;
   const solutionIndices = cfg.solutionIndices ?? null;
 
+  // Wrap each token in a keyed object so duplicate words stay distinguishable.
+  const initialAvailable = React.useMemo(
+    () => rawTokens.map((t, i) => ({ t, key: `${i}-${t}` })),
+    [exercise?.id] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const [picked, setPicked] = useState([]);
-  const [available, setAvailable] = useState(tokens);
+  const [available, setAvailable] = useState(initialAvailable);
 
   async function playTarget(targetKey, text) {
     try {
@@ -796,21 +802,21 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
 
   useEffect(() => {
     setPicked([]);
-    setAvailable(tokens);
-  }, [exercise?.id, tokens]);
+    setAvailable(initialAvailable);
+  }, [exercise?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canCheck = picked.length > 0;
 
   function removePicked(idx) {
-    const token = picked[idx];
+    const item = picked[idx];
     setPicked((p) => p.filter((_, i) => i !== idx));
-    setAvailable((a) => [...a, token]);
+    setAvailable((a) => [...a, item]);
   }
 
   function addToken(idx) {
-    const token = available[idx];
+    const item = available[idx];
     setAvailable((a) => a.filter((_, i) => i !== idx));
-    setPicked((p) => [...p, token]);
+    setPicked((p) => [...p, item]);
   }
 
   return (
@@ -822,17 +828,17 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
           {picked.length === 0 ? (
             <Muted>Tap words below to build the sentence…</Muted>
           ) : (
-            picked.map((t, i) => (
-              <Pill key={`${t}-${i}`} onClick={() => removePicked(i)} active>
-                <span className="mr-2">{t}</span>
+            picked.map((item, i) => (
+              <Pill key={item.key} onClick={() => removePicked(i)} active>
+                <span className="mr-2">{item.t}</span>
                 <button
                   type="button"
                   className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/60 hover:bg-white"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    const idx = tokens.indexOf(t);
-                    playTarget(idx >= 0 ? `token_${idx}` : "token", t);
+                    const idx = rawTokens.indexOf(item.t);
+                    playTarget(idx >= 0 ? `token_${idx}` : "token", item.t);
                   }}
                   title="Hear"
                 >
@@ -849,8 +855,8 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
           type="button"
           className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-2 text-sm hover:bg-slate-100"
           onClick={() => {
-            const sentence = picked.join(" ").trim();
-            const fallback = Array.isArray(solution) ? solution.join(" ") : tokens.join(" ");
+            const sentence = picked.map((it) => it.t).join(" ").trim();
+            const fallback = Array.isArray(solution) ? solution.join(" ") : rawTokens.join(" ");
             playTarget("sentence", sentence || fallback);
           }}
         >
@@ -859,17 +865,17 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {available.map((t, i) => (
-          <Pill key={`${t}-${i}`} onClick={() => addToken(i)}>
-            <span className="mr-2">{t}</span>
+        {available.map((item, i) => (
+          <Pill key={item.key} onClick={() => addToken(i)}>
+            <span className="mr-2">{item.t}</span>
             <button
               type="button"
               className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/60 hover:bg-white"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const idx = tokens.indexOf(t);
-                playTarget(idx >= 0 ? `token_${idx}` : "token", t);
+                const idx = rawTokens.indexOf(item.t);
+                playTarget(idx >= 0 ? `token_${idx}` : "token", item.t);
               }}
               title="Hear"
             >
@@ -883,16 +889,17 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
+            const pickedTexts = picked.map((it) => it.t);
             if (Array.isArray(solution)) {
               const ok =
-                solution.length === picked.length &&
-                solution.every((v, i) => normalizeText(v) === normalizeText(picked[i]));
+                solution.length === pickedTexts.length &&
+                solution.every((v, i) => normalizeText(v) === normalizeText(pickedTexts[i]));
               ok ? correct() : wrong("Word order is incorrect. Try again.");
               return;
             }
 
             if (Array.isArray(solutionIndices)) {
-              const builtIndices = picked.map((t) => tokens.indexOf(t));
+              const builtIndices = picked.map((it) => rawTokens.indexOf(it.t));
               const ok =
                 solutionIndices.length === builtIndices.length &&
                 solutionIndices.every((v, i) => Number(v) === Number(builtIndices[i]));
@@ -900,7 +907,7 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
               return;
             }
 
-            const builtSentence = picked.join(" ");
+            const builtSentence = pickedTexts.join(" ");
             const answer = expected ?? cfg.answer ?? "";
             if (normalizeText(builtSentence) === normalizeText(answer)) correct();
             else wrong("Word order is incorrect. Try again.");
@@ -1525,7 +1532,7 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
           <Muted>Tap words to build your answer…</Muted>
         ) : (
           picked.map((p, i) => (
-            <Pill key={p.key} active onClick={() => remove(i)}>
+            <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>
               {p.t}
             </Pill>
           ))
@@ -1684,7 +1691,7 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
         <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
       </div>
       <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
-        {picked.length === 0 ? <Muted>Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active onClick={() => remove(i)}>{p.t}</Pill>)}
+        {picked.length === 0 ? <Muted>Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>{p.t}</Pill>)}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">{available.map((p, i) => <Pill key={p.key} onClick={() => add(i)}>{p.t}</Pill>)}</div>
       <div className="mt-6 space-y-3">
@@ -1766,7 +1773,7 @@ function ExDialogueOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, 
       <Title>{prompt}</Title>
       <div className="mt-4 min-h-[3rem] space-y-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
         {picked.length === 0 ? <Muted>Tap the lines in the right order…</Muted> : picked.map((p, i) => (
-          <button key={p.key} type="button" onClick={() => remove(i)} className="block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-brand-200">{i + 1}. {p.t}</button>
+          <button key={p.key} type="button" onClick={() => remove(i)} className="tile-pop block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-brand-200">{i + 1}. {p.t}</button>
         ))}
       </div>
       <div className="mt-4 space-y-2">{available.map((p, i) => (

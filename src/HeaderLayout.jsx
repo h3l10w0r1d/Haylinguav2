@@ -78,34 +78,62 @@ export default function HeaderLayout({ user, onLogout, children }) {
     return () => { cancelled = true; window.removeEventListener("hay_wallet", onWallet); };
   }, []);
 
-  // Poll /me/stats every 60s + listen for hay_xp_changed to update XP & streak live
+  // SSE connection for real-time XP/streak/gems/hearts updates
   useEffect(() => {
     const token = getToken();
     if (!token) return;
-    let cancelled = false;
-    const fetchStats = () => {
-      apiFetch("/me/stats", { token, method: "GET" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => {
-          if (!d || cancelled) return;
-          if (d.total_xp != null) setXp(Number(d.total_xp) || 0);
-          if (d.streak != null) setStreak(Number(d.streak) || 0);
-        })
-        .catch(() => {});
+
+    let es = null;
+    let reconnectTimer = null;
+
+    const connect = () => {
+      es = new EventSource(`${API_BASE}/me/events?token=${encodeURIComponent(token)}`);
+
+      es.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          if (data.xp != null) setXp(Number(data.xp));
+          if (data.streak != null) setStreak(Number(data.streak));
+          if (data.gems != null) setGems(Number(data.gems));
+          if (data.hearts_current != null) {
+            const next = {
+              current: Number(data.hearts_current),
+              max: Number(data.hearts_max || 5),
+              is_premium: Boolean(data.is_premium),
+              next_regen_seconds: 0,
+            };
+            setHearts(next);
+            try { localStorage.setItem("hay_hearts", JSON.stringify(next)); } catch {}
+          }
+        } catch {}
+      };
+
+      es.onerror = () => {
+        es.close();
+        // Reconnect after 5s on error
+        reconnectTimer = setTimeout(connect, 5000);
+      };
     };
-    fetchStats();
-    const poll = setInterval(fetchStats, 60000);
+
+    connect();
+
     const onXp = (ev) => {
       if (ev?.detail?.xp != null) setXp(Number(ev.detail.xp));
       if (ev?.detail?.streak != null) setStreak(Number(ev.detail.streak));
-      fetchStats();
     };
     window.addEventListener("hay_xp_changed", onXp);
-    const onVisible = () => { if (document.visibilityState === "visible") fetchStats(); };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && es?.readyState === EventSource.CLOSED) {
+        clearTimeout(reconnectTimer);
+        connect();
+      }
+    };
     document.addEventListener("visibilitychange", onVisible);
+
     return () => {
-      cancelled = true;
-      clearInterval(poll);
+      es?.close();
+      clearTimeout(reconnectTimer);
       window.removeEventListener("hay_xp_changed", onXp);
       document.removeEventListener("visibilitychange", onVisible);
     };
