@@ -634,6 +634,10 @@ export default function LessonPlayer() {
       const stats = await res.json();
       console.log("[LessonPlayer] Updated stats from backend:", stats);
 
+      window.dispatchEvent(new CustomEvent("hay_xp_changed", {
+        detail: { xp: stats?.total_xp, streak: stats?.streak },
+      }));
+
       navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error("[LessonPlayer] Network error completing lesson:", err);

@@ -50,8 +50,12 @@ export default function HeaderLayout({ user, onLogout, children }) {
     }
   });
 
-  const xp = useMemo(() => Number(user?.xp ?? 0) || 0, [user?.xp]);
-  const streak = useMemo(() => Math.max(1, Number(user?.streak ?? 1) || 1), [user?.streak]);
+  const [xp, setXp] = useState(() => Number(user?.xp ?? 0) || 0);
+  const [streak, setStreak] = useState(() => Number(user?.streak ?? 0) || 0);
+
+  // Keep xp/streak in sync when user prop updates (login/refresh)
+  useEffect(() => { if (user?.xp != null) setXp(Number(user.xp) || 0); }, [user?.xp]);
+  useEffect(() => { if (user?.streak != null) setStreak(Number(user.streak) || 0); }, [user?.streak]);
 
   const [gems, setGems] = useState(null);
   useEffect(() => {
@@ -72,6 +76,39 @@ export default function HeaderLayout({ user, onLogout, children }) {
     };
     window.addEventListener("hay_wallet", onWallet);
     return () => { cancelled = true; window.removeEventListener("hay_wallet", onWallet); };
+  }, []);
+
+  // Poll /me/stats every 60s + listen for hay_xp_changed to update XP & streak live
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    const fetchStats = () => {
+      apiFetch("/me/stats", { token, method: "GET" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d || cancelled) return;
+          if (d.total_xp != null) setXp(Number(d.total_xp) || 0);
+          if (d.streak != null) setStreak(Number(d.streak) || 0);
+        })
+        .catch(() => {});
+    };
+    fetchStats();
+    const poll = setInterval(fetchStats, 60000);
+    const onXp = (ev) => {
+      if (ev?.detail?.xp != null) setXp(Number(ev.detail.xp));
+      if (ev?.detail?.streak != null) setStreak(Number(ev.detail.streak));
+      fetchStats();
+    };
+    window.addEventListener("hay_xp_changed", onXp);
+    const onVisible = () => { if (document.visibilityState === "visible") fetchStats(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+      window.removeEventListener("hay_xp_changed", onXp);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {
