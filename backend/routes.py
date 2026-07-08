@@ -3388,7 +3388,7 @@ def me_checkpoint(
                 SELECT id AS exercise_id
                 FROM exercises
                 WHERE lesson_id = ANY(:ids)
-                  AND (cardinality(:tried) = 0 OR id <> ALL(:tried))
+                  AND (cardinality(:tried::integer[]) = 0 OR id <> ALL(:tried::integer[]))
                 ORDER BY id
             """),
             {"ids": ids, "tried": ex_ids if ex_ids else []},
