@@ -58,6 +58,8 @@ module.exports = {
         },
         // Streak / XP gold.
         gold: {
+          50: "#FFF8E1",
+          100: "#FFEFB8",
           400: "#FFD43B",
           500: "#FFC800",
           600: "#E0A800",
