@@ -4225,7 +4225,38 @@ def _claimed_keys(db: Connection, user_id: int, kind: str) -> set:
     )
 
 
+# How many daily quests to show each day.
+DAILY_QUEST_COUNT = 3
+
+# Full pool of quest templates. Each has a metric (mapped to today's activity),
+# a target, and an XP reward. Every day a deterministic per-user shuffle picks
+# DAILY_QUEST_COUNT of these — one per distinct metric so they don't overlap.
+_QUEST_POOL = [
+    # correct answers today
+    {"id": "correct5",  "title": "Sharp shooter", "desc": "Get 5 correct answers",   "icon": "target", "metric": "correct",  "target": 5,  "reward_xp": 10},
+    {"id": "correct10", "title": "Sharp shooter", "desc": "Get 10 correct answers",  "icon": "target", "metric": "correct",  "target": 10, "reward_xp": 15},
+    {"id": "correct15", "title": "Marksman",      "desc": "Get 15 correct answers",  "icon": "target", "metric": "correct",  "target": 15, "reward_xp": 20},
+    {"id": "correct25", "title": "Sniper",        "desc": "Get 25 correct answers",  "icon": "target", "metric": "correct",  "target": 25, "reward_xp": 30},
+    # total questions answered today
+    {"id": "attempts10", "title": "Warm up",   "desc": "Answer 10 questions", "icon": "zap", "metric": "attempts", "target": 10, "reward_xp": 8},
+    {"id": "attempts20", "title": "Warm up",   "desc": "Answer 20 questions", "icon": "zap", "metric": "attempts", "target": 20, "reward_xp": 12},
+    {"id": "attempts30", "title": "Grinder",   "desc": "Answer 30 questions", "icon": "zap", "metric": "attempts", "target": 30, "reward_xp": 18},
+    {"id": "attempts50", "title": "Marathon",  "desc": "Answer 50 questions", "icon": "zap", "metric": "attempts", "target": 50, "reward_xp": 30},
+    # distinct lessons practiced today
+    {"id": "lessons1", "title": "Get started",    "desc": "Practice 1 lesson",   "icon": "crown", "metric": "lessons", "target": 1, "reward_xp": 10},
+    {"id": "lessons2", "title": "Daily practice", "desc": "Practice 2 lessons",  "icon": "crown", "metric": "lessons", "target": 2, "reward_xp": 20},
+    {"id": "lessons3", "title": "Dedicated",      "desc": "Practice 3 lessons",  "icon": "crown", "metric": "lessons", "target": 3, "reward_xp": 30},
+    # XP earned today
+    {"id": "xp30",  "title": "Point hunter",  "desc": "Earn 30 XP today",  "icon": "star", "metric": "xp", "target": 30,  "reward_xp": 10},
+    {"id": "xp60",  "title": "Point hunter",  "desc": "Earn 60 XP today",  "icon": "star", "metric": "xp", "target": 60,  "reward_xp": 20},
+    {"id": "xp100", "title": "Overachiever",  "desc": "Earn 100 XP today", "icon": "star", "metric": "xp", "target": 100, "reward_xp": 35},
+]
+
+
 def _compute_quests(db: Connection, user_id: int) -> list:
+    import hashlib as _hashlib
+    import random as _random
+
     row = db.execute(
         text(
             """
@@ -4238,16 +4269,63 @@ def _compute_quests(db: Connection, user_id: int) -> list:
         ),
         {"u": user_id},
     ).mappings().first() or {}
-    correct = int(row.get("correct_today") or 0)
-    attempts = int(row.get("attempts_today") or 0)
-    lessons = int(row.get("lessons_today") or 0)
-    quests = [
-        {"id": "correct10", "title": "Sharp shooter", "desc": "Get 10 correct answers", "icon": "target", "progress": min(correct, 10), "target": 10, "reward_xp": 15},
-        {"id": "lessons2", "title": "Daily practice", "desc": "Practice 2 lessons", "icon": "crown", "progress": min(lessons, 2), "target": 2, "reward_xp": 20},
-        {"id": "attempts20", "title": "Warm up", "desc": "Answer 20 questions", "icon": "zap", "progress": min(attempts, 20), "target": 20, "reward_xp": 10},
-    ]
-    for q in quests:
+
+    xp_today = 0
+    try:
+        xp_today = int(
+            db.execute(
+                text(
+                    """
+                    SELECT COALESCE(SUM(xp_earned), 0)
+                    FROM lesson_progress
+                    WHERE user_id = :u
+                      AND DATE(completed_at AT TIME ZONE 'UTC') = CURRENT_DATE
+                    """
+                ),
+                {"u": user_id},
+            ).scalar()
+            or 0
+        )
+    except Exception:
+        xp_today = 0
+
+    metric_values = {
+        "correct": int(row.get("correct_today") or 0),
+        "attempts": int(row.get("attempts_today") or 0),
+        "lessons": int(row.get("lessons_today") or 0),
+        "xp": xp_today,
+    }
+
+    # Deterministic per-user, per-day shuffle: the same user sees the same
+    # quests all day (so progress + claim keys stay stable), but the set
+    # varies day to day and between users.
+    seed_str = f"{user_id}:{_today_key()}"
+    seed_int = int(_hashlib.sha256(seed_str.encode()).hexdigest(), 16) % (2**32)
+    rng = _random.Random(seed_int)
+    shuffled = list(_QUEST_POOL)
+    rng.shuffle(shuffled)
+
+    quests = []
+    used_metrics = set()
+    for tpl in shuffled:
+        if tpl["metric"] in used_metrics:
+            continue  # one quest per metric per day, avoids redundant duplicates
+        used_metrics.add(tpl["metric"])
+        value = metric_values.get(tpl["metric"], 0)
+        q = {
+            "id": tpl["id"],
+            "title": tpl["title"],
+            "desc": tpl["desc"],
+            "icon": tpl["icon"],
+            "target": tpl["target"],
+            "reward_xp": tpl["reward_xp"],
+            "progress": min(value, tpl["target"]),
+        }
         q["done"] = q["progress"] >= q["target"]
+        quests.append(q)
+        if len(quests) >= DAILY_QUEST_COUNT:
+            break
+
     return quests
 
 
