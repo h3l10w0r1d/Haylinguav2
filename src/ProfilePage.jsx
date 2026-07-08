@@ -1203,16 +1203,22 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            <div className="flex items-center">
-              <label className="inline-flex items-center gap-2 text-sm font-bold text-slate-700 mt-6">
-                <input
-                  type="checkbox"
-                  className="h-5 w-5 rounded-md border-slate-300 text-brand-500 focus:ring-brand-400"
-                  checked={friendsPublic}
-                  onChange={(e) => setFriendsPublic(e.target.checked)}
-                />
-                Show friends list publicly
-              </label>
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => setFriendsPublic((v) => !v)}
+                className={"w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-1 transition " + (friendsPublic ? "bg-grass-50 ring-grass-200" : "bg-slate-50 ring-slate-200")}
+              >
+                <div className="text-left">
+                  <p className="text-sm font-extrabold text-slate-700">Show friends list publicly</p>
+                  <p className="text-xs font-semibold text-slate-400 mt-0.5">
+                    {friendsPublic ? "Visible on your public profile" : "Hidden from your public profile"}
+                  </p>
+                </div>
+                <div className={"relative shrink-0 h-6 w-11 rounded-full transition-colors duration-200 " + (friendsPublic ? "bg-grass-500" : "bg-slate-300")}>
+                  <span className={"absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 " + (friendsPublic ? "translate-x-5" : "translate-x-0")} />
+                </div>
+              </button>
             </div>
           </div>
 
