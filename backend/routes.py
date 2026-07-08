@@ -8221,7 +8221,11 @@ import hashlib
 from pathlib import Path
 
 
-ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence, Eleven Labs Model is used for male, female feature. 
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_turbo_v2_5")
+_tts_http = httpx.AsyncClient(
+    timeout=httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0),
+    limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+)
 
 
 def _tts_cache_dir() -> Path:
@@ -8259,7 +8263,11 @@ async def tts_speak(payload: TTSPayload):
     mp3_path = cache_dir / f"{key}.mp3"
 
     if mp3_path.exists() and mp3_path.stat().st_size > 0:
-        return Response(content=mp3_path.read_bytes(), media_type="audio/mpeg")
+        return Response(
+            content=mp3_path.read_bytes(),
+            media_type="audio/mpeg",
+            headers={"Cache-Control": "public, max-age=31536000"},
+        )
 
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     params = {"output_format": "mp3_44100_128"}
@@ -8267,8 +8275,7 @@ async def tts_speak(payload: TTSPayload):
     body = {"text": text_value, "model_id": model_id}
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.post(url, params=params, headers=headers, json=body)
+        r = await _tts_http.post(url, params=params, headers=headers, json=body)
         if r.status_code != 200:
             err = (r.text or "").strip()
             if len(err) > 600:
@@ -8284,4 +8291,8 @@ async def tts_speak(payload: TTSPayload):
     except Exception:
         pass
 
-    return Response(content=audio_bytes, media_type="audio/mpeg")
+    return Response(
+        content=audio_bytes,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "public, max-age=31536000"},
+    )

@@ -4,6 +4,10 @@
 // 1) If CMS uploaded/recorded audio exists for this exercise + voice, use it.
 // 2) Otherwise fall back to legacy /tts endpoint (direct speech).
 
+// In-memory URL cache: same audio won't be fetched twice in a session.
+// Keys are "${exerciseId}:${targetKey}:${voice}" or "tts:${text}".
+const _audioCache = new Map();
+
 function getBase(apiBaseUrl) {
   return (
     apiBaseUrl ||
@@ -67,29 +71,39 @@ export async function ttsFetch(apiBaseUrl, input) {
 
   // Backward-compatible: ttsFetch(baseUrl, "text")
   if (typeof input === "string") {
-    return await fetchLegacyTts(base, input);
+    const cacheKey = `tts:${input}`;
+    if (_audioCache.has(cacheKey)) return _audioCache.get(cacheKey);
+    const url = await fetchLegacyTts(base, input);
+    _audioCache.set(cacheKey, url);
+    return url;
   }
 
   const text = input?.text ?? "";
   const exerciseId = input?.exerciseId;
   const targetKey = input?.targetKey;
-  // Voice preference: allow caller override, otherwise use onboarding value stored locally.
   const voicePref = input?.voice ?? localStorage.getItem("hay_voice_pref") ?? "";
 
   // 1) Prefer stored CMS audio if exerciseId provided
   if (exerciseId) {
     for (const v of voiceCandidates(voicePref)) {
-      // 0) If per-target audio exists, prefer it.
       if (targetKey) {
+        const cacheKey = `${exerciseId}:${targetKey}:${v}`;
+        if (_audioCache.has(cacheKey)) return _audioCache.get(cacheKey);
         const tu = await tryFetchTargetAudio(base, exerciseId, targetKey, v);
-        if (tu) return tu;
+        if (tu) { _audioCache.set(cacheKey, tu); return tu; }
       }
+      const cacheKey = `${exerciseId}::${v}`;
+      if (_audioCache.has(cacheKey)) return _audioCache.get(cacheKey);
       const u = await tryFetchExerciseAudio(base, exerciseId, v);
-      if (u) return u;
+      if (u) { _audioCache.set(cacheKey, u); return u; }
     }
   }
 
   // 2) Fallback: legacy /tts
   if (!text) throw new Error("Missing text");
-  return await fetchLegacyTts(base, text);
+  const cacheKey = `tts:${text}`;
+  if (_audioCache.has(cacheKey)) return _audioCache.get(cacheKey);
+  const url = await fetchLegacyTts(base, text);
+  _audioCache.set(cacheKey, url);
+  return url;
 }

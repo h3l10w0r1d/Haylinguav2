@@ -47,7 +47,8 @@ ELEVEN_API_URL = "https://api.elevenlabs.io/v1"
 
 # ElevenLabs TTS defaults (override via Render env vars)
 # Model IDs are defined by ElevenLabs; as of Feb 2026, Eleven v3 uses `eleven_v3`.
-ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
+# eleven_turbo_v2_5: multilingual (supports Armenian), ~3× faster than eleven_v3
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_turbo_v2_5")
 
 def _env_float(name: str, default: float) -> float:
     raw = os.getenv(name)
@@ -75,6 +76,13 @@ MALE_VOICE_ID = os.getenv("ELEVEN_MALE_VOICE", "pNInz6obpgDQGcFmaJgB")
 FEMALE_VOICE_ID = os.getenv("ELEVEN_FEMALE_VOICE", "EXAVITQu4vr4xnSDxMaL")
 
 MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
+
+# Persistent HTTP client — reuses TCP connections across requests so each TTS/STT
+# call skips the handshake overhead. Limits are generous but not unbounded.
+_http = httpx.AsyncClient(
+    timeout=httpx.Timeout(connect=5.0, read=45.0, write=10.0, pool=5.0),
+    limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+)
 
 
 class GenerateTTSRequest(BaseModel):
@@ -107,28 +115,26 @@ async def generate_elevenlabs_tts(text: str, voice_id: str) -> bytes:
         },
     }
     
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(url, headers=headers, json=payload)
+    response = await _http.post(url, headers=headers, json=payload)
 
-        # If the API key belongs to a different workspace/account, a hard-coded voice_id
-        # can become invalid -> ElevenLabs responds 404 (voice not found).
-        # We try to recover by selecting the first available voice for that API key.
-        if response.status_code == 404:
-            try:
-                voices_resp = await client.get(f"{ELEVEN_API_URL}/voices", headers=headers)
-                if voices_resp.status_code == 200:
-                    voices_data = voices_resp.json() or {}
-                    voices = voices_data.get("voices") or []
-                    if voices:
-                        fallback_voice_id = voices[0].get("voice_id") or voices[0].get("id")
-                        if fallback_voice_id and fallback_voice_id != voice_id:
-                            url2 = f"{ELEVEN_API_URL}/text-to-speech/{fallback_voice_id}"
-                            response = await client.post(url2, headers=headers, json=payload)
-            except Exception:
-                # If recovery fails, we'll return the original error below.
-                pass
+    # If the API key belongs to a different workspace/account, a hard-coded voice_id
+    # can become invalid -> ElevenLabs responds 404 (voice not found).
+    # We try to recover by selecting the first available voice for that API key.
+    if response.status_code == 404:
+        try:
+            voices_resp = await _http.get(f"{ELEVEN_API_URL}/voices", headers=headers)
+            if voices_resp.status_code == 200:
+                voices_data = voices_resp.json() or {}
+                voices = voices_data.get("voices") or []
+                if voices:
+                    fallback_voice_id = voices[0].get("voice_id") or voices[0].get("id")
+                    if fallback_voice_id and fallback_voice_id != voice_id:
+                        url2 = f"{ELEVEN_API_URL}/text-to-speech/{fallback_voice_id}"
+                        response = await _http.post(url2, headers=headers, json=payload)
+        except Exception:
+            pass
 
-        if response.status_code != 200:
+    if response.status_code != 200:
             # keep it short, but useful (Eleven can return HTML on errors sometimes)
             body = (response.text or "").strip()
             if len(body) > 600:
@@ -667,13 +673,12 @@ async def transcribe_speech(
     form = {"model_id": ELEVEN_STT_MODEL, "language_code": (language_code or "hye").strip()}
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(
-                f"{ELEVEN_API_URL}/speech-to-text",
-                headers={"xi-api-key": ELEVEN_API_KEY},
-                data=form,
-                files=files,
-            )
+        resp = await _http.post(
+            f"{ELEVEN_API_URL}/speech-to-text",
+            headers={"xi-api-key": ELEVEN_API_KEY},
+            data=form,
+            files=files,
+        )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"STT request failed: {e}")
 
