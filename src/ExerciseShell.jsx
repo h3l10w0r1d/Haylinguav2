@@ -22,7 +22,7 @@ async function speakText(text) {
 import { StarMotif, CarpetBorder } from "./lib/motifs";
 import { readHearts } from "./lib/hearts";
 import ReportProblem from "./ReportProblem";
-import grandma from "./assets/character-grandma.png";
+import Illustration from "./lib/Illustration";
 
 /** Live hearts badge — reads localStorage and the `hay_hearts` event so it
  *  stays in sync without prop drilling. Shows ∞ for premium users.
@@ -259,13 +259,9 @@ export default function ExerciseShell({
               <div className="flex items-center gap-4">
                 {/* Tatik reacts */}
                 <div className="relative shrink-0">
-                  <img
-                    src={grandma}
-                    alt=""
-                    className={
-                      "h-16 w-16 rounded-2xl object-cover shadow-sm " +
-                      (variant === "correct" ? "animate-bouncey" : "")
-                    }
+                  <Illustration
+                    name={variant === "correct" ? "mascot-cheer" : "mascot-sad"}
+                    className="block h-16 w-16 rounded-2xl object-cover shadow-sm"
                   />
                   <span
                     className={

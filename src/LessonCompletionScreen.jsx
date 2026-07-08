@@ -13,7 +13,7 @@ import {
   Share2,
   Check,
 } from "lucide-react";
-import grandma from "./assets/character-grandma.png";
+import Illustration from "./lib/Illustration";
 
 function clamp01(n) {
   if (!Number.isFinite(n)) return 0;
@@ -145,10 +145,10 @@ export default function LessonCompletionScreen({
 
       <div className="relative px-6 py-10 sm:px-10 sm:py-12">
         <div className="mx-auto max-w-2xl text-center">
-          <img
-            src={grandma}
+          <Illustration
+            name="mascot-cheer"
             alt="Tatik celebrating"
-            className="mx-auto h-28 w-28 animate-bouncey rounded-3xl object-cover"
+            className="mx-auto block h-28 w-28 rounded-3xl object-cover"
           />
 
           <h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight text-brand-500 sm:text-5xl">
