@@ -54,7 +54,14 @@ export default function CheckpointPlayer() {
   const exerciseStartRef = useRef(Date.now());
   const pendingNextRef = useRef(null);
 
-  const heartsState = readHearts();
+  const [heartsState, setHeartsState] = useState(readHearts);
+  useEffect(() => {
+    const onEvt = (e) => { if (e?.detail) setHeartsState(e.detail); };
+    const onStorage = () => setHeartsState(readHearts());
+    window.addEventListener("hay_hearts", onEvt);
+    window.addEventListener("storage", onStorage);
+    return () => { window.removeEventListener("hay_hearts", onEvt); window.removeEventListener("storage", onStorage); };
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -148,11 +155,9 @@ export default function CheckpointPlayer() {
       });
       exerciseStartRef.current = Date.now();
       setRenderNonce((n) => n + 1);
-      setHasAnswered(false);
       return;
     }
 
-    setHasAnswered(false);
     setExerciseQueue((q) => {
       const next = q.slice(1);
       if (next.length === 0) setPhase("done");

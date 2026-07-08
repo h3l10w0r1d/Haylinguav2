@@ -115,6 +115,23 @@ export default function ExerciseShell({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [result, onResultPrimary]);
 
+  // iOS Safari: when the virtual keyboard is open, `fixed` panels anchor to the
+  // layout viewport (behind the keyboard). Track visualViewport offset so the
+  // result panel stays above the keyboard.
+  const [vvOffset, setVvOffset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      // offsetTop = distance keyboard pushed the visual viewport down from layout top
+      setVvOffset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => { vv.removeEventListener("resize", update); vv.removeEventListener("scroll", update); };
+  }, []);
+
   const variant = result?.variant;
   const tone =
     variant === "correct"
@@ -229,7 +246,7 @@ export default function ExerciseShell({
 
       {/* Result panel */}
       {result ? (
-        <div className="fixed inset-0 z-[60] flex items-end">
+        <div className="fixed inset-0 z-[60] flex items-end" style={vvOffset ? { bottom: vvOffset } : undefined}>
           <div className="absolute inset-0 bg-black/10" />
           <div className={"relative w-full animate-pop border-t-4 " + tone.wrap}>
             {result.combo >= 3 ? (

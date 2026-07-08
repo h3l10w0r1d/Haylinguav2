@@ -396,6 +396,7 @@ export default function LessonPlayer() {
   }
 
   const handleStepAnswer = (payload) => {
+    if (hasAnswered) return; // guard against double-tap
     const isCorrect = payload?.isCorrect === true;
     const skipped = payload?.skipped === true;
     const autoAdvance = payload?.autoAdvance === true;

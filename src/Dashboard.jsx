@@ -711,7 +711,7 @@ export default function Dashboard({ user }) {
                     <button
                       type="button"
                       onClick={() => {
-                        const ids = unit.items.map((l) => l.id).filter(Boolean).join(",");
+                        const ids = unit.items.map((l) => l.id).filter((id) => id != null).join(",");
                         navigate(`/checkpoint?lessons=${encodeURIComponent(ids)}&title=${encodeURIComponent(unit.title)}`);
                       }}
                       className="mt-5 flex w-full items-center gap-4 rounded-2xl border-2 border-dashed border-gold-400 bg-gradient-to-r from-amber-50 to-white p-4 text-left transition hover:border-gold-500 hover:bg-amber-50 active:translate-y-0.5"

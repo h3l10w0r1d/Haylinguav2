@@ -72,7 +72,14 @@ export default function PracticeMode() {
       .finally(() => setLoading(false));
   }, []);
 
-  const heartsState = readHearts();
+  const [heartsState, setHeartsState] = useState(readHearts);
+  useEffect(() => {
+    const onEvt = (e) => { if (e?.detail) setHeartsState(e.detail); };
+    const onStorage = () => setHeartsState(readHearts());
+    window.addEventListener("hay_hearts", onEvt);
+    window.addEventListener("storage", onStorage);
+    return () => { window.removeEventListener("hay_hearts", onEvt); window.removeEventListener("storage", onStorage); };
+  }, []);
   const outOfHearts = !hasAnswered && !!heartsState && !heartsState.is_premium && Number(heartsState.current) <= 0;
 
   const currentExercise = exerciseQueue[0] || null;

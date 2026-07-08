@@ -3338,10 +3338,10 @@ def me_checkpoint(
                 SELECT id AS exercise_id
                 FROM exercises
                 WHERE lesson_id = ANY(:ids)
-                  AND id <> ALL(:tried)
+                  AND (cardinality(:tried) = 0 OR id <> ALL(:tried))
                 ORDER BY id
             """),
-            {"ids": ids, "tried": ex_ids or [-1]},
+            {"ids": ids, "tried": ex_ids if ex_ids else []},
         ).mappings().all()
         ex_ids += [int(r["exercise_id"]) for r in extra]
 
