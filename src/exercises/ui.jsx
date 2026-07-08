@@ -112,6 +112,23 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
     onSelect(Array.from(next));
   }
 
+  // Keyboard shortcut: press 1–4 to select the corresponding choice.
+  React.useEffect(() => {
+    if (graded) return;
+    function onKey(e) {
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= choices.length) {
+        e.preventDefault();
+        handleClick(n - 1);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }); // no dep array — re-register each render to avoid stale closure
+
   return (
     <div className={cx("grid gap-3", colClass)}>
       {choices.map((c, idx) => {

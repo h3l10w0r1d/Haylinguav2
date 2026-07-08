@@ -700,6 +700,7 @@ class StatsOut(BaseModel):
     total_xp: int
     lessons_completed: int
     streak: int = 0
+    today_xp: int = 0
 
 
 def _compute_streak(active_dates, today, freezes: int = 0, frozen_dates=None):
@@ -737,10 +738,12 @@ def _compute_streak(active_dates, today, freezes: int = 0, frozen_dates=None):
             first = False  # today not practiced yet — grace, keep going
             cur -= one
             continue
-        # gap day — bridge with a freeze only if the day before is covered
+        # gap day — bridge with a freeze only if the day before is covered.
+        # Add to `covered` immediately so consecutive missed days can be chained.
         if avail > 0 and (cur - one) in covered:
             avail -= 1
             newly.append(cur)
+            covered.add(cur)
             cur -= one
             continue
         break
@@ -979,7 +982,7 @@ def friends_list(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -1063,7 +1066,7 @@ def friends_requests_outgoing(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -1102,7 +1105,7 @@ def friends_requests_incoming(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -1130,7 +1133,7 @@ def friends_requests_sent(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    requester_id = _get_user_id_from_bearer(authorization)
+    requester_id = _get_user_id_from_bearer(authorization, db)
     if requester_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -1169,7 +1172,7 @@ def friends_request_create(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    requester_id = _get_user_id_from_bearer(authorization)
+    requester_id = _get_user_id_from_bearer(authorization, db)
     if requester_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -1248,7 +1251,7 @@ def friends_request_accept(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -1309,7 +1312,7 @@ def friends_request_reject(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -1352,7 +1355,7 @@ def friends_remove(
 
     This endpoint exists mainly to support profile-page unfriending.
     """
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -1465,12 +1468,9 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "" # 
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM") or "HS256" # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
 
 
-def _get_user_id_from_bearer(authorization: Optional[str]) -> Optional[int]:
-    """
-    Reads Authorization: Bearer <token>, decodes JWT, returns user_id from 'sub'.
-    Returns None if header missing.
-    Raises 401 if header present but invalid.
-    """
+def _get_user_id_from_bearer(authorization: Optional[str], db: Optional[Connection] = None) -> Optional[int]:
+    """Decode Bearer JWT → user_id. When db is provided, validates token_version
+    so password-change / logout invalidations take effect immediately."""
     if not authorization:
         return None
 
@@ -1490,9 +1490,21 @@ def _get_user_id_from_bearer(authorization: Optional[str]) -> Optional[int]:
         sub = payload.get("sub")
         if sub is None:
             raise HTTPException(status_code=401, detail="Token missing 'sub'")
-        return int(sub)
+        user_id = int(sub)
     except (JWTError, ValueError):
         raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+    if db is not None:
+        db_tv = db.execute(
+            text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"),
+            {"u": user_id},
+        ).scalar()
+        if db_tv is None:
+            raise HTTPException(status_code=401, detail="Could not validate credentials")
+        if int(payload.get("tv") or 0) != int(db_tv):
+            raise HTTPException(status_code=401, detail="Session expired, please log in again")
+
+    return user_id
 
 
 
@@ -2136,8 +2148,22 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
     with _LOGIN_GUARD_LOCK:
         _clear_login_failures(keys)
 
-    token = create_token(row["id"])
+    tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": row["id"]}).scalar() or 0)
+    token = create_token(row["id"], tv)
     return AuthResponse(access_token=token, email=row["email"])
+
+
+@router.post("/auth/logout")
+def logout(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """Increment token_version to invalidate all existing JWTs for this user."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    db.execute(
+        text("UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE id = :u"),
+        {"u": user_id},
+    )
+    return {"ok": True}
 
 
 # ── Google OAuth ──────────────────────────────────────────────────────────────
@@ -2160,7 +2186,8 @@ def auth_google(
     import re as _re
 
     code = ((payload or {}).get("code") or "").strip()
-    redirect_uri = ((payload or {}).get("redirect_uri") or "").strip()
+    # Hard-coded server-side — never trust the client-supplied redirect_uri.
+    redirect_uri = (os.getenv("GOOGLE_REDIRECT_URI") or "https://haylingua.am/auth/google/callback").strip()
     if not code:
         raise HTTPException(status_code=400, detail="Missing OAuth code")
 
@@ -2225,7 +2252,8 @@ def auth_google(
         # existing OAuth user → just log in
         user_id = int(user_row["id"])
         db.execute(text("UPDATE users SET last_active_at = NOW() WHERE id = :u"), {"u": user_id})
-        jwt = create_token(user_id)
+        tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+        jwt = create_token(user_id, tv)
         _brevo_sync_user(db, user_id, event="login_google")
         ob = db.execute(
             text("SELECT completed_at FROM user_onboarding WHERE user_id = :u LIMIT 1"),
@@ -2253,7 +2281,8 @@ def auth_google(
             """),
             {"gid": google_id, "u": user_id},
         )
-        jwt = create_token(user_id)
+        tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+        jwt = create_token(user_id, tv)
         _brevo_sync_user(db, user_id, event="google_linked")
         ob = db.execute(
             text("SELECT completed_at FROM user_onboarding WHERE user_id = :u LIMIT 1"),
@@ -2266,42 +2295,45 @@ def auth_google(
     # Generate a unique username from the email prefix
     base = _re.sub(r"[^a-z0-9_]", "_", g_email.split("@")[0].lower())[:15] or "user"
     username = base
-    for _ in range(10):
+    import random as _rand
+    for _ in range(20):
         taken = db.execute(
             text("SELECT 1 FROM users WHERE LOWER(username) = LOWER(:u)"),
             {"u": username},
         ).scalar()
         if not taken:
             break
-        import random as _rand
-        username = f"{base}_{_rand.randint(1000, 9999)}"
+        username = f"{base}_{_rand.randint(10000, 99999)}"
 
-    new_row = db.execute(
-        text("""
-            INSERT INTO users
-                (email, password_hash, username, display_name, avatar_url,
-                 google_id, oauth_provider,
-                 email_verified, email_verified_at, joined_at, last_active_at)
-            VALUES
-                (:email, '', :username, :display_name, :avatar_url,
-                 :gid, 'google',
-                 TRUE, NOW(), NOW(), NOW())
-            RETURNING id
-        """),
-        {
-            "email": g_email,
-            "username": username,
-            "display_name": g_name or username,
-            "avatar_url": g_picture,
-            "gid": google_id,
-        },
-    ).mappings().first()
+    try:
+        new_row = db.execute(
+            text("""
+                INSERT INTO users
+                    (email, password_hash, username, display_name, avatar_url,
+                     google_id, oauth_provider,
+                     email_verified, email_verified_at, joined_at, last_active_at)
+                VALUES
+                    (:email, '', :username, :display_name, :avatar_url,
+                     :gid, 'google',
+                     TRUE, NOW(), NOW(), NOW())
+                RETURNING id
+            """),
+            {
+                "email": g_email,
+                "username": username,
+                "display_name": g_name or username,
+                "avatar_url": g_picture,
+                "gid": google_id,
+            },
+        ).mappings().first()
+    except IntegrityError:
+        raise HTTPException(status_code=503, detail="Could not create account, please try again")
 
     if not new_row:
         raise HTTPException(status_code=500, detail="Could not create user")
 
     user_id = int(new_row["id"])
-    jwt = create_token(user_id)
+    jwt = create_token(user_id, 0)
     _brevo_sync_user(db, user_id, event="user_registered")
     return {"access_token": jwt, "email": g_email, "email_verified": True, "needs_onboarding": True}
 
@@ -2371,68 +2403,59 @@ def auth_telegram(
     if row:
         user_id = int(row["id"])
         db.execute(text("UPDATE users SET last_active_at = NOW() WHERE id = :u"), {"u": user_id})
+        tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
         _brevo_sync_user(db, user_id, event="login_telegram")
-        return {"access_token": create_token(user_id), "email": row["email"],
+        return {"access_token": create_token(user_id, tv), "email": row["email"],
                 "email_verified": True, "needs_onboarding": _ob_check(user_id)}
 
-    # 2) Find by matching Telegram username → link
-    if tg_username:
-        row = db.execute(
-            text("SELECT id, email FROM users WHERE LOWER(username) = LOWER(:u) LIMIT 1"),
-            {"u": tg_username},
-        ).mappings().first()
-        if row:
-            user_id = int(row["id"])
-            db.execute(
-                text("UPDATE users SET telegram_id = :tid, last_active_at = NOW() WHERE id = :u"),
-                {"tid": tg_id, "u": user_id},
-            )
-            _brevo_sync_user(db, user_id, event="telegram_linked")
-            return {"access_token": create_token(user_id), "email": row["email"],
-                    "email_verified": True, "needs_onboarding": _ob_check(user_id)}
-
-    # 3) Create new user
+    # 2) Create new user
+    # ⚠️  The previous "find by Telegram @username → link Haylingua account" fallback
+    # was removed: it is an account-takeover vector — any Telegram user whose @handle
+    # matches a Haylingua username silently gains full access to that account.
     base = _re.sub(r"[^a-z0-9_]", "_", (tg_username or tg_first or "user").lower())[:15] or "user"
     username = base
-    for _ in range(10):
+    import random as _rand
+    for _ in range(20):
         taken = db.execute(
             text("SELECT 1 FROM users WHERE LOWER(username) = LOWER(:u)"), {"u": username}
         ).scalar()
         if not taken:
             break
-        import random as _rand
-        username = f"{base}_{_rand.randint(1000, 9999)}"
+        username = f"{base}_{_rand.randint(10000, 99999)}"
 
     # Telegram doesn't provide email — generate a placeholder
     placeholder_email = f"tg_{tg_id}@telegram.haylingua.local"
 
-    new_row = db.execute(
-        text("""
-            INSERT INTO users
-                (email, password_hash, username, display_name, avatar_url,
-                 telegram_id, oauth_provider,
-                 email_verified, email_verified_at, joined_at, last_active_at)
-            VALUES
-                (:email, '', :username, :display_name, :avatar_url,
-                 :tid, 'telegram',
-                 TRUE, NOW(), NOW(), NOW())
-            RETURNING id
-        """),
-        {
-            "email": placeholder_email,
-            "username": username,
-            "display_name": tg_display,
-            "avatar_url": tg_photo,
-            "tid": tg_id,
-        },
-    ).mappings().first()
+    try:
+        new_row = db.execute(
+            text("""
+                INSERT INTO users
+                    (email, password_hash, username, display_name, avatar_url,
+                     telegram_id, oauth_provider,
+                     email_verified, email_verified_at, joined_at, last_active_at)
+                VALUES
+                    (:email, '', :username, :display_name, :avatar_url,
+                     :tid, 'telegram',
+                     TRUE, NOW(), NOW(), NOW())
+                RETURNING id
+            """),
+            {
+                "email": placeholder_email,
+                "username": username,
+                "display_name": tg_display,
+                "avatar_url": tg_photo,
+                "tid": tg_id,
+            },
+        ).mappings().first()
+    except IntegrityError:
+        raise HTTPException(status_code=503, detail="Could not create account, please try again")
 
     if not new_row:
         raise HTTPException(status_code=500, detail="Could not create user")
 
     user_id = int(new_row["id"])
     _brevo_sync_user(db, user_id, event="user_registered")
-    return {"access_token": create_token(user_id), "email": placeholder_email,
+    return {"access_token": create_token(user_id, 0), "email": placeholder_email,
             "email_verified": True, "needs_onboarding": True}
 
 
@@ -2442,7 +2465,7 @@ def verify_email(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -2498,7 +2521,7 @@ def resend_verification(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -2675,7 +2698,7 @@ def complete_lesson(
     # 🔒 SECURITY: the legacy `{"email": ...}` fallback was an unauthenticated
     # IDOR — anyone could complete lessons / award progress for any account just
     # by knowing its email. The email in the body (if any) is now ignored.
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
 
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing or invalid authorization")
@@ -2771,7 +2794,7 @@ def get_stats(
     # 🔒 SECURITY: resolve the user ONLY from the Bearer token. The legacy
     # `?email=` parameter let anyone read any user's stats and acted as an
     # account-existence/enumeration oracle. It is now ignored.
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if not user_id:
         raise HTTPException(status_code=401, detail="Missing or invalid authorization")
 
@@ -2780,7 +2803,8 @@ def get_stats(
             """
             SELECT
               COALESCE(SUM(lp.xp_earned), 0) AS total_xp,
-              COALESCE(SUM(CASE WHEN lp.completed_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS lessons_completed
+              COALESCE(SUM(CASE WHEN lp.completed_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS lessons_completed,
+              COALESCE(SUM(CASE WHEN DATE(lp.completed_at AT TIME ZONE 'UTC') = CURRENT_DATE THEN lp.xp_earned ELSE 0 END), 0) AS today_xp
             FROM lesson_progress lp
             WHERE lp.user_id = :uid
             """
@@ -2790,6 +2814,7 @@ def get_stats(
 
     total_xp = int(r["total_xp"] or 0) if r else 0
     lessons_completed = int(r["lessons_completed"] or 0) if r else 0
+    today_xp = int(r["today_xp"] or 0) if r else 0
 
     # Include claimed quest/achievement reward XP in the headline total.
     bonus = int(db.execute(text("SELECT COALESCE(bonus_xp, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
@@ -2797,7 +2822,7 @@ def get_stats(
 
     streak = _compute_streak_days(db, user_id)
 
-    return StatsOut(total_xp=total_xp, lessons_completed=lessons_completed, streak=streak)
+    return StatsOut(total_xp=total_xp, lessons_completed=lessons_completed, streak=streak, today_xp=today_xp)
 
 
 class LessonProgressOut(BaseModel):
@@ -2823,7 +2848,7 @@ def me_lessons_progress(
     db: Connection = Depends(get_db),
 ):
     """Dashboard helper: lessons joined with per-user progress and unlock state."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -2923,7 +2948,7 @@ def record_exercise_attempt(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3052,7 +3077,7 @@ def record_exercise_log(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3103,7 +3128,7 @@ def me_learning_summary(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3153,6 +3178,7 @@ class MeOut(BaseModel):
     # Stats
     total_xp: int = 0
     streak: int = 0
+    today_xp: int = 0
 
 
 class MeUpdateIn(BaseModel):
@@ -3263,7 +3289,7 @@ def me_activity(
     Output:
       [{"day":"M","value":2}, ...]
     """
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing credentials")
 
@@ -3312,7 +3338,7 @@ def me_profile_get(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3348,7 +3374,7 @@ def me_hearts(
     db: Connection = Depends(get_db),
 ):
     """Returns the current hearts (lives) state for the logged-in user."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3361,7 +3387,7 @@ STREAK_FREEZE_CAP = 2
 @router.get("/me/streak")
 def me_streak(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
     """Current streak + owned streak freezes."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     streak = _compute_streak_days(db, user_id)
@@ -3402,7 +3428,7 @@ def me_streak(authorization: Optional[str] = Header(default=None), db: Connectio
 @router.post("/me/streak/freeze")
 def me_streak_freeze(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
     """Equip a streak freeze (capped). It auto-protects against one missed day."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     cur = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
@@ -3477,7 +3503,7 @@ def _wallet(db: Connection, user_id: int) -> dict:
 
 @router.get("/me/wallet")
 def me_wallet(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     return _wallet(db, user_id)
@@ -3486,22 +3512,22 @@ def me_wallet(authorization: Optional[str] = Header(default=None), db: Connectio
 @router.post("/me/chests/open")
 def me_open_chest(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
     """Open one owned chest → a random gem reward (server-authoritative)."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
-    chests = int(db.execute(text("SELECT COALESCE(chests, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
-    if chests <= 0:
-        raise HTTPException(status_code=400, detail="No chests to open")
-
     rewards = _load_chest_rewards(db)
     amounts = [a for a, _ in rewards]
     weights = [w for _, w in rewards]
     reward = int(random.choices(amounts, weights=weights, k=1)[0])
 
-    db.execute(
-        text("UPDATE users SET chests = GREATEST(COALESCE(chests, 0) - 1, 0), gems = COALESCE(gems, 0) + :r WHERE id = :u"),
+    # Atomic decrement: only succeeds if the user actually has a chest.
+    # Prevents double-tap races from awarding two rewards from one chest.
+    opened = db.execute(
+        text("UPDATE users SET chests = chests - 1, gems = COALESCE(gems, 0) + :r WHERE id = :u AND COALESCE(chests, 0) > 0"),
         {"r": reward, "u": user_id},
     )
+    if opened.rowcount == 0:
+        raise HTTPException(status_code=400, detail="No chests to open")
     w = _wallet(db, user_id)
     _brevo_sync_user(db, int(user_id), event="chest_opened", event_props={"gems_won": reward})
     return {"ok": True, "reward_gems": reward, **w}
@@ -3509,7 +3535,7 @@ def me_open_chest(authorization: Optional[str] = Header(default=None), db: Conne
 
 @router.get("/me/shop")
 def me_shop(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     w = _wallet(db, user_id)
@@ -3522,7 +3548,7 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
 
 @router.post("/me/shop/buy")
 def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     raw_id = (payload or {}).get("item")
@@ -3530,15 +3556,11 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
     if not item:
         raise HTTPException(status_code=400, detail="Unknown item")
 
-    gems = int(db.execute(text("SELECT COALESCE(gems, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
     price = int(item["price"])
-    if gems < price:
-        raise HTTPException(status_code=400, detail="Not enough gems")
-
     effect = item["effect"]
     amount = int(item.get("effect_amount") or 0)
 
-    # Validate the grant is useful before charging.
+    # Validate that the grant would be useful (pre-flight check, non-atomic).
     if effect == "streak_freeze":
         cur = int(db.execute(text("SELECT COALESCE(streak_freezes, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
         if cur >= STREAK_FREEZE_CAP:
@@ -3550,8 +3572,14 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         if int(hs.get("hearts_current") or 0) >= int(hs.get("hearts_max") or 0):
             raise HTTPException(status_code=400, detail="Your hearts are already full")
 
-    # Charge, then grant.
-    db.execute(text("UPDATE users SET gems = GREATEST(COALESCE(gems, 0) - :p, 0) WHERE id = :u"), {"p": price, "u": user_id})
+    # Atomic charge: deduct gems only if balance is sufficient. This prevents
+    # a double-tap race where two concurrent requests both pass the pre-flight check.
+    charged = db.execute(
+        text("UPDATE users SET gems = COALESCE(gems, 0) - :p WHERE id = :u AND COALESCE(gems, 0) >= :p"),
+        {"p": price, "u": user_id},
+    )
+    if charged.rowcount == 0:
+        raise HTTPException(status_code=400, detail="Not enough gems")
 
     if effect == "streak_freeze":
         db.execute(text("UPDATE users SET streak_freezes = LEAST(COALESCE(streak_freezes, 0) + 1, :cap) WHERE id = :u"), {"u": user_id, "cap": STREAK_FREEZE_CAP})
@@ -3581,7 +3609,7 @@ def me_premium_status(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     row = db.execute(
@@ -3603,7 +3631,7 @@ def me_premium_checkout(
 
     TODO: replace with Stripe Checkout + webhook before going live.
     """
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3778,7 +3806,7 @@ def me_quests(
     db: Connection = Depends(get_db),
 ):
     """Today's quests (challenges), derived from today's exercise attempts (UTC)."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3803,7 +3831,7 @@ def me_achievements(
     db: Connection = Depends(get_db),
 ):
     """Milestone badges, derived from cumulative stats."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3828,7 +3856,7 @@ def me_rewards_claim(
     db: Connection = Depends(get_db),
 ):
     """Claim the XP reward for a completed quest or achievement (once each)."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3883,7 +3911,7 @@ def me_league(
 ):
     """The user's current weekly league board (their division cohort) + a
     friends board (the user + friends ranked by this week's XP)."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -3957,7 +3985,7 @@ def report_exercise(
     db: Connection = Depends(get_db),
 ):
     """Learner flags a problem with an exercise (wrong answer, bad audio, …)."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4005,7 +4033,7 @@ def me_export(
     db: Connection = Depends(get_db),
 ):
     """Download all of the current user's data as JSON (excludes secrets)."""
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4062,7 +4090,7 @@ def me_delete(
 
     Requires the account password as confirmation. Irreversible.
     """
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4103,7 +4131,7 @@ def me_profile_put(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4213,7 +4241,7 @@ def me_change_password(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4239,7 +4267,7 @@ def me_change_password(
         raise HTTPException(status_code=400, detail={"field": "new_password", "errors": errs})
 
     db.execute(
-        text("UPDATE users SET password_hash=:ph, updated_at=NOW() WHERE id=:id"),
+        text("UPDATE users SET password_hash=:ph, token_version = COALESCE(token_version, 0) + 1, updated_at=NOW() WHERE id=:id"),
         {"ph": hash_password(new_password), "id": int(user_id)},
     )
     return {"ok": True}
@@ -4251,7 +4279,7 @@ def me_change_email_start(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4307,7 +4335,7 @@ def me_change_email_confirm(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4399,7 +4427,7 @@ def me_2fa_status(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     row = db.execute(
@@ -4414,7 +4442,7 @@ def me_2fa_setup(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4445,7 +4473,7 @@ def me_2fa_confirm(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4494,7 +4522,7 @@ def me_2fa_disable(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4548,7 +4576,7 @@ def me_avatar_upload(
 
     Default avatars are shipped by the frontend. This endpoint is for custom uploads.
     """
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4619,7 +4647,7 @@ def me_onboarding_get(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4654,7 +4682,7 @@ def me_onboarding_post(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -4755,7 +4783,7 @@ def me_next_exercise(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    user_id = _get_user_id_from_bearer(authorization)
+    user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -5616,7 +5644,7 @@ def get_public_user(
 ):
     # Public endpoint: auth is optional.
     # If a Bearer token is present, we use it to compute viewer-specific fields (like is_friend).
-    viewer_id = _get_user_id_from_bearer(authorization)
+    viewer_id = _get_user_id_from_bearer(authorization, db)
 
     uname = (username or "").strip().lower()
     if not uname:
@@ -5760,7 +5788,7 @@ def get_public_user_friends(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
-    viewer_id = _get_user_id_from_bearer(authorization)
+    viewer_id = _get_user_id_from_bearer(authorization, db)
     if viewer_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
@@ -5867,7 +5895,7 @@ def public_user_activity(
     - If friends_public is false, only the user themselves or their friends can view.
     - Hidden profiles are not accessible unless viewing self.
     """
-    viewer_id = _get_user_id_from_bearer(authorization)
+    viewer_id = _get_user_id_from_bearer(authorization, db)
 
     uname = (username or "").strip().lower()
     if not uname:

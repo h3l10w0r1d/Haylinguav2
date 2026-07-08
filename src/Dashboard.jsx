@@ -295,6 +295,57 @@ function AchievementsCard({ token, onOpen }) {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
+const DAILY_GOAL_OPTIONS = [10, 20, 30, 50];
+
+function DailyGoalCard({ todayXp }) {
+  const [goal, setGoal] = React.useState(() => {
+    const saved = parseInt(localStorage.getItem("hay_daily_goal") || "20", 10);
+    return DAILY_GOAL_OPTIONS.includes(saved) ? saved : 20;
+  });
+
+  function pickGoal(g) {
+    setGoal(g);
+    localStorage.setItem("hay_daily_goal", String(g));
+  }
+
+  const xp = Number(todayXp) || 0;
+  const pct = Math.min(100, Math.round((xp / goal) * 100));
+  const done = xp >= goal;
+
+  return (
+    <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (done ? "bg-gradient-to-br from-grass-50 to-white ring-grass-200" : "bg-white ring-slate-200")}>
+      <div className="flex items-center justify-between">
+        <div className="font-display text-base font-extrabold text-slate-800">Daily goal</div>
+        {done ? <span className="rounded-full bg-grass-100 px-2 py-0.5 text-xs font-extrabold text-grass-700">Done! 🎉</span> : null}
+      </div>
+
+      <div className="mt-3 flex items-end gap-2">
+        <div className="font-display text-3xl font-extrabold leading-none text-slate-800 tabular-nums">{xp}</div>
+        <div className="mb-0.5 text-sm font-bold text-slate-400">/ {goal} XP today</div>
+      </div>
+
+      <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={"h-full rounded-full transition-all duration-500 " + (done ? "bg-grass-500" : "bg-brand-500")}
+          style={{ width: `${Math.max(pct, xp > 0 ? 6 : 0)}%` }}
+        />
+      </div>
+
+      <div className="mt-3 flex items-center gap-1.5">
+        {DAILY_GOAL_OPTIONS.map((g) => (
+          <button
+            key={g}
+            onClick={() => pickGoal(g)}
+            className={"flex-1 rounded-xl py-1 text-xs font-extrabold transition " + (goal === g ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+          >
+            {g}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Warm Armenian palette rotation for unit bands (no Duolingo green).
 const UNIT_THEMES = [
   { band: "from-brand-500 to-brand-600", shadow: "shadow-btn-brand", dot: "bg-gold-400" },
@@ -457,7 +508,7 @@ export default function Dashboard({ user }) {
   const navigate = useNavigate();
 
   const [lessons, setLessons] = useState([]);
-  const [stats, setStats] = useState({ total_xp: 0, lessons_completed: 0, streak: 0 });
+  const [stats, setStats] = useState({ total_xp: 0, lessons_completed: 0, streak: 0, today_xp: 0 });
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [error, setError] = useState("");
 
@@ -500,6 +551,7 @@ export default function Dashboard({ user }) {
             total_xp: Number(data.total_xp || 0),
             lessons_completed: Number(data.lessons_completed || 0),
             streak: Number(data.streak || 0),
+            today_xp: Number(data.today_xp || 0),
           });
         }
       } catch {
@@ -634,6 +686,8 @@ export default function Dashboard({ user }) {
           <div className="sticky top-24 space-y-4">
             <ChestCard token={token} />
             <DailyQuestsCard token={token} />
+
+            <DailyGoalCard todayXp={stats.today_xp} />
 
             <StreakCard token={token} streak={stats.streak} />
 

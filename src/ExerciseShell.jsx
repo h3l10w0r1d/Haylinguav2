@@ -1,6 +1,24 @@
 // src/ExerciseShell.jsx
 import React, { useEffect, useState } from "react";
-import { X, Heart } from "lucide-react";
+import { X, Heart, Volume2 } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+
+async function speakText(text) {
+  try {
+    const res = await fetch(`${API_BASE}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play();
+    audio.onended = () => URL.revokeObjectURL(url);
+  } catch {}
+}
 import { StarMotif, CarpetBorder } from "./lib/motifs";
 import { readHearts } from "./lib/hearts";
 import ReportProblem from "./ReportProblem";
@@ -53,6 +71,7 @@ export default function ExerciseShell({
   onResultPrimary,
   exerciseId,
   lessonId,
+  instruction,
   children,
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
@@ -134,6 +153,14 @@ export default function ExerciseShell({
         ) : null}
       </header>
 
+      {instruction ? (
+        <div className="shrink-0 border-b border-slate-100 bg-white">
+          <div className="mx-auto max-w-3xl px-4 pb-2 pt-1">
+            <div className="text-xs font-extrabold uppercase tracking-widest text-slate-400">{instruction}</div>
+          </div>
+        </div>
+      ) : null}
+
       <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6">{children}</main>
 
       {/* Bottom action bar — in-flow so it's always visible on mobile */}
@@ -170,6 +197,11 @@ export default function ExerciseShell({
         <div className="fixed inset-0 z-[60] flex items-end">
           <div className="absolute inset-0 bg-black/10" />
           <div className={"relative w-full animate-pop border-t-4 " + tone.wrap}>
+            {result.combo >= 3 ? (
+              <div className="absolute -top-4 right-4 rounded-full bg-brand-500 px-3 py-1 text-xs font-extrabold text-white shadow-lg">
+                {result.combo} in a row! 🔥
+              </div>
+            ) : null}
             <CarpetBorder color={tone.carpet} />
             <div className="safe-b mx-auto max-w-3xl px-4 py-5">
               <div className="flex items-center gap-4">
@@ -211,8 +243,18 @@ export default function ExerciseShell({
                       : (
                         <>
                           {result.correctAnswer ? (
-                            <div className="mb-0.5 font-display text-base font-extrabold text-cardinal-700">
-                              Correct answer: <span className="text-slate-800">{result.correctAnswer}</span>
+                            <div className="mb-1 flex items-center gap-2">
+                              <div className="font-display text-base font-extrabold text-cardinal-700">
+                                Correct: <span className="text-slate-800">{result.correctAnswer}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => speakText(result.correctAnswer)}
+                                className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/70 text-cardinal-500 shadow-sm ring-1 ring-cardinal-200 transition hover:bg-white"
+                                aria-label="Hear pronunciation"
+                              >
+                                <Volume2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           ) : null}
                           <div>{result.detail || "You’ve got this — give it another go."}</div>

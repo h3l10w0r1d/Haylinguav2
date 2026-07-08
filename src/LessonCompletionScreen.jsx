@@ -100,7 +100,9 @@ export default function LessonCompletionScreen({
   isSaving,
 }) {
   const perfect = Number(mistakes) === 0;
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // Auto-open the exercise breakdown when the learner made mistakes so they
+  // can immediately see which exercises to review.
+  const [detailsOpen, setDetailsOpen] = useState(!perfect);
 
   const ratio = useMemo(() => clamp01(analytics?.completion_ratio), [analytics]);
   const percent = Math.round(ratio * 100);

@@ -161,6 +161,7 @@ export default function LessonPlayer() {
   const [exerciseQueue, setExerciseQueue] = useState([]);
   const [originalTotal, setOriginalTotal] = useState(0);
   const [hasAnswered, setHasAnswered] = useState(false);
+  const [comboStreak, setComboStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -439,6 +440,9 @@ export default function LessonPlayer() {
     // exercise — you only advance once you answer correctly.
     setHasAnswered(true);
 
+    const newCombo = isCorrect ? comboStreak + 1 : 0;
+    setComboStreak(newCombo);
+
     if (!isCorrect) {
       setMistakes((m) => m + 1);
     }
@@ -452,6 +456,7 @@ export default function LessonPlayer() {
       message: payload?.message,
       hearts: payload?.hearts,
       correctAnswer: isCorrect ? null : deriveCorrectAnswer(currentExercise),
+      combo: isCorrect ? newCombo : 0,
     });
 
     if (!isCorrect) {
@@ -475,10 +480,13 @@ export default function LessonPlayer() {
       return;
     }
     if (pn.type === "requeue") {
-      // Wrong answer: move the current exercise to the end of the queue so it
-      // comes back after the remaining exercises. The learner must answer it
-      // correctly before the lesson can finish.
-      setExerciseQueue((q) => [...q.slice(1), q[0]]);
+      // Wrong answer: push the missed exercise at least 2 positions into the
+      // remaining queue (or to the end) so it doesn't immediately come back.
+      setExerciseQueue((q) => {
+        const rest = q.slice(1);
+        const gap = Math.min(2, rest.length);
+        return [...rest.slice(0, gap), q[0], ...rest.slice(gap)];
+      });
       exerciseStartRef.current = Date.now();
       setPhase2Actions(null);
       setRenderNonce((n) => n + 1);
@@ -676,11 +684,40 @@ export default function LessonPlayer() {
   const totalSteps = originalTotal || 1;
   const completedSteps = originalTotal - exerciseQueue.length;
 
+  const EXERCISE_INSTRUCTIONS = {
+    translate_mcq: "Choose the correct translation",
+    char_mcq_sound: "Which character makes this sound?",
+    audio_choice_tts: "Listen and choose",
+    listen_word_bank: "Listen and arrange the words",
+    word_bank: "Arrange the words to form the sentence",
+    fill_blank: "Fill in the blank",
+    select_missing_word: "Choose the missing word",
+    listen_type: "Listen and type what you hear",
+    dialogue_mcq: "Read the dialogue and choose",
+    dialogue_order: "Order the dialogue lines",
+    reading_comprehension: "Read the passage and answer",
+    minimal_pairs: "Which pronunciation do you hear?",
+    image_select: "Choose the matching image",
+    categorize: "Sort each item into the correct category",
+    conjugation: "Complete the verb table",
+    flashcard: "Study this card",
+    speak_line: "Speak this line aloud",
+    write_translate: "Write the translation",
+    highlight_grammar: "Identify the grammar element",
+    letter_typing: "Type the character",
+    word_spelling: "Spell the word",
+    speak: "Speak the word",
+    speech_to_text: "Say what you hear",
+    true_false: "True or false?",
+  };
+  const instruction = currentExercise ? (EXERCISE_INSTRUCTIONS[currentExercise.kind] ?? null) : null;
+
   return (
     <ExerciseShell
       title={lesson.title}
       step={completedSteps}
       total={totalSteps}
+      instruction={!showDoneFooter && !outOfHearts && !resultOpen ? instruction : null}
       onBack={() => navigate("/dashboard")}
       primaryLabel={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? (phase2Actions?.primaryLabel ?? "Check") : null}
       primaryDisabled={!outOfHearts && !showDoneFooter && !isReadingSection && isPhase2 && !resultOpen ? !phase2Actions?.canCheck : null}
@@ -694,6 +731,7 @@ export default function LessonPlayer() {
               variant: resultData.isCorrect ? "correct" : "wrong",
               xpEarned: resultData.xpEarned,
               correctAnswer: resultData.correctAnswer || null,
+              combo: resultData.combo || 0,
               subtext:
                 Number.isFinite(resultData.hearts)
                   ? `Hearts left: ${resultData.hearts}`
@@ -770,6 +808,7 @@ export default function LessonPlayer() {
                 setOriginalTotal(lesson.exercises?.length || 0);
                 setHasFinishedAll(false);
                 setHasAnswered(false);
+                setComboStreak(0);
                 setLessonXpEarned(0);
                 setMistakes(0);
                 return;
