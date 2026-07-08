@@ -145,23 +145,23 @@ export default function LoginModal({
         {/* Social OAuth buttons */}
         {(GOOGLE_CLIENT_ID || TELEGRAM_BOT_USERNAME) && (
           <>
-            <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="grid grid-cols-2 gap-3 mb-2">
               {TELEGRAM_BOT_USERNAME && (
-                <div className="relative w-14 h-14">
-                  {/* Invisible Telegram widget — receives clicks */}
+                <div className="relative h-11">
                   <div ref={tgContainerRef} style={{ position: "absolute", inset: 0, opacity: 0, overflow: "hidden" }} />
-                  {/* Visible icon — pointer-events:none so clicks pass to iframe */}
-                  <div style={{ pointerEvents: "none" }} className="absolute inset-0 flex items-center justify-center rounded-2xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition cursor-pointer">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <div style={{ pointerEvents: "none" }} className="absolute inset-0 flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Telegram
                   </div>
                 </div>
               )}
               {GOOGLE_CLIENT_ID && (
                 <a
                   href={`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account`}
-                  className="flex w-14 h-14 items-center justify-center rounded-2xl bg-gray-100 border border-gray-200 hover:bg-gray-200 transition"
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
                 >
                   <GoogleIcon />
+                  Google
                 </a>
               )}
             </div>
