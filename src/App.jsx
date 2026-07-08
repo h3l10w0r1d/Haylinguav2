@@ -37,6 +37,7 @@ const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
 const AuthCallback = lazy(() => import('./AuthCallback'));
 const PracticeMode = lazy(() => import('./PracticeMode'));
 const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
+const PlacementTest = lazy(() => import('./PlacementTest'));
 
 function RouteFallback() {
   return <LoadingScreen />;
@@ -452,6 +453,22 @@ function AppShell() {
             <RequireVerified>
               <RequireOnboarded>
                 <CheckpointPlayer />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* Adaptive placement test */}
+      <Route
+        path="/placement"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <PlacementTest />
               </RequireOnboarded>
             </RequireVerified>
           ) : (

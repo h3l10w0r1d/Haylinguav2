@@ -3285,6 +3285,56 @@ def _recommend_next_exercise(db: Connection, user_id: int, lesson_id: int) -> di
 
     return {"status": "practice", "exercise_id": best["exercise_id"]}
 
+class PlacementPayload(BaseModel):
+    lesson_ids: List[int]
+
+@router.post("/me/placement")
+def me_placement(
+    payload: PlacementPayload,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """
+    Mark a set of lessons as 'placed' (completed via placement test, 0 XP).
+    Called when the adaptive test converges and the user confirms their starting point.
+    Inserts/updates user_lesson_progress with completed_at=NOW() and xp_earned=0
+    for every lesson_id in the list, filling exercises_completed = exercises_total.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    _require_verified(db, int(user_id))
+
+    ids = [int(i) for i in payload.lesson_ids if i]
+    if not ids:
+        return {"placed": 0}
+
+    # Get exercise counts per lesson so we can set completion to 100%
+    count_rows = db.execute(
+        text("SELECT lesson_id, COUNT(*)::int AS cnt FROM exercises WHERE lesson_id = ANY(:ids) GROUP BY lesson_id"),
+        {"ids": ids},
+    ).mappings().all()
+    counts = {int(r["lesson_id"]): int(r["cnt"]) for r in count_rows}
+
+    for lid in ids:
+        total = counts.get(lid, 1)
+        db.execute(
+            text("""
+                INSERT INTO user_lesson_progress
+                    (user_id, lesson_id, exercises_total, exercises_completed, xp_earned, last_seen_at, completed_at)
+                VALUES (:u, :l, :tot, :tot, 0, NOW(), NOW())
+                ON CONFLICT (user_id, lesson_id) DO UPDATE SET
+                    exercises_total     = EXCLUDED.exercises_total,
+                    exercises_completed = EXCLUDED.exercises_completed,
+                    completed_at        = COALESCE(user_lesson_progress.completed_at, NOW()),
+                    last_seen_at        = NOW()
+            """),
+            {"u": user_id, "l": lid, "tot": total},
+        )
+
+    return {"placed": len(ids)}
+
+
 @router.get("/me/checkpoint")
 def me_checkpoint(
     lesson_ids: str = "",

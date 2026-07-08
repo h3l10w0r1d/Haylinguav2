@@ -643,6 +643,18 @@ export default function Dashboard({ user }) {
                 <div className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-600" style={{ width: `${journeyPct}%` }} />
               </div>
             </div>
+            {/* Placement test nudge — only shown to brand-new users with nothing done yet */}
+            {!loadingLessons && doneLessons === 0 && totalLessons > 0 && (
+              <button
+                type="button"
+                onClick={() => navigate("/placement")}
+                className="flex w-full items-center gap-3 border-t border-brand-100 bg-brand-50/60 px-5 py-3 text-left transition hover:bg-brand-50 active:opacity-80"
+              >
+                <Target className="h-4 w-4 shrink-0 text-brand-500" />
+                <span className="flex-1 text-sm font-bold text-brand-700">Not a beginner? Take the placement test</span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-brand-400" />
+              </button>
+            )}
           </div>
 
           {error && (
