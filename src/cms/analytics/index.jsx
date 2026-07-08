@@ -111,7 +111,7 @@ export default function CmsAnalyticsWidgets() {
     setError("");
     try {
       const res = await fetch(`${API_BASE}/cms/analytics`, {
-        headers: { "X-CMS-Token": getCmsToken() },
+        headers: { Authorization: `Bearer ${getCmsToken()}` },
       });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       setAnalytics(await res.json());
