@@ -1797,9 +1797,9 @@ export default function ProfilePage() {
                 >
                   Unlink Google
                 </button>
-                <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-grass-700">
-                  <Check className="h-4 w-4" />
-                  Your account is linked to Google. You can sign in with Google on any device.
+                <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-grass-700">
+                  <Check className="h-4 w-4 shrink-0" />
+                  Linked — sign in with Google on any device.
                 </p>
               </>
             ) : (
