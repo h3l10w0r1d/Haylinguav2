@@ -3495,7 +3495,8 @@ def _recommend_next_exercise(db: Connection, user_id: int, lesson_id: int) -> di
         if last is None:
             days_since = 999
         else:
-            days_since = (now - last).total_seconds() / 86400.0
+            last_naive = last.replace(tzinfo=None) if getattr(last, "tzinfo", None) else last
+            days_since = (now - last_naive).total_seconds() / 86400.0
 
         recency_factor = _clamp(days_since / 7.0, 0.0, 1.0)
         low_attempts_bonus = 1.0 if attempts < 2 else 0.0
@@ -3739,7 +3740,8 @@ def me_practice(
         correct = int(r["correct"] or 0)
         accuracy = (correct / attempts) if attempts > 0 else 0.0
         last = r["last_attempt_at"]
-        days_since = (now - last).total_seconds() / 86400.0 if last else 999.0
+        last_naive = last.replace(tzinfo=None) if last and getattr(last, "tzinfo", None) else last
+        days_since = (now - last_naive).total_seconds() / 86400.0 if last_naive else 999.0
         recency = _clamp(days_since / 7.0, 0.0, 1.0)
         need_score = (1 - accuracy) * 0.7 + recency * 0.3
         scored.append((int(r["exercise_id"]), need_score))
