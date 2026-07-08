@@ -60,4 +60,24 @@ export const sfx = {
   complete() {
     [523, 659, 784, 1047].forEach((f, i) => playTone(f, "sine", 0.26, 0.2, i * 0.09));
   },
+  // Low rumble during chest shake phase.
+  chestRumble() {
+    playTone(55, "sawtooth", 0.12, 0.28, 0);
+    playTone(73, "sawtooth", 0.08, 0.12, 0.28);
+    playTone(55, "sawtooth", 0.07, 0.10, 0.52);
+    playTone(65, "sawtooth", 0.06, 0.08, 0.72);
+  },
+  // Sharp crack + magical rising sparkle when lid flies open.
+  chestOpen() {
+    playTone(260, "square", 0.06, 0.20, 0);
+    playTone(310, "square", 0.04, 0.10, 0.06);
+    [392, 523, 659, 784, 1047, 1319].forEach((f, i) =>
+      playTone(f, "sine", 0.22, 0.19, 0.12 + i * 0.07)
+    );
+  },
+  // Bright fanfare when the gem reward is revealed.
+  gemReveal() {
+    [523, 659, 784, 1047].forEach((f, i) => playTone(f, "sine", 0.28, 0.22, i * 0.09));
+    playTone(1319, "sine", 0.35, 0.28, 0.42);
+  },
 };

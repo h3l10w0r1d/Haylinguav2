@@ -1,5 +1,5 @@
 // src/cms/CmsShop.jsx — edit marketplace items + chest reward odds.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Gem, Snowflake, Heart, Zap, Gift, Shield, ShieldCheck, TrendingUp, Award, Image } from "lucide-react";
@@ -23,6 +23,78 @@ function cx(...a) {
 }
 const inputCls =
   "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
+
+function EffectPicker({ value, onChange, compact = false }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onMouseDown(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [open]);
+
+  const selected = EFFECTS.find((f) => f.value === value) || EFFECTS[0];
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? EFFECTS.filter((f) => f.label.toLowerCase().includes(q) || f.value.includes(q))
+    : EFFECTS;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => { setOpen((o) => !o); setQuery(""); }}
+        className={cx(inputCls, compact ? "!py-2" : "", "flex items-center justify-between gap-2 text-left cursor-pointer")}
+      >
+        <span className="truncate">{selected.label}</span>
+        <ChevronDown className={cx("h-4 w-4 shrink-0 text-slate-400 transition-transform duration-150", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[20rem] rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search effects…"
+              className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+            />
+          </div>
+          <ul className="max-h-64 overflow-y-auto py-1.5">
+            {filtered.length === 0 && (
+              <li className="px-4 py-3 text-sm font-semibold text-slate-400">No effects match</li>
+            )}
+            {filtered.map((f) => (
+              <li key={f.value} className="px-1.5">
+                <button
+                  type="button"
+                  onClick={() => { onChange(f.value); setOpen(false); setQuery(""); }}
+                  className={cx(
+                    "flex w-full flex-col gap-0.5 rounded-xl px-3 py-2 text-left transition",
+                    f.value === value
+                      ? "bg-brand-50 text-brand-700"
+                      : "hover:bg-slate-50 text-slate-700"
+                  )}
+                >
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">{f.value}</span>
+                  <span className="text-sm font-semibold leading-tight">{f.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CmsShop() {
   const token = getCmsToken();
@@ -183,9 +255,7 @@ export default function CmsShop() {
             <div className="mb-3 font-display text-base font-bold text-slate-900">New shop item</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1.2fr_0.7fr_0.7fr_auto]">
               <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Title — e.g. Streak Freeze" className={inputCls} />
-              <select value={draft.effect} onChange={(e) => setDraft({ ...draft, effect: e.target.value })} className={inputCls}>
-                {EFFECTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-              </select>
+              <EffectPicker value={draft.effect} onChange={(v) => setDraft({ ...draft, effect: v })} />
               <input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} title="Price (gems)" placeholder="Price" className={inputCls} />
               <input type="number" value={draft.effect_amount} onChange={(e) => setDraft({ ...draft, effect_amount: e.target.value })} title="Amount (for XP)" placeholder="Amt" className={inputCls} />
               <button type="button" onClick={createItem} disabled={busy || !draft.title.trim()} className="btn3d btn3d-brand text-sm inline-flex items-center justify-center gap-2 disabled:opacity-60">
@@ -221,9 +291,7 @@ export default function CmsShop() {
                           <select value={e.icon || "gem"} onChange={(ev) => patch(it.id, { icon: ev.target.value })} className={cx(inputCls, "!py-2")} title="Icon">
                             {ICON_OPTS.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
                           </select>
-                          <select value={e.effect || "streak_freeze"} onChange={(ev) => patch(it.id, { effect: ev.target.value })} className={cx(inputCls, "!py-2")} title="Effect">
-                            {EFFECTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-                          </select>
+                          <EffectPicker value={e.effect || "streak_freeze"} onChange={(v) => patch(it.id, { effect: v })} compact />
                           <input type="number" value={e.price ?? 0} onChange={(ev) => patch(it.id, { price: ev.target.value })} className={cx(inputCls, "!py-2")} title="Price (gems)" placeholder="Price" />
                           <input type="number" value={e.effect_amount ?? 0} onChange={(ev) => patch(it.id, { effect_amount: ev.target.value })} className={cx(inputCls, "!py-2")} title="Amount (XP)" placeholder="Amt" />
                         </div>
