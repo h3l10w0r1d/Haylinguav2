@@ -102,83 +102,92 @@ export default function ChestOpening({ reward = 0, onClose }) {
   );
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={() => phase === "reward" && onClose?.()}>
-      <div className="absolute inset-0 z-0 bg-slate-900/70 backdrop-blur-sm" />
+    <div
+      className="fixed inset-0 z-[120]"
+      role="dialog"
+      aria-modal="true"
+      onClick={() => phase === "reward" && onClose?.()}
+    >
+      {/* Backdrop first in DOM — always behind every sibling that follows */}
+      <div className="absolute inset-0 bg-slate-900/80" />
+
+      {/* Everything below is painted on top of the backdrop (later in DOM = higher) */}
 
       {/* white flash on burst */}
-      {opened && <div className="chest-flash pointer-events-none absolute inset-0 z-10 bg-white" />}
+      {opened && <div className="chest-flash pointer-events-none absolute inset-0 bg-white" />}
 
-      <div className="relative z-20 flex flex-col items-center">
-        {/* chest stage — rays + confetti are centered on the chest itself */}
-        <div className="relative" style={{ width: 200, height: 180 }}>
-          {/* light rays behind the chest — outer div spins, inner div bursts (scale+fade).
-               Two elements so their transforms don't fight each other. */}
-          {opened && (
-            <div
-              className="chest-rays-spin pointer-events-none absolute left-1/2 top-1/2 z-0 h-[480px] w-[480px]"
-              style={{ marginLeft: "-240px", marginTop: "-240px" }}
-            >
+      {/* Content wrapper — centered, pointer-events threaded so click-to-dismiss works */}
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="flex flex-col items-center">
+          {/* chest stage */}
+          <div className="relative" style={{ width: 200, height: 180 }}>
+            {/* light rays — first child so chest renders on top */}
+            {opened && (
               <div
-                className="chest-rays-burst h-full w-full"
-                style={{
-                  background:
-                    "repeating-conic-gradient(from 0deg, rgba(255,214,120,.55) 0deg 9deg, rgba(255,214,120,0) 9deg 18deg)",
-                  borderRadius: "9999px",
-                  maskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
-                  WebkitMaskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
-                }}
-              />
-            </div>
-          )}
-
-          {/* confetti burst — emitted from the chest center */}
-          {opened && (
-            <div className="pointer-events-none absolute left-1/2 top-1/2 z-20">
-              {confetti.map((p, i) => (
-                <span
-                  key={i}
+                className="chest-rays-spin pointer-events-none absolute left-1/2 top-1/2 h-[480px] w-[480px]"
+                style={{ marginLeft: "-240px", marginTop: "-240px" }}
+              >
+                <div
+                  className="chest-rays-burst h-full w-full"
                   style={{
-                    position: "absolute",
-                    width: `${p.size}px`,
-                    height: `${Math.round(p.size * 1.5)}px`,
-                    background: p.color,
-                    borderRadius: "2px",
-                    "--tx": `${p.tx}px`,
-                    "--ty": `${p.ty}px`,
-                    "--rot": p.rot,
-                    animation: `burstOut ${p.dur}s ease-out ${p.delay}s forwards`,
+                    background:
+                      "repeating-conic-gradient(from 0deg, rgba(255,214,120,.55) 0deg 9deg, rgba(255,214,120,0) 9deg 18deg)",
+                    borderRadius: "9999px",
+                    maskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
+                    WebkitMaskImage: "radial-gradient(circle, #000 35%, transparent 70%)",
                   }}
                 />
-              ))}
+              </div>
+            )}
+
+            {/* chest — after rays in DOM so it paints on top */}
+            <div className="absolute inset-0 chest-pop">
+              <div className={phase === "shake" ? "chest-shake h-full w-full" : opened ? "chest-jump h-full w-full" : "h-full w-full"}>
+                <ChestSvg open={opened} />
+              </div>
+            </div>
+
+            {/* confetti — last in stage DOM so it paints above chest */}
+            {opened && (
+              <div className="pointer-events-none absolute left-1/2 top-1/2">
+                {confetti.map((p, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      width: `${p.size}px`,
+                      height: `${Math.round(p.size * 1.5)}px`,
+                      background: p.color,
+                      borderRadius: "2px",
+                      "--tx": `${p.tx}px`,
+                      "--ty": `${p.ty}px`,
+                      "--rot": p.rot,
+                      animation: `burstOut ${p.dur}s ease-out ${p.delay}s forwards`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* reward */}
+          {phase === "reward" && (
+            <div className="reward-rise mt-2 flex flex-col items-center">
+              <div className="flex items-center gap-2 font-display text-5xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.4)]">
+                <Gem className="h-10 w-10 text-feather-400" />
+                <span className="tabular-nums">+{count}</span>
+              </div>
+              <div className="mt-1 text-sm font-extrabold uppercase tracking-[0.2em] text-white/80">gems earned</div>
+              <button onClick={(e) => { e.stopPropagation(); onClose?.(); }} className="btn3d btn3d-brand mt-6 w-56 uppercase">
+                Collect
+              </button>
             </div>
           )}
 
-          {/* chest — outer div pops in on mount; inner div handles shake/jump so
-               the pop-in animation isn't overridden by the later class rules */}
-          <div className="absolute inset-0 z-10 chest-pop">
-            <div className={phase === "shake" ? "chest-shake h-full w-full" : opened ? "chest-jump h-full w-full" : "h-full w-full"}>
-              <ChestSvg open={opened} />
-            </div>
-          </div>
+          {phase !== "reward" && (
+            <div className="mt-6 font-display text-lg font-extrabold text-white/90">Opening…</div>
+          )}
         </div>
-
-        {/* reward */}
-        {phase === "reward" && (
-          <div className="reward-rise relative mt-2 flex flex-col items-center">
-            <div className="flex items-center gap-2 font-display text-5xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.4)]">
-              <Gem className="h-10 w-10 text-feather-400" />
-              <span className="tabular-nums">+{count}</span>
-            </div>
-            <div className="mt-1 text-sm font-extrabold uppercase tracking-[0.2em] text-white/80">gems earned</div>
-            <button onClick={() => onClose?.()} className="btn3d btn3d-brand mt-6 w-56 uppercase">
-              Collect
-            </button>
-          </div>
-        )}
-
-        {phase !== "reward" && (
-          <div className="relative mt-6 font-display text-lg font-extrabold text-white/90">Opening…</div>
-        )}
       </div>
     </div>
   );
