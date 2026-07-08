@@ -38,6 +38,7 @@ const AuthCallback = lazy(() => import('./AuthCallback'));
 const PracticeMode = lazy(() => import('./PracticeMode'));
 const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
 const PlacementTest = lazy(() => import('./PlacementTest'));
+const AIConversation = lazy(() => import('./AIConversation'));
 
 function RouteFallback() {
   return <LoadingScreen />;
@@ -477,6 +478,36 @@ function AppShell() {
             <RequireVerified>
               <RequireOnboarded>
                 <PlacementTest />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* AI Conversation — full-screen, no global header/nav */}
+      <Route
+        path="/conversation"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <AIConversation />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/conversation/:scenarioId"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <AIConversation />
               </RequireOnboarded>
             </RequireVerified>
           ) : (

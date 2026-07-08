@@ -14,6 +14,7 @@ from middleware.rate_limit import RateLimitMiddleware
 
 from routes import router as api_router
 from routes_audio import router as audio_router  # NEW: Audio management
+from routes_conversation import router as conversation_router  # NEW: AI Conversation
 from db_utils import seed_alphabet_lessons
 from seed_curriculum import seed_curriculum
 from ensure_schema import ensure_schema
@@ -104,6 +105,16 @@ except PermissionError:
 
 app.mount("/static/banners", StaticFiles(directory=BANNER_UPLOAD_DIR), name="banners")
 
+# Serve TTS audio files used by AI Conversation (SadTalker needs a public URL).
+CONV_AUDIO_DIR = os.path.join(UPLOADS_DIR, "conversation_audio")
+try:
+    os.makedirs(CONV_AUDIO_DIR, exist_ok=True)
+except (PermissionError, OSError):
+    CONV_AUDIO_DIR = os.path.join("uploads", "conversation_audio")
+    os.makedirs(CONV_AUDIO_DIR, exist_ok=True)
+
+app.mount("/static/conv-audio", StaticFiles(directory=CONV_AUDIO_DIR), name="conv_audio")
+
 ensure_schema()
 
 app.include_router(lesson_analytics_router)
@@ -114,6 +125,9 @@ app.include_router(audio_router, prefix="/api")
 
 app.include_router(seo_router)
 app.include_router(seo_router, prefix="/api")
+
+app.include_router(conversation_router)
+app.include_router(conversation_router, prefix="/api")
 
 
 # 🔒 Global rate limiting (in-memory). Applies to all endpoints; tighter rules for auth/security paths.
