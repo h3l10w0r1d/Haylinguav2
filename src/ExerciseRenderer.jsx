@@ -1429,11 +1429,35 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            // ER-10: remove substring match — require normalized exact equality only
-            const normalize = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+            // Strip all punctuation, collapse whitespace, lowercase.
+            // Also normalise to NFD so Armenian composed/decomposed variants compare equal.
+            const normalize = (s) =>
+              s.normalize("NFD")
+               .toLowerCase()
+               .replace(/[^\p{L}\p{N}\s]/gu, "")
+               .replace(/\s+/g, " ")
+               .trim();
             const t = normalize(transcript);
             const g = normalize(target);
-            const ok = !!g && t === g;
+            // Levenshtein similarity: accept if ≥85 % of characters match.
+            // Handles trailing punctuation from STT, minor phonetic differences, and
+            // Unicode variant code points that look identical but differ by 1–2 chars.
+            function similarity(a, b) {
+              if (!a.length && !b.length) return 1;
+              const m = a.length, n = b.length;
+              let prev = Array.from({ length: n + 1 }, (_, j) => j);
+              for (let i = 1; i <= m; i++) {
+                const cur = [i];
+                for (let j = 1; j <= n; j++) {
+                  cur[j] = a[i - 1] === b[j - 1]
+                    ? prev[j - 1]
+                    : 1 + Math.min(prev[j], cur[j - 1], prev[j - 1]);
+                }
+                prev = cur;
+              }
+              return 1 - prev[n] / Math.max(m, n);
+            }
+            const ok = !!g && similarity(t, g) >= 0.85;
             if (ok) correct({ answerText: transcript });
             else wrong("Not quite — listen and try again.", { answerText: transcript });
           }}
