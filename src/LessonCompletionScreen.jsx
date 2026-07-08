@@ -1,5 +1,5 @@
 // src/LessonCompletionScreen.jsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   Zap,
   Target,
@@ -10,6 +10,8 @@ import {
   ChevronRight,
   BarChart3,
   AlertTriangle,
+  Share2,
+  Check,
 } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 
@@ -88,7 +90,19 @@ function StatCard({ icon: Icon, value, label, tone = "brand" }) {
   );
 }
 
+async function shareLesson({ lessonTitle, xp, accuracy }) {
+  const text = `🇦🇲 Just completed "${lessonTitle}" on Haylingua! +${xp} XP · ${accuracy}% accuracy. Learning Armenian one lesson at a time 💪 haylingua.am`;
+  if (navigator.share) {
+    try { await navigator.share({ text }); return; } catch {}
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    return "copied";
+  } catch {}
+}
+
 export default function LessonCompletionScreen({
+  lesson,
   sessionXpEarned,
   mistakes = 0,
   analytics,
@@ -100,9 +114,8 @@ export default function LessonCompletionScreen({
   isSaving,
 }) {
   const perfect = Number(mistakes) === 0;
-  // Auto-open the exercise breakdown when the learner made mistakes so they
-  // can immediately see which exercises to review.
   const [detailsOpen, setDetailsOpen] = useState(!perfect);
+  const [shareDone, setShareDone] = useState(false);
 
   const ratio = useMemo(() => clamp01(analytics?.completion_ratio), [analytics]);
   const percent = Math.round(ratio * 100);
@@ -186,6 +199,32 @@ export default function LessonCompletionScreen({
               Continue Learning <span aria-hidden>→</span>
             </button>
           </div>
+
+          {/* Share card */}
+          <button
+            type="button"
+            onClick={async () => {
+              const result = await shareLesson({
+                lessonTitle: lesson?.title || "a lesson",
+                xp: sessionXpEarned ?? earnedXp,
+                accuracy,
+              });
+              if (result === "copied") {
+                setShareDone(true);
+                setTimeout(() => setShareDone(false), 2500);
+              } else if (result === undefined && navigator.share) {
+                // shared via native sheet — no toast needed
+              } else {
+                setShareDone(true);
+                setTimeout(() => setShareDone(false), 2500);
+              }
+            }}
+            className="mt-3 inline-flex items-center justify-center gap-2 rounded-2xl bg-feather-50 px-5 py-2.5 text-sm font-bold text-feather-700 ring-1 ring-feather-200 transition hover:bg-feather-100 active:scale-95"
+          >
+            {shareDone
+              ? <><Check className="h-4 w-4 text-grass-500" /> Copied to clipboard!</>
+              : <><Share2 className="h-4 w-4" /> Share your progress</>}
+          </button>
 
           {analyticsLoading ? (
             <div className="mt-6 flex items-center justify-center gap-2 font-semibold text-slate-500">

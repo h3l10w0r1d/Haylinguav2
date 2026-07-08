@@ -306,6 +306,16 @@ def ensure_schema() -> None:
             except Exception:
                 conn.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
 
+        # ---------- Referrals ----------
+        add_col_if_missing("users", "referral_code TEXT")
+        add_col_if_missing("users", "referred_by INTEGER")
+        try:
+            conn.execute(text("SAVEPOINT sp_ref_code"))
+            conn.execute(text("ALTER TABLE users ADD CONSTRAINT users_referral_code_unique UNIQUE (referral_code)"))
+            conn.execute(text("RELEASE SAVEPOINT sp_ref_code"))
+        except Exception:
+            conn.execute(text("ROLLBACK TO SAVEPOINT sp_ref_code"))
+
         # ---------- Admin notes on learners ----------
         ensure_table(
             "admin_notes",

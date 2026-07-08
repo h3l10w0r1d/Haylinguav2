@@ -14,6 +14,7 @@ import {
   Trophy,
   Flame,
   EyeOff,
+  Zap,
 } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import grandma from "./assets/character-grandma.png";
@@ -74,7 +75,7 @@ function writeSentCache(arr) {
 
 export default function Friends() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("friends"); // friends | pending | discover
+  const [activeTab, setActiveTab] = useState("friends"); // friends | activity | pending | discover
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -89,6 +90,14 @@ export default function Friends() {
 
   // Sent requests (best effort)
   const [sent, setSent] = useState([]); // array of {id, email, name?, created_at?}
+
+  // Activity feed
+  const [activity, setActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  // Referral
+  const [referral, setReferral] = useState(null); // { code, referred_count }
+  const [referralCopied, setReferralCopied] = useState(false);
 
   const token = getToken();
 
@@ -154,11 +163,26 @@ export default function Friends() {
         } else {
           setSent(readSentCache());
         }
+
+        // 5) Referral code
+        const refRes = await apiFetch("/me/referral", { token, method: "GET" });
+        if (refRes.ok) setReferral(await refRes.json());
       } finally {
         setLoading(false);
       }
     })();
   }, [token]);
+
+  // Load activity feed when that tab is opened (lazy)
+  useEffect(() => {
+    if (activeTab !== "activity" || !token || activityLoading) return;
+    setActivityLoading(true);
+    apiFetch("/friends/activity?days=7", { token, method: "GET" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setActivity(Array.isArray(d) ? d : []))
+      .catch(() => setActivity([]))
+      .finally(() => setActivityLoading(false));
+  }, [activeTab, token]);
 
   const refreshFriendsData = async () => {
     if (!token) return;
@@ -360,7 +384,8 @@ export default function Friends() {
   const handleMessage = (friend) => openPublicProfile(friend);
 
   const TABS = [
-    { key: "friends", label: "Your friends" },
+    { key: "friends", label: "Friends" },
+    { key: "activity", label: "Activity" },
     { key: "pending", label: "Pending", badge: incomingList.length + sentList.length },
     { key: "discover", label: "Discover" },
   ];
@@ -435,25 +460,118 @@ export default function Friends() {
             <>
               {/* FRIENDS TAB */}
               {activeTab === "friends" ? (
-                applySearch(friendsList).length === 0 ? (
+                <>
+                  {/* Referral invite card */}
+                  {referral && (
+                    <div className="mb-5 flex items-center gap-4 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-100">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500 text-white">
+                        <UserPlus className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-display text-sm font-extrabold text-slate-800">
+                          Invite a friend, earn +3 hearts
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <code className="rounded-lg bg-white px-2 py-0.5 text-xs font-bold tracking-widest text-brand-700 ring-1 ring-brand-200">
+                            {referral.code}
+                          </code>
+                          <span className="text-xs text-slate-400">·</span>
+                          <span className="text-xs font-semibold text-slate-500">
+                            {referral.referred_count} referred
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const text = `Join me on Haylingua and learn Armenian! Use my invite code ${referral.code} at haylingua.am 🇦🇲`;
+                          if (navigator.share) {
+                            try { await navigator.share({ text }); return; } catch {}
+                          }
+                          await navigator.clipboard.writeText(text).catch(() => {});
+                          setReferralCopied(true);
+                          setTimeout(() => setReferralCopied(false), 2500);
+                        }}
+                        className="shrink-0 rounded-xl bg-brand-500 px-3 py-2 text-xs font-extrabold uppercase text-white shadow-[0_3px_0_0_#c2430a] transition active:translate-y-0.5"
+                      >
+                        {referralCopied ? "Copied!" : "Share"}
+                      </button>
+                    </div>
+                  )}
+
+                  {applySearch(friendsList).length === 0 ? (
+                    <EmptyState
+                      title="No friends yet"
+                      text="Head to Discover and send your first friend request."
+                      cta="Discover people"
+                      onCta={() => setActiveTab("discover")}
+                    />
+                  ) : (
+                    <div className="grid gap-3">
+                      {applySearch(friendsList).map((p) => (
+                        <PersonCard
+                          key={p.id}
+                          person={p}
+                          mode="friend"
+                          onOpenProfile={() => openPublicProfile(p)}
+                          onMessage={() => handleMessage(p)}
+                          onRemove={null}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : null}
+
+              {/* ACTIVITY TAB */}
+              {activeTab === "activity" ? (
+                activityLoading ? (
+                  <div className="py-12 text-center">
+                    <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
+                    <p className="font-semibold text-slate-500">Loading activity…</p>
+                  </div>
+                ) : activity.length === 0 ? (
                   <EmptyState
-                    title="No friends yet"
-                    text="Head to Discover and send your first friend request."
-                    cta="Discover people"
+                    title="No recent activity"
+                    text="When your friends complete lessons, you'll see it here."
+                    cta="Find friends"
                     onCta={() => setActiveTab("discover")}
                   />
                 ) : (
-                  <div className="grid gap-3">
-                    {applySearch(friendsList).map((p) => (
-                      <PersonCard
-                        key={p.id}
-                        person={p}
-                        mode="friend"
-                        onOpenProfile={() => openPublicProfile(p)}
-                        onMessage={() => handleMessage(p)}
-                        onRemove={null}
-                      />
-                    ))}
+                  <div className="space-y-3">
+                    {activity.map((a, i) => {
+                      const initials = (a.name || "?").slice(0, 2).toUpperCase();
+                      const timeAgo = (() => {
+                        if (!a.completed_at) return "";
+                        const diff = Date.now() - new Date(a.completed_at).getTime();
+                        const mins = Math.floor(diff / 60000);
+                        if (mins < 60) return `${mins}m ago`;
+                        const hrs = Math.floor(mins / 60);
+                        if (hrs < 24) return `${hrs}h ago`;
+                        return `${Math.floor(hrs / 24)}d ago`;
+                      })();
+                      return (
+                        <div key={i} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                          {a.avatar_url ? (
+                            <img src={resolveUrl(a.avatar_url)} className="h-10 w-10 shrink-0 rounded-full object-cover" alt="" />
+                          ) : (
+                            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-100 font-extrabold text-brand-700 text-sm">
+                              {initials}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-bold text-slate-800 truncate">
+                              <span className="text-brand-600">{a.name}</span>
+                              {" "}completed{" "}
+                              <span className="font-extrabold">"{a.lesson_title}"</span>
+                            </div>
+                            <div className="text-xs font-semibold text-slate-400 mt-0.5">
+                              +{a.xp_earned} XP · {timeAgo}
+                            </div>
+                          </div>
+                          <Zap className="h-4 w-4 shrink-0 text-brand-400" />
+                        </div>
+                      );
+                    })}
                   </div>
                 )
               ) : null}
