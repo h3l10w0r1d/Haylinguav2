@@ -1673,6 +1673,7 @@ export default function ProfilePage() {
     <div className="h-24" style={{ background: headerBackground }} />
   </div>
 </section>
+      )}
 
       {/* ===== Avatar frames ===== */}
       {tab === "appearance" && (
