@@ -18,6 +18,9 @@ import {
   BookOpen,
   ExternalLink,
   Check,
+  Copy,
+  Share2,
+  Award,
 } from "lucide-react";
 
 import { StarMotif } from "./lib/motifs";
@@ -192,9 +195,19 @@ export default function ProfilePage() {
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [last7, setLast7] = useState([]);
   const [summary, setSummary] = useState(null);
   const [lessonsCompleted, setLessonsCompleted] = useState(0);
+
+  // Frames
+  const [ownedFrames, setOwnedFrames] = useState([]);
+  const [activeFrame, setActiveFrame] = useState(null);
+  const [shopItems, setShopItems] = useState([]);
+  const [frameEquipping, setFrameEquipping] = useState(null);
+
+  // Share
+  const [copied, setCopied] = useState(false);
 
   // Account security
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -334,6 +347,7 @@ export default function ProfilePage() {
           setLevel(data.level || 1);
           setXp(data.xp || data.total_xp || 0);
           setStreak(data.streak || data.daily_streak || 0);
+          setBestStreak(data.best_streak || 0);
 
           // 2FA status (best-effort)
           try {
@@ -371,6 +385,21 @@ export default function ProfilePage() {
           setStreak(sd.streak ?? sd.best_streak_days ?? streak);
           setXp(sd.total_xp ?? sd.lifetime_xp ?? xp);
         }
+      } catch {}
+
+      try {
+        const w = await apiFetch("/me/wallet", { token });
+        const wd = await safeJsonParse(w);
+        if (!cancelled && w.ok && wd) {
+          setOwnedFrames(wd.owned_frames || []);
+          setActiveFrame(wd.active_frame || null);
+        }
+      } catch {}
+
+      try {
+        const sh = await apiFetch("/me/shop", { token });
+        const shd = await safeJsonParse(sh);
+        if (!cancelled && sh.ok && shd?.items) setShopItems(shd.items);
       } catch {}
     }
 
@@ -1638,6 +1667,86 @@ export default function ProfilePage() {
     <div className="h-24" style={{ background: headerBackground }} />
   </div>
 </section>
+
+      {/* ===== Avatar frames ===== */}
+      {tab === "appearance" && (
+<section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+  <div className="flex items-center gap-2 mb-1">
+    <Award className="w-5 h-5 text-brand-500 shrink-0" />
+    <h2 className="font-display text-lg font-extrabold text-slate-800">Avatar frame</h2>
+  </div>
+  <p className="text-sm font-semibold text-slate-500 mb-4">
+    Equip a frame you own from the shop to show it on your public profile.
+  </p>
+
+  {ownedFrames.length === 0 ? (
+    <div className="flex flex-col items-center gap-2 py-6 text-center">
+      <Award className="w-10 h-10 text-slate-300" />
+      <p className="text-sm font-bold text-slate-400">No frames owned yet.</p>
+      <p className="text-xs font-semibold text-slate-400">Visit the shop to buy avatar frames.</p>
+    </div>
+  ) : (
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+      {/* No frame option */}
+      <button
+        type="button"
+        onClick={async () => {
+          if (activeFrame === null) return;
+          setFrameEquipping("none");
+          try {
+            const r = await apiFetch("/me/active-frame", { token, method: "PUT", body: JSON.stringify({ frame_id: null }) });
+            if (r.ok) { setActiveFrame(null); }
+          } catch {}
+          setFrameEquipping(null);
+        }}
+        className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (activeFrame === null ? "ring-brand-500 bg-brand-50" : "ring-slate-200 hover:ring-brand-300 bg-white")}
+      >
+        <div className="w-12 h-12 rounded-full bg-slate-100 ring-2 ring-slate-200 flex items-center justify-center">
+          <span className="text-xl font-extrabold text-slate-400">{String(username || "?")[0]?.toUpperCase()}</span>
+        </div>
+        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide leading-tight">None</span>
+        {activeFrame === null && <Check className="h-3.5 w-3.5 text-brand-500" />}
+      </button>
+
+      {ownedFrames.map((fid) => {
+        const item = shopItems.find((i) => String(i.id) === String(fid));
+        const isActive = String(activeFrame) === String(fid);
+        const isEquipping = frameEquipping === String(fid);
+        const frameTitle = item?.title || `Frame #${fid}`;
+        const isGold = frameTitle.toLowerCase().includes("gold");
+        const frameColor = isGold ? "#F59E0B" : "#6366F1";
+        return (
+          <button
+            key={fid}
+            type="button"
+            disabled={isActive || isEquipping}
+            onClick={async () => {
+              setFrameEquipping(String(fid));
+              try {
+                const r = await apiFetch("/me/active-frame", { token, method: "PUT", body: JSON.stringify({ frame_id: fid }) });
+                if (r.ok) { setActiveFrame(String(fid)); }
+              } catch {}
+              setFrameEquipping(null);
+            }}
+            className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (isActive ? "ring-brand-500 bg-brand-50" : "ring-slate-200 hover:ring-brand-300 bg-white")}
+          >
+            <div className="w-12 h-12 rounded-full relative flex items-center justify-center"
+              style={{ background: `${frameColor}22` }}>
+              <div className="absolute inset-0 rounded-full"
+                style={{ boxShadow: `0 0 0 3px ${frameColor}` }} />
+              <span className="text-xl font-extrabold" style={{ color: frameColor }}>
+                {String(username || "?")[0]?.toUpperCase()}
+              </span>
+            </div>
+            <span className="text-[10px] font-extrabold text-slate-600 leading-tight text-center">{frameTitle}</span>
+            {isActive && <Check className="h-3.5 w-3.5 text-brand-500" />}
+            {isEquipping && <span className="text-[10px] text-slate-400 font-bold">Saving…</span>}
+          </button>
+        );
+      })}
+    </div>
+  )}
+</section>
       )}
 
       {/* ===== Security tab ===== */}
@@ -1893,6 +2002,9 @@ export default function ProfilePage() {
           <div className="flex flex-col items-center rounded-2xl bg-grass-50 px-3 py-3">
             <span className="font-display text-2xl font-extrabold text-slate-800">{streak}</span>
             <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Day<br/>streak</span>
+            {bestStreak > streak && (
+              <span className="mt-1 text-center text-[10px] font-bold text-grass-600 opacity-70">best {bestStreak}</span>
+            )}
           </div>
           <div className="flex flex-col items-center rounded-2xl bg-feather-50 px-3 py-3">
             <span className="font-display text-2xl font-extrabold text-slate-800">{xp}</span>
@@ -1905,6 +2017,37 @@ export default function ProfilePage() {
             <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Accuracy<br/>(14 days)</span>
           </div>
         </div>
+
+        {/* Share profile */}
+        {username && (
+          <div className="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-extrabold text-slate-500 uppercase tracking-widest mb-0.5">Your public profile</p>
+              <p className="text-sm font-semibold text-slate-700 truncate">
+                haylingua.am/u/<span className="text-brand-600">{username}</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const url = `https://haylingua.am/u/${encodeURIComponent(username)}`;
+                try {
+                  if (navigator.share) {
+                    await navigator.share({ title: `${username} on Haylingua`, url });
+                  } else {
+                    await navigator.clipboard.writeText(url);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }
+                } catch {}
+              }}
+              className="shrink-0 flex items-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-xs font-extrabold text-white hover:bg-brand-600 transition"
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : navigator.share ? <Share2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copied!" : navigator.share ? "Share" : "Copy link"}
+            </button>
+          </div>
+        )}
       </section>
       )}
 

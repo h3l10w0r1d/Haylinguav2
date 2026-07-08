@@ -803,6 +803,12 @@ def _compute_streak_days(db: Connection, user_id: int) -> int:
             ),
             {"n": len(newly), "fd": json.dumps(merged), "u": user_id},
         )
+
+    # Persist best streak lazily whenever the current streak exceeds the stored max
+    db.execute(
+        text("UPDATE users SET best_streak = GREATEST(COALESCE(best_streak, 0), :s) WHERE id = :u"),
+        {"s": streak, "u": user_id},
+    )
     return streak
 
 
@@ -3413,6 +3419,7 @@ class MeOut(BaseModel):
     # Stats
     total_xp: int = 0
     streak: int = 0
+    best_streak: int = 0
     today_xp: int = 0
 
 
@@ -3851,7 +3858,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, COALESCE(best_streak, 0) AS best_streak FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -3879,6 +3886,7 @@ def me_profile_get(
     payload["google_linked"] = bool(payload.pop("google_id", None))
     payload["total_xp"] = int(stats_row["total_xp"] or 0)
     payload["streak"] = int(streak)
+    payload["best_streak"] = max(int(payload.get("best_streak") or 0), int(streak))
     payload["voice_pref"] = (ob_row or {}).get("voice_pref") or "Random"
     return MeOut(**payload)
 
@@ -4054,6 +4062,45 @@ def me_wallet(authorization: Optional[str] = Header(default=None), db: Connectio
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
+    return _wallet(db, user_id)
+
+
+@router.put("/me/active-frame")
+def me_set_active_frame(
+    body: dict,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Equip an owned avatar frame (or unequip by passing frame_id: null)."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    frame_id = body.get("frame_id")
+
+    if frame_id is not None:
+        # Verify ownership
+        owned_raw = db.execute(
+            text("SELECT COALESCE(owned_frames, '[]'::jsonb) FROM users WHERE id = :u"),
+            {"u": user_id},
+        ).scalar() or []
+        if isinstance(owned_raw, str):
+            try:
+                owned_raw = json.loads(owned_raw)
+            except Exception:
+                owned_raw = []
+        if str(frame_id) not in [str(x) for x in owned_raw]:
+            raise HTTPException(status_code=403, detail="Frame not owned")
+        db.execute(
+            text("UPDATE users SET active_frame = :f WHERE id = :u"),
+            {"f": str(frame_id), "u": user_id},
+        )
+    else:
+        db.execute(
+            text("UPDATE users SET active_frame = NULL WHERE id = :u"),
+            {"u": user_id},
+        )
+
     return _wallet(db, user_id)
 
 
