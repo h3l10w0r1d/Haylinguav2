@@ -235,6 +235,7 @@ export default function LessonPlayer() {
   useEffect(() => {
     exerciseStartRef.current = Date.now();
     setPhase2Actions(null);
+    setHasAnswered(false);
   }, [currentExercise?.id]);
 
   async function submitPhase2(payload) {
