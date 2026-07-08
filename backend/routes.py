@@ -6802,6 +6802,7 @@ class PublicUserOut(BaseModel):
     # the viewer and this user, we include the request id so the FE can accept it.
     friend_request_id: int | None = None
     is_friend: bool
+    friends_public: bool = True
     friends_preview: list[dict] = []
     top_friends: list[dict] = []
     achievements: list[dict] = []
@@ -7034,6 +7035,7 @@ def get_public_user(
         friendship=friendship,
         friend_request_id=friend_request_id,
         is_friend=is_friend,
+        friends_public=bool(target.get("friends_public", True)),
         # Lightweight preview to avoid a second call on the FE.
         friends_preview=(
             _get_user_public_friends(db, target_id, limit=6)
