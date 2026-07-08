@@ -14,8 +14,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-# Fun (but no personal email)
-TAUNT_MESSAGE = "DOS/DDOS attack is too basic for Haylingua, try something more creative :) Cheers, Armen Ghazaryan"
+_TAUNT_LOG = "Rate limit triggered. DOS/DDOS attack is too basic for Haylingua, try something more creative :) Cheers, Armen Ghazaryan"
+_CLIENT_MESSAGE = "Too many requests. Please slow down and try again later."
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,7 @@ class Rule:
 def _compile_rules() -> Tuple[Rule, ...]:
     # Global rule for all endpoints (per IP)
     rules = [
-        Rule(None, re.compile(r".*"), limit=120, window_seconds=60),
+        Rule(None, re.compile(r".*"), limit=300, window_seconds=60),
         # Sensitive endpoints (tighter per IP)
         Rule("POST", re.compile(r"^/login$"), limit=15, window_seconds=60),
         Rule("POST", re.compile(r"^/signup$"), limit=6, window_seconds=60),
@@ -210,11 +210,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             key = f"ip:{ip}:{rule.method or 'ANY'}:{rule.path_regex.pattern}:{rule.window_seconds}"
             allowed, retry = self._limiter.hit(key, rule.limit, rule.window_seconds)
             if not allowed:
+                print(f"[rate_limit] ip={ip} path={path} method={method} retry_after={retry}s — {_TAUNT_LOG}")
                 return JSONResponse(
                     status_code=429,
                     headers={"Retry-After": str(retry)},
                     content={
-                        "detail": TAUNT_MESSAGE,
+                        "detail": _CLIENT_MESSAGE,
                         "retry_after_seconds": retry,
                     },
                 )
@@ -234,11 +235,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             key = f"id:{identifier}:{path}:{window}"
             allowed, retry = self._limiter.hit(key, limit, window)
             if not allowed:
+                print(f"[rate_limit] id={identifier} path={path} retry_after={retry}s — {_TAUNT_LOG}")
                 return JSONResponse(
                     status_code=429,
                     headers={"Retry-After": str(retry)},
                     content={
-                        "detail": TAUNT_MESSAGE,
+                        "detail": _CLIENT_MESSAGE,
                         "retry_after_seconds": retry,
                     },
                 )
