@@ -216,7 +216,7 @@
 @keyframes chestPopIn {
   0%   { transform: scale(.3) translateY(30px); opacity: 0; }
   60%  { transform: scale(1.08) translateY(0); opacity: 1; }
-  100% { transform: scale(1); }
+  100% { transform: scale(1); opacity: 1; }
 }
 @keyframes chestShake {
   0%, 100% { transform: rotate(0deg); }

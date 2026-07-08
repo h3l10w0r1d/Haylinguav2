@@ -58,9 +58,12 @@ export default function ChestOpening({ reward = 0, onClose }) {
       try { sfx.complete(); } catch {}
     }, 850);
     const t2 = setTimeout(() => setPhase("reward"), 1250);
+    // Auto-dismiss 3 seconds after reward is fully shown
+    const t3 = setTimeout(() => onClose?.(), 1250 + 900 + 3000);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
+      clearTimeout(t3);
     };
   }, []);
 
@@ -99,8 +102,8 @@ export default function ChestOpening({ reward = 0, onClose }) {
   );
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => phase === "reward" && onClose?.()} />
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={() => phase === "reward" && onClose?.()}>
+      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" />
 
       {/* white flash on burst */}
       {opened && <div className="chest-flash pointer-events-none absolute inset-0 bg-white" />}
