@@ -1,5 +1,6 @@
 // src/cms/analytics/index.jsx — Widget-based analytics dashboard
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   DndContext,
   DragOverlay,
@@ -75,6 +76,13 @@ function SectionDragPreview({ section }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function CmsAnalyticsWidgets() {
+  const navigate = useNavigate();
+
+  // Redirect to CMS login if not authenticated
+  useEffect(() => {
+    if (!getCmsToken()) navigate("/cms/login", { replace: true });
+  }, [navigate]);
+
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
