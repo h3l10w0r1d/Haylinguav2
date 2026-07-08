@@ -3332,7 +3332,7 @@ def me_checkpoint(
     ex_ids = [int(r["exercise_id"]) for r in tried_rows]
 
     if len(ex_ids) < count:
-        # Supplement with unатtempted exercises
+        # Supplement with unattempted exercises
         extra = db.execute(
             text("""
                 SELECT id AS exercise_id
@@ -3349,8 +3349,7 @@ def me_checkpoint(
         return {"exercises": [], "message": "No exercises found for these lessons."}
 
     # Shuffle and cap
-    import random as _random
-    _random.shuffle(ex_ids)
+    random.shuffle(ex_ids)
     ex_ids = ex_ids[:count]
 
     # Fetch exercise objects

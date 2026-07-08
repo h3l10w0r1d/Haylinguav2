@@ -149,7 +149,7 @@ export default function ExerciseShell({
       {/* Full-screen answer flash */}
       {flashClass ? (
         <div
-          key={flashKey.current}
+          key={flashKey}
           className={"pointer-events-none absolute inset-0 z-50 " + flashClass}
           aria-hidden
         />

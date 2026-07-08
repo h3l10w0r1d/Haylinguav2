@@ -1,7 +1,7 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Plus, Gem, Gift, Dumbbell } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Plus, Gem, Gift, Dumbbell, ShieldCheck } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
@@ -705,6 +705,27 @@ export default function Dashboard({ user }) {
                       />
                     ))}
                   </div>
+
+                  {/* Checkpoint badge — unlocks when all lessons in unit are done */}
+                  {uDone === uTotal && uTotal > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ids = unit.items.map((l) => l.id).filter(Boolean).join(",");
+                        navigate(`/checkpoint?lessons=${encodeURIComponent(ids)}&title=${encodeURIComponent(unit.title)}`);
+                      }}
+                      className="mt-5 flex w-full items-center gap-4 rounded-2xl border-2 border-dashed border-gold-400 bg-gradient-to-r from-amber-50 to-white p-4 text-left transition hover:border-gold-500 hover:bg-amber-50 active:translate-y-0.5"
+                    >
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gold-500 text-white shadow-md">
+                        <ShieldCheck className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-display text-base font-extrabold text-slate-800">Unit Checkpoint</div>
+                        <div className="text-sm font-semibold text-slate-500">Test your {unit.title} knowledge</div>
+                      </div>
+                      <ChevronRight className="h-5 w-5 shrink-0 text-gold-500" />
+                    </button>
+                  )}
                 </section>
               );
             })

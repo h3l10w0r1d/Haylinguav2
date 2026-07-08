@@ -13,7 +13,21 @@ import {
   InlineInput,
 } from "./exercises/ui";
 import { ttsFetch } from "./exercises/tts";
+import { GlossaryText } from "./exercises/WordHint";
 import { writeHearts } from "./lib/hearts";
+
+// Renders a prompt heading with optional inline word-hint tooltips.
+// Glossary is stored in exercise.config.glossary: { "word": "definition" }
+function PromptTitle({ text, glossary }) {
+  if (!text) return null;
+  return (
+    <Title>
+      {glossary && Object.keys(glossary).length > 0
+        ? <GlossaryText text={text} glossary={glossary} />
+        : text}
+    </Title>
+  );
+}
 
 /**
  * Variant A: component-per-kind.
@@ -602,7 +616,7 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
 
   return (
     <Card>
-      <Title>{prompt || "Fill in the blank"}</Title>
+      <PromptTitle text={prompt || "Fill in the blank"} glossary={cfg.glossary} />
 
       <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
         <div className="text-lg md:text-xl font-semibold text-slate-900">
@@ -656,11 +670,13 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
 
   return (
     <Card>
-      <Title>{prompt || "Choose the correct translation"}</Title>
+      <PromptTitle text={prompt || "Choose the correct translation"} glossary={cfg.glossary} />
 
       {sentence && (
         <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-          <div className="text-lg md:text-xl font-semibold text-slate-900">{sentence}</div>
+          <div className="text-lg md:text-xl font-semibold text-slate-900">
+            <GlossaryText text={sentence} glossary={cfg.glossary} />
+          </div>
         </div>
       )}
 
@@ -821,7 +837,7 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
 
   return (
     <Card>
-      <Title>{prompt || "Put the sentence in order"}</Title>
+      <PromptTitle text={prompt || "Put the sentence in order"} glossary={cfg.glossary} />
 
       <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 min-h-[4.5rem]">
         <div className="flex flex-wrap gap-2">
@@ -1519,11 +1535,13 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
 
   return (
     <Card>
-      <Title>{prompt}</Title>
+      <PromptTitle text={prompt} glossary={cfg.glossary} />
 
       {source ? (
         <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-          <div className="text-lg md:text-xl font-semibold text-slate-900">{source}</div>
+          <div className="text-lg md:text-xl font-semibold text-slate-900">
+            <GlossaryText text={source} glossary={cfg.glossary} />
+          </div>
         </div>
       ) : null}
 
@@ -1540,11 +1558,19 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {available.map((p, i) => (
-          <Pill key={p.key} onClick={() => add(i)}>
-            {p.t}
-          </Pill>
-        ))}
+        {available.map((p, i) => {
+          const hint = cfg.glossary?.[p.t] || cfg.glossary?.[p.t?.toLowerCase()];
+          return (
+            <Pill key={p.key} onClick={() => add(i)}>
+              {hint ? (
+                <span className="flex items-center gap-1">
+                  {p.t}
+                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-100 text-[8px] font-extrabold text-brand-600" title={hint}>i</span>
+                </span>
+              ) : p.t}
+            </Pill>
+          );
+        })}
       </div>
 
       <div className="mt-6 space-y-3">
