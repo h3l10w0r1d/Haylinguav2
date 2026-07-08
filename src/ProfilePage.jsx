@@ -1781,13 +1781,9 @@ export default function ProfilePage() {
 
             {googleLinked ? (
               <>
-                <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-grass-700">
-                  <Check className="h-4 w-4" />
-                  Your account is linked to Google. You can sign in with Google on any device.
-                </p>
                 <button
                   type="button"
-                  className="btn3d btn3d-neutral text-sm mt-3"
+                  className="btn3d btn3d-neutral text-sm mt-2"
                   onClick={async () => {
                     try {
                       const res = await apiFetch("/me/link/google", { token, method: "DELETE" });
@@ -1801,6 +1797,10 @@ export default function ProfilePage() {
                 >
                   Unlink Google
                 </button>
+                <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-grass-700">
+                  <Check className="h-4 w-4" />
+                  Your account is linked to Google. You can sign in with Google on any device.
+                </p>
               </>
             ) : (
               <>
