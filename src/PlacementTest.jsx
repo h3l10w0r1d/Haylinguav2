@@ -390,11 +390,11 @@ export default function PlacementTest() {
           key={`${currentExercise.id}-${renderNonce}`}
           exercise={currentExercise}
           lesson={{ id: currentExercise.lesson_id, exercises }}
-          onCorrect={({ answerText, autoAdvance }) => gradeAnswer({ isCorrect: true, answerText, autoAdvance })}
-          onWrong={({ answerText }) => gradeAnswer({ isCorrect: false, answerText })}
+          onCorrect={({ answerText, autoAdvance } = {}) => gradeAnswer({ isCorrect: true, answerText, autoAdvance })}
+          onWrong={({ answerText } = {}) => gradeAnswer({ isCorrect: false, answerText })}
           onSkip={() => gradeAnswer({ isCorrect: false, answerText: "" })}
-          onAnswer={({ isCorrect, answerText, autoAdvance }) => gradeAnswer({ isCorrect, answerText, autoAdvance })}
-          submit={({ isCorrect, answerText, autoAdvance }) => gradeAnswer({ isCorrect, answerText, autoAdvance })}
+          onAnswer={({ isCorrect, answerText, autoAdvance } = {}) => gradeAnswer({ isCorrect, answerText, autoAdvance })}
+          submit={({ isCorrect, answerText, autoAdvance } = {}) => gradeAnswer({ isCorrect, answerText, autoAdvance })}
           graded={hasAnswered}
         />
       ) : null}

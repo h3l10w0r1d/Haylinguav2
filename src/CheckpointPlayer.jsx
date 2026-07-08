@@ -278,15 +278,15 @@ export default function CheckpointPlayer() {
           key={`${currentExercise.id}-${renderNonce}`}
           exercise={currentExercise}
           lesson={{ id: currentExercise.lesson_id, exercises: exerciseQueue }}
-          onCorrect={({ answerText, xpEarned: xp, autoAdvance }) => gradeAndAdvance({ isCorrect: true, answerText, xpEarned: xp, autoAdvance })}
-          onWrong={({ answerText }) => gradeAndAdvance({ isCorrect: false, answerText, xpEarned: 0 })}
+          onCorrect={({ answerText, xpEarned: xp, autoAdvance } = {}) => gradeAndAdvance({ isCorrect: true, answerText, xpEarned: xp, autoAdvance })}
+          onWrong={({ answerText } = {}) => gradeAndAdvance({ isCorrect: false, answerText, xpEarned: 0 })}
           onSkip={() => {
             setResultData({ variant: "skipped", xpEarned: 0, combo: 0 });
             pendingNextRef.current = { type: "advance" };
             setHasAnswered(true);
           }}
-          onAnswer={({ isCorrect, answerText, xpEarned: xp, autoAdvance }) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}
-          submit={({ isCorrect, answerText, xpEarned: xp, autoAdvance }) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}
+          onAnswer={({ isCorrect, answerText, xpEarned: xp, autoAdvance } = {}) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}
+          submit={({ isCorrect, answerText, xpEarned: xp, autoAdvance } = {}) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}
           graded={hasAnswered}
         />
       ) : null}
