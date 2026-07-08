@@ -33,7 +33,9 @@ const CmsTeam = lazy(() => import('./cms/CmsTeam'));
 const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
+const CmsAnalytics = lazy(() => import('./cms/CmsAnalytics'));
 const AuthCallback = lazy(() => import('./AuthCallback'));
+const PracticeMode = lazy(() => import('./PracticeMode'));
 
 function RouteFallback() {
   return <LoadingScreen />;
@@ -425,6 +427,22 @@ function AppShell() {
         />
       </Route>
 
+      {/* Practice mode — cross-lesson spaced repetition */}
+      <Route
+        path="/practice"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <PracticeMode />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
       {/* Immersive lesson — full-screen, no global header/nav */}
       <Route
         path="/lesson/:slug"
@@ -450,6 +468,7 @@ function AppShell() {
       <Route path="/cms/chapters" element={<CmsChapters />} />
       <Route path="/cms/achievements" element={<CmsAchievements />} />
       <Route path="/cms/shop" element={<CmsShop />} />
+      <Route path="/cms/analytics" element={<CmsAnalytics />} />
       <Route path="/cms" element={<CmsGate />} />
       <Route path="/cms/*" element={<CmsGate />} />
 

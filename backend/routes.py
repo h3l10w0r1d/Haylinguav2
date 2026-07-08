@@ -7,7 +7,8 @@ from typing import List, Dict, Any, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query, UploadFile, File
-from fastapi.responses import Response, JSONResponse
+import asyncio
+from fastapi.responses import Response, JSONResponse, StreamingResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
@@ -3284,6 +3285,125 @@ def _recommend_next_exercise(db: Connection, user_id: int, lesson_id: int) -> di
 
     return {"status": "practice", "exercise_id": best["exercise_id"]}
 
+@router.get("/me/practice")
+def me_practice(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """
+    Return a set of exercises for the cross-lesson practice mode.
+    Priority:
+      1. Exercises due for spaced-repetition review (any lesson)
+      2. Exercises with lowest accuracy across all completed lessons (up to 10 total)
+    Returns full exercise objects with options, ready for ExerciseRenderer.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
+
+    # 1. Collect due review exercise IDs from all lessons the user has started
+    progress_rows = db.execute(
+        text("""
+            SELECT lesson_id, review_queue
+            FROM user_lesson_progress
+            WHERE user_id = :u AND review_queue IS NOT NULL
+        """),
+        {"u": user_id},
+    ).mappings().all()
+
+    due_ids: list[int] = []
+    for row in progress_rows:
+        q = _json_default_list(row["review_queue"])
+        eid = _pick_due_review(q)
+        if eid and eid not in due_ids:
+            due_ids.append(eid)
+
+    # 2. Find weak exercises from completed lessons (limit to top-N by need score)
+    weak_rows = db.execute(
+        text("""
+            WITH stats AS (
+              SELECT
+                e.id AS exercise_id,
+                COUNT(a.id)::int AS attempts,
+                COALESCE(SUM(CASE WHEN a.is_correct THEN 1 ELSE 0 END), 0)::int AS correct,
+                MAX(a.created_at) AS last_attempt_at
+              FROM exercises e
+              JOIN user_lesson_progress ulp ON ulp.lesson_id = e.lesson_id AND ulp.user_id = :u
+              LEFT JOIN user_exercise_attempts a
+                ON a.exercise_id = e.id AND a.user_id = :u
+              GROUP BY e.id
+            )
+            SELECT exercise_id, attempts, correct, last_attempt_at
+            FROM stats
+            WHERE attempts > 0
+            ORDER BY (CAST(correct AS float) / attempts) ASC, last_attempt_at ASC NULLS FIRST
+            LIMIT 20
+        """),
+        {"u": user_id},
+    ).mappings().all()
+
+    now = _now_utc()
+    scored = []
+    for r in weak_rows:
+        attempts = int(r["attempts"] or 0)
+        correct = int(r["correct"] or 0)
+        accuracy = (correct / attempts) if attempts > 0 else 0.0
+        last = r["last_attempt_at"]
+        days_since = (now - last).total_seconds() / 86400.0 if last else 999.0
+        recency = _clamp(days_since / 7.0, 0.0, 1.0)
+        need_score = (1 - accuracy) * 0.7 + recency * 0.3
+        scored.append((int(r["exercise_id"]), need_score))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    weak_ids = [eid for eid, _ in scored[:10] if eid not in due_ids]
+
+    # Combine: due reviews first, then weak
+    all_ids = due_ids + weak_ids
+    if not all_ids:
+        return {"exercises": [], "message": "Nothing to practice right now — you're all caught up!"}
+
+    # Fetch full exercise objects
+    ex_rows = db.execute(
+        text("""
+            SELECT id, lesson_id, kind, prompt, expected_answer, sentence_before, sentence_after, "order", config
+            FROM exercises
+            WHERE id = ANY(:ids)
+        """),
+        {"ids": all_ids},
+    ).mappings().all()
+
+    ex_map = {int(r["id"]): dict(r) for r in ex_rows}
+
+    # Fetch options for all exercises
+    opt_rows = db.execute(
+        text("""
+            SELECT id, exercise_id, text, is_correct, side, match_key
+            FROM exercise_options
+            WHERE exercise_id = ANY(:ids)
+            ORDER BY exercise_id ASC, id ASC
+        """),
+        {"ids": all_ids},
+    ).mappings().all()
+
+    options_by_ex: dict[int, list[dict]] = {eid: [] for eid in all_ids}
+    for o in opt_rows:
+        eid = int(o["exercise_id"])
+        if eid in options_by_ex:
+            options_by_ex[eid].append(dict(o))
+
+    # Build output in priority order
+    exercises_out = []
+    for eid in all_ids:
+        ex = ex_map.get(eid)
+        if ex:
+            ex["options"] = options_by_ex.get(eid, [])
+            exercises_out.append(ex)
+
+    return {"exercises": exercises_out}
+
+
 @router.get("/me/activity")
 def me_activity(
     days: int = 7,
@@ -5574,6 +5694,288 @@ def leagues_rollover_cron(
     return _run_league_rollover(db)
 
 
+@router.post("/cron/send-reminders")
+def cron_send_reminders(
+    x_cron_secret: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Send Telegram streak reminders to users who haven't practiced today.
+    Authenticated with the shared CRON_SECRET. Schedule daily around 19:00 UTC."""
+    secret = (os.getenv("CRON_SECRET") or "").strip()
+    if not secret or not x_cron_secret or not hmac.compare_digest(x_cron_secret.strip(), secret):
+        raise HTTPException(status_code=403, detail="Invalid cron secret")
+
+    bot_token = (os.getenv("TELEGRAM_BOT_KEY") or "").strip()
+    if not bot_token:
+        return {"ok": False, "error": "TELEGRAM_BOT_KEY not set", "sent": 0}
+
+    REMINDER_MESSAGES = [
+        "🔥 Your Armenian streak is waiting! Do a quick lesson today and keep the flame alive.",
+        "📚 Don't break your streak! Just 5 minutes of Armenian practice keeps you on track.",
+        "🇦🇲 Your streak is counting on you! Open Haylingua and do today's lesson.",
+        "⏰ One lesson a day keeps the streak alive! Come back to Haylingua today.",
+        "✨ Small steps every day. Your Armenian is getting better — don't stop now!",
+    ]
+
+    rows = db.execute(
+        text("""
+            SELECT u.id, u.telegram_id, u.first_name, u.display_name, u.current_streak
+            FROM users u
+            WHERE u.telegram_id IS NOT NULL
+              AND u.current_streak > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM lesson_progress lp
+                  WHERE lp.user_id = u.id
+                    AND lp.completed_at >= CURRENT_DATE
+              )
+            LIMIT 500
+        """)
+    ).mappings().all()
+
+    import httpx as _httpx
+
+    sent = 0
+    for i, row in enumerate(rows):
+        chat_id = int(row["telegram_id"])
+        name = row.get("first_name") or row.get("display_name") or "learner"
+        streak = int(row.get("current_streak") or 0)
+        msg = REMINDER_MESSAGES[i % len(REMINDER_MESSAGES)]
+        if streak > 1:
+            msg += f"\n\n🔢 Your current streak: <b>{streak} days</b> — don't lose it!"
+        try:
+            r = _httpx.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"},
+                timeout=10,
+            )
+            if r.status_code == 200:
+                sent += 1
+        except Exception:
+            pass
+
+    return {"ok": True, "eligible": len(rows), "sent": sent}
+
+
+@router.get("/cms/analytics")
+def cms_analytics(
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    """Advanced analytics dashboard for CMS admins.
+
+    All queries are read-only aggregates. Returns in a single round-trip so the
+    frontend can render the full dashboard without waterfall fetches.
+    """
+    import json as _json
+
+    # ── Summary KPIs ─────────────────────────────────────────────────────────
+    totals = db.execute(text("""
+        SELECT
+            COUNT(*)                                                 AS total_users,
+            COUNT(*) FILTER (WHERE email_verified)                  AS verified_users,
+            COUNT(*) FILTER (WHERE COALESCE(is_premium, FALSE))     AS premium_users,
+            COUNT(*) FILTER (WHERE telegram_id IS NOT NULL)         AS telegram_users,
+            COUNT(*) FILTER (WHERE google_id IS NOT NULL)           AS google_users,
+            COUNT(*) FILTER (WHERE joined_at >= NOW() - INTERVAL '7 days')  AS new_7d,
+            COUNT(*) FILTER (WHERE joined_at >= NOW() - INTERVAL '30 days') AS new_30d,
+            COUNT(*) FILTER (WHERE last_active_at >= NOW() - INTERVAL '1 day')  AS dau,
+            COUNT(*) FILTER (WHERE last_active_at >= NOW() - INTERVAL '7 days') AS wau,
+            COUNT(*) FILTER (WHERE last_active_at >= NOW() - INTERVAL '30 days') AS mau
+        FROM users
+    """)).mappings().first() or {}
+
+    lesson_totals = db.execute(text("""
+        SELECT
+            COUNT(*)                                         AS total_completions,
+            COUNT(*) FILTER (WHERE completed_at >= NOW() - INTERVAL '1 day')  AS completions_today,
+            COUNT(*) FILTER (WHERE completed_at >= NOW() - INTERVAL '7 days') AS completions_7d,
+            COALESCE(SUM(xp_earned), 0)                     AS total_xp_awarded
+        FROM lesson_progress WHERE completed_at IS NOT NULL
+    """)).mappings().first() or {}
+
+    exercise_totals = db.execute(text("""
+        SELECT
+            COUNT(*)                                                AS total_attempts,
+            COALESCE(AVG(CASE WHEN correct THEN 1.0 ELSE 0.0 END), 0) AS avg_accuracy,
+            COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS attempts_today
+        FROM user_exercise_logs
+    """)).mappings().first() or {}
+
+    onboarding_totals = db.execute(text("""
+        SELECT
+            COUNT(*)                                                 AS onboarded,
+            COUNT(*) FILTER (WHERE completed_at IS NOT NULL)        AS completed
+        FROM user_onboarding
+    """)).mappings().first() or {}
+
+    # ── Time-series: last 30 days ─────────────────────────────────────────────
+    new_users_daily = db.execute(text("""
+        SELECT DATE(joined_at) AS day, COUNT(*) AS count
+        FROM users
+        WHERE joined_at >= NOW() - INTERVAL '30 days'
+        GROUP BY day ORDER BY day
+    """)).mappings().all()
+
+    dau_daily = db.execute(text("""
+        SELECT DATE(last_active_at) AS day, COUNT(*) AS count
+        FROM users
+        WHERE last_active_at >= NOW() - INTERVAL '30 days'
+        GROUP BY day ORDER BY day
+    """)).mappings().all()
+
+    lessons_daily = db.execute(text("""
+        SELECT DATE(completed_at) AS day, COUNT(*) AS count
+        FROM lesson_progress
+        WHERE completed_at >= NOW() - INTERVAL '30 days'
+        GROUP BY day ORDER BY day
+    """)).mappings().all()
+
+    exercises_daily = db.execute(text("""
+        SELECT DATE(created_at) AS day, COUNT(*) AS count,
+               ROUND(AVG(CASE WHEN correct THEN 1.0 ELSE 0.0 END)::numeric, 3) AS accuracy
+        FROM user_exercise_logs
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY day ORDER BY day
+    """)).mappings().all()
+
+    # ── Content performance ───────────────────────────────────────────────────
+    top_lessons = db.execute(text("""
+        SELECT l.title, l.id, COUNT(*) AS completions,
+               ROUND(AVG(lp.xp_earned)::numeric, 1) AS avg_xp
+        FROM lesson_progress lp
+        JOIN lessons l ON l.id = lp.lesson_id
+        WHERE lp.completed_at IS NOT NULL
+        GROUP BY l.id, l.title
+        ORDER BY completions DESC
+        LIMIT 10
+    """)).mappings().all()
+
+    chapter_progress = db.execute(text("""
+        SELECT c.title AS chapter, COUNT(DISTINCT lp.user_id) AS unique_learners,
+               COUNT(DISTINCT lp.lesson_id) AS lessons_completed
+        FROM lesson_progress lp
+        JOIN lessons l ON l.id = lp.lesson_id
+        JOIN chapters c ON c.id = l.chapter_id
+        WHERE lp.completed_at IS NOT NULL
+        GROUP BY c.id, c.title
+        ORDER BY unique_learners DESC
+        LIMIT 10
+    """)).mappings().all()
+
+    # ── Distribution / segmentation ───────────────────────────────────────────
+    voice_dist = db.execute(text("""
+        SELECT COALESCE(voice_pref, 'Random') AS voice_pref, COUNT(*) AS count
+        FROM user_onboarding GROUP BY voice_pref ORDER BY count DESC
+    """)).mappings().all()
+
+    knowledge_dist = db.execute(text("""
+        SELECT COALESCE(knowledge_level, 'unknown') AS level, COUNT(*) AS count
+        FROM user_onboarding GROUP BY knowledge_level ORDER BY count DESC
+    """)).mappings().all()
+
+    goal_dist = db.execute(text("""
+        SELECT COALESCE(daily_goal_min::text, 'unknown') AS goal_min, COUNT(*) AS count
+        FROM user_onboarding GROUP BY daily_goal_min ORDER BY count DESC LIMIT 8
+    """)).mappings().all()
+
+    country_dist = db.execute(text("""
+        SELECT COALESCE(country, 'Unknown') AS country, COUNT(*) AS count
+        FROM user_onboarding WHERE country IS NOT NULL AND country != ''
+        GROUP BY country ORDER BY count DESC LIMIT 12
+    """)).mappings().all()
+
+    # ── Streak health ─────────────────────────────────────────────────────────
+    streak_dist = db.execute(text("""
+        SELECT
+            CASE
+                WHEN COALESCE(current_streak, 0) = 0 THEN '0'
+                WHEN current_streak <= 3              THEN '1–3'
+                WHEN current_streak <= 7              THEN '4–7'
+                WHEN current_streak <= 14             THEN '8–14'
+                WHEN current_streak <= 30             THEN '15–30'
+                ELSE '30+'
+            END AS bucket,
+            COUNT(*) AS count
+        FROM users
+        GROUP BY bucket
+        ORDER BY MIN(COALESCE(current_streak, 0))
+    """)).mappings().all()
+
+    # ── Churn / inactivity ────────────────────────────────────────────────────
+    churn = db.execute(text("""
+        SELECT
+            COUNT(*) FILTER (WHERE last_active_at >= NOW() - INTERVAL '7 days')   AS active_7d,
+            COUNT(*) FILTER (WHERE last_active_at < NOW() - INTERVAL '7 days'
+                               AND last_active_at >= NOW() - INTERVAL '30 days')  AS at_risk_30d,
+            COUNT(*) FILTER (WHERE last_active_at < NOW() - INTERVAL '30 days'
+                               AND last_active_at IS NOT NULL)                    AS churned,
+            COUNT(*) FILTER (WHERE last_active_at IS NULL)                        AS never_active
+        FROM users
+    """)).mappings().first() or {}
+
+    # ── Auth method breakdown ─────────────────────────────────────────────────
+    auth_methods = db.execute(text("""
+        SELECT
+            COUNT(*) FILTER (WHERE google_id IS NOT NULL AND telegram_id IS NULL)    AS google_only,
+            COUNT(*) FILTER (WHERE telegram_id IS NOT NULL AND google_id IS NULL)    AS telegram_only,
+            COUNT(*) FILTER (WHERE google_id IS NOT NULL AND telegram_id IS NOT NULL) AS both_oauth,
+            COUNT(*) FILTER (WHERE google_id IS NULL AND telegram_id IS NULL
+                               AND password_hash != '' AND password_hash IS NOT NULL) AS password_only
+        FROM users
+    """)).mappings().first() or {}
+
+    def _ser(rows):
+        out = []
+        for r in rows:
+            d = {}
+            for k, v in dict(r).items():
+                if hasattr(v, "isoformat"):
+                    d[k] = v.isoformat()
+                else:
+                    try:
+                        d[k] = float(v) if v is not None else None
+                    except (TypeError, ValueError):
+                        d[k] = v
+            out.append(d)
+        return out
+
+    def _ser1(row):
+        if not row:
+            return {}
+        d = {}
+        for k, v in dict(row).items():
+            if hasattr(v, "isoformat"):
+                d[k] = v.isoformat()
+            else:
+                try:
+                    d[k] = float(v) if v is not None else None
+                except (TypeError, ValueError):
+                    d[k] = v
+        return d
+
+    return {
+        "summary": {
+            **_ser1(totals),
+            **_ser1(lesson_totals),
+            **_ser1(exercise_totals),
+            **_ser1(onboarding_totals),
+        },
+        "new_users_daily":   _ser(new_users_daily),
+        "dau_daily":         _ser(dau_daily),
+        "lessons_daily":     _ser(lessons_daily),
+        "exercises_daily":   _ser(exercises_daily),
+        "top_lessons":       _ser(top_lessons),
+        "chapter_progress":  _ser(chapter_progress),
+        "voice_dist":        _ser(voice_dist),
+        "knowledge_dist":    _ser(knowledge_dist),
+        "goal_dist":         _ser(goal_dist),
+        "country_dist":      _ser(country_dist),
+        "streak_dist":       _ser(streak_dist),
+        "churn":             _ser1(churn),
+        "auth_methods":      _ser1(auth_methods),
+    }
+
+
 def _send_invite_email(email: str, invite_url: str):  # Send email function, is a really helpful thing for email verification and overall systematic communication style.
     """
     Best-effort. If SMTP not configured, prints link to logs.
@@ -7101,8 +7503,65 @@ def cms_delete_option(option_id: int, request: Request, db=Depends(get_db)):
     require_cms(request, db)
     db.execute(text("DELETE FROM exercise_options WHERE id = :id"), {"id": option_id})
     return {"ok": True}
-    
+
 # --------- ElevenLabs TTS ----------
+
+# --------- Live stats SSE ----------
+
+@router.get("/me/events")
+async def me_live_events(
+    token: Optional[str] = Query(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Server-Sent Events stream: pushes xp/streak/gems/hearts every 10s."""
+    bearer = authorization or (f"Bearer {token}" if token else None)
+    user_id = _get_user_id_from_bearer(bearer)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    async def generate():
+        try:
+            while True:
+                try:
+                    with engine.connect() as conn:
+                        row = conn.execute(
+                            text("""
+                                SELECT u.gems, u.current_streak,
+                                       COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp,
+                                       u.hearts_current, u.hearts_max, u.is_premium
+                                FROM users u
+                                LEFT JOIN lesson_progress lp ON lp.user_id = u.id
+                                WHERE u.id = :uid
+                                GROUP BY u.id
+                            """),
+                            {"uid": int(user_id)},
+                        ).mappings().first()
+                    if row:
+                        payload = {
+                            "xp": int(row["total_xp"] or 0),
+                            "streak": int(row["current_streak"] or 0),
+                            "gems": int(row["gems"] or 0),
+                            "hearts_current": int(row["hearts_current"] or 0),
+                            "hearts_max": int(row["hearts_max"] or 5),
+                            "is_premium": bool(row["is_premium"]),
+                        }
+                        yield f"data: {json.dumps(payload)}\n\n"
+                except Exception:
+                    pass
+                await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            pass
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
 
 # --------- ElevenLabs TTS ----------
 
