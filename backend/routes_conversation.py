@@ -9,6 +9,7 @@ Endpoints:
   GET  /conversation/video/{pred_id}  — poll SadTalker prediction status
 """
 
+import asyncio
 import base64
 import json
 import os
@@ -220,16 +221,83 @@ def _parse_claude_response(full_text: str) -> tuple[str, str, list[str]]:
     return armenian_text, english_translation, corrections
 
 
+def _is_armenian(text: str) -> bool:
+    """Return True if text contains at least a few Armenian characters."""
+    return sum(1 for c in text if 'Ա' <= c <= '֏') >= 3
+
+
 def _api_base_url() -> str:
     """Return the base URL that the outside world uses to reach this backend."""
     env = os.getenv("API_BASE_URL", "").rstrip("/")
     if env:
         return env
-    # Render sets RENDER_EXTERNAL_URL for web services.
     render = os.getenv("RENDER_EXTERNAL_URL", "").rstrip("/")
     if render:
         return render
     return "http://localhost:8000"
+
+
+async def _transcribe_whisper(audio_file_url: str) -> str:
+    """
+    Transcribe audio using openai/whisper on Replicate.
+    Uses Prefer: wait for synchronous response (avoids polling in most cases).
+    Falls back to polling if the model is cold-starting.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=60) as c:
+            resp = await c.post(
+                "https://api.replicate.com/v1/models/openai/whisper/predictions",
+                headers={
+                    "Authorization": f"Token {REPLICATE_API_TOKEN}",
+                    "Content-Type": "application/json",
+                    "Prefer": "wait",
+                },
+                json={
+                    "input": {
+                        "audio": audio_file_url,
+                        "language": "armenian",
+                        "transcription": "plain text",
+                        "translate": False,
+                        "temperature": 0,
+                    }
+                },
+            )
+    except Exception as exc:
+        print(f"[whisper] request failed: {exc}")
+        return ""
+
+    if resp.status_code not in (200, 201):
+        print(f"[whisper] HTTP {resp.status_code}: {resp.text[:200]}")
+        return ""
+
+    data = resp.json()
+    if data.get("status") == "succeeded":
+        output = data.get("output", {})
+        return (output.get("transcription") if isinstance(output, dict) else str(output) or "").strip()
+
+    # Prefer: wait timed out — poll
+    pred_id = data.get("id")
+    if not pred_id:
+        return ""
+
+    for _ in range(20):
+        await asyncio.sleep(1.5)
+        try:
+            async with httpx.AsyncClient(timeout=10) as c:
+                sr = await c.get(
+                    f"https://api.replicate.com/v1/predictions/{pred_id}",
+                    headers={"Authorization": f"Token {REPLICATE_API_TOKEN}"},
+                )
+            sd = sr.json()
+            if sd.get("status") == "succeeded":
+                output = sd.get("output", {})
+                return (output.get("transcription") if isinstance(output, dict) else str(output) or "").strip()
+            if sd.get("status") == "failed":
+                return ""
+        except Exception:
+            pass
+
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -272,52 +340,65 @@ async def conversation_turn(
     # 1. Transcribe audio (if provided)
     # ------------------------------------------------------------------ #
     if body.user_audio_b64:
-        if not ELEVEN_API_KEY:
-            raise HTTPException(status_code=400, detail="STT is not configured (ELEVENLABS_API_KEY missing).")
         try:
             audio_bytes = base64.b64decode(body.user_audio_b64)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid base64 audio data.")
 
-        files = {"file": ("speech.webm", audio_bytes, "audio/webm")}
-        form_data = {"model_id": ELEVEN_STT_MODEL, "language_code": "hye"}
-        try:
-            stt_resp = await _http.post(
-                f"{ELEVEN_API_URL}/speech-to-text",
-                headers={"xi-api-key": ELEVEN_API_KEY},
-                data=form_data,
-                files=files,
-            )
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"STT request failed: {exc}")
+        # Save audio to disk so Whisper can fetch it via URL
+        audio_dir = _conv_audio_dir()
+        audio_filename = f"{uuid.uuid4().hex}_stt.webm"
+        audio_file_path = os.path.join(audio_dir, audio_filename)
+        with open(audio_file_path, "wb") as f:
+            f.write(audio_bytes)
+        audio_file_url = f"{_api_base_url()}/static/conv-audio/{audio_filename}"
 
-        if stt_resp.status_code != 200:
-            body_text = (stt_resp.text or "")[:300]
-            raise HTTPException(status_code=stt_resp.status_code, detail=f"STT error: {body_text}")
+        transcription = ""
 
-        stt_data = stt_resp.json() if stt_resp.content else {}
-        user_transcription = (stt_data.get("text") or "").strip()
-        user_text = user_transcription
+        # Primary: Replicate Whisper (much better Armenian accuracy)
+        if REPLICATE_API_TOKEN:
+            transcription = await _transcribe_whisper(audio_file_url)
+
+        # Fallback: ElevenLabs Scribe
+        if not transcription and ELEVEN_API_KEY:
+            try:
+                files = {"file": ("speech.webm", audio_bytes, "audio/webm")}
+                form_data = {"model_id": ELEVEN_STT_MODEL, "language_code": "hye"}
+                stt_resp = await _http.post(
+                    f"{ELEVEN_API_URL}/speech-to-text",
+                    headers={"xi-api-key": ELEVEN_API_KEY},
+                    data=form_data,
+                    files=files,
+                )
+                if stt_resp.status_code == 200:
+                    stt_data = stt_resp.json() if stt_resp.content else {}
+                    transcription = (stt_data.get("text") or "").strip()
+            except Exception as exc:
+                print(f"[stt fallback] ElevenLabs error: {exc}")
+
+        user_transcription = transcription
+        user_text = transcription
 
     # ------------------------------------------------------------------ #
     # 2. Build Claude messages (keep last 10)
     # ------------------------------------------------------------------ #
-    system_prompt = f"""You are Aram (Արամ), a friendly 25-year-old Armenian from Yerevan.
-You are helping someone learn Armenian through a conversation scenario: "{scenario_title_en}".
+    beginner_note = "Use only extremely simple, everyday Armenian words. Short sentences." if body.user_level == "beginner" else ""
+    system_prompt = f"""You are Aram (Արամ), a friendly 25-year-old from Yerevan helping someone practice Armenian.
+Scenario: "{scenario_title_en}" — Goal: {scenario_goal}
 
-Rules:
-- Speak ONLY in Armenian (Eastern Armenian / հայերեն)
-- Keep responses SHORT: 1-2 sentences maximum
-- If the user makes a mistake in Armenian, gently correct them at the end of your message in parentheses in English
-- Match the user's level: {body.user_level} (beginner = very simple words, lots of patience)
-- For beginners: use very common everyday words only
-- Scenario goal: {scenario_goal}
-- Always stay in character and in the scenario
-- If the user sends an empty message, start the conversation naturally as Aram
+⚠️ ABSOLUTE RULE: Your response text MUST be written ONLY in Armenian (Eastern Armenian / հայերեն script).
+NEVER write Chinese, English, Russian, or ANY other language in the response body.
+If you don't know a word in Armenian, use a simpler Armenian word instead.
+Violation of this rule is not acceptable under any circumstances.
 
-After your Armenian response (on a new line), write:
-[EN: English translation of what you just said]
-[CORRECT: any correction of user Armenian, or "none"]"""
+Style: {beginner_note} Keep responses to 1-2 sentences maximum. Be warm and encouraging.
+Stay in character and in the scenario at all times.
+If the user sends an empty or greeting message, naturally open the scenario as Aram.
+
+FORMAT — output exactly these three lines, nothing else:
+<your 1-2 sentence Armenian response — Armenian script ONLY>
+[EN: English translation of what you said]
+[CORRECT: one short English correction of the user's Armenian, or "none"]"""
 
     # Trim to last 10 messages
     recent_messages = list(body.messages)[-10:]
@@ -356,6 +437,14 @@ After your Armenian response (on a new line), write:
     claude_data = claude_resp.json()
     full_response = (claude_data.get("content") or [{}])[0].get("text", "")
     armenian_text, english_translation, corrections = _parse_claude_response(full_response)
+
+    # Guard: if the extracted text doesn't look Armenian, the model drifted languages.
+    # Return a safe fallback so we don't TTS Chinese/Russian/etc. to the user.
+    if armenian_text and not _is_armenian(armenian_text):
+        print(f"[conv] language drift detected — got non-Armenian text: {armenian_text[:80]}")
+        armenian_text = "Կներեք, եկեք նորից սկսենք:"
+        english_translation = "Sorry, let's start again."
+        corrections = []
 
     # Simple heuristic: consider conversation complete if Aram's reply contains
     # keywords that suggest the goal was achieved.
@@ -409,47 +498,13 @@ After your Armenian response (on a new line), write:
             # TTS failure is non-fatal; conversation still works without audio.
             print(f"[conv TTS] error: {exc}")
 
-    # ------------------------------------------------------------------ #
-    # 4. Generate SadTalker video (async, return prediction_id for polling)
-    # ------------------------------------------------------------------ #
-    video_prediction_id: Optional[str] = None
-
-    if body.generate_video and REPLICATE_API_TOKEN and audio_url:
-        try:
-            async with httpx.AsyncClient(timeout=30) as c:
-                pred_resp = await c.post(
-                    "https://api.replicate.com/v1/predictions",
-                    headers={
-                        "Authorization": f"Token {REPLICATE_API_TOKEN}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "version": SADTALKER_VERSION,
-                        "input": {
-                            "source_image": ARAM_PORTRAIT_URL,
-                            "driven_audio": audio_url,
-                            "preprocess": "crop",
-                            "still_mode": True,
-                            "use_enhancer": False,
-                            "size": 256,
-                        },
-                    },
-                )
-            if pred_resp.status_code in (200, 201):
-                prediction = pred_resp.json()
-                video_prediction_id = prediction.get("id")
-            else:
-                print(f"[sadtalker] prediction start HTTP {pred_resp.status_code}: {pred_resp.text[:200]}")
-        except Exception as exc:
-            print(f"[sadtalker] prediction start failed: {exc}")
-
     return ConversationTurnResponse(
         assistant_text=armenian_text,
         assistant_text_latin=None,
         translation=english_translation,
         user_transcription=user_transcription,
-        video_url=None,  # not yet — client polls /conversation/video/{id}
-        video_prediction_id=video_prediction_id,
+        video_url=None,
+        video_prediction_id=None,
         audio_url=audio_url,
         is_complete=is_complete,
         corrections=corrections,
@@ -458,35 +513,5 @@ After your Armenian response (on a new line), write:
 
 @router.get("/conversation/video/{prediction_id}")
 async def poll_video(prediction_id: str, user=Depends(get_current_user)):
-    """Poll SadTalker prediction status."""
-    if not REPLICATE_API_TOKEN:
-        raise HTTPException(status_code=503, detail="REPLICATE_API_TOKEN not configured.")
-
-    # Basic validation — Replicate IDs are alphanumeric.
-    if not re.match(r"^[a-zA-Z0-9]+$", prediction_id):
-        raise HTTPException(status_code=400, detail="Invalid prediction_id.")
-
-    try:
-        async with httpx.AsyncClient(timeout=10) as c:
-            resp = await c.get(
-                f"https://api.replicate.com/v1/predictions/{prediction_id}",
-                headers={"Authorization": f"Token {REPLICATE_API_TOKEN}"},
-            )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Replicate poll failed: {exc}")
-
-    if resp.status_code != 200:
-        raise HTTPException(status_code=resp.status_code, detail="Failed to fetch prediction.")
-
-    data = resp.json()
-    status = data.get("status")  # "starting" | "processing" | "succeeded" | "failed"
-    output = data.get("output")
-    # SadTalker output can be a string URL or a list; normalise to a single URL.
-    video_url: Optional[str] = None
-    if status == "succeeded" and output:
-        if isinstance(output, list):
-            video_url = output[0] if output else None
-        else:
-            video_url = str(output)
-
-    return {"status": status, "video_url": video_url}
+    """Video generation has been replaced with in-browser audio animation. Always returns failed."""
+    return {"status": "failed", "video_url": None}
