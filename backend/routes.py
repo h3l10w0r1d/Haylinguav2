@@ -1376,6 +1376,159 @@ def friends_remove(
 
     return {"ok": True}
 
+# ---------- Friends activity feed ----------
+
+@router.get("/friends/activity")
+def friends_activity(
+    days: int = 7,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Recent lesson completions from the current user's friends (last N days)."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    rows = db.execute(
+        text("""
+            SELECT
+                u.id        AS friend_id,
+                u.username,
+                u.display_name,
+                u.avatar_url,
+                u.email,
+                l.title     AS lesson_title,
+                ulp.xp_earned,
+                ulp.completed_at
+            FROM user_lesson_progress ulp
+            JOIN users   u ON u.id  = ulp.user_id
+            JOIN lessons l ON l.id  = ulp.lesson_id
+            JOIN friends f ON f.friend_id = ulp.user_id AND f.user_id = :uid
+            WHERE ulp.completed_at >= NOW() - (:days || ' days')::INTERVAL
+            ORDER BY ulp.completed_at DESC
+            LIMIT 60
+        """),
+        {"uid": int(user_id), "days": int(days)},
+    ).mappings().all()
+
+    out = []
+    for r in rows:
+        email = (r.get("email") or "").strip()
+        display_name = (r.get("display_name") or "").strip()
+        username = (r.get("username") or "").strip() or None
+        name = display_name or username or (email.split("@")[0] if "@" in email else "Someone")
+        out.append({
+            "friend_id": int(r["friend_id"]),
+            "name": name,
+            "username": username,
+            "avatar_url": r.get("avatar_url"),
+            "lesson_title": r.get("lesson_title") or "a lesson",
+            "xp_earned": int(r.get("xp_earned") or 0),
+            "completed_at": r["completed_at"].isoformat() if r.get("completed_at") else None,
+        })
+    return out
+
+
+# ---------- Referral ----------
+
+import secrets as _secrets
+
+@router.get("/me/referral")
+def me_referral(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Return (generating if needed) the current user's referral code + stats."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    row = db.execute(
+        text("SELECT referral_code FROM users WHERE id = :uid"),
+        {"uid": int(user_id)},
+    ).mappings().first()
+
+    code = row["referral_code"] if row and row.get("referral_code") else None
+    if not code:
+        for _ in range(10):
+            candidate = _secrets.token_urlsafe(6).upper()
+            existing = db.execute(
+                text("SELECT 1 FROM users WHERE referral_code = :c"),
+                {"c": candidate},
+            ).scalar()
+            if not existing:
+                code = candidate
+                break
+        db.execute(
+            text("UPDATE users SET referral_code = :c WHERE id = :uid"),
+            {"c": code, "uid": int(user_id)},
+        )
+
+    referred_count = db.execute(
+        text("SELECT COUNT(*) FROM users WHERE referred_by = :uid"),
+        {"uid": int(user_id)},
+    ).scalar() or 0
+
+    return {"code": code, "referred_count": int(referred_count)}
+
+
+class ReferralClaimIn(BaseModel):
+    code: str
+
+@router.post("/me/referral/claim")
+def referral_claim(
+    payload: ReferralClaimIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Link a referral code to the current user (call once after signup)."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    code = (payload.code or "").strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="No code provided")
+
+    # Find the referrer
+    referrer = db.execute(
+        text("SELECT id FROM users WHERE referral_code = :c"),
+        {"c": code},
+    ).mappings().first()
+    if not referrer:
+        raise HTTPException(status_code=404, detail="Invalid referral code")
+
+    referrer_id = int(referrer["id"])
+    if referrer_id == int(user_id):
+        raise HTTPException(status_code=400, detail="Cannot use your own code")
+
+    # Check this user hasn't already been referred
+    already = db.execute(
+        text("SELECT referred_by FROM users WHERE id = :uid"),
+        {"uid": int(user_id)},
+    ).mappings().first()
+    if already and already.get("referred_by"):
+        raise HTTPException(status_code=409, detail="Already claimed a referral code")
+
+    # Link
+    db.execute(
+        text("UPDATE users SET referred_by = :ref WHERE id = :uid"),
+        {"ref": referrer_id, "uid": int(user_id)},
+    )
+
+    # Reward referrer: +3 hearts (cap at hearts_max)
+    db.execute(
+        text("""
+            UPDATE users
+            SET hearts_current = LEAST(COALESCE(hearts_max, 5), COALESCE(hearts_current, 0) + 3)
+            WHERE id = :ref
+        """),
+        {"ref": referrer_id},
+    )
+
+    return {"ok": True, "referrer_id": referrer_id}
+
+
 # ---------- TTS schema ----------
 
 ELEVEN_API_KEY = (
@@ -3179,6 +3332,7 @@ class MeOut(BaseModel):
     # Account
     email_verified: bool = False
     telegram_id: Optional[int] = None
+    google_linked: bool = False
 
     # Preferences
     voice_pref: str = "Random"
@@ -3624,7 +3778,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -3649,6 +3803,7 @@ def me_profile_get(
 
     streak = _compute_streak_days(db, int(user_id))
     payload = dict(row)
+    payload["google_linked"] = bool(payload.pop("google_id", None))
     payload["total_xp"] = int(stats_row["total_xp"] or 0)
     payload["streak"] = int(streak)
     payload["voice_pref"] = (ob_row or {}).get("voice_pref") or "Random"
@@ -4513,7 +4668,7 @@ def me_profile_put(
             )
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -4526,6 +4681,7 @@ def me_profile_put(
     _brevo_sync_user(db, int(user_id), event="profile_updated")
 
     result = dict(row)
+    result["google_linked"] = bool(result.pop("google_id", None))
     result["voice_pref"] = (ob_row or {}).get("voice_pref") or "Random"
     return MeOut(**result)
 
@@ -4603,6 +4759,119 @@ def me_unlink_telegram(
         text("UPDATE users SET telegram_id = NULL WHERE id = :u"),
         {"u": int(user_id)},
     )
+    return {"ok": True}
+
+
+@router.post("/me/link/google")
+def me_link_google(
+    payload: Dict[str, Any] = Body(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Link a Google account to the currently authenticated user.
+
+    Exchanges the OAuth code (same flow as /auth/google), then stores the
+    google_id on the user's row. Returns 409 if the Google account is already
+    linked to a different Haylingua account.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    code = ((payload or {}).get("code") or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing OAuth code")
+
+    redirect_uri = (os.getenv("GOOGLE_REDIRECT_URI") or "https://haylingua.am/auth/google/callback").strip()
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=503, detail="Google OAuth is not configured on this server")
+
+    # 1) Exchange code for tokens
+    try:
+        token_resp = httpx.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google token exchange failed: {exc}")
+
+    if token_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Google rejected the authorization code")
+
+    access_token_google = token_resp.json().get("access_token")
+    if not access_token_google:
+        raise HTTPException(status_code=400, detail="No access token returned by Google")
+
+    # 2) Get user info from Google
+    try:
+        info_resp = httpx.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token_google}"},
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not fetch Google user info: {exc}")
+
+    if info_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to get user info from Google")
+
+    ginfo = info_resp.json()
+    google_id = ginfo.get("sub") or ""
+    if not google_id:
+        raise HTTPException(status_code=400, detail="Google did not return a valid user ID")
+
+    # Reject if this Google account is already linked to a *different* user
+    existing = db.execute(
+        text("SELECT id FROM users WHERE google_id = :gid AND id != :u LIMIT 1"),
+        {"gid": google_id, "u": int(user_id)},
+    ).scalar()
+    if existing:
+        raise HTTPException(status_code=409, detail="This Google account is already linked to another Haylingua account")
+
+    db.execute(
+        text("UPDATE users SET google_id = :gid, oauth_provider = COALESCE(oauth_provider, 'google') WHERE id = :u"),
+        {"gid": google_id, "u": int(user_id)},
+    )
+    _brevo_sync_user(db, int(user_id), event="google_linked")
+    return {"ok": True, "google_linked": True}
+
+
+@router.delete("/me/link/google")
+def me_unlink_google(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Remove the Google link from the current user's account.
+
+    Refuses if the user has no password set (Google is their only way in),
+    to avoid locking them out of their account.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    row = db.execute(
+        text("SELECT password_hash, telegram_id FROM users WHERE id = :u"),
+        {"u": int(user_id)},
+    ).mappings().first()
+    has_password = bool(row and (row.get("password_hash") or "").strip())
+    has_telegram = bool(row and row.get("telegram_id"))
+    if not has_password and not has_telegram:
+        raise HTTPException(
+            status_code=400,
+            detail="Set a password or link Telegram before unlinking Google, so you don't lose access.",
+        )
+
+    db.execute(text("UPDATE users SET google_id = NULL WHERE id = :u"), {"u": int(user_id)})
     return {"ok": True}
 
 

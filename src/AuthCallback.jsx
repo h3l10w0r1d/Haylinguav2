@@ -34,6 +34,39 @@ export default function AuthCallback() {
 
     const redirectUri = "https://haylingua.am/auth/google/callback";
 
+    // Link mode: user is already logged in and is linking Google to their
+    // account (state was prefixed "link_" when the flow started).
+    if (returnedState.startsWith("link_")) {
+      const authToken =
+        localStorage.getItem("access_token") || localStorage.getItem("hay_token") || "";
+      if (!authToken) {
+        setError("Your session expired. Please log in again, then link Google.");
+        return;
+      }
+      fetch(`${API_BASE}/me/link/google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ code, redirect_uri: redirectUri }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            throw new Error(d?.detail || "Could not link Google");
+          }
+          return res.json();
+        })
+        .then(() => {
+          navigate("/profile?linked=google", { replace: true });
+        })
+        .catch((err) => {
+          setError(err.message || "Could not link your Google account. Please try again.");
+        });
+      return;
+    }
+
     fetch(`${API_BASE}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

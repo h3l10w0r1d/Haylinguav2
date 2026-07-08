@@ -39,6 +39,9 @@ const API_BASE =
   "https://haylinguav2.onrender.com";
 
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "haylinguabot";
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
 
 function getToken() {
   return (
@@ -225,6 +228,9 @@ export default function ProfilePage() {
   const [telegramId, setTelegramId] = useState(null);
   const tgLinkContainerRef = useRef(null);
 
+  // Google linking
+  const [googleLinked, setGoogleLinked] = useState(false);
+
   // UX state
   const [tab, setTab] = useState("overview"); // overview | edit | appearance | security
   const [saving, setSaving] = useState(false);
@@ -321,6 +327,9 @@ export default function ProfilePage() {
           // Telegram link status
           setTelegramId(data.telegram_id || null);
 
+          // Google link status
+          setGoogleLinked(Boolean(data.google_linked));
+
           // Stats preview in header (safe fallbacks)
           setLevel(data.level || 1);
           setXp(data.xp || data.total_xp || 0);
@@ -371,6 +380,18 @@ export default function ProfilePage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Show a confirmation + land on the Security tab after a Google link redirect.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("linked") === "google") {
+      setGoogleLinked(true);
+      setTab("security");
+      setMessage("Google account linked.");
+      // Clean the query param so a refresh doesn't re-trigger the toast.
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   // Cleanup any object URLs on unmount.
   useEffect(() => {
@@ -1742,6 +1763,73 @@ export default function ProfilePage() {
                     Link Telegram
                   </div>
                 </div>
+              </>
+            )}
+          </div>
+
+          {/* Google account linking */}
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 md:col-span-2">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+              <svg width="18" height="18" viewBox="0 0 24 24" className="shrink-0" aria-hidden="true">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/>
+              </svg>
+              Google
+            </div>
+
+            {googleLinked ? (
+              <>
+                <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-grass-700">
+                  <Check className="h-4 w-4" />
+                  Your account is linked to Google. You can sign in with Google on any device.
+                </p>
+                <button
+                  type="button"
+                  className="btn3d btn3d-neutral text-sm mt-3"
+                  onClick={async () => {
+                    try {
+                      const res = await apiFetch("/me/link/google", { token, method: "DELETE" });
+                      if (!res.ok) { const d = await safeJsonParse(res); throw new Error(d?.detail || "Failed to unlink"); }
+                      setGoogleLinked(false);
+                      setMessage("Google account unlinked.");
+                    } catch (e) {
+                      setMessage(String(e?.message || "Failed to unlink Google."));
+                    }
+                  }}
+                >
+                  Unlink Google
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-sm font-semibold text-slate-600">
+                  Link your Google account to sign in with one tap — no password needed.
+                </p>
+                {GOOGLE_CLIENT_ID ? (
+                  <button
+                    type="button"
+                    className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                    onClick={() => {
+                      const state = "link_" + (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+                      sessionStorage.setItem("oauth_state", state);
+                      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account&state=${encodeURIComponent(state)}`;
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/>
+                    </svg>
+                    Link Google
+                  </button>
+                ) : (
+                  <p className="mt-3 text-xs font-semibold text-slate-400">
+                    Google sign-in isn’t configured on this server.
+                  </p>
+                )}
               </>
             )}
           </div>
