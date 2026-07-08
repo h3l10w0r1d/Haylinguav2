@@ -154,8 +154,30 @@ export default function PlacementTest() {
   }
 
   // ── Grade an answer ────────────────────────────────────────────────────────
-  async function gradeAnswer({ isCorrect, answerText }) {
+  async function gradeAnswer({ isCorrect, answerText, autoAdvance }) {
     if (hasAnswered) return;
+
+    // char_intro and similar — just advance, don't grade
+    if (autoAdvance) {
+      const isLastExercise = queueIdx >= exercises.length - 1;
+      if (isLastExercise) {
+        // Count as correct for the round
+        setRoundCorrect((c) => c + 1);
+        const { low, high } = bisectRef.current;
+        const mid = Math.floor((low + high) / 2);
+        const unitTitle = units[mid]?.title ?? "";
+        const correct = roundCorrectRef.current + 1;
+        const passed = correct >= PASS_THRESHOLD;
+        setHistory((h) => [...h, { unitTitle, passed }]);
+        const nextRound = round + 1;
+        startRound(units, passed ? mid + 1 : low, passed ? high : mid - 1, nextRound);
+      } else {
+        setQueueIdx((i) => i + 1);
+        exerciseStartRef.current = Date.now();
+        setRenderNonce((n) => n + 1);
+      }
+      return;
+    }
 
     const exercise = exercises[queueIdx];
     let serverCorrect = isCorrect;
@@ -368,11 +390,11 @@ export default function PlacementTest() {
           key={`${currentExercise.id}-${renderNonce}`}
           exercise={currentExercise}
           lesson={{ id: currentExercise.lesson_id, exercises }}
-          onCorrect={({ answerText }) => gradeAnswer({ isCorrect: true, answerText })}
+          onCorrect={({ answerText, autoAdvance }) => gradeAnswer({ isCorrect: true, answerText, autoAdvance })}
           onWrong={({ answerText }) => gradeAnswer({ isCorrect: false, answerText })}
           onSkip={() => gradeAnswer({ isCorrect: false, answerText: "" })}
-          onAnswer={({ isCorrect, answerText }) => gradeAnswer({ isCorrect, answerText })}
-          submit={({ isCorrect, answerText }) => gradeAnswer({ isCorrect, answerText })}
+          onAnswer={({ isCorrect, answerText, autoAdvance }) => gradeAnswer({ isCorrect, answerText, autoAdvance })}
+          submit={({ isCorrect, answerText, autoAdvance }) => gradeAnswer({ isCorrect, answerText, autoAdvance })}
           graded={hasAnswered}
         />
       ) : null}

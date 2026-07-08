@@ -111,7 +111,20 @@ export default function CheckpointPlayer() {
   const totalAnswered = useRef(0);
   const totalCorrect = useRef(0);
 
-  async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp }) {
+  async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance }) {
+    // char_intro and other always-correct exercises pass autoAdvance=true — skip
+    // the result sheet and don't call the attempt API (nothing to grade).
+    if (autoAdvance) {
+      setExerciseQueue((q) => {
+        const next = q.slice(1);
+        if (next.length === 0) setPhase("done");
+        return next;
+      });
+      exerciseStartRef.current = Date.now();
+      setRenderNonce((n) => n + 1);
+      return;
+    }
+
     const token = getToken();
     let serverCorrect = isCorrect;
     if (currentExercise && token) {
@@ -265,15 +278,15 @@ export default function CheckpointPlayer() {
           key={`${currentExercise.id}-${renderNonce}`}
           exercise={currentExercise}
           lesson={{ id: currentExercise.lesson_id, exercises: exerciseQueue }}
-          onCorrect={({ answerText, xpEarned: xp }) => gradeAndAdvance({ isCorrect: true, answerText, xpEarned: xp })}
+          onCorrect={({ answerText, xpEarned: xp, autoAdvance }) => gradeAndAdvance({ isCorrect: true, answerText, xpEarned: xp, autoAdvance })}
           onWrong={({ answerText }) => gradeAndAdvance({ isCorrect: false, answerText, xpEarned: 0 })}
           onSkip={() => {
             setResultData({ variant: "skipped", xpEarned: 0, combo: 0 });
             pendingNextRef.current = { type: "advance" };
             setHasAnswered(true);
           }}
-          onAnswer={({ isCorrect, answerText, xpEarned: xp }) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp })}
-          submit={({ isCorrect, answerText, xpEarned: xp }) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp })}
+          onAnswer={({ isCorrect, answerText, xpEarned: xp, autoAdvance }) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}
+          submit={({ isCorrect, answerText, xpEarned: xp, autoAdvance }) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}
           graded={hasAnswered}
         />
       ) : null}
