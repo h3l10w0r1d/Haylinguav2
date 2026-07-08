@@ -2307,9 +2307,12 @@ export default function ExerciseRenderer({
       },
     });
 
-    const earnedDelta =
-      Number(attempt?.earned_xp_delta ?? 0) ||
-      (isCorrect && !skipped ? Number(exercise?.xp ?? 0) : 0);
+    // Trust server delta when we got a response (delta may legitimately be 0
+    // for exercises already answered correctly before — no XP farming).
+    // Only fall back to local exercise.xp when the request failed entirely.
+    const earnedDelta = attempt != null
+      ? Math.max(0, Number(attempt.earned_xp_delta ?? 0))
+      : (isCorrect && !skipped ? Number(exercise?.xp ?? 0) : 0);
 
     const resultPayload = {
       isCorrect,
