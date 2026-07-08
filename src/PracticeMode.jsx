@@ -52,7 +52,9 @@ export default function PracticeMode() {
   const [renderNonce, setRenderNonce] = useState(0);
   const exerciseStartRef = useRef(Date.now());
   const pendingNextRef = useRef(null);
-  const [pendingNext, setPendingNext] = useState(null);
+  // PM-2: exerciseKey to reset hasAnswered even when same exercise ID is requeued
+  const [exerciseKey, setExerciseKey] = useState(0);
+  useEffect(() => { setHasAnswered(false); }, [exerciseKey]);
 
   useEffect(() => {
     const token = getToken();
@@ -60,7 +62,13 @@ export default function PracticeMode() {
     fetch(`${API_BASE}/me/practice`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          if (r.status === 401) throw new Error("Session expired — please log in again");
+          throw new Error(`Failed to load practice (${r.status})`);
+        }
+        return r.json();
+      })
       .then((data) => {
         const exs = data.exercises || [];
         if (exs.length === 0) { setPhase("empty"); return; }
@@ -89,7 +97,12 @@ export default function PracticeMode() {
   async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance }) {
     // char_intro and similar always-correct exercises — skip result sheet and API call
     if (autoAdvance) {
-      setExerciseQueue((q) => q.slice(1));
+      setExerciseQueue((q) => {
+        const next = q.slice(1);
+        if (next.length === 0) setPhase("done"); // PM-3: detect queue empty
+        return next;
+      });
+      setExerciseKey((k) => k + 1); // PM-2: reset hasAnswered
       exerciseStartRef.current = Date.now();
       setRenderNonce((n) => n + 1);
       return;
@@ -133,7 +146,6 @@ export default function PracticeMode() {
         combo,
       });
       pendingNextRef.current = { type: "requeue" };
-      setPendingNext({ type: "requeue" });
     } else {
       sfx.correct();
       setXpEarned((x) => x + (xp || 0));
@@ -143,7 +155,6 @@ export default function PracticeMode() {
         combo,
       });
       pendingNextRef.current = { type: "advance" };
-      setPendingNext({ type: "advance" });
     }
     setHasAnswered(true);
   }
@@ -151,7 +162,6 @@ export default function PracticeMode() {
   function proceedAfterResult() {
     const pn = pendingNextRef.current;
     pendingNextRef.current = null;
-    setPendingNext(null);
     setResultData(null);
 
     if (pn?.type === "requeue") {
@@ -160,6 +170,7 @@ export default function PracticeMode() {
         const gap = Math.min(2, rest.length);
         return [...rest.slice(0, gap), q[0], ...rest.slice(gap)];
       });
+      setExerciseKey((k) => k + 1); // PM-2: reset hasAnswered even for same ID
       exerciseStartRef.current = Date.now();
       setRenderNonce((n) => n + 1);
       return;
@@ -173,6 +184,7 @@ export default function PracticeMode() {
       }
       return next;
     });
+    setExerciseKey((k) => k + 1); // PM-2: reset hasAnswered for next exercise
     exerciseStartRef.current = Date.now();
     setRenderNonce((n) => n + 1);
   }
@@ -246,7 +258,6 @@ export default function PracticeMode() {
           onSkip={() => {
             setResultData({ variant: "skipped", xpEarned: 0, combo: 0 });
             pendingNextRef.current = { type: "advance" };
-            setPendingNext({ type: "advance" });
             setHasAnswered(true);
           }}
           onAnswer={({ isCorrect, answerText, xpEarned: xp, autoAdvance } = {}) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}

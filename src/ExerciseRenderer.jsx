@@ -259,7 +259,11 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const options = cfg.options ?? [];
-  const correctIndex = Number(cfg.correctIndex ?? -1);
+  // ER-2/ER-3: use getSingleCorrectIndex so DB-backed exercise.options.is_correct is respected
+  const correctIndexFromDb = getSingleCorrectIndex(exercise, cfg, options);
+  const correctIndex = correctIndexFromDb !== null
+    ? correctIndexFromDb
+    : (Number.isFinite(Number(cfg.correctIndex)) ? Number(cfg.correctIndex) : -1);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [graded, setGraded] = useState(null);
 
@@ -333,6 +337,7 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
     typeof expected === "string" && !expected.trim().startsWith("[") ? expected : (cfg.answer ?? "");
 
   const [selected, setSelected] = useState(isMulti ? [] : null);
+  const submittedRef = useRef(false); // ER-17: guard against double-submission
 
   const didAutoplayRef = useRef(false);
 
@@ -366,9 +371,12 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
 
   useEffect(() => {
     setSelected(isMulti ? [] : null);
+    didAutoplayRef.current = false; // ER-5: reset autoplay ref on exercise change
+    submittedRef.current = false; // ER-17: reset submission guard
   }, [exercise?.id, isMulti]);
 
   const canCheck = isMulti ? (Array.isArray(selected) && selected.length > 0) : selected !== null;
+  // ER-17: submittedRef used in onClick guard below (not in disabled to avoid extra render)
 
   function arraysEqualAsSets(a, b) {
     const aa = Array.isArray(a) ? a.map(Number) : [];
@@ -404,6 +412,8 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
+            if (submittedRef.current) return; // ER-17: prevent double-submission
+            submittedRef.current = true;
             if (isMulti) {
               const picked = Array.isArray(selected) ? selected : [];
               const extra = {
@@ -512,9 +522,12 @@ function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            const ok =
-              solution.length === chosen.length &&
-              solution.every((v, i) => Number(v) === Number(chosen[i]));
+            // ER-4: if solutionIndices absent but targetWord set, compare built word to target
+            const solutionIndices = solution.length > 0 ? solution : null;
+            const ok = solutionIndices
+              ? (solutionIndices.length === chosen.length &&
+                 solutionIndices.every((v, i) => Number(v) === Number(chosen[i])))
+              : (built.trim() === (targetWord ?? "").trim());
             if (ok) correct({ selectedIndices: chosen, answerText: built });
             else wrong("The order is off. Try again.", { selectedIndices: chosen, answerText: built });
           }}
@@ -534,7 +547,8 @@ function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
   const answer = expected ?? cfg.answer ?? "";
 
   const [inputValue, setInputValue] = useState("");
-  useEffect(() => setInputValue(""), [exercise?.id]);
+  const submittedRef = useRef(false); // ER-18: guard against double-submission
+  useEffect(() => { setInputValue(""); submittedRef.current = false; }, [exercise?.id]);
 
   const canCheck = normalizeText(inputValue).length > 0;
 
@@ -550,6 +564,8 @@ function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
+            if (submittedRef.current) return; // ER-18: prevent double-submission
+            submittedRef.current = true;
             if (normalizeText(inputValue) === normalizeText(answer)) correct({ answerText: inputValue });
             else wrong("Incorrect. Check the letter form and try again.", { answerText: inputValue });
           }}
@@ -570,7 +586,8 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
   const hint = cfg.hint;
 
   const [inputValue, setInputValue] = useState("");
-  useEffect(() => setInputValue(""), [exercise?.id]);
+  const submittedRef = useRef(false); // ER-18: guard against double-submission
+  useEffect(() => { setInputValue(""); submittedRef.current = false; }, [exercise?.id]);
 
   const canCheck = normalizeText(inputValue).length > 0;
 
@@ -587,6 +604,8 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
+            if (submittedRef.current) return; // ER-18: prevent double-submission
+            submittedRef.current = true;
             if (normalizeText(inputValue) === normalizeText(answer)) correct({ answerText: inputValue });
             else wrong("Almost — try again.");
           }}
@@ -610,7 +629,8 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
   const answer = expected ?? cfg.answer ?? "";
 
   const [inputValue, setInputValue] = useState("");
-  useEffect(() => setInputValue(""), [exercise?.id]);
+  const submittedRef = useRef(false); // ER-19: guard against double-submission
+  useEffect(() => { setInputValue(""); submittedRef.current = false; }, [exercise?.id]);
 
   const canCheck = normalizeText(inputValue).length > 0;
 
@@ -640,6 +660,8 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
+            if (submittedRef.current) return; // ER-19: prevent double-submission
+            submittedRef.current = true;
             if (normalizeText(inputValue) === normalizeText(answer)) correct({ answerText: inputValue });
             else wrong("Not quite. Try the missing word again.", { answerText: inputValue });
           }}
@@ -725,7 +747,8 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const statement = cfg.statement ?? "";
-  const correctBool = Boolean(cfg.correct);
+  // ER-9: explicit check — don't treat null/undefined as false (which makes "False" always correct)
+  const correctBool = cfg.correct === true || cfg.correct === 1 || String(cfg.correct).toLowerCase() === 'true';
 
   const [selectedIndex, setSelectedIndex] = useState(null);
   useEffect(() => setSelectedIndex(null), [exercise?.id]);
@@ -794,8 +817,9 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
   const solutionIndices = cfg.solutionIndices ?? null;
 
   // Wrap each token in a keyed object so duplicate words stay distinguishable.
+  // ER-7: store original index as `.k` so grading works even with duplicate words
   const initialAvailable = React.useMemo(
-    () => rawTokens.map((t, i) => ({ t, key: `${i}-${t}` })),
+    () => rawTokens.map((t, i) => ({ t, k: i, key: `${i}-${t}` })),
     [exercise?.id] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
@@ -915,7 +939,8 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
             }
 
             if (Array.isArray(solutionIndices)) {
-              const builtIndices = picked.map((it) => rawTokens.indexOf(it.t));
+              // ER-7: use stored .k index to avoid indexOf collisions with duplicate words
+              const builtIndices = picked.map((it) => it.k ?? rawTokens.indexOf(it.t));
               const ok =
                 solutionIndices.length === builtIndices.length &&
                 solutionIndices.every((v, i) => Number(v) === Number(builtIndices[i]));
@@ -995,7 +1020,9 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , su
         correct({ answerText: JSON.stringify(nextPairs) });
       }
     } else {
-      wrong("Not a match. Try again.");
+      // ER-8: don't fire a network request for each wrong intermediate click;
+      // just reset selection so the user can try again (visual feedback only).
+      setSelectedLeft(null);
     }
   }
 
@@ -1099,8 +1126,10 @@ function ExAudioChoiceTts({
     setGraded(null);
     setBusy(false);
 
+    // ER-12: pause and clear src before revoking the blob URL
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.src = '';
       audioRef.current = null;
     }
     if (audioUrl) URL.revokeObjectURL(audioUrl);
@@ -1400,9 +1429,11 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            const t = normalizeText(transcript);
-            const g = normalizeText(target);
-            const ok = !!g && (t === g || t.includes(g) || g.includes(t));
+            // ER-10: remove substring match — require normalized exact equality only
+            const normalize = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+            const t = normalize(transcript);
+            const g = normalize(target);
+            const ok = !!g && t === g;
             if (ok) correct({ answerText: transcript });
             else wrong("Not quite — listen and try again.", { answerText: transcript });
           }}
@@ -1821,7 +1852,12 @@ function ExImageSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Which one is it?";
   const items = Array.isArray(cfg.choices) ? cfg.choices : [];
-  const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : items.findIndex((o) => o?.is_correct);
+  // ER-15: also check exercise.options for correct answer when cfg.answerIndex absent
+  const correctIndex = Number.isFinite(cfg.answerIndex)
+    ? Number(cfg.answerIndex)
+    : (items.findIndex((o) => o?.is_correct) >= 0
+        ? items.findIndex((o) => o?.is_correct)
+        : (exercise?.options?.findIndex((o) => o?.is_correct) ?? -1));
   const [sel, setSel] = useState(null);
   useEffect(() => setSel(null), [exercise?.id]);
 
@@ -1967,11 +2003,14 @@ function ExCategorize({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, sub
   const buckets = Array.isArray(cfg.buckets) ? cfg.buckets : [];
   const items = Array.isArray(cfg.items) ? cfg.items : [];
 
-  const [assign, setAssign] = useState({}); // item text -> bucket
+  // ER-16: use item index (not text) as key to avoid collisions with duplicate texts
+  // assign: { [itemIndex]: bucketName, __activeIdx: number | null }
+  const [assign, setAssign] = useState({}); // itemIndex (string) -> bucket
   useEffect(() => setAssign({}), [exercise?.id]);
 
-  const unassigned = items.map((it) => it.text).filter((t) => !(t in assign));
-  const allDone = items.length > 0 && unassigned.length === 0;
+  const unassignedIndices = items.map((_, i) => i).filter((i) => !(String(i) in assign));
+  const allDone = items.length > 0 && unassignedIndices.length === 0;
+  const activeIdx = assign.__activeIdx ?? null;
 
   return (
     <Card>
@@ -1979,35 +2018,32 @@ function ExCategorize({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, sub
 
       {/* unassigned chips */}
       <div className="mt-4 flex min-h-[3rem] flex-wrap gap-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
-        {unassigned.length === 0 ? <Muted>All sorted — tap Check.</Muted> : unassigned.map((t) => (
-          <Pill key={t} onClick={() => {
-            // assign to the next bucket on tap-cycle; simpler: assign to first empty-ish bucket via prompt
-            // Tap a chip then tap a bucket below.
-            setAssign((a) => ({ ...a, __active: t }));
-          }} active={assign.__active === t}>{t}</Pill>
+        {unassignedIndices.length === 0 ? <Muted>All sorted — tap Check.</Muted> : unassignedIndices.map((i) => (
+          <Pill key={i} onClick={() => {
+            setAssign((a) => ({ ...a, __activeIdx: i }));
+          }} active={activeIdx === i}>{items[i].text}</Pill>
         ))}
       </div>
 
       {/* buckets */}
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {buckets.map((b) => {
-          const inBucket = Object.entries(assign).filter(([k, v]) => k !== "__active" && v === b).map(([k]) => k);
+          const inBucketIndices = Object.entries(assign).filter(([k, v]) => k !== '__activeIdx' && v === b).map(([k]) => Number(k));
           return (
             <button
               key={b}
               type="button"
               onClick={() => {
-                const active = assign.__active;
-                if (!active) return;
-                setAssign((a) => { const n = { ...a, [active]: b }; delete n.__active; return n; });
+                if (activeIdx === null) return;
+                setAssign((a) => { const n = { ...a, [String(activeIdx)]: b }; delete n.__activeIdx; return n; });
               }}
               className="rounded-2xl bg-white p-3 text-left ring-2 ring-slate-200 transition hover:ring-brand-300"
             >
               <div className="font-display text-sm font-extrabold text-slate-800">{b}</div>
               <div className="mt-2 flex min-h-[2rem] flex-wrap gap-1.5">
-                {inBucket.length === 0 ? <span className="text-xs font-semibold text-slate-300">tap a word, then this group</span> : inBucket.map((t) => (
-                  <span key={t} onClick={(e) => { e.stopPropagation(); setAssign((a) => { const n = { ...a }; delete n[t]; return n; }); }}
-                    className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 ring-1 ring-brand-200">{t} ✕</span>
+                {inBucketIndices.length === 0 ? <span className="text-xs font-semibold text-slate-300">tap a word, then this group</span> : inBucketIndices.map((i) => (
+                  <span key={i} onClick={(e) => { e.stopPropagation(); setAssign((a) => { const n = { ...a }; delete n[String(i)]; return n; }); }}
+                    className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 ring-1 ring-brand-200">{items[i].text} ✕</span>
                 ))}
               </div>
             </button>
@@ -2017,8 +2053,9 @@ function ExCategorize({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, sub
 
       <div className="mt-6 space-y-3">
         <PrimaryButton disabled={!allDone} onClick={() => {
-          const built = items.map((it) => ({ text: it.text, bucket: assign[it.text] }));
-          const ok = items.every((it) => normalizeText(assign[it.text]) === normalizeText(it.bucket));
+          // ER-16: use index-keyed assign to correctly evaluate duplicate-text items
+          const built = items.map((it, i) => ({ text: it.text, bucket: assign[String(i)] }));
+          const ok = items.every((it, i) => normalizeText(assign[String(i)]) === normalizeText(it.bucket));
           ok ? correct({ answerText: JSON.stringify(built) }) : wrong("Not quite — check your groups.", { answerText: JSON.stringify(built) });
         }}>Check</PrimaryButton>
       </div>
@@ -2202,8 +2239,10 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
 
       <div className="mt-6 space-y-3">
         <PrimaryButton disabled={!canCheck} onClick={() => {
-          const t = normalizeText(transcript); const g = normalizeText(target);
-          const ok = !!g && (t === g || t.includes(g) || g.includes(t));
+          // ER-10: remove substring match — require normalized exact equality only
+          const normalize = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+          const t = normalize(transcript); const g = normalize(target);
+          const ok = !!g && t === g;
           ok ? correct({ answerText: transcript }) : wrong("Not quite — listen and try again.", { answerText: transcript });
         }}>Check</PrimaryButton>
       </div>

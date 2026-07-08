@@ -5,9 +5,14 @@ import { Card, Title, Muted, SecondaryButton, normalizeText, cx } from "../ui";
 export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAnswer }) {
   const prompt = exercise?.prompt || "Match the pairs";
   const pairs = Array.isArray(cfg.pairs) ? cfg.pairs : [];
-  const left = pairs.map((p) => p.left);
-  const right = pairs.map((p) => p.right);
 
+  // MP-3: track items by index so duplicate left values are distinguishable
+  const left = pairs.map((p, i) => ({ t: p.left, idx: i }));
+  const right = pairs.map((p, i) => ({ t: p.right, idx: i }));
+
+  // MP-1: include pairsKey (content hash) in memo deps so stale shuffles are
+  // busted when pairs change even if the exercise ID stays the same.
+  const pairsKey = pairs.map((p) => p.left + "\x00" + p.right).join("|");
   const shuffledRight = useMemo(() => {
     const arr = [...right];
     for (let i = arr.length - 1; i > 0; i--) {
@@ -15,7 +20,7 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
-  }, [exercise?.id]); // shuffle per exercise
+  }, [exercise?.id, pairsKey]); // MP-1 fix
 
   const [selectedLeft, setSelectedLeft] = useState(null);
   const [matchedLeft, setMatchedLeft] = useState(new Set());
@@ -23,18 +28,20 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
 
   const totalMatches = pairs.length;
 
-  function tryMatch(lIdx, rIdx) {
-    const l = left[lIdx];
-    const r = shuffledRight[rIdx];
+  function tryMatch(lItemIdx, rShuffledIdx) {
+    const lItem = left[lItemIdx];
+    const rItem = shuffledRight[rShuffledIdx];
 
-    const correctPair = pairs.find((p) => normalizeText(p.left) === normalizeText(l));
-    if (correctPair && normalizeText(correctPair.right) === normalizeText(r)) {
+    // MP-3: use index-based lookup instead of text-find so duplicate left
+    // values always find their own correct right value.
+    const correctPair = pairs[lItem.idx];
+    if (correctPair && normalizeText(correctPair.right) === normalizeText(rItem.t)) {
       const nl = new Set(matchedLeft);
-      nl.add(lIdx);
+      nl.add(lItemIdx);
       setMatchedLeft(nl);
 
       const nr = new Set(matchedRight);
-      nr.add(rIdx);
+      nr.add(rShuffledIdx);
       setMatchedRight(nr);
 
       setSelectedLeft(null);
@@ -42,6 +49,7 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
       if (nl.size === totalMatches) correct();
     } else {
       wrong("Not a match. Try again.");
+      setSelectedLeft(null); // MP-2: clear stale selection after wrong answer
     }
   }
 
@@ -56,7 +64,7 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          {left.map((t, idx) => {
+          {left.map((item, idx) => {
             const done = matchedLeft.has(idx);
             const active = selectedLeft === idx;
             return (
@@ -73,14 +81,14 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
                     : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
                 )}
               >
-                {t}
+                {item.t}
               </button>
             );
           })}
         </div>
 
         <div className="space-y-2">
-          {shuffledRight.map((t, idx) => {
+          {shuffledRight.map((item, idx) => {
             const done = matchedRight.has(idx);
             const disabled = done || selectedLeft === null;
             return (
@@ -98,7 +106,7 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
                     : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
                 )}
               >
-                {t}
+                {item.t}
               </button>
             );
           })}

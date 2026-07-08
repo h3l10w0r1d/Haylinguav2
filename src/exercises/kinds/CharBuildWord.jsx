@@ -69,9 +69,20 @@ export default function CharBuildWord({ exercise, cfg, correct, wrong, onSkip, o
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            const ok =
+            // CB-1: primary check — exact tile-index order (as authored in CMS)
+            const exactOk =
               solution.length === chosen.length &&
               solution.every((v, i) => Number(v) === Number(chosen[i]));
+
+            // CB-1: fallback — build the word from chosen tile indices and
+            // compare to targetWord (handles valid duplicate-char rearrangements
+            // that produce the same word via a different index sequence)
+            const builtWord = chosen.map((i) => tiles[Number(i)]).join("");
+            const computedTarget =
+              targetWord ?? solution.map((i) => tiles[Number(i)]).join("");
+            const wordOk = computedTarget !== "" && builtWord === computedTarget;
+
+            const ok = exactOk || wordOk;
             ok ? correct() : wrong("The order is off. Try again.");
           }}
         >

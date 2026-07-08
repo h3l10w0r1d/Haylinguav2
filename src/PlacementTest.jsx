@@ -44,6 +44,8 @@ export default function PlacementTest() {
 
   // ── Bisect — stored in a ref so closures always read fresh values ──────────
   const bisectRef = useRef({ low: 0, high: 0 });
+  // PT-3: track consecutive empty-unit skips to avoid infinite recursion
+  const emptySkipCountRef = useRef(0);
 
   // ── Round state (explicit, not derived) ───────────────────────────────────
   const [phase, setPhase] = useState("loading-units"); // loading-units | loading-round | testing | done
@@ -103,7 +105,8 @@ export default function PlacementTest() {
   function startRound(unitsList, low, high, roundNum) {
     if (roundNum >= MAX_ROUNDS || low > high) {
       // Converged or max rounds hit
-      setPlacementLow(low);
+      // PT-2: clamp so we never store units.length as a placement index
+      setPlacementLow(Math.min(low, unitsList.length - 1));
       setPhase("done");
       return;
     }
@@ -124,11 +127,23 @@ export default function PlacementTest() {
     if (!lessonIds) {
       // Unit has no lessons — skip it, don't count as pass or fail; shrink search space
       setHistory((h) => [...h, { unitTitle: unit.title, passed: null }]);
+      // PT-3: limit consecutive empty-unit skips to avoid burning all rounds
+      emptySkipCountRef.current += 1;
+      if (emptySkipCountRef.current > 5) {
+        // Too many consecutive empty units — converge at current position
+        setPlacementLow(Math.min(mid, unitsList.length - 1));
+        setPhase("done");
+        return;
+      }
+      // PT-4: pass roundNum (not roundNum+1) for display; the recursion uses
+      // roundNum+1 so the next startRound call correctly tracks the round count.
       setRound(roundNum + 1);
       // Treat missing-exercises unit as pass (advance upward) so we don't loop forever
       startRound(unitsList, mid + 1, high, roundNum + 1);
       return;
     }
+    // Reset empty-skip counter when we find a unit with exercises
+    emptySkipCountRef.current = 0;
 
     fetch(`${API_BASE}/me/checkpoint?lesson_ids=${encodeURIComponent(lessonIds)}&count=${EXERCISES_PER_ROUND}`, {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -153,6 +168,12 @@ export default function PlacementTest() {
       });
   }
 
+  // ── PT-1: declare roundCorrectRef BEFORE gradeAnswer so the autoAdvance path
+  // can read it without a temporal dead zone / undefined ref issue.
+  // roundCorrectRef.current mirrors roundCorrect state and is updated synchronously.
+  const roundCorrectRef = useRef(0);
+  roundCorrectRef.current = roundCorrect;
+
   // ── Grade an answer ────────────────────────────────────────────────────────
   async function gradeAnswer({ isCorrect, answerText, autoAdvance }) {
     if (hasAnswered) return;
@@ -161,12 +182,15 @@ export default function PlacementTest() {
     if (autoAdvance) {
       const isLastExercise = queueIdx >= exercises.length - 1;
       if (isLastExercise) {
-        // Count as correct for the round
-        setRoundCorrect((c) => c + 1);
+        // PT-5: compute nextCorrect synchronously so we don't read a stale ref
+        // after calling the async state setter.
+        const nextCorrect = (roundCorrectRef.current ?? 0) + 1;
+        roundCorrectRef.current = nextCorrect; // keep ref in sync immediately
+        setRoundCorrect(nextCorrect);
         const { low, high } = bisectRef.current;
         const mid = Math.floor((low + high) / 2);
         const unitTitle = units[mid]?.title ?? "";
-        const correct = roundCorrectRef.current + 1;
+        const correct = nextCorrect;
         const passed = correct >= PASS_THRESHOLD;
         setHistory((h) => [...h, { unitTitle, passed }]);
         const nextRound = round + 1;
@@ -213,9 +237,7 @@ export default function PlacementTest() {
   }
 
   // ── Proceed after result panel ─────────────────────────────────────────────
-  // roundCorrect is captured at call time via a ref to avoid stale closure
-  const roundCorrectRef = useRef(0);
-  roundCorrectRef.current = roundCorrect;
+  // (roundCorrectRef is declared above gradeAnswer — see PT-1 fix)
 
   function proceedAfterResult() {
     const isLastExercise = queueIdx >= exercises.length - 1;

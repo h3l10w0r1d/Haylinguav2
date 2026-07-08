@@ -171,6 +171,7 @@ export default function LessonPlayer() {
   const [resultOpen, setResultOpen] = useState(false);
   const [resultData, setResultData] = useState(null);
   const [pendingNext, setPendingNext] = useState(null);
+  const pendingNextRef = useRef(null);
   const [renderNonce, setRenderNonce] = useState(0);
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
   const [mistakes, setMistakes] = useState(0);
@@ -234,11 +235,13 @@ export default function LessonPlayer() {
     })();
   }, []);
 
+  const [exerciseKey, setExerciseKey] = useState(0);
+
   useEffect(() => {
     exerciseStartRef.current = Date.now();
     setPhase2Actions(null);
     setHasAnswered(false);
-  }, [currentExercise?.id]);
+  }, [exerciseKey]);
 
   async function submitPhase2(payload) {
     if (!currentExercise?.id) return;
@@ -373,8 +376,8 @@ export default function LessonPlayer() {
           try {
             const saved = JSON.parse(localStorage.getItem(progressKey) || "null");
             if (Array.isArray(saved) && saved.length > 0 && saved.length < allExercises.length) {
-              const savedSet = new Set(saved.map(Number));
-              const restored = allExercises.filter((e) => savedSet.has(Number(e.id)));
+              const savedSet = new Set(saved.map(String));
+              const restored = allExercises.filter((e) => savedSet.has(String(e.id)));
               if (restored.length > 0) startQueue = restored;
             }
           } catch {}
@@ -453,9 +456,11 @@ export default function LessonPlayer() {
     // sheet entirely and move straight to the next step.
     if (autoAdvance) {
       if (exerciseQueue.length <= 1) {
+        setExerciseKey((k) => k + 1);
         setHasFinishedAll(true);
       } else {
         setExerciseQueue((q) => q.slice(1));
+        setExerciseKey((k) => k + 1);
         setRenderNonce((n) => n + 1);
       }
       return;
@@ -494,15 +499,19 @@ export default function LessonPlayer() {
     });
 
     if (!isCorrect) {
+      pendingNextRef.current = { type: "requeue" };
       setPendingNext({ type: "requeue" });
     } else {
-      setPendingNext(isLast ? { type: "finish" } : { type: "next" });
+      const pn = isLast ? { type: "finish" } : { type: "next" };
+      pendingNextRef.current = pn;
+      setPendingNext(pn);
     }
     setResultOpen(true);
   };
 
   const proceedAfterResult = () => {
-    const pn = pendingNext;
+    const pn = pendingNextRef.current;
+    pendingNextRef.current = null;
     setResultOpen(false);
     setResultData(null);
     setPendingNext(null);
@@ -510,6 +519,7 @@ export default function LessonPlayer() {
     if (!pn) return;
     if (pn.type === "next") {
       setExerciseQueue((q) => q.slice(1));
+      setExerciseKey((k) => k + 1);
       setRenderNonce((n) => n + 1);
       return;
     }
@@ -521,6 +531,7 @@ export default function LessonPlayer() {
         const gap = Math.min(2, rest.length);
         return [...rest.slice(0, gap), q[0], ...rest.slice(gap)];
       });
+      setExerciseKey((k) => k + 1);
       exerciseStartRef.current = Date.now();
       setPhase2Actions(null);
       setRenderNonce((n) => n + 1);
@@ -528,6 +539,7 @@ export default function LessonPlayer() {
     }
     // finish — correct answer on the last remaining exercise
     setExerciseQueue((q) => q.slice(1));
+    setExerciseKey((k) => k + 1);
     setHasFinishedAll(true);
   };
 

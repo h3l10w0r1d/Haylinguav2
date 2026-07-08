@@ -53,18 +53,25 @@ function buildCorrectIndexSet(exercise, cfg) {
   if (typeof cfg?.expected_answer === "number") set.add(Number(cfg.expected_answer));
   if (typeof cfg?.expectedAnswer === "number") set.add(Number(cfg.expectedAnswer));
 
-  // Heuristic: some exercises store indices as 1-based (1..N) while UI is 0-based.
+  // Fix P2-1/P2-2: only shift indices that are strictly out of 0-based range.
+  // Old CMS entries used 1-based indices (1..N). A value of exactly opts.length
+  // is out of 0-based range and must mean the last item (index n-1).
+  // Valid 0-based indices (0..n-1) are used as-is — never shift them.
   if (opts && opts.length > 0 && set.size > 0) {
-    const vals = Array.from(set).filter((n) => Number.isFinite(n));
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    const looksOneBased = min >= 1 && max <= opts.length;
-    const hasOutOfRange = max >= opts.length;
-    if (looksOneBased || hasOutOfRange) {
-      const shifted = new Set();
-      vals.forEach((n) => shifted.add(n - 1));
-      return shifted;
+    const n = opts.length;
+    const result = new Set();
+    for (const v of set) {
+      if (!Number.isFinite(v)) continue;
+      if (v >= 0 && v < n) {
+        // Valid 0-based index — use as-is
+        result.add(Math.round(v));
+      } else if (v === n) {
+        // Out of 0-based range — must be 1-based index N meaning the last item
+        result.add(n - 1);
+      }
+      // v < 0 or v > n are invalid — skip
     }
+    return result;
   }
 
   return set;
@@ -151,7 +158,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     () => getCorrectTextCandidates(exercise, cfg),
     [exercise, cfg]
   );
-  const isMulti = kind === "letter_recognition";
+  const isMulti = kind === "letter_recognition" || kind === "multi_select";
 
   const [selected, setSelected] = useState(isMulti ? [] : null);
 
@@ -217,9 +224,9 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
   }, [cfg, isSentenceOrder]);
   const correctSentence = useMemo(() => {
     if (!isSentenceOrder) return null;
-    const s = cfg?.correct ?? cfg?.answer ?? cfg?.expected;
+    const s = cfg?.correct ?? cfg?.answer ?? cfg?.expected ?? exercise?.expected_answer ?? null;
     return typeof s === "string" ? s.trim() : null;
-  }, [cfg, isSentenceOrder]);
+  }, [cfg, isSentenceOrder, exercise?.expected_answer]);
 
   const [orderChosen, setOrderChosen] = useState([]); // array of token indices
   useEffect(() => setOrderChosen([]), [exercise?.id]);
@@ -242,13 +249,24 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
 
   // ===== audio =====
   const audioUrl = cfg?.audioUrl ?? cfg?.audio_url ?? null;
-  const audio = useMemo(() => {
-    if (!audioUrl) return null;
-    try {
-      return new Audio(audioUrl);
-    } catch {
-      return null;
+  const audioRef = useRef(null);
+  useEffect(() => {
+    if (!audioUrl) {
+      audioRef.current = null;
+      return;
     }
+    try {
+      audioRef.current = new Audio(audioUrl);
+    } catch {
+      audioRef.current = null;
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+    };
   }, [audioUrl]);
 
   // ===== Compute canCheck + handlers =====
@@ -267,7 +285,8 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     // choices = ["True","False"] → index 0 = True, index 1 = False.
     if (kind === "true_false") {
       const c = cfg?.correct;
-      const correctBool = c === true || c === 1 || c === "true";
+      if (c == null) return false; // missing cfg.correct — don't silently grade wrong
+      const correctBool = c === true || c === 1 || c === "true" || String(c).toLowerCase() === "true";
       const userPickedTrue = selected === 0;
       return userPickedTrue === correctBool;
     }
@@ -350,25 +369,38 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
   const onCheckRef = useRef(onCheck);
   onCheckRef.current = onCheck;
 
+  // P2-9: keep registerActions in a ref so the effect dep list only contains canCheck.
+  // If the parent passes an inline function, removing registerActions from deps prevents
+  // an infinite re-registration loop.
+  const registerActionsRef = useRef(registerActions);
+  useEffect(() => { registerActionsRef.current = registerActions; });
+
   useEffect(() => {
-    registerActions?.({
+    registerActionsRef.current?.({
       canCheck,
       onCheck: (...args) => onCheckRef.current(...args),
       primaryLabel: "Check",
     });
-  }, [registerActions, canCheck]);
+  }, [canCheck]); // only canCheck, not registerActions
 
   // Keyboard shortcuts: Enter = Check, 1-9 to pick option (single-choice)
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === "Enter") {
+        // P2-4: don't fire Check when focus is inside a text input
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select") return;
         if (canCheck) {
           e.preventDefault();
+          e.stopPropagation();
           onCheckRef.current();
         }
       }
       // numeric shortcuts for single-choice MCQ
+      // P2-5: skip if focus is inside a text input
       if (!isMulti && !isTyping && !isSentenceOrder && !isBuildWord) {
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        if (tag === "input" || tag === "textarea") return;
         const n = Number(e.key);
         if (Number.isFinite(n) && n >= 1 && n <= 9) {
           const idx = n - 1;
@@ -514,14 +546,14 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
       <div className="flex items-start gap-3">
         <div className="flex-1">
           <div className="text-slate-800 text-xl font-extrabold leading-snug">{prompt}</div>
-          {kind === "char_mcq_sound" && audio ? (
+          {kind === "char_mcq_sound" && audioRef.current ? (
             <div className="mt-3">
               <button
                 type="button"
                 onClick={() => {
                   try {
-                    audio.currentTime = 0;
-                    audio.play();
+                    audioRef.current.currentTime = 0;
+                    audioRef.current.play();
                   } catch {}
                 }}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white ring-1 ring-slate-200 font-semibold text-slate-700 hover:bg-slate-50"

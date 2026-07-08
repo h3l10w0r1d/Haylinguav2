@@ -114,18 +114,19 @@ def _correct_index_set(options: List[dict], cfg: dict, expected_answer: Any) -> 
     if iv is not None:
         s.add(iv)
 
-    # 1-based → 0-based conversion: only when an index is out-of-range for 0-based
-    # (i.e. mx >= n, meaning it can't be 0-based). The old "looks_one_based" heuristic
-    # (mn>=1 and mx<=n) was too aggressive — it misfired on already-0-based data such
-    # as a 3-option exercise with the correct answer at index 2 (0-based), converting
-    # it to index 1 and permanently misgrading the question.
-    # Guard: filter out negative results after shifting so a mixed set (e.g. {0, 3})
-    # doesn't produce index -1 as a valid answer when the whole set is shifted down.
+    # 1-based → 0-based conversion: only apply when ALL indices are out of the
+    # valid 0-based range [0, n-1]. If ANY index is already in range, treat the
+    # entire set as 0-based — this prevents the shift from eliminating index 0
+    # (i.e. when the first option is correct, v-1 == -1 which was filtered out).
     if n > 0 and s:
-        vals = list(s)
-        mx = max(vals)
-        if mx >= n:
-            shifted = {v - 1 for v in vals if v - 1 >= 0}
+        in_range = [v for v in s if 0 <= v < n]
+        out_of_range = [v for v in s if v >= n]
+        if in_range:
+            # At least one index is already valid 0-based — use as-is.
+            return set(in_range)
+        elif out_of_range:
+            # All indices exceed the 0-based range — assume 1-based and shift.
+            shifted = {v - 1 for v in out_of_range if v - 1 >= 0}
             if shifted:
                 return shifted
 
@@ -258,29 +259,38 @@ def grade_attempt(
         items = cfg.get("items")
         if not isinstance(items, list) or not items:
             return False
-        valid = {}
+        # Use a list of (text, bucket) tuples — NOT a dict — so duplicate items
+        # (same text in different buckets) are not collapsed to the last one.
+        required = []
         for it in items:
             if isinstance(it, dict):
                 txt = norm_text(it.get("text") or it.get("item") or it.get("left"))
                 bucket = norm_text(it.get("bucket") or it.get("group") or it.get("right"))
                 if txt:
-                    valid[txt] = bucket
+                    required.append((txt, bucket))
+        if not required:
+            return False
         try:
             built = json.loads(answer_text) if isinstance(answer_text, str) else None
         except Exception:
             built = None
-        if not isinstance(built, list) or len(built) != len(valid):
+        if not isinstance(built, list):
             return False
-        seen: Set[str] = set()
+        submitted = []
         for entry in built:
             if not isinstance(entry, dict):
                 return False
             txt = norm_text(entry.get("text") or entry.get("item") or entry.get("left"))
             bucket = norm_text(entry.get("bucket") or entry.get("group") or entry.get("right"))
-            if txt not in valid or valid[txt] != bucket:
+            submitted.append((txt, bucket))
+        # Every required (text, bucket) pair must be satisfied exactly once.
+        remaining = list(submitted)
+        for pair in required:
+            if pair in remaining:
+                remaining.remove(pair)
+            else:
                 return False
-            seen.add(txt)
-        return len(seen) == len(valid)
+        return True
 
     # Conjugation: fill a paradigm. answer_text is a JSON list of strings (one per
     # cell, in order) compared against each cell's expected answer.
@@ -296,6 +306,10 @@ def grade_attempt(
             return False
         for i, c in enumerate(cells):
             ans = c.get("answer") if isinstance(c, dict) else None
+            if ans is None:
+                # No configured answer for this cell — skip it (don't let an
+                # empty submission match via norm_text(None) == "").
+                continue
             if not _eq(typed[i], ans):
                 return False
         return True
@@ -351,14 +365,21 @@ def grade_attempt(
             built = json.loads(answer_text) if isinstance(answer_text, str) else None
         except Exception:
             built = None
-        if not isinstance(built, list) or len(built) != len(pairs):
+        if not isinstance(built, list):
             return False
-        valid = {
+        # De-duplicate config pairs so a config with repeated entries can't be
+        # satisfied by the user submitting the same pair twice.
+        valid_pairs = list({
             (norm_text(p.get("left")), norm_text(p.get("right")))
             for p in pairs
             if isinstance(p, dict)
-        }
-        seen: Set[tuple] = set()
+        })
+        if not valid_pairs:
+            return False
+        if len(built) != len(valid_pairs):
+            return False
+        # Build submitted pairs
+        submitted = []
         for item in built:
             if isinstance(item, dict):
                 key = (norm_text(item.get("left")), norm_text(item.get("right")))
@@ -366,10 +387,15 @@ def grade_attempt(
                 key = (norm_text(item[0]), norm_text(item[1]))
             else:
                 return False
-            if key not in valid:
+            submitted.append(key)
+        # Every valid pair must be matched exactly once
+        remaining = list(submitted)
+        for pair in valid_pairs:
+            if pair in remaining:
+                remaining.remove(pair)
+            else:
                 return False
-            seen.add(key)
-        return len(seen) == len(valid)
+        return True
 
     # Unknown / unverifiable kind -> never award credit.
     return False

@@ -10,13 +10,21 @@ export default function SentenceOrder({ exercise, cfg, correct, wrong, onSkip, o
   const solution = cfg.solution ?? null;
   const solutionIndices = cfg.solutionIndices ?? null;
 
-  const [picked, setPicked] = useState([]);
-  const [available, setAvailable] = useState(tokens);
+  // SO-1: represent each token as {t: string, k: originalIndex} so duplicate
+  // words remain distinguishable and index-based grading works correctly.
+  const rawTokens = tokens.map((t, i) => ({ t, k: i }));
 
+  const [picked, setPicked] = useState([]);
+  const [available, setAvailable] = useState(rawTokens);
+
+  // SO-2: reset when exercise ID changes OR when tokens change (to avoid stale
+  // available state if the same exercise ID is re-used with different tokens).
   useEffect(() => {
+    const fresh = (cfg.tokens ?? []).map((t, i) => ({ t, k: i }));
     setPicked([]);
-    setAvailable(tokens);
-  }, [exercise?.id]); // important: re-init when exercise changes
+    setAvailable(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id, JSON.stringify(cfg.tokens)]);
 
   const canCheck = picked.length > 0;
 
@@ -41,9 +49,9 @@ export default function SentenceOrder({ exercise, cfg, correct, wrong, onSkip, o
           {picked.length === 0 ? (
             <Muted>Tap words below to build the sentence…</Muted>
           ) : (
-            picked.map((t, i) => (
-              <Pill key={`${t}-${i}`} onClick={() => removePicked(i)} active>
-                {t}
+            picked.map((item, i) => (
+              <Pill key={`${item.k}-${i}`} onClick={() => removePicked(i)} active>
+                {item.t}
               </Pill>
             ))
           )}
@@ -51,9 +59,9 @@ export default function SentenceOrder({ exercise, cfg, correct, wrong, onSkip, o
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {available.map((t, i) => (
-          <Pill key={`${t}-${i}`} onClick={() => addToken(i)}>
-            {t}
+        {available.map((item, i) => (
+          <Pill key={`${item.k}-${i}`} onClick={() => addToken(i)}>
+            {item.t}
           </Pill>
         ))}
       </div>
@@ -63,21 +71,25 @@ export default function SentenceOrder({ exercise, cfg, correct, wrong, onSkip, o
           disabled={!canCheck}
           onClick={() => {
             if (Array.isArray(solution)) {
+              // solution is an array of strings — compare text
+              const pickedTexts = picked.map((item) => item.t);
               const ok =
-                solution.length === picked.length &&
-                solution.every((v, i) => normalizeText(v) === normalizeText(picked[i]));
+                solution.length === pickedTexts.length &&
+                solution.every((v, i) => normalizeText(v) === normalizeText(pickedTexts[i]));
               return ok ? correct() : wrong("Word order is incorrect. Try again.");
             }
 
             if (Array.isArray(solutionIndices)) {
-              const builtIndices = picked.map((t) => tokens.indexOf(t));
+              // SO-1: use the stored original index (.k) instead of indexOf()
+              // so duplicate tokens don't collapse to the same index.
+              const builtIndices = picked.map((item) => item.k);
               const ok =
                 solutionIndices.length === builtIndices.length &&
                 solutionIndices.every((v, i) => Number(v) === Number(builtIndices[i]));
               return ok ? correct() : wrong("Word order is incorrect. Try again.");
             }
 
-            const builtSentence = picked.join(" ");
+            const builtSentence = picked.map((item) => item.t).join(" ");
             const answer = expected ?? cfg.answer ?? "";
             if (normalizeText(builtSentence) === normalizeText(answer)) correct();
             else wrong("Word order is incorrect. Try again.");

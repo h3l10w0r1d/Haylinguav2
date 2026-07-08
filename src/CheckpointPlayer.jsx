@@ -81,6 +81,10 @@ export default function CheckpointPlayer() {
             `${API_BASE}/me/checkpoint?lesson_ids=${encodeURIComponent(lessonIds)}&count=15`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
+          if (!res.ok) {
+            if (res.status === 401) throw new Error("Session expired — please log in again");
+            throw new Error(`Failed to load checkpoint (${res.status})`);
+          }
           const data = await res.json();
           if (cancelled) return;
           const exs = data.exercises || [];
@@ -110,6 +114,13 @@ export default function CheckpointPlayer() {
   // Accuracy tracking for pass/fail
   const totalAnswered = useRef(0);
   const totalCorrect = useRef(0);
+  // CP-1: first-attempt accuracy (retries don't inflate the score)
+  const firstAttemptCorrect = useRef(0);
+  const answeredOnce = useRef(new Set());
+
+  // CP-2: exerciseKey to reset hasAnswered even when the same ID is requeued
+  const [exerciseKey, setExerciseKey] = useState(0);
+  useEffect(() => { setHasAnswered(false); }, [exerciseKey]);
 
   async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance }) {
     // char_intro and other always-correct exercises pass autoAdvance=true — skip
@@ -151,6 +162,13 @@ export default function CheckpointPlayer() {
     }
 
     totalAnswered.current += 1;
+    // CP-1: track first-attempt correctness only
+    const isFirstAttempt = !answeredOnce.current.has(currentExercise?.id);
+    if (isFirstAttempt) {
+      answeredOnce.current.add(currentExercise?.id);
+      if (serverCorrect) firstAttemptCorrect.current += 1;
+    }
+
     const combo = serverCorrect ? comboStreak + 1 : 0;
     setComboStreak(combo);
 
@@ -185,6 +203,7 @@ export default function CheckpointPlayer() {
         const gap = Math.min(2, rest.length);
         return [...rest.slice(0, gap), q[0], ...rest.slice(gap)];
       });
+      setExerciseKey((k) => k + 1); // CP-2: reset hasAnswered even for same ID
       exerciseStartRef.current = Date.now();
       setRenderNonce((n) => n + 1);
       return;
@@ -195,6 +214,7 @@ export default function CheckpointPlayer() {
       if (next.length === 0) setPhase("done");
       return next;
     });
+    setExerciseKey((k) => k + 1); // CP-2: reset hasAnswered for next exercise
     exerciseStartRef.current = Date.now();
     setRenderNonce((n) => n + 1);
   }
@@ -217,7 +237,7 @@ export default function CheckpointPlayer() {
   }
 
   if (phase === "done") {
-    const accuracy = originalTotal > 0 ? Math.round((totalCorrect.current / originalTotal) * 100) : 0;
+    const accuracy = originalTotal > 0 ? Math.round((firstAttemptCorrect.current / originalTotal) * 100) : 0;
     const passed = accuracy >= 70;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-brand-50 to-white p-8 text-center">
@@ -281,6 +301,12 @@ export default function CheckpointPlayer() {
           onCorrect={({ answerText, xpEarned: xp, autoAdvance } = {}) => gradeAndAdvance({ isCorrect: true, answerText, xpEarned: xp, autoAdvance })}
           onWrong={({ answerText } = {}) => gradeAndAdvance({ isCorrect: false, answerText, xpEarned: 0 })}
           onSkip={() => {
+            // CP-3: skips count as wrong attempts in accuracy
+            totalAnswered.current += 1;
+            if (!answeredOnce.current.has(currentExercise?.id)) {
+              answeredOnce.current.add(currentExercise?.id);
+              // not correct, so firstAttemptCorrect stays unchanged
+            }
             setResultData({ variant: "skipped", xpEarned: 0, combo: 0 });
             pendingNextRef.current = { type: "advance" };
             setHasAnswered(true);

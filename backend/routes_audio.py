@@ -1,5 +1,7 @@
 #backend/routes_audio.oy
 import os
+import time
+from collections import defaultdict
 from typing import Optional, Literal
 
 import httpx
@@ -652,6 +654,32 @@ async def batch_generate_tts(
 # Default Armenian (ElevenLabs uses ISO-639-3 codes; "hye" = Eastern Armenian).
 ELEVEN_STT_MODEL = os.getenv("ELEVEN_STT_MODEL", "scribe_v1")
 
+# GR-8: Per-user rate limit for the transcribe endpoint (each call costs money).
+_transcribe_calls: dict = defaultdict(list)
+TRANSCRIBE_LIMIT = 30   # max calls per window per user
+TRANSCRIBE_WINDOW = 60  # seconds
+
+# GR-8: Accepted language codes. Anything else is silently coerced to 'hye'
+# (Eastern Armenian) to prevent passing arbitrary strings to the upstream API.
+_ALLOWED_LANG_CODES = {
+    'hye', 'hy',    # Armenian (ISO-639-3 and ISO-639-1)
+    'en', 'ru', 'fr', 'de', 'es', 'ar', 'zh', 'ja', 'ko', 'tr', 'fa',
+}
+
+
+def _check_transcribe_rate(user_id: int) -> None:
+    """Raise 429 if this user has exceeded the per-minute transcription limit."""
+    now = time.time()
+    calls = _transcribe_calls[user_id]
+    # Evict expired entries
+    _transcribe_calls[user_id] = [t for t in calls if now - t < TRANSCRIBE_WINDOW]
+    if len(_transcribe_calls[user_id]) >= TRANSCRIBE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many transcription requests. Please wait a moment.",
+        )
+    _transcribe_calls[user_id].append(now)
+
 
 @router.post("/me/exercises/transcribe")
 async def transcribe_speech(
@@ -660,6 +688,9 @@ async def transcribe_speech(
     user=Depends(get_current_user),  # 🔒 logged-in learners only (STT costs money)
 ):
     """Transcribe a learner's spoken answer via ElevenLabs Scribe."""
+    # GR-8: Rate-limit before any expensive work.
+    _check_transcribe_rate(int(user["id"]))
+
     if not ELEVEN_API_KEY:
         raise HTTPException(status_code=400, detail="Speech-to-text is not configured")
 
@@ -669,8 +700,13 @@ async def transcribe_speech(
     if len(data) > MAX_AUDIO_SIZE:
         raise HTTPException(status_code=400, detail=f"Audio too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
 
+    # GR-8: Validate and sanitize language_code against the allowlist.
+    lang = (language_code or "hye").strip().lower()[:10]
+    if lang not in _ALLOWED_LANG_CODES:
+        lang = "hye"  # default to Eastern Armenian
+
     files = {"file": (audio.filename or "speech.webm", data, audio.content_type or "audio/webm")}
-    form = {"model_id": ELEVEN_STT_MODEL, "language_code": (language_code or "hye").strip()}
+    form = {"model_id": ELEVEN_STT_MODEL, "language_code": lang}
 
     try:
         resp = await _http.post(

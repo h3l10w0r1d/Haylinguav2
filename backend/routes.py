@@ -30,7 +30,7 @@ from auth import (
 from jose import jwt, JWTError
 
 # Authoritative, server-side answer grading (never trust client is_correct)
-from grading import grade_attempt
+from grading import grade_attempt, _INFO_KINDS
 
 # Brevo (Sendinblue) integration (contacts + events)
 try:
@@ -3156,7 +3156,63 @@ def record_exercise_attempt(
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
+    # GR-2: XP farming via unenrolled exercises — no enrollment concept currently
+    # exists in the schema (no user_course or enrollment table). Calling
+    # _ensure_user_lesson_progress below effectively auto-enrolls the user on
+    # first attempt, so a hard 403 here would break all legitimate flows.
+    # TODO: Once an enrollment/purchase gate is introduced, add a check here:
+    #   enrollment = db.execute("SELECT id FROM user_enrollments WHERE user_id=:u AND course_id=:c", ...)
+    #   if not enrollment: raise HTTPException(403, "Not enrolled in this course")
     _ensure_user_lesson_progress(db, user_id, lesson_id)
+
+    # GR-3: Info-card deduplication — char_intro / flashcard / reading_section are
+    # always-correct and can be submitted repeatedly. Skip recording a new attempt if
+    # this user already has a correct attempt for this exercise, so total_attempts
+    # counters are not inflated by repeated page visits.
+    exercise_kind = ex_row["kind"] or ""
+    if exercise_kind in _INFO_KINDS:
+        existing_attempt = db.execute(
+            text(
+                "SELECT id FROM user_exercise_attempts"
+                " WHERE user_id = :uid AND exercise_id = :eid AND is_correct = TRUE LIMIT 1"
+            ),
+            {"uid": user_id, "eid": exercise_id},
+        ).mappings().first()
+        if existing_attempt:
+            # Already recorded — return success without creating a duplicate.
+            acc = _get_accuracy(db, user_id, lesson_id)
+            prev_row = db.execute(
+                text("SELECT xp_earned FROM user_lesson_progress WHERE user_id = :uid AND lesson_id = :lid"),
+                {"uid": user_id, "lid": lesson_id},
+            ).mappings().first() or {}
+            progress = recompute_lesson_progress(db, user_id, lesson_id)
+            hstate = _hearts_state(db, user_id)
+            return AttemptOut(
+                ok=True,
+                attempt_id=int(existing_attempt["id"]),
+                accuracy=acc,
+                earned_xp=int(progress["earned_xp"]),
+                earned_xp_delta=0,
+                completion_ratio=float(progress["completion_ratio"]),
+                completed=bool(progress["completed"]),
+                hearts_current=int(hstate["hearts_current"]),
+                hearts_max=int(hstate["hearts_max"]),
+                is_premium=bool(hstate["is_premium"]),
+                next_regen_seconds=int(hstate["next_regen_seconds"]),
+            )
+
+    # GR-5: Detect first-correct BEFORE inserting so concurrent requests can't
+    # both see "no prior correct attempt" and both award XP for the same exercise.
+    # We still insert both attempts, but only the request that sees is_first_correct=True
+    # will call _award_weekly_xp with a positive delta.
+    prior_correct = db.execute(
+        text(
+            "SELECT 1 FROM user_exercise_attempts"
+            " WHERE user_id = :uid AND exercise_id = :eid AND is_correct = TRUE LIMIT 1"
+        ),
+        {"uid": user_id, "eid": exercise_id},
+    ).first()
+    is_first_correct = (prior_correct is None) and bool(is_correct)
 
     # Insert attempt
     attempt_id = db.execute(
@@ -3212,7 +3268,10 @@ def record_exercise_attempt(
         earned_xp_delta = 0
 
     # League: count this lesson's XP toward the user's weekly division total.
-    _award_weekly_xp(db, user_id, earned_xp_delta)
+    # GR-5: Only award weekly XP on first-correct to prevent double-counting from
+    # concurrent requests (both would otherwise compute delta > 0 from the same prev_xp).
+    if is_first_correct and earned_xp_delta > 0:
+        _award_weekly_xp(db, user_id, earned_xp_delta)
 
     # Reward a chest the FIRST time a lesson is completed (not on replays), so
     # the gem economy can't be farmed by re-doing the same lesson.
