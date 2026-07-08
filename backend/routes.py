@@ -1434,6 +1434,9 @@ class MeProfileUpdateIn(BaseModel):
     friends_public: bool | None = None
     is_hidden: bool | None = None
 
+    # Preferences
+    voice_pref: str | None = None
+
 
 class OnboardingOut(BaseModel):
     completed: bool
@@ -3174,6 +3177,10 @@ class MeOut(BaseModel):
 
     # Account
     email_verified: bool = False
+    telegram_id: Optional[int] = None
+
+    # Preferences
+    voice_pref: str = "Random"
 
     # Stats
     total_xp: int = 0
@@ -3343,7 +3350,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -3361,10 +3368,16 @@ def me_profile_get(
         {"u": user_id},
     ).mappings().first()
 
+    ob_row = db.execute(
+        text("SELECT voice_pref FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+        {"u": user_id},
+    ).mappings().first()
+
     streak = _compute_streak_days(db, int(user_id))
     payload = dict(row)
     payload["total_xp"] = int(stats_row["total_xp"] or 0)
     payload["streak"] = int(streak)
+    payload["voice_pref"] = (ob_row or {}).get("voice_pref") or "Random"
     return MeOut(**payload)
 
 
@@ -4216,15 +4229,111 @@ def me_profile_put(
             # likely username case-insensitive unique constraint
             raise HTTPException(status_code=409, detail="Username already taken")
 
+    # Update voice_pref in user_onboarding if provided
+    if payload.voice_pref is not None:
+        vp = payload.voice_pref.strip()
+        if vp in ("Male", "Female", "Random"):
+            db.execute(
+                text("""
+                    INSERT INTO user_onboarding (user_id, voice_pref, age_range, country, knowledge_level, dialect, primary_goal, source_language, daily_goal_min, accepted_terms, updated_at)
+                    VALUES (:u, :vp, '', '', '', '', '', '', 5, FALSE, NOW())
+                    ON CONFLICT (user_id) DO UPDATE SET voice_pref = EXCLUDED.voice_pref, updated_at = NOW()
+                """),
+                {"u": int(user_id), "vp": vp},
+            )
+
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id FROM users WHERE id = :id"),
         {"id": user_id},
+    ).mappings().first()
+
+    ob_row = db.execute(
+        text("SELECT voice_pref FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+        {"u": user_id},
     ).mappings().first()
 
     # Best-effort Brevo sync for profile changes.
     _brevo_sync_user(db, int(user_id), event="profile_updated")
 
-    return MeOut(**dict(row))
+    result = dict(row)
+    result["voice_pref"] = (ob_row or {}).get("voice_pref") or "Random"
+    return MeOut(**result)
+
+
+@router.post("/me/link/telegram")
+def me_link_telegram(
+    payload: Dict[str, Any] = Body(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Link a Telegram account to the currently authenticated user.
+
+    Verifies the Telegram HMAC signature (same as /auth/telegram), then stores
+    the telegram_id on the user's row. Returns 409 if the Telegram account is
+    already linked to a different Haylingua account.
+    """
+    import hashlib as _hashlib
+    import hmac as _hmac
+    import time as _time
+
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    bot_token = os.getenv("TELEGRAM_BOT_KEY", "")
+    if not bot_token:
+        raise HTTPException(status_code=503, detail="Telegram OAuth is not configured on this server")
+
+    data = dict(payload or {})
+    received_hash = data.pop("hash", "")
+    if not received_hash:
+        raise HTTPException(status_code=400, detail="Missing Telegram hash")
+
+    check_string = "\n".join(f"{k}={v}" for k, v in sorted(data.items()) if v is not None)
+    secret_key = _hashlib.sha256(bot_token.encode()).digest()
+    expected_hash = _hmac.new(secret_key, check_string.encode(), _hashlib.sha256).hexdigest()
+
+    if not _hmac.compare_digest(expected_hash, received_hash):
+        raise HTTPException(status_code=401, detail="Invalid Telegram signature")
+
+    auth_date = int(data.get("auth_date") or 0)
+    if _time.time() - auth_date > 86400:
+        raise HTTPException(status_code=401, detail="Telegram auth data expired — please try again")
+
+    tg_id = str(data.get("id") or "")
+    if not tg_id:
+        raise HTTPException(status_code=400, detail="No Telegram user ID returned")
+
+    # Reject if this Telegram ID is already linked to a *different* account
+    existing = db.execute(
+        text("SELECT id FROM users WHERE telegram_id = :tid AND id != :u LIMIT 1"),
+        {"tid": tg_id, "u": int(user_id)},
+    ).scalar()
+    if existing:
+        raise HTTPException(status_code=409, detail="This Telegram account is already linked to another Haylingua account")
+
+    db.execute(
+        text("UPDATE users SET telegram_id = :tid WHERE id = :u"),
+        {"tid": tg_id, "u": int(user_id)},
+    )
+    return {"ok": True, "telegram_id": int(tg_id)}
+
+
+@router.delete("/me/link/telegram")
+def me_unlink_telegram(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Remove the Telegram link from the current user's account."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    db.execute(
+        text("UPDATE users SET telegram_id = NULL WHERE id = :u"),
+        {"u": int(user_id)},
+    )
+    return {"ok": True}
 
 
 # ----------------------------

@@ -38,6 +38,8 @@ const API_BASE =
   import.meta.env.VITE_API_URL ||
   "https://haylinguav2.onrender.com";
 
+const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "haylinguabot";
+
 function getToken() {
   return (
     localStorage.getItem("access_token") ||
@@ -213,6 +215,15 @@ export default function ProfilePage() {
   const [twoFaDisableCode, setTwoFaDisableCode] = useState("");
   const [twoFaDisablePw, setTwoFaDisablePw] = useState("");
 
+  // Voice preference
+  const [voiceRandom, setVoiceRandom] = useState(true);
+  const [voiceMale, setVoiceMale] = useState(true);
+  const [voiceFemale, setVoiceFemale] = useState(true);
+
+  // Telegram linking
+  const [telegramId, setTelegramId] = useState(null);
+  const tgLinkContainerRef = useRef(null);
+
   // UX state
   const [tab, setTab] = useState("overview"); // overview | edit | appearance | security
   const [saving, setSaving] = useState(false);
@@ -241,6 +252,14 @@ export default function ProfilePage() {
     () => resolveProfileBackground({ themeBg, themeGradient }),
     [themeBg, themeGradient]
   );
+
+  const computedVoicePref = voiceRandom || (voiceMale && voiceFemale)
+    ? "Random"
+    : voiceMale
+    ? "Male"
+    : voiceFemale
+    ? "Female"
+    : "Random";
 
   useEffect(() => {
     let cancelled = false;
@@ -287,6 +306,19 @@ export default function ProfilePage() {
           setAvatarPresetUrl(resolvedAvatar);
           setAvatarFile(null);
           avatarTouchedRef.current = Boolean(au);
+
+          // Voice preference
+          const vp = data.voice_pref || "Random";
+          if (vp === "Male") {
+            setVoiceRandom(false); setVoiceMale(true); setVoiceFemale(false);
+          } else if (vp === "Female") {
+            setVoiceRandom(false); setVoiceMale(false); setVoiceFemale(true);
+          } else {
+            setVoiceRandom(true); setVoiceMale(true); setVoiceFemale(true);
+          }
+
+          // Telegram link status
+          setTelegramId(data.telegram_id || null);
 
           // Stats preview in header (safe fallbacks)
           setLevel(data.level || 1);
@@ -426,6 +458,7 @@ export default function ProfilePage() {
         first_name: String(firstName || "").trim() || null,
         last_name: String(lastName || "").trim() || null,
         bio: String(bio || "").trim() || null,
+        voice_pref: computedVoicePref,
         // keep these so core-save doesn't overwrite autosaved settings unexpectedly
         friends_public: !!friendsPublic,
         is_hidden: !!isHidden,
@@ -611,6 +644,41 @@ export default function ProfilePage() {
 
     return () => clearTimeout(t);
   }, [loading, token, avatarFile]);
+
+  // Telegram link widget — only rendered when not already linked and on security tab
+  useEffect(() => {
+    if (!TELEGRAM_BOT_USERNAME || !tgLinkContainerRef.current) return;
+    if (telegramId) { tgLinkContainerRef.current.innerHTML = ""; return; }
+
+    tgLinkContainerRef.current.innerHTML = "";
+
+    window.onTelegramLink = async (tgUser) => {
+      try {
+        const res = await apiFetch("/me/link/telegram", {
+          token,
+          method: "POST",
+          body: JSON.stringify(tgUser),
+        });
+        const d = await safeJsonParse(res);
+        if (!res.ok) throw new Error(d?.detail || "Failed to link Telegram");
+        setTelegramId(Number(tgUser.id) || d?.telegram_id || 1);
+        setMessage("Telegram account linked.");
+      } catch (e) {
+        setMessage(String(e?.message || "Failed to link Telegram."));
+      }
+    };
+
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-onauth", "onTelegramLink(user)");
+    script.setAttribute("data-request-access", "write");
+    script.async = true;
+    tgLinkContainerRef.current.appendChild(script);
+
+    return () => { delete window.onTelegramLink; };
+  }, [TELEGRAM_BOT_USERNAME, token, telegramId, tab]);
 
   // -------- Account security actions --------
   async function startEmailChange() {
@@ -1091,7 +1159,55 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="pt-2 flex justify-end">
+          <div className="md:col-span-2">
+            <div className="text-sm font-extrabold text-slate-700 mb-2">Voice preference</div>
+            <p className="text-xs font-semibold text-slate-400 mb-3">
+              Choose the voice used when listening to Armenian words and phrases.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                {
+                  key: "male",
+                  label: "Male voice",
+                  sub: "Clear pronunciation & lower pitch",
+                  active: !voiceRandom && voiceMale && !voiceFemale,
+                  onSelect: () => { setVoiceRandom(false); setVoiceMale(true); setVoiceFemale(false); },
+                },
+                {
+                  key: "female",
+                  label: "Female voice",
+                  sub: "Natural pitch variation & clarity",
+                  active: !voiceRandom && voiceFemale && !voiceMale,
+                  onSelect: () => { setVoiceRandom(false); setVoiceMale(false); setVoiceFemale(true); },
+                },
+                {
+                  key: "random",
+                  label: "Mix both",
+                  sub: "Best for real-world listening variety",
+                  active: voiceRandom || (voiceMale && voiceFemale),
+                  onSelect: () => { setVoiceRandom(true); setVoiceMale(true); setVoiceFemale(true); },
+                },
+              ].map(({ key, label, sub, active, onSelect }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={onSelect}
+                  className={
+                    "flex flex-col items-start gap-1 rounded-2xl p-3 ring-2 text-left transition " +
+                    (active
+                      ? "bg-brand-50 ring-brand-400 text-brand-700"
+                      : "bg-slate-50 ring-slate-200 text-slate-700 hover:ring-brand-300")
+                  }
+                >
+                  <span className="font-display text-sm font-extrabold">{label}</span>
+                  <span className="text-xs font-semibold opacity-70">{sub}</span>
+                  {active && <Check className="mt-1 h-4 w-4 text-brand-500" strokeWidth={3} />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end md:col-span-2">
             <button
               type="submit"
               disabled={saving}
@@ -1562,6 +1678,65 @@ export default function ProfilePage() {
             >
               <LockKeyhole className="w-4 h-4 text-brand-500" /> {twoFaEnabled ? "Manage 2FA" : "Enable 2FA"}
             </button>
+          </div>
+
+          {/* Telegram account linking */}
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 md:col-span-2">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="shrink-0">
+                <path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Telegram
+            </div>
+
+            {telegramId ? (
+              <>
+                <p className="mt-2 text-sm font-semibold text-slate-600">
+                  Your account is linked to Telegram (ID&nbsp;
+                  <span className="font-mono font-bold text-slate-800">{telegramId}</span>).
+                  You can sign in with Telegram on any device.
+                </p>
+                <button
+                  type="button"
+                  className="btn3d btn3d-neutral text-sm mt-3"
+                  onClick={async () => {
+                    try {
+                      const res = await apiFetch("/me/link/telegram", { token, method: "DELETE" });
+                      if (!res.ok) { const d = await safeJsonParse(res); throw new Error(d?.detail || "Failed to unlink"); }
+                      setTelegramId(null);
+                      setMessage("Telegram account unlinked.");
+                    } catch (e) {
+                      setMessage(String(e?.message || "Failed to unlink Telegram."));
+                    }
+                  }}
+                >
+                  Unlink Telegram
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-sm font-semibold text-slate-600">
+                  Link your Telegram account to sign in with one tap — no password needed.
+                </p>
+                <div className="relative mt-3 h-11 w-48">
+                  <div
+                    ref={tgLinkContainerRef}
+                    style={{ position: "absolute", inset: 0, opacity: 0, overflow: "hidden" }}
+                  />
+                  <div
+                    style={{ pointerEvents: "none" }}
+                    className="absolute inset-0 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-extrabold text-slate-700 shadow-sm"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Link Telegram
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </section>
