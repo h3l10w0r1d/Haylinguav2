@@ -1,5 +1,6 @@
-// src/lib/ChestOpening.jsx
+// src/lib/ChestOpening.jsx — chest-opening reward sequence via ReactDOM.createPortal.
 import React, { useEffect, useMemo, useState } from "react";
+import ReactDOM from "react-dom";
 import { Gem } from "lucide-react";
 import { sfx } from "./sfx";
 
@@ -9,50 +10,44 @@ function ChestSvg({ open }) {
   return (
     <svg width="200" height="180" viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "visible" }}>
       <defs>
-        <linearGradient id="chestBody" x1="100" y1="86" x2="100" y2="168" gradientUnits="userSpaceOnUse">
+        <linearGradient id="cbody" x1="100" y1="86" x2="100" y2="168" gradientUnits="userSpaceOnUse">
           <stop stopColor="#B45309" /><stop offset="1" stopColor="#7C3A06" />
         </linearGradient>
-        <linearGradient id="chestLid" x1="100" y1="40" x2="100" y2="92" gradientUnits="userSpaceOnUse">
+        <linearGradient id="clid" x1="100" y1="40" x2="100" y2="92" gradientUnits="userSpaceOnUse">
           <stop stopColor="#D97706" /><stop offset="1" stopColor="#B45309" />
         </linearGradient>
-        <linearGradient id="chestGold" x1="100" y1="0" x2="100" y2="180" gradientUnits="userSpaceOnUse">
+        <linearGradient id="cgold" x1="100" y1="0" x2="100" y2="180" gradientUnits="userSpaceOnUse">
           <stop stopColor="#FDE68A" /><stop offset="1" stopColor="#F59E0B" />
         </linearGradient>
       </defs>
       {open && <ellipse cx="100" cy="90" rx="58" ry="22" fill="#FFE9A8" opacity="0.9" />}
-      <rect x="34" y="86" width="132" height="82" rx="12" fill="url(#chestBody)" />
-      <rect x="34" y="118" width="132" height="12" fill="url(#chestGold)" />
-      <rect x="34" y="86" width="10" height="82" fill="url(#chestGold)" opacity="0.85" />
-      <rect x="156" y="86" width="10" height="82" fill="url(#chestGold)" opacity="0.85" />
-      <rect x="90" y="112" width="20" height="24" rx="4" fill="url(#chestGold)" />
+      <rect x="34" y="86" width="132" height="82" rx="12" fill="url(#cbody)" />
+      <rect x="34" y="118" width="132" height="12" fill="url(#cgold)" />
+      <rect x="34" y="86" width="10" height="82" fill="url(#cgold)" opacity="0.85" />
+      <rect x="156" y="86" width="10" height="82" fill="url(#cgold)" opacity="0.85" />
+      <rect x="90" y="112" width="20" height="24" rx="4" fill="url(#cgold)" />
       <circle cx="100" cy="122" r="4" fill="#7C3A06" />
       <g className={open ? "chest-lid chest-lid-open" : "chest-lid"}>
-        <path d="M34 92 V70 C34 49 62 38 100 38 C138 38 166 49 166 70 V92 Z" fill="url(#chestLid)" />
-        <rect x="34" y="84" width="132" height="10" rx="3" fill="url(#chestGold)" />
-        <rect x="92" y="78" width="16" height="14" rx="3" fill="url(#chestGold)" />
+        <path d="M34 92 V70 C34 49 62 38 100 38 C138 38 166 49 166 70 V92 Z" fill="url(#clid)" />
+        <rect x="34" y="84" width="132" height="10" rx="3" fill="url(#cgold)" />
+        <rect x="92" y="78" width="16" height="14" rx="3" fill="url(#cgold)" />
       </g>
     </svg>
   );
 }
 
-export default function ChestOpening({ reward = 0, onClose }) {
+function ChestModal({ reward, onClose }) {
   const [phase, setPhase] = useState("shake"); // shake → open → reward
-  // `shown` drives CSS transitions — never relies on animation-fill-mode
-  const [shown, setShown] = useState(false);
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    // Double rAF: paints opacity:0/scale:0.3 first, then transitions to visible
-    const raf = requestAnimationFrame(() =>
-      requestAnimationFrame(() => setShown(true))
-    );
     const t1 = setTimeout(() => {
       setPhase("open");
       try { sfx.complete(); } catch {}
     }, 850);
     const t2 = setTimeout(() => setPhase("reward"), 1250);
     const t3 = setTimeout(() => onClose?.(), 5200);
-    return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   useEffect(() => {
@@ -87,34 +82,33 @@ export default function ChestOpening({ reward = 0, onClose }) {
     }), []
   );
 
+  // All positioning via explicit top/left/right/bottom — no `inset` shorthand
   return (
     <div
-      onClick={() => phase === "reward" && onClose?.()}
       role="dialog"
       aria-modal="true"
+      onClick={() => phase === "reward" && onClose?.()}
       style={{
         position: "fixed",
-        inset: 0,
-        zIndex: 9999,
+        top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 99999,
         backgroundColor: "rgba(15,23,42,0.88)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "1rem",
-        // Fade in via React state — no animation-fill-mode involved
-        opacity: shown ? 1 : 0,
-        transition: "opacity 0.25s ease",
+        padding: "16px",
       }}
     >
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
         {/* Chest stage */}
         <div style={{ position: "relative", width: 200, height: 180 }}>
-          {/* Rays — rendered behind chest by DOM order */}
+          {/* Rays — first child, behind chest */}
           {opened && (
             <div
               className="chest-rays-spin"
               style={{
-                position: "absolute", left: "50%", top: "50%",
+                position: "absolute",
+                left: "50%", top: "50%",
                 width: 480, height: 480,
                 marginLeft: -240, marginTop: -240,
                 pointerEvents: "none",
@@ -133,14 +127,8 @@ export default function ChestOpening({ reward = 0, onClose }) {
             </div>
           )}
 
-          {/* Chest — scale-in via React transition, opacity always 1 */}
-          <div
-            style={{
-              position: "absolute", inset: 0,
-              transform: shown ? "scale(1) translateY(0)" : "scale(0.3) translateY(30px)",
-              transition: "transform 0.45s cubic-bezier(0.2,0.8,0.2,1)",
-            }}
-          >
+          {/* Chest — always visible, CSS handles shake/jump only */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
             <div
               className={phase === "shake" ? "chest-shake" : opened ? "chest-jump" : ""}
               style={{ width: "100%", height: "100%" }}
@@ -149,7 +137,7 @@ export default function ChestOpening({ reward = 0, onClose }) {
             </div>
           </div>
 
-          {/* Confetti — rendered after chest so it appears in front */}
+          {/* Confetti — last child, in front of chest */}
           {opened && (
             <div style={{ position: "absolute", left: "50%", top: "50%", pointerEvents: "none" }}>
               {confetti.map((p, i) => (
@@ -157,9 +145,13 @@ export default function ChestOpening({ reward = 0, onClose }) {
                   key={i}
                   style={{
                     position: "absolute",
-                    width: p.size, height: Math.round(p.size * 1.5),
-                    background: p.color, borderRadius: 2,
-                    "--tx": `${p.tx}px`, "--ty": `${p.ty}px`, "--rot": p.rot,
+                    width: p.size,
+                    height: Math.round(p.size * 1.5),
+                    background: p.color,
+                    borderRadius: 2,
+                    "--tx": `${p.tx}px`,
+                    "--ty": `${p.ty}px`,
+                    "--rot": p.rot,
                     animation: `burstOut ${p.dur}s ease-out ${p.delay}s forwards`,
                   }}
                 />
@@ -168,20 +160,20 @@ export default function ChestOpening({ reward = 0, onClose }) {
           )}
         </div>
 
-        {/* "Opening..." label */}
+        {/* Status text */}
         {phase !== "reward" && (
           <p style={{
             marginTop: 24,
-            color: "rgba(255,255,255,0.9)",
+            color: "#ffffff",
             fontFamily: "'Baloo 2','Nunito',sans-serif",
-            fontWeight: 800, fontSize: 18,
-            margin: "24px 0 0",
+            fontWeight: 800,
+            fontSize: 18,
           }}>
             Opening…
           </p>
         )}
 
-        {/* Reward panel — uses reward-rise animation (scale only, no opacity) */}
+        {/* Reward */}
         {phase === "reward" && (
           <div
             className="reward-rise"
@@ -190,15 +182,15 @@ export default function ChestOpening({ reward = 0, onClose }) {
             <div style={{
               display: "flex", alignItems: "center", gap: 8,
               fontFamily: "'Baloo 2','Nunito',sans-serif",
-              fontSize: 48, fontWeight: 800, color: "white",
+              fontSize: 48, fontWeight: 800,
+              color: "#ffffff",
               filter: "drop-shadow(0 2px 8px rgba(0,0,0,.4))",
             }}>
               <Gem style={{ width: 40, height: 40, color: "#38bdf8" }} />
               <span style={{ fontVariantNumeric: "tabular-nums" }}>+{count}</span>
             </div>
             <p style={{
-              margin: "4px 0 0",
-              fontSize: 12, fontWeight: 800,
+              marginTop: 4, fontSize: 12, fontWeight: 800,
               letterSpacing: "0.2em", textTransform: "uppercase",
               color: "rgba(255,255,255,0.8)",
             }}>
@@ -215,5 +207,13 @@ export default function ChestOpening({ reward = 0, onClose }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Portals to document.body so no ancestor stacking context can interfere
+export default function ChestOpening({ reward = 0, onClose }) {
+  return ReactDOM.createPortal(
+    <ChestModal reward={reward} onClose={onClose} />,
+    document.body
   );
 }
