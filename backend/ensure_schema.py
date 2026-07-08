@@ -128,7 +128,7 @@ def ensure_schema() -> None:
             """
             CREATE TABLE shop_items (
                 id SERIAL PRIMARY KEY,
-                title TEXT NOT NULL,
+                title TEXT NOT NULL UNIQUE,
                 description TEXT,
                 icon TEXT NOT NULL DEFAULT 'gem',
                 price INTEGER NOT NULL DEFAULT 10,
@@ -140,23 +140,44 @@ def ensure_schema() -> None:
             )
             """,
         )
-        if not shop_existed:
-            seed_items = [
-                ("Streak Freeze", "Protects your streak from one missed day.", "snowflake", 50, "streak_freeze", 0),
-                ("Refill Hearts", "Restore all your hearts instantly.", "heart", 30, "hearts_refill", 0),
-                ("XP Boost", "Instantly add 15 XP to your total.", "zap", 20, "xp_boost", 15),
-            ]
-            for i, (t, d, ic, pr, eff, amt) in enumerate(seed_items):
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO shop_items (title, description, icon, price, effect, effect_amount, sort_order)
-                        VALUES (:t, :d, :ic, :pr, :eff, :amt, :so)
-                        """
-                    ),
-                    {"t": t, "d": d, "ic": ic, "pr": pr, "eff": eff, "amt": amt, "so": i},
-                )
-            print("[ensure_schema] seeded shop_items")
+        # Ensure unique constraint exists on existing tables (idempotent).
+        conn.execute(text("""
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'shop_items_title_unique' AND conrelid = 'shop_items'::regclass
+                ) THEN
+                    ALTER TABLE shop_items ADD CONSTRAINT shop_items_title_unique UNIQUE (title);
+                END IF;
+            END $$;
+        """))
+
+        # Always upsert the canonical item catalogue (title is the natural key).
+        # New items added here will appear in existing databases on next boot.
+        all_seed_items = [
+            ("Streak Freeze",  "Protects your streak from one missed day.",          "snowflake",    50,  "streak_freeze",  1),
+            ("Refill Hearts",  "Restore all your hearts instantly.",                  "heart",        30,  "hearts_refill",  0),
+            ("XP Boost",       "Instantly add 15 XP to your total.",                 "zap",          20,  "xp_boost",       15),
+            ("Mega XP Surge",  "Instantly earn 50 XP.",                              "zap",          60,  "xp_boost",       50),
+            ("Weekend Pack",   "Protect your streak for 2 consecutive days.",        "snowflake",    80,  "streak_freeze",  2),
+            ("Streak Repair",  "Restore a streak you lost in the last 3 days.",      "shield",       150, "streak_repair",  0),
+            ("Heart Shield",   "Your next lesson won't cost any hearts.",            "shield-check", 45,  "heart_shield",   0),
+            ("Double XP",      "Earn 2× XP on your next lesson.",              "trending-up",  80,  "xp_multiplier",  0),
+            ("Gold Frame",     "A gleaming gold border around your avatar.",         "award",        200, "avatar_frame",   0),
+            ("Ararat Banner",  "Mount Ararat profile banner for your public page.",  "image",        300, "profile_theme",  0),
+        ]
+        for i, (t, d, ic, pr, eff, amt) in enumerate(all_seed_items):
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO shop_items (title, description, icon, price, effect, effect_amount, sort_order)
+                    VALUES (:t, :d, :ic, :pr, :eff, :amt, :so)
+                    ON CONFLICT (title) DO NOTHING
+                    """
+                ),
+                {"t": t, "d": d, "ic": ic, "pr": pr, "eff": eff, "amt": amt, "so": i},
+            )
+        print("[ensure_schema] upserted shop_items catalogue")
 
         chest_existed = table_exists("chest_rewards")
         ensure_table(

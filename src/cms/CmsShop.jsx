@@ -2,15 +2,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Gem, Snowflake, Heart, Zap, Gift } from "lucide-react";
+import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Gem, Snowflake, Heart, Zap, Gift, Shield, ShieldCheck, TrendingUp, Award, Image } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 
-const ICONS = { snowflake: Snowflake, heart: Heart, zap: Zap, gem: Gem };
-const ICON_OPTS = ["snowflake", "heart", "zap", "gem"];
+const ICONS = { snowflake: Snowflake, heart: Heart, zap: Zap, gem: Gem, shield: Shield, "shield-check": ShieldCheck, "trending-up": TrendingUp, award: Award, image: Image };
+const ICON_OPTS = ["snowflake", "heart", "zap", "gem", "shield", "shield-check", "trending-up", "award", "image"];
 const EFFECTS = [
-  { value: "streak_freeze", label: "Grant a streak freeze" },
-  { value: "hearts_refill", label: "Refill hearts" },
-  { value: "xp_boost", label: "Add XP (uses amount)" },
+  { value: "streak_freeze",  label: "Grant streak freeze(s) — use amount for qty" },
+  { value: "hearts_refill",  label: "Refill hearts" },
+  { value: "xp_boost",       label: "Add XP instantly (uses amount)" },
+  { value: "streak_repair",  label: "Repair a recently broken streak" },
+  { value: "heart_shield",   label: "Shield next lesson from heart loss" },
+  { value: "xp_multiplier",  label: "Double XP on next lesson" },
+  { value: "avatar_frame",   label: "Unlock avatar frame (cosmetic)" },
+  { value: "profile_theme",  label: "Unlock profile banner theme (cosmetic)" },
 ];
 
 function cx(...a) {
