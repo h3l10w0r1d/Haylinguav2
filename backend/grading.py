@@ -114,13 +114,15 @@ def _correct_index_set(options: List[dict], cfg: dict, expected_answer: Any) -> 
     if iv is not None:
         s.add(iv)
 
-    # 1-based -> 0-based heuristic (mirrors the frontend).
+    # 1-based → 0-based conversion: only when an index is out-of-range for 0-based
+    # (i.e. mx >= n, meaning it can't be 0-based). The old "looks_one_based" heuristic
+    # (mn>=1 and mx<=n) was too aggressive — it misfired on already-0-based data such
+    # as a 3-option exercise with the correct answer at index 2 (0-based), converting
+    # it to index 1 and permanently misgrading the question.
     if n > 0 and s:
         vals = list(s)
-        mn, mx = min(vals), max(vals)
-        looks_one_based = mn >= 1 and mx <= n
-        has_out_of_range = mx >= n
-        if looks_one_based or has_out_of_range:
+        mx = max(vals)
+        if mx >= n:
             return {v - 1 for v in vals}
 
     return s

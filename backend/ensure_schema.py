@@ -98,6 +98,10 @@ def ensure_schema() -> None:
         fill_nulls("users", "email_verified", "FALSE")
         fill_nulls("users", "totp_recovery_hashes", "'[]'::jsonb")
 
+        # ---------- Token revocation ----------
+        add_col_if_missing("users", "token_version INTEGER NOT NULL DEFAULT 0")
+        fill_nulls("users", "token_version", "0")
+
         # ---------- Reward XP (quests / achievements) ----------
         add_col_if_missing("users", "bonus_xp INTEGER NOT NULL DEFAULT 0")
         fill_nulls("users", "bonus_xp", "0")

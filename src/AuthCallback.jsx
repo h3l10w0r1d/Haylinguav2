@@ -17,9 +17,18 @@ export default function AuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const oauthError = params.get("error");
+    const returnedState = params.get("state");
+    const savedState = sessionStorage.getItem("oauth_state");
+    sessionStorage.removeItem("oauth_state");
 
     if (oauthError || !code) {
       setError(oauthError === "access_denied" ? "Sign-in was cancelled." : "Google sign-in failed. Please try again.");
+      return;
+    }
+
+    // CSRF state check — reject if state is missing or doesn't match what we set.
+    if (!returnedState || returnedState !== savedState) {
+      setError("Authentication failed (state mismatch). Please try again.");
       return;
     }
 

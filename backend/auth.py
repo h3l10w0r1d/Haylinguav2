@@ -30,12 +30,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_token(user_id: int) -> str:
+def create_token(user_id: int, token_version: int = 0) -> str:
     if not JWT_SECRET_KEY:
-        raise RuntimeError("JWT_SECRET_KEY (or SECRET_KEY) is not set") 
+        raise RuntimeError("JWT_SECRET_KEY (or SECRET_KEY) is not set")
 
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": str(user_id), "exp": expire}
+    payload = {"sub": str(user_id), "exp": expire, "tv": int(token_version)}
 
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 

@@ -156,13 +156,18 @@ export default function LoginModal({
                 </div>
               )}
               {GOOGLE_CLIENT_ID && (
-                <a
-                  href={`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account`}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                <button
+                  type="button"
+                  onClick={() => {
+                    const state = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+                    sessionStorage.setItem("oauth_state", state);
+                    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account&state=${encodeURIComponent(state)}`;
+                  }}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
                 >
                   <GoogleIcon />
                   Google
-                </a>
+                </button>
               )}
             </div>
             <div className="relative my-1 flex items-center gap-3">
