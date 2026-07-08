@@ -1,7 +1,7 @@
 // src/PlacementTest.jsx — Adaptive binary-search placement test
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Target, ChevronRight, ArrowRight, CheckCircle } from "lucide-react";
+import { Loader2, Target, ArrowRight, CheckCircle } from "lucide-react";
 import ExerciseRenderer from "./ExerciseRenderer";
 import ExerciseShell from "./ExerciseShell";
 import { sfx } from "./lib/sfx";
@@ -31,13 +31,39 @@ const INSTRUCTIONS = {
   sentence_order: "Put the words in order",
 };
 
+// ── Phase machine ─────────────────────────────────────────────────────────────
+// "loading-units" → "loading-round" → "testing" → ("result" screen per exercise)
+//   → "loading-round" (next round) or "done"
+
 export default function PlacementTest() {
   const navigate = useNavigate();
 
   // ── Unit list ──────────────────────────────────────────────────────────────
-  const [units, setUnits] = useState(null); // null = loading
+  const [units, setUnits] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
+  // ── Bisect — stored in a ref so closures always read fresh values ──────────
+  const bisectRef = useRef({ low: 0, high: 0 });
+
+  // ── Round state (explicit, not derived) ───────────────────────────────────
+  const [phase, setPhase] = useState("loading-units"); // loading-units | loading-round | testing | done
+  const [currentUnitIdx, setCurrentUnitIdx] = useState(null);
+  const [round, setRound] = useState(0);
+  const [history, setHistory] = useState([]);
+
+  // ── Exercise state ─────────────────────────────────────────────────────────
+  const [exercises, setExercises] = useState([]);
+  const [queueIdx, setQueueIdx] = useState(0);
+  const [roundCorrect, setRoundCorrect] = useState(0);
+  const [hasAnswered, setHasAnswered] = useState(false);
+  const [resultData, setResultData] = useState(null);
+  const [renderNonce, setRenderNonce] = useState(0);
+  const exerciseStartRef = useRef(Date.now());
+
+  // ── Placement result ───────────────────────────────────────────────────────
+  const [placementLow, setPlacementLow] = useState(0); // saved when converged
+
+  // ── Load units ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();
     if (!token) { navigate("/login"); return; }
@@ -46,7 +72,6 @@ export default function PlacementTest() {
     })
       .then((r) => r.json())
       .then((lessons) => {
-        // Group into units (same logic as Dashboard)
         const groups = new Map();
         lessons.forEach((l) => {
           const hasChapter = l.chapter_id != null;
@@ -63,55 +88,45 @@ export default function PlacementTest() {
         });
         const sorted = [...groups.values()].sort((a, b) => a.position - b.position);
         if (sorted.length < 2) {
-          // Not enough units to test — send to dashboard
           navigate("/dashboard");
           return;
         }
+        bisectRef.current = { low: 0, high: sorted.length - 1 };
         setUnits(sorted);
+        // Kick off first round immediately
+        startRound(sorted, 0, sorted.length - 1, 0);
       })
       .catch((e) => setLoadError(e.message));
   }, []);
 
-  // ── Bisect state ───────────────────────────────────────────────────────────
-  const [low, setLow] = useState(0);
-  const [high, setHigh] = useState(null); // set after units load
-  const [round, setRound] = useState(0);
-  const [history, setHistory] = useState([]); // [{ unitTitle, passed }]
+  // ── Core: fetch exercises for a given unit index ───────────────────────────
+  function startRound(unitsList, low, high, roundNum) {
+    if (roundNum >= MAX_ROUNDS || low > high) {
+      // Converged or max rounds hit
+      setPlacementLow(low);
+      setPhase("done");
+      return;
+    }
 
-  // Current mid (unit index being tested this round)
-  const mid = high !== null ? Math.floor((low + high) / 2) : null;
-  const converged = high !== null && low > high;
-
-  // ── Exercise state ─────────────────────────────────────────────────────────
-  const [exercises, setExercises] = useState(null); // null = loading round
-  const [queueIdx, setQueueIdx] = useState(0);       // which exercise in the 3
-  const [roundCorrect, setRoundCorrect] = useState(0);
-  const [hasAnswered, setHasAnswered] = useState(false);
-  const [resultData, setResultData] = useState(null);
-  const [renderNonce, setRenderNonce] = useState(0);
-  const exerciseStartRef = useRef(Date.now());
-
-  // ── Init bisect once units are loaded ──────────────────────────────────────
-  useEffect(() => {
-    if (!units) return;
-    setHigh(units.length - 1);
-  }, [units]);
-
-  // ── Load exercises for current mid ────────────────────────────────────────
-  useEffect(() => {
-    if (units === null || mid === null || converged) return;
-    setExercises(null);
+    const mid = Math.floor((low + high) / 2);
+    bisectRef.current = { low, high };
+    setCurrentUnitIdx(mid);
+    setPhase("loading-round");
     setQueueIdx(0);
     setRoundCorrect(0);
     setHasAnswered(false);
     setResultData(null);
     setRenderNonce((n) => n + 1);
 
-    const unit = units[mid];
+    const unit = unitsList[mid];
     const lessonIds = unit.items.map((l) => l.id).filter((id) => id != null).join(",");
+
     if (!lessonIds) {
-      // Unit has no lesson IDs → treat as passed (skip upward)
-      advanceBisect(true, unit.title);
+      // Unit has no lessons — skip it, don't count as pass or fail; shrink search space
+      setHistory((h) => [...h, { unitTitle: unit.title, passed: null }]);
+      setRound(roundNum + 1);
+      // Treat missing-exercises unit as pass (advance upward) so we don't loop forever
+      startRound(unitsList, mid + 1, high, roundNum + 1);
       return;
     }
 
@@ -122,40 +137,34 @@ export default function PlacementTest() {
       .then((data) => {
         const exs = (data.exercises || []).slice(0, EXERCISES_PER_ROUND);
         if (exs.length === 0) {
-          advanceBisect(true, unit.title); // no exercises → treat as passed
+          // No exercises available for this unit — can't test it, shrink from above
+          setHistory((h) => [...h, { unitTitle: unit.title, passed: null }]);
+          setRound(roundNum + 1);
+          startRound(unitsList, low, mid - 1, roundNum + 1);
           return;
         }
         setExercises(exs);
+        setRound(roundNum);
         exerciseStartRef.current = Date.now();
+        setPhase("testing");
       })
-      .catch(() => advanceBisect(true, unit.title));
-  }, [mid, converged, units]);
-
-  function advanceBisect(passed, unitTitle) {
-    setHistory((h) => [...h, { unitTitle, passed }]);
-    const nextRound = round + 1;
-    setRound(nextRound);
-
-    if (passed) {
-      setLow(mid + 1);
-    } else {
-      setHigh(mid - 1);
-    }
+      .catch(() => {
+        setLoadError("Network error loading exercises. Please refresh.");
+      });
   }
 
-  // ── Grading ───────────────────────────────────────────────────────────────
+  // ── Grade an answer ────────────────────────────────────────────────────────
   async function gradeAnswer({ isCorrect, answerText }) {
     if (hasAnswered) return;
 
-    const exercise = exercises?.[queueIdx];
-    const token = getToken();
+    const exercise = exercises[queueIdx];
     let serverCorrect = isCorrect;
 
-    if (exercise && token) {
+    if (exercise) {
       try {
         const res = await fetch(`${API_BASE}/me/exercises/${exercise.id}/attempt`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
           body: JSON.stringify({
             answer_text: answerText || "",
             time_spent_ms: Date.now() - exerciseStartRef.current,
@@ -171,8 +180,7 @@ export default function PlacementTest() {
     if (serverCorrect) sfx.correct();
     else sfx.wrong();
 
-    const newCorrect = roundCorrect + (serverCorrect ? 1 : 0);
-    setRoundCorrect(newCorrect);
+    setRoundCorrect((c) => c + (serverCorrect ? 1 : 0));
     setHasAnswered(true);
     setResultData({
       variant: serverCorrect ? "correct" : "wrong",
@@ -182,32 +190,49 @@ export default function PlacementTest() {
     });
   }
 
+  // ── Proceed after result panel ─────────────────────────────────────────────
+  // roundCorrect is captured at call time via a ref to avoid stale closure
+  const roundCorrectRef = useRef(0);
+  roundCorrectRef.current = roundCorrect;
+
   function proceedAfterResult() {
-    setResultData(null);
-    setHasAnswered(false);
+    const isLastExercise = queueIdx >= exercises.length - 1;
 
-    const isLastExercise = queueIdx >= (exercises?.length ?? 0) - 1;
-
-    if (isLastExercise) {
-      // Round complete — evaluate and advance bisect
-      const passed = roundCorrect + (resultData?.variant === "correct" ? 0 : 0) >= PASS_THRESHOLD;
-      // roundCorrect already includes this answer (set before proceedAfterResult)
-      advanceBisect(roundCorrect >= PASS_THRESHOLD, units[mid].title);
-    } else {
+    if (!isLastExercise) {
+      setResultData(null);
+      setHasAnswered(false);
       setQueueIdx((i) => i + 1);
       exerciseStartRef.current = Date.now();
       setRenderNonce((n) => n + 1);
+      return;
     }
+
+    // Last exercise — evaluate round
+    // roundCorrect state already includes the last answer (set in gradeAnswer before proceedAfterResult)
+    const correct = roundCorrectRef.current;
+    const passed = correct >= PASS_THRESHOLD;
+    const { low, high } = bisectRef.current;
+    const mid = Math.floor((low + high) / 2);
+    const unitTitle = units[mid]?.title ?? "";
+
+    setHistory((h) => [...h, { unitTitle, passed }]);
+
+    const nextRound = round + 1;
+    const nextLow = passed ? mid + 1 : low;
+    const nextHigh = passed ? high : mid - 1;
+
+    setResultData(null);
+    setHasAnswered(false);
+    startRound(units, nextLow, nextHigh, nextRound);
   }
 
-  // ── Save placement and go to dashboard ────────────────────────────────────
+  // ── Save placement ─────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
 
   async function confirmPlacement() {
     setSaving(true);
-    const placementUnitIdx = Math.min(low, units.length - 1);
-    // Collect all lesson IDs from units before placement point
-    const lessonIds = units.slice(0, placementUnitIdx).flatMap((u) =>
+    const placementIdx = Math.min(placementLow, units.length - 1);
+    const lessonIds = units.slice(0, placementIdx).flatMap((u) =>
       u.items.map((l) => l.id).filter((id) => id != null)
     );
 
@@ -223,7 +248,7 @@ export default function PlacementTest() {
     navigate("/dashboard");
   }
 
-  // ── UI helpers ────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   if (loadError) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
@@ -233,7 +258,7 @@ export default function PlacementTest() {
     );
   }
 
-  if (!units || high === null) {
+  if (phase === "loading-units") {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
@@ -241,12 +266,13 @@ export default function PlacementTest() {
     );
   }
 
-  // ── Result / confirmation screen ──────────────────────────────────────────
-  if (converged || round >= MAX_ROUNDS) {
-    const placementIdx = Math.min(low, units.length - 1);
+  // ── Done / result screen ───────────────────────────────────────────────────
+  if (phase === "done") {
+    const placementIdx = Math.min(placementLow, units.length - 1);
     const placementUnit = units[placementIdx];
-    const isBeginning = placementIdx === 0;
-    const isEnd = placementIdx >= units.length - 1 && low >= units.length;
+    const isBeginning = placementLow === 0;
+    const isEnd = placementLow >= units.length;
+    const visibleHistory = history.filter((h) => h.passed !== null);
 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-brand-50 to-white p-8 text-center">
@@ -261,20 +287,21 @@ export default function PlacementTest() {
               ? "Start from the very beginning — welcome!"
               : isEnd
               ? "Impressive! You'll start from the most advanced unit."
-              : `We'll place you at:`}
+              : "We'll place you at:"}
           </div>
-          {!isBeginning && !isEnd && (
+          {!isBeginning && !isEnd && placementUnit && (
             <div className="mt-3 rounded-2xl bg-white px-6 py-4 ring-1 ring-brand-200 shadow-sm">
               <div className="font-display text-2xl font-extrabold text-brand-700">{placementUnit.title}</div>
-              <div className="text-sm font-semibold text-slate-500 mt-1">Unit {placementIdx + 1} of {units.length}</div>
+              <div className="text-sm font-semibold text-slate-500 mt-1">
+                Unit {placementIdx + 1} of {units.length}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Round history */}
-        {history.length > 0 && (
+        {visibleHistory.length > 0 && (
           <div className="w-full max-w-xs space-y-2">
-            {history.map((h, i) => (
+            {visibleHistory.map((h, i) => (
               <div key={i} className="flex items-center gap-3 rounded-xl bg-white px-4 py-2 ring-1 ring-slate-100 text-sm font-semibold">
                 <CheckCircle className={`h-4 w-4 shrink-0 ${h.passed ? "text-grass-500" : "text-slate-300"}`} />
                 <span className="truncate text-slate-700">{h.unitTitle}</span>
@@ -298,21 +325,21 @@ export default function PlacementTest() {
     );
   }
 
-  // ── Loading exercises for next round ──────────────────────────────────────
-  if (!exercises) {
+  // ── Loading round ──────────────────────────────────────────────────────────
+  if (phase === "loading-round" || currentUnitIdx === null) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
-        <p className="font-semibold text-slate-500">Checking {units[mid]?.title}…</p>
+        <p className="font-semibold text-slate-500">
+          {units?.[currentUnitIdx] ? `Checking ${units[currentUnitIdx].title}…` : "Preparing next round…"}
+        </p>
       </div>
     );
   }
 
-  // ── Exercise round ────────────────────────────────────────────────────────
+  // ── Exercise round ─────────────────────────────────────────────────────────
   const currentExercise = exercises[queueIdx];
   const instruction = currentExercise ? (INSTRUCTIONS[currentExercise.kind] ?? null) : null;
-  // Progress = fraction of search space eliminated, visualised as rounds / MAX_ROUNDS
-  const progressPct = Math.round((round / MAX_ROUNDS) * 100);
 
   return (
     <ExerciseShell
@@ -326,11 +353,14 @@ export default function PlacementTest() {
       exerciseId={currentExercise?.id}
       lessonId={currentExercise?.lesson_id}
     >
-      {/* Unit label */}
       <div className="mb-4 flex items-center gap-2 rounded-xl bg-brand-50 px-4 py-2.5 ring-1 ring-brand-100">
         <Target className="h-4 w-4 shrink-0 text-brand-500" />
-        <span className="text-sm font-extrabold text-brand-700">Testing: {units[mid]?.title}</span>
-        <span className="ml-auto text-xs font-bold text-brand-400">{queueIdx + 1}/{exercises.length}</span>
+        <span className="text-sm font-extrabold text-brand-700">
+          Testing: {units[currentUnitIdx]?.title}
+        </span>
+        <span className="ml-auto text-xs font-bold text-brand-400">
+          {queueIdx + 1}/{exercises.length}
+        </span>
       </div>
 
       {currentExercise ? (
