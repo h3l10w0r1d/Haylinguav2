@@ -1729,6 +1729,7 @@ class OnboardingOut(BaseModel):
 
 class OnboardingIn(BaseModel):
     # Screen 1: basics
+    name: str
     age_range: str
     country: str
     planning_visit_armenia: bool | None = None
@@ -2241,7 +2242,7 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
     # Send the code via email and track if it was actually sent
     subject = f"Haylingua verification code: {code}"
     plain = (
-        f"Welcome to Haylingua, {name or 'there'}!\n\n"
+        f"Welcome to Haylingua, {username}!\n\n"
         f"Your verification code is: {code}\n"
         f"This code expires in 10 minutes.\n\n"
         "If you didn't request this, you can ignore this email."
@@ -2250,7 +2251,7 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
         to_email=email,
         subject=subject,
         body=plain,
-        html_body=_render_verification_email_html(name or "", code),
+        html_body=_render_verification_email_html(username, code),
     )
 
     # 6) create token
@@ -2903,7 +2904,7 @@ def resend_verification(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     user_row = db.execute(
-        text("SELECT email, email_verified FROM users WHERE id = :uid"),
+        text("SELECT email, username, email_verified FROM users WHERE id = :uid"),
         {"uid": int(user_id)},
     ).mappings().first()
     if user_row is None:
@@ -2949,8 +2950,9 @@ def resend_verification(
     )
 
     subject = f"Haylingua verification code: {code}"
+    greeting = user_row.get("username") or "there"
     plain = (
-        f"Welcome back to Haylingua, {user_row.get('name') or 'there'}!\n\n"
+        f"Welcome back to Haylingua, {greeting}!\n\n"
         f"Your verification code is: {code}\n"
         f"This code expires in 10 minutes.\n\n"
         "If you didn't request this, you can ignore this email."
@@ -2959,7 +2961,7 @@ def resend_verification(
         to_email=user_row["email"],
         subject=subject,
         body=plain,
-        html_body=_render_verification_email_html(user_row.get("name") or "", code),
+        html_body=_render_verification_email_html(greeting, code),
     )
 
     response_data = ResendOut(ok=True, retry_after_s=60)
@@ -5891,9 +5893,19 @@ def me_onboarding_post(
     if payload.daily_goal_min < 5 or payload.daily_goal_min > 60:
         raise HTTPException(status_code=400, detail={"field": "daily_goal_min", "errors": ["Daily goal must be between 5 and 60 minutes"]})
 
+    name = (payload.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail={"field": "name", "errors": ["Name is required"]})
+
     country = (payload.country or "").strip()
     if country == "":
         raise HTTPException(status_code=400, detail={"field": "country", "errors": ["Country is required"]})
+
+    # Save display name to users table
+    db.execute(
+        text("UPDATE users SET name = :n, updated_at = NOW() WHERE id = :id"),
+        {"n": name, "id": int(user_id)},
+    )
 
     # Upsert
     db.execute(

@@ -213,6 +213,7 @@ export default function Onboarding({ token, onCompleted }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const [displayName, setDisplayName] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [country, setCountry] = useState("🇦🇲 Armenia");
   const [planningVisit, setPlanningVisit] = useState(null);
@@ -278,6 +279,7 @@ export default function Onboarding({ token, onCompleted }) {
   const canNext = () => {
     setError("");
     if (step === 1) {
+      if (!displayName.trim()) return "Please enter your name.";
       if (!ageRange) return "Please select your age range.";
       if (!country) return "Please select your country.";
       if (showPlanningVisit && planningVisit === null) return "Please tell us if you're planning to visit Armenia.";
@@ -309,6 +311,7 @@ export default function Onboarding({ token, onCompleted }) {
     setSaving(true); setError("");
     try {
       const payload = {
+        name: displayName.trim(),
         age_range: ageRange, country,
         planning_visit_armenia: showPlanningVisit ? Boolean(planningVisit) : null,
         knowledge_level: knowledgeLevel, dialect, primary_goal: primaryGoal,
@@ -410,6 +413,22 @@ export default function Onboarding({ token, onCompleted }) {
             {/* ── STEP 1 ── */}
             {step === 1 && (
               <>
+                <div>
+                  <SectionLabel title="What's your name?" subtitle="This is how we'll address you throughout the app." />
+                  <div className="relative">
+                    <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="e.g. Armen"
+                      autoComplete="given-name"
+                      maxLength={50}
+                      className="w-full rounded-2xl bg-slate-50 py-3 pl-10 pr-4 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 placeholder:font-normal"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <SectionLabel title="How old are you?" subtitle="We use this to tailor pacing and tone." />
                   <div className="grid grid-cols-3 gap-2">
