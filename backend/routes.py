@@ -236,10 +236,14 @@ import random
 import smtplib
 from email.message import EmailMessage
 
-EMAIL_CODE_PEPPER = os.getenv("EMAIL_CODE_PEPPER", "change_me") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
+EMAIL_CODE_PEPPER = os.getenv("EMAIL_CODE_PEPPER", "").strip()
+if not EMAIL_CODE_PEPPER or EMAIL_CODE_PEPPER == "change_me":
+    import sys as _sys
+    print("[security] FATAL: EMAIL_CODE_PEPPER env var is not set or is the default 'change_me'. "
+          "Set a strong random value in Render environment variables.", file=_sys.stderr)
 
 def _gen_6digit_code() -> str:
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 def _hash_code(code: str) -> str:
     # 6-digit codes are low entropy; pepper prevents offline brute-force if DB leaks.
@@ -7285,7 +7289,7 @@ def cms_bootstrap_invite(request: Request, db=Depends(get_db)):
     if not CMS_BOOTSTRAP_SECRET:
         raise HTTPException(status_code=400, detail="CMS_BOOTSTRAP_SECRET is not set on server")
     secret = request.headers.get("X-Bootstrap-Secret", "")
-    if secret != CMS_BOOTSTRAP_SECRET:
+    if not secrets.compare_digest(secret.encode(), CMS_BOOTSTRAP_SECRET.encode()):
         raise HTTPException(status_code=403, detail="Invalid bootstrap secret")
 
     existing_users = db.execute(text("SELECT 1 FROM cms_users LIMIT 1")).first()

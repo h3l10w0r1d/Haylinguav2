@@ -65,13 +65,18 @@ def get_current_user(
     except ValueError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
+    token_version = payload.get("tv")
+
     user = db.execute(
-        text("SELECT id, email FROM users WHERE id = :id"),
+        text("SELECT id, email, token_version FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
     if user is None:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+    if token_version is not None and int(token_version) != int(user.get("token_version") or 0):
+        raise HTTPException(status_code=401, detail="Token has been revoked")
 
     return dict(user)
 
