@@ -162,6 +162,7 @@ const DETAIL_TABS = [
 
 function UserDetail({ detail: d, busy, act, onBack }) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [gemAmount, setGemAmount] = useState("50");
   const token = getCmsToken();
 
   const engagementScore = Math.min(100, Math.round(
@@ -251,6 +252,30 @@ function UserDetail({ detail: d, busy, act, onBack }) {
               {busy === "verify" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />} Verify email
             </button>
           )}
+          <div className="pt-1">
+            <div className="text-xs font-extrabold uppercase tracking-wide text-slate-400 mb-2">Grant gems</div>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Gem className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cyan-400" />
+                <input
+                  type="number"
+                  min="1"
+                  max="10000"
+                  value={gemAmount}
+                  onChange={(e) => setGemAmount(e.target.value)}
+                  className="w-full rounded-xl bg-slate-50 py-2 pl-8 pr-3 text-sm font-bold text-slate-800 ring-1 ring-slate-200 focus:outline-none focus:ring-brand-400"
+                />
+              </div>
+              <button
+                disabled={busy === "gems" || !Number(gemAmount) || Number(gemAmount) <= 0}
+                onClick={() => act("gems", `/cms/support/users/${d.id}/grant-gems`, { body: JSON.stringify({ amount: Number(gemAmount) }) })}
+                className="btn3d btn3d-brand flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold disabled:opacity-60"
+              >
+                {busy === "gems" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gem className="h-4 w-4" />}
+                Grant
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

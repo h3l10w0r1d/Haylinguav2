@@ -6347,6 +6347,24 @@ def support_verify_email(
     return {"ok": True}
 
 
+@router.post("/cms/support/users/{uid}/grant-gems")
+def support_grant_gems(
+    uid: int,
+    body: dict,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    amount = int(body.get("amount") or 0)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="amount must be a positive integer")
+    db.execute(
+        text("UPDATE users SET gems = COALESCE(gems, 0) + :a WHERE id = :u"),
+        {"a": amount, "u": uid},
+    )
+    row = db.execute(text("SELECT COALESCE(gems, 0) AS gems FROM users WHERE id = :u"), {"u": uid}).mappings().first()
+    return {"ok": True, "gems": int(row["gems"]) if row else 0}
+
+
 @router.get("/cms/support/reports")
 def support_list_reports(
     status: Optional[str] = Query("open"),
