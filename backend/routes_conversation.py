@@ -43,8 +43,8 @@ ELEVEN_API_KEY = (
     or ""
 )
 ELEVEN_API_URL = "https://api.elevenlabs.io/v1"
-# eleven_multilingual_v2 is ElevenLabs' highest-quality model with native Armenian support.
-ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_multilingual_v2")
+# eleven_v3 is ElevenLabs' latest flagship model with the strongest multilingual quality.
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3")
 ELEVEN_STT_MODEL = os.getenv("ELEVEN_STT_MODEL", "scribe_v1")
 
 # Voice for Aram (male). Falls back to ELEVEN_MALE_VOICE env var or default.
