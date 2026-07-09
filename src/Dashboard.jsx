@@ -836,6 +836,13 @@ export default function Dashboard({ user }) {
           <DailyQuestsCard token={token} />
         </div>
 
+        {/* Streak + chest + quick access — above the lesson list */}
+        <div className="mb-6 space-y-4">
+          <StreakCard token={token} streak={stats.streak} />
+          <ChestCard token={token} />
+          <QuickTiles navigate={navigate} />
+        </div>
+
         {error && (
           <div className="mb-4 rounded-2xl border-2 border-cardinal-100 bg-cardinal-50 px-4 py-3 text-sm font-semibold text-cardinal-600">
             {error}
@@ -872,16 +879,6 @@ export default function Dashboard({ user }) {
           </div>
         )}
 
-        {/* Streak + chest */}
-        <div className="mt-6 space-y-4">
-          <StreakCard token={token} streak={stats.streak} />
-          <ChestCard token={token} />
-        </div>
-
-        {/* Quick access */}
-        <div className="mt-6">
-          <QuickTiles navigate={navigate} />
-        </div>
       </div>
     </div>
   );
