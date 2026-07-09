@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, Mic, Pencil, Send, Target, Trophy } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, Mic, Pencil, Send, Target, Trophy, Volume2, VolumeX } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
 
@@ -88,6 +88,7 @@ export default function AIConversation() {
   const [sessionId]                       = useState(() => crypto.randomUUID());
   const [isComplete, setIsComplete]       = useState(false);
   const [scenarioChosen, setScenarioChosen] = useState(false);
+  const [isMuted, setIsMuted]             = useState(false);
 
   // Stable refs so callbacks never go stale
   const chatEndRef        = useRef(null);
@@ -96,6 +97,7 @@ export default function AIConversation() {
   const statusRef         = useRef('idle');
   const isSpeakingRef     = useRef(false);
   const isCompleteRef     = useRef(false);
+  const isMutedRef        = useRef(false);
 
   // VAD / recording refs
   const mediaRecorderRef  = useRef(null);
@@ -121,6 +123,7 @@ export default function AIConversation() {
   useEffect(() => { statusRef.current     = status;     }, [status]);
   useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
   useEffect(() => { isCompleteRef.current = isComplete; }, [isComplete]);
+  useEffect(() => { isMutedRef.current    = isMuted;    }, [isMuted]);
 
   // Scroll chat to bottom on new message
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -196,14 +199,14 @@ export default function AIConversation() {
 
   // ── Play Aram's audio, then auto-start listening ──────────────────────────
   const playAudioAndListen = useCallback((url, complete = false) => {
-    if (!url) {
+    setStatus('idle');
+    if (!url || isMutedRef.current) {
       if (!complete) setTimeout(() => startListeningRef.current?.(), 300);
       return;
     }
     audioRef.current?.pause();
     const audio = new Audio(url);
     audioRef.current = audio;
-    setStatus('idle');
     setIsSpeaking(true);
     audio.play().catch(() => setIsSpeaking(false));
     const onDone = () => {
@@ -465,6 +468,21 @@ export default function AIConversation() {
               <div style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a' }}>{activeScenario?.icon} {activeScenario?.title_en || 'Conversation'}</div>
               <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>{activeScenario?.title}</div>
             </div>
+            <button
+              onClick={() => {
+                const next = !isMuted;
+                setIsMuted(next);
+                if (next && audioRef.current) {
+                  audioRef.current.pause();
+                  setIsSpeaking(false);
+                  if (!isCompleteRef.current) setTimeout(() => startListeningRef.current?.(), 250);
+                }
+              }}
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 8, color: isMuted ? '#FF7A1A' : '#aaa', display: 'flex', alignItems: 'center' }}
+            >
+              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </button>
             {isComplete && <span style={{ fontSize: 12, background: '#e8f5e9', color: '#2e7d32', padding: '3px 10px', borderRadius: 20, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12} /> Complete</span>}
           </div>
 
