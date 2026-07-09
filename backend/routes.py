@@ -8515,6 +8515,100 @@ def cms_delete_option(option_id: int, request: Request, db=Depends(get_db)):
     db.execute(text("DELETE FROM exercise_options WHERE id = :id"), {"id": option_id})
     return {"ok": True}
 
+# --------- CMS account management ----------
+
+@router.get("/cms/account")
+def cms_account_get(u: dict = Depends(require_cms_admin), db=Depends(get_db)):
+    row = db.execute(
+        text("SELECT id, email, display_name, timezone, totp_enabled, last_login_at FROM cms_users WHERE id=:id"),
+        {"id": u["id"]},
+    ).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": row["id"],
+        "email": row["email"],
+        "display_name": row.get("display_name") or "",
+        "timezone": row.get("timezone") or "UTC",
+        "totp_enabled": bool(row.get("totp_enabled")),
+        "last_login_at": row["last_login_at"].isoformat() if row.get("last_login_at") else None,
+    }
+
+@router.put("/cms/account")
+def cms_account_update(payload: Dict[str, Any] = Body(...), u: dict = Depends(require_cms_admin), db=Depends(get_db)):
+    display_name = (payload.get("display_name") or "").strip()
+    timezone = (payload.get("timezone") or "UTC").strip()
+    db.execute(
+        text("UPDATE cms_users SET display_name=:n, timezone=:tz, updated_at=NOW() WHERE id=:id"),
+        {"n": display_name or None, "tz": timezone, "id": u["id"]},
+    )
+    return {"ok": True}
+
+@router.post("/cms/account/change-password")
+def cms_account_change_password(payload: Dict[str, Any] = Body(...), u: dict = Depends(require_cms_admin), db=Depends(get_db)):
+    current = payload.get("current_password") or ""
+    new_pw = payload.get("new_password") or ""
+    if not current or not new_pw:
+        raise HTTPException(status_code=400, detail="current_password and new_password required")
+    row = db.execute(
+        text("SELECT password_hash FROM cms_users WHERE id=:id"),
+        {"id": u["id"]},
+    ).mappings().first()
+    if not row or not verify_password(current, row["password_hash"]):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    errs = validate_password_simple(new_pw)
+    if errs:
+        raise HTTPException(status_code=400, detail="; ".join(errs))
+    db.execute(
+        text("UPDATE cms_users SET password_hash=:h, updated_at=NOW() WHERE id=:id"),
+        {"h": hash_password(new_pw), "id": u["id"]},
+    )
+    return {"ok": True}
+
+@router.post("/cms/account/change-email")
+def cms_account_change_email(payload: Dict[str, Any] = Body(...), u: dict = Depends(require_cms_admin), db=Depends(get_db)):
+    new_email = (payload.get("new_email") or "").strip().lower()
+    password = payload.get("password") or ""
+    if not new_email or not password:
+        raise HTTPException(status_code=400, detail="new_email and password required")
+    row = db.execute(
+        text("SELECT password_hash FROM cms_users WHERE id=:id"),
+        {"id": u["id"]},
+    ).mappings().first()
+    if not row or not verify_password(password, row["password_hash"]):
+        raise HTTPException(status_code=400, detail="Password is incorrect")
+    conflict = db.execute(
+        text("SELECT id FROM cms_users WHERE lower(email)=:e AND id!=:id"),
+        {"e": new_email, "id": u["id"]},
+    ).first()
+    if conflict:
+        raise HTTPException(status_code=400, detail="That email is already used by another CMS user")
+    db.execute(
+        text("UPDATE cms_users SET email=:e, updated_at=NOW() WHERE id=:id"),
+        {"e": new_email, "id": u["id"]},
+    )
+    return {"ok": True}
+
+@router.post("/cms/account/2fa/disable")
+def cms_account_2fa_disable(payload: Dict[str, Any] = Body(...), u: dict = Depends(require_cms_admin), db=Depends(get_db)):
+    code = (payload.get("code") or "").strip().replace(" ", "")
+    if not code:
+        raise HTTPException(status_code=400, detail="TOTP code required")
+    row = db.execute(
+        text("SELECT totp_secret, totp_enabled FROM cms_users WHERE id=:id"),
+        {"id": u["id"]},
+    ).mappings().first()
+    if not row or not row.get("totp_enabled"):
+        raise HTTPException(status_code=400, detail="2FA is not currently enabled")
+    totp = pyotp.TOTP(row["totp_secret"])
+    if not totp.verify(code, valid_window=1):
+        raise HTTPException(status_code=401, detail="Invalid 2FA code")
+    db.execute(
+        text("UPDATE cms_users SET totp_enabled=FALSE, totp_secret=NULL, updated_at=NOW() WHERE id=:id"),
+        {"id": u["id"]},
+    )
+    return {"ok": True}
+
 # --------- ElevenLabs TTS ----------
 
 # --------- Live stats SSE ----------

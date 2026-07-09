@@ -352,6 +352,10 @@ def ensure_schema() -> None:
         except Exception:
             conn.execute(text("ROLLBACK TO SAVEPOINT sp_ref_code"))
 
+        # ---------- CMS users: display name + timezone ----------
+        add_col_if_missing("cms_users", "display_name TEXT")
+        add_col_if_missing("cms_users", "timezone TEXT")
+
         # ---------- Admin notes on learners ----------
         ensure_table(
             "admin_notes",

@@ -1,10 +1,10 @@
 // src/cms/CmsLayout.jsx
-// Shared CMS app shell: a persistent left sidebar (primary navigation) + a
-// sticky header with breadcrumbs, page title and a slot for page actions.
-// Every CMS screen renders inside this so navigation is consistent and you
-// always know where you are.
-import { Link, useNavigate } from "react-router-dom";
-import { BookOpen, Layers, LifeBuoy, Users, LogOut, ChevronRight, Trophy, Store, BarChart2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { BookOpen, Layers, LifeBuoy, Users, LogOut, ChevronRight, Trophy, Store, BarChart2, Settings, Shield } from "lucide-react";
+import { getCmsToken } from "./api";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
 const NAV = [
   { key: "lessons", label: "Lessons", icon: BookOpen, to: "/cms" },
@@ -55,34 +55,74 @@ function NavItem({ item, active }) {
 function LogoutButton({ compact }) {
   const navigate = useNavigate();
   function logout() {
-    try {
-      localStorage.removeItem("hay_cms_token");
-    } catch {}
+    try { localStorage.removeItem("hay_cms_token"); } catch {}
     navigate("/cms/login");
   }
   return (
     <button
       type="button"
       onClick={logout}
+      title="Log out"
       className={cx(
-        "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-cardinal-50 hover:text-cardinal-600",
-        compact ? "" : "w-full"
+        "flex items-center gap-2 rounded-xl p-2 text-slate-400 transition hover:bg-cardinal-50 hover:text-cardinal-600",
+        compact ? "" : "w-full px-3 py-2.5 text-sm font-bold text-slate-600 gap-3 rounded-2xl"
       )}
     >
-      <LogOut className="h-5 w-5" />
+      <LogOut className="h-4 w-4 shrink-0" />
       {!compact && "Log out"}
     </button>
   );
 }
 
-/**
- * Props:
- *  - active: one of NAV keys ("lessons" | "chapters" | "learners" | "team")
- *  - title: page title (string)
- *  - breadcrumb: optional array of { label, onClick? } — rendered as a trail
- *  - actions: optional node rendered on the right of the header
- *  - children: page content
- */
+function UserCard() {
+  const [account, setAccount] = useState(null);
+  const location = useLocation();
+  const isAccountPage = location.pathname === "/cms/account";
+
+  useEffect(() => {
+    const token = getCmsToken();
+    if (!token) return;
+    fetch(`${API_BASE}/cms/account`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => data && setAccount(data))
+      .catch(() => {});
+  }, []);
+
+  const initial = account?.display_name
+    ? account.display_name[0].toUpperCase()
+    : (account?.email?.[0] || "?").toUpperCase();
+
+  const label = account?.display_name || account?.email || "My account";
+  const sub = account?.display_name && account?.email ? account.email : null;
+
+  return (
+    <div className="flex items-center gap-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-100">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-500 text-white shadow-sm">
+        <span className="font-display text-sm font-extrabold">{initial}</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-bold text-slate-800">{label}</div>
+        {sub && <div className="truncate text-[10px] font-semibold text-slate-400">{sub}</div>}
+      </div>
+      <Link
+        to="/cms/account"
+        title="Account settings"
+        className={cx(
+          "grid h-7 w-7 shrink-0 place-items-center rounded-xl transition",
+          isAccountPage
+            ? "bg-brand-100 text-brand-600"
+            : "text-slate-400 hover:bg-white hover:text-brand-600"
+        )}
+      >
+        <Settings className="h-4 w-4" />
+      </Link>
+      <LogoutButton compact />
+    </div>
+  );
+}
+
 export default function CmsLayout({ active, title, breadcrumb = [], actions = null, children }) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -96,8 +136,8 @@ export default function CmsLayout({ active, title, breadcrumb = [], actions = nu
             ))}
           </nav>
           <div className="flex-1" />
-          <div className="border-t border-slate-100 pt-2">
-            <LogoutButton />
+          <div className="border-t border-slate-100 pt-3">
+            <UserCard />
           </div>
         </aside>
 
@@ -107,7 +147,12 @@ export default function CmsLayout({ active, title, breadcrumb = [], actions = nu
           <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 px-3 py-2 backdrop-blur lg:hidden">
             <div className="flex items-center justify-between">
               <Brand />
-              <LogoutButton compact />
+              <div className="flex items-center gap-1">
+                <Link to="/cms/account" className="grid h-8 w-8 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-brand-600 transition">
+                  <Settings className="h-4 w-4" />
+                </Link>
+                <LogoutButton compact />
+              </div>
             </div>
             <nav className="mt-2 flex gap-2 overflow-x-auto pb-1">
               {NAV.map((item) => {

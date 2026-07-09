@@ -34,6 +34,7 @@ const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
 const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
+const CmsAccount = lazy(() => import('./cms/CmsAccount'));
 const AuthCallback = lazy(() => import('./AuthCallback'));
 const ResetPassword = lazy(() => import('./ResetPassword'));
 const PracticeMode = lazy(() => import('./PracticeMode'));
@@ -543,6 +544,7 @@ function AppShell() {
       <Route path="/cms/achievements" element={<CmsAchievements />} />
       <Route path="/cms/shop" element={<CmsShop />} />
       <Route path="/cms/analytics" element={<CmsAnalytics />} />
+      <Route path="/cms/account" element={<CmsAccount />} />
       <Route path="/cms" element={<CmsGate />} />
       <Route path="/cms/*" element={<CmsGate />} />
 

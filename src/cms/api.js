@@ -149,7 +149,23 @@ export function createCmsApi(accessToken) {
   const inviteTeam = (email) =>
     req("/cms/team/invite", { method: "POST", body: JSON.stringify({ email }) });
 
+  // Account management
+  const getAccount = () => req("/cms/account");
+  const updateAccount = (display_name, timezone) =>
+    req("/cms/account", { method: "PUT", body: JSON.stringify({ display_name, timezone }) });
+  const changePassword = (current_password, new_password) =>
+    req("/cms/account/change-password", { method: "POST", body: JSON.stringify({ current_password, new_password }) });
+  const changeEmail = (new_email, password) =>
+    req("/cms/account/change-email", { method: "POST", body: JSON.stringify({ new_email, password }) });
+  const disable2FA = (code) =>
+    req("/cms/account/2fa/disable", { method: "POST", body: JSON.stringify({ code }) });
+
   return {
+    getAccount,
+    updateAccount,
+    changePassword,
+    changeEmail,
+    disable2FA,
     listChapters,
     createChapter,
     updateChapter,
