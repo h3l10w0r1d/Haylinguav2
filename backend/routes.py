@@ -1,6 +1,8 @@
 # backend/routes.py
 import os
 import json
+import re
+import unicodedata
 from datetime import datetime, timedelta
 import uuid
 from typing import List, Dict, Any, Optional
@@ -4367,6 +4369,123 @@ def explain_mistake(
     if not explanation:
         explanation = "Not quite — compare your answer letter by letter with the correct one and try again."
     return {"explanation": explanation, "correct_answer": correct or None}
+
+
+# ----------------------------
+# Word hints (universal tap-to-define) + NEW-word exposure
+# ----------------------------
+def _norm_word(w: str) -> str:
+    try:
+        w = unicodedata.normalize("NFC", str(w or ""))
+    except Exception:
+        w = str(w or "")
+    return re.sub(r"[^\wԱ-֏]+", "", w, flags=re.UNICODE).strip().lower()
+
+
+@router.get("/me/word-hint")
+def me_word_hint(
+    word: str,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Return a short English gloss for any Armenian word. Cached in word_hints
+    (shared across users); generated on first request via GPT-4o."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    norm = _norm_word(word)
+    if not norm:
+        raise HTTPException(status_code=400, detail="Empty word")
+
+    cached = db.execute(
+        text("SELECT hint FROM word_hints WHERE word_norm = :w"), {"w": norm}
+    ).mappings().first()
+    if cached:
+        return {"word": word, "hint": cached["hint"], "cached": True}
+
+    if not _EXPLAIN_OPENAI_KEY:
+        # No model configured — return a soft miss rather than erroring.
+        return {"word": word, "hint": None, "cached": False}
+
+    try:
+        resp = httpx.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {_EXPLAIN_OPENAI_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": "gpt-4o",
+                "max_tokens": 40,
+                "temperature": 0.2,
+                "messages": [
+                    {"role": "system", "content": (
+                        "You are an Armenian-English dictionary. Given one Armenian word, reply with a "
+                        "very short English gloss only (1-4 words, no punctuation, no quotes, no explanation). "
+                        "If it's a name or proper noun, reply with the romanized name."
+                    )},
+                    {"role": "user", "content": str(word)[:64]},
+                ],
+            },
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return {"word": word, "hint": None, "cached": False}
+        hint = ((resp.json().get("choices") or [{}])[0].get("message", {}).get("content") or "").strip()
+        hint = hint.strip(' ."\'').splitlines()[0][:60] if hint else ""
+    except Exception:
+        return {"word": word, "hint": None, "cached": False}
+
+    if hint:
+        db.execute(
+            text("INSERT INTO word_hints (word_norm, hint) VALUES (:w, :h) ON CONFLICT (word_norm) DO NOTHING"),
+            {"w": norm, "h": hint},
+        )
+    return {"word": word, "hint": hint or None, "cached": False}
+
+
+class WordsExposeIn(BaseModel):
+    words: list[str] = []
+
+
+@router.post("/me/words/expose")
+def me_words_expose(
+    body: WordsExposeIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Record that the user has now seen these words; return which were NEW
+    (never seen before). Drives first-exposure "NEW" badges."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    # Normalize + de-dupe, keeping a norm->original map for the response.
+    norm_to_orig: dict[str, str] = {}
+    for w in (body.words or [])[:60]:
+        n = _norm_word(w)
+        if n and n not in norm_to_orig:
+            norm_to_orig[n] = w
+    if not norm_to_orig:
+        return {"new_words": []}
+
+    norms = list(norm_to_orig.keys())
+    seen = db.execute(
+        text("SELECT word_norm FROM user_word_exposure WHERE user_id = :u AND word_norm = ANY(:ws)"),
+        {"u": user_id, "ws": norms},
+    ).scalars().all()
+    seen_set = set(seen)
+    new_norms = [n for n in norms if n not in seen_set]
+
+    if new_norms:
+        db.execute(
+            text(
+                "INSERT INTO user_word_exposure (user_id, word_norm) "
+                "SELECT :u, UNNEST(CAST(:ws AS TEXT[])) "
+                "ON CONFLICT (user_id, word_norm) DO NOTHING"
+            ),
+            {"u": user_id, "ws": new_norms},
+        )
+
+    return {"new_words": [norm_to_orig[n] for n in new_norms]}
 
 
 @router.get("/me/practice")

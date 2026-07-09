@@ -13,7 +13,7 @@ import {
   InlineInput,
 } from "./exercises/ui";
 import { ttsFetch } from "./exercises/tts";
-import { GlossaryText } from "./exercises/WordHint";
+import { GlossaryText, useNewWords, normWord } from "./exercises/WordHint";
 import { writeHearts } from "./lib/hearts";
 
 // Renders a prompt heading with optional inline word-hint tooltips.
@@ -1595,6 +1595,7 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
   const [available, setAvailable] = useState([]);
   const [useKeyboard, setUseKeyboard] = useState(false);
   const [typed, setTyped] = useState("");
+  const newWords = useNewWords(solution);
 
   useEffect(() => {
     setPicked([]);
@@ -1626,7 +1627,7 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
       {source ? (
         <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
           <div className="text-lg md:text-xl font-semibold text-slate-900">
-            <GlossaryText text={source} glossary={cfg.glossary} />
+            <GlossaryText text={source} glossary={cfg.glossary} newWords={newWords} />
           </div>
         </div>
       ) : null}
@@ -1652,14 +1653,18 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
           <div className="mt-4 flex flex-wrap gap-2">
             {available.map((p, i) => {
               const hint = cfg.glossary?.[p.t] || cfg.glossary?.[p.t?.toLowerCase()];
+              const isNew = newWords.has(normWord(p.t));
               return (
                 <Pill key={p.key} onClick={() => add(i)}>
-                  {hint ? (
-                    <span className="flex items-center gap-1">
-                      {p.t}
+                  <span className="flex items-center gap-1">
+                    {p.t}
+                    {hint ? (
                       <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-100 text-[8px] font-extrabold text-brand-600" title={hint}>i</span>
-                    </span>
-                  ) : p.t}
+                    ) : null}
+                    {isNew ? (
+                      <span className="text-[8px] font-black uppercase leading-none text-grass-600">new</span>
+                    ) : null}
+                  </span>
                 </Pill>
               );
             })}

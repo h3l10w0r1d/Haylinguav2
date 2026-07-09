@@ -71,6 +71,25 @@ def ensure_schema() -> None:
         # Guard so the streak-risk email is sent at most once per day per user.
         add_col_if_missing("users", "last_streak_email_at TIMESTAMPTZ")
 
+        # ---------- Word hints (GPT-4o gloss cache, shared across users) ----------
+        ensure_table("word_hints", """
+            CREATE TABLE word_hints (
+                word_norm   TEXT PRIMARY KEY,
+                hint        TEXT NOT NULL,
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
+        # ---------- Per-user word exposure (drives NEW-word badges) ----------
+        ensure_table("user_word_exposure", """
+            CREATE TABLE user_word_exposure (
+                user_id       INTEGER NOT NULL,
+                word_norm     TEXT NOT NULL,
+                first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (user_id, word_norm)
+            )
+        """)
+
         # ---------- Premium ----------
         add_col_if_missing("users", "is_premium BOOLEAN NOT NULL DEFAULT FALSE")
         add_col_if_missing("users", "premium_since TIMESTAMPTZ")
