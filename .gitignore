@@ -216,3 +216,4 @@ backend/uploads/
 # Frontend source lib must be tracked (the Python "lib/" rule above otherwise ignores it)
 !src/lib/
 !src/lib/**
+.env.local
