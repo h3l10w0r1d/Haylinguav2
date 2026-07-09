@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, Mic, Pencil, Send, Target, Trophy } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
 
@@ -61,8 +62,9 @@ function MessageBubble({ role, text, translation, corrections }) {
         </div>
       )}
       {isAram && corrections?.length > 0 && (
-        <div style={{ maxWidth: '82%', fontSize: 12, color: '#b85c00', background: '#fff4ec', border: '1px solid #ffd9b5', borderRadius: 8, padding: '5px 10px', marginTop: 2, lineHeight: 1.4 }}>
-          ✏️ {corrections.join(' ')}
+        <div style={{ maxWidth: '82%', fontSize: 12, color: '#b85c00', background: '#fff4ec', border: '1px solid #ffd9b5', borderRadius: 8, padding: '5px 10px', marginTop: 2, lineHeight: 1.4, display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+          <Pencil size={11} style={{ marginTop: 1, flexShrink: 0 }} />
+          {corrections.join(' ')}
         </div>
       )}
     </div>
@@ -423,12 +425,11 @@ export default function AIConversation() {
   const isListening  = status === 'listening';
   const isRecording  = status === 'recording';
 
-  const micBg    = isRecording ? '#FF4444' : isListening ? '#34C759' : '#FF7A1A';
-  const micEmoji = isRecording ? '🔴' : isListening ? '👂' : '🎤';
-  const statusLabel = isRecording ? '🔴 I hear you…'
-    : isProcessing ? '💭 Thinking…'
-    : isSpeaking   ? '🗣 Aram is speaking…'
-    : isListening  ? '👂 Listening…'
+  const micBg = isRecording ? '#FF4444' : isListening ? '#34C759' : '#FF7A1A';
+  const statusLabel = isRecording ? 'I hear you…'
+    : isProcessing ? 'Thinking…'
+    : isSpeaking   ? 'Aram is speaking…'
+    : isListening  ? 'Listening…'
     : '';
 
   return (
@@ -459,12 +460,12 @@ export default function AIConversation() {
 
           {/* ── Header ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#fff', borderBottom: '1px solid #f0e8e0', position: 'sticky', top: 0, zIndex: 10 }}>
-            <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', padding: '4px 8px', borderRadius: 8, color: '#555' }} aria-label="Go back">←</button>
+            <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 8, color: '#555', display: 'flex', alignItems: 'center' }} aria-label="Go back"><ArrowLeft size={20} /></button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a' }}>{activeScenario?.icon} {activeScenario?.title_en || 'Conversation'}</div>
               <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>{activeScenario?.title}</div>
             </div>
-            {isComplete && <span style={{ fontSize: 12, background: '#e8f5e9', color: '#2e7d32', padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>✓ Complete</span>}
+            {isComplete && <span style={{ fontSize: 12, background: '#e8f5e9', color: '#2e7d32', padding: '3px 10px', borderRadius: 20, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12} /> Complete</span>}
           </div>
 
           {/* ── Aram portrait ── */}
@@ -507,7 +508,9 @@ export default function AIConversation() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 8px', display: 'flex', flexDirection: 'column' }}>
             {messages.length === 0 && !isProcessing && (
               <div style={{ textAlign: 'center', color: '#bbb', fontSize: 14, marginTop: 40, lineHeight: 1.5 }}>
-                {activeScenario ? `🎯 Goal: ${activeScenario.goal}` : 'Starting conversation…'}
+                {activeScenario
+                  ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Target size={13} /> Goal: {activeScenario.goal}</span>
+                  : 'Starting conversation…'}
               </div>
             )}
             {messages.map((msg, i) => (
@@ -546,7 +549,9 @@ export default function AIConversation() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  {micEmoji}
+                  {isProcessing
+                    ? <Loader2 size={22} style={{ animation: 'thinking-spin 0.8s linear infinite' }} />
+                    : <Mic size={22} />}
                 </button>
 
                 {/* Live VAD amplitude (direct DOM, no React re-render) */}
@@ -586,7 +591,7 @@ export default function AIConversation() {
                   disabled={!textInput.trim() || isProcessing || isRecording}
                   style={{ width: 42, height: 42, borderRadius: '50%', border: 'none', background: textInput.trim() && !isProcessing ? '#FF7A1A' : '#f0e8e0', color: textInput.trim() && !isProcessing ? '#fff' : '#bbb', fontSize: 17, cursor: !textInput.trim() || isProcessing || isRecording ? 'not-allowed' : 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s, color 0.15s' }}
                   aria-label="Send"
-                >↑</button>
+                ><Send size={16} /></button>
               </form>
             </div>
           )}
@@ -594,7 +599,7 @@ export default function AIConversation() {
           {/* ── Completion ── */}
           {isComplete && (
             <div style={{ padding: '20px 24px', background: '#fff', borderTop: '1px solid #f0e8e0', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+              <div style={{ marginBottom: 8, color: '#FF7A1A' }}><Trophy size={44} /></div>
               <div style={{ fontWeight: 700, fontSize: 18, color: '#1a1a1a', marginBottom: 4 }}>Scenario complete!</div>
               <div style={{ color: '#888', fontSize: 14, marginBottom: 16 }}>Great job practising Armenian.</div>
               <button onClick={() => navigate('/dashboard')} style={{ background: '#FF7A1A', color: '#fff', border: 'none', borderRadius: 24, padding: '12px 32px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
@@ -616,7 +621,7 @@ function ScenarioPicker({ scenarios, onPick, onBack }) {
     <div style={{ minHeight: '100dvh', background: '#fdf6f0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ width: '100%', maxWidth: 480 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#fff', borderBottom: '1px solid #f0e8e0' }}>
-          <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', padding: '4px 8px', borderRadius: 8, color: '#555' }}>←</button>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 8, color: '#555', display: 'flex', alignItems: 'center' }}><ArrowLeft size={20} /></button>
           <div style={{ fontWeight: 700, fontSize: 16, color: '#1a1a1a' }}>Choose a Scenario</div>
         </div>
 
@@ -645,7 +650,7 @@ function ScenarioPicker({ scenarios, onPick, onBack }) {
                 <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>{s.title}</div>
                 <div style={{ fontSize: 12, color: '#aaa', marginTop: 3, fontStyle: 'italic' }}>Goal: {s.goal}</div>
               </div>
-              <span style={{ marginLeft: 'auto', fontSize: 18, color: '#ccc' }}>›</span>
+              <ChevronRight size={18} style={{ marginLeft: 'auto', color: '#ccc', flexShrink: 0 }} />
             </button>
           ))}
         </div>
