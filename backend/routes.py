@@ -30,7 +30,7 @@ from auth import (
 from jose import jwt, JWTError
 
 # Authoritative, server-side answer grading (never trust client is_correct)
-from grading import grade_attempt, _INFO_KINDS
+from grading import grade_attempt, typo_check, _INFO_KINDS
 
 # Brevo (Sendinblue) integration (contacts + events)
 try:
@@ -555,6 +555,9 @@ class AttemptIn(BaseModel):
     answer_text: Optional[str] = None
     selected_indices: Optional[list[int]] = None  # for multiselect
     time_ms: Optional[int] = None
+    # Session combo (consecutive correct answers) reported by the client. Used
+    # only to award a small, capped bonus; correctness is still server-graded.
+    combo: Optional[int] = None
 
 class AttemptOut(BaseModel):
     ok: bool
@@ -569,6 +572,11 @@ class AttemptOut(BaseModel):
     hearts_max: Optional[int] = None
     is_premium: Optional[bool] = None
     next_regen_seconds: Optional[int] = None
+    # Grading detail
+    is_correct: Optional[bool] = None      # authoritative server verdict
+    typo: bool = False                     # near-miss forgiven as correct
+    correct_answer: Optional[str] = None   # intended answer (typo/wrong)
+    combo_bonus_xp: int = 0                # bonus XP awarded for this combo
 
 
 class LogIn(BaseModel):
@@ -3430,6 +3438,23 @@ def record_exercise_attempt(
         answer_text=payload.answer_text,
         selected_indices=payload.selected_indices,
     )
+
+    # Typo forgiveness: a near-miss on a free-text answer is graded correct (full
+    # XP, no heart lost) but flagged so the UI can show a gentle "you have a typo".
+    typo = False
+    correct_answer_hint: Optional[str] = None
+    if not is_correct:
+        intended = typo_check(
+            kind=ex_row["kind"],
+            expected_answer=ex_row["expected_answer"],
+            config=ex_row["config"],
+            answer_text=payload.answer_text,
+        )
+        if intended:
+            is_correct = True
+            typo = True
+            correct_answer_hint = intended
+
     if payload.lesson_id is not None and int(payload.lesson_id) != lesson_id:
         raise HTTPException(status_code=400, detail="lesson_id does not match exercise")
 
@@ -3481,6 +3506,7 @@ def record_exercise_attempt(
                 hearts_max=int(hstate["hearts_max"]),
                 is_premium=bool(hstate["is_premium"]),
                 next_regen_seconds=int(hstate["next_regen_seconds"]),
+                is_correct=True,
             )
 
     # GR-5: Detect first-correct BEFORE inserting so concurrent requests can't
@@ -3556,6 +3582,20 @@ def record_exercise_attempt(
     if is_first_correct and earned_xp_delta > 0:
         _award_weekly_xp(db, user_id, earned_xp_delta)
 
+    # Combo bonus: reward consecutive-correct streaks with a small, capped bonus.
+    # Only on first-correct (never on replays) so it can't be farmed by redoing
+    # the same exercise. combo>=3 → +1, >=6 → +2, capped at +5.
+    combo_bonus_xp = 0
+    combo_count = int(payload.combo or 0)
+    if is_first_correct and combo_count >= 3:
+        combo_bonus_xp = min(combo_count // 3, 5)
+        if combo_bonus_xp > 0:
+            db.execute(
+                text("UPDATE users SET bonus_xp = COALESCE(bonus_xp, 0) + :b WHERE id = :u"),
+                {"b": combo_bonus_xp, "u": user_id},
+            )
+            _award_weekly_xp(db, user_id, combo_bonus_xp)
+
     # Reward a chest the FIRST time a lesson is completed (not on replays), so
     # the gem economy can't be farmed by re-doing the same lesson.
     if bool(progress.get("completed")) and not was_completed:
@@ -3580,6 +3620,10 @@ def record_exercise_attempt(
         hearts_max=int(hstate["hearts_max"]),
         is_premium=bool(hstate["is_premium"]),
         next_regen_seconds=int(hstate["next_regen_seconds"]),
+        is_correct=bool(is_correct),
+        typo=typo,
+        correct_answer=correct_answer_hint,
+        combo_bonus_xp=int(combo_bonus_xp),
         )
 
 
@@ -4123,6 +4167,167 @@ def me_review_submit(
         "due_at": due_at.isoformat(),
         "passed": quality >= 3,
     }
+
+# ----------------------------
+# Practice-to-earn-a-heart
+# ----------------------------
+HEART_EARN_REQUIRED = int(os.getenv("HEART_EARN_REQUIRED") or "5")
+
+
+@router.post("/me/hearts/earn")
+def me_hearts_earn(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """
+    Grant +1 heart once the user has answered HEART_EARN_REQUIRED exercises
+    correctly since their last earned heart. This turns the out-of-hearts wall
+    into a practice opportunity instead of a pure pay/wait gate.
+
+    Non-farmable: each grant resets `last_heart_earned_at`, so every earned
+    heart costs a fresh batch of correct answers, and hearts are capped at max.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    hstate = _hearts_state(db, user_id)
+    if hstate["is_premium"] or hstate["hearts_current"] >= hstate["hearts_max"]:
+        return {"granted": False, "reason": "full", "progress": 0,
+                "need": 0, "required": HEART_EARN_REQUIRED, **hstate}
+
+    row = db.execute(
+        text(
+            """
+            SELECT COUNT(*) AS c
+            FROM user_exercise_attempts a
+            WHERE a.user_id = :u AND a.is_correct = TRUE
+              AND a.created_at > COALESCE(
+                    (SELECT last_heart_earned_at FROM users WHERE id = :u),
+                    NOW() - INTERVAL '30 minutes'
+              )
+            """
+        ),
+        {"u": user_id},
+    ).mappings().first()
+    correct_recent = int((row and row["c"]) or 0)
+
+    if correct_recent < HEART_EARN_REQUIRED:
+        return {"granted": False, "reason": "in_progress",
+                "progress": correct_recent, "need": HEART_EARN_REQUIRED - correct_recent,
+                "required": HEART_EARN_REQUIRED, **hstate}
+
+    db.execute(
+        text(
+            """
+            UPDATE users SET
+              hearts_current = LEAST(COALESCE(hearts_max, :mx), COALESCE(hearts_current, 0) + 1),
+              last_heart_earned_at = NOW()
+            WHERE id = :u AND NOT COALESCE(is_premium, FALSE)
+            """
+        ),
+        {"u": user_id, "mx": DEFAULT_HEARTS_MAX},
+    )
+    new_state = _hearts_state(db, user_id)
+    return {"granted": True, "reason": "earned", "progress": 0,
+            "need": 0, "required": HEART_EARN_REQUIRED, **new_state}
+
+
+# ----------------------------
+# Explain-my-mistake (GPT-4o)
+# ----------------------------
+_EXPLAIN_OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
+
+
+class ExplainIn(BaseModel):
+    user_answer: Optional[str] = None
+
+
+@router.post("/me/exercises/{exercise_id}/explain")
+def explain_mistake(
+    exercise_id: int,
+    payload: ExplainIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Return a short, beginner-friendly explanation of why the user's answer was
+    wrong, generated by GPT-4o. Non-fatal: returns 503 if the model is unset."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    if not _EXPLAIN_OPENAI_KEY:
+        raise HTTPException(status_code=503, detail="Explanations are unavailable right now.")
+
+    ex = db.execute(
+        text(
+            'SELECT kind, prompt, expected_answer, sentence_before, sentence_after, config '
+            "FROM exercises WHERE id = :ex"
+        ),
+        {"ex": exercise_id},
+    ).mappings().first()
+    if not ex:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    # Gather the correct answer text (expected_answer or the flagged option).
+    correct = (ex["expected_answer"] or "").strip() if ex["expected_answer"] else ""
+    if not correct:
+        opt = db.execute(
+            text("SELECT text FROM exercise_options WHERE exercise_id = :ex AND is_correct = TRUE LIMIT 1"),
+            {"ex": exercise_id},
+        ).mappings().first()
+        if opt:
+            correct = (opt["text"] or "").strip()
+
+    prompt_text = (ex["prompt"] or "").strip()
+    if ex["sentence_before"] or ex["sentence_after"]:
+        prompt_text = f'{ex["sentence_before"] or ""} ___ {ex["sentence_after"] or ""}'.strip()
+
+    user_ans = (payload.user_answer or "").strip()
+
+    system = (
+        "You are a warm, encouraging Armenian tutor for absolute beginners. "
+        "Explain in at most 2 short sentences, in simple English, why the learner's "
+        "answer was not correct and what the right idea is. Do not be condescending. "
+        "If helpful, mention the Armenian word/letter briefly. No preamble, no lists."
+    )
+    user = (
+        f"Exercise type: {ex['kind']}\n"
+        f"Question/prompt: {prompt_text or '(none)'}\n"
+        f"Correct answer: {correct or '(unknown)'}\n"
+        f"Learner's answer: {user_ans or '(blank)'}\n\n"
+        "Explain briefly why the learner's answer is wrong and guide them."
+    )
+
+    try:
+        resp = httpx.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {_EXPLAIN_OPENAI_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "gpt-4o",
+                "max_tokens": 120,
+                "temperature": 0.4,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            },
+            timeout=20,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Explanation request failed: {exc}")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="Could not generate an explanation.")
+
+    data = resp.json()
+    explanation = ((data.get("choices") or [{}])[0].get("message", {}).get("content") or "").strip()
+    if not explanation:
+        explanation = "Not quite — compare your answer letter by letter with the correct one and try again."
+    return {"explanation": explanation, "correct_answer": correct or None}
+
 
 @router.get("/me/practice")
 def me_practice(

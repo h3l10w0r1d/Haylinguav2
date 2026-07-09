@@ -61,6 +61,9 @@ def ensure_schema() -> None:
 
         # ---------- HeartSystem ----------
         add_col_if_missing("users", "last_heart_lost_at TIMESTAMPTZ")
+        # Clock for "practice to earn a heart": correct attempts newer than this
+        # count toward the next earned heart; set to NOW() each time one is granted.
+        add_col_if_missing("users", "last_heart_earned_at TIMESTAMPTZ")
 
         # ---------- Premium ----------
         add_col_if_missing("users", "is_premium BOOLEAN NOT NULL DEFAULT FALSE")

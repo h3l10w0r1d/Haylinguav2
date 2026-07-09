@@ -56,6 +56,74 @@ def _eq(a: Any, b: Any) -> bool:
     return norm_text(a) == norm_text(b)
 
 
+# Free-text kinds eligible for typo forgiveness (must match the block in
+# grade_attempt below). Ordered-token / choice / speech kinds are excluded.
+_TYPO_KINDS = {"letter_typing", "word_spelling", "fill_blank", "listen_type", "write_translate"}
+
+
+def _levenshtein(a: str, b: str) -> int:
+    """Classic edit distance (insert/delete/substitute), iterative two-row."""
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(
+                prev[j] + 1,        # deletion
+                cur[j - 1] + 1,     # insertion
+                prev[j - 1] + (ca != cb),  # substitution
+            ))
+        prev = cur
+    return prev[-1]
+
+
+def typo_check(
+    *,
+    kind: Optional[str],
+    expected_answer: Any,
+    config: Any,
+    answer_text: Any,
+) -> Optional[str]:
+    """
+    If `answer_text` is a near-miss (small typo) of an accepted free-text answer
+    — but not an exact match — return the intended answer string so the caller
+    can mark it correct-with-a-warning. Otherwise return None.
+
+    Only free-text kinds are eligible. Very short answers (single letters) are
+    never forgiven, because an edit distance of 1 there matches almost anything.
+    """
+    kind = (kind or "").strip()
+    if kind not in _TYPO_KINDS:
+        return None
+    cfg = _as_cfg(config)
+    at = norm_text(answer_text)
+    if not at:
+        return None
+    best: Optional[tuple[int, str]] = None
+    for raw in _expected_text_answers(cfg, expected_answer):
+        na = norm_text(raw)
+        if not na or na == at:
+            # Exact matches are handled by grade_attempt; not a typo.
+            return None
+        # Require a reasonably long target so we don't forgive single letters.
+        if len(na) < 4:
+            continue
+        dist = _levenshtein(na, at)
+        # 1 typo for short-ish words, 2 for longer ones.
+        tol = 1 if len(na) <= 7 else 2
+        # Guard against wildly different lengths slipping under the tolerance.
+        if abs(len(na) - len(at)) > tol:
+            continue
+        if dist <= tol and (best is None or dist < best[0]):
+            best = (dist, raw.strip() if isinstance(raw, str) else str(raw))
+    return best[1] if best else None
+
+
 def _as_cfg(config: Any) -> dict:
     if isinstance(config, dict):
         return config
