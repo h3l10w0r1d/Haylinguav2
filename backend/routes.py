@@ -249,96 +249,179 @@ def _hash_code(code: str) -> str:
     # 6-digit codes are low entropy; pepper prevents offline brute-force if DB leaks.
     return hashlib.sha256(f"{code}{EMAIL_CODE_PEPPER}".encode("utf-8")).hexdigest()
 
-def _render_verification_email_html(name: str, code: str) -> str:
-    # Email-safe HTML (table layout, inline styles). Avoids complex CSS.
-    safe_name = (name or "").strip() or "there"
+def _email_shell(preheader: str, cards_html: str) -> str:
+    """Shared outer wrapper for all Haylingua system emails (card-stack style)."""
     year = datetime.utcnow().year
-    # Build digits row (visual). Copy-friendly full code is shown as a single block above.
-    digits = "".join(
-        f"""
-        <td align=\"center\" valign=\"middle\" style=\"width:52px;height:56px;border:1px solid #E6EAF2;border-radius:12px;background:#FFFFFF;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:24px;line-height:56px;font-weight:700;color:#0B1220;\">{d}</td>
-        """
-        for d in code
+    pre = (
+        f’<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{preheader}</div>’
+        if preheader else ""
     )
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Haylingua</title>
+</head>
+<body style="margin:0;padding:0;background:#F6F8FC;font-family:Arial,sans-serif;">
+{pre}
+<div style="max-width:650px;margin:0 auto;padding:28px 12px;">
 
-    # Hidden preheader improves inbox preview.
+  <!-- HEADER CARD -->
+  <div style="background:linear-gradient(135deg,#FF7A1A 0%,#FFB347 100%);border-radius:16px;overflow:hidden;margin-bottom:16px;">
+    <div style="padding:26px 32px;">
+      <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.3px;">Haylingua</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:3px;">Learn Armenian with ease 🇦🇲</div>
+    </div>
+  </div>
+
+  {cards_html}
+
+  <!-- FOOTER CARD -->
+  <div style="max-width:650px;margin:16px auto 0;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:25px 32px;">
+      <div style="font-size:14px;font-weight:800;color:#FF7A1A;">Haylingua</div>
+      <div style="font-size:12px;color:#777;line-height:18px;margin-top:8px;">
+        © {year} Haylingua. All rights reserved.
+      </div>
+      <div style="font-size:12px;color:#777;margin-top:6px;line-height:18px;">
+        You are receiving this email because you have an account on
+        <a href="https://haylingua.am" style="color:#000;"><strong>haylingua.am</strong></a>.
+      </div>
+      <div style="margin-top:12px;">
+        <a href="https://haylingua.am/privacy" style="font-size:12px;color:#000;text-decoration:underline;margin-right:12px;"><strong>Privacy Policy</strong></a>
+        <a href="https://haylingua.am/terms" style="font-size:12px;color:#000;text-decoration:underline;"><strong>Terms of Service</strong></a>
+      </div>
+      <div style="font-size:12px;color:#777;margin-top:8px;">
+        Questions? Email us at <a href="mailto:info@haylingua.am" style="color:#000;">info@haylingua.am</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>"""
+
+
+def _render_verification_email_html(name: str, code: str) -> str:
+    safe_name = (name or "").strip() or "there"
     preheader = f"Your Haylingua verification code is {code}. It expires in 10 minutes."
 
-    return f"""<!doctype html>
-<html lang=\"en\">
-  <head>
-    <meta charset=\"utf-8\" />
-    <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />
-    <meta name=\"x-apple-disable-message-reformatting\" />
-    <title>Haylingua verification</title>
-  </head>
-  <body style=\"margin:0;padding:0;background:#F6F8FC;\">
-    <div style=\"display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;\">{preheader}</div>
+    cards = f"""
+  <!-- GREETING CARD -->
+  <div style="max-width:650px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:20px 32px 24px;">
+      <h2 style="margin:0;font-size:24px;font-weight:700;color:#000;">Hey {safe_name} 👋</h2>
+      <p style="margin:8px 0 0;font-size:14px;line-height:24px;color:#555;">
+        Use the code below to verify your email address. It expires in <strong>10 minutes</strong>.
+      </p>
+    </div>
+  </div>
 
-    <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background:#F6F8FC;\">
-      <tr>
-        <td align=\"center\" style=\"padding:28px 12px;\">
+  <!-- CODE CARD -->
+  <div style="max-width:650px;margin:16px auto 0;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:28px 32px;">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:14px;">
+        Your verification code
+      </div>
+      <div style="background:#0B1220;border-radius:14px;padding:18px 22px;display:inline-block;">
+        <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:10px;color:#fff;">{code}</div>
+      </div>
+      <p style="margin:18px 0 0;font-size:13px;color:#888;line-height:20px;">
+        If you didn’t request this, you can safely ignore this email. Your account won’t be affected.
+      </p>
+    </div>
+  </div>"""
 
-          <!-- Outer card -->
-          <table role=\"presentation\" width=\"620\" cellspacing=\"0\" cellpadding=\"0\" style=\"width:620px;max-width:100%;background:#FFFFFF;border-radius:18px;overflow:hidden;border:1px solid #E6EAF2;\">
-            <tr>
-              <td style=\"padding:0;\">
-                <!-- Brand header -->
-                <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"background:linear-gradient(135deg,#FF7A00 0%,#FFB000 60%,#FFD08A 100%);\">
-                  <tr>
-                    <td style=\"padding:20px 24px;\">
-                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-weight:800;font-size:20px;letter-spacing:0.2px;color:#0B1220;\">Haylingua</div>
-                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:13px;color:#0B1220;opacity:0.9;margin-top:2px;\">Email verification</div>
-                    </td>
-                  </tr>
-                </table>
+    return _email_shell(preheader, cards)
 
-                <!-- Content -->
-                <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">
-                  <tr>
-                    <td style=\"padding:24px 24px 6px 24px;\">
-                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:18px;font-weight:750;color:#0B1220;\">Welcome, {safe_name} 👋</div>
-                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.55;color:#334155;margin-top:10px;\">
-                        Use the code below to confirm your email address. This code expires in <b>10 minutes</b>.
-                      </div>
-                    </td>
-                  </tr>
 
-                  <!-- Copy-friendly code -->
-                  <tr>
-                    <td style=\"padding:12px 24px 0 24px;\">
-                      <div style=\"background:#0B1220;border-radius:14px;padding:14px 16px;\">
-                        <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;letter-spacing:0.8px;text-transform:uppercase;color:#94A3B8;\">Your verification code</div>
-                        <div style=\"font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:8px;color:#FFFFFF;margin-top:6px;\">{code}</div>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style=\"padding:18px 24px 22px 24px;\">
-                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#64748B;\">
-                        If you didn’t request this, you can safely ignore this email.
-                      </div>
-                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#64748B;margin-top:8px;\">
-                        Need help? Reply to this email and we’ll assist you.
-                      </div>
-                    </td>
-                  </tr>
+def _render_email_change_html(name: str, code: str, new_email: str) -> str:
+    safe_name = (name or "").strip() or "there"
+    preheader = f"Your Haylingua email change code is {code}. It expires in 20 minutes."
 
-                  <tr>
-                    <td style=\"padding:14px 24px; border-top:1px solid #E6EAF2;\">
-                      <div style=\"font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;color:#94A3B8;\">© {year} Haylingua</div>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
+    cards = f"""
+  <!-- GREETING CARD -->
+  <div style="max-width:650px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:20px 32px 24px;">
+      <h2 style="margin:0;font-size:24px;font-weight:700;color:#000;">Hey {safe_name} 👋</h2>
+      <p style="margin:8px 0 0;font-size:14px;line-height:24px;color:#555;">
+        You requested to change your Haylingua email to <strong>{new_email}</strong>.
+        Enter the code below to confirm this change. It expires in <strong>20 minutes</strong>.
+      </p>
+    </div>
+  </div>
 
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>"""
+  <!-- CODE CARD -->
+  <div style="max-width:650px;margin:16px auto 0;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:28px 32px;">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:14px;">
+        Email change code
+      </div>
+      <div style="background:#0B1220;border-radius:14px;padding:18px 22px;display:inline-block;">
+        <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:10px;color:#fff;">{code}</div>
+      </div>
+      <p style="margin:18px 0 0;font-size:13px;color:#888;line-height:20px;">
+        If you didn’t request this change, please contact us at
+        <a href="mailto:info@haylingua.am" style="color:#FF7A1A;">info@haylingua.am</a> immediately.
+      </p>
+    </div>
+  </div>"""
+
+    return _email_shell(preheader, cards)
+
+
+def _render_cms_invite_html(invite_url: str) -> str:
+    preheader = "You’ve been invited to manage the Haylingua CMS platform."
+
+    cards = f"""
+  <!-- GREETING CARD -->
+  <div style="max-width:650px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:20px 32px 24px;">
+      <h2 style="margin:0;font-size:24px;font-weight:700;color:#000;">You’re invited 🎉</h2>
+      <p style="margin:8px 0 0;font-size:14px;line-height:24px;color:#555;">
+        You’ve been invited to the <strong>Haylingua CMS</strong>. Click the button below to set
+        your password and enable two-factor authentication to get started.
+      </p>
+    </div>
+  </div>
+
+  <!-- CTA CARD -->
+  <div style="max-width:650px;margin:16px auto 0;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 18px;font-size:14px;color:#333;line-height:22px;">
+        This invitation link expires in <strong>48 hours</strong>. Please complete setup before then.
+      </p>
+      <a href="{invite_url}"
+         style="display:inline-block;background:#FF7A1A;color:#fff;font-size:14px;font-weight:700;
+                text-decoration:none;padding:13px 28px;border-radius:10px;border-bottom:3px solid #D95F00;">
+        Accept Invitation →
+      </a>
+      <p style="margin:18px 0 0;font-size:12px;color:#aaa;line-height:18px;word-break:break-all;">
+        Or copy this link: {invite_url}
+      </p>
+    </div>
+  </div>"""
+
+    return _email_shell(preheader, cards)
+
+
+def _render_test_email_html() -> str:
+    preheader = "Haylingua email delivery is working correctly."
+
+    cards = """
+  <!-- STATUS CARD -->
+  <div style="max-width:650px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:28px 32px;">
+      <h2 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#000;">It works! ✅</h2>
+      <p style="margin:0;font-size:14px;line-height:24px;color:#555;">
+        This is a test email from Haylingua. If you received this, email delivery is configured correctly.
+      </p>
+    </div>
+  </div>"""
+
+    return _email_shell(preheader, cards)
 
 
 def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
@@ -5303,9 +5386,16 @@ def me_change_email_start(
     )
 
     # Send to the NEW email
+    user_row = db.execute(text("SELECT name, username FROM users WHERE id=:id"), {"id": int(user_id)}).mappings().first()
+    display_name = (user_row.get("name") or user_row.get("username") or "") if user_row else ""
     subject = "Confirm your new Haylingua email"
     plain = f"Your Haylingua email change code is: {code}. It expires in 20 minutes."
-    email_sent = _send_email(to_email=new_email, subject=subject, body=plain, html_body=None)
+    email_sent = _send_email(
+        to_email=new_email,
+        subject=subject,
+        body=plain,
+        html_body=_render_email_change_html(display_name, code, new_email),
+    )
 
     resp = {"ok": True, "email_sent": bool(email_sent)}
     # Dev-only: include the code in the response when explicitly enabled.
@@ -6750,18 +6840,19 @@ def cms_analytics(
     }
 
 
-def _send_invite_email(email: str, invite_url: str):  # Send email function, is a really helpful thing for email verification and overall systematic communication style.
-    """
-    Best-effort. If SMTP not configured, prints link to logs.
-    """
-    body = (
+def _send_invite_email(email: str, invite_url: str):
+    """Best-effort. If SMTP not configured, prints link to logs."""
+    plain = (
         "You were invited to Haylingua CMS.\n\n"
         f"Open this link to set your password and enable 2FA:\n{invite_url}\n\n"
-        "This link expires soon."
+        "This link expires in 48 hours."
     )
-    # Route through the shared sender (Brevo HTTP API first, SMTP fallback) so an
-    # invite never 500s when SMTP ports are blocked.
-    sent = _send_email(to_email=email, subject="Haylingua CMS invitation", body=body)
+    sent = _send_email(
+        to_email=email,
+        subject="You're invited to Haylingua CMS",
+        body=plain,
+        html_body=_render_cms_invite_html(invite_url),
+    )
     if not sent:
         print(f"[cms_invite] Invite for {email}: {invite_url}")
 
@@ -7761,7 +7852,7 @@ async def cms_email_test(request: Request, db=Depends(get_db)):
         to_email=to,
         subject="Haylingua — test email ✅",
         text="This is a test email from Haylingua. If you got this, email delivery works.",
-        html="<div style='font-family:sans-serif'><h2>It works! ✅</h2><p>This is a test email from Haylingua. Email delivery is configured correctly.</p></div>",
+        html=_render_test_email_html(),
     )
     return res
 
