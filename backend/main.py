@@ -23,7 +23,8 @@ from seed_curriculum import seed_curriculum
 from ensure_schema import ensure_schema
 from lesson_analytics import router as lesson_analytics_router
 from routes_seo import router as seo_router
-from routes_status import router as status_router
+from database import engine
+from sqlalchemy import text
 
 
 # Error tracking — no-op unless SENTRY_DSN is set. Init before the app so the
@@ -182,9 +183,6 @@ app.include_router(seo_router, prefix="/api")
 app.include_router(conversation_router)
 app.include_router(conversation_router, prefix="/api")
 
-app.include_router(status_router)
-app.include_router(status_router, prefix="/api")
-
 
 # 🔒 Global rate limiting (in-memory). Applies to all endpoints; tighter rules for auth/security paths.
 app.add_middleware(RateLimitMiddleware)
@@ -223,7 +221,19 @@ def on_startup():
 
 
 @app.get("/health")
-def health_check():
+def health_check(response: Response):
+    """Ping target for external uptime monitors (UptimeRobot / Better Stack).
+    Returns 503 on DB failure so a monitor's HTTP-status check actually
+    catches a database outage, not just "the process is alive". Uses the
+    engine directly (not the Depends(get_db) request dependency) so a
+    connection failure is caught here instead of raising during dependency
+    resolution, before this function's body would even run."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        response.status_code = 503
+        return {"status": "down", "detail": str(exc)[:200]}
     return {"status": "ok"}
 
 

@@ -39,7 +39,6 @@ const PracticeMode = lazy(() => import('./PracticeMode'));
 const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
 const PlacementTest = lazy(() => import('./PlacementTest'));
 const AIConversation = lazy(() => import('./AIConversation'));
-const StatusPage = lazy(() => import('./StatusPage'));
 
 function RouteFallback() {
   return <LoadingScreen />;
@@ -547,7 +546,6 @@ function AppShell() {
       <Route path="/cms/*" element={<CmsGate />} />
 
       <Route path="/auth/google/callback" element={<AuthCallback />} />
-      <Route path="/status" element={<StatusPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
