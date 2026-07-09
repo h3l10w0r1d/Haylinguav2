@@ -6,7 +6,11 @@ _BACKEND_DIR = os.path.dirname(__file__)
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
-from fastapi import FastAPI
+import secrets
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -41,6 +45,38 @@ if _SENTRY_DSN:
 
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+_docs_security = HTTPBasic()
+_DOCS_USER = (os.getenv("DOCS_USERNAME") or "").strip()
+_DOCS_PASS = (os.getenv("DOCS_PASSWORD") or "").strip()
+
+
+def _require_docs_auth(credentials: HTTPBasicCredentials = Depends(_docs_security)):
+    if not _DOCS_USER or not _DOCS_PASS:
+        raise HTTPException(status_code=404, detail="Not found")
+    ok = secrets.compare_digest(credentials.username.encode(), _DOCS_USER.encode()) and \
+         secrets.compare_digest(credentials.password.encode(), _DOCS_PASS.encode())
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+
+@app.get("/docs", include_in_schema=False)
+async def _docs(_: HTTPBasicCredentials = Depends(_require_docs_auth)):
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="Haylingua API")
+
+
+@app.get("/redoc", include_in_schema=False)
+async def _redoc(_: HTTPBasicCredentials = Depends(_require_docs_auth)):
+    return get_redoc_html(openapi_url="/openapi.json", title="Haylingua API")
+
+
+@app.get("/openapi.json", include_in_schema=False)
+async def _openapi(_: HTTPBasicCredentials = Depends(_require_docs_auth)):
+    return get_openapi(title=app.title, version=app.version, routes=app.routes)
 
 
 def _uploads_dir() -> str:
