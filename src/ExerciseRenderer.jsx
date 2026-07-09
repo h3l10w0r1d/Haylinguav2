@@ -29,6 +29,22 @@ function PromptTitle({ text, glossary }) {
   );
 }
 
+// Small "play slowly" (turtle) button shown under the main audio button on
+// listening exercises. Plays the same clip at a reduced playback rate.
+function SlowAudioButton({ onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
+      aria-label="Play slowly"
+    >
+      🐢 Slow
+    </button>
+  );
+}
+
 /**
  * Variant A: component-per-kind.
  * Fixes "Minified React error #310" (hooks used conditionally) by moving
@@ -1466,6 +1482,13 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
         >
           Check
         </PrimaryButton>
+        <button
+          type="button"
+          onClick={() => submit?.({ autoAdvance: true, xpEarned: 0 })}
+          className="w-full text-center text-sm font-bold text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline"
+        >
+          🔇 Can’t speak right now — skip
+        </button>
       </div>
     </Card>
   );
@@ -1488,12 +1511,14 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
     didAutoplay.current = false;
   }, [exercise?.id]);
 
-  async function play() {
+  async function play(rate = 1) {
     if (!target) return;
     try {
       setBusy(true);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
-      await new Audio(url).play();
+      const a = new Audio(url);
+      a.playbackRate = rate;
+      await a.play();
     } catch (e) {
       console.error("TTS failed", e);
     } finally {
@@ -1518,7 +1543,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
       <div className="mt-5 flex flex-col items-center">
         <button
           type="button"
-          onClick={play}
+          onClick={() => play(1)}
           disabled={busy || !target}
           className={
             "grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " +
@@ -1528,6 +1553,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
         >
           🔊
         </button>
+        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} />
         <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
       </div>
 
@@ -1567,15 +1593,18 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
 
   const [picked, setPicked] = useState([]); // [{ t, key }]
   const [available, setAvailable] = useState([]);
+  const [useKeyboard, setUseKeyboard] = useState(false);
+  const [typed, setTyped] = useState("");
 
   useEffect(() => {
     setPicked([]);
     setAvailable(tiles.map((t, i) => ({ t, key: `${i}-${t}` })));
+    setTyped("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise?.id]);
 
-  const built = picked.map((p) => p.t).join(" ");
-  const canCheck = picked.length > 0;
+  const built = useKeyboard ? typed : picked.map((p) => p.t).join(" ");
+  const canCheck = useKeyboard ? normalizeText(typed).length > 0 : picked.length > 0;
 
   function add(idx) {
     const item = available[idx];
@@ -1602,39 +1631,55 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
         </div>
       ) : null}
 
-      <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
-        {picked.length === 0 ? (
-          <Muted>Tap words to build your answer…</Muted>
-        ) : (
-          picked.map((p, i) => (
-            <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>
-              {p.t}
-            </Pill>
-          ))
-        )}
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {available.map((p, i) => {
-          const hint = cfg.glossary?.[p.t] || cfg.glossary?.[p.t?.toLowerCase()];
-          return (
-            <Pill key={p.key} onClick={() => add(i)}>
-              {hint ? (
-                <span className="flex items-center gap-1">
+      {useKeyboard ? (
+        <div className="mt-4">
+          <InlineInput value={typed} onChange={setTyped} placeholder="Type your answer…" />
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
+            {picked.length === 0 ? (
+              <Muted>Tap words to build your answer…</Muted>
+            ) : (
+              picked.map((p, i) => (
+                <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>
                   {p.t}
-                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-100 text-[8px] font-extrabold text-brand-600" title={hint}>i</span>
-                </span>
-              ) : p.t}
-            </Pill>
-          );
-        })}
-      </div>
+                </Pill>
+              ))
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {available.map((p, i) => {
+              const hint = cfg.glossary?.[p.t] || cfg.glossary?.[p.t?.toLowerCase()];
+              return (
+                <Pill key={p.key} onClick={() => add(i)}>
+                  {hint ? (
+                    <span className="flex items-center gap-1">
+                      {p.t}
+                      <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-100 text-[8px] font-extrabold text-brand-600" title={hint}>i</span>
+                    </span>
+                  ) : p.t}
+                </Pill>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setUseKeyboard((v) => !v)}
+        className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline"
+      >
+        {useKeyboard ? "🔤 Use the word bank" : "⌨️ Type with keyboard (harder)"}
+      </button>
 
       <div className="mt-6 space-y-3">
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
-            const picks = picked.map((p) => p.t);
+            const picks = useKeyboard ? built.trim().split(/\s+/) : picked.map((p) => p.t);
             const ok =
               solution.length === picks.length &&
               solution.every((v, i) => normalizeText(v) === normalizeText(picks[i]));
@@ -1740,12 +1785,14 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise?.id]);
 
-  async function play() {
+  async function play(rate = 1) {
     if (!target) return;
     try {
       setBusy(true);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
-      await new Audio(url).play();
+      const a = new Audio(url);
+      a.playbackRate = rate;
+      await a.play();
     } catch (e) {
       console.error("TTS failed", e);
     } finally {
@@ -1769,8 +1816,9 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
     <Card>
       <Title>{prompt}</Title>
       <div className="mt-5 flex flex-col items-center">
-        <button type="button" onClick={play} disabled={busy || !target} aria-label="Play audio"
+        <button type="button" onClick={() => play(1)} disabled={busy || !target} aria-label="Play audio"
           className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
+        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} />
         <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
       </div>
       <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
@@ -1958,12 +2006,14 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
   const didAutoplay = useRef(false);
   useEffect(() => { setSel(null); setGraded(null); didAutoplay.current = false; }, [exercise?.id]);
 
-  async function play() {
+  async function play(rate = 1) {
     if (!target) return;
     try {
       setBusy(true);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
-      await new Audio(url).play();
+      const a = new Audio(url);
+      a.playbackRate = rate;
+      await a.play();
     } catch (e) { console.error("TTS failed", e); } finally { setBusy(false); }
   }
   useEffect(() => {
@@ -1978,8 +2028,9 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
     <Card>
       <Title>{prompt}</Title>
       <div className="mt-5 flex flex-col items-center">
-        <button type="button" onClick={play} disabled={busy || !target} aria-label="Play audio"
+        <button type="button" onClick={() => play(1)} disabled={busy || !target} aria-label="Play audio"
           className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
+        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} />
         <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
       </div>
       <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} /></div>
@@ -2271,6 +2322,13 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
           const ok = !!g && t === g;
           ok ? correct({ answerText: transcript }) : wrong("Not quite — listen and try again.", { answerText: transcript });
         }}>Check</PrimaryButton>
+        <button
+          type="button"
+          onClick={() => submit?.({ autoAdvance: true, xpEarned: 0 })}
+          className="w-full text-center text-sm font-bold text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline"
+        >
+          🔇 Can’t speak right now — skip
+        </button>
       </div>
     </Card>
   );
