@@ -254,6 +254,10 @@ export default function LessonPlayer() {
 
     let earnedDelta = 0;
     let hearts = undefined;
+    let serverCorrect = isCorrect;
+    let typo = false;
+    let comboBonusXp = 0;
+    let correctAnswer = null;
 
     if (token) {
       try {
@@ -268,7 +272,8 @@ export default function LessonPlayer() {
             skipped,
             answer_text: answerText,
             selected_indices: selectedIndices,
-            ms_spent: timeSpentMs,
+            time_ms: timeSpentMs,
+            combo: comboStreak,
           }),
         });
 
@@ -278,6 +283,10 @@ export default function LessonPlayer() {
           hearts = Number.isFinite(attempt?.hearts_current)
             ? attempt.hearts_current
             : undefined;
+          if (typeof attempt?.is_correct === "boolean") serverCorrect = attempt.is_correct;
+          typo = attempt?.typo === true;
+          comboBonusXp = Math.max(0, Number(attempt?.combo_bonus_xp ?? 0));
+          correctAnswer = attempt?.correct_answer ?? null;
           writeHearts(attempt); // sync header / shell / gate
         } else {
           earnedDelta = isCorrect && !skipped ? Number(currentExercise?.xp ?? 0) : 0;
@@ -290,9 +299,14 @@ export default function LessonPlayer() {
     }
 
     handleStepAnswer({
-      isCorrect,
+      isCorrect: serverCorrect,
       skipped,
       xpEarned: Math.max(0, Math.floor(earnedDelta)),
+      comboBonusXp,
+      typo,
+      correctAnswer,
+      exerciseId: currentExercise.id,
+      userAnswer: answerText,
       hearts,
     });
   }
@@ -492,9 +506,17 @@ export default function LessonPlayer() {
       isCorrect,
       skipped,
       xpEarned,
+      comboBonusXp: Number(payload?.comboBonusXp ?? 0) || 0,
+      typo: payload?.typo === true,
       message: payload?.message,
       hearts: payload?.hearts,
-      correctAnswer: isCorrect ? null : deriveCorrectAnswer(currentExercise),
+      // On a forgiven typo the server sends the intended spelling; otherwise
+      // derive the correct answer locally for wrong answers.
+      correctAnswer: payload?.typo
+        ? payload?.correctAnswer
+        : (isCorrect ? null : deriveCorrectAnswer(currentExercise)),
+      exerciseId: payload?.exerciseId ?? currentExercise?.id,
+      userAnswer: payload?.userAnswer ?? null,
       combo: isCorrect ? newCombo : 0,
     });
 
@@ -780,7 +802,11 @@ export default function LessonPlayer() {
           ? {
               variant: resultData.isCorrect ? "correct" : "wrong",
               xpEarned: resultData.xpEarned,
+              comboBonusXp: resultData.comboBonusXp || 0,
+              typo: resultData.typo === true,
               correctAnswer: resultData.correctAnswer || null,
+              exerciseId: resultData.exerciseId ?? null,
+              userAnswer: resultData.userAnswer ?? null,
               combo: resultData.combo || 0,
               subtext:
                 Number.isFinite(resultData.hearts)
@@ -837,6 +863,7 @@ export default function LessonPlayer() {
               exercise={currentExercise}
               apiBaseUrl={API_BASE}
               onAnswer={handleStepAnswer}
+              combo={comboStreak}
             />
           )
         ) : null}

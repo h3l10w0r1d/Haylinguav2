@@ -88,6 +88,7 @@ async function postAttempt({
   answerText = null,
   selectedIndices = null,
   msSpent = null,
+  combo = null,
 }) {
   const token = getToken();
   if (!token) return;
@@ -104,6 +105,7 @@ async function postAttempt({
         answer_text: answerText,
         selected_indices: Array.isArray(selectedIndices) ? selectedIndices : null,
         time_ms: Number.isFinite(msSpent) ? Math.max(0, Math.floor(msSpent)) : null,
+        combo: Number.isFinite(combo) ? Math.max(0, Math.floor(combo)) : null,
       }),
     });
 
@@ -2328,6 +2330,7 @@ export default function ExerciseRenderer({
   onAnswer,
   apiBaseUrl,
   submit,
+  combo = 0,
 }) {
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
@@ -2357,7 +2360,16 @@ export default function ExerciseRenderer({
       answerText,
       selectedIndices,
       msSpent: timeSpentMs,
+      combo,
     });
+
+    // Server is authoritative: a forgiven typo comes back is_correct:true even
+    // though the client graded it wrong. Trust the server verdict when present.
+    const serverCorrect =
+      attempt && typeof attempt.is_correct === "boolean"
+        ? attempt.is_correct
+        : isCorrect;
+    const isTypo = attempt?.typo === true;
 
     await postExerciseLog({
       exerciseId: exercise.id,
@@ -2375,12 +2387,19 @@ export default function ExerciseRenderer({
     // Only fall back to local exercise.xp when the request failed entirely.
     const earnedDelta = attempt != null
       ? Math.max(0, Number(attempt.earned_xp_delta ?? 0))
-      : (isCorrect && !skipped ? Number(exercise?.xp ?? 0) : 0);
+      : (serverCorrect && !skipped ? Number(exercise?.xp ?? 0) : 0);
 
     const resultPayload = {
-      isCorrect,
+      isCorrect: serverCorrect,
       skipped,
       xpEarned: Math.max(0, Math.floor(earnedDelta)),
+      comboBonusXp: Math.max(0, Number(attempt?.combo_bonus_xp ?? 0)),
+      typo: isTypo,
+      correctAnswer: attempt?.correct_answer ?? null,
+      // Carry the exercise + the learner's answer so the result sheet can offer
+      // an "Explain my mistake" (GPT-4o) action on wrong answers.
+      exerciseId: exercise.id,
+      userAnswer: answerText,
       message: payload?.message ?? null,
       hearts:
         Number.isFinite(attempt?.hearts_current) ? attempt.hearts_current : undefined,

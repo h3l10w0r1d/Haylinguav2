@@ -175,7 +175,7 @@ export default function PlacementTest() {
   roundCorrectRef.current = roundCorrect;
 
   // ── Grade an answer ────────────────────────────────────────────────────────
-  async function gradeAnswer({ isCorrect, answerText, autoAdvance, _synced }) {
+  async function gradeAnswer({ isCorrect, answerText, autoAdvance, _synced, typo, correctAnswer, exerciseId, userAnswer }) {
     if (hasAnswered) return;
 
     // char_intro and similar — just advance, don't grade
@@ -233,7 +233,12 @@ export default function PlacementTest() {
     setResultData({
       variant: serverCorrect ? "correct" : "wrong",
       xpEarned: 0,
-      correctAnswer: serverCorrect ? null : deriveCorrectAnswer(exercise),
+      typo: typo === true,
+      correctAnswer: serverCorrect
+        ? (typo ? correctAnswer : null)
+        : (correctAnswer || deriveCorrectAnswer(exercise)),
+      exerciseId: exerciseId ?? exercise?.id,
+      userAnswer: userAnswer ?? answerText ?? null,
       combo: 0,
     });
   }
@@ -414,9 +419,7 @@ export default function PlacementTest() {
           key={`${currentExercise.id}-${renderNonce}`}
           exercise={currentExercise}
           lesson={{ id: currentExercise.lesson_id, exercises }}
-          onAnswer={({ isCorrect, answerText, autoAdvance, _synced } = {}) =>
-            gradeAnswer({ isCorrect, answerText, autoAdvance, _synced })
-          }
+          onAnswer={(p = {}) => gradeAnswer(p)}
           onSkip={() => gradeAnswer({ isCorrect: false, answerText: "", _synced: false })}
           graded={hasAnswered}
         />

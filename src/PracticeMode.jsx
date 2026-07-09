@@ -94,7 +94,7 @@ export default function PracticeMode() {
   const completedSteps = originalTotal - exerciseQueue.length;
   const instruction = currentExercise ? (INSTRUCTIONS[currentExercise.kind] ?? null) : null;
 
-  async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices, _synced }) {
+  async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices, _synced, typo, comboBonusXp, correctAnswer, exerciseId, userAnswer }) {
     if (hasAnswered) return; // guard against double-fire
     // char_intro and similar always-correct exercises — skip result sheet and API call
     if (autoAdvance) {
@@ -145,7 +145,9 @@ export default function PracticeMode() {
       setResultData({
         variant: "wrong",
         xpEarned: 0,
-        correctAnswer: deriveCorrectAnswer(currentExercise),
+        correctAnswer: correctAnswer || deriveCorrectAnswer(currentExercise),
+        exerciseId: exerciseId ?? currentExercise?.id,
+        userAnswer: userAnswer ?? answerText ?? null,
         combo,
       });
       pendingNextRef.current = { type: "requeue" };
@@ -155,6 +157,9 @@ export default function PracticeMode() {
       setResultData({
         variant: "correct",
         xpEarned: xp || 0,
+        comboBonusXp: Number(comboBonusXp ?? 0) || 0,
+        typo: typo === true,
+        correctAnswer: typo ? correctAnswer : null,
         combo,
       });
       pendingNextRef.current = { type: "advance" };
@@ -260,9 +265,8 @@ export default function PracticeMode() {
             pendingNextRef.current = { type: "advance" };
             setHasAnswered(true);
           }}
-          onAnswer={({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices, _synced } = {}) =>
-            gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices, _synced })
-          }
+          onAnswer={(p = {}) => gradeAndAdvance(p)}
+          combo={comboStreak}
           graded={hasAnswered}
         />
       ) : null}

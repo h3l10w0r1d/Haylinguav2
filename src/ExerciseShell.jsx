@@ -1,8 +1,12 @@
 // src/ExerciseShell.jsx
 import React, { useEffect, useRef, useState } from "react";
-import { X, Heart, Volume2 } from "lucide-react";
+import { X, Heart, Volume2, Sparkles, HelpCircle, Loader2 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+
+function getToken() {
+  return localStorage.getItem("access_token") || localStorage.getItem("hay_token") || "";
+}
 
 async function speakText(text) {
   try {
@@ -58,6 +62,53 @@ function HeartsBadge() {
     <div className={"flex items-center gap-1.5 font-display text-lg font-extrabold " + (shaking ? "heart-shake text-red-600" : "text-cardinal-500")}>
       <Heart className={"h-6 w-6 " + (shaking ? "fill-red-600 text-red-600" : "fill-cardinal-500 text-cardinal-500")} />
       {hearts.is_premium ? "∞" : hearts.current}
+    </div>
+  );
+}
+
+/** "Explain my mistake" — fetches a short GPT-4o explanation on demand. */
+function ExplainMistake({ exerciseId, userAnswer }) {
+  const [state, setState] = useState("idle"); // idle | loading | done | error
+  const [text, setText] = useState("");
+
+  async function ask() {
+    if (state === "loading") return;
+    setState("loading");
+    try {
+      const res = await fetch(`${API_BASE}/me/exercises/${exerciseId}/explain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ user_answer: userAnswer || "" }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      setText((data?.explanation || "").trim() || "Compare your answer with the correct one, letter by letter.");
+      setState("done");
+    } catch {
+      setText("Couldn’t load an explanation right now.");
+      setState("error");
+    }
+  }
+
+  if (state === "idle" || state === "loading") {
+    return (
+      <button
+        type="button"
+        onClick={ask}
+        disabled={state === "loading"}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-xs font-extrabold text-cardinal-600 shadow-sm ring-1 ring-cardinal-200 transition hover:bg-white disabled:opacity-60"
+      >
+        {state === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <HelpCircle className="h-3.5 w-3.5" />}
+        {state === "loading" ? "Thinking…" : "Why was this wrong?"}
+      </button>
+    );
+  }
+  return (
+    <div className="mt-2 rounded-xl bg-white/70 p-3 text-sm font-semibold leading-snug text-slate-700 shadow-sm ring-1 ring-cardinal-100">
+      <div className="mb-1 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-cardinal-500">
+        <Sparkles className="h-3.5 w-3.5" /> Explanation
+      </div>
+      {text}
     </div>
   );
 }
@@ -281,11 +332,36 @@ export default function ExerciseShell({
 
                 <div className="min-w-0 flex-1">
                   <div className={"font-display text-xl font-extrabold " + tone.title}>
-                    {tone.heading}
+                    {variant === "correct" && result.typo ? "Correct — mind the spelling" : tone.heading}
                   </div>
                   <div className="text-sm font-bold text-slate-500">
                     {variant === "correct"
-                      ? `+${Number(result.xpEarned || 0)} XP earned`
+                      ? (
+                        <>
+                          <div className="flex items-center gap-1.5">
+                            <span>{`+${Number(result.xpEarned || 0)} XP earned`}</span>
+                            {Number(result.comboBonusXp) > 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-extrabold text-brand-700">
+                                <Sparkles className="h-3 w-3" /> +{Number(result.comboBonusXp)} combo
+                              </span>
+                            ) : null}
+                          </div>
+                          {result.typo && result.correctAnswer ? (
+                            <div className="mt-1 flex items-center gap-2 text-amber-700">
+                              <span className="text-xs font-bold">Correct spelling:</span>
+                              <span className="font-display text-base font-extrabold text-slate-800">{result.correctAnswer}</span>
+                              <button
+                                type="button"
+                                onClick={() => speakText(result.correctAnswer)}
+                                className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/70 text-amber-600 shadow-sm ring-1 ring-amber-200 transition hover:bg-white"
+                                aria-label="Hear pronunciation"
+                              >
+                                <Volume2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : null}
+                        </>
+                      )
                       : variant === "skipped"
                       ? "No XP gained"
                       : (
@@ -306,6 +382,9 @@ export default function ExerciseShell({
                             </div>
                           ) : null}
                           <div>{result.detail || "You’ve got this — give it another go."}</div>
+                          {result.exerciseId ? (
+                            <ExplainMistake exerciseId={result.exerciseId} userAnswer={result.userAnswer} />
+                          ) : null}
                         </>
                       )}
                   </div>
