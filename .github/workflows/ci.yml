@@ -1,0 +1,96 @@
+name: CI
+
+# Runs on every push to main and on pull requests. This is the pre-deploy
+# gate: it does NOT touch production. Vercel/Render currently deploy
+# independently on push regardless of this workflow's result — see
+# CI_CD.md for the follow-up steps to make a passing run a hard requirement
+# before deploy.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: haylingua_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      # Fast fail: a syntax error anywhere in backend/*.py should stop the
+      # build in seconds, before spending time booting Postgres/pytest.
+      # This is exactly the class of bug (a stray smart quote) that shipped
+      # to production undetected before this workflow existed.
+      - name: Syntax check (py_compile)
+        run: python -m py_compile backend/*.py
+
+      - name: Run backend test suite
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/haylingua_test
+          EMAIL_CODE_PEPPER: ci-test-pepper-not-a-real-secret
+          JWT_SECRET_KEY: ci-test-jwt-secret-not-a-real-secret
+          CRON_SECRET: ci-test-cron-secret
+        run: pytest backend/tests -v
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  # Placeholder — becomes a real deploy gate once RENDER_DEPLOY_HOOK_URL and
+  # VERCEL_DEPLOY_HOOK_URL secrets exist and auto-deploy-on-push is turned
+  # off in the Render/Vercel dashboards. See CI_CD.md. Until then this job
+  # only reports whether the two gates above passed.
+  ci-status:
+    if: always()
+    needs: [backend-tests, frontend-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check gate results
+        run: |
+          if [ "${{ needs.backend-tests.result }}" != "success" ] || [ "${{ needs.frontend-build.result }}" != "success" ]; then
+            echo "One or more gates failed."
+            exit 1
+          fi
+          echo "All gates passed."

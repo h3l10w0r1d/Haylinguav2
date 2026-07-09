@@ -812,6 +812,30 @@ def _upsert_sr_card(db: Connection, user_id: int, exercise_id: int, lesson_id: i
         {"u": user_id, "ex": exercise_id, "l": lesson_id},
     )
 
+
+def _bump_review_streak(db: Connection, user_id: int) -> int:
+    """Increment review_streak if user hasn't reviewed today; return current value."""
+    from datetime import date as _date
+    today = _now_utc().date()
+    row = db.execute(
+        text("SELECT review_streak, last_review_date FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first()
+    if not row:
+        return 0
+    prev_date = row.get("last_review_date")
+    prev_streak = int(row.get("review_streak") or 0)
+    if prev_date == today:
+        return prev_streak  # already counted today
+    yesterday = today - timedelta(days=1)
+    new_streak = prev_streak + 1 if prev_date == yesterday else 1
+    db.execute(
+        text("UPDATE users SET review_streak=:s, last_review_date=:d WHERE id=:u"),
+        {"s": new_streak, "d": today, "u": user_id},
+    )
+    return new_streak
+
+
 # ---------- Auth schemas ----------
 
 class UserCreate(BaseModel):
@@ -2550,6 +2574,16 @@ def logout(authorization: Optional[str] = Header(default=None), db: Connection =
     return {"ok": True}
 
 
+@router.post("/auth/refresh")
+def auth_refresh(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """Return a fresh JWT for the authenticated user without bumping token_version."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing or expired token")
+    tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+    return {"access_token": create_token(user_id, tv)}
+
+
 # ── Google OAuth ──────────────────────────────────────────────────────────────
 @router.post("/auth/google")
 def auth_google(
@@ -4208,6 +4242,7 @@ def me_review_submit(
         "new_reps": new_reps,
         "due_at": due_at.isoformat(),
         "passed": quality >= 3,
+        "review_streak": _bump_review_streak(db, user_id),
     }
 
 # ----------------------------
@@ -4488,6 +4523,209 @@ def me_words_expose(
     return {"new_words": [norm_to_orig[n] for n in new_norms]}
 
 
+# ── Vocabulary word bank ──────────────────────────────────────────────────────
+
+@router.get("/me/vocabulary")
+def me_vocabulary(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    rows = db.execute(
+        text("""
+            SELECT sc.exercise_id, sc.ease_factor, sc.interval_days, sc.repetitions,
+                   sc.due_at, sc.last_reviewed_at,
+                   e.kind, e.prompt, e.expected_answer, e.config,
+                   l.title AS lesson_title, l.id AS lesson_id
+            FROM sr_cards sc
+            JOIN exercises e ON e.id = sc.exercise_id
+            JOIN lessons   l ON l.id = sc.lesson_id
+            WHERE sc.user_id = :u
+            ORDER BY sc.repetitions DESC, sc.ease_factor DESC
+        """),
+        {"u": user_id},
+    ).mappings().all()
+
+    cards = []
+    for r in rows:
+        reps = int(r["repetitions"] or 0)
+        status = "mastered" if reps > 3 else ("learning" if reps > 0 else "new")
+        cards.append({
+            "exercise_id":     int(r["exercise_id"]),
+            "lesson_id":       int(r["lesson_id"]),
+            "lesson_title":    r["lesson_title"],
+            "kind":            r["kind"],
+            "prompt":          r["prompt"],
+            "expected_answer": r["expected_answer"],
+            "config":          r["config"],
+            "repetitions":     reps,
+            "ease_factor":     round(float(r["ease_factor"] or 2.5), 2),
+            "interval_days":   int(r["interval_days"] or 0),
+            "due_at":          r["due_at"].isoformat() if r.get("due_at") else None,
+            "last_reviewed_at": r["last_reviewed_at"].isoformat() if r.get("last_reviewed_at") else None,
+            "status":          status,
+        })
+
+    return {
+        "cards":     cards,
+        "total":     len(cards),
+        "mastered":  sum(1 for c in cards if c["status"] == "mastered"),
+        "learning":  sum(1 for c in cards if c["status"] == "learning"),
+        "new_cards": sum(1 for c in cards if c["status"] == "new"),
+    }
+
+
+# ── Progress / stats history ──────────────────────────────────────────────────
+
+@router.get("/me/stats/progress")
+def me_stats_progress(
+    days: int = 30,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    days = max(7, min(90, days))
+
+    xp_rows = db.execute(
+        text("""
+            SELECT DATE(completed_at AT TIME ZONE 'UTC') AS day, SUM(xp_earned) AS xp
+            FROM lesson_progress
+            WHERE user_id = :u AND completed_at >= NOW() - INTERVAL '1 day' * :d
+            GROUP BY 1 ORDER BY 1
+        """),
+        {"u": user_id, "d": days},
+    ).mappings().all()
+
+    sr_row = db.execute(
+        text("""
+            SELECT
+                COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE repetitions > 3)            AS mastered,
+                COUNT(*) FILTER (WHERE repetitions BETWEEN 1 AND 3) AS learning,
+                COUNT(*) FILTER (WHERE repetitions = 0)            AS new_cards,
+                COUNT(*) FILTER (WHERE due_at <= NOW())             AS due_today
+            FROM sr_cards WHERE user_id = :u
+        """),
+        {"u": user_id},
+    ).mappings().first()
+
+    u_row = db.execute(
+        text("""
+            SELECT COALESCE(current_streak,0) AS lesson_streak,
+                   COALESCE(best_streak,0)    AS best_streak,
+                   COALESCE(review_streak,0)  AS review_streak,
+                   COALESCE(bonus_xp,0)       AS bonus_xp
+            FROM users WHERE id = :u
+        """),
+        {"u": user_id},
+    ).mappings().first()
+
+    lp_row = db.execute(
+        text("""
+            SELECT COALESCE(SUM(xp_earned),0) AS total_xp,
+                   COUNT(*) FILTER (WHERE completed_at IS NOT NULL) AS total_lessons
+            FROM lesson_progress WHERE user_id = :u
+        """),
+        {"u": user_id},
+    ).mappings().first()
+
+    sr = sr_row or {}
+    u  = u_row  or {}
+    lp = lp_row or {}
+
+    return {
+        "xp_by_day":     [{"date": str(r["day"]), "xp": int(r["xp"] or 0)} for r in xp_rows],
+        "lesson_streak":  int(u.get("lesson_streak") or 0),
+        "best_streak":    int(u.get("best_streak") or 0),
+        "review_streak":  int(u.get("review_streak") or 0),
+        "total_xp":       int(u.get("bonus_xp") or 0) + int(lp.get("total_xp") or 0),
+        "total_lessons":  int(lp.get("total_lessons") or 0),
+        "sr_total":       int(sr.get("total") or 0),
+        "sr_mastered":    int(sr.get("mastered") or 0),
+        "sr_learning":    int(sr.get("learning") or 0),
+        "sr_new":         int(sr.get("new_cards") or 0),
+        "sr_due_today":   int(sr.get("due_today") or 0),
+    }
+
+
+# ── Daily reminder cron ───────────────────────────────────────────────────────
+
+@router.post("/internal/cron/daily-reminder")
+def cron_daily_reminder(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """
+    Send streak-risk emails to users who haven't practiced today.
+    Protect with env var INTERNAL_CRON_SECRET. Call from a Render Cron Job:
+      curl -X POST .../internal/cron/daily-reminder
+           -H "Authorization: Bearer <INTERNAL_CRON_SECRET>"
+    """
+    secret = (os.getenv("INTERNAL_CRON_SECRET") or "").strip()
+    if not secret:
+        raise HTTPException(status_code=503, detail="Cron secret not configured")
+    provided = (authorization or "").split(" ", 1)[-1].strip()
+    if not provided or provided != secret:
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+
+    users = db.execute(
+        text("""
+            SELECT id, email, display_name, username, current_streak
+            FROM users
+            WHERE email_verified = TRUE
+              AND email_reminders_enabled = TRUE
+              AND current_streak > 0
+              AND (streak_last_activity_date IS NULL OR streak_last_activity_date < CURRENT_DATE)
+              AND (last_streak_email_at IS NULL
+                   OR DATE(last_streak_email_at AT TIME ZONE 'UTC') < CURRENT_DATE)
+            LIMIT 500
+        """),
+    ).mappings().all()
+
+    sent = 0
+    for u in users:
+        name   = u.get("display_name") or u.get("username") or "learner"
+        streak = int(u.get("current_streak") or 0)
+        subject = f"Don’t break your {streak}-day streak! \U0001f525"
+        html = f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <h2 style="color:#FF7A1A;margin-bottom:8px">Hi {name},</h2>
+  <p>Your <strong>{streak}-day streak</strong> is at risk —
+     you haven’t practiced Armenian today.</p>
+  <p>It only takes 5 minutes. Keep the momentum going!</p>
+  <a href="https://haylingua.am/dashboard"
+     style="display:inline-block;margin-top:16px;padding:12px 28px;
+            background:#FF7A1A;color:#fff;border-radius:12px;
+            font-weight:700;text-decoration:none">
+    Practice now →
+  </a>
+  <hr style="margin-top:32px;border:none;border-top:1px solid #eee">
+  <p style="font-size:12px;color:#999">
+    You’re getting this because you have streak reminders on.
+    <a href="https://haylingua.am/profile" style="color:#999">Manage preferences</a>
+  </p>
+</div>"""
+        try:
+            ok = _send_email(u["email"], subject,
+                             f"Hi {name}, your {streak}-day streak is at risk!", html)
+            if ok:
+                db.execute(
+                    text("UPDATE users SET last_streak_email_at = NOW() WHERE id = :u"),
+                    {"u": u["id"]},
+                )
+                sent += 1
+        except Exception:
+            pass
+
+    return {"sent": sent, "eligible": len(users)}
+
+
 @router.get("/me/practice")
 def me_practice(
     authorization: Optional[str] = Header(default=None),
@@ -4654,7 +4892,9 @@ def me_mistakes(
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
-    _require_verified(db, int(user_id))
+    # No email-verification gate here: the dashboard card is driven by
+    # /me/mistakes/count (ungated), so gating the full list 403s unverified
+    # users right after they click through. It's their own attempt data anyway.
 
     rows = db.execute(
         text(

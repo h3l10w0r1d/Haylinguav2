@@ -68,14 +68,20 @@ export default function PracticeMode({
     fetch(`${API_BASE}${source}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => {
+      .then(async (r) => {
         if (!r.ok) {
           if (r.status === 401) throw new Error("Session expired — please log in again");
+          const body = await r.json().catch(() => null);
+          if (r.status === 403 && body?.detail === "EMAIL_NOT_VERIFIED") {
+            setPhase("verify-email");
+            return null;
+          }
           throw new Error(`Failed to load (${r.status})`);
         }
         return r.json();
       })
       .then((data) => {
+        if (!data) return; // verify-email phase already set
         const exs = data.exercises || [];
         if (exs.length === 0) { setPhase("empty"); return; }
         setExerciseQueue(exs);
@@ -216,6 +222,22 @@ export default function PracticeMode({
       <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="font-bold text-cardinal-600">Failed to load: {error}</p>
         <button className="btn3d btn3d-brand" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  if (phase === "verify-email") {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-brand-50 text-3xl">✉️</div>
+        <h2 className="font-display text-2xl font-extrabold text-slate-700">Verify your email first</h2>
+        <p className="max-w-sm text-slate-500">
+          This feature unlocks once your email address is verified. Check your inbox for the code we sent you.
+        </p>
+        <div className="flex gap-3">
+          <button className="btn3d btn3d-neutral" onClick={() => navigate("/dashboard")}>Back</button>
+          <button className="btn3d btn3d-brand" onClick={() => navigate("/profile")}>Verify email</button>
+        </div>
       </div>
     );
   }

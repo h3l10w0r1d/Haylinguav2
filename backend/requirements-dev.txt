@@ -1,0 +1,4 @@
+# Extra dependencies for running the test suite (backend/tests/). Not
+# installed on Render — production only needs requirements.txt.
+-r requirements.txt
+pytest>=8.0
