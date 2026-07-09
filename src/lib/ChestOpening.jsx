@@ -3,7 +3,7 @@
 // glow leaking from the lid seam foreshadow the tier, and higher rarities take
 // more taps to crack open (wooden 1 → silver/golden 2 → legendary 3).
 // reward = { type: "gems" | "xp_boost", gems: number, rarity?: string, xpBoost?: bool }
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom";
 import confetti from "canvas-confetti";
 import { Gem } from "lucide-react";
@@ -228,6 +228,19 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
   const [bgPurple, setBgPurple] = useState(false);
   const [gemCount, setGemCount] = useState(0);
 
+  // Ambient rising embers in the rarity's glow color — count scales with tier.
+  const embers = useMemo(() => {
+    const n = Math.round(8 * theme.burst);
+    return Array.from({ length: n }).map((_, i) => ({
+      left: Math.round((i / n) * 100 + (Math.random() * 8 - 4)),
+      size: 3 + Math.round(Math.random() * 4),
+      sway: Math.round(Math.random() * 80 - 40),
+      dur: 6 + Math.random() * 7,
+      delay: Math.random() * 8,
+      op: 0.35 + Math.random() * 0.5,
+    }));
+  }, [theme.burst]);
+
   // Tap handler — non-final taps crack the chest; the final tap opens it.
   // Synchronous ref guards (NOT nested functional setState updaters: React
   // does not run a nested updater before the outer one returns, which
@@ -347,12 +360,57 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
         transition: "opacity 0.6s ease",
       }} />
 
-      {/* Floating bg gems */}
+      {/* Breathing aurora halo behind the chest — depth + rarity color wash */}
+      <div className="chest-aura" style={{
+        position: "absolute",
+        left: "50%", top: "50%",
+        width: 720, height: 720,
+        marginLeft: -360, marginTop: -360,
+        borderRadius: "50%",
+        background: `radial-gradient(circle, rgba(${theme.glowRgb}, ${rarity === "legendary" ? 0.30 : 0.20}) 0%, rgba(${theme.glowRgb}, 0.07) 42%, transparent 68%)`,
+        pointerEvents: "none",
+      }} />
+
+      {/* Floating bg gems — slow ambient drift */}
       {BG_GEMS.map((g, i) => (
-        <div key={i} style={{ position: "absolute", left: g.left, top: g.top, opacity: g.op, pointerEvents: "none" }}>
+        <div
+          key={i}
+          className="chest-bg-drift"
+          style={{
+            position: "absolute", left: g.left, top: g.top, opacity: g.op,
+            pointerEvents: "none",
+            animationDuration: `${5 + (i % 4) * 1.6}s`,
+            animationDelay: `${(i % 5) * 0.9}s`,
+          }}
+        >
           <Gem style={{ width: g.size, height: g.size, color: "white" }} />
         </div>
       ))}
+
+      {/* Rising embers in the rarity's glow color */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }} aria-hidden="true">
+        {embers.map((e, i) => (
+          <span
+            key={i}
+            className="chest-ember"
+            style={{
+              position: "absolute",
+              bottom: -12,
+              left: `${e.left}%`,
+              width: e.size,
+              height: e.size,
+              borderRadius: "50%",
+              background: theme.glow,
+              boxShadow: `0 0 ${e.size * 2}px rgba(${theme.glowRgb}, 0.8)`,
+              opacity: 0,
+              "--ember-sway": `${e.sway}px`,
+              "--ember-op": e.op,
+              animationDuration: `${e.dur}s`,
+              animationDelay: `${e.delay}s`,
+            }}
+          />
+        ))}
+      </div>
 
       {/* ── Chest stage — tap to crack/open ── */}
       <div
