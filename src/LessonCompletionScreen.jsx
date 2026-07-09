@@ -66,21 +66,26 @@ function RevealRow({ show, children }) {
  * All values are fetched live; nothing is faked.
  */
 function RewardReveal({ xp, comboBonusXp = 0 }) {
-  const [d, setD] = useState({ streak: null, quests: null, league: null, wallet: null, loaded: false });
+  const [d, setD] = useState({ streak: null, quests: null, league: null, wallet: null, stats: null, loaded: false });
   const [stage, setStage] = useState(0);
   const xpCount = useCountUp(xp);
+
+  const dailyGoal = useMemo(() => {
+    const saved = parseInt(localStorage.getItem("hay_daily_goal") || "20", 10);
+    return Number.isFinite(saved) && saved > 0 ? saved : 20;
+  }, []);
 
   useEffect(() => {
     const h = { Authorization: `Bearer ${rsToken()}` };
     const get = (p) => fetch(`${RS_API_BASE}${p}`, { headers: h }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    Promise.all([get("/me/streak"), get("/me/quests"), get("/me/league"), get("/me/wallet")])
-      .then(([streak, quests, league, wallet]) => setD({ streak, quests, league, wallet, loaded: true }));
+    Promise.all([get("/me/streak"), get("/me/quests"), get("/me/league"), get("/me/wallet"), get("/me/stats")])
+      .then(([streak, quests, league, wallet, stats]) => setD({ streak, quests, league, wallet, stats, loaded: true }));
   }, []);
 
   // Reveal each row on a stagger once data is in.
   useEffect(() => {
     if (!d.loaded) return;
-    const timers = [1, 2, 3, 4].map((s, i) => setTimeout(() => setStage((v) => Math.max(v, s)), 320 * (i + 1)));
+    const timers = [1, 2, 3, 4, 5].map((s, i) => setTimeout(() => setStage((v) => Math.max(v, s)), 320 * (i + 1)));
     return () => timers.forEach(clearTimeout);
   }, [d.loaded]);
 
@@ -98,6 +103,11 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
   const leagueRank = self?.rank;
 
   const chests = Number(d.wallet?.chests ?? 0);
+
+  const todayXp = Number(d.stats?.today_xp ?? 0);
+  const goalPct = Math.min(100, Math.round((todayXp / Math.max(1, dailyGoal)) * 100));
+  const goalMet = todayXp >= dailyGoal;
+  const goalLeft = Math.max(0, dailyGoal - todayXp);
 
   return (
     <div className="mx-auto mt-6 max-w-md divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white text-left ring-1 ring-slate-200 shadow-sm">
@@ -117,9 +127,29 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
         ) : null}
       </RevealRow>
 
+      {/* Daily goal nudge */}
+      {d.stats ? (
+        <RevealRow show={stage >= 1}>
+          <div className={"grid h-10 w-10 place-items-center rounded-xl " + (goalMet ? "bg-grass-50 text-grass-600" : "bg-feather-50 text-feather-600")}>
+            <Target className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-display text-sm font-extrabold text-slate-800">
+                {goalMet ? "Daily goal reached! 🎉" : `${goalLeft} XP to your daily goal`}
+              </span>
+              <span className="shrink-0 text-xs font-bold text-slate-400">{todayXp}/{dailyGoal}</span>
+            </div>
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div className={"h-2 rounded-full transition-all duration-700 " + (goalMet ? "bg-grass-500" : "bg-feather-500")} style={{ width: `${Math.max(goalPct, 3)}%` }} />
+            </div>
+          </div>
+        </RevealRow>
+      ) : null}
+
       {/* Streak */}
       {d.streak ? (
-        <RevealRow show={stage >= 1}>
+        <RevealRow show={stage >= 2}>
           <div className={"grid h-10 w-10 place-items-center rounded-xl " + (streakN > 0 ? "bg-brand-50 text-brand-500" : "bg-slate-100 text-slate-400")}>
             <Flame className={"h-5 w-5 " + (streakN > 0 ? "fill-brand-400" : "")} />
           </div>
@@ -139,7 +169,7 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
 
       {/* Daily quests progress */}
       {activeQuests.length ? (
-        <RevealRow show={stage >= 2}>
+        <RevealRow show={stage >= 3}>
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-feather-50 text-feather-600">
             <Target className="h-5 w-5" />
           </div>
@@ -168,7 +198,7 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
 
       {/* League standing */}
       {self && leagueTier ? (
-        <RevealRow show={stage >= 3}>
+        <RevealRow show={stage >= 4}>
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-100 text-gold-600">
             <Trophy className="h-5 w-5" />
           </div>
@@ -184,7 +214,7 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
 
       {/* Chest */}
       {chests > 0 ? (
-        <RevealRow show={stage >= 4}>
+        <RevealRow show={stage >= 5}>
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-cardinal-50 text-cardinal-500">
             <Gift className="h-5 w-5" />
           </div>
