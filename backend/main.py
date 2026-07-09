@@ -40,7 +40,7 @@ if _SENTRY_DSN:
         print(f"[sentry] init skipped: {e}")
 
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
 def _uploads_dir() -> str:
