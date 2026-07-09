@@ -35,12 +35,54 @@ from fastapi.testclient import TestClient
 def db_engine():
     """Bootstrap the full schema once per test session: base ORM tables via
     models.py, then every incremental migration in ensure_schema() — the
-    exact same two-step bootstrap used to verify the CAST() fix by hand."""
+    exact same two-step bootstrap used to verify the CAST() fix by hand.
+
+    ensure_schema() assumes a few legacy tables (predating its own
+    ensure_table() coverage, or never covered by it at all — e.g.
+    user_exercise_attempts) already exist in production. A truly fresh
+    database needs them created first or ensure_schema()/the app aborts
+    with "relation does not exist"."""
     from database import Base, engine
     import models  # noqa: F401 — registers ORM tables on Base.metadata
     from ensure_schema import ensure_schema
 
     Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS cms_users (
+                    id SERIAL PRIMARY KEY,
+                    email TEXT UNIQUE NOT NULL,
+                    role TEXT,
+                    status TEXT,
+                    password_hash TEXT,
+                    totp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                    totp_secret TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    last_login_at TIMESTAMPTZ
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS user_exercise_attempts (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    lesson_id INTEGER NOT NULL,
+                    exercise_id INTEGER NOT NULL,
+                    attempt_no INTEGER NOT NULL DEFAULT 1,
+                    is_correct BOOLEAN NOT NULL,
+                    answer_text TEXT,
+                    selected_indices JSONB,
+                    time_ms INTEGER,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+        )
     ensure_schema()
     return engine
 
@@ -59,7 +101,13 @@ def client(app):
 
 @pytest.fixture()
 def db_conn(db_engine):
-    with db_engine.begin() as conn:
+    """Autocommit connection — each statement is immediately visible to the
+    SEPARATE connection FastAPI opens per request (via Depends(get_db)).
+    A single held-open transaction here would hide inserts (e.g. make_user's)
+    from the real request until this fixture's transaction eventually
+    committed at teardown, well after the test's assertions already ran."""
+    with db_engine.connect() as conn:
+        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
         yield conn
 
 
