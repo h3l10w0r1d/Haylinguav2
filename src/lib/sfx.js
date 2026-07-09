@@ -45,6 +45,75 @@ function playTone(frequency, type, duration, gain = 0.18, when = 0) {
   }
 }
 
+// Oscillator with a frequency glide — sub-bass drops ("booms") and risers.
+function playSweep(f0, f1, type, duration, gain = 0.2, when = 0) {
+  try {
+    const ctx = getContext();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + when;
+    const osc = ctx.createOscillator();
+    const vol = ctx.createGain();
+    osc.connect(vol);
+    vol.connect(ctx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(Math.max(1, f0), t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t0 + duration);
+    vol.gain.setValueAtTime(0.0001, t0);
+    vol.gain.exponentialRampToValueAtTime(gain, t0 + 0.015);
+    vol.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.02);
+  } catch {
+    // ignore
+  }
+}
+
+// Shared 1s white-noise buffer, built lazily once.
+let _noiseBuf = null;
+function getNoiseBuffer(ctx) {
+  if (_noiseBuf && _noiseBuf.sampleRate === ctx.sampleRate) return _noiseBuf;
+  const len = ctx.sampleRate;
+  _noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = _noiseBuf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  return _noiseBuf;
+}
+
+// Filtered noise burst — crashes (lowpass falling), risers (bandpass rising),
+// bright splashes (highpass). fType: "lowpass" | "highpass" | "bandpass".
+function playNoise(duration, gain = 0.2, when = 0, fType = "lowpass", fFrom = 4000, fTo = 400) {
+  try {
+    const ctx = getContext();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + when;
+    const src = ctx.createBufferSource();
+    src.buffer = getNoiseBuffer(ctx);
+    src.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = fType;
+    filter.frequency.setValueAtTime(Math.max(10, fFrom), t0);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(10, fTo), t0 + duration);
+    filter.Q.value = fType === "bandpass" ? 1.2 : 0.7;
+    const vol = ctx.createGain();
+    src.connect(filter);
+    filter.connect(vol);
+    vol.connect(ctx.destination);
+    vol.gain.setValueAtTime(0.0001, t0);
+    vol.gain.exponentialRampToValueAtTime(gain, t0 + 0.02);
+    vol.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    src.start(t0);
+    src.stop(t0 + duration + 0.02);
+  } catch {
+    // ignore
+  }
+}
+
+// Two slightly-detuned voices per note — instantly fuller than a bare sine.
+function playRichTone(frequency, type, duration, gain, when) {
+  playTone(frequency, type, duration, gain * 0.6, when);
+  playTone(frequency * 1.004, type, duration, gain * 0.45, when);
+}
+
 export const sfx = {
   // Bright, rising two-note chime.
   correct() {
@@ -60,29 +129,61 @@ export const sfx = {
   complete() {
     [523, 659, 784, 1047].forEach((f, i) => playTone(f, "sine", 0.26, 0.2, i * 0.09));
   },
-  // Low rumble during chest shake phase.
-  chestRumble() {
-    playTone(55, "sawtooth", 0.12, 0.28, 0);
-    playTone(73, "sawtooth", 0.08, 0.12, 0.28);
-    playTone(55, "sawtooth", 0.07, 0.10, 0.52);
-    playTone(65, "sawtooth", 0.06, 0.08, 0.72);
+  // Cinematic riser during the final shake (930ms): swelling noise sweep +
+  // climbing tone over a pulsing low rumble. intensity 1..3 scales the drama.
+  chestRumble(intensity = 1) {
+    const k = Math.min(3, Math.max(1, intensity));
+    // Swelling riser — noise sweeping up through a bandpass
+    playNoise(0.85, 0.10 + 0.05 * k, 0, "bandpass", 220, 2600);
+    // Climbing tension tone underneath
+    playSweep(70, 200 + 40 * k, "sawtooth", 0.85, 0.07 + 0.03 * k, 0);
+    // Pulsing ground rumble
+    playTone(55, "sawtooth", 0.14, 0.26, 0);
+    playTone(62, "sawtooth", 0.12, 0.18, 0.24);
+    playTone(55, "sawtooth", 0.10, 0.14, 0.48);
+    playTone(70, "sawtooth", 0.10, 0.12, 0.68);
   },
   // Escalating knock/crack per tap while prying a rarity chest open (level 1..3).
   chestCrack(level = 1) {
     playTone(120 + level * 40, "square", 0.05, 0.22, 0);
     playTone(80 + level * 30, "triangle", 0.09, 0.18, 0.03);
+    // Splintering — short bright noise snap that grows with each tap
+    playNoise(0.09 + level * 0.02, 0.10 + level * 0.04, 0, "highpass", 2500, 1200);
   },
-  // Sharp crack + magical rising sparkle when lid flies open.
-  chestOpen() {
-    playTone(260, "square", 0.06, 0.20, 0);
-    playTone(310, "square", 0.04, 0.10, 0.06);
+  // The lid blows off: sub-bass BOOM + explosion crash + bright shatter,
+  // then a detuned ascending arpeggio. intensity 1..3 scales the impact.
+  chestOpen(intensity = 1) {
+    const k = Math.min(3, Math.max(1, intensity));
+    // Sub-bass drop — the cinematic body of the impact
+    playSweep(160, 38, "sine", 0.55, 0.30 + 0.08 * k, 0);
+    if (k >= 2) playSweep(90, 30, "sine", 0.7, 0.22, 0.03); // extra floor for golden+
+    // Explosion crash — noise falling through a lowpass
+    playNoise(0.6 + 0.12 * k, 0.16 + 0.06 * k, 0, "lowpass", 6500, 320);
+    // Bright shatter on top
+    playNoise(0.28, 0.10 + 0.04 * k, 0.02, "highpass", 2800, 5200);
+    // Magical ascending arpeggio, detuned pairs for richness
     [392, 523, 659, 784, 1047, 1319].forEach((f, i) =>
-      playTone(f, "sine", 0.22, 0.19, 0.12 + i * 0.07)
+      playRichTone(f, "sine", 0.24, 0.20, 0.14 + i * 0.065)
     );
+    if (k >= 3) playRichTone(1568, "sine", 0.3, 0.2, 0.14 + 6 * 0.065); // legendary reaches higher
   },
-  // Bright fanfare when the gem reward is revealed.
-  gemReveal() {
-    [523, 659, 784, 1047].forEach((f, i) => playTone(f, "sine", 0.28, 0.22, i * 0.09));
-    playTone(1319, "sine", 0.35, 0.28, 0.42);
+  // Grand fanfare when the reward is revealed — layered major-chord stack
+  // with trailing sparkles. intensity 1..3 widens and lengthens it.
+  gemReveal(intensity = 1) {
+    const k = Math.min(3, Math.max(1, intensity));
+    // Chord stack C-E-G-C, sine + soft triangle layer, staggered entries
+    [523, 659, 784, 1047].forEach((f, i) => {
+      playRichTone(f, "sine", 0.34 + 0.06 * k, 0.20, i * 0.085);
+      playTone(f / 2, "triangle", 0.4, 0.06, i * 0.085); // warm lower octave
+    });
+    // Trailing sparkles
+    playTone(1319, "sine", 0.35, 0.24, 0.40);
+    playTone(1568, "sine", 0.3, 0.14, 0.52);
+    if (k >= 2) playTone(2093, "sine", 0.32, 0.12, 0.62);
+    // Legendary: held top note + one last deep swell underneath
+    if (k >= 3) {
+      playRichTone(1047, "sine", 0.8, 0.16, 0.7);
+      playSweep(65, 130, "sine", 0.8, 0.10, 0.55);
+    }
   },
 };

@@ -265,7 +265,7 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
     if (t >= theme.taps) {
       openingRef.current = true;
       setPhase("shake");
-      try { sfx.chestRumble(); } catch {}
+      try { sfx.chestRumble(theme.burst); } catch {}
     } else {
       setPhase("crack");
       try { sfx.chestCrack?.(t); } catch {}
@@ -283,7 +283,7 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
   // would cancel its own pending steps on the phase flip it causes.
   useEffect(() => {
     if (phase !== "shake") return;
-    const t = setTimeout(() => { setPhase("open"); setLidOpen(true); try { sfx.chestOpen(); } catch {} }, 930);
+    const t = setTimeout(() => { setPhase("open"); setLidOpen(true); try { sfx.chestOpen(theme.burst); } catch {} }, 930);
     return () => clearTimeout(t);
   }, [phase]);
 
@@ -302,7 +302,7 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
     const t = setTimeout(() => {
       setRewardIn(true);
       if (rewardType === "xp_boost") setBgPurple(true);
-      try { sfx.gemReveal(); } catch {}
+      try { sfx.gemReveal(theme.burst); } catch {}
     }, 30);
     return () => clearTimeout(t);
   }, [phase, rewardType]);
