@@ -619,6 +619,7 @@ class AttemptOut(BaseModel):
     typo: bool = False                     # near-miss forgiven as correct
     correct_answer: Optional[str] = None   # intended answer (typo/wrong)
     combo_bonus_xp: int = 0                # bonus XP awarded for this combo
+    chest_earned: bool = False             # a chest was granted (first completion)
 
 
 class LogIn(BaseModel):
@@ -3674,7 +3675,8 @@ def record_exercise_attempt(
 
     # Reward a chest the FIRST time a lesson is completed (not on replays), so
     # the gem economy can't be farmed by re-doing the same lesson.
-    if bool(progress.get("completed")) and not was_completed:
+    chest_earned = bool(progress.get("completed")) and not was_completed
+    if chest_earned:
         db.execute(text("UPDATE users SET chests = COALESCE(chests, 0) + 1 WHERE id = :u"), {"u": user_id})
 
     # Hearts: lose one on a wrong answer (with regen applied first); premium
@@ -3700,6 +3702,7 @@ def record_exercise_attempt(
         typo=typo,
         correct_answer=correct_answer_hint,
         combo_bonus_xp=int(combo_bonus_xp),
+        chest_earned=chest_earned,
         )
 
 
@@ -5337,8 +5340,59 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     w = _wallet(db, user_id)
+
+    # Per-user state so the FE can show owned/active/maxed instead of a buy
+    # button that would only fail server-side after tapping.
+    u = db.execute(
+        text("""
+            SELECT COALESCE(streak_freezes, 0)          AS freezes,
+                   COALESCE(heart_shield_active, FALSE) AS heart_shield_active,
+                   COALESCE(xp_multiplier_active, FALSE) AS xp_multiplier_active,
+                   COALESCE(owned_frames, '[]'::jsonb)  AS owned_frames,
+                   COALESCE(owned_themes, '[]'::jsonb)  AS owned_themes,
+                   COALESCE(is_premium, FALSE)          AS is_premium
+            FROM users WHERE id = :u
+        """),
+        {"u": user_id},
+    ).mappings().first() or {}
+    owned_frames = u.get("owned_frames") or []
+    owned_themes = u.get("owned_themes") or []
+    if isinstance(owned_frames, str):
+        try: owned_frames = json.loads(owned_frames)
+        except Exception: owned_frames = []
+    if isinstance(owned_themes, str):
+        try: owned_themes = json.loads(owned_themes)
+        except Exception: owned_themes = []
+    hs = _hearts_state(db, user_id)
+
+    def _status(it) -> str:
+        eff = it.get("effect")
+        if eff == "avatar_frame":
+            return "owned" if str(it["id"]) in owned_frames else "available"
+        if eff == "profile_theme":
+            return "owned" if str(it["id"]) in owned_themes else "available"
+        if eff == "heart_shield":
+            return "active" if u.get("heart_shield_active") else "available"
+        if eff == "xp_multiplier":
+            return "active" if u.get("xp_multiplier_active") else "available"
+        if eff == "streak_freeze":
+            return "maxed" if int(u.get("freezes") or 0) >= STREAK_FREEZE_CAP else "available"
+        if eff == "hearts_refill":
+            if u.get("is_premium"):
+                return "not_needed"
+            if int(hs.get("hearts_current") or 0) >= int(hs.get("hearts_max") or 0):
+                return "full"
+            return "available"
+        return "available"
+
     items = [
-        {"id": it["id"], "title": it["title"], "desc": it["desc"], "icon": it["icon"], "price": it["price"], "affordable": w["gems"] >= it["price"]}
+        {
+            "id": it["id"], "title": it["title"], "desc": it["desc"],
+            "icon": it["icon"], "price": it["price"],
+            "effect": it.get("effect"),
+            "affordable": w["gems"] >= it["price"],
+            "status": _status(it),
+        }
         for it in _load_shop_items(db)
     ]
     return {"gems": w["gems"], "items": items}

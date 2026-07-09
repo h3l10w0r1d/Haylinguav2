@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Illustration from "./lib/Illustration";
+import ChestOpening from "./lib/ChestOpening";
 
 const RS_API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function rsToken() {
@@ -70,6 +71,36 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
   const [stage, setStage] = useState(0);
   const xpCount = useCountUp(xp);
 
+  // Inline chest opening — the earn moment and the open moment belong together.
+  const [chestsLeft, setChestsLeft] = useState(null); // null until wallet loads
+  const [openingChest, setOpeningChest] = useState(false);
+  const [chestReward, setChestReward] = useState(null); // {type, gems} → full-screen reveal
+  const [chestErr, setChestErr] = useState(false);
+
+  async function openChest() {
+    if (openingChest) return;
+    setOpeningChest(true);
+    setChestErr(false);
+    try {
+      const r = await fetch(`${RS_API_BASE}/me/chests/open`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${rsToken()}` },
+      });
+      const data = await r.json().catch(() => null);
+      if (r.ok && data) {
+        setChestsLeft(Number(data.chests || 0));
+        window.dispatchEvent(new CustomEvent("hay_wallet", { detail: { gems: data.gems } }));
+        setChestReward({ type: data.reward_type || "gems", gems: Number(data.reward_gems || 0) });
+      } else {
+        setChestErr(true);
+      }
+    } catch {
+      setChestErr(true);
+    } finally {
+      setOpeningChest(false);
+    }
+  }
+
   const dailyGoal = useMemo(() => {
     const saved = parseInt(localStorage.getItem("hay_daily_goal") || "20", 10);
     return Number.isFinite(saved) && saved > 0 ? saved : 20;
@@ -102,7 +133,7 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
   const leagueTier = d.league?.tier;
   const leagueRank = self?.rank;
 
-  const chests = Number(d.wallet?.chests ?? 0);
+  const chests = chestsLeft != null ? chestsLeft : Number(d.wallet?.chests ?? 0);
 
   const todayXp = Number(d.stats?.today_xp ?? 0);
   const goalPct = Math.min(100, Math.round((todayXp / Math.max(1, dailyGoal)) * 100));
@@ -212,18 +243,33 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
         </RevealRow>
       ) : null}
 
-      {/* Chest */}
+      {/* Chest — openable right here, at the peak of the celebration */}
       {chests > 0 ? (
         <RevealRow show={stage >= 5}>
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-cardinal-50 text-cardinal-500">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-50 text-gold-600">
             <Gift className="h-5 w-5" />
           </div>
-          <div className="flex-1">
-            <div className="font-display text-lg font-extrabold leading-none text-slate-800">{chests} chest{chests === 1 ? "" : "s"} to open</div>
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Open them in the shop</div>
+          <div className="min-w-0 flex-1">
+            <div className="font-display text-lg font-extrabold leading-none text-slate-800">
+              {chests} chest{chests === 1 ? "" : "s"} to open
+            </div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              {chestErr ? "Couldn't open — try again" : "Gems or an XP boost inside"}
+            </div>
           </div>
+          <button
+            onClick={openChest}
+            disabled={openingChest}
+            className="shrink-0 rounded-xl bg-gold-500 px-4 py-2 font-display text-xs font-extrabold uppercase text-white shadow-[0_3px_0_0_#B45309] transition active:translate-y-0.5 disabled:opacity-60"
+          >
+            {openingChest ? "…" : "Open now"}
+          </button>
         </RevealRow>
       ) : null}
+
+      {chestReward != null && (
+        <ChestOpening reward={chestReward} onClose={() => setChestReward(null)} />
+      )}
     </div>
   );
 }

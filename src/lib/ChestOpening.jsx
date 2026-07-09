@@ -135,28 +135,61 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
   const rewardType = reward?.type || "gems";
   const rewardGems = Number(reward?.gems ?? reward ?? 0);
 
-  // phases: intro → shake → open → reveal
+  // phases: intro (waits for tap) → shake → open → reveal
   const [phase, setPhase]           = useState("intro");
   const [lidOpen, setLidOpen]       = useState(false);
   const [rewardIn, setRewardIn]     = useState(false);
   const [bgPurple, setBgPurple]     = useState(false);
   const [gemCount, setGemCount]     = useState(0);
 
-  useEffect(() => {
-    // Tiny delay before shake so the chest pop-in finishes
-    const tShake  = setTimeout(() => { setPhase("shake"); try { sfx.chestRumble(); } catch {} }, 120);
-    const tOpen   = setTimeout(() => { setPhase("open");  setLidOpen(true); try { sfx.chestOpen(); } catch {} }, 1050);
-    const tReveal = setTimeout(() => {
-      setPhase("reveal");
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        setRewardIn(true);
-        if (rewardType === "xp_boost") setBgPurple(true);
-        try { sfx.gemReveal(); } catch {}
-      }));
-    }, 1900);
+  // The reveal is user-triggered: anticipation peaks on the tap, not on a
+  // timer. The chest idles with a pulse + "Tap to open!" until clicked.
+  const startOpen = () => {
+    setPhase((cur) => {
+      if (cur !== "intro") return cur; // ignore double taps
+      try { sfx.chestRumble(); } catch {}
+      return "shake";
+    });
+  };
 
-    return () => { clearTimeout(tShake); clearTimeout(tOpen); clearTimeout(tReveal); };
-  }, [rewardType]);
+  // One timer per phase, chained — a single effect owning both timers would
+  // cancel the pending reveal in its own cleanup when the phase flips to
+  // "open" (the effect re-runs on the phase change it caused).
+  useEffect(() => {
+    if (phase !== "shake") return;
+    const t = setTimeout(() => { setPhase("open"); setLidOpen(true); try { sfx.chestOpen(); } catch {} }, 930);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "open") return;
+    const t = setTimeout(() => setPhase("reveal"), 850);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  // Separate tick so the reveal DOM mounts before the "in" transition class.
+  // setTimeout (not rAF): rAF is throttled to zero in hidden/occluded tabs,
+  // which would leave the reveal hanging forever.
+  useEffect(() => {
+    if (phase !== "reveal") return;
+    const t = setTimeout(() => {
+      setRewardIn(true);
+      if (rewardType === "xp_boost") setBgPurple(true);
+      try { sfx.gemReveal(); } catch {}
+    }, 30);
+    return () => clearTimeout(t);
+  }, [phase, rewardType]);
+
+  // Reduced motion: skip the theater, reveal immediately on tap.
+  useEffect(() => {
+    if (phase !== "shake") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setPhase("reveal");
+      setLidOpen(true);
+      setRewardIn(true);
+      if (rewardType === "xp_boost") setBgPurple(true);
+    }
+  }, [phase, rewardType]);
 
   // Gem counter ticks up after reward slides in
   useEffect(() => {
@@ -229,15 +262,20 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
         </div>
       ))}
 
-      {/* ── Chest stage ── */}
-      <div style={{
-        position: "absolute", inset: 0,
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        opacity: isChestHidden ? 0 : 1,
-        transition: "opacity 0.3s ease",
-        pointerEvents: isChestHidden ? "none" : "auto",
-      }}>
+      {/* ── Chest stage — tap anywhere to open ── */}
+      <div
+        onClick={startOpen}
+        role={phase === "intro" ? "button" : undefined}
+        aria-label={phase === "intro" ? "Open chest" : undefined}
+        style={{
+          position: "absolute", inset: 0,
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          opacity: isChestHidden ? 0 : 1,
+          transition: "opacity 0.3s ease",
+          pointerEvents: isChestHidden ? "none" : "auto",
+          cursor: phase === "intro" ? "pointer" : "default",
+        }}>
         {/* Sun rays */}
         {isOpened && (
           <div className="chest-rays-spin" style={{
@@ -257,16 +295,16 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
           </div>
         )}
 
-        {/* Chest wrapper — shake/jump applied here */}
+        {/* Chest wrapper — shake/jump applied here; idle bob while waiting for tap */}
         <div
           className={
             phase === "shake" ? "chest-shake" :
-            isOpened         ? "chest-jump"  : "chest-pop"
+            isOpened         ? "chest-jump"  : "chest-pop chest-idle"
           }
           style={{ position: "relative", width: 240, height: 200 }}
         >
-          {/* Glow ring during shake (anticipation) */}
-          {phase === "shake" && (
+          {/* Glow ring during idle + shake (anticipation / invitation) */}
+          {(phase === "intro" || phase === "shake") && (
             <div className="chest-glow" style={{
               position: "absolute",
               top: 10, left: 10, right: 10, bottom: 10,
@@ -343,13 +381,13 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
         </div>
 
         {/* Status label */}
-        <p style={{
-          marginTop: 28, color: "rgba(255,255,255,0.85)",
-          fontWeight: 800, fontSize: 16,
+        <p className={phase === "intro" ? "chest-tap-hint" : ""} style={{
+          marginTop: 28, color: "rgba(255,255,255,0.92)",
+          fontWeight: 800, fontSize: phase === "intro" ? 19 : 16,
           letterSpacing: "0.08em", textTransform: "uppercase",
-          minHeight: 22,
+          minHeight: 26,
         }}>
-          {phase === "shake" ? "Opening…" : ""}
+          {phase === "intro" ? "Tap to open!" : phase === "shake" ? "Opening…" : ""}
         </p>
       </div>
 

@@ -289,9 +289,22 @@
 .chest-sparkle { animation: sparklePop 2.4s ease-in-out infinite; }
 .reward-pop    { animation: rewardPop 0.55s cubic-bezier(0.34,1.56,0.5,1) both; }
 .chest-glow    { animation: chestGlow 0.9s ease-in-out infinite; }
+
+/* Idle bob + tap hint while the chest waits to be opened */
+@keyframes chestIdleBob {
+  0%, 100% { transform: translateY(0) rotate(-0.6deg); }
+  50%       { transform: translateY(-9px) rotate(0.6deg); }
+}
+.chest-idle { animation: chestPopIn .45s cubic-bezier(.2,.8,.2,1) both, chestIdleBob 1.6s ease-in-out .45s infinite; }
+@keyframes tapHintPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.65; transform: scale(0.96); }
+}
+.chest-tap-hint { animation: tapHintPulse 1.3s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .chest-shake, .chest-jump, .chest-rays-spin, .chest-rays-burst,
-  .chest-sparkle, .reward-pop, .chest-glow { animation: none; }
+  .chest-sparkle, .reward-pop, .chest-glow, .chest-idle, .chest-tap-hint { animation: none; }
 }
 
 /* ----- Answer flash overlay (green = correct, red = wrong) ----- */
