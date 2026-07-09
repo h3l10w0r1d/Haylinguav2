@@ -2385,6 +2385,9 @@ export default function ExerciseRenderer({
       hearts:
         Number.isFinite(attempt?.hearts_current) ? attempt.hearts_current : undefined,
       autoAdvance: payload?.autoAdvance === true,
+      // Flag that the attempt was already posted to the server by handleAnswer,
+      // so the parent (e.g. gradeAndAdvance in PracticeMode) can skip re-posting.
+      _synced: attempt != null,
     };
 
     onAnswer?.(resultPayload);

@@ -94,8 +94,8 @@ export default function PracticeMode() {
   const completedSteps = originalTotal - exerciseQueue.length;
   const instruction = currentExercise ? (INSTRUCTIONS[currentExercise.kind] ?? null) : null;
 
-  async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices }) {
-    if (hasAnswered) return; // guard against double-fire from onCorrect + submit
+  async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices, _synced }) {
+    if (hasAnswered) return; // guard against double-fire
     // char_intro and similar always-correct exercises — skip result sheet and API call
     if (autoAdvance) {
       setExerciseQueue((q) => {
@@ -111,7 +111,8 @@ export default function PracticeMode() {
 
     const token = getToken();
     let serverCorrect = isCorrect;
-    if (currentExercise && token) {
+    // Skip re-posting if ExerciseRenderer's handleAnswer already synced this attempt.
+    if (!_synced && currentExercise && token) {
       try {
         const res = await fetch(`${API_BASE}/me/exercises/${currentExercise.id}/attempt`, {
           method: "POST",
@@ -260,8 +261,8 @@ export default function PracticeMode() {
             pendingNextRef.current = { type: "advance" };
             setHasAnswered(true);
           }}
-          submit={({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices } = {}) =>
-            gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices })
+          onAnswer={({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices, _synced } = {}) =>
+            gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance, selectedIndices, _synced })
           }
           graded={hasAnswered}
         />
