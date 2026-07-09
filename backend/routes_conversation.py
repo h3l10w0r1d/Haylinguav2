@@ -43,17 +43,15 @@ ELEVEN_API_KEY = (
     or ""
 )
 ELEVEN_API_URL = "https://api.elevenlabs.io/v1"
-ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_turbo_v2_5")
+# eleven_multilingual_v2 is ElevenLabs' highest-quality model with native Armenian support.
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_multilingual_v2")
 ELEVEN_STT_MODEL = os.getenv("ELEVEN_STT_MODEL", "scribe_v1")
 
 # Voice for Aram (male). Falls back to ELEVEN_MALE_VOICE env var or default.
 ARAM_VOICE_ID = os.getenv("ELEVEN_VOICE_ID", os.getenv("ELEVEN_MALE_VOICE", "pNInz6obpgDQGcFmaJgB"))
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
-
-# Hardcoded SadTalker version (lucataco/sadtalker on Replicate).
-SADTALKER_VERSION = "85c698db7c0a66d5011435d0191db323034e1da0"
 
 # Portrait image URL used as SadTalker source_image (must be publicly reachable).
 # In production: https://haylingua.am/characters/aram.png
@@ -323,10 +321,10 @@ async def conversation_turn(
     # ------------------------------------------------------------------ #
     # 0. Validate
     # ------------------------------------------------------------------ #
-    if not ANTHROPIC_API_KEY:
+    if not OPENAI_API_KEY:
         raise HTTPException(
             status_code=503,
-            detail="AI conversation is not available: ANTHROPIC_API_KEY is not configured.",
+            detail="AI conversation is not available: OPENAI_API_KEY is not configured.",
         )
 
     scenario = _SCENARIO_MAP.get(body.scenario_id, SCENARIOS[0])
@@ -411,31 +409,33 @@ FORMAT — output exactly these three lines, nothing else:
         # First turn — nudge Aram to open the conversation
         messages_for_claude.append({"role": "user", "content": "Բարև"})
 
+    # Build OpenAI messages (system + history)
+    openai_messages = [{"role": "system", "content": system_prompt}] + messages_for_claude
+
     try:
-        claude_resp = await _http.post(
-            "https://api.anthropic.com/v1/messages",
+        gpt_resp = await _http.post(
+            "https://api.openai.com/v1/chat/completions",
             headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json",
             },
             json={
-                "model": "claude-haiku-4-5-20251001",
+                "model": "gpt-4o",
                 "max_tokens": 256,
-                "system": system_prompt,
-                "messages": messages_for_claude,
+                "temperature": 0.7,
+                "messages": openai_messages,
             },
             timeout=30,
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Claude request failed: {exc}")
+        raise HTTPException(status_code=502, detail=f"OpenAI request failed: {exc}")
 
-    if claude_resp.status_code != 200:
-        body_text = (claude_resp.text or "")[:400]
-        raise HTTPException(status_code=claude_resp.status_code, detail=f"Claude error: {body_text}")
+    if gpt_resp.status_code != 200:
+        body_text = (gpt_resp.text or "")[:400]
+        raise HTTPException(status_code=gpt_resp.status_code, detail=f"OpenAI error: {body_text}")
 
-    claude_data = claude_resp.json()
-    full_response = (claude_data.get("content") or [{}])[0].get("text", "")
+    gpt_data = gpt_resp.json()
+    full_response = (gpt_data.get("choices") or [{}])[0].get("message", {}).get("content", "")
     armenian_text, english_translation, corrections = _parse_claude_response(full_response)
 
     # Guard: if the extracted text doesn't look Armenian, the model drifted languages.
