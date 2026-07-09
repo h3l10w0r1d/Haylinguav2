@@ -253,7 +253,7 @@ def _email_shell(preheader: str, cards_html: str) -> str:
     """Shared outer wrapper for all Haylingua system emails (card-stack style)."""
     year = datetime.utcnow().year
     pre = (
-        f’<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{preheader}</div>’
+        f'<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{preheader}</div>'
         if preheader else ""
     )
     return f"""<!doctype html>
@@ -329,7 +329,7 @@ def _render_verification_email_html(name: str, code: str) -> str:
         <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:10px;color:#fff;">{code}</div>
       </div>
       <p style="margin:18px 0 0;font-size:13px;color:#888;line-height:20px;">
-        If you didn’t request this, you can safely ignore this email. Your account won’t be affected.
+        If you didn't request this, you can safely ignore this email. Your account won't be affected.
       </p>
     </div>
   </div>"""
@@ -363,7 +363,7 @@ def _render_email_change_html(name: str, code: str, new_email: str) -> str:
         <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:36px;font-weight:800;letter-spacing:10px;color:#fff;">{code}</div>
       </div>
       <p style="margin:18px 0 0;font-size:13px;color:#888;line-height:20px;">
-        If you didn’t request this change, please contact us at
+        If you didn't request this change, please contact us at
         <a href="mailto:info@haylingua.am" style="color:#FF7A1A;">info@haylingua.am</a> immediately.
       </p>
     </div>
@@ -373,15 +373,15 @@ def _render_email_change_html(name: str, code: str, new_email: str) -> str:
 
 
 def _render_cms_invite_html(invite_url: str) -> str:
-    preheader = "You’ve been invited to manage the Haylingua CMS platform."
+    preheader = "You've been invited to manage the Haylingua CMS platform."
 
     cards = f"""
   <!-- GREETING CARD -->
   <div style="max-width:650px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
     <div style="padding:20px 32px 24px;">
-      <h2 style="margin:0;font-size:24px;font-weight:700;color:#000;">You’re invited 🎉</h2>
+      <h2 style="margin:0;font-size:24px;font-weight:700;color:#000;">You're invited 🎉</h2>
       <p style="margin:8px 0 0;font-size:14px;line-height:24px;color:#555;">
-        You’ve been invited to the <strong>Haylingua CMS</strong>. Click the button below to set
+        You've been invited to the <strong>Haylingua CMS</strong>. Click the button below to set
         your password and enable two-factor authentication to get started.
       </p>
     </div>
@@ -8184,7 +8184,7 @@ async def cms_update_lesson(lesson_id: int, request: Request, db=Depends(get_db)
 @router.delete("/cms/lessons/{lesson_id}")
 def cms_delete_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
     require_cms(request, db)
-    # delete exercises/options first if you don’t have CASCADE
+    # delete exercises/options first if you don't have CASCADE
     db.execute(text("DELETE FROM exercise_options WHERE exercise_id IN (SELECT id FROM exercises WHERE lesson_id = :id)"), {"id": lesson_id})
     db.execute(text("DELETE FROM exercises WHERE lesson_id = :id"), {"id": lesson_id})
     db.execute(text("DELETE FROM lessons WHERE id = :id"), {"id": lesson_id})
