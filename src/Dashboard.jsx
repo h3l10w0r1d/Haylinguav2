@@ -257,28 +257,38 @@ function StreakCard({ token, streak }) {
   const cap = freeze.freeze_cap || 2;
 
   return (
-    <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (frozen ? "bg-gradient-to-br from-feather-50 to-white ring-feather-100" : lit ? "bg-gradient-to-br from-brand-50 to-white ring-brand-100" : atRisk ? "bg-brand-50/40 ring-brand-100" : "bg-white ring-slate-200")}>
+    <div className={"overflow-hidden rounded-3xl p-5 shadow-sm ring-1 " + (frozen ? "bg-gradient-to-br from-feather-50 to-white ring-feather-200" : lit ? "bg-gradient-to-br from-brand-50 to-white ring-brand-100" : atRisk ? "bg-gradient-to-br from-amber-50 to-white ring-amber-100" : "bg-white ring-slate-200")}>
+
+      {/* Header: flame + count + state badge */}
       <div className="flex items-center gap-3">
-        <StreakFlame size={60} lit={lit} frozen={frozen} />
-        <div>
-          <div className="font-display text-3xl font-extrabold leading-none text-slate-800 tabular-nums">{n}</div>
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">day streak</div>
+        <StreakFlame size={56} lit={lit} frozen={frozen} />
+        <div className="flex-1">
+          <div className="font-display text-4xl font-extrabold leading-none tabular-nums text-slate-800">{n}</div>
+          <div className="mt-0.5 text-xs font-bold uppercase tracking-wider text-slate-400">day streak</div>
         </div>
+        {lit && (
+          <span className="rounded-full bg-grass-100 px-2.5 py-1 text-xs font-extrabold text-grass-700 ring-1 ring-grass-200">Lit 🔥</span>
+        )}
+        {frozen && (
+          <span className="rounded-full bg-feather-100 px-2.5 py-1 text-xs font-extrabold text-feather-700 ring-1 ring-feather-200">Frozen ❄️</span>
+        )}
+        {atRisk && (
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700 ring-1 ring-amber-200">At risk</span>
+        )}
       </div>
 
+      {/* 7-day activity dots */}
       {week.length > 0 && (
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center gap-1.5">
           {week.map((d, i) => {
             const on = Number(d?.value ?? 0) > 0;
             const label = (String(d?.label ?? "").trim()[0] || "·").toUpperCase();
             return (
               <div
                 key={i}
-                title={`${d?.label ?? ""}: ${Number(d?.value ?? 0)}`}
-                className={
-                  "grid h-7 w-7 place-items-center rounded-full text-[11px] font-extrabold " +
-                  (on ? "bg-brand-500 text-white shadow-[0_2px_0_0_#C2410C]" : "bg-slate-100 text-slate-400")
-                }
+                title={`${d?.label ?? ""}: ${Number(d?.value ?? 0)} XP`}
+                className={"flex-1 grid place-items-center h-8 rounded-xl text-[11px] font-extrabold transition " +
+                  (on ? "bg-brand-500 text-white shadow-[0_2px_0_0_#C2410C]" : "bg-slate-100 text-slate-400")}
               >
                 {label}
               </div>
@@ -287,58 +297,53 @@ function StreakCard({ token, streak }) {
         </div>
       )}
 
+      {/* Status line */}
       <p className="mt-3 text-sm font-semibold text-slate-500">
         {frozen
-          ? "Your streak is frozen ❄️ — a freeze saved it. Practice today to thaw the flame!"
+          ? "A streak freeze is protecting your flame — practice today to thaw it."
           : lit
-          ? "Nice — your flame is lit for today! 🔥"
+          ? "Flame lit for today! Come back tomorrow to keep it going."
           : atRisk
-          ? "Practice today to light your flame and keep the streak!"
-          : "Finish a lesson to light your streak."}
+          ? "Practice today to keep your streak alive."
+          : "Complete a lesson to light your streak."}
       </p>
 
-      {/* Streak at-risk banner when user has no freezes */}
+      {/* Practice CTA — only shown when at risk with no freezes left */}
       {atRisk && freeze.freezes === 0 && (
-        <div className="mt-3 flex items-start gap-3 rounded-2xl bg-cardinal-50 p-3 ring-1 ring-cardinal-100">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-cardinal-100 text-cardinal-600">
-            <AlertTriangle className="h-4.5 w-4.5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-extrabold text-cardinal-700">Streak at risk</p>
-            <p className="mt-0.5 text-xs font-semibold text-cardinal-600">
-              You're out of freezes — buy one to protect today's streak.
-            </p>
-            <button
-              onClick={() => navigate("/shop")}
-              className="btn3d btn3d-brand mt-2.5 w-full py-2 text-xs uppercase"
-            >
-              <Gem className="h-3.5 w-3.5" /> Buy a freeze
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={() => navigate("/practice")}
+          className="btn3d btn3d-brand mt-3 w-full text-sm"
+        >
+          Practice now <ArrowRight className="h-4 w-4" />
+        </button>
       )}
 
-      {/* Streak freezes — protect your streak from one missed day */}
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-brand-100/70 pt-3">
-        <div className="flex items-center gap-1.5" title="A streak freeze covers one missed day so your streak survives. Buy freezes in the shop with gems.">
-          {Array.from({ length: cap }).map((_, i) => (
-            <Snowflake
-              key={i}
-              className={"h-5 w-5 " + (i < freeze.freezes ? "fill-feather-200 text-feather-500" : "text-slate-300")}
-            />
-          ))}
-          <span className="ml-1 text-xs font-extrabold text-slate-500">
+      {/* Freeze count + buy chip */}
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+        <div
+          className="flex items-center gap-2"
+          title="A streak freeze covers one missed day. Buy them in the shop with gems."
+        >
+          <div className="flex gap-0.5">
+            {Array.from({ length: cap }).map((_, i) => (
+              <Snowflake
+                key={i}
+                className={"h-4 w-4 " + (i < freeze.freezes ? "fill-feather-200 text-feather-500" : "text-slate-200")}
+              />
+            ))}
+          </div>
+          <span className="text-xs font-bold text-slate-400">
             {freeze.freezes}/{cap} freeze{cap === 1 ? "" : "s"}
           </span>
         </div>
-        {freeze.freezes < cap && !(atRisk && freeze.freezes === 0) ? (
+        {freeze.freezes < cap && (
           <button
             onClick={() => navigate("/shop")}
             className="inline-flex items-center gap-1 rounded-xl bg-feather-50 px-2.5 py-1.5 text-xs font-extrabold text-feather-600 ring-1 ring-feather-100 transition hover:bg-feather-100"
           >
-            <Gem className="h-3.5 w-3.5" /> Buy
+            <Gem className="h-3 w-3" /> Buy freeze
           </button>
-        ) : null}
+        )}
       </div>
     </div>
   );
