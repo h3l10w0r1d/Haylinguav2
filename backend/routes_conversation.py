@@ -48,7 +48,7 @@ ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3")
 ELEVEN_STT_MODEL = os.getenv("ELEVEN_STT_MODEL", "scribe_v1")
 
 # Voice for Aram (male). Falls back to ELEVEN_MALE_VOICE env var or default.
-ARAM_VOICE_ID = os.getenv("ELEVEN_VOICE_ID", os.getenv("ELEVEN_MALE_VOICE", "pNInz6obpgDQGcFmaJgB"))
+ARAM_VOICE_ID = os.getenv("ELEVEN_VOICE_ID", os.getenv("ELEVEN_MALE_VOICE", "TX3LPaxmHKxFdv7VOQHJ"))
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
