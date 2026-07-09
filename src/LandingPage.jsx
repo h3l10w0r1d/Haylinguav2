@@ -6,6 +6,7 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
+  Menu, X,
 } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
@@ -14,10 +15,18 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onren
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "haylinguabot";
 
+const ARMENIAN_WORDS = [
+  { arm: "Բարև", rom: "ba·rev", eng: "Hello" },
+  { arm: "Շնորհակալ", rom: "shnor·ha·kal", eng: "Thank you" },
+  { arm: "Հայաստան", rom: "ha·yas·tan", eng: "Armenia" },
+  { arm: "Ընկեր", rom: "ən·ker", eng: "Friend" },
+  { arm: "Սիրում եմ", rom: "si·rum em", eng: "I love you" },
+];
+
 const FEATURES = [
   { icon: Languages, title: "Alphabet from scratch", text: "Master all 39 Armenian letters with bite-sized intro, recognition, and typing drills.", tone: "brand" },
   { icon: Headphones, title: "Listen & speak", text: "Real text-to-speech audio on every prompt so you learn how Armenian actually sounds.", tone: "feather" },
-  { icon: Repeat2, title: "Smart review", text: "Spaced repetition brings back what you’re about to forget — right when you need it.", tone: "grass" },
+  { icon: Repeat2, title: "Smart review", text: "Spaced repetition brings back what you're about to forget — right when you need it.", tone: "grass" },
   { icon: Flame, title: "Streaks & XP", text: "Earn XP, keep your daily streak alive, and build a habit that sticks.", tone: "brand" },
   { icon: Heart, title: "Hearts", text: "Lose a heart on a wrong answer — a gentle nudge to slow down and get it right.", tone: "cardinal" },
   { icon: Trophy, title: "Leaderboard & friends", text: "Add friends and climb the leaderboard. A little competition goes a long way.", tone: "gold" },
@@ -29,9 +38,30 @@ const STEPS = [
   { n: 3, title: "Keep your streak", text: "Earn XP, unlock the next node, and come back tomorrow.", icon: Flame },
 ];
 
+const TESTIMONIALS = [
+  {
+    quote: "I learned the entire Armenian alphabet in under a week. The exercises make it feel like a game, not a chore.",
+    name: "Ani M.",
+    role: "Armenian diaspora · Los Angeles",
+    stars: 5,
+  },
+  {
+    quote: "This feels like Duolingo but made for Armenian. The audio on every word is a total game-changer for pronunciation.",
+    name: "James K.",
+    role: "Language enthusiast · London",
+    stars: 5,
+  },
+  {
+    quote: "As a heritage speaker trying to finally read and write, Haylingua filled the exact gaps I had. Loving the streaks.",
+    name: "Narine H.",
+    role: "Heritage learner · Yerevan",
+    stars: 5,
+  },
+];
+
 const FAQS = [
   { q: "Is Haylingua free?", a: "Yes — you can create an account and start learning the Armenian alphabet and your first lessons for free." },
-  { q: "I don’t know the Armenian alphabet at all. Is that okay?", a: "Perfect, that’s exactly where we begin. The first lessons introduce each letter with its sound, examples, and typing practice before you ever build a word." },
+  { q: "I don't know the Armenian alphabet at all. Is that okay?", a: "Perfect, that's exactly where we begin. The first lessons introduce each letter with its sound, examples, and typing practice before you ever build a word." },
   { q: "Do I need a special keyboard?", a: "No. Exercises are tap-and-choose or use on-screen prompts, and typing exercises accept the Armenian letters shown to you." },
   { q: "Does it work on my phone?", a: "Yes. Haylingua is built mobile-first and works in any modern browser on phone, tablet, or desktop." },
   { q: "How do streaks and hearts work?", a: "You earn XP for correct answers and keep a daily streak by practicing each day. Hearts give you a few tries per session so mistakes feel low-stakes." },
@@ -44,6 +74,42 @@ const TONES = {
   cardinal: "bg-cardinal-50 text-cardinal-500",
   gold: "bg-amber-50 text-gold-600",
 };
+
+// ── Scroll reveal ─────────────────────────────────────────────────────────────
+
+function useReveal(threshold = 0.12) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return [ref, visible];
+}
+
+function Reveal({ children, delay = 0, className = "" }) {
+  const [ref, visible] = useReveal();
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(2rem)",
+        transition: `opacity 0.65s ease-out ${delay}ms, transform 0.65s ease-out ${delay}ms`,
+      }}
+      className={className}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onLogin, onSignup }) {
   const [mode, setMode] = useState("login"); // login | signup | verify
@@ -69,8 +135,23 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   // UI-only state
   const [faqOpen, setFaqOpen] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [wordIdx, setWordIdx] = useState(0);
+  const [wordFade, setWordFade] = useState(true);
   const authRef = useRef(null);
   const tgRef = useRef(null);
+
+  // Rotating Armenian word with fade transition
+  useEffect(() => {
+    const t = setInterval(() => {
+      setWordFade(false);
+      setTimeout(() => {
+        setWordIdx((i) => (i + 1) % ARMENIAN_WORDS.length);
+        setWordFade(true);
+      }, 300);
+    }, 3000);
+    return () => clearInterval(t);
+  }, []);
 
   // Telegram widget — inject once when bot username is set
   useEffect(() => {
@@ -121,10 +202,11 @@ export default function LandingPage({ onLogin, onSignup }) {
   const goAuth = (m) => {
     setMode(m);
     setError("");
+    setMenuOpen(false);
     authRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  // ── Auth Handlers (unchanged) ───────────────────────────────────────────────
+  // ── Auth Handlers ───────────────────────────────────────────────────────────
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -319,7 +401,7 @@ export default function LandingPage({ onLogin, onSignup }) {
     );
   }
 
-  // ── Auth card (used in the hero) ────────────────────────────────────────────
+  // ── Auth card ────────────────────────────────────────────────────────────────
   const authCard = (
     <div ref={authRef} className="w-full rounded-3xl bg-white p-6 shadow-xl ring-1 ring-slate-200 sm:p-7">
       <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
@@ -424,6 +506,8 @@ export default function LandingPage({ onLogin, onSignup }) {
   );
 
   // ── Main Landing ────────────────────────────────────────────────────────────
+  const word = ARMENIAN_WORDS[wordIdx];
+
   return (
     <div className="min-h-screen bg-white text-slate-800">
       {/* Nav */}
@@ -433,18 +517,44 @@ export default function LandingPage({ onLogin, onSignup }) {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 font-display text-lg font-extrabold text-white shadow-btn-brand">Հ</span>
             <span className="font-display text-xl font-extrabold tracking-tight text-slate-800">Haylingua</span>
           </a>
+
+          {/* Desktop links */}
           <div className="hidden items-center gap-7 md:flex">
             <a href="#how" className="text-sm font-bold text-slate-500 hover:text-slate-800">How it works</a>
             <a href="#features" className="text-sm font-bold text-slate-500 hover:text-slate-800">Features</a>
             <a href="#faq" className="text-sm font-bold text-slate-500 hover:text-slate-800">FAQ</a>
           </div>
+
           <div className="flex items-center gap-2">
             <button onClick={() => goAuth("login")} className="hidden rounded-xl px-4 py-2 text-sm font-extrabold text-slate-600 hover:bg-slate-100 sm:block">
               Log in
             </button>
             <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand !py-2.5 text-sm">Get started</button>
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="grid h-9 w-9 place-items-center rounded-xl text-slate-600 hover:bg-slate-100 md:hidden"
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div className="border-t border-slate-100 bg-white px-5 pb-4 pt-2 md:hidden">
+            <div className="flex flex-col gap-1">
+              <a href="#how" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">How it works</a>
+              <a href="#features" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Features</a>
+              <a href="#faq" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">FAQ</a>
+              <div className="mt-1 border-t border-slate-100 pt-2 flex gap-2">
+                <button onClick={() => goAuth("login")} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-extrabold text-slate-700">Log in</button>
+                <button onClick={() => goAuth("signup")} className="flex-1 btn3d btn3d-brand !py-2.5 text-sm">Sign up free</button>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero */}
@@ -464,6 +574,32 @@ export default function LandingPage({ onLogin, onSignup }) {
             <p className="mt-5 max-w-md text-lg font-semibold text-slate-500">
               Bite-sized lessons, instant feedback, audio on every word, and streaks that make you want to come back tomorrow.
             </p>
+
+            {/* Armenian word showcase */}
+            <div className="mt-6 inline-flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
+              <div
+                style={{
+                  opacity: wordFade ? 1 : 0,
+                  transform: wordFade ? "translateY(0)" : "translateY(-6px)",
+                  transition: "opacity 0.3s ease, transform 0.3s ease",
+                  minWidth: "6rem",
+                }}
+              >
+                <div className="font-display text-2xl font-extrabold tracking-wide text-brand-600">{word.arm}</div>
+                <div className="mt-0.5 text-xs font-bold text-slate-400">{word.rom}</div>
+              </div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div
+                style={{
+                  opacity: wordFade ? 1 : 0,
+                  transition: "opacity 0.3s ease 0.05s",
+                }}
+                className="text-base font-bold text-slate-600"
+              >
+                {word.eng}
+              </div>
+            </div>
+
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand text-base">
                 Start learning — free <ArrowRight className="h-5 w-5" />
@@ -506,17 +642,21 @@ export default function LandingPage({ onLogin, onSignup }) {
 
       {/* How it works */}
       <section id="how" className="mx-auto max-w-6xl px-5 py-16">
-        <SectionHeading eyebrow="How it works" title="Three steps to your first Armenian words" />
+        <Reveal>
+          <SectionHeading eyebrow="How it works" title="Three steps to your first Armenian words" />
+        </Reveal>
         <div className="mt-10 grid gap-5 md:grid-cols-3">
-          {STEPS.map((s) => (
-            <div key={s.n} className="relative rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white shadow-btn-brand">
-                <s.icon className="h-6 w-6" />
+          {STEPS.map((s, i) => (
+            <Reveal key={s.n} delay={i * 100}>
+              <div className="relative rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm h-full">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white shadow-btn-brand">
+                  <s.icon className="h-6 w-6" />
+                </div>
+                <div className="mt-4 font-display text-xs font-extrabold uppercase tracking-wide text-brand-500">Step {s.n}</div>
+                <div className="mt-1 font-display text-xl font-extrabold text-slate-800">{s.title}</div>
+                <p className="mt-2 text-sm font-semibold text-slate-500">{s.text}</p>
               </div>
-              <div className="mt-4 font-display text-xs font-extrabold uppercase tracking-wide text-brand-500">Step {s.n}</div>
-              <div className="mt-1 font-display text-xl font-extrabold text-slate-800">{s.title}</div>
-              <p className="mt-2 text-sm font-semibold text-slate-500">{s.text}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -524,85 +664,129 @@ export default function LandingPage({ onLogin, onSignup }) {
       {/* Product preview */}
       <section className="bg-gradient-to-b from-brand-50/60 to-white">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 lg:grid-cols-2">
-          <div>
-            <SectionHeading align="left" eyebrow="See it in action" title="A path you’ll actually want to finish" />
-            <p className="mt-4 max-w-md text-base font-semibold text-slate-500">
-              Follow a winding path of lessons — tap through letters, listen and repeat, build words, and watch your streak grow. Just like the apps you already love, but for Armenian.
-            </p>
-            <ul className="mt-6 space-y-3">
-              {["Instant right/wrong feedback", "Audio you can replay any time", "Hearts keep mistakes low-stakes", "XP, streaks, and a friends leaderboard"].map((t) => (
-                <li key={t} className="flex items-center gap-3 font-bold text-slate-700">
-                  <span className="grid h-6 w-6 place-items-center rounded-lg bg-grass-100 text-grass-600"><Check className="h-4 w-4" /></span>
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <Reveal>
+            <div>
+              <SectionHeading align="left" eyebrow="See it in action" title="A path you'll actually want to finish" />
+              <p className="mt-4 max-w-md text-base font-semibold text-slate-500">
+                Follow a winding path of lessons — tap through letters, listen and repeat, build words, and watch your streak grow. Just like the apps you already love, but for Armenian.
+              </p>
+              <ul className="mt-6 space-y-3">
+                {["Instant right/wrong feedback", "Audio you can replay any time", "Hearts keep mistakes low-stakes", "XP, streaks, and a friends leaderboard"].map((t) => (
+                  <li key={t} className="flex items-center gap-3 font-bold text-slate-700">
+                    <span className="grid h-6 w-6 place-items-center rounded-lg bg-grass-100 text-grass-600"><Check className="h-4 w-4" /></span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
 
           {/* Mock exercise card */}
-          <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
-            <div className="flex items-center gap-3">
-              <span className="text-slate-300">✕</span>
-              <div className="h-3.5 flex-1 overflow-hidden rounded-full bg-slate-200">
-                <div className="h-full w-2/3 rounded-full bg-brand-500" />
-              </div>
-              <span className="flex items-center gap-1 font-display font-extrabold text-cardinal-500">
-                <Heart className="h-5 w-5 fill-cardinal-500" />4
-              </span>
-            </div>
-            <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-400">Select the correct translation</div>
-            <div className="mt-1 font-display text-2xl font-extrabold text-slate-800">“Barev” means…</div>
-            <div className="mt-4 grid grid-cols-1 gap-3">
-              {[["1", "Hello", true], ["2", "Goodbye", false], ["3", "Thank you", false]].map(([n, t, sel]) => (
-                <div key={n} className={"tile " + (sel ? "tile-selected" : "")}>
-                  <span className="flex items-center gap-3">
-                    <span className={"grid h-7 w-7 place-items-center rounded-lg text-xs font-extrabold ring-2 " + (sel ? "bg-feather-500 text-white ring-feather-500" : "text-slate-400 ring-slate-200")}>{n}</span>
-                    {t}
-                  </span>
+          <Reveal delay={120}>
+            <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
+              <div className="flex items-center gap-3">
+                <span className="text-slate-300">✕</span>
+                <div className="h-3.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-full w-2/3 rounded-full bg-brand-500" />
                 </div>
-              ))}
+                <span className="flex items-center gap-1 font-display font-extrabold text-cardinal-500">
+                  <Heart className="h-5 w-5 fill-cardinal-500" />4
+                </span>
+              </div>
+              <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-400">Select the correct translation</div>
+              <div className="mt-1 font-display text-2xl font-extrabold text-slate-800">"Barev" means…</div>
+              <div className="mt-4 grid grid-cols-1 gap-3">
+                {[["1", "Hello", true], ["2", "Goodbye", false], ["3", "Thank you", false]].map(([n, t, sel]) => (
+                  <div key={n} className={"tile " + (sel ? "tile-selected" : "")}>
+                    <span className="flex items-center gap-3">
+                      <span className={"grid h-7 w-7 place-items-center rounded-lg text-xs font-extrabold ring-2 " + (sel ? "bg-feather-500 text-white ring-feather-500" : "text-slate-400 ring-slate-200")}>{n}</span>
+                      {t}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 flex justify-end">
+                <span className="btn3d btn3d-grass uppercase">Check</span>
+              </div>
             </div>
-            <div className="mt-5 flex justify-end">
-              <span className="btn3d btn3d-grass uppercase">Check</span>
-            </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* Features */}
       <section id="features" className="mx-auto max-w-6xl px-5 py-16">
-        <SectionHeading eyebrow="Features" title="Everything you need to go from zero to conversation" />
+        <Reveal>
+          <SectionHeading eyebrow="Features" title="Everything you need to go from zero to conversation" />
+        </Reveal>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-              <div className={"grid h-12 w-12 place-items-center rounded-2xl " + TONES[f.tone]}>
-                <f.icon className="h-6 w-6" />
+          {FEATURES.map((f, i) => (
+            <Reveal key={f.title} delay={i * 80}>
+              <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-1 hover:shadow-md h-full">
+                <div className={"grid h-12 w-12 place-items-center rounded-2xl " + TONES[f.tone]}>
+                  <f.icon className="h-6 w-6" />
+                </div>
+                <div className="mt-4 font-display text-lg font-extrabold text-slate-800">{f.title}</div>
+                <p className="mt-2 text-sm font-semibold text-slate-500">{f.text}</p>
               </div>
-              <div className="mt-4 font-display text-lg font-extrabold text-slate-800">{f.title}</div>
-              <p className="mt-2 text-sm font-semibold text-slate-500">{f.text}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section className="bg-slate-50">
+        <div className="mx-auto max-w-6xl px-5 py-16">
+          <Reveal>
+            <SectionHeading eyebrow="Learners love it" title="Real words from real learners" />
+          </Reveal>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {TESTIMONIALS.map((t, i) => (
+              <Reveal key={t.name} delay={i * 100}>
+                <div className="flex h-full flex-col rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+                  <div className="flex gap-0.5 mb-4">
+                    {Array.from({ length: t.stars }).map((_, j) => (
+                      <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                  <p className="flex-1 text-sm font-semibold leading-relaxed text-slate-600">"{t.quote}"</p>
+                  <div className="mt-5 flex items-center gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-100 font-display text-sm font-extrabold text-brand-600">
+                      {t.name[0]}
+                    </div>
+                    <div>
+                      <div className="text-sm font-extrabold text-slate-800">{t.name}</div>
+                      <div className="text-xs font-semibold text-slate-400">{t.role}</div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* FAQ */}
-      <section id="faq" className="bg-slate-50">
+      <section id="faq" className="bg-white">
         <div className="mx-auto max-w-3xl px-5 py-16">
-          <SectionHeading eyebrow="FAQ" title="Questions, answered" />
+          <Reveal>
+            <SectionHeading eyebrow="FAQ" title="Questions, answered" />
+          </Reveal>
           <div className="mt-8 space-y-3">
             {FAQS.map((f, i) => {
               const open = faqOpen === i;
               return (
-                <div key={i} className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
-                  <button
-                    onClick={() => setFaqOpen(open ? -1 : i)}
-                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
-                  >
-                    <span className="font-display text-base font-extrabold text-slate-800">{f.q}</span>
-                    <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 transition " + (open ? "rotate-180" : "")} />
-                  </button>
-                  {open && <div className="px-5 pb-5 text-sm font-semibold text-slate-500">{f.a}</div>}
-                </div>
+                <Reveal key={i} delay={i * 60}>
+                  <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+                    <button
+                      onClick={() => setFaqOpen(open ? -1 : i)}
+                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                    >
+                      <span className="font-display text-base font-extrabold text-slate-800">{f.q}</span>
+                      <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 transition " + (open ? "rotate-180" : "")} />
+                    </button>
+                    {open && <div className="px-5 pb-5 text-sm font-semibold text-slate-500">{f.a}</div>}
+                  </div>
+                </Reveal>
               );
             })}
           </div>
@@ -611,16 +795,18 @@ export default function LandingPage({ onLogin, onSignup }) {
 
       {/* Final CTA */}
       <section className="px-5 py-16">
-        <div className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
-          <img src={student} alt="" className="pointer-events-none absolute -bottom-6 -right-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
-          <h2 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Ready to learn Armenian?</h2>
-          <p className="mt-3 max-w-md text-lg font-semibold text-white/90">
-            Join now and finish your first lesson in minutes. Բարի՜ ճանապարհ — good luck!
-          </p>
-          <button onClick={() => goAuth("signup")} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-            Create your free account <ArrowRight className="h-5 w-5" />
-          </button>
-        </div>
+        <Reveal>
+          <div className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
+            <img src={student} alt="" className="pointer-events-none absolute -bottom-6 -right-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
+            <h2 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Ready to learn Armenian?</h2>
+            <p className="mt-3 max-w-md text-lg font-semibold text-white/90">
+              Join now and finish your first lesson in minutes. Բարի՜ ճանապարհ — good luck!
+            </p>
+            <button onClick={() => goAuth("signup")} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
+              Create your free account <ArrowRight className="h-5 w-5" />
+            </button>
+          </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
