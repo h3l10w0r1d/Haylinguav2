@@ -461,6 +461,46 @@ def _render_password_reset_html(name: str, reset_url: str) -> str:
     return _email_shell(preheader, cards)
 
 
+def _render_streak_reminder_html(name: str, streak: int, app_url: str) -> str:
+    safe_name = (name or "").strip() or "there"
+    flame = "🔥"
+    headline = (
+        f"Your {streak}-day streak is about to break!"
+        if streak > 1 else "Keep your streak alive today!"
+    )
+    preheader = f"{flame} Don't lose your {streak}-day Armenian streak — one quick lesson keeps it going."
+
+    cards = f"""
+  <!-- GREETING CARD -->
+  <div style="max-width:650px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:24px 32px;text-align:center;">
+      <div style="font-size:48px;line-height:1;margin-bottom:8px;">{flame}</div>
+      <h2 style="margin:0;font-size:24px;font-weight:800;color:#000;">{headline}</h2>
+      <p style="margin:10px 0 0;font-size:15px;line-height:24px;color:#555;">
+        Hey {safe_name}, you haven't practiced yet today. A single 5-minute lesson
+        keeps your <strong>{streak}-day</strong> streak burning.
+      </p>
+    </div>
+  </div>
+
+  <!-- CTA CARD -->
+  <div style="max-width:650px;margin:16px auto 0;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:28px 32px;text-align:center;">
+      <a href="{app_url}/dashboard"
+         style="display:inline-block;background:#FF7A1A;color:#fff;font-size:15px;font-weight:800;
+                text-decoration:none;padding:14px 32px;border-radius:10px;border-bottom:3px solid #D95F00;">
+        Practice now →
+      </a>
+      <p style="margin:16px 0 0;font-size:12px;color:#aaa;line-height:18px;">
+        Don't want streak reminders?
+        <a href="{app_url}/settings" style="color:#888;">Turn them off in settings</a>.
+      </p>
+    </div>
+  </div>"""
+
+    return _email_shell(preheader, cards)
+
+
 def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
     """Send email via SMTP if configured; otherwise log to server console.
     
@@ -4722,6 +4762,27 @@ def me_wallet(authorization: Optional[str] = Header(default=None), db: Connectio
     return _wallet(db, user_id)
 
 
+class EmailRemindersIn(BaseModel):
+    enabled: bool
+
+
+@router.post("/me/email-reminders")
+def me_set_email_reminders(
+    body: EmailRemindersIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Toggle streak-reminder emails for the current user."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    db.execute(
+        text("UPDATE users SET email_reminders_enabled = :e WHERE id = :u"),
+        {"e": bool(body.enabled), "u": user_id},
+    )
+    return {"ok": True, "email_reminders_enabled": bool(body.enabled)}
+
+
 @router.put("/me/active-frame")
 def me_set_active_frame(
     body: dict,
@@ -7194,6 +7255,72 @@ def cron_send_reminders(
                 sent += 1
         except Exception:
             pass
+
+    return {"ok": True, "eligible": len(rows), "sent": sent}
+
+
+@router.post("/cron/send-streak-emails")
+def cron_send_streak_emails(
+    x_cron_secret: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Email streak-at-risk reminders to users who have an active streak, a
+    verified email, reminders enabled, and haven't practiced yet today.
+
+    Authenticated with the shared CRON_SECRET. Idempotent per day via
+    users.last_streak_email_at. Schedule in the evening (e.g. ~20:00 UTC)."""
+    secret = (os.getenv("CRON_SECRET") or "").strip()
+    if not secret or not x_cron_secret or not hmac.compare_digest(x_cron_secret.strip(), secret):
+        raise HTTPException(status_code=403, detail="Invalid cron secret")
+
+    app_url = (os.getenv("APP_URL") or os.getenv("FRONTEND_URL") or "https://haylingua.am").rstrip("/")
+
+    rows = db.execute(
+        text(
+            """
+            SELECT u.id, u.email, u.first_name, u.display_name, u.current_streak
+            FROM users u
+            WHERE u.email IS NOT NULL
+              AND COALESCE(u.email_verified, FALSE) = TRUE
+              AND COALESCE(u.email_reminders_enabled, TRUE) = TRUE
+              AND COALESCE(u.current_streak, 0) > 0
+              AND (u.last_streak_email_at IS NULL OR u.last_streak_email_at < CURRENT_DATE)
+              AND NOT EXISTS (
+                  SELECT 1 FROM user_exercise_attempts a
+                  WHERE a.user_id = u.id AND DATE(a.created_at) = CURRENT_DATE
+              )
+            LIMIT 500
+            """
+        )
+    ).mappings().all()
+
+    sent = 0
+    for row in rows:
+        email = (row.get("email") or "").strip()
+        if not email:
+            continue
+        name = row.get("first_name") or row.get("display_name") or "there"
+        streak = int(row.get("current_streak") or 0)
+        try:
+            ok = _send_email(
+                to_email=email,
+                subject=f"🔥 Don't lose your {streak}-day streak!",
+                body=(
+                    f"Hi {name}, you haven't practiced Armenian yet today. "
+                    f"Do a quick lesson to keep your {streak}-day streak alive: {app_url}/dashboard"
+                ),
+                html_body=_render_streak_reminder_html(name, streak, app_url),
+            )
+            if ok:
+                sent += 1
+            # Mark as emailed today regardless of transport success so we don't
+            # retry-spam the same user if the provider is flaky within a run.
+            db.execute(
+                text("UPDATE users SET last_streak_email_at = NOW() WHERE id = :u"),
+                {"u": int(row["id"])},
+            )
+        except Exception as exc:
+            print(f"[streak-email] failed for user {row['id']}: {exc}")
 
     return {"ok": True, "eligible": len(rows), "sent": sent}
 

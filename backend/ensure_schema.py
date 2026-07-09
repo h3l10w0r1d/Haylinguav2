@@ -65,6 +65,12 @@ def ensure_schema() -> None:
         # count toward the next earned heart; set to NOW() each time one is granted.
         add_col_if_missing("users", "last_heart_earned_at TIMESTAMPTZ")
 
+        # ---------- Email streak reminders ----------
+        add_col_if_missing("users", "email_reminders_enabled BOOLEAN NOT NULL DEFAULT TRUE")
+        fill_nulls("users", "email_reminders_enabled", "TRUE")
+        # Guard so the streak-risk email is sent at most once per day per user.
+        add_col_if_missing("users", "last_streak_email_at TIMESTAMPTZ")
+
         # ---------- Premium ----------
         add_col_if_missing("users", "is_premium BOOLEAN NOT NULL DEFAULT FALSE")
         add_col_if_missing("users", "premium_since TIMESTAMPTZ")
