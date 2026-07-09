@@ -26,51 +26,18 @@ export default function AuthCallback() {
       return;
     }
 
-    // CSRF state check — reject if state is missing or doesn't match what we set.
     if (!returnedState || returnedState !== savedState) {
       setError("Authentication failed (state mismatch). Please try again.");
-      return;
-    }
-
-    const redirectUri = "https://haylingua.am/auth/google/callback";
-
-    // Link mode: user is already logged in and is linking Google to their
-    // account (state was prefixed "link_" when the flow started).
-    if (returnedState.startsWith("link_")) {
-      const authToken =
-        localStorage.getItem("access_token") || localStorage.getItem("hay_token") || "";
-      if (!authToken) {
-        setError("Your session expired. Please log in again, then link Google.");
-        return;
-      }
-      fetch(`${API_BASE}/me/link/google`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ code, redirect_uri: redirectUri }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            const d = await res.json().catch(() => ({}));
-            throw new Error(d?.detail || "Could not link Google");
-          }
-          return res.json();
-        })
-        .then(() => {
-          navigate("/profile?linked=google", { replace: true });
-        })
-        .catch((err) => {
-          setError(err.message || "Could not link your Google account. Please try again.");
-        });
       return;
     }
 
     fetch(`${API_BASE}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, redirect_uri: redirectUri }),
+      body: JSON.stringify({
+        code,
+        redirect_uri: "https://haylingua.am/auth/google/callback",
+      }),
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -83,16 +50,16 @@ export default function AuthCallback() {
         const token = data.access_token;
         if (!token) throw new Error("No token returned");
 
-        // Store identically to password login
         localStorage.setItem("access_token", token);
         localStorage.setItem("hay_token", token);
 
-        const email = data.email || "";
+        // Store accurate user info returned by backend
         const user = {
-          id: 1,
-          email,
-          name: email.split("@")[0],
-          avatarUrl: "",
+          id: data.id,
+          email: data.email || "",
+          name: data.name || data.email?.split("@")[0] || "",
+          username: data.username || "",
+          avatarUrl: data.avatar_url || "",
           email_verified: true,
         };
         localStorage.setItem("hay_user", JSON.stringify(user));

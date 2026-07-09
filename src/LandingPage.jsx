@@ -446,7 +446,9 @@ export default function LandingPage({ onLogin, onSignup }) {
               <button
                 type="button"
                 onClick={() => {
-                  const state = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+                  const buf = new Uint8Array(16);
+                  crypto.getRandomValues(buf);
+                  const state = Array.from(buf, b => b.toString(16).padStart(2, "0")).join("");
                   sessionStorage.setItem("oauth_state", state);
                   window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account&state=${encodeURIComponent(state)}`;
                 }}

@@ -2538,7 +2538,7 @@ def auth_google(
 
     # 3a) Find by google_id
     user_row = db.execute(
-        text("SELECT id, email FROM users WHERE google_id = :gid LIMIT 1"),
+        text("SELECT id, email, username, display_name, avatar_url FROM users WHERE google_id = :gid LIMIT 1"),
         {"gid": google_id},
     ).mappings().first()
 
@@ -2554,11 +2554,20 @@ def auth_google(
             {"u": user_id},
         ).mappings().first()
         needs_onboarding = not (ob and ob.get("completed_at"))
-        return {"access_token": jwt, "email": user_row["email"], "email_verified": True, "needs_onboarding": needs_onboarding}
+        return {
+            "access_token": jwt,
+            "id": user_id,
+            "email": user_row["email"],
+            "name": user_row.get("display_name") or user_row.get("username") or "",
+            "username": user_row.get("username") or "",
+            "avatar_url": user_row.get("avatar_url") or "",
+            "email_verified": True,
+            "needs_onboarding": needs_onboarding,
+        }
 
     # 3b) Find by email → link account
     user_row = db.execute(
-        text("SELECT id, email FROM users WHERE LOWER(email) = :e LIMIT 1"),
+        text("SELECT id, email, username, display_name, avatar_url FROM users WHERE LOWER(email) = :e LIMIT 1"),
         {"e": g_email},
     ).mappings().first()
 
@@ -2583,13 +2592,21 @@ def auth_google(
             {"u": user_id},
         ).mappings().first()
         needs_onboarding = not (ob and ob.get("completed_at"))
-        return {"access_token": jwt, "email": user_row["email"], "email_verified": True, "needs_onboarding": needs_onboarding}
+        return {
+            "access_token": jwt,
+            "id": user_id,
+            "email": user_row["email"],
+            "name": user_row.get("display_name") or user_row.get("username") or "",
+            "username": user_row.get("username") or "",
+            "avatar_url": user_row.get("avatar_url") or "",
+            "email_verified": True,
+            "needs_onboarding": needs_onboarding,
+        }
 
     # 3c) Create new user
     # Generate a unique username from the email prefix
     base = _re.sub(r"[^a-z0-9_]", "_", g_email.split("@")[0].lower())[:15] or "user"
     username = base
-    import random as _rand
     for _ in range(20):
         taken = db.execute(
             text("SELECT 1 FROM users WHERE LOWER(username) = LOWER(:u)"),
@@ -2597,7 +2614,7 @@ def auth_google(
         ).scalar()
         if not taken:
             break
-        username = f"{base}_{_rand.randint(10000, 99999)}"
+        username = f"{base}_{secrets.randbelow(90000) + 10000}"
 
     try:
         new_row = db.execute(
@@ -2629,7 +2646,16 @@ def auth_google(
     user_id = int(new_row["id"])
     jwt = create_token(user_id, 0)
     _brevo_sync_user(db, user_id, event="user_registered")
-    return {"access_token": jwt, "email": g_email, "email_verified": True, "needs_onboarding": True}
+    return {
+        "access_token": jwt,
+        "id": user_id,
+        "email": g_email,
+        "name": g_name or username,
+        "username": username,
+        "avatar_url": g_picture,
+        "email_verified": True,
+        "needs_onboarding": True,
+    }
 
 
 # ── Telegram OAuth ────────────────────────────────────────────────────────────
