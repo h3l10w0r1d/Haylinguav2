@@ -38,9 +38,6 @@ def sitemap(db: Connection = Depends(get_db)):
     # Static routes you want indexed.
     static_urls: list[tuple[str, str, str]] = [
         (f"{site}/", "weekly", "1.0"),
-        (f"{site}/about", "yearly", "0.6"),
-        (f"{site}/lessons", "daily", "0.9"),
-        (f"{site}/blog", "daily", "0.8"),
     ]
 
     # Published lessons (these are real SEO targets).

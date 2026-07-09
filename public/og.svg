@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF7A1A"/>
+      <stop offset="100%" style="stop-color:#FF5200"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#FFF5EE;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle pattern dots -->
+  <circle cx="80" cy="80" r="6" fill="white" opacity="0.12"/>
+  <circle cx="200" cy="40" r="4" fill="white" opacity="0.1"/>
+  <circle cx="1120" cy="560" r="8" fill="white" opacity="0.1"/>
+  <circle cx="1050" cy="80" r="5" fill="white" opacity="0.12"/>
+  <circle cx="150" cy="550" r="7" fill="white" opacity="0.09"/>
+  <circle cx="1150" cy="200" r="4" fill="white" opacity="0.1"/>
+
+  <!-- Card -->
+  <rect x="120" y="100" width="960" height="430" rx="32" fill="url(#card)"/>
+
+  <!-- Apricot accent bar on card -->
+  <rect x="120" y="100" width="960" height="8" rx="4" fill="#FF7A1A" opacity="0.5"/>
+
+  <!-- Logo / mascot area: apricot circle with Հ letter -->
+  <circle cx="600" cy="220" r="68" fill="#FF7A1A"/>
+  <text x="600" y="247" font-family="Georgia, serif" font-size="72" font-weight="bold" fill="white" text-anchor="middle">Հ</text>
+
+  <!-- App name -->
+  <text x="600" y="342" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="56" font-weight="800" fill="#1a1a1a" text-anchor="middle" letter-spacing="-1">Haylingua</text>
+
+  <!-- Tagline -->
+  <text x="600" y="400" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="400" fill="#6b5a52" text-anchor="middle">Learn Armenian · Free · Mobile-first</text>
+
+  <!-- Bottom badges -->
+  <rect x="296" y="444" width="180" height="44" rx="22" fill="#FF7A1A" opacity="0.12"/>
+  <text x="386" y="471" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="600" fill="#C94F00" text-anchor="middle">🔥 Streaks</text>
+
+  <rect x="510" y="444" width="180" height="44" rx="22" fill="#FF7A1A" opacity="0.12"/>
+  <text x="600" y="471" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="600" fill="#C94F00" text-anchor="middle">💬 Speaking</text>
+
+  <rect x="724" y="444" width="180" height="44" rx="22" fill="#FF7A1A" opacity="0.12"/>
+  <text x="814" y="471" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="600" fill="#C94F00" text-anchor="middle">📝 Alphabet</text>
+
+  <!-- Domain -->
+  <text x="600" y="582" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="500" fill="white" text-anchor="middle" opacity="0.85">haylingua.am</text>
+</svg>
