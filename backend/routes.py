@@ -424,6 +424,43 @@ def _render_test_email_html() -> str:
     return _email_shell(preheader, cards)
 
 
+def _render_password_reset_html(name: str, reset_url: str) -> str:
+    safe_name = (name or "").strip() or "there"
+    preheader = "Reset your Haylingua password. This link expires in 1 hour."
+
+    cards = f"""
+  <!-- GREETING CARD -->
+  <div style="max-width:650px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:20px 32px 24px;">
+      <h2 style="margin:0;font-size:24px;font-weight:700;color:#000;">Hey {safe_name} 👋</h2>
+      <p style="margin:8px 0 0;font-size:14px;line-height:24px;color:#555;">
+        We received a request to reset your Haylingua password. Click the button below to choose a new one.
+        This link expires in <strong>1 hour</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- CTA CARD -->
+  <div style="max-width:650px;margin:16px auto 0;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:28px 32px;">
+      <a href="{reset_url}"
+         style="display:inline-block;background:#FF7A1A;color:#fff;font-size:14px;font-weight:700;
+                text-decoration:none;padding:13px 28px;border-radius:10px;border-bottom:3px solid #D95F00;">
+        Reset my password →
+      </a>
+      <p style="margin:18px 0 0;font-size:13px;color:#888;line-height:20px;">
+        If you didn't request a password reset, you can safely ignore this email.
+        Your password won't change until you click the link above.
+      </p>
+      <p style="margin:10px 0 0;font-size:12px;color:#aaa;word-break:break-all;">
+        Or copy this link: {reset_url}
+      </p>
+    </div>
+  </div>"""
+
+    return _email_shell(preheader, cards)
+
+
 def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
     """Send email via SMTP if configured; otherwise log to server console.
     
@@ -2769,6 +2806,90 @@ def verify_email(
     # Sync verification to Brevo (so you can trigger onboarding sequences).
     _brevo_sync_user(db, int(user_id), event="email_verified")
 
+    return {"ok": True}
+
+
+@router.post("/auth/forgot-password")
+def forgot_password(payload: Dict[str, Any] = Body(...), db: Connection = Depends(get_db)):
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    user = db.execute(
+        text("SELECT id, name, username FROM users WHERE lower(email) = :e LIMIT 1"),
+        {"e": email},
+    ).mappings().first()
+
+    # Always respond OK — never reveal whether the email exists
+    if not user:
+        return {"ok": True}
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(hours=1)
+
+    db.execute(
+        text("UPDATE users SET password_reset_token=:t, password_reset_expires_at=:x WHERE id=:id"),
+        {"t": token, "x": expires_at, "id": int(user["id"])},
+    )
+
+    display_name = (user.get("name") or user.get("username") or "").strip()
+    frontend_url = (os.getenv("FRONTEND_URL") or "https://haylingua.am").rstrip("/")
+    reset_url = f"{frontend_url}/reset-password?token={token}"
+
+    plain = f"Reset your Haylingua password:\n{reset_url}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email."
+    _send_email(
+        to_email=email,
+        subject="Reset your Haylingua password",
+        body=plain,
+        html_body=_render_password_reset_html(display_name, reset_url),
+    )
+    return {"ok": True}
+
+
+@router.post("/auth/reset-password")
+def reset_password(payload: Dict[str, Any] = Body(...), db: Connection = Depends(get_db)):
+    token = (payload.get("token") or "").strip()
+    new_password = (payload.get("password") or "")
+
+    if not token:
+        raise HTTPException(status_code=400, detail="Token is required")
+
+    errs = validate_password_simple(new_password)
+    if errs:
+        raise HTTPException(status_code=400, detail={"errors": errs})
+
+    user = db.execute(
+        text("""
+            SELECT id, password_reset_expires_at
+            FROM users
+            WHERE password_reset_token = :t
+            LIMIT 1
+        """),
+        {"t": token},
+    ).mappings().first()
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+
+    expires_at = user["password_reset_expires_at"]
+    if expires_at is None or expires_at.replace(tzinfo=None) < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Reset link has expired. Please request a new one.")
+
+    from auth import hash_password as _hash_password
+    new_hash = _hash_password(new_password)
+
+    db.execute(
+        text("""
+            UPDATE users
+            SET password_hash = :h,
+                password_reset_token = NULL,
+                password_reset_expires_at = NULL,
+                token_version = COALESCE(token_version, 0) + 1,
+                updated_at = NOW()
+            WHERE id = :id
+        """),
+        {"h": new_hash, "id": int(user["id"])},
+    )
     return {"ok": True}
 
 

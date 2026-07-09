@@ -104,6 +104,10 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "token_version INTEGER NOT NULL DEFAULT 0")
         fill_nulls("users", "token_version", "0")
 
+        # ---------- Password reset ----------
+        add_col_if_missing("users", "password_reset_token TEXT")
+        add_col_if_missing("users", "password_reset_expires_at TIMESTAMPTZ")
+
         # ---------- Reward XP (quests / achievements) ----------
         add_col_if_missing("users", "bonus_xp INTEGER NOT NULL DEFAULT 0")
         fill_nulls("users", "bonus_xp", "0")

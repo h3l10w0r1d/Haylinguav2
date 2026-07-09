@@ -112,13 +112,13 @@ function Reveal({ children, delay = 0, className = "" }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onLogin, onSignup }) {
-  const [mode, setMode] = useState("login"); // login | signup | verify
+  const [mode, setMode] = useState("login"); // login | signup | forgot | verify
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [password2, setPassword2] = useState("");
   const [otp, setOtp] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
   const [needs2FA, setNeeds2FA] = useState(false);
   const [needsCaptcha, setNeedsCaptcha] = useState(false);
   const [captchaToken, setCaptchaToken] = useState(null);
@@ -221,11 +221,21 @@ export default function LandingPage({ onLogin, onSignup }) {
         if (!ok) { setError("Username can only contain letters, numbers, '_' and '.'"); return; }
       }
       if (!password || password.length < 8) { setError("Password must be at least 8 characters"); return; }
-      if (password !== password2) { setError("Passwords do not match"); return; }
     }
 
     setLoading(true);
     try {
+      if (mode === "forgot") {
+        const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim() }),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d?.detail || "Error"); }
+        setForgotSent(true);
+        setLoading(false);
+        return;
+      }
       if (mode === "login") {
         await onLogin(email.trim(), password, needs2FA ? otp : null, needsCaptcha ? captchaToken : null);
       } else {
@@ -408,7 +418,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         {["login", "signup"].map((m) => (
           <button
             key={m}
-            onClick={() => { setMode(m); setError(""); }}
+            onClick={() => { setMode(m); setError(""); setForgotSent(false); }}
             className={
               "rounded-xl py-2.5 font-display text-sm font-extrabold transition " +
               (mode === m ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")
@@ -456,50 +466,86 @@ export default function LandingPage({ onLogin, onSignup }) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {mode === "signup" && (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Name" optional icon={User} value={name} onChange={setName} placeholder="Armen" autoComplete="name" />
-            <Field label="Username" icon={Fingerprint} value={username} onChange={setUsername} placeholder="armen_g" autoComplete="username" />
+        {/* Forgot password — sent confirmation */}
+        {mode === "forgot" && forgotSent ? (
+          <div className="rounded-2xl bg-grass-50 px-4 py-5 text-center">
+            <div className="text-2xl mb-1">📬</div>
+            <p className="font-bold text-grass-700">Check your inbox</p>
+            <p className="mt-1 text-sm text-grass-600">If that email has an account, we sent a reset link. Check spam too.</p>
+            <button type="button" onClick={() => { setMode("login"); setForgotSent(false); setEmail(""); setError(""); }} className="mt-4 text-sm font-bold text-brand-500 hover:underline">
+              Back to log in
+            </button>
           </div>
-        )}
+        ) : mode === "forgot" ? (
+          <>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => { setMode("login"); setError(""); }} className="text-slate-400 hover:text-slate-600 transition">
+                ←
+              </button>
+              <p className="text-sm font-semibold text-slate-600">Enter your email and we'll send a reset link.</p>
+            </div>
+            <Field label="Email" icon={Mail} value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" />
+            {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
+            <button type="submit" disabled={loading || !email} className="btn3d btn3d-brand w-full uppercase disabled:opacity-60">
+              {loading ? "Sending…" : "Send reset link"}
+              {!loading && <ArrowRight className="h-4 w-4" />}
+            </button>
+          </>
+        ) : (
+          <>
+            {mode === "signup" && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Name" optional icon={User} value={name} onChange={setName} placeholder="Armen" autoComplete="name" />
+                <Field label="Username" icon={Fingerprint} value={username} onChange={setUsername} placeholder="armen_g" autoComplete="username" />
+              </div>
+            )}
 
-        <Field
-          label={mode === "login" ? "Email or username" : "Email"}
-          icon={Mail}
-          value={email}
-          onChange={setEmail}
-          placeholder={mode === "login" ? "you@example.com or username" : "you@example.com"}
-          autoComplete="email"
-        />
+            <Field
+              label={mode === "login" ? "Email or username" : "Email"}
+              icon={Mail}
+              value={email}
+              onChange={setEmail}
+              placeholder={mode === "login" ? "you@example.com or username" : "you@example.com"}
+              autoComplete="email"
+            />
 
-        <Field label="Password" icon={Lock} type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+            <div>
+              <Field label="Password" icon={Lock} type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+              {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={() => { setMode("forgot"); setError(""); setForgotSent(false); }}
+                  className="mt-1.5 block text-xs font-semibold text-brand-500 hover:underline"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
 
-        {mode === "signup" && (
-          <Field label="Confirm password" icon={Lock} type="password" value={password2} onChange={setPassword2} placeholder="••••••••" autoComplete="new-password" />
-        )}
+            {mode === "login" && needs2FA && (
+              <Field label="2FA code" value={otp} onChange={setOtp} placeholder="6-digit code or recovery" autoComplete="one-time-code" />
+            )}
 
-        {mode === "login" && needs2FA && (
-          <Field label="2FA code" value={otp} onChange={setOtp} placeholder="6-digit code or recovery" autoComplete="one-time-code" />
-        )}
+            {mode === "login" && needsCaptcha && (
+              <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                <div className="mb-2 text-xs font-bold text-slate-600">Security check</div>
+                <Turnstile key={captchaKey} onVerify={(t) => { setCaptchaToken(t); if (t) setError(""); }} />
+              </div>
+            )}
 
-        {mode === "login" && needsCaptcha && (
-          <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-            <div className="mb-2 text-xs font-bold text-slate-600">Security check</div>
-            <Turnstile key={captchaKey} onVerify={(t) => { setCaptchaToken(t); if (t) setError(""); }} />
-          </div>
-        )}
+            {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
 
-        {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
+            <button type="submit" disabled={loading} className="btn3d btn3d-brand w-full uppercase">
+              {loading ? "Please wait…" : mode === "login" ? (needs2FA ? "Verify & log in" : "Log in") : "Create account"}
+              {!loading && <ArrowRight className="h-4 w-4" />}
+            </button>
 
-        <button type="submit" disabled={loading} className="btn3d btn3d-brand w-full uppercase">
-          {loading ? "Please wait…" : mode === "login" ? (needs2FA ? "Verify & log in" : "Log in") : "Create account"}
-          {!loading && <ArrowRight className="h-4 w-4" />}
-        </button>
-
-        {mode === "signup" && (
-          <p className="text-center text-xs font-medium text-slate-400">
-            By signing up you agree to our terms and privacy policy.
-          </p>
+            {mode === "signup" && (
+              <p className="text-center text-xs font-medium text-slate-400">
+                By signing up you agree to our terms and privacy policy.
+              </p>
+            )}
+          </>
         )}
       </form>
     </div>
