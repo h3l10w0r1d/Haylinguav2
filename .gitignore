@@ -217,3 +217,4 @@ backend/uploads/
 !src/lib/
 !src/lib/**
 .env.local
+.verify-account.json

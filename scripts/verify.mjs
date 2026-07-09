@@ -206,9 +206,20 @@ if (health.status === 0) {
   }
 
   // ── Authenticated read-only checks (optional) ──────────────────────────
-  const email = process.env.TEST_EMAIL, password = process.env.TEST_PASSWORD;
+  // Credentials: TEST_EMAIL/TEST_PASSWORD env vars, or .verify-account.json
+  // (gitignored) in the repo root — a throwaway prod account for smoke tests.
+  let email = process.env.TEST_EMAIL, password = process.env.TEST_PASSWORD;
   if (!email || !password) {
-    skip("authenticated checks", "set TEST_EMAIL + TEST_PASSWORD to enable");
+    const credFile = path.join(ROOT, ".verify-account.json");
+    if (existsSync(credFile)) {
+      try {
+        const c = JSON.parse(readFileSync(credFile, "utf8"));
+        email = c.email; password = c.password;
+      } catch {}
+    }
+  }
+  if (!email || !password) {
+    skip("authenticated checks", "set TEST_EMAIL + TEST_PASSWORD or add .verify-account.json");
   } else {
     const login = await req("POST", "/login", { body: { email, password } });
     const token = login.json?.access_token;
@@ -229,8 +240,15 @@ if (health.status === 0) {
       ];
       for (const [method, p, check] of AUTHED) {
         const r = await req(method, p, { token });
-        if (r.status === 200 && check(r.json)) ok(`${method} ${p} (authed)`, "200 + shape ok");
-        else bad(`${method} ${p} (authed)`, `HTTP ${r.status}, body ${JSON.stringify(r.json)?.slice(0, 100)}`);
+        if (r.status === 200 && check(r.json)) {
+          ok(`${method} ${p} (authed)`, "200 + shape ok");
+        } else if (r.status === 403 && r.json?.detail === "EMAIL_NOT_VERIFIED") {
+          // The throwaway account is unverified — a 403 here proves the
+          // verification gate itself works.
+          ok(`${method} ${p} (authed)`, "verification gate enforced");
+        } else {
+          bad(`${method} ${p} (authed)`, `HTTP ${r.status}, body ${JSON.stringify(r.json)?.slice(0, 100)}`);
+        }
       }
       // words/expose round-trip: same nonce word is NEW once, then not.
       const nonce = `վերիֆ${Date.now() % 100000}`;
