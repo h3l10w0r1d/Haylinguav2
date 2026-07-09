@@ -4419,8 +4419,26 @@ def explain_mistake(
 
     data = resp.json()
     explanation = ((data.get("choices") or [{}])[0].get("message", {}).get("content") or "").strip()
-    if not explanation:
-        explanation = "Not quite — compare your answer letter by letter with the correct one and try again."
+
+    # GUARDRAIL: LLM instructions are not 100% reliable — gpt-4o has been
+    # observed telling the learner they were "actually correct" despite the
+    # exercise already being graded incorrect server-side. That directly
+    # undermines the grader's authority, so scan for contradiction phrasing
+    # and replace with a safe, deterministic fallback if found.
+    _contradiction_markers = (
+        "actually correct", "is correct", "was correct", "you're right",
+        "you are right", "you were right", "technically correct",
+    )
+    low = explanation.lower()
+    if not explanation or any(m in low for m in _contradiction_markers):
+        if blank_context:
+            explanation = (
+                f"This exercise only wants the missing word, not the full sentence — "
+                f"the answer is just \"{correct}\"."
+            )
+        else:
+            explanation = "Not quite — compare your answer letter by letter with the correct one and try again."
+
     return {"explanation": explanation, "correct_answer": correct or None}
 
 
