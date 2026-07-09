@@ -1,5 +1,5 @@
 // src/LessonCompletionScreen.jsx
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import {
   Zap,
   Target,
@@ -12,12 +12,190 @@ import {
   AlertTriangle,
   Share2,
   Check,
+  Flame,
+  Trophy,
+  Gift,
+  Sparkles,
 } from "lucide-react";
 import Illustration from "./lib/Illustration";
+
+const RS_API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+function rsToken() {
+  return localStorage.getItem("access_token") || localStorage.getItem("hay_token") || "";
+}
 
 function clamp01(n) {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(1, n));
+}
+
+/** Ease-out count-up used for the XP roll-up. */
+function useCountUp(target, ms = 900) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const to = Number(target) || 0;
+    if (to <= 0) { setN(0); return; }
+    let raf;
+    const start = performance.now();
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / ms);
+      setN(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return n;
+}
+
+/** One staged row that slides + fades in when `show` flips true. */
+function RevealRow({ show, children }) {
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-3 transition-all duration-500"
+      style={{ opacity: show ? 1 : 0, transform: show ? "translateY(0)" : "translateY(10px)" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Post-lesson reward sequence — reveals real reward state in stages:
+ * XP roll-up (+ combo bonus) → streak → daily-quest progress → league → chest.
+ * All values are fetched live; nothing is faked.
+ */
+function RewardReveal({ xp, comboBonusXp = 0 }) {
+  const [d, setD] = useState({ streak: null, quests: null, league: null, wallet: null, loaded: false });
+  const [stage, setStage] = useState(0);
+  const xpCount = useCountUp(xp);
+
+  useEffect(() => {
+    const h = { Authorization: `Bearer ${rsToken()}` };
+    const get = (p) => fetch(`${RS_API_BASE}${p}`, { headers: h }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    Promise.all([get("/me/streak"), get("/me/quests"), get("/me/league"), get("/me/wallet")])
+      .then(([streak, quests, league, wallet]) => setD({ streak, quests, league, wallet, loaded: true }));
+  }, []);
+
+  // Reveal each row on a stagger once data is in.
+  useEffect(() => {
+    if (!d.loaded) return;
+    const timers = [1, 2, 3, 4].map((s, i) => setTimeout(() => setStage((v) => Math.max(v, s)), 320 * (i + 1)));
+    return () => timers.forEach(clearTimeout);
+  }, [d.loaded]);
+
+  const streakN = Number(d.streak?.streak ?? 0);
+  const practicedToday = !!d.streak?.practiced_today;
+
+  const quests = Array.isArray(d.quests?.quests) ? d.quests.quests : [];
+  const activeQuests = quests
+    .slice()
+    .sort((a, b) => (b.claimable === true) - (a.claimable === true))
+    .slice(0, 2);
+
+  const self = Array.isArray(d.league?.division) ? d.league.division.find((x) => x.is_self) : null;
+  const leagueTier = d.league?.tier;
+  const leagueRank = self?.rank;
+
+  const chests = Number(d.wallet?.chests ?? 0);
+
+  return (
+    <div className="mx-auto mt-6 max-w-md divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white text-left ring-1 ring-slate-200 shadow-sm">
+      {/* XP roll-up — always visible, counts up on mount */}
+      <RevealRow show>
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-500">
+          <Zap className="h-5 w-5" />
+        </div>
+        <div className="flex-1">
+          <div className="font-display text-lg font-extrabold leading-none text-slate-800">+{xpCount} XP</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">This lesson</div>
+        </div>
+        {comboBonusXp > 0 ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2.5 py-1 text-xs font-extrabold text-brand-700">
+            <Sparkles className="h-3.5 w-3.5" /> +{comboBonusXp} combo
+          </span>
+        ) : null}
+      </RevealRow>
+
+      {/* Streak */}
+      {d.streak ? (
+        <RevealRow show={stage >= 1}>
+          <div className={"grid h-10 w-10 place-items-center rounded-xl " + (streakN > 0 ? "bg-brand-50 text-brand-500" : "bg-slate-100 text-slate-400")}>
+            <Flame className={"h-5 w-5 " + (streakN > 0 ? "fill-brand-400" : "")} />
+          </div>
+          <div className="flex-1">
+            <div className="font-display text-lg font-extrabold leading-none text-slate-800">
+              {streakN} day{streakN === 1 ? "" : "s"}
+            </div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Streak</div>
+          </div>
+          {practicedToday ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-grass-50 px-2.5 py-1 text-xs font-extrabold text-grass-700">
+              <Check className="h-3.5 w-3.5" /> Today done
+            </span>
+          ) : null}
+        </RevealRow>
+      ) : null}
+
+      {/* Daily quests progress */}
+      {activeQuests.length ? (
+        <RevealRow show={stage >= 2}>
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-feather-50 text-feather-600">
+            <Target className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            {activeQuests.map((q, i) => {
+              const prog = Number(q.progress ?? 0);
+              const tgt = Math.max(1, Number(q.target ?? q.goal ?? 1));
+              const pct = Math.min(100, Math.round((prog / tgt) * 100));
+              return (
+                <div key={i}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs font-bold text-slate-600">{q.title || "Daily quest"}</span>
+                    <span className="shrink-0 text-xs font-bold text-slate-400">
+                      {q.claimable ? "Claimable!" : `${Math.min(prog, tgt)}/${tgt}`}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div className={"h-2 rounded-full transition-all duration-700 " + (q.claimable || q.done ? "bg-grass-500" : "bg-feather-500")} style={{ width: `${Math.max(pct, 3)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </RevealRow>
+      ) : null}
+
+      {/* League standing */}
+      {self && leagueTier ? (
+        <RevealRow show={stage >= 3}>
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-100 text-gold-600">
+            <Trophy className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <div className="font-display text-lg font-extrabold leading-none text-slate-800">#{leagueRank} in {leagueTier}</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">League this week</div>
+          </div>
+          {leagueRank <= 7 ? (
+            <span className="rounded-full bg-grass-50 px-2.5 py-1 text-xs font-extrabold text-grass-700">Promotion zone</span>
+          ) : null}
+        </RevealRow>
+      ) : null}
+
+      {/* Chest */}
+      {chests > 0 ? (
+        <RevealRow show={stage >= 4}>
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-cardinal-50 text-cardinal-500">
+            <Gift className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <div className="font-display text-lg font-extrabold leading-none text-slate-800">{chests} chest{chests === 1 ? "" : "s"} to open</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Open them in the shop</div>
+          </div>
+        </RevealRow>
+      ) : null}
+    </div>
+  );
 }
 
 const CONFETTI_COLORS = ["#FF7A1A", "#58CC02", "#1CB0F6", "#FFC800", "#E11D48"];
@@ -104,6 +282,7 @@ async function shareLesson({ lessonTitle, xp, accuracy }) {
 export default function LessonCompletionScreen({
   lesson,
   sessionXpEarned,
+  comboBonusXp = 0,
   mistakes = 0,
   analytics,
   analyticsLoading,
@@ -179,6 +358,9 @@ export default function LessonCompletionScreen({
             <span aria-hidden>✨</span>
             <span>{message}</span>
           </div>
+
+          {/* Animated reward roll-up: XP → streak → quests → league → chest */}
+          <RewardReveal xp={sessionXpEarned ?? earnedXp} comboBonusXp={comboBonusXp} />
 
           <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
             <button

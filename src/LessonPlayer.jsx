@@ -168,6 +168,7 @@ export default function LessonPlayer() {
   const [loadError, setLoadError] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [lessonXpEarned, setLessonXpEarned] = useState(0);
+  const [lessonComboBonus, setLessonComboBonus] = useState(0);
   const [resultOpen, setResultOpen] = useState(false);
   const [resultData, setResultData] = useState(null);
   const [pendingNext, setPendingNext] = useState(null);
@@ -462,6 +463,10 @@ export default function LessonPlayer() {
 
     if (xpEarned > 0) {
       setLessonXpEarned((prev) => prev + xpEarned);
+    }
+    const comboBonusXp = Number(payload?.comboBonusXp ?? 0) || 0;
+    if (comboBonusXp > 0) {
+      setLessonComboBonus((prev) => prev + comboBonusXp);
     }
 
     if (!lesson || !lesson.exercises) return;
@@ -873,6 +878,7 @@ export default function LessonPlayer() {
           <LessonCompletionScreen
             lesson={lesson}
             sessionXpEarned={lessonXpEarned}
+            comboBonusXp={lessonComboBonus}
             mistakes={mistakes}
             analytics={analyticsData}
             analyticsLoading={analyticsLoading}
@@ -912,6 +918,7 @@ export default function LessonPlayer() {
               setHasFinishedAll(false);
               setHasAnswered(false);
               setLessonXpEarned(0);
+              setLessonComboBonus(0);
               setMistakes(0);
               setAnalyticsData(null);
               setAnalyticsError(null);
