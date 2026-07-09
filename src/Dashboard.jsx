@@ -184,7 +184,12 @@ function ChestCard({ token }) {
       if (r.ok && d) {
         setChests(Number(d.chests || 0));
         window.dispatchEvent(new CustomEvent("hay_wallet", { detail: { gems: d.gems } }));
-        setOverlayReward({ type: d.reward_type || "gems", gems: Number(d.reward_gems || 0) });
+        setOverlayReward({
+          type: d.reward_type || "gems",
+          gems: Number(d.reward_gems || 0),
+          rarity: d.rarity || "wooden",
+          xpBoost: !!d.xp_boost_granted,
+        });
       } else {
         setOpenErr(true);
       }

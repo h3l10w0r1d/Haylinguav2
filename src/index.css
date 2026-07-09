@@ -278,9 +278,10 @@
   65%  { transform: scale(1.07) translateY(-6px); opacity: 1; }
   100% { transform: scale(1) translateY(0); opacity: 1; }
 }
+/* Glow color follows the chest rarity via --glow-rgb (fallback = warm gold). */
 @keyframes chestGlow {
-  0%, 100% { box-shadow: 0 0 0px 0px rgba(255,220,60,0); }
-  50%       { box-shadow: 0 0 48px 16px rgba(255,220,60,0.45); }
+  0%, 100% { box-shadow: 0 0 0px 0px rgba(var(--glow-rgb, 255,220,60), 0); }
+  50%       { box-shadow: 0 0 48px 16px rgba(var(--glow-rgb, 255,220,60), 0.45); }
 }
 @keyframes gemCount {
   from { transform: scale(0.7); }
@@ -302,9 +303,46 @@
 }
 .chest-tap-hint { animation: tapHintPulse 1.3s ease-in-out infinite; }
 
+/* Per-tap crack shakes — escalating violence toward the final open */
+@keyframes chestShakeT1 {
+  0%, 100% { transform: rotate(0deg); }
+  25%       { transform: rotate(-3deg); }
+  50%       { transform: rotate(2.5deg); }
+  75%       { transform: rotate(-1.5deg); }
+}
+.chest-shake-t1 { animation: chestShakeT1 .45s ease-in-out; }
+@keyframes chestShakeT2 {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  20%       { transform: rotate(-6deg) translateX(-3px); }
+  40%       { transform: rotate(5deg) translateX(3px); }
+  60%       { transform: rotate(-4deg) translateX(-2px); }
+  80%       { transform: rotate(3deg) translateX(2px); }
+}
+.chest-shake-t2 { animation: chestShakeT2 .45s ease-in-out; }
+
+/* Rarity glow leaking from the lid seam — pulses while cracked */
+@keyframes seamGlowPulse {
+  0%, 100% { filter: blur(10px); }
+  50%       { filter: blur(16px); }
+}
+.chest-seam-glow { animation: seamGlowPulse 1s ease-in-out infinite; }
+
+/* Whole-screen impact shake on open (golden + legendary) */
+@keyframes screenShake {
+  0%, 100% { transform: translate(0, 0); }
+  15%       { transform: translate(-5px, 4px); }
+  30%       { transform: translate(5px, -3px); }
+  45%       { transform: translate(-4px, -4px); }
+  60%       { transform: translate(4px, 3px); }
+  75%       { transform: translate(-2px, 2px); }
+  90%       { transform: translate(2px, -1px); }
+}
+.screen-shake { animation: screenShake .5s ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
   .chest-shake, .chest-jump, .chest-rays-spin, .chest-rays-burst,
-  .chest-sparkle, .reward-pop, .chest-glow, .chest-idle, .chest-tap-hint { animation: none; }
+  .chest-sparkle, .reward-pop, .chest-glow, .chest-idle, .chest-tap-hint,
+  .chest-shake-t1, .chest-shake-t2, .chest-seam-glow, .screen-shake { animation: none; }
 }
 
 /* ----- Answer flash overlay (green = correct, red = wrong) ----- */

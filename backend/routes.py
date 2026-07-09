@@ -5143,8 +5143,19 @@ SHOP_EFFECTS = {
     "avatar_frame", "profile_theme",
 }
 
+# Chest rarity tiers, ordered common → rare. Rolled server-side at open time.
+CHEST_RARITIES = ("wooden", "silver", "golden", "legendary")
+
 # Fallbacks used only if the DB tables are missing/empty (defensive).
-_FALLBACK_CHEST = [(10, 30), (15, 25), (20, 18), (25, 12), (30, 8), (40, 5), (60, 2)]
+# [(rarity, weight, xp_boost_chance_percent)]
+_FALLBACK_RARITIES = [("wooden", 55, 25), ("silver", 30, 20), ("golden", 12, 10), ("legendary", 3, 0)]
+# Per-tier gem tables: {rarity: [(gems, weight), ...]}
+_FALLBACK_CHEST = {
+    "wooden":    [(10, 30), (15, 25), (20, 18), (25, 12), (30, 8), (40, 5), (60, 2)],
+    "silver":    [(25, 20), (30, 15), (40, 8), (50, 3)],
+    "golden":    [(50, 15), (60, 10), (80, 5), (100, 2)],
+    "legendary": [(150, 10), (200, 6), (300, 2)],
+}
 _FALLBACK_SHOP = [
     {"id": "streak_freeze",        "title": "Streak Freeze",   "desc": "Protects your streak from one missed day.",               "price": 50,  "icon": "snowflake",    "effect": "streak_freeze",  "effect_amount": 1},
     {"id": "hearts_refill",        "title": "Refill Hearts",   "desc": "Restore all your hearts instantly.",                      "price": 30,  "icon": "heart",        "effect": "hearts_refill",  "effect_amount": 0},
@@ -5184,15 +5195,40 @@ def _load_shop_items(db: Connection) -> list[dict]:
     ]
 
 
-def _load_chest_rewards(db: Connection) -> list[tuple]:
+def _load_chest_rarities(db: Connection) -> list[tuple]:
+    """[(rarity, weight, xp_boost_chance_percent)] — falls back to defaults."""
     try:
-        rows = db.execute(text("SELECT gems, weight FROM chest_rewards ORDER BY sort_order ASC, id ASC")).mappings().all()
+        rows = db.execute(
+            text("SELECT rarity, weight, xp_boost_chance FROM chest_rarities ORDER BY sort_order ASC")
+        ).mappings().all()
+        out = [
+            (str(r["rarity"]), int(r["weight"]), max(0, min(100, int(r["xp_boost_chance"] or 0))))
+            for r in rows
+            if r["rarity"] in CHEST_RARITIES and int(r["weight"]) > 0
+        ]
+        if out:
+            return out
+    except Exception:
+        pass
+    return _FALLBACK_RARITIES
+
+
+def _load_chest_rewards(db: Connection, rarity: str = "wooden") -> list[tuple]:
+    try:
+        rows = db.execute(
+            text(
+                "SELECT gems, weight FROM chest_rewards "
+                "WHERE COALESCE(rarity, 'wooden') = :r "
+                "ORDER BY sort_order ASC, id ASC"
+            ),
+            {"r": rarity},
+        ).mappings().all()
         out = [(int(r["gems"]), max(1, int(r["weight"]))) for r in rows if int(r["weight"]) > 0]
         if out:
             return out
     except Exception:
         pass
-    return _FALLBACK_CHEST
+    return _FALLBACK_CHEST.get(rarity) or _FALLBACK_CHEST["wooden"]
 
 
 def _wallet(db: Connection, user_id: int) -> dict:
@@ -5299,39 +5335,56 @@ def me_set_active_frame(
 
 @router.post("/me/chests/open")
 def me_open_chest(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    """Open one owned chest → gems (75 %) or an XP-boost (25 %), server-authoritative."""
+    """Open one owned chest. Rolls a rarity tier first (wooden→legendary),
+    then a reward within that tier. Legendary is a jackpot: gems AND an
+    XP boost together. Server-authoritative; one atomic UPDATE."""
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    # Roll reward type before touching the DB.
-    reward_type = "xp_boost" if random.random() < 0.25 else "gems"
-    reward_gems = 0
+    # 1) Roll rarity.
+    rarities = _load_chest_rarities(db)
+    idx = random.choices(range(len(rarities)), weights=[w for _, w, _ in rarities], k=1)[0]
+    rarity, _, xb_chance = rarities[idx]
 
+    # 2) Roll reward within the tier. Legendary always pays gems + boost;
+    #    reward_type stays "gems" there so an older frontend (deploy skew)
+    #    still renders its gems path correctly.
+    is_jackpot = rarity == "legendary"
+    reward_type = "gems" if is_jackpot else ("xp_boost" if random.random() < xb_chance / 100.0 else "gems")
+    grant_boost = is_jackpot or reward_type == "xp_boost"
+    reward_gems = 0
     if reward_type == "gems":
-        rewards = _load_chest_rewards(db)
+        rewards = _load_chest_rewards(db, rarity)
         amounts = [a for a, _ in rewards]
         weights = [w for _, w in rewards]
         reward_gems = int(random.choices(amounts, weights=weights, k=1)[0])
-        # Atomic: decrement chest + credit gems in one statement.
-        opened = db.execute(
-            text("UPDATE users SET chests = chests - 1, gems = COALESCE(gems, 0) + :r WHERE id = :u AND COALESCE(chests, 0) > 0"),
-            {"r": reward_gems, "u": user_id},
-        )
-    else:
-        # Atomic: decrement chest + activate XP multiplier for next lesson.
-        opened = db.execute(
-            text("UPDATE users SET chests = chests - 1, xp_multiplier_active = TRUE WHERE id = :u AND COALESCE(chests, 0) > 0"),
-            {"u": user_id},
-        )
+
+    # 3) Atomic: decrement chest + apply whichever rewards rolled.
+    opened = db.execute(
+        text(
+            "UPDATE users SET chests = chests - 1, "
+            "gems = COALESCE(gems, 0) + :g, "
+            "xp_multiplier_active = (COALESCE(xp_multiplier_active, FALSE) OR :boost) "
+            "WHERE id = :u AND COALESCE(chests, 0) > 0"
+        ),
+        {"g": reward_gems, "boost": grant_boost, "u": user_id},
+    )
 
     if opened.rowcount == 0:
         raise HTTPException(status_code=400, detail="No chests to open")
 
     w = _wallet(db, user_id)
     _brevo_sync_user(db, int(user_id), event="chest_opened",
-                     event_props={"reward_type": reward_type, "gems_won": reward_gems})
-    return {"ok": True, "reward_type": reward_type, "reward_gems": reward_gems, **w}
+                     event_props={"reward_type": reward_type, "gems_won": reward_gems, "rarity": rarity})
+    return {
+        "ok": True,
+        "reward_type": reward_type,
+        "reward_gems": reward_gems,
+        "rarity": rarity,
+        "xp_boost_granted": bool(grant_boost and reward_type == "gems"),
+        **w,
+    }
 
 
 @router.get("/me/shop")
@@ -9159,14 +9212,26 @@ async def cms_reorder_shop_items(request: Request, db=Depends(get_db)):
 @router.get("/cms/shop/chest")
 def cms_get_chest(request: Request, db=Depends(get_db)):
     require_cms(request, db)
-    rows = db.execute(text("SELECT id, gems, weight FROM chest_rewards ORDER BY sort_order ASC, id ASC")).mappings().all()
-    return {"rewards": [dict(r) for r in rows]}
+    rows = db.execute(
+        text(
+            "SELECT id, gems, weight, COALESCE(rarity, 'wooden') AS rarity "
+            "FROM chest_rewards ORDER BY rarity ASC, sort_order ASC, id ASC"
+        )
+    ).mappings().all()
+    rarities = [
+        {"rarity": r, "weight": w, "xp_boost_chance": xb}
+        for r, w, xb in _load_chest_rarities(db)
+    ]
+    return {"rewards": [dict(r) for r in rows], "rarities": rarities}
 
 @router.put("/cms/shop/chest")
 async def cms_set_chest(request: Request, db=Depends(get_db)):
-    """Replace the whole chest reward table with the posted rows: [{gems, weight}]."""
+    """Replace the chest reward rows ([{gems, weight, rarity?}] — rarity
+    defaults to 'wooden') and optionally update the rarity odds
+    ([{rarity, weight, xp_boost_chance}] over the fixed 4-tier set)."""
     require_cms(request, db)
     body = await request.json()
+
     rows = body.get("rewards") or []
     cleaned = []
     for r in rows:
@@ -9175,13 +9240,47 @@ async def cms_set_chest(request: Request, db=Depends(get_db)):
             w = int(r.get("weight"))
         except (TypeError, ValueError):
             continue
+        rarity = str(r.get("rarity") or "wooden")
+        if rarity not in CHEST_RARITIES:
+            raise HTTPException(status_code=400, detail=f"Unknown rarity: {rarity}")
         if g >= 0 and w > 0:
-            cleaned.append((g, w))
+            cleaned.append((g, w, rarity))
     if not cleaned:
         raise HTTPException(status_code=400, detail="Provide at least one reward with weight > 0")
+
+    rarity_rows = body.get("rarities")
+    cleaned_rarities = []
+    if rarity_rows is not None:
+        seen = set()
+        for r in rarity_rows:
+            name = str(r.get("rarity") or "")
+            if name not in CHEST_RARITIES:
+                raise HTTPException(status_code=400, detail=f"Unknown rarity: {name}")
+            try:
+                w = int(r.get("weight"))
+                xb = int(r.get("xp_boost_chance"))
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail=f"Invalid numbers for rarity {name}")
+            if w <= 0:
+                raise HTTPException(status_code=400, detail=f"Weight must be > 0 for {name}")
+            if not (0 <= xb <= 100):
+                raise HTTPException(status_code=400, detail=f"xp_boost_chance must be 0-100 for {name}")
+            seen.add(name)
+            cleaned_rarities.append((name, w, xb))
+        if seen != set(CHEST_RARITIES):
+            raise HTTPException(status_code=400, detail="Rarity odds must cover exactly: " + ", ".join(CHEST_RARITIES))
+
     db.execute(text("DELETE FROM chest_rewards"))
-    for i, (g, w) in enumerate(cleaned):
-        db.execute(text("INSERT INTO chest_rewards (gems, weight, sort_order) VALUES (:g, :w, :so)"), {"g": g, "w": w, "so": i})
+    for i, (g, w, rarity) in enumerate(cleaned):
+        db.execute(
+            text("INSERT INTO chest_rewards (gems, weight, sort_order, rarity) VALUES (:g, :w, :so, :r)"),
+            {"g": g, "w": w, "so": i, "r": rarity},
+        )
+    for name, w, xb in cleaned_rarities:
+        db.execute(
+            text("UPDATE chest_rarities SET weight = :w, xp_boost_chance = :xb WHERE rarity = :r"),
+            {"w": w, "xb": xb, "r": name},
+        )
     return {"ok": True, "count": len(cleaned)}
 
 # -------------------- LESSONS --------------------

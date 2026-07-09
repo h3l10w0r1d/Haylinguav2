@@ -67,6 +67,11 @@ export const sfx = {
     playTone(55, "sawtooth", 0.07, 0.10, 0.52);
     playTone(65, "sawtooth", 0.06, 0.08, 0.72);
   },
+  // Escalating knock/crack per tap while prying a rarity chest open (level 1..3).
+  chestCrack(level = 1) {
+    playTone(120 + level * 40, "square", 0.05, 0.22, 0);
+    playTone(80 + level * 30, "triangle", 0.09, 0.18, 0.03);
+  },
   // Sharp crack + magical rising sparkle when lid flies open.
   chestOpen() {
     playTone(260, "square", 0.06, 0.20, 0);

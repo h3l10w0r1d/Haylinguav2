@@ -104,7 +104,7 @@ export function createCmsApi(accessToken) {
   const deleteShopItem = (id) => req(`/cms/shop/items/${id}`, { method: "DELETE" });
   const reorderShopItems = (order) => req("/cms/shop/items/reorder", { method: "POST", body: JSON.stringify({ order }) });
   const getChestConfig = () => req("/cms/shop/chest");
-  const setChestConfig = (rewards) => req("/cms/shop/chest", { method: "PUT", body: JSON.stringify({ rewards }) });
+  const setChestConfig = (rewards, rarities) => req("/cms/shop/chest", { method: "PUT", body: JSON.stringify({ rewards, rarities }) });
 
   // Exercises
   const listExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);

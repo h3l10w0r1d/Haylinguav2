@@ -244,6 +244,57 @@ def ensure_schema() -> None:
                     {"g": g, "w": w, "so": i},
                 )
             print("[ensure_schema] seeded chest_rewards")
+
+        # ---------- Chest rarities (tier weights + per-tier xp-boost chance) ----
+        # Rarity is rolled server-side at open time. Existing reward rows become
+        # the 'wooden' tier via the column default; higher tiers get their own
+        # reward tables seeded below (only when that tier has no rows yet).
+        add_col_if_missing("chest_rewards", "rarity TEXT NOT NULL DEFAULT 'wooden'")
+        fill_nulls("chest_rewards", "rarity", "'wooden'")
+
+        rarities_existed = table_exists("chest_rarities")
+        ensure_table(
+            "chest_rarities",
+            """
+            CREATE TABLE chest_rarities (
+                rarity TEXT PRIMARY KEY,
+                weight INTEGER NOT NULL DEFAULT 1,
+                xp_boost_chance INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0
+            )
+            """,
+        )
+        if not rarities_existed:
+            for i, (r, w, xb) in enumerate(
+                [("wooden", 55, 25), ("silver", 30, 20), ("golden", 12, 10), ("legendary", 3, 0)]
+            ):
+                conn.execute(
+                    text(
+                        "INSERT INTO chest_rarities (rarity, weight, xp_boost_chance, sort_order) "
+                        "VALUES (:r, :w, :xb, :so)"
+                    ),
+                    {"r": r, "w": w, "xb": xb, "so": i},
+                )
+            print("[ensure_schema] seeded chest_rarities")
+
+        for _rarity, _rows in {
+            "silver": [(25, 20), (30, 15), (40, 8), (50, 3)],
+            "golden": [(50, 15), (60, 10), (80, 5), (100, 2)],
+            "legendary": [(150, 10), (200, 6), (300, 2)],
+        }.items():
+            _n = conn.execute(
+                text("SELECT COUNT(*) FROM chest_rewards WHERE rarity = :r"), {"r": _rarity}
+            ).scalar()
+            if not _n:
+                for i, (g, w) in enumerate(_rows):
+                    conn.execute(
+                        text(
+                            "INSERT INTO chest_rewards (gems, weight, sort_order, rarity) "
+                            "VALUES (:g, :w, :so, :r)"
+                        ),
+                        {"g": g, "w": w, "so": i, "r": _rarity},
+                    )
+                print(f"[ensure_schema] seeded chest_rewards for {_rarity}")
         ensure_table(
             "reward_claims",
             """

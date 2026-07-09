@@ -90,7 +90,12 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
       if (r.ok && data) {
         setChestsLeft(Number(data.chests || 0));
         window.dispatchEvent(new CustomEvent("hay_wallet", { detail: { gems: data.gems } }));
-        setChestReward({ type: data.reward_type || "gems", gems: Number(data.reward_gems || 0) });
+        setChestReward({
+          type: data.reward_type || "gems",
+          gems: Number(data.reward_gems || 0),
+          rarity: data.rarity || "wooden",
+          xpBoost: !!data.xp_boost_granted,
+        });
       } else {
         setChestErr(true);
       }

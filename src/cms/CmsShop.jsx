@@ -105,7 +105,8 @@ export default function CmsShop() {
 
   const [items, setItems] = useState([]);
   const [edits, setEdits] = useState({});
-  const [chest, setChest] = useState([]); // [{gems, weight}]
+  const [chest, setChest] = useState([]); // [{gems, weight, rarity}]
+  const [rarities, setRarities] = useState([]); // [{rarity, weight, xp_boost_chance}]
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
@@ -128,7 +129,8 @@ export default function CmsShop() {
       };
     });
     setEdits(e);
-    setChest((cc?.rewards || []).map((r) => ({ gems: r.gems, weight: r.weight })));
+    setChest((cc?.rewards || []).map((r) => ({ gems: r.gems, weight: r.weight, rarity: r.rarity || "wooden" })));
+    setRarities((cc?.rarities || []).map((r) => ({ rarity: r.rarity, weight: r.weight, xp_boost_chance: r.xp_boost_chance })));
   }
 
   useEffect(() => {
@@ -146,8 +148,6 @@ export default function CmsShop() {
   }, [token]);
 
   if (!token) return <Navigate to="/cms/login" replace />;
-
-  const totalWeight = chest.reduce((s, r) => s + (Number(r.weight) || 0), 0) || 1;
 
   async function createItem() {
     if (!draft.title.trim()) return;
@@ -236,7 +236,10 @@ export default function CmsShop() {
   async function saveChest() {
     setBusy(true);
     try {
-      await api.setChestConfig(chest.map((r) => ({ gems: Number(r.gems) || 0, weight: Number(r.weight) || 0 })));
+      await api.setChestConfig(
+        chest.map((r) => ({ gems: Number(r.gems) || 0, weight: Number(r.weight) || 0, rarity: r.rarity || "wooden" })),
+        rarities.map((r) => ({ rarity: r.rarity, weight: Number(r.weight) || 0, xp_boost_chance: Number(r.xp_boost_chance) || 0 })),
+      );
       await refresh();
       showToast("Chest odds saved");
     } catch (err) {
@@ -323,27 +326,80 @@ export default function CmsShop() {
             <Gift className="h-5 w-5 text-gold-500" />
             <div className="font-display text-base font-bold text-slate-900">Chest reward odds</div>
           </div>
-          <p className="mb-4 text-sm font-semibold text-slate-500">Each opened chest rolls one of these gem rewards. Higher weight = more likely.</p>
+          <p className="mb-4 text-sm font-semibold text-slate-500">
+            Opening a chest first rolls a rarity, then a gem reward from that rarity's table. Legendary always pays gems + an XP boost.
+          </p>
 
-          <div className="space-y-2">
-            <div className="grid grid-cols-[1fr_1fr_70px_auto] gap-2 px-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">
-              <span>Gems</span><span>Weight</span><span>Chance</span><span />
-            </div>
-            {chest.map((r, i) => {
-              const pct = Math.round(((Number(r.weight) || 0) / totalWeight) * 100);
-              return (
-                <div key={i} className="grid grid-cols-[1fr_1fr_70px_auto] items-center gap-2">
-                  <input type="number" value={r.gems} onChange={(ev) => setChest((c) => c.map((x, j) => (j === i ? { ...x, gems: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
-                  <input type="number" value={r.weight} onChange={(ev) => setChest((c) => c.map((x, j) => (j === i ? { ...x, weight: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
-                  <span className="text-sm font-extrabold text-slate-600 tabular-nums">{pct}%</span>
-                  <button type="button" onClick={() => setChest((c) => c.filter((_, j) => j !== i))} className="grid h-9 w-9 place-items-center rounded-xl text-cardinal-500 ring-1 ring-slate-200 hover:bg-cardinal-50"><Trash2 className="h-4 w-4" /></button>
+          {/* Rarity odds — fixed 4-tier set */}
+          {rarities.length > 0 && (
+            <div className="mb-5 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+              <div className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Rarity odds</div>
+              <div className="space-y-2">
+                <div className="grid grid-cols-[110px_1fr_1fr_70px] gap-2 px-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">
+                  <span>Tier</span><span>Weight</span><span>Boost %</span><span>Chance</span>
                 </div>
-              );
-            })}
-          </div>
+                {rarities.map((r, i) => {
+                  const totalR = rarities.reduce((s, x) => s + (Number(x.weight) || 0), 0) || 1;
+                  const pct = Math.round(((Number(r.weight) || 0) / totalR) * 100);
+                  const dot = { wooden: "#B07A45", silver: "#93A7BC", golden: "#FFC800", legendary: "#9B3FE8" }[r.rarity] || "#94a3b8";
+                  return (
+                    <div key={r.rarity} className="grid grid-cols-[110px_1fr_1fr_70px] items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-sm font-extrabold capitalize text-slate-700">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />
+                        {r.rarity}
+                      </span>
+                      <input type="number" value={r.weight} onChange={(ev) => setRarities((c) => c.map((x, j) => (j === i ? { ...x, weight: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
+                      <input type="number" min="0" max="100" value={r.xp_boost_chance} onChange={(ev) => setRarities((c) => c.map((x, j) => (j === i ? { ...x, xp_boost_chance: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
+                      <span className="text-sm font-extrabold text-slate-600 tabular-nums">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-          <div className="mt-3 flex items-center justify-between">
-            <button type="button" onClick={() => setChest((c) => [...c, { gems: 10, weight: 5 }])} className="btn3d btn3d-neutral text-sm inline-flex items-center gap-2"><Plus className="h-4 w-4" /> Add reward</button>
+          {/* Gem rewards, grouped per rarity */}
+          {["wooden", "silver", "golden", "legendary"].map((tier) => {
+            const rows = chest.map((r, i) => ({ ...r, _i: i })).filter((r) => (r.rarity || "wooden") === tier);
+            const tierWeight = rows.reduce((s, r) => s + (Number(r.weight) || 0), 0) || 1;
+            return (
+              <div key={tier} className="mb-4">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500 capitalize">{tier} rewards</span>
+                  <button
+                    type="button"
+                    onClick={() => setChest((c) => [...c, { gems: 10, weight: 5, rarity: tier }])}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-brand-600 ring-1 ring-brand-100 hover:bg-brand-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add
+                  </button>
+                </div>
+                {rows.length === 0 ? (
+                  <p className="px-1 text-xs font-semibold text-slate-400">No rewards — the built-in fallback table applies.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-[1fr_1fr_70px_auto] gap-2 px-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">
+                      <span>Gems</span><span>Weight</span><span>Chance</span><span />
+                    </div>
+                    {rows.map((r) => {
+                      const pct = Math.round(((Number(r.weight) || 0) / tierWeight) * 100);
+                      const i = r._i;
+                      return (
+                        <div key={i} className="grid grid-cols-[1fr_1fr_70px_auto] items-center gap-2">
+                          <input type="number" value={r.gems} onChange={(ev) => setChest((c) => c.map((x, j) => (j === i ? { ...x, gems: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
+                          <input type="number" value={r.weight} onChange={(ev) => setChest((c) => c.map((x, j) => (j === i ? { ...x, weight: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
+                          <span className="text-sm font-extrabold text-slate-600 tabular-nums">{pct}%</span>
+                          <button type="button" onClick={() => setChest((c) => c.filter((_, j) => j !== i))} className="grid h-9 w-9 place-items-center rounded-xl text-cardinal-500 ring-1 ring-slate-200 hover:bg-cardinal-50"><Trash2 className="h-4 w-4" /></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          <div className="mt-3 flex items-center justify-end">
             <button type="button" onClick={saveChest} disabled={busy || chest.length === 0} className="btn3d btn3d-brand text-sm inline-flex items-center gap-2 disabled:opacity-60"><Save className="h-4 w-4" /> Save odds</button>
           </div>
         </section>
