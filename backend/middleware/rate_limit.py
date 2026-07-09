@@ -10,9 +10,8 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse
 
 _TAUNT_LOG = "Rate limit triggered. DOS/DDOS attack is too basic for Haylingua, try something more creative :) Cheers, Armen Ghazaryan"
 _CLIENT_MESSAGE = "Too many requests. Please slow down and try again later."
@@ -53,16 +52,13 @@ class InMemoryRateLimiter:
         self._hits: Dict[str, Deque[float]] = {}
 
     def hit(self, key: str, limit: int, window_seconds: int) -> Tuple[bool, int]:
-        """
-        Returns (allowed, retry_after_seconds).
-        """
+        """Returns (allowed, retry_after_seconds)."""
         now = time.time()
         dq = self._hits.get(key)
         if dq is None:
             dq = deque()
             self._hits[key] = dq
 
-        # purge old
         cutoff = now - window_seconds
         while dq and dq[0] <= cutoff:
             dq.popleft()
@@ -76,13 +72,6 @@ class InMemoryRateLimiter:
 
 
 def _parse_trusted_proxies() -> List[Any]:
-    """CIDRs/IPs of proxies allowed to set CF-Connecting-IP / X-Forwarded-For.
-
-    Configure via TRUSTED_PROXY_IPS (comma-separated, e.g. Cloudflare ranges).
-    When set, forwarded IP headers are honored ONLY when the connecting peer is
-    one of these — otherwise an attacker hitting the origin directly could spoof
-    the headers to rotate the rate-limit key and bypass throttling.
-    """
     raw = (os.getenv("TRUSTED_PROXY_IPS") or "").strip()
     nets: List[Any] = []
     for part in raw.split(","):
@@ -100,9 +89,6 @@ _TRUSTED_PROXY_NETS = _parse_trusted_proxies()
 
 
 def _peer_is_trusted_proxy(request: Request) -> Optional[bool]:
-    # None  -> no allowlist configured (legacy behavior, honor headers)
-    # True  -> peer is a known proxy (honor headers)
-    # False -> peer is NOT trusted (ignore spoofable headers)
     if not _TRUSTED_PROXY_NETS:
         return None
     host = request.client.host if request.client else None
@@ -116,12 +102,9 @@ def _peer_is_trusted_proxy(request: Request) -> Optional[bool]:
 
 
 def _get_client_ip(request: Request) -> str:
-    # If a trusted-proxy allowlist is configured and the direct peer is NOT in
-    # it, never trust client-supplied forwarding headers (anti-spoofing).
     if _peer_is_trusted_proxy(request) is False:
         return request.client.host if request.client else "unknown"
 
-    # Cloudflare real IP (set by Cloudflare; clients cannot override at the edge)
     cf_ip = request.headers.get("CF-Connecting-IP")
     if cf_ip:
         return cf_ip.strip()
@@ -134,7 +117,6 @@ def _get_client_ip(request: Request) -> str:
 def _should_skip(path: str, method: str) -> bool:
     if method == "OPTIONS":
         return True
-    # exclude docs / openapi / static / health
     if path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc"):
         return True
     if path.startswith("/static/") or path.startswith("/assets/"):
@@ -145,15 +127,10 @@ def _should_skip(path: str, method: str) -> bool:
 
 
 def _extract_identifier(path: str, method: str, body_bytes: bytes) -> Optional[str]:
-    """
-    Extract an identifier (email/username) for per-identifier throttles on auth endpoints.
-    Best-effort; returns None if not found.
-    """
     if method != "POST":
         return None
     if not body_bytes:
         return None
-    # Only parse JSON bodies
     try:
         payload = json.loads(body_bytes.decode("utf-8"))
     except Exception:
@@ -161,7 +138,6 @@ def _extract_identifier(path: str, method: str, body_bytes: bytes) -> Optional[s
     if not isinstance(payload, dict):
         return None
 
-    # For /login and /signup we support email or username fields
     for k in ("email", "username", "query", "new_email"):
         v = payload.get(k)
         if isinstance(v, str) and v.strip():
@@ -169,9 +145,11 @@ def _extract_identifier(path: str, method: str, body_bytes: bytes) -> Optional[s
     return None
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
+class RateLimitMiddleware:
     """
-    Global rate limiting middleware.
+    Pure ASGI rate limiting middleware — avoids BaseHTTPMiddleware's
+    StreamingResponse / body-buffering incompatibility (starlette#1012).
+
     - Applies a default global rule to all requests (per IP).
     - Applies tighter rules for sensitive endpoints (per IP).
     - Applies a per-identifier rule for auth endpoints when identifier is present.
@@ -180,28 +158,55 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """
 
     def __init__(self, app: Any, rules: Tuple[Rule, ...] = DEFAULT_RULES) -> None:
-        super().__init__(app)
+        self.app = app
         self._rules = rules
         self._limiter = InMemoryRateLimiter()
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
         path = request.url.path
         method = request.method.upper()
 
         if _should_skip(path, method):
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
         ip = _get_client_ip(request)
 
-        # Read body once (so we can parse identifier). Then reattach it for downstream handlers.
-        body = await request.body()
+        # Buffer the full request body so we can:
+        #   1. extract an identifier for per-identifier throttles
+        #   2. replay it for the downstream handler
+        # We drain all http.request chunks ourselves rather than relying on
+        # BaseHTTPMiddleware, which breaks StreamingResponse disconnect handling.
+        body_chunks: List[bytes] = []
+        more = True
+        while more:
+            message = await receive()
+            if message["type"] != "http.request":
+                # Unexpected — pass through untouched and bail
+                await self.app(scope, receive, send)
+                return
+            body_chunks.append(message.get("body", b""))
+            more = message.get("more_body", False)
 
-        async def _receive() -> dict:
-            return {"type": "http.request", "body": body, "more_body": False}
+        body = b"".join(body_chunks)
 
-        request._receive = _receive  # type: ignore[attr-defined]
+        # Replay callable: first call returns the buffered body; subsequent
+        # calls pass through to the real receive (for disconnect detection).
+        _replayed = False
 
-        # Apply matching rules (per IP)
+        async def replay_receive():
+            nonlocal _replayed
+            if not _replayed:
+                _replayed = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return await receive()
+
+        # ── Per-IP rules ────────────────────────────────────────────────────
         for rule in self._rules:
             if rule.method is not None and rule.method != method:
                 continue
@@ -211,23 +216,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             allowed, retry = self._limiter.hit(key, rule.limit, rule.window_seconds)
             if not allowed:
                 print(f"[rate_limit] ip={ip} path={path} method={method} retry_after={retry}s — {_TAUNT_LOG}")
-                return JSONResponse(
+                response = JSONResponse(
                     status_code=429,
                     headers={"Retry-After": str(retry)},
-                    content={
-                        "detail": _CLIENT_MESSAGE,
-                        "retry_after_seconds": retry,
-                    },
+                    content={"detail": _CLIENT_MESSAGE, "retry_after_seconds": retry},
                 )
+                await response(scope, replay_receive, send)
+                return
 
-        # Per-identifier throttles for auth endpoints (prevents rotating IPs)
+        # ── Per-identifier rules (auth endpoints) ────────────────────────────
         identifier = _extract_identifier(path, method, body)
         if identifier and (path in ("/login", "/signup") or path.startswith("/auth/") or path.startswith("/me/")):
-            # Conservative per-identifier limits
             if path == "/login":
-                limit, window = 20, 3600  # 20/hour per identifier
+                limit, window = 20, 3600
             elif path == "/signup":
-                limit, window = 10, 3600  # 10/hour
+                limit, window = 10, 3600
             elif path.startswith("/auth/"):
                 limit, window = 20, 3600
             else:
@@ -236,13 +239,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             allowed, retry = self._limiter.hit(key, limit, window)
             if not allowed:
                 print(f"[rate_limit] id={identifier} path={path} retry_after={retry}s — {_TAUNT_LOG}")
-                return JSONResponse(
+                response = JSONResponse(
                     status_code=429,
                     headers={"Retry-After": str(retry)},
-                    content={
-                        "detail": _CLIENT_MESSAGE,
-                        "retry_after_seconds": retry,
-                    },
+                    content={"detail": _CLIENT_MESSAGE, "retry_after_seconds": retry},
                 )
+                await response(scope, replay_receive, send)
+                return
 
-        return await call_next(request)
+        await self.app(scope, replay_receive, send)
