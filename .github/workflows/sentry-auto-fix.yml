@@ -1,0 +1,228 @@
+name: Sentry Auto-Fix
+
+# Triggered by backend/routes_autofix.py forwarding a verified Sentry "new
+# issue" webhook via repository_dispatch. Can also be run by hand for
+# testing via workflow_dispatch.
+#
+# This job NEVER pushes to main. It creates a fix branch, runs Claude Code
+# to reproduce/diagnose/fix against a scratch Postgres instance, and opens
+# a PR — a human reviews and merges. Pair this with GitHub branch
+# protection on `main` (require PR review) as defense in depth.
+on:
+  repository_dispatch:
+    types: [sentry-issue]
+  workflow_dispatch:
+    inputs:
+      issue_title:
+        description: "Error title / message (for manual testing)"
+        required: true
+      issue_details:
+        description: "Stack trace / extra context (optional)"
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  diagnose-and-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: haylingua_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Untrusted Sentry-derived fields (title/culprit/value/permalink can, in
+    # principle, be influenced by anyone able to trigger a backend error) are
+    # passed here via env, NOT interpolated directly into `run:` shell
+    # strings — direct ${{ }} interpolation into a shell command is a known
+    # GitHub Actions script-injection vector.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/haylingua_ci
+      EMAIL_CODE_PEPPER: ci-scratch-pepper-not-secret
+      JWT_SECRET: ci-scratch-jwt-secret-not-secret
+      ISSUE_ID: ${{ github.event.client_payload.issue_id || 'manual' }}
+      ISSUE_SHORT_ID: ${{ github.event.client_payload.short_id || 'manual' }}
+      ISSUE_TITLE: ${{ github.event.client_payload.title || github.event.inputs.issue_title }}
+      ISSUE_CULPRIT: ${{ github.event.client_payload.culprit }}
+      ISSUE_VALUE: ${{ github.event.client_payload.value || github.event.inputs.issue_details }}
+      ISSUE_PERMALINK: ${{ github.event.client_payload.permalink }}
+      ISSUE_COUNT: ${{ github.event.client_payload.count }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create fix branch
+        id: branch
+        run: |
+          SAFE_ID=$(echo "$ISSUE_SHORT_ID" | tr -c 'a-zA-Z0-9-' '-' | sed 's/-\+/-/g')
+          BRANCH="autofix/${SAFE_ID:-manual}-${{ github.run_id }}"
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Bootstrap scratch database schema
+        working-directory: backend
+        run: python3 scripts/bootstrap_scratch_db.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Write issue brief
+        run: |
+          cat > /tmp/issue_brief.md << BRIEF_EOF
+          # Sentry issue: $ISSUE_TITLE
+
+          - Sentry short ID: $ISSUE_SHORT_ID
+          - Culprit: $ISSUE_CULPRIT
+          - Occurrences: $ISSUE_COUNT
+          - Link: $ISSUE_PERMALINK
+
+          Detail / stack:
+          $ISSUE_VALUE
+          BRIEF_EOF
+          cat /tmp/issue_brief.md
+
+      - name: Run Claude Code to diagnose and fix
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "$(cat <<'PROMPT_EOF'
+          You are triaging a production error from Sentry for the Haylingua
+          backend (FastAPI + SQLAlchemy + Postgres, repo root is the current
+          directory, backend code is in backend/). The issue details are in
+          /tmp/issue_brief.md — read it first.
+
+          A scratch Postgres database is already running and fully migrated
+          (DATABASE_URL is set, backend/scripts/bootstrap_scratch_db.py has
+          already run against it). Use it to actually reproduce the bug —
+          write a small throwaway script that exercises the failing code
+          path with realistic data, and run it. Do not propose a fix based
+          on reading the stack trace alone.
+
+          Required process, in order:
+          1. Locate the failing code from the culprit/stack trace.
+          2. Reproduce the exact error against the scratch database. If you
+             cannot reproduce it with reasonable effort, STOP — do not guess
+             a fix. Instead write up what you found and why you couldn't
+             reproduce it, and end there (see "if you cannot fix it safely"
+             below).
+          3. Find the root cause, not just a surface patch. If a similar bug
+             pattern appears in other files, note and consider fixing those
+             too.
+          4. Apply the minimal, correct fix.
+          5. Re-run your reproduction script against the same scratch DB and
+             confirm it now passes.
+          6. Run `cd backend && python3 -c "import ast; ast.parse(open('routes.py').read())"`
+             (adjust the file) on every Python file you changed, to catch
+             syntax errors before committing.
+          7. If frontend files changed, run `npm run build` and confirm it
+             succeeds.
+
+          Hard rules:
+          - Never push to main or any branch other than the one you're
+            already on. Never force-push.
+          - Never drop, truncate, or destructively modify any table — this
+            is a bug-fix task, not a data-migration task.
+          - Keep the fix scoped to the actual root cause. Don't refactor
+            unrelated code, don't rename things, don't "clean up while
+            you're in there."
+          - If the right fix requires a product/business decision (not just
+            a technical judgment call), or touches billing/payments/auth in
+            a way you're not fully confident about, do NOT apply a fix.
+
+          If you cannot fix it safely (couldn't reproduce, or the right fix
+          needs a human decision): do not modify any files. Instead, write
+          your diagnosis to /tmp/diagnosis_only.md explaining what you found,
+          why you're not confident enough to fix it, and what a human should
+          look at next.
+
+          When you're done, write a short summary to /tmp/pr_summary.md with:
+          - What the root cause was
+          - What you changed and why
+          - Exactly how you verified the fix (what you ran, what it showed)
+          This file becomes the pull request description, so write it for a
+          human reviewer who wasn't watching you work.
+          PROMPT_EOF
+          )" --dangerously-skip-permissions
+
+      - name: Commit fix (if any)
+        id: commit
+        run: |
+          git config user.name "haylingua-autofix[bot]"
+          git config user.email "autofix@haylingua.am"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "autofix: ${ISSUE_TITLE}"
+            git push origin "${{ steps.branch.outputs.branch }}"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open pull request (fix applied)
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BODY_FILE="/tmp/pr_summary.md"
+          if [ ! -s "$BODY_FILE" ]; then
+            echo "(Claude Code did not write a summary — see commit diff.)" > "$BODY_FILE"
+          fi
+          {
+            echo "";
+            echo "---";
+            echo "Sentry issue: $ISSUE_SHORT_ID — $ISSUE_PERMALINK";
+            echo "";
+            echo "This PR was opened automatically. **Review carefully before merging** — nothing here was auto-merged.";
+          } >> "$BODY_FILE"
+          gh pr create \
+            --title "🤖 Auto-fix: ${ISSUE_TITLE}" \
+            --body-file "$BODY_FILE" \
+            --base main \
+            --head "${{ steps.branch.outputs.branch }}"
+
+      - name: Open issue (diagnosis only, no fix applied)
+        if: steps.commit.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BODY_FILE="/tmp/diagnosis_only.md"
+          if [ ! -s "$BODY_FILE" ]; then
+            echo "Claude Code made no changes and left no diagnosis file. Check the workflow run logs." > "$BODY_FILE"
+          fi
+          {
+            echo "";
+            echo "---";
+            echo "Sentry issue: $ISSUE_SHORT_ID — $ISSUE_PERMALINK";
+          } >> "$BODY_FILE"
+          gh issue create \
+            --title "🤖 Needs human review: ${ISSUE_TITLE}" \
+            --body-file "$BODY_FILE"

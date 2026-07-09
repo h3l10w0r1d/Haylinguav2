@@ -1,7 +1,7 @@
 // src/HeaderLayout.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store } from "lucide-react";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, BarChart2, BookOpen } from "lucide-react";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -252,6 +252,14 @@ export default function HeaderLayout({ user, onLogout, children }) {
             <NavLink to="/leaderboard" className={navLinkClass}>
               <Trophy className="w-4 h-4" />
               <span>Leaderboard</span>
+            </NavLink>
+            <NavLink to="/vocabulary" className={navLinkClass}>
+              <BookOpen className="w-4 h-4" />
+              <span>Words</span>
+            </NavLink>
+            <NavLink to="/progress" className={navLinkClass}>
+              <BarChart2 className="w-4 h-4" />
+              <span>Progress</span>
             </NavLink>
             <NavLink to="/shop" className={navLinkClass}>
               <Store className="w-4 h-4" />

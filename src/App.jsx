@@ -12,6 +12,8 @@ import {
 import LandingPage from './LandingPage';
 import HeaderLayout from './HeaderLayout';
 import LoadingScreen from './lib/LoadingScreen';
+import ErrorBoundary from './lib/ErrorBoundary';
+import NotifyPrompt from './lib/NotifyPrompt';
 
 // Code-split heavy routes so the initial bundle stays small.
 const Dashboard = lazy(() => import('./Dashboard'));
@@ -41,7 +43,9 @@ const PracticeMode = lazy(() => import('./PracticeMode'));
 const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
 const PlacementTest = lazy(() => import('./PlacementTest'));
 const AIConversation = lazy(() => import('./AIConversation'));
-const ReviewMode = lazy(() => import('./ReviewMode'));
+const ReviewMode      = lazy(() => import('./ReviewMode'));
+const VocabularyPage  = lazy(() => import('./VocabularyPage'));
+const ProgressPage    = lazy(() => import('./ProgressPage'));
 
 function RouteFallback() {
   return <LoadingScreen />;
@@ -571,7 +575,9 @@ function AppShell() {
       <Route path="/cms" element={<CmsGate />} />
       <Route path="/cms/*" element={<CmsGate />} />
 
-      <Route path="/review" element={<ReviewMode />} />
+      <Route path="/review"      element={<ReviewMode />} />
+      <Route path="/vocabulary"  element={<VocabularyPage />} />
+      <Route path="/progress"    element={<ProgressPage />} />
       <Route path="/auth/google/callback" element={<AuthCallback />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -582,8 +588,11 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppShell />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AppShell />
+        <NotifyPrompt />
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

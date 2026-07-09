@@ -4020,7 +4020,7 @@ def me_checkpoint(
                 SELECT id AS exercise_id
                 FROM exercises
                 WHERE lesson_id = ANY(:ids)
-                  AND (cardinality(CAST(:tried AS integer[])) = 0 OR id <> ALL(CAST(:tried AS integer[])))
+                  AND (cardinality(:tried::integer[]) = 0 OR id <> ALL(:tried::integer[]))
                 ORDER BY id
             """),
             {"ids": ids, "tried": ex_ids if ex_ids else []},
@@ -5449,14 +5449,14 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         if isinstance(owned, str): owned = _json.loads(owned)
         if str(item["id"]) not in owned:
             owned.append(str(item["id"]))
-        db.execute(text("UPDATE users SET owned_frames = CAST(:v AS jsonb) WHERE id = :u"), {"u": user_id, "v": _json.dumps(owned)})
+        db.execute(text("UPDATE users SET owned_frames = :v::jsonb WHERE id = :u"), {"u": user_id, "v": _json.dumps(owned)})
     elif effect == "profile_theme":
         import json as _json
         owned = db.execute(text("SELECT owned_themes FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
         if isinstance(owned, str): owned = _json.loads(owned)
         if str(item["id"]) not in owned:
             owned.append(str(item["id"]))
-        db.execute(text("UPDATE users SET owned_themes = CAST(:v AS jsonb) WHERE id = :u"), {"u": user_id, "v": _json.dumps(owned)})
+        db.execute(text("UPDATE users SET owned_themes = :v::jsonb WHERE id = :u"), {"u": user_id, "v": _json.dumps(owned)})
 
     result = {"ok": True, "item": item["id"], **_wallet(db, user_id)}
     _brevo_sync_user(db, int(user_id), event="shop_purchase", event_props={

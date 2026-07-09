@@ -16,6 +16,13 @@ def ensure_schema() -> None:
             return bool(conn.execute(text("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=:t AND column_name=:c LIMIT 1"), {"t": table, "c": col}).scalar())
         def add_col_if_missing(table, ddl):
             col = ddl.strip().split()[0].strip('"')
+            if not table_exists(table):
+                # Some tables (e.g. cms_users) predate ensure_table() coverage
+                # and are assumed to already exist in production. Don't let a
+                # missing table abort the whole migration — and the whole app
+                # startup with it — for unrelated features.
+                print(f"[ensure_schema] skipped {table}.{col}: table does not exist")
+                return
             if not col_exists(table, col):
                 conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN {ddl}'))
                 print(f"[ensure_schema] added {table}.{col}")
@@ -70,6 +77,11 @@ def ensure_schema() -> None:
         fill_nulls("users", "email_reminders_enabled", "TRUE")
         # Guard so the streak-risk email is sent at most once per day per user.
         add_col_if_missing("users", "last_streak_email_at TIMESTAMPTZ")
+
+        # ---------- SR review streak ----------
+        add_col_if_missing("users", "review_streak INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("users", "last_review_date DATE")
+        fill_nulls("users", "review_streak", "0")
 
         # ---------- Word hints (GPT-4o gloss cache, shared across users) ----------
         ensure_table("word_hints", """

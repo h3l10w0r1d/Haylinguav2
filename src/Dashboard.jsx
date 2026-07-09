@@ -394,6 +394,13 @@ function ReviewCard({ token }) {
       .catch(() => {});
   }, [token]);
 
+  // Reflect due count in the browser tab title
+  React.useEffect(() => {
+    const due = stats?.due_today || 0;
+    document.title = due > 0 ? `(${due}) Haylingua` : "Haylingua";
+    return () => { document.title = "Haylingua"; };
+  }, [stats?.due_today]);
+
   if (!stats || stats.total === 0) return null;
 
   const due = stats.due_today;
