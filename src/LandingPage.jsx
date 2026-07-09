@@ -6,7 +6,7 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  Menu, X,
+  Menu, X, Eye, EyeOff,
 } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
@@ -831,6 +831,9 @@ export default function LandingPage({ onLogin, onSignup }) {
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
 function Field({ label, optional, icon: Icon, value, onChange, placeholder, type = "text", autoComplete }) {
+  const [showPw, setShowPw] = useState(false);
+  const isPassword = type === "password";
+  const inputType = isPassword ? (showPw ? "text" : "password") : type;
   return (
     <div>
       <label className="mb-1.5 block text-sm font-extrabold text-slate-700">
@@ -839,13 +842,24 @@ function Field({ label, optional, icon: Icon, value, onChange, placeholder, type
       <div className="relative">
         {Icon && <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />}
         <input
-          className={"w-full rounded-2xl bg-slate-50 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 " + (Icon ? "pl-10 pr-3.5" : "px-3.5")}
-          type={type}
+          className={"w-full rounded-2xl bg-slate-50 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 " + (Icon ? "pl-10" : "px-3.5") + (isPassword ? " pr-10" : " pr-3.5")}
+          type={inputType}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
         />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPw((v) => !v)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+            tabIndex={-1}
+            aria-label={showPw ? "Hide password" : "Show password"}
+          >
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
       </div>
     </div>
   );
