@@ -224,10 +224,9 @@ export default function PracticeMode() {
     return (
       <LessonCompletionScreen
         lesson={{ title: "Practice Session", xp: xpEarned }}
-        xpEarned={xpEarned}
+        sessionXpEarned={xpEarned}
         mistakes={mistakes}
-        totalExercises={originalTotal}
-        onContinue={() => navigate("/dashboard")}
+        onDone={() => navigate("/dashboard")}
         onRetry={() => window.location.reload()}
       />
     );
