@@ -23,6 +23,7 @@ from seed_curriculum import seed_curriculum
 from ensure_schema import ensure_schema
 from lesson_analytics import router as lesson_analytics_router
 from routes_seo import router as seo_router
+from routes_status import router as status_router
 
 
 # Error tracking — no-op unless SENTRY_DSN is set. Init before the app so the
@@ -180,6 +181,9 @@ app.include_router(seo_router, prefix="/api")
 
 app.include_router(conversation_router)
 app.include_router(conversation_router, prefix="/api")
+
+app.include_router(status_router)
+app.include_router(status_router, prefix="/api")
 
 
 # 🔒 Global rate limiting (in-memory). Applies to all endpoints; tighter rules for auth/security paths.

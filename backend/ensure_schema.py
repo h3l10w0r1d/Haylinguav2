@@ -362,4 +362,26 @@ def ensure_schema() -> None:
             """,
         )
 
+        # ---------- Status page: periodic service health snapshots ----------
+        ensure_table(
+            "service_health_log",
+            """
+            CREATE TABLE service_health_log (
+                id SERIAL PRIMARY KEY,
+                service_key TEXT NOT NULL,
+                status TEXT NOT NULL,
+                latency_ms INTEGER,
+                message TEXT,
+                checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        try:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_service_health_log_key_time "
+                "ON service_health_log (service_key, checked_at DESC)"
+            ))
+        except Exception:
+            pass
+
     print("[ensure_schema] done")
