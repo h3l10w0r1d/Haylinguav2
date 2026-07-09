@@ -175,7 +175,7 @@ export default function PlacementTest() {
   roundCorrectRef.current = roundCorrect;
 
   // ── Grade an answer ────────────────────────────────────────────────────────
-  async function gradeAnswer({ isCorrect, answerText, autoAdvance }) {
+  async function gradeAnswer({ isCorrect, answerText, autoAdvance, _synced }) {
     if (hasAnswered) return;
 
     // char_intro and similar — just advance, don't grade
@@ -206,7 +206,9 @@ export default function PlacementTest() {
     const exercise = exercises[queueIdx];
     let serverCorrect = isCorrect;
 
-    if (exercise) {
+    // ExerciseRenderer already posted this attempt and returned _synced:true —
+    // trust its isCorrect rather than re-posting with an empty answer_text.
+    if (!_synced && exercise) {
       try {
         const res = await fetch(`${API_BASE}/me/exercises/${exercise.id}/attempt`, {
           method: "POST",
@@ -412,11 +414,10 @@ export default function PlacementTest() {
           key={`${currentExercise.id}-${renderNonce}`}
           exercise={currentExercise}
           lesson={{ id: currentExercise.lesson_id, exercises }}
-          onCorrect={({ answerText, autoAdvance } = {}) => gradeAnswer({ isCorrect: true, answerText, autoAdvance })}
-          onWrong={({ answerText } = {}) => gradeAnswer({ isCorrect: false, answerText })}
-          onSkip={() => gradeAnswer({ isCorrect: false, answerText: "" })}
-          onAnswer={({ isCorrect, answerText, autoAdvance } = {}) => gradeAnswer({ isCorrect, answerText, autoAdvance })}
-          submit={({ isCorrect, answerText, autoAdvance } = {}) => gradeAnswer({ isCorrect, answerText, autoAdvance })}
+          onAnswer={({ isCorrect, answerText, autoAdvance, _synced } = {}) =>
+            gradeAnswer({ isCorrect, answerText, autoAdvance, _synced })
+          }
+          onSkip={() => gradeAnswer({ isCorrect: false, answerText: "", _synced: false })}
           graded={hasAnswered}
         />
       ) : null}
