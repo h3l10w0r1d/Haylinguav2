@@ -4608,6 +4608,119 @@ def me_practice(
     return {"exercises": exercises_out}
 
 
+def _hydrate_exercises(db: Connection, ids: list[int]) -> list[dict]:
+    """Load full exercise objects (+ options) for the given ids, in id order."""
+    if not ids:
+        return []
+    ex_rows = db.execute(
+        text(
+            'SELECT id, lesson_id, kind, prompt, expected_answer, sentence_before, '
+            'sentence_after, "order", config FROM exercises WHERE id = ANY(:ids)'
+        ),
+        {"ids": ids},
+    ).mappings().all()
+    ex_map = {int(r["id"]): dict(r) for r in ex_rows}
+    opt_rows = db.execute(
+        text(
+            "SELECT id, exercise_id, text, is_correct, side, match_key "
+            "FROM exercise_options WHERE exercise_id = ANY(:ids) ORDER BY exercise_id ASC, id ASC"
+        ),
+        {"ids": ids},
+    ).mappings().all()
+    options_by_ex: dict[int, list[dict]] = {eid: [] for eid in ids}
+    for o in opt_rows:
+        eid = int(o["exercise_id"])
+        if eid in options_by_ex:
+            options_by_ex[eid].append(dict(o))
+    out = []
+    for eid in ids:
+        ex = ex_map.get(eid)
+        if ex:
+            ex["options"] = options_by_ex.get(eid, [])
+            out.append(ex)
+    return out
+
+
+@router.get("/me/mistakes")
+def me_mistakes(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """
+    The Mistakes Hub: exercises the learner has gotten wrong and not yet
+    re-mastered (a wrong attempt more recent than their last correct one).
+    Returns full exercise objects ready for ExerciseRenderer.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    _require_verified(db, int(user_id))
+
+    rows = db.execute(
+        text(
+            """
+            SELECT e.id AS exercise_id,
+                   MAX(a.created_at) FILTER (WHERE NOT a.is_correct) AS last_wrong,
+                   MAX(a.created_at) FILTER (WHERE a.is_correct)     AS last_right,
+                   COUNT(*) FILTER (WHERE NOT a.is_correct)::int      AS wrong_count
+            FROM user_exercise_attempts a
+            JOIN exercises e ON e.id = a.exercise_id
+            WHERE a.user_id = :u
+              AND e.kind NOT IN ('char_intro', 'reading_section', 'flashcard')
+            GROUP BY e.id
+            HAVING MAX(a.created_at) FILTER (WHERE NOT a.is_correct) IS NOT NULL
+               AND (
+                    MAX(a.created_at) FILTER (WHERE a.is_correct) IS NULL
+                 OR MAX(a.created_at) FILTER (WHERE NOT a.is_correct)
+                    > MAX(a.created_at) FILTER (WHERE a.is_correct)
+               )
+            ORDER BY wrong_count DESC, last_wrong DESC
+            LIMIT 20
+            """
+        ),
+        {"u": user_id},
+    ).mappings().all()
+
+    ids = [int(r["exercise_id"]) for r in rows]
+    exercises = _hydrate_exercises(db, ids)
+    if not exercises:
+        return {"exercises": [], "message": "No mistakes to review — nicely done!"}
+    return {"exercises": exercises, "total": len(exercises)}
+
+
+@router.get("/me/mistakes/count")
+def me_mistakes_count(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Lightweight count of unresolved mistakes for a dashboard badge."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    row = db.execute(
+        text(
+            """
+            SELECT COUNT(*)::int AS c FROM (
+              SELECT e.id
+              FROM user_exercise_attempts a
+              JOIN exercises e ON e.id = a.exercise_id
+              WHERE a.user_id = :u
+                AND e.kind NOT IN ('char_intro', 'reading_section', 'flashcard')
+              GROUP BY e.id
+              HAVING MAX(a.created_at) FILTER (WHERE NOT a.is_correct) IS NOT NULL
+                 AND (
+                      MAX(a.created_at) FILTER (WHERE a.is_correct) IS NULL
+                   OR MAX(a.created_at) FILTER (WHERE NOT a.is_correct)
+                      > MAX(a.created_at) FILTER (WHERE a.is_correct)
+                 )
+            ) t
+            """
+        ),
+        {"u": user_id},
+    ).mappings().first()
+    return {"count": int((row and row["c"]) or 0)}
+
+
 @router.get("/me/activity")
 def me_activity(
     days: int = 7,

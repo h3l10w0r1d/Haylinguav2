@@ -457,6 +457,28 @@ function AppShell() {
         }
       />
 
+      {/* Mistakes Hub — replay exercises you got wrong */}
+      <Route
+        path="/mistakes"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <PracticeMode
+                  source="/me/mistakes"
+                  title="Mistakes"
+                  doneTitle="Mistakes Review"
+                  emptyHeading="No mistakes to review!"
+                  emptyText="You've re-mastered everything you got wrong. Nicely done!"
+                />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
       {/* Unit checkpoint test */}
       <Route
         path="/checkpoint"

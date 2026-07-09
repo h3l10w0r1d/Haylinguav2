@@ -443,6 +443,43 @@ function ReviewCard({ token }) {
   );
 }
 
+function MistakesCard({ token, navigate }) {
+  const [count, setCount] = React.useState(0);
+  React.useEffect(() => {
+    if (!token) return;
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com"}/me/mistakes/count`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setCount(Number(d.count) || 0); })
+      .catch(() => {});
+  }, [token]);
+
+  if (count === 0) return null;
+
+  return (
+    <div
+      className="mt-4 cursor-pointer overflow-hidden rounded-3xl bg-gradient-to-br from-cardinal-50 to-white p-5 shadow-sm ring-1 ring-cardinal-200 transition hover:shadow-md"
+      onClick={() => navigate("/mistakes")}
+    >
+      <div className="flex items-center justify-between">
+        <div className="font-display text-base font-extrabold text-slate-800">Your mistakes</div>
+        <span className="rounded-full bg-cardinal-100 px-2 py-0.5 text-xs font-extrabold text-cardinal-700">Fix them</span>
+      </div>
+      <div className="mt-3 flex items-end gap-2">
+        <span className="text-4xl font-black text-cardinal-600">{count}</span>
+        <span className="mb-1 text-sm font-semibold text-slate-500">{count === 1 ? "exercise to re-master" : "exercises to re-master"}</span>
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); navigate("/mistakes"); }}
+        className="mt-4 w-full rounded-2xl bg-cardinal-500 py-2.5 text-sm font-extrabold text-white shadow-[0_3px_0_0_#9f1239] transition active:translate-y-0.5"
+      >
+        Review mistakes
+      </button>
+    </div>
+  );
+}
+
 function DailyGoalCard({ todayXp }) {
   const [goal, setGoal] = React.useState(() => {
     const saved = parseInt(localStorage.getItem("hay_daily_goal") || "20", 10);
@@ -909,6 +946,9 @@ export default function Dashboard({ user }) {
 
         {/* Spaced-repetition review widget — only renders when cards exist */}
         <ReviewCard token={token} />
+
+        {/* Mistakes Hub — only renders when there are unresolved mistakes */}
+        <MistakesCard token={token} navigate={navigate} />
 
         {/* Streak + chest + quick access — above the lesson list */}
         <div className="mb-6 space-y-4">

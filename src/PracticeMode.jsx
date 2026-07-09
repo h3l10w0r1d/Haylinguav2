@@ -37,7 +37,13 @@ const INSTRUCTIONS = {
   word_image_match: "Match the word to the image",
 };
 
-export default function PracticeMode() {
+export default function PracticeMode({
+  source = "/me/practice",
+  title = "Practice",
+  emptyHeading = "All caught up!",
+  emptyText = "You have no exercises due for review. Come back later.",
+  doneTitle = "Practice Session",
+} = {}) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,13 +65,13 @@ export default function PracticeMode() {
   useEffect(() => {
     const token = getToken();
     if (!token) { navigate("/login"); return; }
-    fetch(`${API_BASE}/me/practice`, {
+    fetch(`${API_BASE}${source}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => {
         if (!r.ok) {
           if (r.status === 401) throw new Error("Session expired — please log in again");
-          throw new Error(`Failed to load practice (${r.status})`);
+          throw new Error(`Failed to load (${r.status})`);
         }
         return r.json();
       })
@@ -208,7 +214,7 @@ export default function PracticeMode() {
   if (error) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="font-bold text-cardinal-600">Failed to load practice: {error}</p>
+        <p className="font-bold text-cardinal-600">Failed to load: {error}</p>
         <button className="btn3d btn3d-brand" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
       </div>
     );
@@ -218,8 +224,8 @@ export default function PracticeMode() {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
         <Dumbbell className="h-16 w-16 text-slate-300" />
-        <h2 className="font-display text-2xl font-extrabold text-slate-700">All caught up!</h2>
-        <p className="text-slate-500">You have no exercises due for review. Come back later.</p>
+        <h2 className="font-display text-2xl font-extrabold text-slate-700">{emptyHeading}</h2>
+        <p className="text-slate-500">{emptyText}</p>
         <button className="btn3d btn3d-brand mt-2" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
       </div>
     );
@@ -228,7 +234,7 @@ export default function PracticeMode() {
   if (phase === "done") {
     return (
       <LessonCompletionScreen
-        lesson={{ title: "Practice Session", xp: xpEarned }}
+        lesson={{ title: doneTitle, xp: xpEarned }}
         sessionXpEarned={xpEarned}
         mistakes={mistakes}
         onDone={() => navigate("/dashboard")}
@@ -243,7 +249,7 @@ export default function PracticeMode() {
 
   return (
     <ExerciseShell
-      title="Practice"
+      title={title}
       step={completedSteps}
       total={originalTotal}
       onBack={() => navigate("/dashboard")}
