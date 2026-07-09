@@ -417,9 +417,25 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
 
   // ===== UI blocks =====
   if (isTyping) {
+    // fill_blank exercises give the missing word only — show the sentence
+    // with a visible blank so the learner knows not to type the whole thing.
+    const blankBefore = cfg?.before ?? exercise?.sentence_before ?? "";
+    const blankAfter = cfg?.after ?? exercise?.sentence_after ?? "";
+    const hasBlankContext = kind === "fill_blank" && (blankBefore || blankAfter);
     return (
       <Card>
         <div className="text-slate-800 text-xl font-extrabold leading-snug">{prompt}</div>
+        {hasBlankContext ? (
+          <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
+            <div className="text-lg font-semibold text-slate-900">
+              {blankBefore}{" "}
+              <span className="px-2 py-1 rounded-lg bg-white ring-1 ring-slate-200">
+                {cfg?.placeholder ?? "___"}
+              </span>{" "}
+              {blankAfter}
+            </div>
+          </div>
+        ) : null}
         <div className="mt-4">
           <input
             value={typed}

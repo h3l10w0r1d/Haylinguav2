@@ -32,7 +32,7 @@ from auth import (
 from jose import jwt, JWTError
 
 # Authoritative, server-side answer grading (never trust client is_correct)
-from grading import grade_attempt, typo_check, _INFO_KINDS
+from grading import grade_attempt, typo_check, _as_cfg, _INFO_KINDS
 
 # Brevo (Sendinblue) integration (contacts + events)
 try:
@@ -4358,24 +4358,39 @@ def explain_mistake(
         if opt:
             correct = (opt["text"] or "").strip()
 
+    # fill_blank sentence context can live either in the top-level
+    # sentence_before/sentence_after columns or in config.before/config.after
+    # (both renderers accept either) — check config too, or GPT never learns
+    # that only the single blank word is expected and may contradict the grader.
+    cfg = _as_cfg(ex["config"])
+    sentence_before = ex["sentence_before"] or cfg.get("before") or ""
+    sentence_after = ex["sentence_after"] or cfg.get("after") or ""
+
     prompt_text = (ex["prompt"] or "").strip()
-    if ex["sentence_before"] or ex["sentence_after"]:
-        prompt_text = f'{ex["sentence_before"] or ""} ___ {ex["sentence_after"] or ""}'.strip()
+    blank_context = ""
+    if sentence_before or sentence_after:
+        blank_context = f'{sentence_before} ___ {sentence_after}'.strip()
 
     user_ans = (payload.user_answer or "").strip()
 
     system = (
         "You are a warm, encouraging Armenian tutor for absolute beginners. "
-        "Explain in at most 2 short sentences, in simple English, why the learner's "
-        "answer was not correct and what the right idea is. Do not be condescending. "
-        "If helpful, mention the Armenian word/letter briefly. No preamble, no lists."
+        "The exercise was already graded INCORRECT by exact server-side comparison "
+        "against the 'Correct answer' field below — that verdict is authoritative and "
+        "final. Never tell the learner they were actually right, even if their answer "
+        "seems reasonable or semantically close. Your job is only to explain, in at "
+        "most 2 short sentences and simple English, the specific difference between "
+        "what they wrote and what was required (e.g. they wrote a full sentence when "
+        "only the single missing word was needed, a typo, wrong word, wrong grammatical "
+        "form, etc). Do not be condescending. No preamble, no lists."
     )
     user = (
         f"Exercise type: {ex['kind']}\n"
         f"Question/prompt: {prompt_text or '(none)'}\n"
-        f"Correct answer: {correct or '(unknown)'}\n"
-        f"Learner's answer: {user_ans or '(blank)'}\n\n"
-        "Explain briefly why the learner's answer is wrong and guide them."
+        + (f"Sentence with blank: {blank_context}\n" if blank_context else "")
+        + f"Correct answer (exact, required format): {correct or '(unknown)'}\n"
+        f"Learner's answer (graded incorrect): {user_ans or '(blank)'}\n\n"
+        "Explain the specific mismatch between the learner's answer and the required answer."
     )
 
     try:
