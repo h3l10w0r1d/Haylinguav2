@@ -352,6 +352,39 @@ def ensure_schema() -> None:
         except Exception:
             conn.execute(text("ROLLBACK TO SAVEPOINT sp_ref_code"))
 
+        # ---------- Spaced-repetition cards ----------
+        # One row per (user, exercise). Created automatically on first lesson
+        # answer; updated by the dedicated /me/review/submit endpoint.
+        ensure_table(
+            "sr_cards",
+            """
+            CREATE TABLE sr_cards (
+                id               SERIAL PRIMARY KEY,
+                user_id          INTEGER NOT NULL,
+                exercise_id      INTEGER NOT NULL,
+                lesson_id        INTEGER NOT NULL,
+                ease_factor      REAL    NOT NULL DEFAULT 2.5,
+                interval_days    INTEGER NOT NULL DEFAULT 1,
+                repetitions      INTEGER NOT NULL DEFAULT 0,
+                due_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_reviewed_at TIMESTAMPTZ,
+                created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (user_id, exercise_id)
+            )
+            """,
+        )
+        # Fast lookup of cards due today per user
+        conn.execute(text("""
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_indexes
+                    WHERE tablename='sr_cards' AND indexname='sr_cards_user_due_idx'
+                ) THEN
+                    CREATE INDEX sr_cards_user_due_idx ON sr_cards (user_id, due_at);
+                END IF;
+            END $$;
+        """))
+
         # ---------- CMS users: display name + timezone ----------
         add_col_if_missing("cms_users", "display_name TEXT")
         add_col_if_missing("cms_users", "timezone TEXT")

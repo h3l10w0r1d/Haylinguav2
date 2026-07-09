@@ -722,6 +722,46 @@ def _pick_due_review(queue: list[dict]) -> int | None:
         if due and due <= now:
             return int(it.get("exercise_id"))
     return None
+
+def _sm2_update(ease: float, interval: int, reps: int, quality: int) -> tuple[float, int, int]:
+    """True SM-2 algorithm.
+    quality: 0=blackout, 1=wrong, 2=wrong-but-familiar, 3=hard, 4=good, 5=easy.
+    Returns (new_ease, new_interval_days, new_repetitions).
+    """
+    ease = max(1.3, float(ease or 2.5))
+    interval = max(0, int(interval or 0))
+    reps = max(0, int(reps or 0))
+    quality = max(0, min(5, int(quality)))
+
+    new_ease = ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+    new_ease = max(1.3, min(3.0, new_ease))
+
+    if quality < 3:
+        return new_ease, 1, 0
+
+    if reps == 0:
+        new_interval = 1
+    elif reps == 1:
+        new_interval = 6
+    else:
+        new_interval = max(interval + 1, round(interval * new_ease))
+
+    return new_ease, new_interval, reps + 1
+
+def _upsert_sr_card(db: Connection, user_id: int, exercise_id: int, lesson_id: int) -> None:
+    """Create an SR card for a (user, exercise) pair if it doesn't exist yet.
+    Called when a user first answers an exercise in a lesson.
+    Due date is set to 1 day from now so the card appears in tomorrow's review.
+    """
+    db.execute(
+        text("""
+            INSERT INTO sr_cards (user_id, exercise_id, lesson_id, due_at)
+            VALUES (:u, :ex, :l, NOW() + INTERVAL '1 day')
+            ON CONFLICT (user_id, exercise_id) DO NOTHING
+        """),
+        {"u": user_id, "ex": exercise_id, "l": lesson_id},
+    )
+
 # ---------- Auth schemas ----------
 
 class UserCreate(BaseModel):
@@ -3492,6 +3532,7 @@ def record_exercise_attempt(
         is_correct=bool(is_correct),
     )
     _update_review_queue(db, user_id, lesson_id, exercise_id, bool(is_correct))
+    _upsert_sr_card(db, user_id, exercise_id, lesson_id)
     acc = _get_accuracy(db, user_id, lesson_id)
 
     # Snapshot XP + completion state before recompute (delta + first-time reward).
@@ -3909,6 +3950,179 @@ def me_checkpoint(
 
     return {"exercises": exercises_out}
 
+
+@router.get("/me/review/stats")
+def me_review_stats(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Return SR card counts: due today, total, learning, mastered."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    row = db.execute(
+        text("""
+            SELECT
+                COUNT(*)                                                              AS total,
+                COUNT(*) FILTER (WHERE due_at <= NOW())                              AS due_today,
+                COUNT(*) FILTER (WHERE repetitions = 0)                             AS new_cards,
+                COUNT(*) FILTER (WHERE repetitions BETWEEN 1 AND 3)                 AS learning,
+                COUNT(*) FILTER (WHERE repetitions > 3)                             AS mastered,
+                MIN(due_at) FILTER (WHERE due_at > NOW())                           AS next_due_at
+            FROM sr_cards
+            WHERE user_id = :u
+        """),
+        {"u": user_id},
+    ).mappings().first()
+
+    return {
+        "total":      int(row["total"] or 0),
+        "due_today":  int(row["due_today"] or 0),
+        "new_cards":  int(row["new_cards"] or 0),
+        "learning":   int(row["learning"] or 0),
+        "mastered":   int(row["mastered"] or 0),
+        "next_due_at": row["next_due_at"].isoformat() if row.get("next_due_at") else None,
+    }
+
+@router.get("/me/review")
+def me_review_due(
+    limit: int = 20,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Return exercises due for SR review, ordered by due_at ascending."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    limit = max(1, min(50, limit))
+
+    card_rows = db.execute(
+        text("""
+            SELECT sc.exercise_id, sc.ease_factor, sc.interval_days, sc.repetitions, sc.due_at
+            FROM sr_cards sc
+            WHERE sc.user_id = :u AND sc.due_at <= NOW()
+            ORDER BY sc.due_at ASC
+            LIMIT :lim
+        """),
+        {"u": user_id, "lim": limit},
+    ).mappings().all()
+
+    if not card_rows:
+        return {"cards": [], "message": "Nothing to review right now — you're all caught up!"}
+
+    ex_ids = [int(r["exercise_id"]) for r in card_rows]
+    card_meta = {int(r["exercise_id"]): dict(r) for r in card_rows}
+
+    ex_rows = db.execute(
+        text("""
+            SELECT e.id, e.lesson_id, e.kind, e.prompt, e.expected_answer,
+                   e.sentence_before, e.sentence_after, e."order", e.config,
+                   l.title AS lesson_title
+            FROM exercises e
+            LEFT JOIN lessons l ON l.id = e.lesson_id
+            WHERE e.id = ANY(:ids)
+        """),
+        {"ids": ex_ids},
+    ).mappings().all()
+
+    opt_rows = db.execute(
+        text("""
+            SELECT id, exercise_id, text, is_correct, side, match_key
+            FROM exercise_options
+            WHERE exercise_id = ANY(:ids)
+            ORDER BY exercise_id ASC, id ASC
+        """),
+        {"ids": ex_ids},
+    ).mappings().all()
+
+    opts_by_ex: dict[int, list] = {eid: [] for eid in ex_ids}
+    for o in opt_rows:
+        eid = int(o["exercise_id"])
+        if eid in opts_by_ex:
+            opts_by_ex[eid].append(dict(o))
+
+    ex_map = {}
+    for r in ex_rows:
+        eid = int(r["id"])
+        ex = dict(r)
+        ex["options"] = opts_by_ex.get(eid, [])
+        meta = card_meta.get(eid, {})
+        ex["sr_ease"] = float(meta.get("ease_factor") or 2.5)
+        ex["sr_interval"] = int(meta.get("interval_days") or 1)
+        ex["sr_reps"] = int(meta.get("repetitions") or 0)
+        ex_map[eid] = ex
+
+    cards_out = [ex_map[eid] for eid in ex_ids if eid in ex_map]
+    return {"cards": cards_out}
+
+@router.post("/me/review/submit")
+def me_review_submit(
+    payload: Dict[str, Any] = Body(...),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Submit a review result. quality: 0=Again,1=Wrong,3=Hard,4=Good,5=Easy."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    exercise_id = int(payload.get("exercise_id") or 0)
+    quality = int(payload.get("quality") or 0)
+    if not exercise_id:
+        raise HTTPException(status_code=400, detail="exercise_id required")
+    quality = max(0, min(5, quality))
+
+    card = db.execute(
+        text("""
+            SELECT ease_factor, interval_days, repetitions
+            FROM sr_cards
+            WHERE user_id = :u AND exercise_id = :ex
+        """),
+        {"u": user_id, "ex": exercise_id},
+    ).mappings().first()
+
+    if not card:
+        # Card not in table yet — create it now and apply first review
+        db.execute(
+            text("""
+                INSERT INTO sr_cards (user_id, exercise_id, lesson_id, due_at)
+                SELECT :u, :ex, lesson_id, NOW()
+                FROM exercises WHERE id = :ex
+                ON CONFLICT (user_id, exercise_id) DO NOTHING
+            """),
+            {"u": user_id, "ex": exercise_id},
+        )
+        card = {"ease_factor": 2.5, "interval_days": 0, "repetitions": 0}
+
+    new_ease, new_interval, new_reps = _sm2_update(
+        card["ease_factor"], card["interval_days"], card["repetitions"], quality
+    )
+    due_at = _now_utc() + timedelta(days=new_interval)
+
+    db.execute(
+        text("""
+            UPDATE sr_cards
+            SET ease_factor      = :e,
+                interval_days    = :i,
+                repetitions      = :r,
+                due_at           = :d,
+                last_reviewed_at = NOW()
+            WHERE user_id = :u AND exercise_id = :ex
+        """),
+        {"e": new_ease, "i": new_interval, "r": new_reps, "d": due_at,
+         "u": user_id, "ex": exercise_id},
+    )
+
+    return {
+        "ok": True,
+        "new_interval_days": new_interval,
+        "new_ease": round(new_ease, 3),
+        "new_reps": new_reps,
+        "due_at": due_at.isoformat(),
+        "passed": quality >= 3,
+    }
 
 @router.get("/me/practice")
 def me_practice(

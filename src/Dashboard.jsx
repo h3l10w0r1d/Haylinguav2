@@ -380,6 +380,69 @@ const API_BASE_URL =
 
 const DAILY_GOAL_OPTIONS = [10, 20, 30, 50];
 
+function ReviewCard({ token }) {
+  const navigate = useNavigate();
+  const [stats, setStats] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!token) return;
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com"}/me/review/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setStats(d); })
+      .catch(() => {});
+  }, [token]);
+
+  if (!stats || stats.total === 0) return null;
+
+  const due = stats.due_today;
+  const urgent = due > 0;
+
+  return (
+    <div
+      className={
+        "overflow-hidden rounded-3xl p-5 shadow-sm ring-1 cursor-pointer transition hover:shadow-md " +
+        (urgent
+          ? "bg-gradient-to-br from-brand-50 to-white ring-brand-200"
+          : "bg-white ring-slate-200")
+      }
+      onClick={() => navigate("/review")}
+    >
+      <div className="flex items-center justify-between">
+        <div className="font-display text-base font-extrabold text-slate-800">Review</div>
+        {urgent && (
+          <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-extrabold text-brand-700">
+            Due now
+          </span>
+        )}
+      </div>
+      <div className="mt-3 flex items-end gap-2">
+        <span className={"text-4xl font-black " + (urgent ? "text-brand-600" : "text-slate-700")}>
+          {due}
+        </span>
+        <span className="mb-1 text-sm font-semibold text-slate-500">
+          {due === 1 ? "card due" : "cards due"}
+        </span>
+      </div>
+      <div className="mt-1 text-xs text-slate-400">
+        {stats.mastered} mastered · {stats.learning} learning · {stats.new_cards} new
+      </div>
+      <button
+        onClick={e => { e.stopPropagation(); navigate("/review"); }}
+        className={
+          "mt-4 w-full rounded-2xl py-2.5 text-sm font-extrabold text-white transition active:translate-y-0.5 " +
+          (urgent
+            ? "bg-brand-500 shadow-[0_3px_0_0_#c2410c]"
+            : "bg-slate-400 shadow-[0_3px_0_0_#94a3b8]")
+        }
+      >
+        {urgent ? "Start review" : "Nothing due yet"}
+      </button>
+    </div>
+  );
+}
+
 function DailyGoalCard({ todayXp }) {
   const [goal, setGoal] = React.useState(() => {
     const saved = parseInt(localStorage.getItem("hay_daily_goal") || "20", 10);
@@ -843,6 +906,9 @@ export default function Dashboard({ user }) {
           <DailyGoalCard todayXp={stats.today_xp} />
           <DailyQuestsCard token={token} />
         </div>
+
+        {/* Spaced-repetition review widget — only renders when cards exist */}
+        <ReviewCard token={token} />
 
         {/* Streak + chest + quick access — above the lesson list */}
         <div className="mb-6 space-y-4">
