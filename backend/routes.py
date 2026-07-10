@@ -1782,12 +1782,17 @@ ELEVEN_API_KEY = (
     or os.getenv("eleven_labs.io") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
     # Note to the future me: "I didn't figure out which one works, so decided to use all of them, this can be considered as a future technical debt 💸"
 )
-DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
+# Shares the same env var chain as Aram's conversation voice (routes_conversation.py)
+# so exercise pronunciation and the AI conversation never accidentally drift to two
+# different-sounding voices depending on which env vars happen to be set.
+DEFAULT_VOICE_ID = os.getenv("ELEVEN_VOICE_ID", os.getenv("ELEVEN_MALE_VOICE", "TX3LPaxmHKxFdv7VOQHJ"))
 
 
 class TTSPayload(BaseModel):
     text: str
     voice_id: str | None = None
+    model_id: str | None = None
+    voice_settings: dict | None = None  # optional override, used by the CMS voice-preview tool
 
 
 # ---------- Leaderboard schemas ----------
@@ -7937,6 +7942,39 @@ def cron_send_streak_emails(
     return {"ok": True, "eligible": len(rows), "sent": sent}
 
 
+@router.get("/cms/voices")
+async def cms_list_voices(_: dict = Depends(require_cms_admin)):
+    """List ElevenLabs voices available on this account, for the voice-lab
+    comparison tool. CMS-admin gated since it exposes account voice IDs."""
+    if not ELEVEN_API_KEY:
+        raise HTTPException(status_code=503, detail="ElevenLabs API key not configured")
+    try:
+        resp = await _tts_http.get(
+            "https://api.elevenlabs.io/v1/voices",
+            headers={"xi-api-key": ELEVEN_API_KEY},
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"ElevenLabs request failed: {e}") from e
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"ElevenLabs error ({resp.status_code})")
+    voices = (resp.json() or {}).get("voices") or []
+    return {
+        "voices": [
+            {
+                "voice_id": v.get("voice_id") or v.get("id"),
+                "name": v.get("name"),
+                "labels": v.get("labels") or {},
+                "preview_url": v.get("preview_url"),
+                "category": v.get("category"),
+            }
+            for v in voices
+        ],
+        "current_default_voice_id": DEFAULT_VOICE_ID,
+        "current_model_id": ELEVEN_MODEL_ID,
+        "current_voice_settings": _DEFAULT_TTS_VOICE_SETTINGS,
+    }
+
+
 @router.get("/cms/analytics")
 def cms_analytics(
     _: dict = Depends(require_cms_admin),
@@ -9914,7 +9952,11 @@ import hashlib
 from pathlib import Path
 
 
-ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_turbo_v2_5")
+# Same default as routes_conversation.py's Aram voice — eleven_turbo_v2_5 is
+# optimized for low latency at the cost of naturalness; eleven_v3 sounds far
+# less robotic for Armenian, and using two different models for exercise
+# pronunciation vs. conversation made the "AI voice" feel inconsistent.
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3")
 _tts_http = httpx.AsyncClient(
     timeout=httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0),
     limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
@@ -9928,14 +9970,35 @@ def _tts_cache_dir() -> Path:
     return Path(__file__).resolve().parent / "uploads" / "tts_cache"
 
 
+# Bump this when voice_settings (or anything else affecting the generated
+# audio) changes, so old cached files — generated with the previous, worse
+# defaults — become orphaned cache misses instead of being served forever.
+_TTS_CACHE_VERSION = "v2"
+
+
 def _tts_cache_key(text_value: str, voice_id: str, model_id: str) -> str:
     h = hashlib.sha256()
+    h.update(_TTS_CACHE_VERSION.encode("utf-8"))
+    h.update(b"\n")
     h.update(model_id.encode("utf-8"))
     h.update(b"\n")
     h.update(voice_id.encode("utf-8"))
     h.update(b"\n")
     h.update(text_value.encode("utf-8"))
     return h.hexdigest()
+
+
+# Same tuning as Aram's conversation voice (routes_conversation.py) — kept in
+# sync manually since the two files can't share a constant without risking a
+# circular import. style=0.0 (the previous bare-defaults behavior before this
+# was added at all) reads as flat/robotic; a modest style weight adds natural
+# inflection without destabilizing the voice.
+_DEFAULT_TTS_VOICE_SETTINGS = {
+    "stability": 0.45,
+    "similarity_boost": 0.8,
+    "style": 0.25,
+    "use_speaker_boost": True,
+}
 
 
 @router.post("/tts", response_class=Response)
@@ -9948,14 +10011,18 @@ async def tts_speak(payload: TTSPayload):
         raise HTTPException(status_code=400, detail="Text is empty")
 
     voice_id = payload.voice_id or DEFAULT_VOICE_ID
-    model_id = getattr(payload, "model_id", None) or ELEVEN_MODEL_ID
+    model_id = payload.model_id or ELEVEN_MODEL_ID
+    voice_settings = payload.voice_settings or _DEFAULT_TTS_VOICE_SETTINGS
+    # Only cache the standard (no custom settings) path — preview/comparison
+    # calls pass their own voice_settings and should always hit the API live.
+    cacheable = not payload.voice_settings and not payload.model_id
 
     cache_dir = _tts_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     key = _tts_cache_key(text_value, voice_id, model_id)
     mp3_path = cache_dir / f"{key}.mp3"
 
-    if mp3_path.exists() and mp3_path.stat().st_size > 0:
+    if cacheable and mp3_path.exists() and mp3_path.stat().st_size > 0:
         return Response(
             content=mp3_path.read_bytes(),
             media_type="audio/mpeg",
@@ -9965,7 +10032,7 @@ async def tts_speak(payload: TTSPayload):
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     params = {"output_format": "mp3_44100_128"}
     headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
-    body = {"text": text_value, "model_id": model_id}
+    body = {"text": text_value, "model_id": model_id, "voice_settings": voice_settings}
 
     try:
         r = await _tts_http.post(url, params=params, headers=headers, json=body)
@@ -9979,13 +10046,14 @@ async def tts_speak(payload: TTSPayload):
     except httpx.RequestError as e:
         raise HTTPException(status_code=502, detail=f"TTS request failed: {e}") from e
 
-    try:
-        mp3_path.write_bytes(audio_bytes)
-    except Exception:
-        pass
+    if cacheable:
+        try:
+            mp3_path.write_bytes(audio_bytes)
+        except Exception:
+            pass
 
     return Response(
         content=audio_bytes,
         media_type="audio/mpeg",
-        headers={"Cache-Control": "public, max-age=31536000"},
+        headers={"Cache-Control": "public, max-age=31536000" if cacheable else "no-store"},
     )

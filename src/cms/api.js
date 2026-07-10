@@ -145,6 +145,9 @@ export function createCmsApi(accessToken) {
     req(`/cms/options/${optionId}`, { method: "DELETE" });
 
   // Team / invites
+  // Voice Lab
+  const listVoices = () => req("/cms/voices");
+
   const listTeam = () => req("/cms/team");
   const inviteTeam = (email) =>
     req("/cms/team/invite", { method: "POST", body: JSON.stringify({ email }) });
@@ -203,6 +206,7 @@ export function createCmsApi(accessToken) {
     deleteOption,
     listTeam,
     inviteTeam,
+    listVoices,
   };
 }
 

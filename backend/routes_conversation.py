@@ -462,18 +462,22 @@ FORMAT — output exactly these three lines, nothing else:
     if ELEVEN_API_KEY and armenian_text:
         tts_url = f"{ELEVEN_API_URL}/text-to-speech/{ARAM_VOICE_ID}"
         tts_headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
+        tts_params = {"output_format": "mp3_44100_128"}  # ElevenLabs takes this as a query param, not body
         tts_payload = {
             "text": armenian_text,
             "model_id": ELEVEN_MODEL_ID,
+            # Kept in sync with routes.py's _DEFAULT_TTS_VOICE_SETTINGS — style=0.0
+            # (the old value) disables all expressive inflection, which reads as
+            # flat/robotic; a modest style weight sounds far more natural.
             "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.75,
-                "style": 0.0,
+                "stability": 0.45,
+                "similarity_boost": 0.8,
+                "style": 0.25,
                 "use_speaker_boost": True,
             },
         }
         try:
-            tts_resp = await _http.post(tts_url, headers=tts_headers, json=tts_payload)
+            tts_resp = await _http.post(tts_url, headers=tts_headers, params=tts_params, json=tts_payload)
 
             # Recover from invalid voice_id (404) by using first available voice.
             if tts_resp.status_code == 404:
@@ -484,7 +488,7 @@ FORMAT — output exactly these three lines, nothing else:
                         fallback_id = voices[0].get("voice_id") or voices[0].get("id")
                         if fallback_id:
                             tts_url2 = f"{ELEVEN_API_URL}/text-to-speech/{fallback_id}"
-                            tts_resp = await _http.post(tts_url2, headers=tts_headers, json=tts_payload)
+                            tts_resp = await _http.post(tts_url2, headers=tts_headers, params=tts_params, json=tts_payload)
 
             if tts_resp.status_code == 200:
                 audio_bytes = tts_resp.content
