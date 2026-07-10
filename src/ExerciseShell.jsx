@@ -1,5 +1,5 @@
 // src/ExerciseShell.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Heart, Volume2, Sparkles, HelpCircle, Loader2 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -113,6 +113,23 @@ function ExplainMistake({ exerciseId, userAnswer }) {
   );
 }
 
+// Rotating praise/encouragement pools so the result sheet doesn't repeat the
+// same line every single answer. Combo tier scales enthusiasm on correct.
+const PRAISE_NORMAL = ["Ապրե՛ս! · Correct", "Կեցցե՛ս! · Nice one", "Հիանալի՛ · Great job", "Շատ լավ · Well done", "Ճիշտ է · That's right"];
+const PRAISE_HOT = ["Հրաշալի՛ · Excellent!", "Փայլուն է · Brilliant!", "Այսպե՛ս պահիր · Keep it up!", "Ուժե՛ղ ես · On fire!"];
+const PRAISE_MEGA = ["Անհավատալի՛ · Incredible!", "Անմրցելի՛ · Unstoppable!", "Չեմպիո՛ն ես · Champion streak!"];
+const WRONG_ENCOURAGEMENT = [
+  "You've got this — give it another go.",
+  "So close! Take another look.",
+  "Almost there — one more try.",
+  "Keep going, you'll get it.",
+  "No worries — mistakes help it stick.",
+];
+
+function pickFrom(pool) {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 /**
  * ExerciseShell — immersive, Duolingo-style frame for ALL exercises:
  *  - Top bar: quit (X) + chunky progress bar + hearts
@@ -140,18 +157,27 @@ export default function ExerciseShell({
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
 
-  // Brief full-screen flash when an answer is submitted (green correct, red wrong).
-  const [flashClass, setFlashClass] = useState(null);
-  const [flashKey, setFlashKey] = useState(0);
+  // Progress bar gives a brief pulse/glow whenever it advances — the tile
+  // itself (result sheet) already carries the correct/wrong signal, so no
+  // full-screen flash is needed on top of it.
+  const [justAdvanced, setJustAdvanced] = useState(false);
+  const prevPct = useRef(pct);
   useEffect(() => {
-    if (!result) return;
-    const cls = result.variant === "correct" ? "answer-flash-correct" : result.variant === "wrong" ? "answer-flash-wrong" : null;
-    if (!cls) return;
-    setFlashKey((k) => k + 1);
-    setFlashClass(cls);
-    const t = setTimeout(() => setFlashClass(null), 520);
-    return () => clearTimeout(t);
-  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (pct > prevPct.current) {
+      setJustAdvanced(true);
+      const t = setTimeout(() => setJustAdvanced(false), 420);
+      prevPct.current = pct;
+      return () => clearTimeout(t);
+    }
+    prevPct.current = pct;
+  }, [pct]);
+
+  // Rotate the result-sheet message each time a NEW result appears (not on
+  // every re-render — `result` is a fresh object per answer, stable between).
+  const [praiseIdx, setPraiseIdx] = useState(0);
+  useEffect(() => {
+    if (result) setPraiseIdx(Math.random());
+  }, [result]);
 
   // When the result sheet is open, Enter triggers the primary action.
   useEffect(() => {
@@ -187,12 +213,14 @@ export default function ExerciseShell({
   const tone =
     variant === "correct"
       ? {
-          wrap: "bg-gradient-to-br from-amber-50 to-brand-50 border-gold-400",
-          carpet: "rgba(255,200,0,0.35)",
-          title: "text-brand-700",
-          heading: "Ապրե՛ս! · Correct",
-          btn: "btn3d-brand",
-          medallion: "bg-gold-500 text-white",
+          wrap: "bg-gradient-to-br from-grass-50 to-white border-grass-400",
+          carpet: "rgba(88,204,2,0.28)",
+          title: "text-grass-700",
+          heading: pickFrom(
+            (result?.combo || 0) >= 6 ? PRAISE_MEGA : (result?.combo || 0) >= 3 ? PRAISE_HOT : PRAISE_NORMAL
+          ),
+          btn: "btn3d-grass",
+          medallion: "bg-grass-500 text-white",
         }
       : variant === "skipped"
       ? {
@@ -211,21 +239,18 @@ export default function ExerciseShell({
           btn: "btn3d-cardinal",
           medallion: "bg-cardinal-500 text-white",
         };
+  // Freeze the picked praise/encouragement line for the lifetime of this
+  // result (re-deriving `tone` on every render would otherwise re-roll it).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const heading = useMemo(() => tone.heading, [variant, praiseIdx]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const wrongEncouragement = useMemo(() => pickFrom(WRONG_ENCOURAGEMENT), [praiseIdx]);
 
   return (
     <div className="lesson-shell relative flex flex-col bg-white">
-      {/* Full-screen answer flash */}
-      {flashClass ? (
-        <div
-          key={flashKey}
-          className={"pointer-events-none absolute inset-0 z-50 " + flashClass}
-          aria-hidden
-        />
-      ) : null}
-
       {/* Top bar */}
       <header className="shrink-0 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-4">
           <button
             type="button"
             onClick={onBack}
@@ -235,9 +260,9 @@ export default function ExerciseShell({
             <X className="h-7 w-7" strokeWidth={3} />
           </button>
 
-          <div className="h-4 flex-1 overflow-hidden rounded-full bg-slate-200">
+          <div className={"h-4 flex-1 overflow-hidden rounded-full bg-slate-200 transition-shadow duration-300 " + (justAdvanced ? "shadow-[0_0_0_3px_rgba(88,204,2,0.35)]" : "")}>
             <div
-              className="relative h-4 rounded-full bg-brand-500 transition-all duration-500"
+              className={"relative h-4 rounded-full bg-brand-500 transition-all duration-500 " + (justAdvanced ? "progress-pulse" : "")}
               style={{ width: `${Math.max(pct, 6)}%` }}
             >
               <span className="absolute left-2 right-2 top-1 h-1.5 rounded-full bg-white/40" />
@@ -248,7 +273,7 @@ export default function ExerciseShell({
           <ReportProblem exerciseId={exerciseId} lessonId={lessonId} />
         </div>
         {title ? (
-          <div className="mx-auto max-w-3xl px-4 pb-1">
+          <div className="mx-auto max-w-2xl px-4 pb-1">
             <div className="line-clamp-1 text-xs font-bold uppercase tracking-wide text-slate-400">
               {title}
             </div>
@@ -258,18 +283,18 @@ export default function ExerciseShell({
 
       {instruction ? (
         <div className="shrink-0 border-b border-slate-100 bg-white">
-          <div className="mx-auto max-w-3xl px-4 pb-2 pt-1">
+          <div className="mx-auto max-w-2xl px-4 pb-2 pt-1">
             <div className="text-xs font-extrabold uppercase tracking-widest text-slate-400">{instruction}</div>
           </div>
         </div>
       ) : null}
 
-      <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6">{children}</main>
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-4 py-6">{children}</main>
 
       {/* Bottom action bar — in-flow so it's always visible on mobile */}
       {(primaryLabel || secondaryLabel) && !result ? (
         <div className="safe-b shrink-0 border-t-2 border-slate-100 bg-white">
-          <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4">
+          <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-5">
             {secondaryLabel ? (
               <button
                 type="button"
@@ -286,7 +311,7 @@ export default function ExerciseShell({
                 type="button"
                 disabled={primaryDisabled}
                 onClick={onPrimary}
-                className="btn3d btn3d-brand ml-auto min-w-[140px] uppercase"
+                className="btn3d btn3d-brand ml-auto min-w-[160px] uppercase"
               >
                 {primaryLabel}
               </button>
@@ -306,7 +331,7 @@ export default function ExerciseShell({
               </div>
             ) : null}
             <CarpetBorder color={tone.carpet} />
-            <div className="safe-b mx-auto max-w-3xl px-4 py-5">
+            <div className="safe-b mx-auto max-w-2xl px-4 py-5">
               <div className="flex items-center gap-4">
                 {/* Tatik reacts */}
                 <div className="relative shrink-0">
@@ -332,7 +357,7 @@ export default function ExerciseShell({
 
                 <div className="min-w-0 flex-1">
                   <div className={"font-display text-xl font-extrabold " + tone.title}>
-                    {variant === "correct" && result.typo ? "Correct — mind the spelling" : tone.heading}
+                    {variant === "correct" && result.typo ? "Correct — mind the spelling" : heading}
                   </div>
                   <div className="text-sm font-bold text-slate-500">
                     {variant === "correct"
@@ -381,7 +406,7 @@ export default function ExerciseShell({
                               </button>
                             </div>
                           ) : null}
-                          <div>{result.detail || "You’ve got this — give it another go."}</div>
+                          <div>{result.detail || wrongEncouragement}</div>
                           {result.exerciseId ? (
                             <ExplainMistake exerciseId={result.exerciseId} userAnswer={result.userAnswer} />
                           ) : null}

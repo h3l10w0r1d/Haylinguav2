@@ -389,19 +389,16 @@
   .chest-ember { animation: none; opacity: 0 !important; }
 }
 
-/* ----- Answer flash overlay (green = correct, red = wrong) ----- */
-@keyframes answerFlashGreen {
-  0%   { opacity: .28; }
-  60%  { opacity: .18; }
-  100% { opacity: 0; }
+/* ----- Progress bar pulse (replaces the old full-screen answer flash —
+   the tile color + result sheet already carry correct/wrong feedback,
+   so the bar just gets a brief glow on advance instead of flashing
+   the whole screen). ----- */
+@keyframes progressPulse {
+  0%   { filter: brightness(1); }
+  40%  { filter: brightness(1.35); }
+  100% { filter: brightness(1); }
 }
-@keyframes answerFlashRed {
-  0%   { opacity: .22; }
-  30%  { opacity: .30; }
-  100% { opacity: 0; }
-}
-.answer-flash-correct { animation: answerFlashGreen 450ms ease-out forwards; background: #16a34a; }
-.answer-flash-wrong   { animation: answerFlashRed   500ms ease-out forwards; background: #dc2626; }
+.progress-pulse { animation: progressPulse 420ms ease-out; }
 
 /* Heart-lost shake */
 @keyframes heartShake {
