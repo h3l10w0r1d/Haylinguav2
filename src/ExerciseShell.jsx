@@ -329,7 +329,14 @@ export default function ExerciseShell({
         </div>
       ) : null}
 
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-4 py-6">{children}</main>
+      {/* Centers short exercise content vertically, same as `justify-center`
+          would — but `margin: auto` on the child degrades gracefully instead
+          of clipping when content is taller than the viewport (a known
+          flexbox trap: `justify-content: center` on an overflowing
+          container makes the far edge unreachable even with scroll). */}
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
+        <div className="m-auto w-full">{children}</div>
+      </main>
 
       {/* Bottom action bar — in-flow so it's always visible on mobile.
           Always rendered (when no result is showing) so its inner container
