@@ -1,7 +1,7 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ChevronDown, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, AlertTriangle } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ChevronDown, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, AlertTriangle, BookOpen, BarChart2 } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { StarMotif } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
@@ -779,13 +779,15 @@ function UnitCard({ unit, index, expanded, onToggle, onStart, onCheckpoint }) {
 function QuickTiles({ navigate }) {
   const tiles = [
     { icon: Dumbbell, label: "Practice", to: "/practice", tone: "bg-brand-50 text-brand-600" },
+    { icon: BookOpen, label: "Words", to: "/vocabulary", tone: "bg-grass-50 text-grass-600" },
+    { icon: BarChart2, label: "Progress", to: "/progress", tone: "bg-feather-50 text-feather-700" },
     { icon: Trophy, label: "Leaderboard", to: "/leaderboard", tone: "bg-amber-50 text-gold-600" },
     { icon: Users, label: "Friends", to: "/friends", tone: "bg-feather-50 text-feather-600" },
     { icon: Store, label: "Shop", to: "/shop", tone: "bg-pom-50 text-pom-500" },
     { icon: Star, label: "Achievements", to: "/achievements", tone: "bg-gold-50 text-gold-600" },
   ];
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+    <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
       {tiles.map((t) => (
         <button
           key={t.to}
