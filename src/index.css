@@ -351,6 +351,21 @@
 }
 .chest-aura { animation: chestAuraBreathe 4.2s ease-in-out infinite; }
 
+/* Counter-rotating ray layer (depth behind the main wheel) */
+@keyframes raySpinRev { to { transform: rotate(-360deg); } }
+.chest-rays-spin-rev { animation: raySpinRev 30s linear infinite; transform-origin: center; }
+
+/* Orbiting charge sparks around the chest */
+@keyframes chestOrbitSpin { to { transform: rotate(360deg); } }
+.chest-orbit { animation: chestOrbitSpin 12s linear infinite; transform-origin: center; }
+
+/* Gentle breathe on the reward icon during the reveal */
+@keyframes revealPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.06); }
+}
+.reveal-pulse { animation: revealPulse 2.4s ease-in-out infinite; }
+
 /* Whole-screen impact shake on open (golden + legendary) */
 @keyframes screenShake {
   0%, 100% { transform: translate(0, 0); }
@@ -367,7 +382,8 @@
   .chest-shake, .chest-jump, .chest-rays-spin, .chest-rays-burst,
   .chest-sparkle, .reward-pop, .chest-glow, .chest-idle, .chest-tap-hint,
   .chest-shake-t1, .chest-shake-t2, .chest-seam-glow, .screen-shake,
-  .chest-bg-drift, .chest-aura { animation: none; }
+  .chest-bg-drift, .chest-aura, .chest-rays-spin-rev, .chest-orbit,
+  .reveal-pulse { animation: none; }
   /* Embers only exist as motion — hide them entirely rather than freezing
      them mid-air (their resting keyframe state is opacity 0 anyway). */
   .chest-ember { animation: none; opacity: 0 !important; }

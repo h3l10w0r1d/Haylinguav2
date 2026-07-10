@@ -241,6 +241,17 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
     }));
   }, [theme.burst]);
 
+  // "Charge" — the Duolingo-style escalation. Grows with time on screen
+  // (0→1 over ~8s) and jumps with each tap, driving ray speed/brightness,
+  // aura intensity and the orbiting sparks. setInterval (hidden-tab safe).
+  const [charge, setCharge] = useState(0);
+  useEffect(() => {
+    if (phase !== "intro" && phase !== "crack") return;
+    const id = setInterval(() => setCharge((c) => Math.min(1, c + 0.016)), 130);
+    return () => clearInterval(id);
+  }, [phase]);
+  const power = Math.min(1, charge + tapCount * 0.3);
+
   // Tap handler — non-final taps crack the chest; the final tap opens it.
   // Synchronous ref guards (NOT nested functional setState updaters: React
   // does not run a nested updater before the outer one returns, which
@@ -360,16 +371,19 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
         transition: "opacity 0.6s ease",
       }} />
 
-      {/* Breathing aurora halo behind the chest — depth + rarity color wash */}
-      <div className="chest-aura" style={{
-        position: "absolute",
-        left: "50%", top: "50%",
-        width: 720, height: 720,
-        marginLeft: -360, marginTop: -360,
-        borderRadius: "50%",
-        background: `radial-gradient(circle, rgba(${theme.glowRgb}, ${rarity === "legendary" ? 0.30 : 0.20}) 0%, rgba(${theme.glowRgb}, 0.07) 42%, transparent 68%)`,
-        pointerEvents: "none",
-      }} />
+      {/* Breathing aurora halo behind the chest — depth + rarity color wash.
+          Outer wrapper carries the charge-driven brightness so it doesn't
+          fight the keyframe's own opacity animation. */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.55 + 0.45 * power, transition: "opacity 0.5s ease" }}>
+        <div className="chest-aura" style={{
+          position: "absolute",
+          left: "50%", top: "50%",
+          width: 720, height: 720,
+          marginLeft: -360, marginTop: -360,
+          borderRadius: "50%",
+          background: `radial-gradient(circle, rgba(${theme.glowRgb}, ${rarity === "legendary" ? 0.30 : 0.20}) 0%, rgba(${theme.glowRgb}, 0.07) 42%, transparent 68%)`,
+        }} />
+      </div>
 
       {/* Floating bg gems — slow ambient drift */}
       {BG_GEMS.map((g, i) => (
@@ -443,7 +457,71 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
           </span>
         </div>
 
-        {/* Sun rays */}
+        {/* Charging ray wheel — spins from the FIRST frame, accelerating and
+            brightening with time + taps. The conic pattern repeats every 18°,
+            so mid-flight animation-duration changes restart invisibly. */}
+        {!isOpened && (
+          <div style={{
+            position: "absolute",
+            top: "50%", left: "50%",
+            width: 640, height: 640,
+            marginTop: -320, marginLeft: -320,
+            pointerEvents: "none",
+            opacity: 0.16 + 0.5 * power,
+            transition: "opacity 0.5s ease",
+          }}>
+            <div className="chest-rays-spin" style={{ width: "100%", height: "100%", animationDuration: `${26 - 17 * power}s` }}>
+              <div style={{
+                width: "100%", height: "100%",
+                background: `repeating-conic-gradient(from 0deg,${theme.ray} 0deg 7deg,rgba(255,255,255,0) 7deg 18deg)`,
+                borderRadius: "50%",
+                maskImage: "radial-gradient(circle,#000 26%,transparent 66%)",
+                WebkitMaskImage: "radial-gradient(circle,#000 26%,transparent 66%)",
+              }} />
+            </div>
+            {/* Counter-rotating second layer for depth */}
+            <div className="chest-rays-spin-rev" style={{
+              position: "absolute", inset: 40,
+              animationDuration: `${34 - 20 * power}s`,
+              opacity: 0.55,
+            }}>
+              <div style={{
+                width: "100%", height: "100%",
+                background: `repeating-conic-gradient(from 9deg,${theme.ray} 0deg 5deg,rgba(255,255,255,0) 5deg 20deg)`,
+                borderRadius: "50%",
+                maskImage: "radial-gradient(circle,#000 22%,transparent 62%)",
+                WebkitMaskImage: "radial-gradient(circle,#000 22%,transparent 62%)",
+              }} />
+            </div>
+          </div>
+        )}
+
+        {/* Orbiting sparks — fade in as the charge builds, orbit faster */}
+        {!isOpened && (
+          <div className="chest-orbit" style={{
+            position: "absolute",
+            top: "50%", left: "50%",
+            width: 340, height: 340,
+            marginTop: -170, marginLeft: -170,
+            pointerEvents: "none",
+            opacity: Math.max(0, power - 0.12) * 1.1,
+            transition: "opacity 0.5s ease",
+            animationDuration: `${13 - 8 * power}s`,
+          }}>
+            {[0, 60, 120, 180, 240, 300].map((deg) => (
+              <span key={deg} style={{
+                position: "absolute", left: "50%", top: "50%",
+                width: 7, height: 7, marginLeft: -3.5, marginTop: -3.5,
+                borderRadius: "50%",
+                background: theme.glow,
+                boxShadow: `0 0 12px rgba(${theme.glowRgb}, 0.9)`,
+                transform: `rotate(${deg}deg) translateY(-168px)`,
+              }} />
+            ))}
+          </div>
+        )}
+
+        {/* Sun rays on open */}
         {isOpened && (
           <div className="chest-rays-spin" style={{
             position: "absolute",
@@ -563,7 +641,37 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
           alignItems: "center", justifyContent: "center",
           padding: "0 28px 100px",
         }}>
+          {/* Perpetual double ray wheel behind the reward — the Duolingo
+              signature: the prize sits on a slowly turning starburst forever. */}
+          <div style={{
+            position: "absolute",
+            left: "50%", top: "44%",
+            width: 620, height: 620,
+            marginLeft: -310, marginTop: -310,
+            pointerEvents: "none",
+          }}>
+            <div className="chest-rays-spin" style={{ width: "100%", height: "100%", animationDuration: "20s" }}>
+              <div style={{
+                width: "100%", height: "100%",
+                background: `repeating-conic-gradient(from 0deg,${theme.ray} 0deg 8deg,rgba(255,255,255,0) 8deg 20deg)`,
+                borderRadius: "50%",
+                maskImage: "radial-gradient(circle,#000 24%,transparent 64%)",
+                WebkitMaskImage: "radial-gradient(circle,#000 24%,transparent 64%)",
+              }} />
+            </div>
+            <div className="chest-rays-spin-rev" style={{ position: "absolute", inset: 50, animationDuration: "30s", opacity: 0.5 }}>
+              <div style={{
+                width: "100%", height: "100%",
+                background: `repeating-conic-gradient(from 10deg,${theme.ray} 0deg 5deg,rgba(255,255,255,0) 5deg 22deg)`,
+                borderRadius: "50%",
+                maskImage: "radial-gradient(circle,#000 20%,transparent 60%)",
+                WebkitMaskImage: "radial-gradient(circle,#000 20%,transparent 60%)",
+              }} />
+            </div>
+          </div>
+
           <div className="reward-pop" style={{
+            position: "relative",
             display: "flex", flexDirection: "column",
             alignItems: "center", textAlign: "center",
           }}>
@@ -586,7 +694,7 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
                   <Sparkle style={{ left: -42, bottom: 8 }} size={10} color="rgba(255,255,255,0.75)" delay={0.55} />
                   <Sparkle style={{ right: -34, bottom: 4 }} size={18} color="rgba(255,255,255,0.8)" delay={0.2} />
                   <Sparkle style={{ left: "30%", top: -38 }} size={8} color="rgba(255,255,255,0.65)" delay={0.72} />
-                  <div style={{
+                  <div className="reveal-pulse" style={{
                     width: 124, height: 124,
                     background: "rgba(255,255,255,0.14)",
                     borderRadius: "50%",
@@ -621,7 +729,7 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
                   <Sparkle style={{ left: -44, bottom: 6 }} size={10} delay={0.55} />
                   <Sparkle style={{ right: -36, bottom: 2 }} size={18} delay={0.18} />
                   <Sparkle style={{ left: "30%", top: -42 }} size={8} delay={0.7} />
-                  <div style={{
+                  <div className="reveal-pulse" style={{
                     width: 124, height: 124,
                     background: "rgba(255,255,255,0.16)",
                     borderRadius: "50%",
