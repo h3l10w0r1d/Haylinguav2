@@ -173,6 +173,9 @@ export default function Leaderboard() {
   const promoteTop   = data?.promote_top || 0;
   const demoteBottom = tab === "league" ? (data?.demote_bottom || 0) : 0;
   const showZones    = tab === "league" && data?.joined && promoteTop > 0;
+  // A league with fewer members than the promotion cutoff has no one who
+  // misses it — the divider has no boundary to sit at, so it never rendered.
+  const everyonePromotes = showZones && list.length > 0 && list.length <= promoteTop;
   const selfEntry    = list.find((e) => e.is_self);
   const topThree     = list.slice(0, 3);
   const rest         = list.slice(3);
@@ -296,7 +299,7 @@ export default function Leaderboard() {
               {topThree.length >= 2 && (
                 <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm overflow-hidden">
                   <Podium entries={topThree} />
-                  {showZones && promoteTop <= 3 && (
+                  {showZones && !everyonePromotes && promoteTop <= 3 && (
                     <div className="px-3 pb-2"><ZoneDivider type="promote" /></div>
                   )}
                 </div>
@@ -309,7 +312,7 @@ export default function Leaderboard() {
                     const globalIdx = i + 3;
                     return (
                       <React.Fragment key={e.user_id ?? i}>
-                        {showZones && promoteTop > 3 && globalIdx === promoteTop && <ZoneDivider type="promote" />}
+                        {showZones && !everyonePromotes && promoteTop > 3 && globalIdx === promoteTop && <ZoneDivider type="promote" />}
                         <Row entry={e} />
                         {showZones && demoteBottom > 0 && globalIdx === list.length - demoteBottom - 1 && globalIdx >= promoteTop && (
                           <ZoneDivider type="demote" />
@@ -317,6 +320,14 @@ export default function Leaderboard() {
                       </React.Fragment>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Small league: everyone qualifies for promotion — no cutoff to draw a line at. */}
+              {everyonePromotes && (
+                <div className="flex items-center justify-center gap-1.5 rounded-2xl bg-grass-50 px-4 py-2.5 text-center text-xs font-extrabold uppercase tracking-wide text-grass-600">
+                  <ArrowUp className="h-3.5 w-3.5" strokeWidth={3} />
+                  Everyone here advances this week!
                 </div>
               )}
             </div>
