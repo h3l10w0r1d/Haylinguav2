@@ -27,6 +27,7 @@ import { StarMotif, CarpetBorder } from "./lib/motifs";
 import { readHearts } from "./lib/hearts";
 import ReportProblem from "./ReportProblem";
 import Illustration from "./lib/Illustration";
+import { ExerciseFooterContext } from "./exercises/FooterSlot";
 
 /** Live hearts badge — reads localStorage and the `hay_hearts` event so it
  *  stays in sync without prop drilling. Shows ∞ for premium users.
@@ -153,9 +154,21 @@ export default function ExerciseShell({
   exerciseId,
   lessonId,
   instruction,
+  // Set when `children` isn't an exercise at all (completion screen, reading
+  // passage, out-of-hearts gate, etc.) — those render their own CTA or none,
+  // so the shell's Check-button footer (and its FooterSlot portal target)
+  // must not appear, or an empty bar would show underneath them.
+  hideFooter = false,
   children,
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
+
+  // DOM node for the bottom action bar's inner container — exposed via
+  // context so ExerciseRenderer kinds can portal their Check button here,
+  // landing in the exact same screen position no matter which kind or how
+  // tall its content is. useState (not useRef) so the portal target updates
+  // once the node actually mounts.
+  const [footerNode, setFooterNode] = useState(null);
 
   // Progress bar gives a brief pulse/glow whenever it advances — the tile
   // itself (result sheet) already carries the correct/wrong signal, so no
@@ -191,6 +204,32 @@ export default function ExerciseShell({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [result, onResultPrimary]);
+
+  // Before an answer is submitted, Enter also triggers Check — including
+  // while typing in a text input (no separate per-kind wiring needed: only
+  // this one listener handles Enter, so there's no double-fire to guard
+  // against). Works for both the explicit primaryLabel path AND
+  // portal-driven kinds (FooterSlot) by clicking whichever enabled button
+  // landed in the footer.
+  useEffect(() => {
+    if (result) return;
+    const onKeyDown = (e) => {
+      if (e.key !== "Enter") return;
+      if (primaryLabel) {
+        if (primaryDisabled) return;
+        e.preventDefault();
+        onPrimary?.();
+        return;
+      }
+      const btn = footerNode?.querySelector("button:not(:disabled)");
+      if (btn) {
+        e.preventDefault();
+        btn.click();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [result, primaryLabel, primaryDisabled, onPrimary, footerNode]);
 
   // iOS Safari: when the virtual keyboard is open, `fixed` panels anchor to the
   // layout viewport (behind the keyboard). Track visualViewport offset so the
@@ -247,6 +286,7 @@ export default function ExerciseShell({
   const wrongEncouragement = useMemo(() => pickFrom(WRONG_ENCOURAGEMENT), [praiseIdx]);
 
   return (
+    <ExerciseFooterContext.Provider value={footerNode}>
     <div className="lesson-shell relative flex flex-col bg-white">
       {/* Top bar */}
       <header className="shrink-0 bg-white">
@@ -291,10 +331,15 @@ export default function ExerciseShell({
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-4 py-6">{children}</main>
 
-      {/* Bottom action bar — in-flow so it's always visible on mobile */}
-      {(primaryLabel || secondaryLabel) && !result ? (
+      {/* Bottom action bar — in-flow so it's always visible on mobile.
+          Always rendered (when no result is showing) so its inner container
+          can serve as the FooterSlot portal target: every exercise kind's
+          Check button lands here, in the exact same screen position,
+          whether it's driven by explicit primaryLabel props (Phase2Exercise)
+          or portaled in by ExerciseRenderer via FooterSlot. */}
+      {!result && !hideFooter ? (
         <div className="safe-b shrink-0 border-t-2 border-slate-100 bg-white">
-          <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-5">
+          <div ref={setFooterNode} className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-5">
             {secondaryLabel ? (
               <button
                 type="button"
@@ -431,5 +476,6 @@ export default function ExerciseShell({
         </div>
       ) : null}
     </div>
+    </ExerciseFooterContext.Provider>
   );
 }

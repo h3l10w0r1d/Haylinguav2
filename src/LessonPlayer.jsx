@@ -801,6 +801,7 @@ export default function LessonPlayer() {
       secondaryLabel={null}
       secondaryDisabled={null}
       onSecondary={null}
+      hideFooter={showDoneFooter || isReadingSection || outOfHearts}
       result={
         resultOpen && resultData
           ? {

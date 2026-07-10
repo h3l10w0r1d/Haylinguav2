@@ -15,6 +15,7 @@ import {
 import { ttsFetch } from "./exercises/tts";
 import { GlossaryText, useNewWords, normWord } from "./exercises/WordHint";
 import { writeHearts } from "./lib/hearts";
+import { FooterSlot } from "./exercises/FooterSlot";
 
 // Renders a prompt heading with optional inline word-hint tooltips.
 // Glossary is stored in exercise.config.glossary: { "word": "definition" }
@@ -263,11 +264,11 @@ function ExCharIntro({ exercise, cfg, submit }) {
         {hint && <Muted className="mt-2">{hint}</Muted>}
       </div>
 
-      <div className="mt-6">
+      <FooterSlot>
         <PrimaryButton onClick={() => submit?.({ isCorrect: true, autoAdvance: true, xpEarned: 0 })}>
           Continue
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -319,7 +320,7 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck || !!graded}
           onClick={() => {
@@ -330,7 +331,7 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -426,7 +427,7 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -465,7 +466,7 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -536,7 +537,7 @@ function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
         })}
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -552,7 +553,7 @@ function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -578,7 +579,7 @@ function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         <InlineInput value={inputValue} onChange={setInputValue} placeholder="Type here…" />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -590,7 +591,7 @@ function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -618,7 +619,7 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         <InlineInput value={inputValue} onChange={setInputValue} placeholder="Type the word…" />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -630,7 +631,7 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -674,7 +675,7 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -686,7 +687,7 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -730,7 +731,7 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck || !!graded}
           onClick={() => {
@@ -755,7 +756,7 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -808,7 +809,7 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         </button>
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -819,7 +820,7 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -943,7 +944,7 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
         ))}
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -975,7 +976,7 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
           Check
         </PrimaryButton>
 
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1198,7 +1199,7 @@ function ExAudioChoiceTts({
         />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck || !!graded}
           onClick={() => {
@@ -1217,7 +1218,7 @@ function ExAudioChoiceTts({
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1295,7 +1296,7 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
         })}
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -1310,7 +1311,7 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1443,7 +1444,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
         <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>
       ) : null}
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -1489,7 +1490,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
         >
           🔇 Can’t speak right now — skip
         </button>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1563,7 +1564,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
         <InlineInput value={value} onChange={setValue} placeholder="Type what you heard…" />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -1578,7 +1579,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1680,7 +1681,7 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
         {useKeyboard ? "🔤 Use the word bank" : "⌨️ Type with keyboard (harder)"}
       </button>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck}
           onClick={() => {
@@ -1695,7 +1696,7 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1739,7 +1740,7 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         <ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} />
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton
           disabled={!canCheck || !!graded}
           onClick={() => {
@@ -1757,7 +1758,7 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         >
           Check
         </PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1830,14 +1831,14 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
         {picked.length === 0 ? <Muted>Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>{p.t}</Pill>)}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">{available.map((p, i) => <Pill key={p.key} onClick={() => add(i)}>{p.t}</Pill>)}</div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={picked.length === 0} onClick={() => {
           const picks = picked.map((p) => p.t);
           const ok = solution.length === picks.length && solution.every((v, i) => normalizeText(v) === normalizeText(picks[i]));
           const alt = normalizeText(built) === normalizeText(solution.join(" "));
           (ok || alt) ? correct({ answerText: built }) : wrong("Not quite — listen again.", { answerText: built });
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1873,7 +1874,7 @@ function ExDialogueMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
         </div>
       </div>
       <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} graded={graded} /></div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={sel === null || !!graded} onClick={() => {
           const pick = choices[sel] ?? "";
           const extra = { selectedIndices: [sel], answerText: pick };
@@ -1882,7 +1883,7 @@ function ExDialogueMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
           if (correctIndex !== null) { sel === correctIndex ? correct(extra) : wrong("Not quite. Try again.", extra); return; }
           if (answerText && normalizeText(pick) === normalizeText(answerText)) correct(extra); else wrong("Not quite. Try again.", extra);
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1915,13 +1916,13 @@ function ExDialogueOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, 
       <div className="mt-4 space-y-2">{available.map((p, i) => (
         <button key={p.key} type="button" onClick={() => add(i)} className="block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-50">{p.t}</button>
       ))}</div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={picked.length === 0} onClick={() => {
           const picks = picked.map((p) => p.t);
           const ok = solution.length === picks.length && solution.every((v, i) => normalizeText(v) === normalizeText(picks[i]));
           ok ? correct({ answerText: built }) : wrong("Not in order yet — try again.", { answerText: built });
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1957,13 +1958,13 @@ function ExImageSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
           );
         })}
       </div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={sel === null} onClick={() => {
           const it = items[sel] || {};
           const extra = { selectedIndices: [sel], answerText: it.label || "" };
           (correctIndex >= 0 && sel === correctIndex) ? correct(extra) : wrong("Not quite. Try again.", extra);
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -1986,14 +1987,14 @@ function ExReadingComprehension({ exercise, cfg, onCorrect, onWrong, onSkip, onA
       {passage ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-base leading-relaxed text-slate-800 ring-1 ring-slate-200">{passage}</div> : null}
       {question ? <div className="mt-4 font-display text-lg font-extrabold text-slate-800">{question}</div> : null}
       <div className="mt-3"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} graded={graded} /></div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={sel === null || !!graded} onClick={() => {
           const pick = choices[sel] ?? "";
           const extra = { selectedIndices: [sel], answerText: pick };
           setGraded({ correct: correctIndex, picked: sel });
           (correctIndex !== null && sel === correctIndex) ? correct(extra) : wrong("Not quite — re-read the passage.", extra);
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -2039,14 +2040,14 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
         <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
       </div>
       <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} /></div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={sel === null || !!graded} onClick={() => {
           const pick = choices[sel] ?? "";
           const extra = { selectedIndices: [sel], answerText: pick };
           setGraded({ correct: correctIndex, picked: sel });
           (correctIndex !== null && sel === correctIndex) ? correct(extra) : wrong("Not quite — listen again.", extra);
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -2071,9 +2072,9 @@ function ExFlashcard({ exercise, cfg, submit }) {
         <div className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">{flipped ? "answer" : "tap to flip"}</div>
         {flipped && hint ? <div className="mt-2 text-sm font-semibold text-slate-500">{hint}</div> : null}
       </button>
-      <div className="mt-6">
+      <FooterSlot>
         <PrimaryButton onClick={() => submit?.({ isCorrect: true, autoAdvance: true, xpEarned: 0 })}>Continue</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -2133,14 +2134,14 @@ function ExCategorize({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, sub
         })}
       </div>
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={!allDone} onClick={() => {
           // ER-16: use index-keyed assign to correctly evaluate duplicate-text items
           const built = items.map((it, i) => ({ text: it.text, bucket: assign[String(i)] }));
           const ok = items.every((it, i) => normalizeText(assign[String(i)]) === normalizeText(it.bucket));
           ok ? correct({ answerText: JSON.stringify(built) }) : wrong("Not quite — check your groups.", { answerText: JSON.stringify(built) });
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -2178,7 +2179,7 @@ function ExHighlightGrammar({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswe
           );
         })}
       </div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={picked.size === 0 || graded} onClick={() => {
           const sel = Array.from(picked).sort((a, b) => a - b);
           const target = [...correctIdx].sort((a, b) => a - b);
@@ -2187,7 +2188,7 @@ function ExHighlightGrammar({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswe
           ok ? correct({ selectedIndices: sel, answerText: sel.map((i) => tokens[i]).join(", ") })
              : wrong("Not quite — tap again.", { selectedIndices: sel, answerText: sel.map((i) => tokens[i]).join(", ") });
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -2221,13 +2222,13 @@ function ExConjugation({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
           </div>
         ))}
       </div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={!canCheck} onClick={() => {
           const ok = cells.every((c, i) => normalizeText(vals[i]) === normalizeText(c.answer));
           const extra = { answerText: JSON.stringify(vals) };
           ok ? correct(extra) : wrong("Some forms are off — try again.", extra);
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -2319,7 +2320,7 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
       ) : null}
       {error ? <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div> : null}
 
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={!canCheck} onClick={() => {
           // ER-10: remove substring match — require normalized exact equality only
           const normalize = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
@@ -2334,7 +2335,7 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
         >
           🔇 Can’t speak right now — skip
         </button>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -2370,13 +2371,13 @@ function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
           className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
         />
       </div>
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton disabled={!canCheck} onClick={() => {
           const t = normalizeText(value);
           const ok = accepted.some((a) => normalizeText(a) === t);
           ok ? correct({ answerText: value }) : wrong("Not an accepted answer — check spelling & word order.", { answerText: value });
         }}>Check</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }
@@ -2764,9 +2765,9 @@ export default function ExerciseRenderer({
         kind: <span className="font-mono">{String(exercise?.kind)}</span>
       </Muted>
       {exercise?.prompt && <Muted className="mt-2">{exercise.prompt}</Muted>}
-      <div className="mt-6 space-y-3">
+      <FooterSlot>
         <PrimaryButton onClick={fallbackHelpers.skip}>Skip</PrimaryButton>
-      </div>
+      </FooterSlot>
     </Card>
   );
 }

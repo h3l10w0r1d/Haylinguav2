@@ -193,13 +193,12 @@ export function Pill({ children, onClick, disabled, active = false, className })
   );
 }
 
-export function InlineInput({ value, onChange, placeholder, onEnter, autoFocus = true }) {
+export function InlineInput({ value, onChange, placeholder, autoFocus = true }) {
   return (
     <input
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      onKeyDown={onEnter ? (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } : undefined}
       autoFocus={autoFocus}
       autoCapitalize="none"
       autoCorrect="off"
