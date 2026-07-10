@@ -115,19 +115,33 @@ function playRichTone(frequency, type, duration, gain, when) {
 }
 
 export const sfx = {
-  // Bright, rising two-note chime.
-  correct() {
-    playTone(660, "sine", 0.16, 0.2, 0);
-    playTone(990, "sine", 0.22, 0.2, 0.09);
+  // Bright, rising two-note chime. Pitch climbs with the combo streak —
+  // semitone steps every 3 correct answers, capped so it stays musical.
+  correct(combo = 0) {
+    const semitones = Math.min(7, Math.floor(Math.max(0, combo) / 3) * 2);
+    const mul = Math.pow(2, semitones / 12);
+    playTone(660 * mul, "sine", 0.16, 0.2, 0);
+    playTone(990 * mul, "sine", 0.22, 0.2, 0.09);
   },
   // Soft, short low "thud" — clear but not harsh.
   wrong() {
     playTone(196, "triangle", 0.26, 0.16, 0);
     playTone(146, "sine", 0.3, 0.12, 0.04);
   },
-  // Celebratory ascending arpeggio for lesson completion.
+  // Quiet tactile "pock" for tapping a tile/word/pill — a short downward
+  // chirp, mixed low so it never competes with correct/wrong feedback.
+  tileTap() {
+    playSweep(900, 650, "triangle", 0.045, 0.055, 0);
+  },
+  // Celebratory fanfare for lesson completion — richer layered chord stack
+  // (detuned pairs + warm lower octave) with a trailing sparkle, scaled down
+  // from gemReveal's shape but distinct from the chest/reward sounds.
   complete() {
-    [523, 659, 784, 1047].forEach((f, i) => playTone(f, "sine", 0.26, 0.2, i * 0.09));
+    [523, 659, 784, 1047].forEach((f, i) => {
+      playRichTone(f, "sine", 0.28, 0.2, i * 0.085);
+      playTone(f / 2, "triangle", 0.32, 0.05, i * 0.085);
+    });
+    playTone(1319, "sine", 0.3, 0.16, 0.36);
   },
   // Cinematic riser during the final shake (930ms): swelling noise sweep +
   // climbing tone over a pulsing low rumble. intensity 1..3 scales the drama.

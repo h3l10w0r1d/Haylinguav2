@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Illustration from "./lib/Illustration";
 import ChestOpening from "./lib/ChestOpening";
+import { sfx } from "./lib/sfx";
 
 const RS_API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function rsToken() {
@@ -398,6 +399,13 @@ export default function LessonCompletionScreen({
       : percent >= 70
       ? "Nice work! You’re above the completion threshold."
       : "Good effort — retry to hit 70% and complete the lesson.";
+
+  // Fanfare on mount for a passing lesson — the confetti's silent partner.
+  // Fires once per mount (a fresh LessonCompletionScreen instance per attempt).
+  useEffect(() => {
+    if (percent >= 70) sfx.complete();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-white shadow-md ring-1 ring-slate-200">

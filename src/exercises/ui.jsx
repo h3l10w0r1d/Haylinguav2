@@ -1,5 +1,6 @@
 // src/exercises/ui.jsx
 import React from "react";
+import { sfx } from "../lib/sfx";
 
 export function normalizeConfig(config) {
   if (!config) return {};
@@ -25,14 +26,12 @@ export function cx(...parts) {
   return parts.filter(Boolean).join(" ");
 }
 
+// No box, no border — exercise content floats directly on the page (the
+// shell's own bg-white already matches). Padding is kept purely for
+// consistent internal spacing across all exercise kinds, not as a "card".
 export function Card({ children, className }) {
   return (
-    <div
-      className={cx(
-        "rounded-3xl bg-white p-5 md:p-7 ring-1 ring-slate-200/80 shadow-sm",
-        className
-      )}
-    >
+    <div className={cx("py-1", className)}>
       {children}
     </div>
   );
@@ -104,6 +103,7 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
 
   function handleClick(idx) {
     if (graded) return; // locked once checked
+    sfx.tileTap();
     if (!multi) return onSelect(idx);
     const cur = selectedSet ?? new Set();
     const next = new Set(cur);
@@ -175,10 +175,10 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
 export function Pill({ children, onClick, disabled, active = false, className }) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => { sfx.tileTap(); onClick?.(e); }}
       disabled={disabled}
       className={cx(
-        "rounded-2xl px-4 py-2.5 text-base font-bold ring-2 transition active:translate-y-0.5",
+        "rounded-2xl px-4 py-3 text-base font-bold ring-2 transition active:translate-y-0.5",
         disabled
           ? "bg-slate-50 text-slate-300 ring-slate-100 cursor-not-allowed"
           : active
@@ -193,12 +193,18 @@ export function Pill({ children, onClick, disabled, active = false, className })
   );
 }
 
-export function InlineInput({ value, onChange, placeholder }) {
+export function InlineInput({ value, onChange, placeholder, onEnter, autoFocus = true }) {
   return (
     <input
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onEnter ? (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } : undefined}
+      autoFocus={autoFocus}
+      autoCapitalize="none"
+      autoCorrect="off"
+      autoComplete="off"
+      spellCheck={false}
       className="w-full rounded-2xl bg-slate-50 px-4 py-4 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
     />
   );

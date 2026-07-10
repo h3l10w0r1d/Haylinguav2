@@ -164,7 +164,7 @@ export default function PracticeMode({
       });
       pendingNextRef.current = { type: "requeue" };
     } else {
-      sfx.correct();
+      sfx.correct(combo);
       setXpEarned((x) => x + (xp || 0));
       setResultData({
         variant: "correct",

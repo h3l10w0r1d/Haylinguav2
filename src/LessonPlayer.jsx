@@ -486,10 +486,11 @@ export default function LessonPlayer() {
     }
 
     const isLast = exerciseQueue.length <= 1;
+    const newCombo = isCorrect ? comboStreak + 1 : 0;
 
-    // Play SFX (after user interaction)
+    // Play SFX (after user interaction) — correct chime rises in pitch with combo.
     if (!skipped) {
-      if (isCorrect) sfx.correct();
+      if (isCorrect) sfx.correct(newCombo);
       else sfx.wrong();
     }
 
@@ -497,8 +498,6 @@ export default function LessonPlayer() {
     // Duolingo-style, any non-correct answer (including a skip) re-shows the
     // exercise — you only advance once you answer correctly.
     setHasAnswered(true);
-
-    const newCombo = isCorrect ? comboStreak + 1 : 0;
     setComboStreak(newCombo);
 
     if (!isCorrect) {
