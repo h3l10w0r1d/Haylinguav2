@@ -109,6 +109,140 @@ function Reveal({ children, delay = 0, className = "" }) {
   );
 }
 
+// ── Playable exercise demo (product preview section) ───────────────────────────
+const DEMO_QUESTIONS = [
+  { prompt: "Բարև", options: ["Hello", "Goodbye", "Thank you"], correct: 0 },
+  { prompt: "Ջուր", options: ["Bread", "Water", "Milk"], correct: 1 },
+  { prompt: "Ընկեր", options: ["Enemy", "Stranger", "Friend"], correct: 2 },
+  { prompt: "Շնորհակալություն", options: ["Please", "Sorry", "Thank you"], correct: 2 },
+];
+
+function LandingExerciseDemo() {
+  const [qi, setQi] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [checked, setChecked] = useState(false);
+  const [hearts, setHearts] = useState(4);
+
+  const q = DEMO_QUESTIONS[qi];
+  const isCorrect = checked && selected === q.correct;
+  const isWrong = checked && selected !== q.correct;
+
+  function pick(i) {
+    if (checked) return;
+    setSelected(i);
+  }
+
+  function onCheck() {
+    if (selected == null || checked) return;
+    setChecked(true);
+    if (selected !== q.correct) setHearts((h) => Math.max(0, h - 1));
+  }
+
+  function onContinue() {
+    setQi((i) => (i + 1) % DEMO_QUESTIONS.length);
+    setSelected(null);
+    setChecked(false);
+    if (hearts <= 0) setHearts(4); // demo loops forever — don't hard-lock a visitor out
+  }
+
+  return (
+    <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
+      <div className="flex items-center gap-3">
+        <span className="text-slate-300">✕</span>
+        <div className="h-3.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+          <div
+            className="h-full rounded-full bg-brand-500 transition-all duration-300"
+            style={{ width: `${((qi + (checked ? 1 : 0)) / DEMO_QUESTIONS.length) * 100}%` }}
+          />
+        </div>
+        <span className="flex items-center gap-1 font-display font-extrabold text-cardinal-500">
+          <Heart className={"h-5 w-5 " + (hearts > 0 ? "fill-cardinal-500" : "")} />
+          {hearts}
+        </span>
+      </div>
+
+      <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-400">Select the correct translation</div>
+      <div className="mt-1 font-display text-2xl font-extrabold text-slate-800">"{q.prompt}" means…</div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3">
+        {q.options.map((t, i) => {
+          const isSel = selected === i;
+          const tone =
+            checked && i === q.correct
+              ? "tile-correct"
+              : checked && isSel && i !== q.correct
+              ? "tile-wrong"
+              : isSel
+              ? "tile-selected"
+              : "";
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => pick(i)}
+              disabled={checked}
+              className={"tile text-left " + tone}
+            >
+              <span className="flex items-center gap-3">
+                <span
+                  className={
+                    "grid h-7 w-7 place-items-center rounded-lg text-xs font-extrabold ring-2 " +
+                    (checked && i === q.correct
+                      ? "bg-grass-500 text-white ring-grass-500"
+                      : checked && isSel && i !== q.correct
+                      ? "bg-cardinal-500 text-white ring-cardinal-500"
+                      : isSel
+                      ? "bg-feather-500 text-white ring-feather-500"
+                      : "text-slate-400 ring-slate-200")
+                  }
+                >
+                  {i + 1}
+                </span>
+                {t}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {checked ? (
+        <div className={"mt-5 -mx-5 -mb-5 rounded-b-3xl px-5 py-4 " + (isCorrect ? "bg-grass-50" : "bg-cardinal-50")}>
+          <div className={"flex items-center justify-between gap-3"}>
+            <div>
+              <div className={"font-display text-base font-extrabold " + (isCorrect ? "text-grass-700" : "text-cardinal-700")}>
+                {isCorrect ? "Ապրե՛ս! (Nice!)" : "Not quite"}
+              </div>
+              {isWrong && (
+                <div className="text-xs font-bold text-cardinal-600">
+                  Correct answer: {q.options[q.correct]}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onContinue}
+              className={"btn3d uppercase " + (isCorrect ? "btn3d-grass" : "btn3d-cardinal")}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={onCheck}
+            disabled={selected == null}
+            className="btn3d btn3d-grass uppercase disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Check
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onLogin, onSignup }) {
@@ -729,34 +863,9 @@ export default function LandingPage({ onLogin, onSignup }) {
             </div>
           </Reveal>
 
-          {/* Mock exercise card */}
+          {/* Playable exercise demo */}
           <Reveal delay={120}>
-            <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
-              <div className="flex items-center gap-3">
-                <span className="text-slate-300">✕</span>
-                <div className="h-3.5 flex-1 overflow-hidden rounded-full bg-slate-200">
-                  <div className="h-full w-2/3 rounded-full bg-brand-500" />
-                </div>
-                <span className="flex items-center gap-1 font-display font-extrabold text-cardinal-500">
-                  <Heart className="h-5 w-5 fill-cardinal-500" />4
-                </span>
-              </div>
-              <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-400">Select the correct translation</div>
-              <div className="mt-1 font-display text-2xl font-extrabold text-slate-800">"Barev" means…</div>
-              <div className="mt-4 grid grid-cols-1 gap-3">
-                {[["1", "Hello", true], ["2", "Goodbye", false], ["3", "Thank you", false]].map(([n, t, sel]) => (
-                  <div key={n} className={"tile " + (sel ? "tile-selected" : "")}>
-                    <span className="flex items-center gap-3">
-                      <span className={"grid h-7 w-7 place-items-center rounded-lg text-xs font-extrabold ring-2 " + (sel ? "bg-feather-500 text-white ring-feather-500" : "text-slate-400 ring-slate-200")}>{n}</span>
-                      {t}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 flex justify-end">
-                <span className="btn3d btn3d-grass uppercase">Check</span>
-              </div>
-            </div>
+            <LandingExerciseDemo />
           </Reveal>
         </div>
       </section>
