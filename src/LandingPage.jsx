@@ -489,9 +489,12 @@ export default function LandingPage({ onLogin, onSignup }) {
     return () => clearInterval(t);
   }, []);
 
-  // Telegram widget — inject once when bot username is set
+  // Telegram widget — (re-)inject whenever the auth popup opens. The widget's
+  // container only exists in the DOM while the modal is mounted, so a
+  // mount-once effect would see tgRef.current === null on page load (modal
+  // closed) and never fire again once the popup actually opens.
   useEffect(() => {
-    if (!TELEGRAM_BOT_USERNAME || !tgRef.current) return;
+    if (!authOpen || !TELEGRAM_BOT_USERNAME || !tgRef.current) return;
     tgRef.current.innerHTML = "";
     window.onTelegramAuth = async (tgUser) => {
       setLoading(true);
@@ -527,7 +530,7 @@ export default function LandingPage({ onLogin, onSignup }) {
     s.async = true;
     tgRef.current.appendChild(s);
     return () => { delete window.onTelegramAuth; };
-  }, []);
+  }, [authOpen]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
