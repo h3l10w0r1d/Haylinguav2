@@ -314,12 +314,25 @@ function PathPreview() {
 
 // ── Live community stats (simulated) ────────────────────────────────────────
 // Illustrative counters for social proof — NOT wired to the real backend.
+// Every visitor must see the SAME number at the same real moment, and a
+// reload must never show a lower number than before. Both of those rule out
+// any client-side randomness in the value itself: the number is a pure,
+// deterministic function of (config, wall-clock time) — same inputs always
+// produce the same output, for every browser, everywhere. "Live ticking" is
+// just re-evaluating that function every second or two as time moves on; the
+// growth itself comes from the formula, not from random bumps.
+//
 // Growth rates loosely track Armenia's day/night cycle (faster ~08:00–23:00
-// AMT, slower overnight), with randomness so parallel counters don't tick in
-// lockstep. Each mount "warms up" the base number by a bounded, randomized
-// amount (as if some time had already passed today) so reloads don't always
-// show the exact same figure, then a live interval ticks it up visibly using
-// whichever rate applies right now.
+// AMT, slower overnight). STATS_EPOCH is a fixed reference point — the
+// "base" counts are the totals as of that moment, and every full day past
+// it adds one day's worth of growth at the blended average rate, plus a
+// smooth partial-day contribution using whichever rate applies right now.
+const STATS_EPOCH = new Date("2026-07-12T00:00:00Z").getTime();
+const DAY_START_AMT = 8;   // 08:00 Armenia time
+const DAY_END_AMT = 23;    // 23:00 Armenia time
+const MINUTES_PER_DAY = 24 * 60;
+const DAY_MS = 86_400_000;
+
 const STAT_CONFIGS = [
   { key: "exercises", label: "Exercises completed", icon: Zap, base: 118_000, perMinDay: 60, perMinNight: 30, tone: "text-brand-600", bg: "bg-brand-50" },
   { key: "users", label: "Learners joined", icon: Users, base: 6_400, perMinDay: 5, perMinNight: 3, tone: "text-feather-600", bg: "bg-feather-50" },
@@ -330,53 +343,42 @@ const STAT_CONFIGS = [
 // Armenia has used a fixed UTC+4 offset (no DST) since 2012.
 function isArmeniaDaytime(date) {
   const amtHour = (date.getUTCHours() + 4) % 24;
-  return amtHour >= 8 && amtHour < 23; // 08:00–23:00 AMT counts as "day"
+  return amtHour >= DAY_START_AMT && amtHour < DAY_END_AMT;
 }
 
 function averagePerMinute(cfg) {
-  return (cfg.perMinDay * 15 + cfg.perMinNight * 9) / 24;
+  const dayHours = DAY_END_AMT - DAY_START_AMT;
+  const nightHours = 24 - dayHours;
+  return (cfg.perMinDay * dayHours + cfg.perMinNight * nightHours) / 24;
 }
 
-// Deliberately capped to a couple of hours' worth of growth — this is only
-// meant to make the starting number feel "already in progress", never to
-// project real elapsed time (which could be days/months and blow the number
-// up to millions).
-function warmedUpBase(cfg) {
-  const warmupMinutes = Math.random() * 120;
-  return Math.round(cfg.base + warmupMinutes * averagePerMinute(cfg));
+// Pure function: (config, time) → displayed number. No Math.random() here —
+// this is the whole fix. Two visitors calling this with clocks a second
+// apart get numbers a second apart, never two unrelated random values.
+function computeStatValue(cfg, now) {
+  const nowMs = now.getTime();
+  const daysSinceEpoch = Math.max(0, Math.floor((nowMs - STATS_EPOCH) / DAY_MS));
+  const startOfToday = STATS_EPOCH + daysSinceEpoch * DAY_MS;
+  const minutesIntoToday = (nowMs - startOfToday) / 60000;
+
+  const wholeDaysGrowth = daysSinceEpoch * averagePerMinute(cfg) * MINUTES_PER_DAY;
+  const perMinNow = isArmeniaDaytime(now) ? cfg.perMinDay : cfg.perMinNight;
+  const todayGrowth = minutesIntoToday * perMinNow;
+
+  return Math.round(cfg.base + wholeDaysGrowth + todayGrowth);
 }
 
 function useLiveStat(cfg) {
-  const [value, setValue] = useState(() => warmedUpBase(cfg));
-  // Fractional carry-over between ticks. Without this, a low-rate counter
-  // (e.g. users at 5/min ≈ 0.17 expected per ~2s tick) would round down to 0
-  // on almost every single tick and appear to never move at all.
-  const carryRef = useRef(0);
+  const [value, setValue] = useState(() => computeStatValue(cfg, new Date()));
 
   useEffect(() => {
-    let alive = true;
-    let timer = null;
-
-    function tick() {
-      if (!alive) return;
-      const now = new Date();
-      const perMin = isArmeniaDaytime(now) ? cfg.perMinDay : cfg.perMinNight;
-      const pauseMs = 1200 + Math.random() * 1800; // ~1.2–3s between ticks
-      const expected = (perMin / 60000) * pauseMs * (0.4 + Math.random() * 1.3);
-      carryRef.current += expected;
-      const whole = Math.floor(carryRef.current);
-      if (whole > 0) {
-        carryRef.current -= whole;
-        setValue((v) => v + whole);
-      }
-      timer = setTimeout(tick, pauseMs);
-    }
-
-    timer = setTimeout(tick, 600 + Math.random() * 1200);
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
+    // Randomizing only the poll cadence (not the value) keeps four counters
+    // from visibly updating in perfect lockstep, without reintroducing any
+    // per-client randomness into the number itself.
+    const id = setInterval(() => {
+      setValue(computeStatValue(cfg, new Date()));
+    }, 1000 + Math.random() * 1200);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
