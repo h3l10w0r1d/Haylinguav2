@@ -39,6 +39,7 @@ const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
 const CmsVoiceLab = lazy(() => import('./cms/CmsVoiceLab'));
 const CmsAccount = lazy(() => import('./cms/CmsAccount'));
 const AuthCallback = lazy(() => import('./AuthCallback'));
+const TelegramCallback = lazy(() => import('./TelegramCallback'));
 const ResetPassword = lazy(() => import('./ResetPassword'));
 const PracticeMode = lazy(() => import('./PracticeMode'));
 const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
@@ -581,6 +582,7 @@ function AppShell() {
       <Route path="/vocabulary"  element={<VocabularyPage />} />
       <Route path="/progress"    element={<ProgressPage />} />
       <Route path="/auth/google/callback" element={<AuthCallback />} />
+      <Route path="/auth/telegram/callback" element={<TelegramCallback />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

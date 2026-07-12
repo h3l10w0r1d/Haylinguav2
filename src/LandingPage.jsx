@@ -736,41 +736,21 @@ export default function LandingPage({ onLogin, onSignup }) {
   useEffect(() => {
     if (!authOpen || mode === "forgot" || !TELEGRAM_BOT_USERNAME || !tgRef.current) return;
     tgRef.current.innerHTML = "";
-    window.onTelegramAuth = async (tgUser) => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch(`${API_BASE}/auth/telegram`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(tgUser),
-        });
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          throw new Error(d?.detail || "Telegram sign-in failed");
-        }
-        const data = await res.json();
-        const t = data.access_token;
-        localStorage.setItem("hay_token", t);
-        localStorage.setItem("access_token", t);
-        const u = { id: 1, email: data.email, name: data.email.split("@")[0], email_verified: true };
-        localStorage.setItem("hay_user", JSON.stringify(u));
-        window.location.href = data.needs_onboarding ? "/onboarding" : "/dashboard";
-      } catch (err) {
-        setError(err.message || "Telegram sign-in failed");
-        setLoading(false);
-      }
-    };
+    // Redirect mode (data-auth-url) instead of popup callback (data-onauth):
+    // clicking navigates the page to Telegram and back to /auth/telegram/callback
+    // with the signed auth data. No window.open popup → nothing for a popup
+    // blocker to swallow, and it works even though our widget is transparent
+    // (layered over the branded button). The callback route forwards the data
+    // to the same backend /auth/telegram endpoint for HMAC verification.
     const s = document.createElement("script");
     s.src = "https://telegram.org/js/telegram-widget.js?22";
     s.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
     s.setAttribute("data-size", "large");
     s.setAttribute("data-radius", "12");
-    s.setAttribute("data-onauth", "onTelegramAuth(user)");
+    s.setAttribute("data-auth-url", window.location.origin + "/auth/telegram/callback");
     s.setAttribute("data-request-access", "write");
     s.async = true;
     tgRef.current.appendChild(s);
-    return () => { delete window.onTelegramAuth; };
   }, [authOpen, mode]);
 
   useEffect(() => {
