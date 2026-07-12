@@ -387,10 +387,24 @@ export default function LandingPage({ onLogin, onSignup }) {
   // UI-only state
   const [faqOpen, setFaqOpen] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [wordIdx, setWordIdx] = useState(0);
   const [wordFade, setWordFade] = useState(true);
   const authRef = useRef(null);
   const tgRef = useRef(null);
+
+  // Auth modal: lock background scroll, close on Escape.
+  useEffect(() => {
+    if (!authOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => { if (e.key === "Escape") setAuthOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [authOpen]);
 
   // Rotating Armenian word with fade transition
   useEffect(() => {
@@ -454,7 +468,7 @@ export default function LandingPage({ onLogin, onSignup }) {
     setMode(m);
     setError("");
     setMenuOpen(false);
-    authRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setAuthOpen(true);
   };
 
   // ── Auth Handlers ───────────────────────────────────────────────────────────
@@ -664,7 +678,15 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   // ── Auth card ────────────────────────────────────────────────────────────────
   const authCard = (
-    <div ref={authRef} className="w-full rounded-3xl bg-white p-6 shadow-xl ring-1 ring-slate-200 sm:p-7">
+    <div ref={authRef} className="relative w-full rounded-3xl bg-white p-6 shadow-xl ring-1 ring-slate-200 sm:p-7">
+      <button
+        type="button"
+        onClick={() => setAuthOpen(false)}
+        aria-label="Close"
+        className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+      >
+        <X className="h-4 w-4" />
+      </button>
       <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
         {["login", "signup"].map((m) => (
           <button
@@ -912,7 +934,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
 
           <div className="relative">
-            {authCard}
+            <LandingExerciseDemo />
           </div>
         </div>
       </header>
@@ -1103,6 +1125,16 @@ export default function LandingPage({ onLogin, onSignup }) {
           <div className="text-sm font-semibold text-slate-400">© {new Date().getFullYear()} Haylingua</div>
         </div>
       </footer>
+
+      {/* Auth popup — login/signup, triggered from header, hero, and CTA buttons */}
+      {authOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setAuthOpen(false); }}
+        >
+          <div className="w-full max-w-md">{authCard}</div>
+        </div>
+      )}
     </div>
   );
 }
