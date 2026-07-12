@@ -6,10 +6,11 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  Menu, X, Eye, EyeOff, Play,
+  Menu, X, Eye, EyeOff, Play, RotateCw, Loader2,
 } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
+import { ttsFetch } from "./exercises/tts";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
@@ -161,22 +162,150 @@ function SignupPromoPanel({ mode }) {
 }
 
 // ── Playable exercise demo (product preview section) ───────────────────────────
+// Each question carries enough context for the simulated AI tutor to explain a
+// wrong answer specifically: the real meaning + romanization of the prompt, and
+// for every wrong option, the Armenian word that option actually maps to. This
+// is what powers the "why was I wrong" feedback (no real LLM call — the demo is
+// on the public landing page — but the explanations are tailored per mistake and
+// phrased several different ways so it reads like a live tutor, not a canned line).
 const DEMO_QUESTIONS = [
-  { prompt: "Բարև", options: ["Hello", "Goodbye", "Thank you"], correct: 0 },
-  { prompt: "Ջուր", options: ["Bread", "Water", "Milk"], correct: 1 },
-  { prompt: "Ընկեր", options: ["Enemy", "Stranger", "Friend"], correct: 2 },
-  { prompt: "Շնորհակալություն", options: ["Please", "Sorry", "Thank you"], correct: 2 },
+  {
+    prompt: "Բարև", rom: "ba-rev", meaning: "Hello", correct: 0,
+    options: ["Hello", "Goodbye", "Thank you"],
+    hook: "It's the word you lead with when you meet someone.",
+    wrong: {
+      1: { picked: "Goodbye", arm: "Ցտեսություն", rom: "tse-te-su-tyun" },
+      2: { picked: "Thank you", arm: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun" },
+    },
+  },
+  {
+    prompt: "Ջուր", rom: "jur", meaning: "Water", correct: 1,
+    options: ["Bread", "Water", "Milk"],
+    hook: "Picture ordering at a café: «մեկ բաժակ ջուր» — one glass of water.",
+    wrong: {
+      0: { picked: "Bread", arm: "Հաց", rom: "hats" },
+      2: { picked: "Milk", arm: "Կաթ", rom: "kat" },
+    },
+  },
+  {
+    prompt: "Ընկեր", rom: "ən-ker", meaning: "Friend", correct: 2,
+    options: ["Enemy", "Stranger", "Friend"],
+    hook: "You'll hear it constantly — Armenians call a close friend ընկեր.",
+    wrong: {
+      0: { picked: "Enemy", arm: "Թշնամի", rom: "təsh-na-mi" },
+      1: { picked: "Stranger", arm: "Անծանոթ", rom: "an-tsa-not" },
+    },
+  },
+  {
+    prompt: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun", meaning: "Thank you", correct: 2,
+    options: ["Please", "Sorry", "Thank you"],
+    hook: "It's a long one, but you'll say it every day — it simply means thank you.",
+    wrong: {
+      0: { picked: "Please", arm: "Խնդրեմ", rom: "khən-drem" },
+      1: { picked: "Sorry", arm: "Ներողություն", rom: "ne-ro-ghu-tyun" },
+    },
+  },
 ];
+
+// Sentence frames the "AI tutor" composes its explanation from. Each takes the
+// question and the specific wrong-option facts, so the reply always names what
+// the learner actually picked and what it should have been. Multiple frames +
+// the "explain it differently" button let a visitor regenerate the reply and see
+// it's genuinely reasoning about their mistake, not replaying one fixed string.
+const AI_FRAMES = [
+  (q, w) => `Close — but «${q.prompt}» means "${q.meaning}", not "${w.picked}". The word for "${w.picked}" is «${w.arm}» (${w.rom}). ${q.hook}`,
+  (q, w) => `I see the mix-up: "${w.picked}" in Armenian is «${w.arm}» (${w.rom}). «${q.prompt}» (${q.rom}) actually means "${q.meaning}". ${q.hook}`,
+  (q, w) => `Not this time. «${q.prompt}» = "${q.meaning}". You went with "${w.picked}", which is «${w.arm}» (${w.rom}) — an easy pair to confuse. ${q.hook}`,
+  (q, w) => `Almost! "${w.picked}" would be «${w.arm}» (${w.rom}). Here, «${q.prompt}» translates to "${q.meaning}". ${q.hook}`,
+];
+
+// Small speaker chip that plays real Armenian TTS for a word via the same /audio
+// pipeline the learner app uses — so a visitor can actually hear pronunciation.
+function VoiceChip({ text, label, tone = "brand" }) {
+  const [state, setState] = useState("idle"); // idle | loading | playing
+  const audioRef = useRef(null);
+  const urlRef = useRef(null);
+
+  useEffect(() => () => {
+    if (audioRef.current) audioRef.current.pause();
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+  }, []);
+
+  async function toggle() {
+    if (state === "playing") {
+      audioRef.current?.pause();
+      setState("idle");
+      return;
+    }
+    if (state === "loading") return;
+    try {
+      setState("loading");
+      if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
+      const url = await ttsFetch(API_BASE, { text });
+      urlRef.current = url;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => setState("idle");
+      audio.onerror = () => setState("idle");
+      setState("playing");
+      await audio.play();
+    } catch {
+      setState("idle");
+    }
+  }
+
+  const tones = {
+    brand: "bg-white text-brand-700 ring-brand-200 hover:bg-brand-50",
+    slate: "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50",
+  };
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={"inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-extrabold ring-2 transition-colors " + (tones[tone] || tones.brand)}
+    >
+      {state === "loading" ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Volume2 className={"h-4 w-4 " + (state === "playing" ? "animate-pulse" : "")} />
+      )}
+      <span>{text}</span>
+      {label && <span className="font-bold text-slate-400">· {label}</span>}
+    </button>
+  );
+}
 
 function LandingExerciseDemo() {
   const [qi, setQi] = useState(0);
   const [selected, setSelected] = useState(null);
   const [checked, setChecked] = useState(false);
   const [hearts, setHearts] = useState(4);
+  const [frameIdx, setFrameIdx] = useState(0);   // which AI phrasing to show
+  const [aiPhase, setAiPhase] = useState("thinking"); // thinking | reveal
+  const [typed, setTyped] = useState(0);         // typewriter cursor position
 
   const q = DEMO_QUESTIONS[qi];
   const isCorrect = checked && selected === q.correct;
   const isWrong = checked && selected !== q.correct;
+  const wrongInfo = isWrong ? q.wrong[selected] : null;
+  const feedbackText = wrongInfo ? AI_FRAMES[frameIdx % AI_FRAMES.length](q, wrongInfo) : "";
+
+  // Wrong answer → the tutor "thinks" briefly, then types its reply. Re-runs when
+  // the learner asks for a different phrasing (frameIdx changes).
+  useEffect(() => {
+    if (!isWrong) return;
+    setAiPhase("thinking");
+    setTyped(0);
+    const t = setTimeout(() => setAiPhase("reveal"), 620);
+    return () => clearTimeout(t);
+  }, [isWrong, qi, frameIdx]);
+
+  // Typewriter reveal — a couple of characters per tick reads like live generation.
+  useEffect(() => {
+    if (aiPhase !== "reveal" || !feedbackText || typed >= feedbackText.length) return;
+    const t = setTimeout(() => setTyped((n) => Math.min(feedbackText.length, n + 2)), 16);
+    return () => clearTimeout(t);
+  }, [aiPhase, typed, feedbackText]);
 
   function pick(i) {
     if (checked) return;
@@ -189,12 +318,20 @@ function LandingExerciseDemo() {
     if (selected !== q.correct) setHearts((h) => Math.max(0, h - 1));
   }
 
+  function regenerate() {
+    setFrameIdx((n) => n + 1); // effect above restarts thinking→typing with a new frame
+  }
+
   function onContinue() {
     setQi((i) => (i + 1) % DEMO_QUESTIONS.length);
     setSelected(null);
     setChecked(false);
+    setAiPhase("thinking");
+    setTyped(0);
     if (hearts <= 0) setHearts(4); // demo loops forever — don't hard-lock a visitor out
   }
+
+  const typing = aiPhase === "reveal" && typed < feedbackText.length;
 
   return (
     <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
@@ -213,7 +350,10 @@ function LandingExerciseDemo() {
       </div>
 
       <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-400">Select the correct translation</div>
-      <div className="mt-1 font-display text-2xl font-extrabold text-slate-800">"{q.prompt}" means…</div>
+      <div className="mt-1 flex items-center gap-2">
+        <div className="font-display text-2xl font-extrabold text-slate-800">"{q.prompt}" means…</div>
+        <VoiceChip text={q.prompt} tone="slate" />
+      </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3">
         {q.options.map((t, i) => {
@@ -257,27 +397,64 @@ function LandingExerciseDemo() {
       </div>
 
       {checked ? (
-        <div className={"mt-5 -mx-5 -mb-5 rounded-b-3xl px-5 py-4 " + (isCorrect ? "bg-grass-50" : "bg-cardinal-50")}>
-          <div className={"flex items-center justify-between gap-3"}>
-            <div>
-              <div className={"font-display text-base font-extrabold " + (isCorrect ? "text-grass-700" : "text-cardinal-700")}>
-                {isCorrect ? "Ապրե՛ս! (Nice!)" : "Not quite"}
+        isCorrect ? (
+          <div className="mt-5 -mx-5 -mb-5 rounded-b-3xl bg-grass-50 px-5 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="font-display text-base font-extrabold text-grass-700">Ապրե՛ս! (Nice!)</div>
+                <div className="mt-2"><VoiceChip text={q.prompt} label={q.meaning} /></div>
               </div>
-              {isWrong && (
-                <div className="text-xs font-bold text-cardinal-600">
-                  Correct answer: {q.options[q.correct]}
-                </div>
+              <button type="button" onClick={onContinue} className="btn3d btn3d-grass uppercase">Continue</button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 -mx-5 -mb-5 rounded-b-3xl bg-cardinal-50 px-5 py-4">
+            {/* Simulated AI tutor: explains the specific mistake instead of just
+                flashing the right answer, so a visitor sees why they were wrong. */}
+            <div className="flex items-center justify-between">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-cardinal-500/10 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-cardinal-700">
+                <Sparkles className="h-3.5 w-3.5" /> Aram · AI tutor
+              </div>
+              <button
+                type="button"
+                onClick={regenerate}
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-cardinal-600 hover:bg-cardinal-500/10"
+                title="See the explanation phrased another way"
+              >
+                <RotateCw className="h-3.5 w-3.5" /> Explain differently
+              </button>
+            </div>
+
+            <div className="mt-2 min-h-[3.5rem] text-sm font-semibold leading-relaxed text-slate-700">
+              {aiPhase === "thinking" ? (
+                <span className="inline-flex items-center gap-2 text-slate-400">
+                  <span className="flex gap-1">
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cardinal-400 [animation-delay:-0.2s]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cardinal-400 [animation-delay:-0.1s]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cardinal-400" />
+                  </span>
+                  Aram is looking at your answer…
+                </span>
+              ) : (
+                <span>
+                  {feedbackText.slice(0, typed)}
+                  {typing && <span className="ml-0.5 inline-block h-4 w-0.5 -translate-y-0.5 animate-pulse bg-slate-400 align-middle" />}
+                </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={onContinue}
-              className={"btn3d uppercase " + (isCorrect ? "btn3d-grass" : "btn3d-cardinal")}
-            >
-              Continue
-            </button>
+
+            {aiPhase === "reveal" && !typing && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <VoiceChip text={q.prompt} label={q.meaning} />
+                {wrongInfo && <VoiceChip text={wrongInfo.arm} label={wrongInfo.picked} tone="slate" />}
+              </div>
+            )}
+
+            <div className="mt-3 flex justify-end">
+              <button type="button" onClick={onContinue} className="btn3d btn3d-cardinal uppercase">Continue</button>
+            </div>
           </div>
-        </div>
+        )
       ) : (
         <div className="mt-5 flex justify-end">
           <button
