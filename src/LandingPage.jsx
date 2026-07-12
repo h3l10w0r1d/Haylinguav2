@@ -131,7 +131,7 @@ function SignupPromoPanel({ mode }) {
         src={src}
         alt=""
         onError={() => setImgOk(false)}
-        className={"absolute inset-0 h-full w-full object-cover " + (imgOk ? "" : "hidden")}
+        className={"absolute inset-0 h-full w-full object-cover object-top " + (imgOk ? "" : "hidden")}
       />
       {!imgOk && (
         <div className="relative flex h-full flex-col justify-between p-7 text-white">
@@ -692,6 +692,16 @@ export default function LandingPage({ onLogin, onSignup }) {
   const authRef = useRef(null);
   const tgRef = useRef(null);
 
+  // Warm the browser cache with both auth banners on first paint, so the modal's
+  // promo image is already decoded and pops in instantly the moment it opens
+  // (instead of loading — and briefly flashing the fallback — on click).
+  useEffect(() => {
+    [SIGNUP_BANNER_SRC, LOGIN_BANNER_SRC].forEach((s) => {
+      const img = new Image();
+      img.src = s;
+    });
+  }, []);
+
   // Auth modal: lock background scroll, close on Escape.
   useEffect(() => {
     if (!authOpen) return;
@@ -1243,10 +1253,10 @@ export default function LandingPage({ onLogin, onSignup }) {
       <section className="border-y border-slate-100 bg-slate-50">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-5 py-8 md:grid-cols-4">
           {[
-            { icon: Languages, label: "39 letters", sub: "Full alphabet" },
-            { icon: Volume2, label: "Real audio", sub: "On every prompt" },
-            { icon: Zap, label: "XP & streaks", sub: "Stay consistent" },
-            { icon: ShieldCheck, label: "Secure", sub: "2FA & verified email" },
+            { icon: Sparkles, label: "AI tutor", sub: "Explains every mistake" },
+            { icon: Volume2, label: "Real audio", sub: "Hear every word" },
+            { icon: Repeat2, label: "Smart review", sub: "Spaced repetition" },
+            { icon: Trophy, label: "Leagues", sub: "Climb the leaderboard" },
           ].map((v) => (
             <div key={v.label} className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-brand-500 ring-1 ring-slate-200">
