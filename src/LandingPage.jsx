@@ -1109,17 +1109,22 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {TELEGRAM_BOT_USERNAME && (
-              // Render Telegram's real login widget directly (visible), not hidden
-              // behind a styled overlay. The overlay approach (transparent widget +
-              // fake button with pointer-events:none) kept breaking — a fully
-              // transparent click target is fragile and gave no fallback when the
-              // widget failed to mount. The official button is unambiguously
-              // clickable and is what users trust for OAuth.
-              <div
-                ref={tgRef}
-                aria-label="Log in with Telegram"
-                className="flex h-11 items-center justify-center overflow-hidden rounded-xl [&_iframe]:!m-0"
-              />
+              // Branded button that matches the Google one, with Telegram's real
+              // login widget layered transparently ON TOP so the click still hits
+              // the widget. The widget sits above (z-10, opacity 0) rather than
+              // behind a pointer-events:none overlay, so it reliably receives the
+              // click without depending on hit-test pass-through.
+              <div className="relative h-11">
+                <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Telegram
+                </div>
+                <div
+                  ref={tgRef}
+                  aria-label="Log in with Telegram"
+                  className="absolute inset-0 z-10 flex items-center justify-center overflow-hidden opacity-0"
+                />
+              </div>
             )}
             {GOOGLE_CLIENT_ID && (
               <button
