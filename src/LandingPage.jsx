@@ -6,7 +6,7 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  Menu, X, Eye, EyeOff,
+  Menu, X, Eye, EyeOff, Play,
 } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
@@ -239,6 +239,75 @@ function LandingExerciseDemo() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Learning path preview (product preview section) ─────────────────────────
+const PATH_PREVIEW_LESSONS = [
+  { title: "Greetings", status: "done" },
+  { title: "Numbers 1–10", status: "done" },
+  { title: "Family", status: "current" },
+  { title: "Food & Drink", status: "locked" },
+  { title: "Colors", status: "locked" },
+];
+
+function PathPreview() {
+  return (
+    <div className="relative rounded-3xl bg-white p-6 shadow-xl ring-1 ring-slate-200 sm:p-7">
+      <div className="flex items-center justify-between">
+        <div className="font-display text-sm font-extrabold uppercase tracking-wide text-slate-400">Your path</div>
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold text-brand-600">
+          <Flame className="h-3.5 w-3.5 fill-brand-500 text-brand-500" /> 3-day streak
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-1">
+        {PATH_PREVIEW_LESSONS.map((lesson, i) => {
+          const isLast = i === PATH_PREVIEW_LESSONS.length - 1;
+          const isDone = lesson.status === "done";
+          const isCurrent = lesson.status === "current";
+          return (
+            <div key={lesson.title} className="relative flex items-start gap-4 pb-6">
+              {!isLast && (
+                <div
+                  className={
+                    "absolute left-[19px] top-10 h-full w-1 -translate-x-1/2 rounded-full " +
+                    (isDone ? "bg-grass-300" : "bg-slate-100")
+                  }
+                />
+              )}
+              <div className="relative z-10 shrink-0">
+                {isCurrent && (
+                  <span className="absolute inset-0 animate-ping rounded-full bg-brand-300 opacity-60" />
+                )}
+                <div
+                  className={
+                    "grid h-10 w-10 place-items-center rounded-full text-white " +
+                    (isDone ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-slate-200 text-slate-400")
+                  }
+                >
+                  {isDone ? (
+                    <Check className="h-5 w-5" strokeWidth={3} />
+                  ) : isCurrent ? (
+                    <Play className="h-4 w-4 fill-white" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                </div>
+              </div>
+              <div className="min-w-0 flex-1 pt-1.5">
+                <div className={"font-display text-base font-extrabold " + (lesson.status === "locked" ? "text-slate-400" : "text-slate-800")}>
+                  {lesson.title}
+                </div>
+                <div className={"text-xs font-bold " + (isDone ? "text-grass-600" : isCurrent ? "text-brand-500" : "text-slate-300")}>
+                  {isDone ? "Completed" : isCurrent ? "You are here" : "Locked"}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1007,9 +1076,9 @@ export default function LandingPage({ onLogin, onSignup }) {
             </div>
           </Reveal>
 
-          {/* Playable exercise demo */}
+          {/* Learning path preview */}
           <Reveal delay={120}>
-            <LandingExerciseDemo />
+            <PathPreview />
           </Reveal>
         </div>
       </section>
