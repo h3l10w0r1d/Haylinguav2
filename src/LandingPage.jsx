@@ -114,13 +114,20 @@ function Reveal({ children, delay = 0, className = "" }) {
 // popup. If it ever fails to load, the on-brand fallback below advertises the
 // same 14-day free-trial bonus. Swap the file to change the banner.
 const SIGNUP_BANNER_SRC = "/banners/Welcome_banner_5.png";
+const LOGIN_BANNER_SRC = "/banners/Login_banner1.png";
 
-function SignupPromoPanel() {
+function SignupPromoPanel({ mode }) {
   const [imgOk, setImgOk] = useState(true);
+  const src = mode === "login" ? LOGIN_BANNER_SRC : SIGNUP_BANNER_SRC;
+  // Reset the error flag when the banner swaps (login ↔ signup) so a fresh
+  // image gets a chance to load instead of staying on the fallback.
+  useEffect(() => {
+    setImgOk(true);
+  }, [src]);
   return (
     <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-500 via-brand-600 to-pom-600 md:block">
       <img
-        src={SIGNUP_BANNER_SRC}
+        src={src}
         alt=""
         onError={() => setImgOk(false)}
         className={"absolute inset-0 h-full w-full object-cover " + (imgOk ? "" : "hidden")}
@@ -1248,9 +1255,9 @@ export default function LandingPage({ onLogin, onSignup }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setAuthOpen(false); }}
         >
-          <div className="max-h-[92vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-3xl bg-white shadow-2xl md:max-w-3xl md:grid md:grid-cols-[42%_58%] md:overflow-visible">
-            <SignupPromoPanel />
-            <div className="min-w-0">{authCard}</div>
+          <div className="max-h-[92vh] w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl md:max-w-4xl md:grid md:grid-cols-[44%_56%]">
+            <SignupPromoPanel mode={mode} />
+            <div className="min-w-0 overflow-y-auto">{authCard}</div>
           </div>
         </div>
       )}
