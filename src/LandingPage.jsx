@@ -243,6 +243,123 @@ function LandingExerciseDemo() {
   );
 }
 
+// ── Live community stats (simulated) ────────────────────────────────────────
+// Illustrative counters for social proof — NOT wired to the real backend.
+// Growth rates loosely track Armenia's day/night cycle (faster ~08:00–23:00
+// AMT, slower overnight), with randomness so parallel counters don't tick in
+// lockstep. Each mount "warms up" the base number by a bounded, randomized
+// amount (as if some time had already passed today) so reloads don't always
+// show the exact same figure, then a live interval ticks it up visibly using
+// whichever rate applies right now.
+const STAT_CONFIGS = [
+  { key: "exercises", label: "Exercises completed", icon: Zap, base: 118_000, perMinDay: 60, perMinNight: 30, tone: "text-brand-600", bg: "bg-brand-50" },
+  { key: "users", label: "Learners joined", icon: Users, base: 6_400, perMinDay: 5, perMinNight: 3, tone: "text-feather-600", bg: "bg-feather-50" },
+  { key: "achievements", label: "Achievements unlocked", icon: Trophy, base: 31_500, perMinDay: 15, perMinNight: 8, tone: "text-gold-600", bg: "bg-amber-50" },
+  { key: "chapters", label: "Chapters completed", icon: Languages, base: 9_800, perMinDay: 4, perMinNight: 2, tone: "text-grass-600", bg: "bg-grass-50" },
+];
+
+// Armenia has used a fixed UTC+4 offset (no DST) since 2012.
+function isArmeniaDaytime(date) {
+  const amtHour = (date.getUTCHours() + 4) % 24;
+  return amtHour >= 8 && amtHour < 23; // 08:00–23:00 AMT counts as "day"
+}
+
+function averagePerMinute(cfg) {
+  return (cfg.perMinDay * 15 + cfg.perMinNight * 9) / 24;
+}
+
+// Deliberately capped to a couple of hours' worth of growth — this is only
+// meant to make the starting number feel "already in progress", never to
+// project real elapsed time (which could be days/months and blow the number
+// up to millions).
+function warmedUpBase(cfg) {
+  const warmupMinutes = Math.random() * 120;
+  return Math.round(cfg.base + warmupMinutes * averagePerMinute(cfg));
+}
+
+function useLiveStat(cfg) {
+  const [value, setValue] = useState(() => warmedUpBase(cfg));
+  // Fractional carry-over between ticks. Without this, a low-rate counter
+  // (e.g. users at 5/min ≈ 0.17 expected per ~2s tick) would round down to 0
+  // on almost every single tick and appear to never move at all.
+  const carryRef = useRef(0);
+
+  useEffect(() => {
+    let alive = true;
+    let timer = null;
+
+    function tick() {
+      if (!alive) return;
+      const now = new Date();
+      const perMin = isArmeniaDaytime(now) ? cfg.perMinDay : cfg.perMinNight;
+      const pauseMs = 1200 + Math.random() * 1800; // ~1.2–3s between ticks
+      const expected = (perMin / 60000) * pauseMs * (0.4 + Math.random() * 1.3);
+      carryRef.current += expected;
+      const whole = Math.floor(carryRef.current);
+      if (whole > 0) {
+        carryRef.current -= whole;
+        setValue((v) => v + whole);
+      }
+      timer = setTimeout(tick, pauseMs);
+    }
+
+    timer = setTimeout(tick, 600 + Math.random() * 1200);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return value;
+}
+
+function StatCard({ cfg, delay }) {
+  const value = useLiveStat(cfg);
+  const [bump, setBump] = useState(false);
+  const prevRef = useRef(value);
+
+  useEffect(() => {
+    if (value !== prevRef.current) {
+      prevRef.current = value;
+      setBump(true);
+      const t = setTimeout(() => setBump(false), 260);
+      return () => clearTimeout(t);
+    }
+  }, [value]);
+
+  return (
+    <Reveal delay={delay}>
+      <div className="rounded-3xl bg-white p-5 text-center ring-1 ring-slate-200 shadow-sm">
+        <div className={"mx-auto grid h-11 w-11 place-items-center rounded-2xl " + cfg.bg}>
+          <cfg.icon className={"h-5 w-5 " + cfg.tone} />
+        </div>
+        <div
+          className={
+            "mt-3 font-display text-2xl font-extrabold tabular-nums text-slate-800 transition-transform duration-200 sm:text-3xl " +
+            (bump ? "scale-110" : "scale-100")
+          }
+        >
+          {value.toLocaleString()}
+        </div>
+        <div className="mt-1 text-xs font-bold text-slate-500">{cfg.label}</div>
+      </div>
+    </Reveal>
+  );
+}
+
+function LiveStatsStrip() {
+  return (
+    <section className="mx-auto max-w-6xl px-5 pb-16">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {STAT_CONFIGS.map((cfg, i) => (
+          <StatCard key={cfg.key} cfg={cfg} delay={i * 80} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onLogin, onSignup }) {
@@ -821,6 +938,11 @@ export default function LandingPage({ onLogin, onSignup }) {
           ))}
         </div>
       </section>
+
+      {/* Live community stats */}
+      <div className="pt-10">
+        <LiveStatsStrip />
+      </div>
 
       {/* How it works */}
       <section id="how" className="mx-auto max-w-6xl px-5 py-16">
