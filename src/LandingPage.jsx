@@ -17,10 +17,10 @@ const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "hay
 
 const ARMENIAN_WORDS = [
   { arm: "Բարև", rom: "ba·rev", eng: "Hello" },
-  { arm: "Շնորհակալ", rom: "shnor·ha·kal", eng: "Thank you" },
+  { arm: "Շնորհակալություն", rom: "shnor·ha·ka·lu·tyun", eng: "Thank you" },
   { arm: "Հայաստան", rom: "ha·yas·tan", eng: "Armenia" },
   { arm: "Ընկեր", rom: "ən·ker", eng: "Friend" },
-  { arm: "Սիրում եմ", rom: "si·rum em", eng: "I love you" },
+  { arm: "Սիրում եմ քեզ", rom: "si·rum em kez", eng: "I love you" },
 ];
 
 const FEATURES = [
