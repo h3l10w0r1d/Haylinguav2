@@ -18,17 +18,33 @@ export default function TelegramCallback() {
     if (done.current) return;
     done.current = true;
 
+    // Two return shapes, depending on flow:
+    // 1) Widget data-auth-url flow → query params (?id=…&hash=…).
+    // 2) Direct oauth.telegram.org/auth?return_to=… flow → URL fragment
+    //    #tgAuthResult=<base64url-encoded JSON> (never sent to the server).
+    let payload = {};
     const params = new URLSearchParams(window.location.search);
-    const hash = params.get("hash");
-    if (!hash) {
+    if (params.get("hash")) {
+      for (const [k, v] of params.entries()) payload[k] = v;
+    } else {
+      const m = /tgAuthResult=([A-Za-z0-9_\-+/=]+)/.exec(window.location.hash || "");
+      if (m) {
+        try {
+          let b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
+          while (b64.length % 4) b64 += "=";
+          payload = JSON.parse(atob(b64));
+        } catch {
+          payload = {};
+        }
+        // Don't leave signed auth data sitting in the address bar / history.
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    }
+
+    if (!payload.hash) {
       setError("Telegram sign-in was cancelled or returned no data.");
       return;
     }
-
-    // Telegram appends: id, first_name, last_name, username, photo_url, auth_date, hash
-    const payload = {};
-    for (const [k, v] of params.entries()) payload[k] = v;
-    // Backend expects id/auth_date as-is (strings are fine — it stringifies).
 
     fetch(`${API_BASE}/auth/telegram`, {
       method: "POST",

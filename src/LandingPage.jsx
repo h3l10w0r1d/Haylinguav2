@@ -15,6 +15,9 @@ import { ttsFetch } from "./exercises/tts";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "haylinguabot";
+// Numeric bot id (first segment of the bot token) — used for the direct OAuth
+// navigation. Public information: it's embedded in every Telegram login widget.
+const TELEGRAM_BOT_ID = import.meta.env.VITE_TELEGRAM_BOT_ID || "8694793218";
 
 const ARMENIAN_WORDS = [
   { arm: "Բարև", rom: "ba·rev", eng: "Hello" },
@@ -690,7 +693,6 @@ export default function LandingPage({ onLogin, onSignup }) {
   const [wordIdx, setWordIdx] = useState(0);
   const [wordFade, setWordFade] = useState(true);
   const authRef = useRef(null);
-  const tgRef = useRef(null);
 
   // Warm the browser cache with both auth banners on first paint, so the modal's
   // promo image is already decoded and pops in instantly the moment it opens
@@ -727,31 +729,6 @@ export default function LandingPage({ onLogin, onSignup }) {
     return () => clearInterval(t);
   }, []);
 
-  // Telegram widget — (re-)inject whenever the auth popup opens OR the tab
-  // switches. The container only exists while the modal is mounted (so a
-  // mount-once effect would see tgRef.current === null on page load), and the
-  // login vs signup forms have different DOM shapes, so React remounts this
-  // container on a tab switch and silently drops the injected iframe — leaving
-  // a dead button. Re-running on `mode` re-injects into the fresh container.
-  useEffect(() => {
-    if (!authOpen || mode === "forgot" || !TELEGRAM_BOT_USERNAME || !tgRef.current) return;
-    tgRef.current.innerHTML = "";
-    // Redirect mode (data-auth-url) instead of popup callback (data-onauth):
-    // clicking navigates the page to Telegram and back to /auth/telegram/callback
-    // with the signed auth data. No window.open popup → nothing for a popup
-    // blocker to swallow, and it works even though our widget is transparent
-    // (layered over the branded button). The callback route forwards the data
-    // to the same backend /auth/telegram endpoint for HMAC verification.
-    const s = document.createElement("script");
-    s.src = "https://telegram.org/js/telegram-widget.js?22";
-    s.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
-    s.setAttribute("data-size", "large");
-    s.setAttribute("data-radius", "12");
-    s.setAttribute("data-auth-url", window.location.origin + "/auth/telegram/callback");
-    s.setAttribute("data-request-access", "write");
-    s.async = true;
-    tgRef.current.appendChild(s);
-  }, [authOpen, mode]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -1088,23 +1065,28 @@ export default function LandingPage({ onLogin, onSignup }) {
             <div className="h-px flex-1 bg-slate-200" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {TELEGRAM_BOT_USERNAME && (
-              // Branded button that matches the Google one, with Telegram's real
-              // login widget layered transparently ON TOP so the click still hits
-              // the widget. The widget sits above (z-10, opacity 0) rather than
-              // behind a pointer-events:none overlay, so it reliably receives the
-              // click without depending on hit-test pass-through.
-              <div className="relative h-11">
-                <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Telegram
-                </div>
-                <div
-                  ref={tgRef}
-                  aria-label="Log in with Telegram"
-                  className="absolute inset-0 z-10 flex items-center justify-center overflow-hidden opacity-0"
-                />
-              </div>
+            {TELEGRAM_BOT_ID && (
+              // Plain button → top-level navigation to Telegram's OAuth page (the
+              // same URL the login widget's popup opens). No iframe, no popup, no
+              // transparent overlay — nothing for a popup blocker or hit-testing
+              // quirk to break. Telegram redirects back to /auth/telegram/callback
+              // with the signed result in the URL fragment (#tgAuthResult=…).
+              <button
+                type="button"
+                onClick={() => {
+                  const origin = window.location.origin;
+                  const cb = origin + "/auth/telegram/callback";
+                  window.location.href =
+                    "https://oauth.telegram.org/auth?bot_id=" + encodeURIComponent(TELEGRAM_BOT_ID) +
+                    "&origin=" + encodeURIComponent(origin) +
+                    "&request_access=write" +
+                    "&return_to=" + encodeURIComponent(cb);
+                }}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Telegram
+              </button>
             )}
             {GOOGLE_CLIENT_ID && (
               <button
