@@ -486,7 +486,7 @@ function PathPreview() {
       <div className="flex items-center justify-between">
         <div className="font-display text-sm font-extrabold uppercase tracking-wide text-slate-400">Your path</div>
         <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold text-brand-600">
-          <Flame className="h-3.5 w-3.5 fill-brand-500 text-brand-500" /> 3-day streak
+          <Flame className="h-3.5 w-3.5 fill-brand-500 text-brand-500" /> 487-day streak
         </div>
       </div>
 
