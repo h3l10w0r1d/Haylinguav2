@@ -727,12 +727,14 @@ export default function LandingPage({ onLogin, onSignup }) {
     return () => clearInterval(t);
   }, []);
 
-  // Telegram widget — (re-)inject whenever the auth popup opens. The widget's
-  // container only exists in the DOM while the modal is mounted, so a
-  // mount-once effect would see tgRef.current === null on page load (modal
-  // closed) and never fire again once the popup actually opens.
+  // Telegram widget — (re-)inject whenever the auth popup opens OR the tab
+  // switches. The container only exists while the modal is mounted (so a
+  // mount-once effect would see tgRef.current === null on page load), and the
+  // login vs signup forms have different DOM shapes, so React remounts this
+  // container on a tab switch and silently drops the injected iframe — leaving
+  // a dead button. Re-running on `mode` re-injects into the fresh container.
   useEffect(() => {
-    if (!authOpen || !TELEGRAM_BOT_USERNAME || !tgRef.current) return;
+    if (!authOpen || mode === "forgot" || !TELEGRAM_BOT_USERNAME || !tgRef.current) return;
     tgRef.current.innerHTML = "";
     window.onTelegramAuth = async (tgUser) => {
       setLoading(true);
@@ -768,7 +770,7 @@ export default function LandingPage({ onLogin, onSignup }) {
     s.async = true;
     tgRef.current.appendChild(s);
     return () => { delete window.onTelegramAuth; };
-  }, [authOpen]);
+  }, [authOpen, mode]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
