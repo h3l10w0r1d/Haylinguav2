@@ -765,6 +765,7 @@ export default function LandingPage({ onLogin, onSignup }) {
     s.src = "https://telegram.org/js/telegram-widget.js?22";
     s.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
     s.setAttribute("data-size", "large");
+    s.setAttribute("data-radius", "12");
     s.setAttribute("data-onauth", "onTelegramAuth(user)");
     s.setAttribute("data-request-access", "write");
     s.async = true;
@@ -1035,7 +1036,7 @@ export default function LandingPage({ onLogin, onSignup }) {
               </button>
               <p className="text-sm font-semibold text-slate-600">Enter your email and we'll send a reset link.</p>
             </div>
-            <Field label="Email" icon={Mail} value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" />
+            <Field label="Email" icon={Mail} name="email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" />
             {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
             <button type="submit" disabled={loading || !email} className="btn3d btn3d-brand w-full uppercase disabled:opacity-60">
               {loading ? "Sending…" : "Send reset link"}
@@ -1046,7 +1047,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           <>
             {mode === "signup" && (
               // Name is collected during onboarding, not here.
-              <Field label="Username" icon={Fingerprint} value={username} onChange={setUsername} placeholder="armen_g" autoComplete="username" />
+              <Field label="Username" icon={Fingerprint} name="username" value={username} onChange={setUsername} placeholder="armen_g" autoComplete="username" />
             )}
 
             <Field
@@ -1055,11 +1056,17 @@ export default function LandingPage({ onLogin, onSignup }) {
               value={email}
               onChange={setEmail}
               placeholder={mode === "login" ? "you@example.com or username" : "you@example.com"}
-              autoComplete="email"
+              // Login: this IS the credential identifier, so mark it as the
+              // "username" field (autocomplete="email" would make browsers treat
+              // it as a contact/address field and skip password-manager fill).
+              // Signup: it's a real email → use email semantics.
+              name={mode === "login" ? "username" : "email"}
+              type={mode === "login" ? "text" : "email"}
+              autoComplete={mode === "login" ? "username" : "email"}
             />
 
             <div>
-              <Field label="Password" icon={Lock} type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+              <Field label="Password" icon={Lock} name="password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
               {mode === "login" && (
                 <button
                   type="button"
@@ -1102,13 +1109,17 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {TELEGRAM_BOT_USERNAME && (
-              <div className="relative h-11">
-                <div ref={tgRef} style={{ position: "absolute", inset: 0, opacity: 0, overflow: "hidden" }} />
-                <div style={{ pointerEvents: "none" }} className="absolute inset-0 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Telegram
-                </div>
-              </div>
+              // Render Telegram's real login widget directly (visible), not hidden
+              // behind a styled overlay. The overlay approach (transparent widget +
+              // fake button with pointer-events:none) kept breaking — a fully
+              // transparent click target is fragile and gave no fallback when the
+              // widget failed to mount. The official button is unambiguously
+              // clickable and is what users trust for OAuth.
+              <div
+                ref={tgRef}
+                aria-label="Log in with Telegram"
+                className="flex h-11 items-center justify-center overflow-hidden rounded-xl [&_iframe]:!m-0"
+              />
             )}
             {GOOGLE_CLIENT_ID && (
               <button
@@ -1456,7 +1467,7 @@ export default function LandingPage({ onLogin, onSignup }) {
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
-function Field({ label, optional, icon: Icon, value, onChange, placeholder, type = "text", autoComplete }) {
+function Field({ label, optional, icon: Icon, value, onChange, placeholder, type = "text", autoComplete, name }) {
   const [showPw, setShowPw] = useState(false);
   const isPassword = type === "password";
   const inputType = isPassword ? (showPw ? "text" : "password") : type;
@@ -1470,6 +1481,8 @@ function Field({ label, optional, icon: Icon, value, onChange, placeholder, type
         <input
           className={"w-full rounded-2xl bg-slate-50 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 " + (Icon ? "pl-10" : "px-3.5") + (isPassword ? " pr-10" : " pr-3.5")}
           type={inputType}
+          name={name}
+          id={name}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
