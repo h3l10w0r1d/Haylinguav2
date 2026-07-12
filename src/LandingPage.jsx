@@ -796,12 +796,12 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   // ── Auth card ────────────────────────────────────────────────────────────────
   const authCard = (
-    <div ref={authRef} className="relative w-full bg-white p-6 sm:p-7">
+    <div ref={authRef} className="relative w-full bg-white px-6 pb-6 pt-12 sm:px-7 sm:pb-7 sm:pt-12">
       <button
         type="button"
         onClick={() => setAuthOpen(false)}
         aria-label="Close"
-        className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+        className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
       >
         <X className="h-4 w-4" />
       </button>
@@ -887,10 +887,8 @@ export default function LandingPage({ onLogin, onSignup }) {
         ) : (
           <>
             {mode === "signup" && (
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Name" optional icon={User} value={name} onChange={setName} placeholder="Armen" autoComplete="name" />
-                <Field label="Username" icon={Fingerprint} value={username} onChange={setUsername} placeholder="armen_g" autoComplete="username" />
-              </div>
+              // Name is collected during onboarding, not here.
+              <Field label="Username" icon={Fingerprint} value={username} onChange={setUsername} placeholder="armen_g" autoComplete="username" />
             )}
 
             <Field
