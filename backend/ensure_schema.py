@@ -105,6 +105,10 @@ def ensure_schema() -> None:
         # ---------- Premium ----------
         add_col_if_missing("users", "is_premium BOOLEAN NOT NULL DEFAULT FALSE")
         add_col_if_missing("users", "premium_since TIMESTAMPTZ")
+        # NULL = permanent Premium (a real purchase); a timestamp = a trial
+        # that expires (the 14-day free welcome bonus). See _grant_welcome_trial
+        # / _expire_lapsed_trial in routes.py.
+        add_col_if_missing("users", "premium_until TIMESTAMPTZ")
         fill_nulls("users", "is_premium", "FALSE")
 
         # ---------- Leagues (Duolingo-style weekly divisions) ----------

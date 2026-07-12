@@ -109,6 +109,50 @@ function Reveal({ children, delay = 0, className = "" }) {
   );
 }
 
+// ── Auth popup promo panel ──────────────────────────────────────────────────
+// Custom welcome-bonus artwork (2:3 portrait) fills the left panel of the auth
+// popup. If it ever fails to load, the on-brand fallback below advertises the
+// same 14-day free-trial bonus. Swap the file to change the banner.
+const SIGNUP_BANNER_SRC = "/banners/Welcome_banner.png";
+
+function SignupPromoPanel() {
+  const [imgOk, setImgOk] = useState(true);
+  return (
+    <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-500 via-brand-600 to-pom-600 md:block">
+      <img
+        src={SIGNUP_BANNER_SRC}
+        alt=""
+        onError={() => setImgOk(false)}
+        className={"absolute inset-0 h-full w-full object-cover " + (imgOk ? "" : "hidden")}
+      />
+      {!imgOk && (
+        <div className="relative flex h-full flex-col justify-between p-7 text-white">
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-extrabold uppercase tracking-wide">
+              <Sparkles className="h-3.5 w-3.5" /> Welcome bonus
+            </div>
+            <h3 className="mt-4 font-display text-3xl font-extrabold leading-tight">
+              14 days of Premium — free
+            </h3>
+            <p className="mt-2 text-sm font-semibold text-white/85">
+              Unlimited hearts for your first two weeks. No card, no subscription — it just expires.
+            </p>
+            <ul className="mt-5 space-y-2.5 text-sm font-bold">
+              {["Unlimited hearts", "A wrong answer never stops you", "Nothing to cancel"].map((t) => (
+                <li key={t} className="flex items-center gap-2.5">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/20"><Check className="h-3.5 w-3.5" /></span>
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <img src={grandma} alt="" className="mt-6 h-24 w-24 self-start rounded-2xl object-cover ring-4 ring-white/20" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Playable exercise demo (product preview section) ───────────────────────────
 const DEMO_QUESTIONS = [
   { prompt: "Բարև", options: ["Hello", "Goodbye", "Thank you"], correct: 0 },
@@ -752,7 +796,7 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   // ── Auth card ────────────────────────────────────────────────────────────────
   const authCard = (
-    <div ref={authRef} className="relative w-full rounded-3xl bg-white p-6 shadow-xl ring-1 ring-slate-200 sm:p-7">
+    <div ref={authRef} className="relative w-full bg-white p-6 sm:p-7">
       <button
         type="button"
         onClick={() => setAuthOpen(false)}
@@ -1206,7 +1250,10 @@ export default function LandingPage({ onLogin, onSignup }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setAuthOpen(false); }}
         >
-          <div className="w-full max-w-md">{authCard}</div>
+          <div className="max-h-[92vh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-3xl bg-white shadow-2xl md:max-w-3xl md:grid md:grid-cols-[42%_58%] md:overflow-visible">
+            <SignupPromoPanel />
+            <div className="min-w-0">{authCard}</div>
+          </div>
         </div>
       )}
     </div>

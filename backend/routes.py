@@ -1987,6 +1987,53 @@ def _get_accuracy(db: Connection, user_id: int, lesson_id: int) -> float:
 
 
 # -------------------------
+# Welcome bonus: free Premium trial
+# -------------------------
+# New accounts get a no-strings free Premium trial (Premium = unlimited
+# hearts). There is no billing/subscription anywhere in the app, so there is
+# nothing to cancel — the trial simply expires. Permanent Premium (a real
+# purchase) is modelled as is_premium=TRUE with premium_until IS NULL, so it
+# never expires; a trial is is_premium=TRUE with a premium_until timestamp.
+WELCOME_TRIAL_DAYS = 14
+
+
+def _grant_welcome_trial(db: Connection, user_id: int) -> None:
+    """Give a freshly-created account its 14-day free Premium trial."""
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET is_premium = TRUE,
+                premium_since = COALESCE(premium_since, NOW()),
+                premium_until = NOW() + (:days * INTERVAL '1 day')
+            WHERE id = :u
+            """
+        ),
+        {"u": int(user_id), "days": WELCOME_TRIAL_DAYS},
+    )
+
+
+def _expire_lapsed_trial(db: Connection, user_id: int) -> None:
+    """Flip is_premium off once a trial's premium_until has passed. Called on
+    the hot hearts/premium read paths so every existing is_premium check stays
+    correct without needing to know about trials. Permanent Premium
+    (premium_until IS NULL) is never touched."""
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET is_premium = FALSE
+            WHERE id = :u
+              AND COALESCE(is_premium, FALSE)
+              AND premium_until IS NOT NULL
+              AND premium_until <= NOW()
+            """
+        ),
+        {"u": int(user_id)},
+    )
+
+
+# -------------------------
 # Hearts (lives)
 # -------------------------
 
@@ -2052,6 +2099,7 @@ def _sync_hearts(db: Connection, user_id: int) -> None:
 
 def _hearts_state(db: Connection, user_id: int) -> Dict[str, Any]:
     """Authoritative hearts state (after regen), incl. premium + next-regen ETA."""
+    _expire_lapsed_trial(db, user_id)
     _ensure_hearts_initialized(db, user_id)
     _sync_hearts(db, user_id)
     interval = max(1, HEARTS_REGEN_MINUTES) * 60
@@ -2336,6 +2384,9 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Could not create user")
 
     user_id = row["id"]
+
+    # Welcome bonus: 14-day free Premium trial (no card, nothing to cancel).
+    _grant_welcome_trial(db, user_id)
 
     # 6.5) Generate email verification code (6 digits) and store it.
     # NOTE: users.id is INTEGER in this project, so email_verification_codes.user_id is INTEGER.
@@ -2774,6 +2825,7 @@ def auth_google(
         raise HTTPException(status_code=500, detail="Could not create user")
 
     user_id = int(new_row["id"])
+    _grant_welcome_trial(db, user_id)  # welcome bonus: 14-day free Premium trial
     jwt = create_token(user_id, 0)
     _brevo_sync_user(db, user_id, event="user_registered")
     return {
@@ -2904,6 +2956,7 @@ def auth_telegram(
         raise HTTPException(status_code=500, detail="Could not create user")
 
     user_id = int(new_row["id"])
+    _grant_welcome_trial(db, user_id)  # welcome bonus: 14-day free Premium trial
     _brevo_sync_user(db, user_id, event="user_registered")
     return {"access_token": create_token(user_id, 0), "email": placeholder_email,
             "email_verified": True, "needs_onboarding": True}
@@ -5625,13 +5678,25 @@ def me_premium_status(
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
+    _expire_lapsed_trial(db, user_id)
     row = db.execute(
-        text("SELECT COALESCE(is_premium, FALSE) AS is_premium, premium_since FROM users WHERE id = :u"),
+        text("SELECT COALESCE(is_premium, FALSE) AS is_premium, premium_since, premium_until FROM users WHERE id = :u"),
         {"u": user_id},
     ).mappings().first()
+    is_prem = bool(row and row["is_premium"])
+    until = row["premium_until"] if row else None
+    is_trial = bool(is_prem and until is not None)
+    trial_days_left = None
+    if is_trial:
+        # Round up so "less than a day left" still reads as 1 day, not 0.
+        secs = (until - datetime.now(until.tzinfo)).total_seconds()
+        trial_days_left = max(0, math.ceil(secs / 86400))
     return {
-        "is_premium": bool(row and row["is_premium"]),
+        "is_premium": is_prem,
         "premium_since": (row["premium_since"].isoformat() if row and row["premium_since"] else None),
+        "premium_until": (until.isoformat() if until else None),
+        "is_trial": is_trial,
+        "trial_days_left": trial_days_left,
     }
 
 
@@ -5652,7 +5717,9 @@ def me_premium_checkout(
         text(
             """
             UPDATE users
-            SET is_premium = TRUE, premium_since = COALESCE(premium_since, NOW())
+            SET is_premium = TRUE,
+                premium_since = COALESCE(premium_since, NOW()),
+                premium_until = NULL
             WHERE id = :u
             """
         ),
