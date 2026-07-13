@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, AlertTriangle, BookOpen, BarChart2 } from "lucide-react";
-import grandma from "./assets/character-grandma.png";
+import owl from "./assets/character-owl.png";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
 import StreakCelebration from "./lib/StreakCelebration";
@@ -631,7 +631,11 @@ function HeroBand({ firstName, streak, lesson, unitTitle, unitDone, unitTotal, l
       <StarMotif className="pointer-events-none absolute right-24 bottom-3 h-6 w-6 text-white/20" />
 
       <div className="relative flex items-center gap-3.5">
-        <img src={grandma} alt="" className="h-14 w-14 shrink-0 animate-floaty rounded-2xl object-cover ring-2 ring-white/40" />
+        <img
+          src={owl}
+          alt=""
+          className="-my-4 h-24 w-auto shrink-0 animate-floaty object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.28)] sm:h-28 md:h-32"
+        />
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-extrabold uppercase tracking-[0.14em] text-white/75">
             Բարև{firstName ? `, ${firstName}` : ""} 👋
