@@ -1,9 +1,9 @@
 // src/Dashboard.jsx — "The Journey to Ararat": a roadmap timeline, Armenian-branded.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ChevronDown, ArrowRight, RotateCcw, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, AlertTriangle, BookOpen, BarChart2 } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, AlertTriangle, BookOpen, BarChart2 } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
-import { StarMotif } from "./lib/motifs";
+import { StarMotif, CarpetBorder } from "./lib/motifs";
 import StreakFlame from "./lib/StreakFlame";
 import StreakCelebration from "./lib/StreakCelebration";
 import ChestOpening from "./lib/ChestOpening";
@@ -619,158 +619,222 @@ function StatStrip({ token, streak, xp }) {
 }
 
 // The single most important element: resume the current lesson.
-function ResumeHero({ lesson, unitTitle, loading, onStart }) {
-  if (loading) {
-    return <div className="mb-6 h-28 animate-pulse rounded-3xl bg-brand-50 ring-1 ring-brand-100" />;
-  }
-  if (!lesson) {
-    return (
-      <div className="mb-6 flex items-center gap-4 rounded-3xl bg-grass-50 p-5 ring-1 ring-grass-200">
-        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-grass-500 text-white">
-          <Check className="h-7 w-7" strokeWidth={3} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="font-display text-lg font-extrabold text-slate-800">You're all caught up! 🎉</div>
-          <div className="text-sm font-semibold text-slate-500">Review a lesson below or practice your weak spots.</div>
-        </div>
-      </div>
-    );
-  }
-  const pct = Math.max(0, Math.min(100, Number(lesson.completion_pct || 0)));
+// The hero band — greeting, streak, primary CTA and unit progress fused into
+// one confident zone. The dashboard has ONE job: get the learner into today's
+// lesson; this is where that happens.
+function HeroBand({ firstName, streak, lesson, unitTitle, unitDone, unitTotal, loading, isNewUser, onStart, navigate }) {
+  const pct = Math.max(0, Math.min(100, Number(lesson?.completion_pct || 0)));
   return (
-    <button
-      type="button"
-      onClick={() => onStart(lesson)}
-      className="mb-6 flex w-full items-center gap-4 rounded-3xl bg-white p-5 text-left ring-2 ring-brand-400 shadow-sm transition hover:ring-brand-500 active:translate-y-0.5"
-    >
-      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-500">
-        <Play className="h-7 w-7 fill-brand-500" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[11px] font-extrabold uppercase tracking-wide text-brand-500">
-          Continue{unitTitle ? ` · ${unitTitle}` : ""}
+    <section className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-500 via-brand-500 to-pom-500 p-5 text-white shadow-[0_6px_0_0_#B84B00] sm:p-6">
+      {/* Ararat watermark */}
+      <Ararat className="pointer-events-none absolute -right-4 -top-2 h-32 w-48 opacity-[0.18]" />
+      <StarMotif className="pointer-events-none absolute right-24 bottom-3 h-6 w-6 text-white/20" />
+
+      <div className="relative flex items-center gap-3.5">
+        <img src={grandma} alt="" className="h-14 w-14 shrink-0 animate-floaty rounded-2xl object-cover ring-2 ring-white/40" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-xs font-extrabold uppercase tracking-[0.14em] text-white/75">
+            Բարև{firstName ? `, ${firstName}` : ""} 👋
+          </div>
+          <h1 className="truncate font-display text-2xl font-extrabold leading-tight">
+            {loading ? "Loading your journey…" : lesson ? "Ready for today's lesson?" : "You've reached the summit!"}
+          </h1>
         </div>
-        <div className="truncate font-display text-lg font-extrabold text-slate-800">{lesson.title}</div>
-        {pct > 0 && (
-          <div className="mt-2 h-2 max-w-xs overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 6)}%` }} />
+        {streak > 0 && (
+          <div className="hidden shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 backdrop-blur-sm sm:inline-flex">
+            <Flame className="h-4 w-4 fill-gold-400 text-gold-400" />
+            <span className="font-display text-sm font-extrabold tabular-nums">{streak}</span>
           </div>
         )}
       </div>
-      <span className="hidden shrink-0 items-center gap-1 rounded-2xl bg-brand-500 px-5 py-3 text-sm font-extrabold uppercase text-white shadow-btn-brand sm:inline-flex">
-        {pct > 0 ? "Continue" : "Start"} <ArrowRight className="h-4 w-4" />
-      </span>
-    </button>
+
+      {loading ? (
+        <div className="relative mt-5 h-14 animate-pulse rounded-2xl bg-white/20" />
+      ) : lesson ? (
+        <button
+          type="button"
+          onClick={() => onStart(lesson)}
+          className="relative mt-5 flex w-full items-center gap-3 rounded-2xl bg-white px-5 py-4 text-left shadow-[0_5px_0_0_rgba(0,0,0,0.22)] transition hover:brightness-[1.03] active:translate-y-1 active:shadow-none"
+        >
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-500">
+            <Play className="h-5 w-5 fill-brand-500" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em] text-brand-500">
+              {pct > 0 ? "Continue" : "Start"}{unitTitle ? ` · ${unitTitle}` : ""}
+            </span>
+            <span className="block truncate font-display text-lg font-extrabold text-slate-800">{lesson.title}</span>
+          </span>
+          <ArrowRight className="h-5 w-5 shrink-0 text-brand-500" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => navigate("/practice")}
+          className="relative mt-5 flex w-full items-center gap-3 rounded-2xl bg-white px-5 py-4 text-left shadow-[0_5px_0_0_rgba(0,0,0,0.22)] transition active:translate-y-1 active:shadow-none"
+        >
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-grass-50 text-grass-600">
+            <Check className="h-5 w-5" strokeWidth={3} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em] text-grass-600">All lessons complete</span>
+            <span className="block font-display text-lg font-extrabold text-slate-800">Keep sharp with practice</span>
+          </span>
+          <ArrowRight className="h-5 w-5 shrink-0 text-grass-600" />
+        </button>
+      )}
+
+      {/* Unit progress under the CTA */}
+      {!loading && lesson && unitTotal > 0 && (
+        <div className="relative mt-4">
+          <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wide text-white/75">
+            <span className="truncate">{unitTitle}</span>
+            <span className="tabular-nums">{unitDone}/{unitTotal}</span>
+          </div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/25">
+            <div className="h-full rounded-full bg-white" style={{ width: `${unitTotal ? Math.round((unitDone / unitTotal) * 100) : 0}%` }} />
+          </div>
+        </div>
+      )}
+
+      {/* Placement invite for brand-new users, inside the hero — not a card */}
+      {isNewUser && (
+        <button
+          type="button"
+          onClick={() => navigate("/placement")}
+          className="relative mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-white/90 underline decoration-white/40 underline-offset-4 transition hover:text-white"
+        >
+          <Target className="h-4 w-4" /> Not a beginner? Take the placement test
+        </button>
+      )}
+    </section>
   );
 }
 
-// One lesson row inside a unit card.
-function LessonRow({ lesson, onStart }) {
+// Serpentine horizontal offsets — nodes weave left/right down the page like
+// Duolingo's path. The cycle reads as a gentle S-curve.
+const PATH_OFFSETS = [0, -58, -86, -58, 0, 58, 86, 58];
+
+// One milestone on the winding path.
+function PathNode({ lesson, offset, onStart }) {
   const status = lesson.status || "locked";
   const done = status === "completed";
   const current = status === "current";
   const locked = status === "locked";
-  const pct = Math.max(0, Math.min(100, Number(lesson.completion_pct || (done ? 100 : 0))));
   return (
-    <button
-      type="button"
-      disabled={locked}
-      onClick={() => !locked && onStart(lesson)}
-      className={
-        "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition " +
-        (current
-          ? "bg-brand-50 ring-1 ring-brand-300 hover:bg-brand-100"
-          : done
-          ? "bg-grass-50/70 ring-1 ring-grass-100 hover:bg-grass-50"
-          : "bg-slate-50 ring-1 ring-slate-100 cursor-default")
-      }
-    >
-      <span
+    <div className="relative flex flex-col items-center" style={{ transform: `translateX(${offset}px)` }}>
+      {/* START bubble bobbing over the current node */}
+      {current && (
+        <span className="absolute -top-9 z-10 animate-bouncey rounded-xl bg-white px-3 py-1 font-display text-xs font-extrabold uppercase tracking-wide text-brand-600 shadow-md ring-1 ring-brand-200">
+          Start
+          <span className="absolute left-1/2 top-full -ml-1.5 h-0 w-0 border-x-[6px] border-t-[6px] border-x-transparent border-t-white" />
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={locked}
+        onClick={() => !locked && onStart(lesson)}
+        title={locked ? "Finish the previous lesson to unlock" : lesson.title}
+        aria-label={lesson.title}
         className={
-          "grid h-8 w-8 shrink-0 place-items-center rounded-full " +
-          (done ? "bg-grass-500 text-white" : current ? "bg-brand-500 text-white" : "bg-slate-200 text-slate-400")
+          "relative grid h-[68px] w-[68px] place-items-center rounded-full transition active:translate-y-1 " +
+          (done
+            ? "bg-grass-500 text-white shadow-[0_6px_0_0_#3A8A00] hover:brightness-105"
+            : current
+            ? "bg-brand-500 text-white shadow-node-brand hover:brightness-105"
+            : "cursor-default bg-slate-200 text-slate-400 shadow-[0_6px_0_0_#CBD5E1]")
         }
       >
+        {current && <span className="absolute inset-0 animate-ringPulse rounded-full ring-4 ring-brand-300" />}
         {done ? (
-          <Check className="h-4 w-4" strokeWidth={3} />
+          <Check className="h-8 w-8" strokeWidth={3.5} />
         ) : current ? (
-          <Play className="h-4 w-4 fill-white" />
+          <Play className="h-7 w-7 fill-white" />
         ) : (
-          <Lock className="h-3.5 w-3.5" />
+          <Lock className="h-6 w-6" />
         )}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={"block truncate text-sm font-bold " + (locked ? "text-slate-400" : "text-slate-800")}>
-          {lesson.title}
-        </span>
-        {current && pct > 0 && (
-          <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white">
-            <span className="block h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 8)}%` }} />
+        {done && (
+          <span className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-gold-400 text-white ring-2 ring-white">
+            <Star className="h-3.5 w-3.5 fill-white" />
           </span>
         )}
+      </button>
+      <span className={"mt-2 max-w-[120px] text-center text-xs font-bold leading-tight " + (locked ? "text-slate-400" : "text-slate-600")}>
+        {lesson.title}
       </span>
-      <span className="shrink-0 text-xs font-extrabold uppercase tracking-wide">
-        {done ? (
-          <span className="inline-flex items-center gap-1 text-grass-600"><RotateCcw className="h-3.5 w-3.5" /></span>
-        ) : current ? (
-          <span className="text-brand-500">{pct > 0 ? "Continue" : "Start"}</span>
-        ) : (
-          <span className="text-slate-300">Locked</span>
-        )}
-      </span>
-    </button>
+    </div>
   );
 }
 
-// A unit as an expandable card (rethought roadmap).
-function UnitCard({ unit, index, expanded, onToggle, onStart, onCheckpoint }) {
+// A unit on the journey: ornamental gradient band + its lessons weaving down
+// the page + a gold checkpoint medallion as the unit's final milestone.
+function PathUnit({ unit, index, onStart, onCheckpoint }) {
   const theme = UNIT_THEMES[index % UNIT_THEMES.length];
   const total = unit.items.length;
   const done = unit.items.filter((l) => l.status === "completed").length;
-  const pct = total ? Math.round((done / total) * 100) : 0;
   const complete = total > 0 && done === total;
   return (
-    <div className="overflow-hidden rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm">
-      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 p-4 text-left">
-        <div className={"grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-white font-display text-lg font-extrabold " + theme.band + " " + theme.shadow}>
-          {index + 1}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Unit {index + 1}</div>
-          <div className="truncate font-display text-base font-extrabold text-slate-800">{unit.title}</div>
-          <div className="mt-1.5 flex items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-              <div className={"h-full rounded-full " + (complete ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${pct}%` }} />
-            </div>
-            <span className="shrink-0 text-xs font-extrabold tabular-nums text-slate-500">{done}/{total}</span>
+    <section className="mb-4">
+      {/* Unit band — the Armenian carpet identity */}
+      <div className={`overflow-hidden rounded-2xl bg-gradient-to-r ${theme.band} ${theme.shadow}`}>
+        <div className="flex items-center justify-between px-5 py-3 text-white">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/80">Unit {index + 1}</div>
+            <div className="truncate font-display text-lg font-extrabold">{unit.title}</div>
           </div>
+          <span className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-sm font-extrabold tabular-nums">
+            {done}/{total}
+          </span>
         </div>
-        <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 transition-transform " + (expanded ? "rotate-180" : "")} />
-      </button>
+        <CarpetBorder />
+      </div>
 
-      {expanded && (
-        <div className="space-y-2 px-4 pb-4">
-          {unit.items.map((lesson) => (
-            <LessonRow key={lesson.id ?? lesson.slug} lesson={lesson} onStart={onStart} />
-          ))}
-          {complete && (
-            <button
-              type="button"
-              onClick={() => onCheckpoint(unit)}
-              className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-gold-400 bg-amber-50 p-3 text-left transition hover:border-gold-500 active:translate-y-0.5"
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold-500 text-white">
-                <ShieldCheck className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-display text-sm font-extrabold text-slate-800">Unit Checkpoint</span>
-                <span className="block text-xs font-semibold text-slate-500">Test your {unit.title} knowledge</span>
-              </span>
-              <ChevronRight className="h-5 w-5 shrink-0 text-gold-500" />
-            </button>
-          )}
+      {/* The winding milestones */}
+      <div className="flex flex-col items-center gap-7 py-8">
+        {unit.items.map((lesson, i) => (
+          <PathNode
+            key={lesson.id ?? lesson.slug}
+            lesson={lesson}
+            offset={PATH_OFFSETS[i % PATH_OFFSETS.length]}
+            onStart={onStart}
+          />
+        ))}
+
+        {/* Checkpoint medallion — the unit's summit gate */}
+        <div
+          className="relative flex flex-col items-center"
+          style={{ transform: `translateX(${PATH_OFFSETS[unit.items.length % PATH_OFFSETS.length]}px)` }}
+        >
+          <button
+            type="button"
+            disabled={!complete}
+            onClick={() => complete && onCheckpoint(unit)}
+            title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
+            className={
+              "grid h-[76px] w-[76px] place-items-center rounded-full transition active:translate-y-1 " +
+              (complete
+                ? "bg-gold-500 text-white shadow-[0_6px_0_0_#B45309] hover:brightness-105"
+                : "cursor-default bg-slate-200 text-slate-400 shadow-[0_6px_0_0_#CBD5E1]")
+            }
+          >
+            <ShieldCheck className="h-9 w-9" />
+          </button>
+          <span className={"mt-2 text-xs font-extrabold uppercase tracking-wide " + (complete ? "text-gold-600" : "text-slate-400")}>
+            Checkpoint
+          </span>
         </div>
-      )}
+      </div>
+    </section>
+  );
+}
+
+// The journey's end — Ararat waits at the bottom of the path.
+function PathSummit({ pct }) {
+  return (
+    <div className="flex flex-col items-center pb-10 pt-2 text-center">
+      <Ararat className="h-20 w-32" />
+      <div className="mt-2 font-display text-base font-extrabold text-slate-700">The Summit</div>
+      <div className="text-xs font-semibold text-slate-400">{pct}% of the journey climbed</div>
     </div>
   );
 }
@@ -787,18 +851,18 @@ function QuickTiles({ navigate }) {
     { icon: Star, label: "Achievements", to: "/achievements", tone: "bg-gold-50 text-gold-600" },
   ];
   return (
-    <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+    <div className="grid grid-cols-4 gap-2">
       {tiles.map((t) => (
         <button
           key={t.to}
           type="button"
           onClick={() => navigate(t.to)}
-          className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3 ring-1 ring-slate-200 shadow-sm transition hover:ring-brand-200 active:translate-y-0.5"
+          className="flex flex-col items-center gap-1.5 rounded-2xl bg-white px-1 py-3 ring-1 ring-slate-200 shadow-sm transition hover:ring-brand-200 active:translate-y-0.5"
         >
           <span className={"grid h-10 w-10 place-items-center rounded-2xl " + t.tone}>
             <t.icon className="h-5 w-5" />
           </span>
-          <span className="text-center text-xs font-extrabold text-slate-600">{t.label}</span>
+          <span className="w-full truncate text-center text-[11px] font-extrabold text-slate-600">{t.label}</span>
         </button>
       ))}
     </div>
@@ -899,114 +963,87 @@ export default function Dashboard({ user }) {
     return u ? u.title : "";
   }, [units, currentUnitKey]);
 
-  // Accordion: open the current unit by default (first unit as fallback).
-  const [expandedKey, setExpandedKey] = useState(null);
-  useEffect(() => {
-    setExpandedKey((prev) => prev ?? currentUnitKey ?? units[0]?.key ?? null);
-  }, [currentUnitKey, units]);
+  // Progress within the current unit (for the hero's progress bar).
+  const currentUnit = useMemo(
+    () => units.find((unit) => unit.key === currentUnitKey) || null,
+    [units, currentUnitKey]
+  );
+  const unitDone = currentUnit ? currentUnit.items.filter((l) => l.status === "completed").length : 0;
+  const unitTotal = currentUnit ? currentUnit.items.length : 0;
 
   const openCheckpoint = (unit) => {
     const ids = unit.items.map((l) => l.id).filter((id) => id != null).join(",");
     navigate(`/checkpoint?lessons=${encodeURIComponent(ids)}&title=${encodeURIComponent(unit.title)}`);
   };
 
+  // ── Architecture ──────────────────────────────────────────────────────────
+  // One job per screen: get the learner into today's lesson. The hero owns
+  // that action; the winding path IS the page; everything else lives in a
+  // sticky rail on desktop and stacks after the path on mobile.
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
       <StreakCelebration streak={stats.streak} />
-      <div className="mx-auto max-w-2xl px-4 py-6">
-        {/* Greeting + overall journey progress */}
-        <div className="mb-4 flex items-center gap-3">
-          <img src={grandma} alt="" className="h-12 w-12 shrink-0 animate-floaty rounded-2xl object-cover" />
-          <div className="min-w-0 flex-1">
-            <div className="truncate font-display text-xl font-extrabold text-slate-800">
-              Բարև{firstName ? `, ${firstName}` : ""}! 👋
+      <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-10">
+        {/* ── Main: hero + the journey ── */}
+        <main className="mx-auto w-full max-w-xl lg:mx-0 lg:justify-self-center">
+          <HeroBand
+            firstName={firstName}
+            streak={stats.streak}
+            lesson={currentLesson}
+            unitTitle={currentUnitTitle}
+            unitDone={unitDone}
+            unitTotal={unitTotal}
+            loading={loadingLessons}
+            isNewUser={!loadingLessons && doneLessons === 0 && totalLessons > 0}
+            onStart={handleStart}
+            navigate={navigate}
+          />
+
+          {/* Stat strip (mobile only — header already shows these on md+) */}
+          <StatStrip token={token} streak={stats.streak} xp={stats.total_xp} />
+
+          {error && (
+            <div className="mb-4 rounded-2xl border-2 border-cardinal-100 bg-cardinal-50 px-4 py-3 text-sm font-semibold text-cardinal-600">
+              {error}
             </div>
-            <div className="text-sm font-semibold text-slate-500">
-              {doneLessons} of {totalLessons || "…"} lessons · {journeyPct}% to fluency
+          )}
+
+          {/* The Journey to Ararat — the page's centerpiece */}
+          {loadingLessons ? (
+            <div className="flex items-center justify-center gap-2 py-20 text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="font-semibold">Mapping your journey…</span>
             </div>
-          </div>
-          <Ararat className="hidden h-12 w-16 shrink-0 sm:block" />
-        </div>
+          ) : units.length === 0 ? (
+            <div className="rounded-3xl bg-white p-8 text-center font-semibold text-slate-600 ring-1 ring-slate-200">
+              No lessons available yet. Check back soon!
+            </div>
+          ) : (
+            <>
+              {units.map((unit, ui) => (
+                <PathUnit
+                  key={unit.key}
+                  unit={unit}
+                  index={ui}
+                  onStart={handleStart}
+                  onCheckpoint={openCheckpoint}
+                />
+              ))}
+              <PathSummit pct={journeyPct} />
+            </>
+          )}
+        </main>
 
-        {/* Stat strip (mobile only — header already shows these on md+) */}
-        <StatStrip token={token} streak={stats.streak} xp={stats.total_xp} />
-
-        {/* Placement nudge for brand-new users */}
-        {!loadingLessons && doneLessons === 0 && totalLessons > 0 && (
-          <button
-            type="button"
-            onClick={() => navigate("/placement")}
-            className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-brand-50 px-4 py-3 text-left ring-1 ring-brand-100 transition hover:bg-brand-100"
-          >
-            <Target className="h-4 w-4 shrink-0 text-brand-500" />
-            <span className="flex-1 text-sm font-bold text-brand-700">Not a beginner? Take the placement test</span>
-            <ArrowRight className="h-4 w-4 shrink-0 text-brand-400" />
-          </button>
-        )}
-
-        {/* Resume hero — the primary action */}
-        <ResumeHero
-          lesson={currentLesson}
-          unitTitle={currentUnitTitle}
-          loading={loadingLessons}
-          onStart={handleStart}
-        />
-
-        {/* Today: daily goal + quests */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        {/* ── Rail: everything that supports the journey ── */}
+        <aside className="space-y-4 lg:sticky lg:top-24">
           <DailyGoalCard todayXp={stats.today_xp} />
           <DailyQuestsCard token={token} />
-        </div>
-
-        {/* Spaced-repetition review widget — only renders when cards exist */}
-        <ReviewCard token={token} />
-
-        {/* Mistakes Hub — only renders when there are unresolved mistakes */}
-        <MistakesCard token={token} navigate={navigate} />
-
-        {/* Streak + chest + quick access — above the lesson list */}
-        <div className="mb-6 space-y-4">
+          <ReviewCard token={token} />
+          <MistakesCard token={token} navigate={navigate} />
           <StreakCard token={token} streak={stats.streak} />
           <ChestCard token={token} />
           <QuickTiles navigate={navigate} />
-        </div>
-
-        {error && (
-          <div className="mb-4 rounded-2xl border-2 border-cardinal-100 bg-cardinal-50 px-4 py-3 text-sm font-semibold text-cardinal-600">
-            {error}
-          </div>
-        )}
-
-        {/* Learning path — units as expandable cards */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="font-display text-lg font-extrabold text-slate-800">Your path</div>
-          <Ararat className="h-6 w-9" />
-        </div>
-        {loadingLessons ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="font-semibold">Mapping your journey…</span>
-          </div>
-        ) : units.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 text-center font-semibold text-slate-600 ring-1 ring-slate-200">
-            No lessons available yet. Check back soon!
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {units.map((unit, ui) => (
-              <UnitCard
-                key={unit.key}
-                unit={unit}
-                index={ui}
-                expanded={expandedKey === unit.key}
-                onToggle={() => setExpandedKey((k) => (k === unit.key ? null : unit.key))}
-                onStart={handleStart}
-                onCheckpoint={openCheckpoint}
-              />
-            ))}
-          </div>
-        )}
-
+        </aside>
       </div>
     </div>
   );
