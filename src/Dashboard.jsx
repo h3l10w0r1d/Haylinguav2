@@ -737,7 +737,7 @@ function PathNode({ lesson, offset, onStart }) {
         title={locked ? "Finish the previous lesson to unlock" : lesson.title}
         aria-label={lesson.title}
         className={
-          "relative grid h-[68px] w-[68px] place-items-center rounded-full transition active:translate-y-1 " +
+          "relative grid h-[68px] w-[68px] select-none place-items-center rounded-full transition active:translate-y-1.5 active:shadow-none " +
           (done
             ? "bg-grass-500 text-white shadow-[0_6px_0_0_#3A8A00] hover:brightness-105"
             : current
@@ -811,7 +811,7 @@ function PathUnit({ unit, index, onStart, onCheckpoint }) {
             onClick={() => complete && onCheckpoint(unit)}
             title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
             className={
-              "grid h-[76px] w-[76px] place-items-center rounded-full transition active:translate-y-1 " +
+              "grid h-[76px] w-[76px] select-none place-items-center rounded-full transition active:translate-y-1.5 active:shadow-none " +
               (complete
                 ? "bg-gold-500 text-white shadow-[0_6px_0_0_#B45309] hover:brightness-105"
                 : "cursor-default bg-slate-200 text-slate-400 shadow-[0_6px_0_0_#CBD5E1]")
