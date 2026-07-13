@@ -1034,8 +1034,12 @@ export default function Dashboard({ user }) {
           )}
         </main>
 
-        {/* ── Rail: everything that supports the journey ── */}
-        <aside className="space-y-4 lg:sticky lg:top-24">
+        {/* ── Rail: everything that supports the journey ──
+            Sticky, but capped to the viewport and scrollable inside itself —
+            a sticky element taller than the screen would otherwise pin and
+            make everything below the fold unreachable. */}
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:pb-6">
+
           <DailyGoalCard todayXp={stats.today_xp} />
           <DailyQuestsCard token={token} />
           <ReviewCard token={token} />
