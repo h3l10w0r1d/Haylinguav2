@@ -18,21 +18,28 @@
     <link rel="preconnect" href="https://unpkg.com" crossorigin />
     <link rel="preconnect" href="https://lottie.host" crossorigin />
 
-    <link rel="canonical" href="https://haylingua.am/" />
+    <!-- Canonical + OG/Twitter all point at www — the domain the site actually
+         redirects to (haylingua.am -> www.haylingua.am). Mismatched canonical
+         vs. actual served domain splits ranking signals between two URLs. -->
+    <link rel="canonical" href="https://www.haylingua.am/" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Haylingua" />
     <meta property="og:title" content="Haylingua — Learn Armenian with modern, gamified lessons" />
     <meta property="og:description" content="Bite‑sized Armenian lessons with listening, typing, and progress tracking. Start free." />
-    <meta property="og:url" content="https://haylingua.am/" />
-    <meta property="og:image" content="https://haylingua.am/og.svg" />
+    <meta property="og:url" content="https://www.haylingua.am/" />
+    <meta property="og:image" content="https://www.haylingua.am/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:locale" content="en_US" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Haylingua — Learn Armenian" />
     <meta name="twitter:description" content="Bite‑sized Armenian lessons with listening, typing, and progress tracking. Start free." />
-    <meta name="twitter:image" content="https://haylingua.am/og.svg" />
+    <meta name="twitter:image" content="https://www.haylingua.am/og.png" />
     <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
 <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
@@ -50,7 +57,7 @@
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "Haylingua",
-        "url": "https://haylingua.am/",
+        "url": "https://www.haylingua.am/",
         "description": "Learn Armenian with bite-sized lessons, listening practice, and gamified progress tracking.",
         "applicationCategory": "EducationApplication",
         "operatingSystem": "Web, iOS, Android",
@@ -125,16 +132,31 @@
 </script>
 
 <!-- Brevo Conversations {literal} -->
+<!-- Deferred: the chat widget isn't needed for first paint, and loading it
+     eagerly competes with hero content for bandwidth/main-thread during the
+     LCP window. Load it once the browser is idle (or on first real user
+     interaction, whichever comes first) so it never delays the content that
+     actually converts visitors. -->
 <script>
     (function(d, w, c) {
         w.BrevoConversationsID = '6983a46e95a3705c2c0beec8';
         w[c] = w[c] || function() {
             (w[c].q = w[c].q || []).push(arguments);
         };
-        var s = d.createElement('script');
-        s.async = true;
-        s.src = 'https://conversations-widget.brevo.com/brevo-conversations.js';
-        if (d.head) d.head.appendChild(s);
+        function loadWidget() {
+            if (loadWidget._done) return;
+            loadWidget._done = true;
+            var s = d.createElement('script');
+            s.async = true;
+            s.src = 'https://conversations-widget.brevo.com/brevo-conversations.js';
+            if (d.head) d.head.appendChild(s);
+        }
+        var events = ['scroll', 'mousemove', 'keydown', 'touchstart', 'click'];
+        events.forEach(function(evt) {
+            w.addEventListener(evt, loadWidget, { once: true, passive: true });
+        });
+        var idle = w.requestIdleCallback || function(fn) { setTimeout(fn, 3000); };
+        w.addEventListener('load', function() { idle(loadWidget, { timeout: 6000 }); });
     })(document, window, 'BrevoConversations');
 </script>
 <!-- /Brevo Conversations {/literal} -->

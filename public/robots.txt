@@ -1,13 +1,20 @@
 User-agent: *
 Allow: /
 
-# Optional: block internal or utility routes if they exist
+# App/CMS routes sit behind auth or have no standalone marketing value —
+# keep them out of the index so they don't compete with / for rankings.
 Disallow: /api/
 Disallow: /admin/
+Disallow: /cms/
 Disallow: /dashboard/
 Disallow: /settings/
 Disallow: /profile/
 Disallow: /login
 Disallow: /signup
+Disallow: /review
+Disallow: /vocabulary
+Disallow: /progress
+Disallow: /auth/
+Disallow: /reset-password
 
 Sitemap: https://www.haylingua.am/sitemap.xml

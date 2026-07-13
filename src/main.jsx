@@ -4,19 +4,26 @@ import App from './App.jsx';
 import './index.css';
 
 // Error tracking — loaded ONLY when VITE_SENTRY_DSN is set, as a separate chunk,
-// so the SDK never bloats the main bundle for users.
+// so the SDK never bloats the main bundle for users. Deferred to idle time
+// (short timeout so early errors are still caught quickly) so its ~160KB
+// gzipped fetch doesn't compete with hero content for bandwidth during the
+// page's first paint — that content is what actually converts visitors.
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 if (SENTRY_DSN) {
-  import('@sentry/react')
-    .then((Sentry) => {
-      // Error reporting only (no perf tracing) to keep the chunk small.
-      Sentry.init({
-        dsn: SENTRY_DSN,
-        environment: import.meta.env.MODE,
-      });
-      window.__sentry = Sentry;
-    })
-    .catch(() => {});
+  const loadSentry = () => {
+    import('@sentry/react')
+      .then((Sentry) => {
+        // Error reporting only (no perf tracing) to keep the chunk small.
+        Sentry.init({
+          dsn: SENTRY_DSN,
+          environment: import.meta.env.MODE,
+        });
+        window.__sentry = Sentry;
+      })
+      .catch(() => {});
+  };
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
+  idle(loadSentry, { timeout: 2500 });
 }
 
 function ErrorFallback() {

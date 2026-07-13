@@ -278,7 +278,7 @@ function VoiceChip({ text, label, tone = "brand" }) {
   );
 }
 
-function LandingExerciseDemo() {
+function LandingExerciseDemo({ onSignup }) {
   const [qi, setQi] = useState(0);
   const [selected, setSelected] = useState(null);
   const [checked, setChecked] = useState(false);
@@ -286,6 +286,7 @@ function LandingExerciseDemo() {
   const [frameIdx, setFrameIdx] = useState(0);   // which AI phrasing to show
   const [aiPhase, setAiPhase] = useState("thinking"); // thinking | reveal
   const [typed, setTyped] = useState(0);         // typewriter cursor position
+  const [done, setDone] = useState(false);       // finished all demo questions
 
   const q = DEMO_QUESTIONS[qi];
   const isCorrect = checked && selected === q.correct;
@@ -326,15 +327,62 @@ function LandingExerciseDemo() {
   }
 
   function onContinue() {
-    setQi((i) => (i + 1) % DEMO_QUESTIONS.length);
+    // End on a high note instead of looping forever — a visitor who finishes
+    // all four questions just proved to themselves the product works, which is
+    // exactly the moment to ask for the signup, not silently restart.
+    if (qi >= DEMO_QUESTIONS.length - 1) {
+      setDone(true);
+      return;
+    }
+    setQi((i) => i + 1);
     setSelected(null);
     setChecked(false);
     setAiPhase("thinking");
     setTyped(0);
-    if (hearts <= 0) setHearts(4); // demo loops forever — don't hard-lock a visitor out
+  }
+
+  function practiceAgain() {
+    setDone(false);
+    setQi(0);
+    setSelected(null);
+    setChecked(false);
+    setHearts(4);
+    setFrameIdx(0);
+    setAiPhase("thinking");
+    setTyped(0);
   }
 
   const typing = aiPhase === "reveal" && typed < feedbackText.length;
+
+  if (done) {
+    return (
+      <div className="rounded-3xl bg-white p-6 text-center shadow-xl ring-1 ring-slate-200">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-grass-50 text-grass-500">
+          <Trophy className="h-7 w-7" />
+        </div>
+        <div className="mt-4 font-display text-xl font-extrabold text-slate-800">
+          You just learned {DEMO_QUESTIONS.length} Armenian words!
+        </div>
+        <p className="mt-2 text-sm font-semibold text-slate-500">
+          Create a free account to save this progress and keep going — the real
+          course picks up right where this demo leaves off.
+        </p>
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {DEMO_QUESTIONS.map((dq) => (
+            <span key={dq.prompt} className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500 ring-1 ring-slate-200">
+              {dq.prompt} — {dq.meaning}
+            </span>
+          ))}
+        </div>
+        <button type="button" onClick={onSignup} className="btn3d btn3d-brand mt-6 w-full text-base uppercase">
+          Create free account <ArrowRight className="h-5 w-5" />
+        </button>
+        <button type="button" onClick={practiceAgain} className="mt-3 text-sm font-bold text-slate-400 hover:text-slate-600">
+          Practice again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
@@ -692,7 +740,17 @@ export default function LandingPage({ onLogin, onSignup }) {
   const [authOpen, setAuthOpen] = useState(false);
   const [wordIdx, setWordIdx] = useState(0);
   const [wordFade, setWordFade] = useState(true);
+  const [showStickyCta, setShowStickyCta] = useState(false);
   const authRef = useRef(null);
+
+  // Mobile sticky CTA: once a visitor has scrolled past the hero (where the
+  // primary buttons already are), a persistent "Start free" bar keeps the
+  // conversion action one thumb-tap away instead of requiring a scroll back up.
+  useEffect(() => {
+    const onScroll = () => setShowStickyCta(window.scrollY > 640);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Warm the browser cache with both auth banners on first paint, so the modal's
   // promo image is already decoded and pops in instantly the moment it opens
@@ -1211,7 +1269,13 @@ export default function LandingPage({ onLogin, onSignup }) {
               </div>
             </div>
 
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            {/* Lead with the trial offer where it can actually change a visitor's
+                mind — before the CTA, not buried inside the signup modal. */}
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-gold-50 px-4 py-2 text-sm font-extrabold text-gold-600 ring-1 ring-gold-100">
+              <Sparkles className="h-4 w-4 text-gold-600" /> 14 days of Premium free when you sign up — no card
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
               <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand text-base">
                 Start learning — free <ArrowRight className="h-5 w-5" />
               </button>
@@ -1224,7 +1288,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
 
           <div className="relative">
-            <LandingExerciseDemo />
+            <LandingExerciseDemo onSignup={() => goAuth("signup")} />
           </div>
         </div>
       </header>
@@ -1389,7 +1453,10 @@ export default function LandingPage({ onLogin, onSignup }) {
         <Reveal>
           <div className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
             <img src={student} alt="" className="pointer-events-none absolute -bottom-6 -right-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
-            <h2 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Ready to learn Armenian?</h2>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide">
+              <Sparkles className="h-3.5 w-3.5" /> 14 days of Premium, free — no card
+            </div>
+            <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Ready to learn Armenian?</h2>
             <p className="mt-3 max-w-md text-lg font-semibold text-white/90">
               Join now and finish your first lesson in minutes. Բարի՜ ճանապարհ — good luck!
             </p>
@@ -1415,6 +1482,24 @@ export default function LandingPage({ onLogin, onSignup }) {
           <div className="text-sm font-semibold text-slate-400">© {new Date().getFullYear()} Haylingua</div>
         </div>
       </footer>
+
+      {/* Sticky mobile CTA — keeps signup one tap away once the hero's own
+          buttons have scrolled out of view. Hidden on desktop (header CTA is
+          always visible there) and while the auth modal is open. */}
+      {showStickyCta && !authOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-brand-600/20 bg-brand-500 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.12)] sm:hidden">
+          <div className="min-w-0 text-white">
+            <div className="truncate text-sm font-extrabold">14 days of Premium free</div>
+            <div className="text-xs font-semibold text-white/80">No card needed</div>
+          </div>
+          <button
+            onClick={() => goAuth("signup")}
+            className="btn3d shrink-0 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-sm uppercase hover:brightness-100"
+          >
+            Start free
+          </button>
+        </div>
+      )}
 
       {/* Auth popup — login/signup, triggered from header, hero, and CTA buttons */}
       {authOpen && (
