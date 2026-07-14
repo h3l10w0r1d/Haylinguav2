@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 900,
+    // Source maps for prod JS — lets Sentry (and DevTools) resolve minified
+    // vendor.js stack traces back to real source instead of dead-ending.
+    sourcemap: true,
     rollupOptions: {
       output: {
         // IMPORTANT: React and every library that consumes it must live in the

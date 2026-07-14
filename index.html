@@ -9,14 +9,18 @@
     <meta name="robots" content="index,follow" />
     <meta name="theme-color" content="#f97316" />
 
-    <!-- Warm up the API + font connections early to cut first-request latency. -->
+    <!-- Warm up the API + font connections early to cut first-request latency.
+         Kept to the origins the FIRST paint actually needs — the dotLottie
+         streak flame (unpkg/lottie.host) only renders deep in the dashboard,
+         so it uses dns-prefetch (cheap hint) instead of a full preconnect
+         (DNS+TCP+TLS handshake); more than ~4 preconnects on one page starts
+         costing more than it saves. -->
     <link rel="preconnect" href="https://haylinguav2.onrender.com" crossorigin />
     <link rel="dns-prefetch" href="https://haylinguav2.onrender.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- dotLottie streak flame (web-component CDN + animation host) -->
-    <link rel="preconnect" href="https://unpkg.com" crossorigin />
-    <link rel="preconnect" href="https://lottie.host" crossorigin />
+    <link rel="dns-prefetch" href="https://unpkg.com" />
+    <link rel="dns-prefetch" href="https://lottie.host" />
 
     <!-- Canonical + OG/Twitter all point at www — the domain the site actually
          redirects to (haylingua.am -> www.haylingua.am). Mismatched canonical
