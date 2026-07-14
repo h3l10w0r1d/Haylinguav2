@@ -152,11 +152,25 @@
 
 
 <!-- Microsoft Clarity -->
+<!-- Deferred like the Brevo widget below: session recording doesn't need to
+     start at the very first millisecond, and loading it eagerly means its
+     ~25KB script competes with hero content for bandwidth during the LCP
+     window on slow connections. Idle (or first interaction) is soon enough. -->
 <script type="text/javascript">
     (function(c,l,a,r,i,t,y){
         c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        function loadClarity() {
+            if (loadClarity._done) return;
+            loadClarity._done = true;
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        }
+        var events = ['scroll', 'mousemove', 'keydown', 'touchstart', 'click'];
+        events.forEach(function(evt) {
+            window.addEventListener(evt, loadClarity, { once: true, passive: true });
+        });
+        var idle = window.requestIdleCallback || function(fn) { setTimeout(fn, 3000); };
+        window.addEventListener('load', function() { idle(loadClarity, { timeout: 6000 }); });
     })(window, document, "clarity", "script", "xjq5hmtyh2");
 </script>
 
