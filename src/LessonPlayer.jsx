@@ -1,6 +1,6 @@
 // src/LessonPlayer.jsx
 import { useEffect, useState, useMemo, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 import ExerciseRenderer from "./ExerciseRenderer";
@@ -155,6 +155,10 @@ function ReadingSectionCard({ section, userLevel, onNext }) {
 export default function LessonPlayer() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  // CMS "Preview" link for a draft lesson: ?preview=<short-lived token>,
+  // scoped server-side to this one lesson (see GET /lessons/{slug}).
+  const [searchParams] = useSearchParams();
+  const previewToken = searchParams.get("preview") || "";
 
   const progressKey = slug ? `hay_lesson_${slug}` : null;
 
@@ -354,7 +358,9 @@ export default function LessonPlayer() {
       setLoading(true);
       setLoadError(null);
 
-      const url = `${API_BASE}/lessons/${slug}`;
+      const url = previewToken
+        ? `${API_BASE}/lessons/${slug}?preview=${encodeURIComponent(previewToken)}`
+        : `${API_BASE}/lessons/${slug}`;
       console.log("[LessonPlayer] Loading lesson from:", url);
 
       try {
@@ -415,7 +421,7 @@ export default function LessonPlayer() {
     };
 
     load();
-  }, [slug]);
+  }, [slug, previewToken]);
 
   // ---------- Handling answers from ExerciseRenderer ----------
 
@@ -789,7 +795,13 @@ export default function LessonPlayer() {
   const instruction = currentExercise ? (EXERCISE_INSTRUCTIONS[currentExercise.kind] ?? null) : null;
 
   return (
-    <ExerciseShell
+    <>
+      {previewToken && lesson.is_published === false ? (
+        <div className="fixed inset-x-0 top-0 z-[70] bg-amber-500 py-1.5 text-center text-xs font-extrabold uppercase tracking-wide text-white shadow-sm">
+          Preview — this lesson is still a draft
+        </div>
+      ) : null}
+      <ExerciseShell
       title={lesson.title}
       step={completedSteps}
       total={totalSteps}
@@ -957,5 +969,6 @@ export default function LessonPlayer() {
           onRetry={() => fetchExerciseAnalytics(exModalExerciseId)}
         />
     </ExerciseShell>
+    </>
   );
 }

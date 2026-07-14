@@ -934,6 +934,7 @@ class LessonWithExercisesOut(BaseModel):
     lesson_type: str = "standard"
     config: Dict[str, Any] = {}
     exercises: List[ExerciseOut]
+    is_published: bool = True
 
 
 class StatsOut(BaseModel):
@@ -3644,10 +3645,11 @@ def list_lessons(db: Connection = Depends(get_db)):
 
 
 @router.get("/lessons/{slug}", response_model=LessonWithExercisesOut)
-def get_lesson(slug: str, db: Connection = Depends(get_db)):
+def get_lesson(slug: str, preview: Optional[str] = None, db: Connection = Depends(get_db)):
     lesson_row = db.execute(
         text("""
-            SELECT id, slug, title, description, level, xp, COALESCE(lesson_type, 'standard') as lesson_type, COALESCE(config, '{}'::jsonb) as config
+            SELECT id, slug, title, description, level, xp, COALESCE(lesson_type, 'standard') as lesson_type, COALESCE(config, '{}'::jsonb) as config,
+                   COALESCE(is_published, TRUE) as is_published
             FROM lessons
             WHERE slug = :slug
         """),
@@ -3656,6 +3658,25 @@ def get_lesson(slug: str, db: Connection = Depends(get_db)):
 
     if lesson_row is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Draft lessons are invisible to the public app — 404, not 403, so a
+    # slug in progress doesn't even reveal that a draft exists. The one way
+    # in is a short-lived, lesson-scoped preview token minted by the CMS
+    # (see POST /cms/lessons/{id}/preview-link), so an admin can walk through
+    # the exact same LessonPlayer a real student would see once published.
+    if not lesson_row["is_published"]:
+        valid_preview = False
+        if preview:
+            try:
+                p = _cms_jwt_decode(preview)
+                valid_preview = (
+                    p.get("scope") == "lesson_preview"
+                    and int(p.get("lesson_id") or -1) == int(lesson_row["id"])
+                )
+            except HTTPException:
+                valid_preview = False
+        if not valid_preview:
+            raise HTTPException(status_code=404, detail="Lesson not found")
 
     exercises_rows = db.execute(
         text("""
@@ -9646,7 +9667,9 @@ async def cms_create_chapter(request: Request, db=Depends(get_db)):
     if not title:
         raise HTTPException(status_code=400, detail="title is required")
     description = (body.get("description") or "").strip()
-    is_published = bool(body.get("is_published", True))
+    # Draft by default — same reasoning as lessons: don't surface a new,
+    # still-empty chapter on the live roadmap until it's actually ready.
+    is_published = bool(body.get("is_published", False))
     pos = body.get("position")
     if pos is None:
         pos = db.execute(text("SELECT COALESCE(MAX(position), 0) + 1 FROM chapters")).scalar() or 1
@@ -10009,8 +10032,9 @@ async def cms_create_lesson(request: Request, db=Depends(get_db)):
     lesson_type = (body.get("lesson_type") or "standard").strip() or "standard"
     config = body.get("config") or {}
 
-    # publish by default so it appears in /lessons
-    is_published = bool(body.get("is_published", True))
+    # Draft by default — new lessons are built incrementally in the CMS and
+    # shouldn't appear to real students until the admin explicitly publishes.
+    is_published = bool(body.get("is_published", False))
 
     chapter_raw = body.get("chapter_id")
     chapter_id = int(chapter_raw) if chapter_raw not in (None, "", "null") else None
@@ -10099,6 +10123,24 @@ def cms_unpublish_lesson(lesson_id: int, request: Request, db=Depends(get_db)):
         {"id": lesson_id},
     )
     return {"ok": True, "is_published": False}
+
+@router.post("/cms/lessons/{lesson_id}/preview-link")
+def cms_lesson_preview_link(lesson_id: int, request: Request, db=Depends(get_db)):
+    """Mint a short-lived, lesson-scoped preview URL so an admin can walk
+    through a DRAFT lesson in the real LessonPlayer exactly as a student
+    would see it once published — without exposing the draft to anyone
+    else. See the preview-token check in GET /lessons/{slug}."""
+    require_cms(request, db)
+    row = db.execute(text("SELECT slug FROM lessons WHERE id = :id"), {"id": lesson_id}).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    token = _cms_jwt_encode({"scope": "lesson_preview", "lesson_id": lesson_id}, minutes=30)
+    frontend_url = (os.getenv("FRONTEND_URL") or "https://haylingua.am").rstrip("/")
+    return {
+        "url": f"{frontend_url}/lesson/{row['slug']}?preview={token}",
+        "expires_in_minutes": 30,
+    }
 # -------------------- EXERCISES --------------------
 
 @router.get("/cms/lessons/{lesson_id}/exercises")

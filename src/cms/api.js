@@ -134,6 +134,8 @@ export function createCmsApi(accessToken) {
     });
   const deleteExercise = (exerciseId) =>
     req(`/cms/exercises/${exerciseId}`, { method: "DELETE" });
+  const getLessonPreviewLink = (lessonId) =>
+    req(`/cms/lessons/${lessonId}/preview-link`, { method: "POST" });
 
   // Options
   const listOptions = (exerciseId) => req(`/cms/exercises/${exerciseId}/options`);
@@ -200,6 +202,7 @@ export function createCmsApi(accessToken) {
     createExercise,
     updateExercise,
     deleteExercise,
+    getLessonPreviewLink,
     listOptions,
     createOption,
     updateOption,

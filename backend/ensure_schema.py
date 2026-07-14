@@ -330,6 +330,13 @@ def ensure_schema() -> None:
             """,
         )
         add_col_if_missing("lessons", "chapter_id INTEGER")
+        # Draft/published status for the CMS staging workflow (see
+        # GET /lessons/{slug} + POST /cms/lessons/{id}/preview-link in
+        # routes.py). DEFAULT TRUE preserves current behavior for any
+        # pre-existing lesson row that predates this column; the CMS's
+        # create-lesson endpoint explicitly defaults NEW rows to draft.
+        add_col_if_missing("lessons", "is_published BOOLEAN NOT NULL DEFAULT TRUE")
+        fill_nulls("lessons", "is_published", "TRUE")
         # One-time backfill: turn the existing implicit "level" groups into real
         # chapters so the learner roadmap looks identical right after migration.
         if not chapters_existed and table_exists("lessons"):

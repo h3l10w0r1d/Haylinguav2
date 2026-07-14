@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { createCmsApi } from "./api";
-import { Loader2, Plus, Search, RefreshCcw } from "lucide-react";
+import { Loader2, Plus, Search, RefreshCcw, Eye, EyeOff, ExternalLink } from "lucide-react";
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
@@ -57,6 +57,9 @@ export default function CmsLessons() {
       level: 1,
       xp: 40,
       xp_reward: 40,
+      // Draft by default — build it out in the editor before it's visible
+      // to real students. Also enforced server-side.
+      is_published: false,
     };
 
     try {
@@ -64,6 +67,24 @@ export default function CmsLessons() {
       await load();
     } catch (e) {
       alert(e.message || "Create failed");
+    }
+  }
+
+  async function togglePublished(l) {
+    try {
+      await api.updateLesson(l.id, { is_published: !l.is_published });
+      await load();
+    } catch (e) {
+      alert(e.message || "Update failed");
+    }
+  }
+
+  async function preview(l) {
+    try {
+      const res = await api.getLessonPreviewLink(l.id);
+      if (res?.url) window.open(res.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      alert(e.message || "Failed to create preview link");
     }
   }
 
@@ -162,8 +183,34 @@ export default function CmsLessons() {
                 </div>
               </div>
 
-              <div className="mt-4 text-sm font-extrabold text-brand-600 opacity-0 group-hover:opacity-100 transition">
-                Open editor →
+              <div className="mt-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePublished(l); }}
+                    className={cx(
+                      "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-extrabold transition",
+                      l.is_published
+                        ? "bg-grass-50 text-grass-700 hover:bg-grass-100"
+                        : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    )}
+                  >
+                    {l.is_published ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    {l.is_published ? "Published" : "Draft"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); preview(l); }}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600 transition hover:bg-slate-200"
+                    title={l.is_published ? "Open this lesson" : "Open a preview link (works even while unpublished)"}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Preview
+                  </button>
+                </div>
+
+                <div className="text-sm font-extrabold text-brand-600 opacity-0 group-hover:opacity-100 transition">
+                  Open editor →
+                </div>
               </div>
             </Link>
           ))}
