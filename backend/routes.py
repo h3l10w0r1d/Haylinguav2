@@ -1212,6 +1212,18 @@ class FriendOut(BaseModel):
     streak: int
     global_rank: int
 
+class FriendSuggestionOut(BaseModel):
+    user_id: int
+    username: str | None = None
+    name: str
+    email: str | None = None
+    avatar_url: str | None = None
+    xp: int
+    level: int
+    streak: int
+    score: int
+    reasons: list[str] = []
+
 class FriendRequestOut(BaseModel):
 
     id: int
@@ -1305,6 +1317,234 @@ def friends_leaderboard(
     friends = friends_list(authorization=authorization, db=db)
     limit = max(1, min(int(limit or 200), 200))
     return friends[:limit]
+
+
+# ---------- Smart friend suggestions ----------
+# Weighted, explainable scoring: every signal that fires appends a
+# human-readable reason so the UI can show "why" instead of a bare ranked
+# list — that's what makes a suggestion feel earned rather than random.
+# Weights are hand-tuned by how strong/verifiable the signal is: a direct
+# referral link is closer to "you actually know this person" than sharing
+# a country, so it scores far higher.
+_SUGGEST_PTS_SAME_LEAGUE = 40
+_SUGGEST_PTS_REFERRAL_DIRECT = 50
+_SUGGEST_PTS_SAME_REFERRER = 25
+_SUGGEST_PTS_MUTUAL_FRIEND = 15
+_SUGGEST_PTS_MUTUAL_FRIEND_CAP = 45  # 3 mutual friends
+_SUGGEST_PTS_SAME_JOIN_WEEK = 10
+_SUGGEST_PTS_SAME_COUNTRY = 10
+_SUGGEST_PTS_SAME_DIALECT = 8
+_SUGGEST_PTS_SAME_GOAL = 8
+_SUGGEST_PTS_SAME_SOURCE_LANG = 5
+_SUGGEST_PTS_SIMILAR_STREAK = 5
+_SUGGEST_PTS_SIMILAR_LEVEL_CLOSE = 15   # within 300 XP
+_SUGGEST_PTS_SIMILAR_LEVEL_NEAR = 7     # within 1000 XP
+_SUGGEST_PTS_RECENTLY_ACTIVE = 5
+
+
+def _score_friend_suggestion(me: dict, cand: dict) -> tuple[int, list[str]]:
+    score = 0
+    reasons: list[str] = []
+
+    # Same weekly league cohort — the strongest "active peer, right now" signal.
+    if (
+        me.get("league_week")
+        and me["league_week"] == cand.get("league_week")
+        and me.get("league_cohort") is not None
+        and me["league_cohort"] == cand.get("league_cohort")
+        and me.get("league_tier") == cand.get("league_tier")
+    ):
+        score += _SUGGEST_PTS_SAME_LEAGUE
+        reasons.append("In your league this week")
+
+    # Referral graph — a direct invite link beats a shared-referrer coincidence.
+    me_id = me.get("id")
+    cand_id = cand.get("id")
+    if cand.get("referred_by") == me_id:
+        score += _SUGGEST_PTS_REFERRAL_DIRECT
+        reasons.append("You invited them")
+    elif me.get("referred_by") == cand_id:
+        score += _SUGGEST_PTS_REFERRAL_DIRECT
+        reasons.append("They invited you")
+    elif me.get("referred_by") is not None and me.get("referred_by") == cand.get("referred_by"):
+        score += _SUGGEST_PTS_SAME_REFERRER
+        reasons.append("Invited by the same person")
+
+    # Mutual friends — capped so a single super-connected user can't dominate.
+    mutual = int(cand.get("mutual_count") or 0)
+    if mutual > 0:
+        score += min(mutual * _SUGGEST_PTS_MUTUAL_FRIEND, _SUGGEST_PTS_MUTUAL_FRIEND_CAP)
+        reasons.append(f"{mutual} mutual friend{'s' if mutual != 1 else ''}")
+
+    # Same onboarding cohort — new users bond better with other new users.
+    if me.get("joined_week") and me["joined_week"] == cand.get("joined_week"):
+        score += _SUGGEST_PTS_SAME_JOIN_WEEK
+        reasons.append("Joined the same week as you")
+
+    # Shared learning profile (only when BOTH sides actually filled it in —
+    # NULL == NULL would otherwise falsely match everyone with an empty profile).
+    if me.get("country") and me["country"] == cand.get("country"):
+        score += _SUGGEST_PTS_SAME_COUNTRY
+        reasons.append(f"Also learning from {me['country']}")
+    if me.get("dialect") and me["dialect"] == cand.get("dialect"):
+        score += _SUGGEST_PTS_SAME_DIALECT
+        reasons.append("Same dialect focus")
+    if me.get("primary_goal") and me["primary_goal"] == cand.get("primary_goal"):
+        score += _SUGGEST_PTS_SAME_GOAL
+        reasons.append("Same learning goal")
+    if me.get("source_language") and me["source_language"] == cand.get("source_language"):
+        score += _SUGGEST_PTS_SAME_SOURCE_LANG
+        reasons.append("Speaks the same language as you")
+
+    # Similarly engaged: comparable streak length, both actually practicing.
+    me_streak = int(me.get("current_streak") or 0)
+    cand_streak = int(cand.get("current_streak") or 0)
+    if me_streak > 0 and cand_streak > 0 and abs(me_streak - cand_streak) <= 2:
+        score += _SUGGEST_PTS_SIMILAR_STREAK
+        reasons.append("Similar streak to yours")
+
+    # Similar progress stage — a peer, not the all-time XP leaderboard.
+    xp_diff = abs(int(me.get("xp") or 0) - int(cand.get("xp") or 0))
+    if xp_diff <= 300:
+        score += _SUGGEST_PTS_SIMILAR_LEVEL_CLOSE
+        reasons.append("Around your level")
+    elif xp_diff <= 1000:
+        score += _SUGGEST_PTS_SIMILAR_LEVEL_NEAR
+
+    # Recently active — don't surface a suggestion who churned months ago.
+    last_active = cand.get("last_active_at")
+    if last_active and (datetime.utcnow() - last_active.replace(tzinfo=None)) <= timedelta(days=3):
+        score += _SUGGEST_PTS_RECENTLY_ACTIVE
+
+    return score, reasons
+
+
+@router.get("/friends/suggestions", response_model=list[FriendSuggestionOut])
+def friends_suggestions(
+    authorization: Optional[str] = Header(default=None),
+    limit: int = 20,
+    db: Connection = Depends(get_db),
+):
+    """Ranked friend suggestions — a weighted, explainable score across
+    league cohort, referral graph, mutual friends, onboarding cohort,
+    shared learning profile, and progress proximity. See
+    _score_friend_suggestion for the point values."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    limit = max(1, min(int(limit or 20), 50))
+
+    me_row = db.execute(
+        text(
+            """
+            SELECT
+                u.id, u.league_tier, u.league_week, u.league_cohort, u.referred_by,
+                u.current_streak, DATE_TRUNC('week', u.joined_at) AS joined_week,
+                ob.country, ob.dialect, ob.primary_goal, ob.source_language,
+                COALESCE(SUM(lp.xp_earned), 0) AS xp
+            FROM users u
+            LEFT JOIN user_onboarding ob ON ob.user_id = u.id
+            LEFT JOIN lesson_progress lp ON lp.user_id = u.id
+            WHERE u.id = :me
+            GROUP BY u.id, u.league_tier, u.league_week, u.league_cohort, u.referred_by,
+                     u.current_streak, u.joined_at, ob.country, ob.dialect,
+                     ob.primary_goal, ob.source_language
+            """
+        ),
+        {"me": int(user_id)},
+    ).mappings().first()
+    if me_row is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    me = dict(me_row)
+
+    # Bounded, pre-filtered candidate pool: excludes self, existing friends, and
+    # anyone with a request between us in either direction/status (no point
+    # re-suggesting someone already pending or who declined). Capped to the
+    # 400 most recently active eligible users before scoring in Python — this
+    # app's scale doesn't need the scoring itself to happen in SQL, and doing
+    # it in Python keeps the weighting logic in one readable place.
+    rows = db.execute(
+        text(
+            """
+            WITH my_friends AS (
+                SELECT friend_id FROM friends WHERE user_id = :me
+            ),
+            excluded AS (
+                SELECT :me AS id
+                UNION SELECT friend_id FROM my_friends
+                UNION SELECT addressee_id FROM friend_requests WHERE requester_id = :me
+                UNION SELECT requester_id FROM friend_requests WHERE addressee_id = :me
+            ),
+            mutuals AS (
+                SELECT f.user_id AS candidate_id, COUNT(*) AS mutual_count
+                FROM friends f
+                WHERE f.friend_id IN (SELECT friend_id FROM my_friends)
+                GROUP BY f.user_id
+            )
+            SELECT
+                u.id, u.username, u.display_name, u.email, u.avatar_url,
+                u.league_tier, u.league_week, u.league_cohort, u.referred_by,
+                u.current_streak, u.last_active_at,
+                DATE_TRUNC('week', u.joined_at) AS joined_week,
+                ob.country, ob.dialect, ob.primary_goal, ob.source_language,
+                COALESCE(SUM(lp.xp_earned), 0) AS xp,
+                COALESCE(m.mutual_count, 0) AS mutual_count
+            FROM users u
+            LEFT JOIN user_onboarding ob ON ob.user_id = u.id
+            LEFT JOIN lesson_progress lp ON lp.user_id = u.id
+            LEFT JOIN mutuals m ON m.candidate_id = u.id
+            WHERE u.id NOT IN (SELECT id FROM excluded)
+              AND COALESCE(u.is_hidden, FALSE) = FALSE
+            GROUP BY u.id, u.username, u.display_name, u.email, u.avatar_url,
+                     u.league_tier, u.league_week, u.league_cohort, u.referred_by,
+                     u.current_streak, u.last_active_at, u.joined_at,
+                     ob.country, ob.dialect, ob.primary_goal, ob.source_language,
+                     m.mutual_count
+            ORDER BY u.last_active_at DESC NULLS LAST
+            LIMIT 400
+            """
+        ),
+        {"me": int(user_id)},
+    ).mappings().all()
+
+    scored: list[tuple[int, list[str], dict]] = []
+    for r in rows:
+        cand = dict(r)
+        score, reasons = _score_friend_suggestion(me, cand)
+        scored.append((score, reasons, cand))
+
+    scored.sort(key=lambda t: (-t[0], t[2]["id"]))
+
+    out: list[FriendSuggestionOut] = []
+    for score, reasons, cand in scored[:limit]:
+        email = (cand.get("email") or "").strip()
+        username = (cand.get("username") or "").strip() or None
+        display_name = (cand.get("display_name") or "").strip()
+        if display_name:
+            name = display_name
+        elif username:
+            name = username
+        else:
+            name = email.split("@")[0] if "@" in email else (email or "User")
+
+        xp = int(cand.get("xp") or 0)
+        out.append(
+            FriendSuggestionOut(
+                user_id=int(cand["id"]),
+                username=username,
+                name=name,
+                email=email or None,
+                avatar_url=cand.get("avatar_url"),
+                xp=xp,
+                level=max(1, (xp // 500) + 1),
+                streak=int(cand.get("current_streak") or 0),
+                score=score,
+                reasons=reasons[:3],
+            )
+        )
+
+    return out
 
 
 @router.get("/friends/requests/outgoing", response_model=list[FriendRequestOut])

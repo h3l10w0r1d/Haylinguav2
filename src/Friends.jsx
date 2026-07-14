@@ -111,14 +111,16 @@ export default function Friends() {
     (async () => {
       setLoading(true);
       try {
-        // 1) Discover list (leaderboard)
-        const lbRes = await apiFetch("/leaderboard?limit=200", {
+        // 1) Discover list — smart, ranked suggestions (league cohort, referral
+        // graph, mutual friends, onboarding cohort, shared learning profile,
+        // progress proximity) rather than the raw all-time XP leaderboard.
+        const suggRes = await apiFetch("/friends/suggestions?limit=50", {
           token,
           method: "GET",
         });
-        if (lbRes.ok) {
-          const lb = await lbRes.json();
-          setPeople(Array.isArray(lb) ? lb : []);
+        if (suggRes.ok) {
+          const sugg = await suggRes.json();
+          setPeople(Array.isArray(sugg) ? sugg : []);
         } else {
           setPeople([]);
         }
@@ -276,17 +278,19 @@ export default function Friends() {
 
   const discoverList = useMemo(() => {
     const raw = Array.isArray(people) ? people : [];
+    // /friends/suggestions already excludes hidden profiles server-side.
     return raw
       .map((p) => ({
         id: Number(p.user_id ?? p.id),
-        is_hidden: !!p.is_hidden,
-        username: p.is_hidden ? null : (p.username || null),
-        avatar_url: p.is_hidden ? null : (p.avatar_url || null),
-        name: p.is_hidden ? "Hidden" : (p.name || (p.email ? p.email.split("@")[0] : "User")),
+        username: p.username || null,
+        avatar_url: p.avatar_url || null,
+        name: p.name || (p.email ? p.email.split("@")[0] : "User"),
         email: p.email || "",
         level: Number(p.level ?? 1) || 1,
-        xp: p.is_hidden ? 0 : (Number(p.xp ?? 0) || 0),
-        streak: p.is_hidden ? 0 : Math.max(1, Number(p.streak ?? 1) || 1),
+        xp: Number(p.xp ?? 0) || 0,
+        streak: Math.max(1, Number(p.streak ?? 1) || 1),
+        score: Number(p.score ?? 0) || 0,
+        reasons: Array.isArray(p.reasons) ? p.reasons : [],
       }))
       .filter((p) => Number.isFinite(p.id) && p.email);
   }, [people]);
@@ -949,6 +953,20 @@ function PersonCard({
           </span>
         </div>
       )}
+
+      {/* Why this suggestion — makes "Discover" feel earned, not random. */}
+      {!isHidden && mode === "discover" && Array.isArray(person.reasons) && person.reasons.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {person.reasons.map((reason) => (
+            <span
+              key={reason}
+              className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500"
+            >
+              {reason}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
