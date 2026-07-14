@@ -22,6 +22,31 @@
     <link rel="dns-prefetch" href="https://unpkg.com" />
     <link rel="dns-prefetch" href="https://lottie.host" />
 
+    <!-- Fonts: discovered by the HTML preload scanner immediately (in
+         parallel with the CSS/JS bundles) instead of hiding behind a CSS
+         @import, which would only be found after the main stylesheet
+         downloads and parses — an extra serial round-trip on the critical
+         path. media="print" + onload swap keeps this non-render-blocking;
+         first paint uses the system-font fallback (font-display=swap in
+         the URL) and swaps in Baloo 2 / Nunito once they arrive. -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap"
+      />
+    </noscript>
+
     <!-- Canonical + OG/Twitter all point at www — the domain the site actually
          redirects to (haylingua.am -> www.haylingua.am). Mismatched canonical
          vs. actual served domain splits ranking signals between two URLs. -->
