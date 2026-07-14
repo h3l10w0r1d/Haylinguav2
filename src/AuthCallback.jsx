@@ -1,14 +1,17 @@
-// src/AuthCallback.jsx — handles Google OAuth redirect
+// src/AuthCallback.jsx — handles Google / Facebook OAuth redirects
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LoadingScreen from "./lib/LoadingScreen";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
-export default function AuthCallback() {
+const PROVIDER_LABELS = { google: "Google", facebook: "Facebook" };
+
+export default function AuthCallback({ provider = "google" }) {
   const navigate = useNavigate();
   const done = useRef(false);
   const [error, setError] = useState("");
+  const providerLabel = PROVIDER_LABELS[provider] || "Sign-in";
 
   useEffect(() => {
     if (done.current) return;
@@ -22,7 +25,7 @@ export default function AuthCallback() {
     sessionStorage.removeItem("oauth_state");
 
     if (oauthError || !code) {
-      setError(oauthError === "access_denied" ? "Sign-in was cancelled." : "Google sign-in failed. Please try again.");
+      setError(oauthError === "access_denied" ? "Sign-in was cancelled." : `${providerLabel} sign-in failed. Please try again.`);
       return;
     }
 
@@ -31,18 +34,18 @@ export default function AuthCallback() {
       return;
     }
 
-    fetch(`${API_BASE}/auth/google`, {
+    fetch(`${API_BASE}/auth/${provider}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         code,
-        redirect_uri: "https://haylingua.am/auth/google/callback",
+        redirect_uri: `https://haylingua.am/auth/${provider}/callback`,
       }),
     })
       .then(async (res) => {
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-          throw new Error(d?.detail || "Google sign-in failed");
+          throw new Error(d?.detail || `${providerLabel} sign-in failed`);
         }
         return res.json();
       })
@@ -73,7 +76,7 @@ export default function AuthCallback() {
       .catch((err) => {
         setError(err.message || "Something went wrong. Please try again.");
       });
-  }, [navigate]);
+  }, [navigate, provider, providerLabel]);
 
   if (error) {
     return (

@@ -2840,6 +2840,209 @@ def auth_google(
     }
 
 
+# ── Facebook OAuth ───────────────────────────────────────────────────────────
+@router.post("/auth/facebook")
+def auth_facebook(
+    payload: Dict[str, Any] = Body(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Exchange Facebook OAuth authorization code for a Haylingua JWT.
+
+    Flow mirrors /auth/google:
+      1. Frontend sends { code } after Facebook redirects back.
+      2. We exchange the code with Facebook's Graph API token endpoint.
+      3. We get user info (email, name, picture, id) from Facebook.
+      4. Find user by facebook_id → login.
+         Find by email → link facebook_id → login.
+         Otherwise → create new verified user (no password needed).
+      5. Return same AuthResponse as password login.
+    """
+    import re as _re
+
+    code = ((payload or {}).get("code") or "").strip()
+    # Hard-coded server-side — never trust the client-supplied redirect_uri.
+    redirect_uri = (os.getenv("FACEBOOK_REDIRECT_URI") or "https://haylingua.am/auth/facebook/callback").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing OAuth code")
+
+    app_id = os.getenv("FACEBOOK_APP_ID", "")
+    app_secret = os.getenv("FACEBOOK_APP_SECRET", "")
+    if not app_id or not app_secret:
+        raise HTTPException(status_code=503, detail="Facebook OAuth is not configured on this server")
+
+    # 1) Exchange code for an access token
+    try:
+        token_resp = httpx.get(
+            "https://graph.facebook.com/v19.0/oauth/access_token",
+            params={
+                "client_id": app_id,
+                "client_secret": app_secret,
+                "redirect_uri": redirect_uri,
+                "code": code,
+            },
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Facebook token exchange failed: {exc}")
+
+    if token_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Facebook rejected the authorization code")
+
+    access_token_fb = token_resp.json().get("access_token")
+    if not access_token_fb:
+        raise HTTPException(status_code=400, detail="No access token returned by Facebook")
+
+    # 2) Get user info from Facebook
+    try:
+        info_resp = httpx.get(
+            "https://graph.facebook.com/me",
+            params={
+                "fields": "id,name,email,picture.type(large)",
+                "access_token": access_token_fb,
+            },
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not fetch Facebook user info: {exc}")
+
+    if info_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to get user info from Facebook")
+
+    finfo = info_resp.json()
+    facebook_id = finfo.get("id") or ""
+    f_email = (finfo.get("email") or "").strip().lower()
+    f_name = finfo.get("name") or ""
+    f_picture = ((finfo.get("picture") or {}).get("data") or {}).get("url") or ""
+
+    if not facebook_id:
+        raise HTTPException(status_code=400, detail="Facebook did not return a valid user ID")
+    if not f_email:
+        # Facebook accounts can be created without a verified email; we require one
+        # since email is how we dedupe/link accounts across providers.
+        raise HTTPException(status_code=400, detail="Your Facebook account has no email on file — please use another sign-in method")
+
+    # 3a) Find by facebook_id
+    user_row = db.execute(
+        text("SELECT id, email, username, display_name, avatar_url FROM users WHERE facebook_id = :fid LIMIT 1"),
+        {"fid": facebook_id},
+    ).mappings().first()
+
+    if user_row:
+        # existing OAuth user → just log in
+        user_id = int(user_row["id"])
+        db.execute(text("UPDATE users SET last_active_at = NOW() WHERE id = :u"), {"u": user_id})
+        tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+        jwt = create_token(user_id, tv)
+        _brevo_sync_user(db, user_id, event="login_facebook")
+        ob = db.execute(
+            text("SELECT completed_at FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+            {"u": user_id},
+        ).mappings().first()
+        needs_onboarding = not (ob and ob.get("completed_at"))
+        return {
+            "access_token": jwt,
+            "id": user_id,
+            "email": user_row["email"],
+            "name": user_row.get("display_name") or user_row.get("username") or "",
+            "username": user_row.get("username") or "",
+            "avatar_url": user_row.get("avatar_url") or "",
+            "email_verified": True,
+            "needs_onboarding": needs_onboarding,
+        }
+
+    # 3b) Find by email → link account
+    user_row = db.execute(
+        text("SELECT id, email, username, display_name, avatar_url FROM users WHERE LOWER(email) = :e LIMIT 1"),
+        {"e": f_email},
+    ).mappings().first()
+
+    if user_row:
+        user_id = int(user_row["id"])
+        db.execute(
+            text("""
+                UPDATE users
+                SET facebook_id = :fid, oauth_provider = COALESCE(oauth_provider, 'facebook'),
+                    email_verified = TRUE,
+                    email_verified_at = COALESCE(email_verified_at, NOW()),
+                    last_active_at = NOW()
+                WHERE id = :u
+            """),
+            {"fid": facebook_id, "u": user_id},
+        )
+        tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+        jwt = create_token(user_id, tv)
+        _brevo_sync_user(db, user_id, event="facebook_linked")
+        ob = db.execute(
+            text("SELECT completed_at FROM user_onboarding WHERE user_id = :u LIMIT 1"),
+            {"u": user_id},
+        ).mappings().first()
+        needs_onboarding = not (ob and ob.get("completed_at"))
+        return {
+            "access_token": jwt,
+            "id": user_id,
+            "email": user_row["email"],
+            "name": user_row.get("display_name") or user_row.get("username") or "",
+            "username": user_row.get("username") or "",
+            "avatar_url": user_row.get("avatar_url") or "",
+            "email_verified": True,
+            "needs_onboarding": needs_onboarding,
+        }
+
+    # 3c) Create new user
+    base = _re.sub(r"[^a-z0-9_]", "_", f_email.split("@")[0].lower())[:15] or "user"
+    username = base
+    for _ in range(20):
+        taken = db.execute(
+            text("SELECT 1 FROM users WHERE LOWER(username) = LOWER(:u)"),
+            {"u": username},
+        ).scalar()
+        if not taken:
+            break
+        username = f"{base}_{secrets.randbelow(90000) + 10000}"
+
+    try:
+        new_row = db.execute(
+            text("""
+                INSERT INTO users
+                    (email, password_hash, username, display_name, avatar_url,
+                     facebook_id, oauth_provider,
+                     email_verified, email_verified_at, joined_at, last_active_at)
+                VALUES
+                    (:email, '', :username, :display_name, :avatar_url,
+                     :fid, 'facebook',
+                     TRUE, NOW(), NOW(), NOW())
+                RETURNING id
+            """),
+            {
+                "email": f_email,
+                "username": username,
+                "display_name": f_name or username,
+                "avatar_url": f_picture,
+                "fid": facebook_id,
+            },
+        ).mappings().first()
+    except IntegrityError:
+        raise HTTPException(status_code=503, detail="Could not create account, please try again")
+
+    if not new_row:
+        raise HTTPException(status_code=500, detail="Could not create user")
+
+    user_id = int(new_row["id"])
+    _grant_welcome_trial(db, user_id)  # welcome bonus: 14-day free Premium trial
+    jwt = create_token(user_id, 0)
+    _brevo_sync_user(db, user_id, event="user_registered")
+    return {
+        "access_token": jwt,
+        "id": user_id,
+        "email": f_email,
+        "name": f_name or username,
+        "username": username,
+        "avatar_url": f_picture,
+        "email_verified": True,
+        "needs_onboarding": True,
+    }
+
+
 # ── Telegram OAuth ────────────────────────────────────────────────────────────
 @router.post("/auth/telegram")
 def auth_telegram(
@@ -3870,6 +4073,7 @@ class MeOut(BaseModel):
     email_verified: bool = False
     telegram_id: Optional[int] = None
     google_linked: bool = False
+    facebook_linked: bool = False
 
     # Preferences
     voice_pref: str = "Random"
@@ -5121,7 +5325,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, COALESCE(best_streak, 0) AS best_streak FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, facebook_id, COALESCE(best_streak, 0) AS best_streak FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -5147,6 +5351,7 @@ def me_profile_get(
     streak = _compute_streak_days(db, int(user_id))
     payload = dict(row)
     payload["google_linked"] = bool(payload.pop("google_id", None))
+    payload["facebook_linked"] = bool(payload.pop("facebook_id", None))
     payload["total_xp"] = int(stats_row["total_xp"] or 0)
     payload["streak"] = int(streak)
     payload["best_streak"] = max(int(payload.get("best_streak") or 0), int(streak))
@@ -6401,7 +6606,7 @@ def me_profile_put(
             )
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, facebook_id FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -6415,6 +6620,7 @@ def me_profile_put(
 
     result = dict(row)
     result["google_linked"] = bool(result.pop("google_id", None))
+    result["facebook_linked"] = bool(result.pop("facebook_id", None))
     result["voice_pref"] = (ob_row or {}).get("voice_pref") or "Random"
     return MeOut(**result)
 
@@ -6605,6 +6811,117 @@ def me_unlink_google(
         )
 
     db.execute(text("UPDATE users SET google_id = NULL WHERE id = :u"), {"u": int(user_id)})
+    return {"ok": True}
+
+
+@router.post("/me/link/facebook")
+def me_link_facebook(
+    payload: Dict[str, Any] = Body(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Link a Facebook account to the currently authenticated user.
+
+    Exchanges the OAuth code (same flow as /auth/facebook), then stores the
+    facebook_id on the user's row. Returns 409 if the Facebook account is
+    already linked to a different Haylingua account.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    code = ((payload or {}).get("code") or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing OAuth code")
+
+    redirect_uri = (os.getenv("FACEBOOK_REDIRECT_URI") or "https://haylingua.am/auth/facebook/callback").strip()
+    app_id = os.getenv("FACEBOOK_APP_ID", "")
+    app_secret = os.getenv("FACEBOOK_APP_SECRET", "")
+    if not app_id or not app_secret:
+        raise HTTPException(status_code=503, detail="Facebook OAuth is not configured on this server")
+
+    # 1) Exchange code for an access token
+    try:
+        token_resp = httpx.get(
+            "https://graph.facebook.com/v19.0/oauth/access_token",
+            params={
+                "client_id": app_id,
+                "client_secret": app_secret,
+                "redirect_uri": redirect_uri,
+                "code": code,
+            },
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Facebook token exchange failed: {exc}")
+
+    if token_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Facebook rejected the authorization code")
+
+    access_token_fb = token_resp.json().get("access_token")
+    if not access_token_fb:
+        raise HTTPException(status_code=400, detail="No access token returned by Facebook")
+
+    # 2) Get user info from Facebook
+    try:
+        info_resp = httpx.get(
+            "https://graph.facebook.com/me",
+            params={"fields": "id", "access_token": access_token_fb},
+            timeout=10.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not fetch Facebook user info: {exc}")
+
+    if info_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to get user info from Facebook")
+
+    facebook_id = info_resp.json().get("id") or ""
+    if not facebook_id:
+        raise HTTPException(status_code=400, detail="Facebook did not return a valid user ID")
+
+    # Reject if this Facebook account is already linked to a *different* user
+    existing = db.execute(
+        text("SELECT id FROM users WHERE facebook_id = :fid AND id != :u LIMIT 1"),
+        {"fid": facebook_id, "u": int(user_id)},
+    ).scalar()
+    if existing:
+        raise HTTPException(status_code=409, detail="This Facebook account is already linked to another Haylingua account")
+
+    db.execute(
+        text("UPDATE users SET facebook_id = :fid, oauth_provider = COALESCE(oauth_provider, 'facebook') WHERE id = :u"),
+        {"fid": facebook_id, "u": int(user_id)},
+    )
+    _brevo_sync_user(db, int(user_id), event="facebook_linked")
+    return {"ok": True, "facebook_linked": True}
+
+
+@router.delete("/me/link/facebook")
+def me_unlink_facebook(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Remove the Facebook link from the current user's account.
+
+    Refuses if the user has no password set (Facebook is their only way in),
+    to avoid locking them out of their account.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    row = db.execute(
+        text("SELECT password_hash, telegram_id, google_id FROM users WHERE id = :u"),
+        {"u": int(user_id)},
+    ).mappings().first()
+    has_password = bool(row and (row.get("password_hash") or "").strip())
+    has_other_login = bool(row and (row.get("telegram_id") or row.get("google_id")))
+    if not has_password and not has_other_login:
+        raise HTTPException(
+            status_code=400,
+            detail="Set a password or link another provider before unlinking Facebook, so you don't lose access.",
+        )
+
+    db.execute(text("UPDATE users SET facebook_id = NULL WHERE id = :u"), {"u": int(user_id)})
     return {"ok": True}
 
 

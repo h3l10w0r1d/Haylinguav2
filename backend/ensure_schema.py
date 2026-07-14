@@ -419,16 +419,18 @@ def ensure_schema() -> None:
             """,
         )
 
-        # ---------- Google / Telegram OAuth ----------
+        # ---------- Google / Telegram / Facebook OAuth ----------
         add_col_if_missing("users", "google_id TEXT")
         add_col_if_missing("users", "telegram_id TEXT")
+        add_col_if_missing("users", "facebook_id TEXT")
         add_col_if_missing("users", "oauth_provider TEXT")
-        # Ensure google_id / telegram_id are unique.
+        # Ensure google_id / telegram_id / facebook_id are unique.
         # Each attempt needs its own savepoint: if the constraint already exists
         # PostgreSQL aborts the whole transaction, so a bare try/except is not enough.
         for constraint_sql, sp in [
             ("ALTER TABLE users ADD CONSTRAINT users_google_id_unique UNIQUE (google_id)", "sp_gid"),
             ("ALTER TABLE users ADD CONSTRAINT users_telegram_id_unique UNIQUE (telegram_id)", "sp_tid"),
+            ("ALTER TABLE users ADD CONSTRAINT users_facebook_id_unique UNIQUE (facebook_id)", "sp_fid"),
         ]:
             try:
                 conn.execute(text(f"SAVEPOINT {sp}"))

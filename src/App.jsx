@@ -581,7 +581,8 @@ function AppShell() {
       <Route path="/review"      element={<ReviewMode />} />
       <Route path="/vocabulary"  element={<VocabularyPage />} />
       <Route path="/progress"    element={<ProgressPage />} />
-      <Route path="/auth/google/callback" element={<AuthCallback />} />
+      <Route path="/auth/google/callback" element={<AuthCallback provider="google" />} />
+      <Route path="/auth/facebook/callback" element={<AuthCallback provider="facebook" />} />
       <Route path="/auth/telegram/callback" element={<TelegramCallback />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="*" element={<Navigate to="/" replace />} />

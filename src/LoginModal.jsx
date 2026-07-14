@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Turnstile from "./lib/Turnstile";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
+const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || "";
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "haylinguabot";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -15,6 +16,18 @@ function GoogleIcon() {
       <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
     </svg>
   );
+}
+
+function FacebookIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.309V9h2.285V7.017c0-2.256 1.344-3.502 3.4-3.502.985 0 2.015.176 2.015.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z" fill="#1877F2"/>
+    </svg>
+  );
+}
+
+function buildFacebookAuthUrl(state) {
+  return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/facebook/callback")}&response_type=code&scope=email,public_profile&state=${encodeURIComponent(state)}`;
 }
 
 export default function LoginModal({
@@ -143,7 +156,7 @@ export default function LoginModal({
         </div>
 
         {/* Social OAuth buttons */}
-        {(GOOGLE_CLIENT_ID || TELEGRAM_BOT_USERNAME) && (
+        {(GOOGLE_CLIENT_ID || FACEBOOK_APP_ID || TELEGRAM_BOT_USERNAME) && (
           <>
             <div className="grid grid-cols-2 gap-3 mb-2">
               {TELEGRAM_BOT_USERNAME && (
@@ -167,6 +180,20 @@ export default function LoginModal({
                 >
                   <GoogleIcon />
                   Google
+                </button>
+              )}
+              {FACEBOOK_APP_ID && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const state = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+                    sessionStorage.setItem("oauth_state", state);
+                    window.location.href = buildFacebookAuthUrl(state);
+                  }}
+                  className="col-span-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                >
+                  <FacebookIcon />
+                  Facebook
                 </button>
               )}
             </div>

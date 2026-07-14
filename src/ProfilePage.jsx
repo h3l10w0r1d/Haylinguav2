@@ -45,6 +45,7 @@ const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "hay
 const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
+const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || "";
 
 function getToken() {
   return (
@@ -244,6 +245,9 @@ export default function ProfilePage() {
   // Google linking
   const [googleLinked, setGoogleLinked] = useState(false);
 
+  // Facebook linking
+  const [facebookLinked, setFacebookLinked] = useState(false);
+
   // UX state
   const [tab, setTab] = useState("overview"); // overview | edit | appearance | security
   const [saving, setSaving] = useState(false);
@@ -343,6 +347,9 @@ export default function ProfilePage() {
           // Google link status
           setGoogleLinked(Boolean(data.google_linked));
 
+          // Facebook link status
+          setFacebookLinked(Boolean(data.facebook_linked));
+
           // Stats preview in header (safe fallbacks)
           setLevel(data.level || 1);
           setXp(data.xp || data.total_xp || 0);
@@ -418,6 +425,12 @@ export default function ProfilePage() {
       setTab("security");
       setMessage("Google account linked.");
       // Clean the query param so a refresh doesn't re-trigger the toast.
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (params.get("linked") === "facebook") {
+      setFacebookLinked(true);
+      setTab("security");
+      setMessage("Facebook account linked.");
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -1944,6 +1957,67 @@ export default function ProfilePage() {
                 ) : (
                   <p className="mt-3 text-xs font-semibold text-slate-400">
                     Google sign-in isn’t configured on this server.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Facebook account linking */}
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 md:col-span-2">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+              <svg width="18" height="18" viewBox="0 0 18 18" className="shrink-0" aria-hidden="true">
+                <path fill="#1877F2" d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.309V9h2.285V7.017c0-2.256 1.344-3.502 3.4-3.502.985 0 2.015.176 2.015.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z"/>
+              </svg>
+              Facebook
+            </div>
+
+            {facebookLinked ? (
+              <>
+                <button
+                  type="button"
+                  className="btn3d btn3d-neutral text-sm mt-2"
+                  onClick={async () => {
+                    try {
+                      const res = await apiFetch("/me/link/facebook", { token, method: "DELETE" });
+                      if (!res.ok) { const d = await safeJsonParse(res); throw new Error(d?.detail || "Failed to unlink"); }
+                      setFacebookLinked(false);
+                      setMessage("Facebook account unlinked.");
+                    } catch (e) {
+                      setMessage(String(e?.message || "Failed to unlink Facebook."));
+                    }
+                  }}
+                >
+                  Unlink Facebook
+                </button>
+                <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-grass-700">
+                  <Check className="h-4 w-4 shrink-0" />
+                  Linked — sign in with Facebook on any device.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-sm font-semibold text-slate-600">
+                  Link your Facebook account to sign in with one tap — no password needed.
+                </p>
+                {FACEBOOK_APP_ID ? (
+                  <button
+                    type="button"
+                    className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                    onClick={() => {
+                      const state = "link_" + (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+                      sessionStorage.setItem("oauth_state", state);
+                      window.location.href = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/facebook/callback")}&response_type=code&scope=email,public_profile&state=${encodeURIComponent(state)}`;
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                      <path fill="#1877F2" d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.309V9h2.285V7.017c0-2.256 1.344-3.502 3.4-3.502.985 0 2.015.176 2.015.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z"/>
+                    </svg>
+                    Link Facebook
+                  </button>
+                ) : (
+                  <p className="mt-3 text-xs font-semibold text-slate-400">
+                    Facebook sign-in isn’t configured on this server.
                   </p>
                 )}
               </>
