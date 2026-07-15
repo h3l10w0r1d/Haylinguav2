@@ -1,13 +1,38 @@
 // src/cms/CmsShell.jsx
 import { useEffect, useMemo, useState } from "react";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, FileText, ChevronUp, ChevronDown, Sparkles, Loader2, Check, X, Trash2, Upload, FileUp } from "lucide-react";
+import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, FileText, ChevronUp, ChevronDown, Sparkles, Loader2, Check, X, Trash2, Upload, FileUp, AlertTriangle } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import LessonEditor from "./LessonEditor";
 import ExerciseEditor from "./ExerciseEditor";
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
+}
+
+// First-attempt fail rate for one exercise, so a content quality problem is
+// visible right in the list — not buried behind a trip to Analytics. Silent
+// (renders nothing) below a minimum sample size; a fail rate computed from
+// 1-2 attempts is noise, not signal.
+const MIN_FAIL_RATE_SAMPLE = 5;
+function FailRateBadge({ stats }) {
+  if (!stats || stats.first_attempts < MIN_FAIL_RATE_SAMPLE || stats.fail_rate_pct == null) return null;
+  const pct = stats.fail_rate_pct;
+  const tone =
+    pct >= 60
+      ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200"
+      : pct >= 30
+      ? "bg-amber-50 text-amber-700 ring-amber-200"
+      : "bg-grass-50 text-grass-700 ring-grass-200";
+  return (
+    <span
+      title={`${stats.first_attempts} first attempts, ${pct}% missed on the first try`}
+      className={cx("inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-extrabold ring-1", tone)}
+    >
+      {pct >= 30 ? <AlertTriangle className="h-3 w-3" /> : null}
+      {pct}% miss
+    </span>
+  );
 }
 
 function LessonRow({ lesson, active, onClick }) {
@@ -556,6 +581,7 @@ export default function CmsShell() {
 
   const [lessons, setLessons] = useState([]);
   const [exercises, setExercises] = useState([]);
+  const [exerciseStats, setExerciseStats] = useState({}); // exercise_id -> {attempts, first_attempts, fail_rate_pct}
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [creatingLesson, setCreatingLesson] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
@@ -577,9 +603,17 @@ export default function CmsShell() {
   }
 
   async function refreshExercises(lessonId) {
-    if (!lessonId) return setExercises([]);
+    if (!lessonId) { setExercises([]); setExerciseStats({}); return; }
     const data = await api.listExercises(lessonId);
     setExercises(Array.isArray(data) ? data : []);
+    // Best-effort — a stats fetch failure shouldn't block the exercise list.
+    try {
+      const stats = await api.getLessonExerciseStats(lessonId);
+      const byId = Object.fromEntries((Array.isArray(stats) ? stats : []).map((s) => [s.exercise_id, s]));
+      setExerciseStats(byId);
+    } catch {
+      setExerciseStats({});
+    }
   }
 
   async function moveExercise(idx, dir) {
@@ -907,7 +941,10 @@ export default function CmsShell() {
                                 </div>
                               </div>
                             </div>
-                            <span className="shrink-0 font-mono text-xs text-slate-300">id:{ex.id}</span>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <FailRateBadge stats={exerciseStats[ex.id]} />
+                              <span className="font-mono text-xs text-slate-300">id:{ex.id}</span>
+                            </div>
                           </button>
                         </div>
                       ))}

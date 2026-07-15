@@ -1044,9 +1044,29 @@ def _compute_streak_days(db: Connection, user_id: int) -> int:
             {"n": len(newly), "fd": json.dumps(merged), "u": user_id},
         )
 
-    # Persist best streak lazily whenever the current streak exceeds the stored max
+    # Persist best streak lazily whenever the current streak exceeds the stored max.
+    # Also persist current_streak itself: it used to only ever be written by the
+    # "Streak Repair" shop purchase (one narrow code path), so for anyone who
+    # never bought that item the column sat at its DEFAULT 0 forever while this
+    # function (the actual, live source of truth) was recomputing the real
+    # streak fresh on every request without saving it. Several other things read
+    # users.current_streak directly instead of calling this function — the
+    # streak-at-risk reminder cron jobs (email + Telegram), which filter on
+    # `current_streak > 0`, the Brevo marketing sync attributes, and the CMS
+    # learner detail view — and all of them were silently seeing 0 for
+    # virtually every user, since nothing kept the column in sync. Reminders
+    # are necessarily "as of your last visit" (a cron job checking millions of
+    # rows can't recompute this live from attempts for every user), which is
+    # fine here: this write happens every time the value is computed, so it's
+    # only ever stale by however long it's been since the user last opened
+    # the app — exactly the staleness window the reminder is trying to catch.
     db.execute(
-        text("UPDATE users SET best_streak = GREATEST(COALESCE(best_streak, 0), :s) WHERE id = :u"),
+        text("""
+            UPDATE users
+            SET best_streak = GREATEST(COALESCE(best_streak, 0), :s),
+                current_streak = :s
+            WHERE id = :u
+        """),
         {"s": streak, "u": user_id},
     )
     return streak
@@ -1257,10 +1277,10 @@ def friends_list(
                 u.username,
                 u.display_name,
                 u.avatar_url,
-                COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+                COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url
+              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.bonus_xp
             ), ranked AS (
               SELECT
                 xp.*,
@@ -7864,10 +7884,10 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 u.email AS email,
                 u.username AS username,
                 u.avatar_url AS avatar_url,
-                COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+                COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
             FROM users u
             LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-            GROUP BY u.id, u.email, u.username, u.avatar_url
+            GROUP BY u.id, u.email, u.username, u.avatar_url, u.bonus_xp
             ORDER BY total_xp DESC, u.id ASC
             LIMIT :limit
             """
@@ -10320,6 +10340,48 @@ def cms_list_exercises(lesson_id: int, request: Request, db=Depends(get_db)):
     """)
     rows = db.execute(q, {"lesson_id": lesson_id}).mappings().all()
     return [dict(r) for r in rows]
+
+@router.get("/cms/lessons/{lesson_id}/exercise-stats")
+def cms_lesson_exercise_stats(lesson_id: int, request: Request, db=Depends(get_db)):
+    """Per-exercise fail rate for this lesson, surfaced right next to the
+    editor so content quality issues are visible where you'd fix them —
+    rather than requiring a trip to the separate Analytics tab. Based on
+    FIRST-attempt correctness only: a student retrying after a mistake
+    doesn't indicate the exercise itself is the problem the way a high
+    first-try failure rate does."""
+    require_cms(request, db)
+    rows = db.execute(
+        text(
+            """
+            SELECT
+              e.id AS exercise_id,
+              COUNT(a.id) AS attempts,
+              COUNT(a.id) FILTER (WHERE a.attempt_no = 1) AS first_attempts,
+              COUNT(a.id) FILTER (WHERE a.attempt_no = 1 AND a.is_correct) AS first_attempts_correct
+            FROM exercises e
+            LEFT JOIN user_exercise_attempts a ON a.exercise_id = e.id
+            WHERE e.lesson_id = :lid
+            GROUP BY e.id
+            """
+        ),
+        {"lid": lesson_id},
+    ).mappings().all()
+
+    out = []
+    for r in rows:
+        first_attempts = int(r["first_attempts"] or 0)
+        first_correct = int(r["first_attempts_correct"] or 0)
+        fail_rate_pct = round(100 * (1 - first_correct / first_attempts), 1) if first_attempts > 0 else None
+        out.append(
+            {
+                "exercise_id": int(r["exercise_id"]),
+                "attempts": int(r["attempts"] or 0),
+                "first_attempts": first_attempts,
+                "fail_rate_pct": fail_rate_pct,
+            }
+        )
+    return out
+
 
 @router.get("/cms/exercises/{exercise_id}")
 def cms_get_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
