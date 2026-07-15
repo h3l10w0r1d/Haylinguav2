@@ -139,6 +139,11 @@ export function createCmsApi(accessToken) {
       method: "POST",
       body: JSON.stringify({ topic, kinds, count }),
     });
+  const bulkImportLessons = (rows) =>
+    req("/cms/lessons/bulk-import", {
+      method: "POST",
+      body: JSON.stringify({ rows }),
+    });
   const getLessonPreviewLink = (lessonId) =>
     req(`/cms/lessons/${lessonId}/preview-link`, { method: "POST" });
 
@@ -208,6 +213,7 @@ export function createCmsApi(accessToken) {
     updateExercise,
     deleteExercise,
     generateExercises,
+    bulkImportLessons,
     getLessonPreviewLink,
     listOptions,
     createOption,

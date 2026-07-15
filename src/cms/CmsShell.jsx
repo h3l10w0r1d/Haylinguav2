@@ -1,7 +1,7 @@
 // src/cms/CmsShell.jsx
 import { useEffect, useMemo, useState } from "react";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, FileText, ChevronUp, ChevronDown, Sparkles, Loader2, Check, X, Trash2 } from "lucide-react";
+import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, FileText, ChevronUp, ChevronDown, Sparkles, Loader2, Check, X, Trash2, Upload, FileUp } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import LessonEditor from "./LessonEditor";
 import ExerciseEditor from "./ExerciseEditor";
@@ -340,6 +340,213 @@ function AiExerciseGenerator({ api, lessonId, onAdded, showToast }) {
   );
 }
 
+// Small dependency-free CSV parser — handles quoted fields (with escaped
+// "" quotes and embedded commas/newlines), which is enough for lessons
+// pasted out of a spreadsheet without pulling in a library for one screen.
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  const pushField = () => { row.push(field); field = ""; };
+  const pushRow = () => { pushField(); rows.push(row); row = []; };
+  const s = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      pushField();
+    } else if (c === "\n") {
+      pushRow();
+    } else {
+      field += c;
+    }
+  }
+  if (field !== "" || row.length) pushRow();
+  return rows.filter((r) => r.length > 1 || (r[0] || "").trim() !== "");
+}
+
+const BULK_IMPORT_COLUMNS = ["chapter", "title", "slug", "level", "xp", "description"];
+
+function rowsFromCsv(text) {
+  const table = parseCsv(text);
+  if (table.length === 0) return [];
+  const header = table[0].map((h) => h.trim().toLowerCase());
+  const idx = Object.fromEntries(BULK_IMPORT_COLUMNS.map((c) => [c, header.indexOf(c)]));
+  return table.slice(1).map((cells) => ({
+    chapter: idx.chapter >= 0 ? (cells[idx.chapter] || "").trim() : "",
+    title: idx.title >= 0 ? (cells[idx.title] || "").trim() : "",
+    slug: idx.slug >= 0 ? (cells[idx.slug] || "").trim() : "",
+    level: idx.level >= 0 && cells[idx.level] ? Number(cells[idx.level]) || null : null,
+    xp: idx.xp >= 0 && cells[idx.xp] ? Number(cells[idx.xp]) || null : null,
+    description: idx.description >= 0 ? (cells[idx.description] || "").trim() : "",
+  }));
+}
+
+function BulkImportPanel({ api, onDone, onClose, showToast }) {
+  const [csvText, setCsvText] = useState("");
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [results, setResults] = useState(null);
+
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCsvText(String(reader.result || ""));
+    reader.readAsText(file);
+  }
+
+  function preview() {
+    const parsed = rowsFromCsv(csvText);
+    setRows(parsed);
+    setResults(null);
+    if (parsed.length === 0) showToast?.("No rows found — check the CSV has a header row with at least 'title'", "err");
+  }
+
+  async function runImport() {
+    const validRows = (rows || []).filter((r) => r.title);
+    if (validRows.length === 0) return;
+    setBusy(true);
+    try {
+      const res = await api.bulkImportLessons(validRows);
+      setResults(res);
+      if (res.created > 0) {
+        showToast?.(`Imported ${res.created}/${res.total} lessons`);
+        onDone?.();
+      }
+    } catch (e) {
+      showToast?.(e.message || "Import failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const missingTitleCount = (rows || []).filter((r) => !r.title).length;
+
+  return (
+    <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-display text-lg font-bold text-slate-900">Bulk import lessons</div>
+          <p className="mt-1 text-sm text-slate-600">
+            CSV with columns: <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">chapter, title, slug, level, xp, description</code>.
+            Only <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">title</code> is required — a missing chapter is auto-created (as draft),
+            a missing slug is generated from the title. Lessons import as drafts; add exercises after.
+          </p>
+        </div>
+        <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <label className="btn3d btn3d-neutral text-sm !py-2 inline-flex items-center gap-2 cursor-pointer">
+          <Upload className="h-4 w-4" /> Upload CSV
+          <input type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
+        </label>
+        <span className="text-xs font-semibold text-slate-400">or paste below</span>
+      </div>
+
+      <textarea
+        value={csvText}
+        onChange={(e) => { setCsvText(e.target.value); setRows(null); setResults(null); }}
+        placeholder={"chapter,title,slug,level,xp,description\nGreetings,Say hello,say-hello,1,10,Greetings basics\nGreetings,Introduce yourself,,1,10,"}
+        rows={6}
+        className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-mono text-xs text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+      />
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={preview}
+          disabled={!csvText.trim()}
+          className="btn3d btn3d-neutral text-sm !py-2 disabled:opacity-60"
+        >
+          Preview
+        </button>
+        {rows && rows.length > 0 && (
+          <button
+            type="button"
+            onClick={runImport}
+            disabled={busy || rows.every((r) => !r.title)}
+            className="btn3d btn3d-brand text-sm !py-2 inline-flex items-center gap-2 disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+            {busy ? "Importing…" : `Import ${rows.filter((r) => r.title).length} lesson${rows.filter((r) => r.title).length === 1 ? "" : "s"}`}
+          </button>
+        )}
+      </div>
+
+      {rows && !results && (
+        <div className="rounded-2xl ring-1 ring-slate-200 overflow-hidden">
+          {missingTitleCount > 0 && (
+            <div className="bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700">
+              {missingTitleCount} row{missingTitleCount === 1 ? "" : "s"} missing a title — will be skipped.
+            </div>
+          )}
+          <div className="max-h-64 overflow-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-slate-50 text-slate-500">
+                <tr>
+                  {BULK_IMPORT_COLUMNS.map((c) => (
+                    <th key={c} className="px-3 py-2 font-extrabold uppercase tracking-wide">{c}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className={cx("border-t border-slate-100", !r.title && "bg-cardinal-50/40")}>
+                    <td className="px-3 py-1.5 text-slate-600">{r.chapter || "—"}</td>
+                    <td className="px-3 py-1.5 font-semibold text-slate-800">{r.title || "(missing)"}</td>
+                    <td className="px-3 py-1.5 font-mono text-slate-500">{r.slug || "(auto)"}</td>
+                    <td className="px-3 py-1.5 text-slate-600">{r.level ?? "1"}</td>
+                    <td className="px-3 py-1.5 text-slate-600">{r.xp ?? "10"}</td>
+                    <td className="px-3 py-1.5 text-slate-500">{r.description || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {results && (
+        <div className="space-y-2">
+          <div className="text-sm font-extrabold text-slate-800">
+            Imported {results.created} of {results.total}
+          </div>
+          <div className="max-h-64 overflow-auto rounded-2xl ring-1 ring-slate-200">
+            {results.results.map((r) => (
+              <div
+                key={r.row}
+                className={cx(
+                  "flex items-center justify-between gap-2 px-3 py-2 text-xs border-t border-slate-100 first:border-t-0",
+                  r.status === "created" ? "text-grass-700" : "text-cardinal-700 bg-cardinal-50/40"
+                )}
+              >
+                <span>Row {r.row + 1}{r.slug ? ` — ${r.slug}` : ""}</span>
+                <span className="font-semibold">{r.status === "created" ? "Created" : r.error}</span>
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={onClose} className="btn3d btn3d-brand text-sm !py-2">
+            Done
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CmsShell() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
@@ -351,6 +558,7 @@ export default function CmsShell() {
   const [exercises, setExercises] = useState([]);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [creatingLesson, setCreatingLesson] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [tab, setTab] = useState("settings"); // "settings" | "exercises"
   const [exEditing, setExEditing] = useState(null); // null (list) | "new" | exerciseId
   const [query, setQuery] = useState("");
@@ -447,24 +655,35 @@ export default function CmsShell() {
   function openAllLessons() {
     setSelectedLessonId(null);
     setCreatingLesson(false);
+    setBulkImportOpen(false);
     setExEditing(null);
   }
   function selectLesson(id) {
     setSelectedLessonId(id);
     setCreatingLesson(false);
+    setBulkImportOpen(false);
     setTab("settings");
     setExEditing(null);
   }
   function startNewLesson() {
     setSelectedLessonId(null);
     setCreatingLesson(true);
+    setBulkImportOpen(false);
+    setExEditing(null);
+  }
+  function openBulkImport() {
+    setSelectedLessonId(null);
+    setCreatingLesson(false);
+    setBulkImportOpen(true);
     setExEditing(null);
   }
 
   // ---- breadcrumb ----
   const breadcrumb = useMemo(() => {
     const crumbs = [{ label: "Lessons", onClick: openAllLessons }];
-    if (creatingLesson) {
+    if (bulkImportOpen) {
+      crumbs.push({ label: "Bulk import" });
+    } else if (creatingLesson) {
       crumbs.push({ label: "New lesson" });
     } else if (selectedLesson) {
       crumbs.push({ label: selectedLesson.title, onClick: () => selectLesson(selectedLesson.id) });
@@ -476,12 +695,15 @@ export default function CmsShell() {
     }
     return crumbs;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [creatingLesson, selectedLesson, tab, exEditing, selectedExercise]);
+  }, [bulkImportOpen, creatingLesson, selectedLesson, tab, exEditing, selectedExercise]);
 
   const actions = (
     <>
       <button type="button" onClick={startNewLesson} className="btn3d btn3d-brand text-sm !py-2 inline-flex items-center gap-2">
         <Plus className="h-4 w-4" /> New lesson
+      </button>
+      <button type="button" onClick={openBulkImport} className="btn3d btn3d-neutral text-sm !py-2 inline-flex items-center gap-2">
+        <Upload className="h-4 w-4" /> Bulk import
       </button>
       <button
         type="button"
@@ -503,6 +725,16 @@ export default function CmsShell() {
 
   return (
     <CmsLayout active="lessons" title="Lessons" breadcrumb={breadcrumb} actions={actions}>
+      {bulkImportOpen ? (
+        <BulkImportPanel
+          api={api}
+          showToast={showToast}
+          onDone={async () => {
+            await refreshLessons(false);
+          }}
+          onClose={openAllLessons}
+        />
+      ) : (
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_1fr]">
         {/* ---------- LEFT: lessons list ---------- */}
         <div className="space-y-3">
@@ -719,6 +951,7 @@ export default function CmsShell() {
           )}
         </div>
       </div>
+      )}
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">

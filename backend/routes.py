@@ -10078,6 +10078,110 @@ def cms_list_lessons(request: Request, db=Depends(get_db)):
     rows = db.execute(q).mappings().all()
     return [dict(r) for r in rows]
 
+class BulkImportLessonRow(BaseModel):
+    chapter: Optional[str] = None
+    title: str
+    slug: Optional[str] = None
+    level: Optional[int] = None
+    xp: Optional[int] = None
+    description: Optional[str] = None
+
+
+class BulkImportLessonsIn(BaseModel):
+    rows: List[BulkImportLessonRow]
+
+
+@router.post("/cms/lessons/bulk-import")
+async def cms_bulk_import_lessons(payload: BulkImportLessonsIn, request: Request, db=Depends(get_db)):
+    """CSV/spreadsheet -> lessons, scoped to lesson metadata only (not
+    exercises — their config shape varies too much per kind to fit a flat
+    CSV row; use the AI generator or the normal editor for those). Each row
+    is created inside its own SAVEPOINT so one bad row (duplicate slug,
+    missing title, ...) doesn't roll back the rest of a large batch — the
+    request's outer transaction (see database.get_db) would otherwise abort
+    entirely on the first failed INSERT."""
+    require_cms(request, db)
+    if not payload.rows:
+        raise HTTPException(status_code=400, detail="rows is required")
+    if len(payload.rows) > 500:
+        raise HTTPException(status_code=400, detail="Max 500 rows per import")
+
+    chapter_cache: Dict[str, int] = {}
+
+    def get_or_create_chapter(title: str) -> int:
+        key = title.strip().lower()
+        if key in chapter_cache:
+            return chapter_cache[key]
+        row = db.execute(
+            text("SELECT id FROM chapters WHERE LOWER(title) = :t LIMIT 1"), {"t": key}
+        ).mappings().first()
+        if row:
+            chapter_cache[key] = int(row["id"])
+            return chapter_cache[key]
+        pos = db.execute(text("SELECT COALESCE(MAX(position), 0) + 1 FROM chapters")).scalar() or 1
+        # Draft by default, same as everywhere else — a chapter auto-created
+        # mid-import shouldn't appear on the live roadmap until reviewed.
+        new_id = db.execute(
+            text(
+                "INSERT INTO chapters (title, description, position, is_published) "
+                "VALUES (:t, '', :p, FALSE) RETURNING id"
+            ),
+            {"t": title.strip(), "p": int(pos)},
+        ).scalar_one()
+        chapter_cache[key] = int(new_id)
+        return int(new_id)
+
+    results: list[dict] = []
+    for i, row in enumerate(payload.rows):
+        title = (row.title or "").strip()
+        if not title:
+            results.append({"row": i, "status": "error", "error": "title is required"})
+            continue
+
+        sp = f"sp_bulk_lesson_{i}"
+        try:
+            db.execute(text(f"SAVEPOINT {sp}"))
+
+            slug = (row.slug or "").strip()
+            if not slug:
+                slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "lesson"
+            base_slug, n = slug, 1
+            while db.execute(text("SELECT 1 FROM lessons WHERE slug = :s"), {"s": slug}).scalar():
+                n += 1
+                slug = f"{base_slug}-{n}"
+
+            chapter_id = get_or_create_chapter(row.chapter) if (row.chapter or "").strip() else None
+            level = int(row.level) if row.level else 1
+            xp = int(row.xp) if row.xp else 10
+
+            new_id = db.execute(
+                text(
+                    """
+                    INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published, lesson_type, config, chapter_id)
+                    VALUES (:slug, :title, :description, :level, :xp, :xp, FALSE, 'standard', '{}'::jsonb, :chapter_id)
+                    RETURNING id
+                    """
+                ),
+                {
+                    "slug": slug,
+                    "title": title,
+                    "description": (row.description or "").strip(),
+                    "level": level,
+                    "xp": xp,
+                    "chapter_id": chapter_id,
+                },
+            ).scalar_one()
+
+            db.execute(text(f"RELEASE SAVEPOINT {sp}"))
+            results.append({"row": i, "status": "created", "lesson_id": int(new_id), "slug": slug})
+        except Exception as exc:
+            db.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
+            results.append({"row": i, "status": "error", "error": str(exc)[:200]})
+
+    created = sum(1 for r in results if r["status"] == "created")
+    return {"created": created, "total": len(payload.rows), "results": results}
+
+
 @router.post("/cms/lessons")
 async def cms_create_lesson(request: Request, db=Depends(get_db)):
     require_cms(request, db)
