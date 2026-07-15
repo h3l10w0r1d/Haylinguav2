@@ -13,9 +13,18 @@
 @layer base {
   html {
     font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
+    /* Some in-app browsers (Instagram/TikTok/Facebook's embedded WebView)
+       mis-report the layout viewport width, which can leave a blank gutter
+       or trigger horizontal scroll. Pinning width and clipping overflow-x
+       here is a cheap, harmless guard against that class of bug regardless
+       of root cause. */
+    width: 100%;
+    overflow-x: hidden;
   }
   body {
     @apply text-slate-800 antialiased;
+    width: 100%;
+    overflow-x: hidden;
   }
   h1, h2, h3, .font-display {
     font-family: "Baloo 2", "Nunito", ui-rounded, system-ui, sans-serif;
