@@ -5579,7 +5579,12 @@ def me_activity(
 ):
     """
     Returns daily counts for the last N days (default 7).
-    Currently counts LESSON completions (lesson_progress rows).
+    Counts exercise attempts (user_exercise_attempts rows) — the same source
+    _compute_streak_days uses to decide whether a day counts toward the
+    streak. This used to count full LESSON completions (lesson_progress)
+    instead, so a day where you practiced but didn't finish a whole lesson
+    correctly incremented the streak number while leaving that day's dot
+    dark — the streak widget disagreeing with itself.
     Output:
       [{"day":"M","value":2}, ...]
     """
@@ -5600,12 +5605,12 @@ def me_activity(
         text(
             """
             SELECT
-              DATE(completed_at) AS d,
+              DATE(created_at) AS d,
               COUNT(*)::int AS c
-            FROM lesson_progress
+            FROM user_exercise_attempts
             WHERE user_id = :user_id
-              AND completed_at >= :start_dt
-            GROUP BY DATE(completed_at)
+              AND created_at >= :start_dt
+            GROUP BY DATE(created_at)
             ORDER BY d ASC
             """
         ),
@@ -9381,16 +9386,18 @@ def public_user_activity(
     today = datetime.utcnow().date()
     start = today - timedelta(days=days - 1)
 
+    # Same source as _compute_streak_days / /me/activity — see that function's
+    # docstring for why this isn't lesson_progress.completed_at.
     rows = db.execute(
         text(
             """
             SELECT
-              DATE(completed_at) AS d,
+              DATE(created_at) AS d,
               COUNT(*)::int AS c
-            FROM lesson_progress
+            FROM user_exercise_attempts
             WHERE user_id = :user_id
-              AND completed_at >= :start_dt
-            GROUP BY DATE(completed_at)
+              AND created_at >= :start_dt
+            GROUP BY DATE(created_at)
             ORDER BY d ASC
             """
         ),
@@ -10350,6 +10357,149 @@ def cms_delete_exercise(exercise_id: int, request: Request, db=Depends(get_db)):
     return {"ok": True}
 
 
+# -------------------- AI-assisted exercise generation --------------------
+# Scoped to 4 well-understood exercise kinds (out of ~28 total) so the
+# model's JSON output can be reliably validated against a known config
+# shape before ever reaching the editor — better to generate fewer kinds
+# well than all of them unreliably.
+AI_EXERCISE_KINDS = {"translate_mcq", "true_false", "word_bank", "flashcard"}
+
+_AI_EXERCISE_DEFAULT_PROMPT = {
+    "translate_mcq": "Translate this sentence",
+    "true_false": "True or false?",
+    "word_bank": "Tap the words to translate this sentence",
+    "flashcard": "Learn this word",
+}
+
+_AI_EXERCISE_SYSTEM_PROMPT = """You are an Armenian-language curriculum writer for Haylingua, an app that teaches Armenian to English speakers. Generate beginner-friendly exercises for the given topic or vocabulary list.
+
+Output STRICT JSON only (no prose, no markdown fences), matching exactly this shape:
+{"exercises": [
+  {"kind": "translate_mcq" | "true_false" | "word_bank" | "flashcard", "prompt": "short instruction shown above the exercise", "xp": 10, "config": { ...kind-specific fields, see below... }}
+]}
+
+Kind-specific "config" fields:
+- translate_mcq: {"sentence": "English sentence to translate", "choices": ["Armenian option", ...4 total, one correct], "answerIndex": 0-based index of the correct choice}
+- true_false: {"statement": "a statement in Armenian (or about Armenian) the learner judges", "correct": true or false}
+- word_bank: {"sentence": "English sentence to translate", "tiles": ["Armenian word", ...include 2-3 extra distractor words not in the solution], "solution": ["Armenian word", ...in correct order, every one must also appear in tiles]}
+- flashcard: {"front": "Armenian word or short phrase", "back": "English translation", "hint": "optional short hint, or omit"}
+
+Rules: use real Armenian script (Հայերեն), never transliteration. Keep everything beginner-appropriate and directly grounded in the given topic/vocabulary. Don't repeat the same word or sentence across exercises. Return exactly the requested count, spread across only the allowed kinds listed in the user message."""
+
+
+class AiGenerateExercisesIn(BaseModel):
+    topic: str
+    kinds: Optional[List[str]] = None
+    count: int = 6
+
+
+@router.post("/cms/ai/generate-exercises")
+async def cms_ai_generate_exercises(payload: AiGenerateExercisesIn, request: Request, db=Depends(get_db)):
+    """Generate draft exercises from a topic/vocab list via GPT-4o. Returns
+    them for CMS review/editing — nothing is persisted here; the admin adds
+    accepted drafts individually through the existing POST /cms/exercises."""
+    require_cms(request, db)
+    if not _EXPLAIN_OPENAI_KEY:
+        raise HTTPException(status_code=503, detail="AI generation is not available: OPENAI_API_KEY is not configured.")
+
+    topic = (payload.topic or "").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="topic is required")
+    if len(topic) > 2000:
+        raise HTTPException(status_code=400, detail="topic is too long (max 2000 characters)")
+
+    count = max(1, min(int(payload.count or 6), 15))
+    kinds = [k for k in (payload.kinds or []) if k in AI_EXERCISE_KINDS] or sorted(AI_EXERCISE_KINDS)
+
+    user_msg = (
+        f"Topic / vocabulary: {topic}\n"
+        f"Allowed exercise kinds: {', '.join(kinds)}\n"
+        f"Number of exercises to generate: {count}"
+    )
+
+    try:
+        resp = httpx.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {_EXPLAIN_OPENAI_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "gpt-4o",
+                "max_tokens": 2500,
+                "temperature": 0.6,
+                "response_format": {"type": "json_object"},
+                "messages": [
+                    {"role": "system", "content": _AI_EXERCISE_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg},
+                ],
+            },
+            timeout=45,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI generation request failed: {exc}")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="AI generation failed — please try again.")
+
+    raw = ((resp.json().get("choices") or [{}])[0].get("message", {}).get("content") or "").strip()
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=502, detail="AI returned malformed output — please try again.")
+
+    raw_exercises = parsed.get("exercises") if isinstance(parsed, dict) else None
+    if not isinstance(raw_exercises, list):
+        raise HTTPException(status_code=502, detail="AI returned no exercises — please try again.")
+
+    out: list[dict] = []
+    for item in raw_exercises:
+        if not isinstance(item, dict):
+            continue
+        kind = item.get("kind")
+        if kind not in kinds:
+            continue
+        cfg = item.get("config")
+        if not isinstance(cfg, dict):
+            continue
+
+        # Minimal per-kind shape validation so a malformed row doesn't
+        # silently reach the editor looking "generated" when it can't
+        # actually render or grade correctly.
+        if kind == "translate_mcq":
+            choices = cfg.get("choices")
+            idx = cfg.get("answerIndex")
+            if not (cfg.get("sentence") and isinstance(choices, list) and len(choices) >= 2):
+                continue
+            if not isinstance(idx, int) or not (0 <= idx < len(choices)):
+                continue
+        elif kind == "true_false":
+            if not cfg.get("statement") or not isinstance(cfg.get("correct"), bool):
+                continue
+        elif kind == "word_bank":
+            tiles, solution = cfg.get("tiles"), cfg.get("solution")
+            if not (cfg.get("sentence") and isinstance(tiles, list) and isinstance(solution, list) and solution):
+                continue
+        elif kind == "flashcard":
+            if not cfg.get("front") or not cfg.get("back"):
+                continue
+        else:
+            continue
+
+        out.append(
+            {
+                "kind": kind,
+                "prompt": str(item.get("prompt") or "").strip() or _AI_EXERCISE_DEFAULT_PROMPT.get(kind, ""),
+                "expected_answer": None,
+                "xp": max(0, min(int(item.get("xp") or 10), 100)),
+                "config": cfg,
+            }
+        )
+
+    if not out:
+        raise HTTPException(status_code=502, detail="AI did not return any usable exercises — try rephrasing the topic.")
+
+    return {"exercises": out[:count]}
 
 
 

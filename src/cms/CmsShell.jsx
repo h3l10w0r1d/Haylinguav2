@@ -1,7 +1,7 @@
 // src/cms/CmsShell.jsx
 import { useEffect, useMemo, useState } from "react";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, FileText, ChevronUp, ChevronDown } from "lucide-react";
+import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, FileText, ChevronUp, ChevronDown, Sparkles, Loader2, Check, X, Trash2 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import LessonEditor from "./LessonEditor";
 import ExerciseEditor from "./ExerciseEditor";
@@ -55,6 +55,288 @@ function SubTab({ active, onClick, icon: Icon, children }) {
       <Icon className="h-4 w-4" />
       {children}
     </button>
+  );
+}
+
+const AI_KIND_LABEL = {
+  translate_mcq: "Translate MCQ",
+  true_false: "True/False",
+  word_bank: "Word bank",
+  flashcard: "Flashcard",
+};
+
+function csvToList(v) {
+  return String(v || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+// Compact, per-kind mini-editor for a single AI-generated draft — full
+// editability without pulling in ExerciseEditor's whole config UI. Once
+// added, the exercise can still be refined in the normal editor.
+function AiDraftCard({ draft, onChange, onAdd, onRemove, adding }) {
+  const { kind, prompt, xp, config } = draft;
+
+  function patchConfig(patch) {
+    onChange({ ...draft, config: { ...config, ...patch } });
+  }
+
+  return (
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-extrabold text-brand-700 ring-1 ring-brand-200">
+          {AI_KIND_LABEL[kind] || kind}
+        </span>
+        <button type="button" onClick={onRemove} className="text-slate-400 hover:text-cardinal-600" title="Discard">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <input
+        value={prompt}
+        onChange={(e) => onChange({ ...draft, prompt: e.target.value })}
+        placeholder="Instruction shown above the exercise"
+        className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+      />
+
+      {kind === "translate_mcq" && (
+        <div className="space-y-2">
+          <input
+            value={config.sentence || ""}
+            onChange={(e) => patchConfig({ sentence: e.target.value })}
+            placeholder="Sentence to translate"
+            className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          />
+          {(config.choices || []).map((c, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="radio"
+                checked={Number(config.answerIndex) === i}
+                onChange={() => patchConfig({ answerIndex: i })}
+                className="accent-brand-500"
+              />
+              <input
+                value={c}
+                onChange={(e) => {
+                  const next = [...(config.choices || [])];
+                  next[i] = e.target.value;
+                  patchConfig({ choices: next });
+                }}
+                className="w-full rounded-xl bg-slate-50 px-3 py-1.5 text-sm ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {kind === "true_false" && (
+        <div className="space-y-2">
+          <input
+            value={config.statement || ""}
+            onChange={(e) => patchConfig({ statement: e.target.value })}
+            placeholder="Statement"
+            className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          />
+          <div className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+            <label className="flex items-center gap-1.5">
+              <input type="radio" checked={config.correct === true} onChange={() => patchConfig({ correct: true })} className="accent-brand-500" /> True
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="radio" checked={config.correct === false} onChange={() => patchConfig({ correct: false })} className="accent-brand-500" /> False
+            </label>
+          </div>
+        </div>
+      )}
+
+      {kind === "word_bank" && (
+        <div className="space-y-2">
+          <input
+            value={config.sentence || ""}
+            onChange={(e) => patchConfig({ sentence: e.target.value })}
+            placeholder="Sentence to translate"
+            className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          />
+          <input
+            defaultValue={(config.tiles || []).join(", ")}
+            onBlur={(e) => patchConfig({ tiles: csvToList(e.target.value) })}
+            placeholder="Word tiles, comma-separated (include a couple distractors)"
+            className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          />
+          <input
+            defaultValue={(config.solution || []).join(", ")}
+            onBlur={(e) => patchConfig({ solution: csvToList(e.target.value) })}
+            placeholder="Correct answer, in order, comma-separated"
+            className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          />
+        </div>
+      )}
+
+      {kind === "flashcard" && (
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            value={config.front || ""}
+            onChange={(e) => patchConfig({ front: e.target.value })}
+            placeholder="Front (Armenian)"
+            className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          />
+          <input
+            value={config.back || ""}
+            onChange={(e) => patchConfig({ back: e.target.value })}
+            placeholder="Back (English)"
+            className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          />
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+          XP
+          <input
+            type="number"
+            value={xp}
+            onChange={(e) => onChange({ ...draft, xp: Number(e.target.value) || 0 })}
+            className="w-16 rounded-lg bg-slate-50 px-2 py-1 text-xs ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={adding}
+          className="btn3d btn3d-brand text-xs !py-1.5 inline-flex items-center gap-1.5 disabled:opacity-60"
+        >
+          {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+          Add to lesson
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AiExerciseGenerator({ api, lessonId, onAdded, showToast }) {
+  const [open, setOpen] = useState(false);
+  const [topic, setTopic] = useState("");
+  const [count, setCount] = useState(6);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [drafts, setDrafts] = useState(null);
+  const [addingId, setAddingId] = useState(null);
+
+  async function generate() {
+    const t = topic.trim();
+    if (!t) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const res = await api.generateExercises(t, null, Number(count) || 6);
+      const list = Array.isArray(res?.exercises) ? res.exercises : [];
+      setDrafts(list.map((e, i) => ({ ...e, _id: `${Date.now()}-${i}` })));
+      if (list.length === 0) showToast?.("No exercises generated — try rephrasing the topic", "err");
+    } catch (e) {
+      setErr(e.message || "Generation failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function updateDraft(id, next) {
+    setDrafts((prev) => prev.map((d) => (d._id === id ? next : d)));
+  }
+  function removeDraft(id) {
+    setDrafts((prev) => prev.filter((d) => d._id !== id));
+  }
+
+  async function addDraft(d) {
+    setAddingId(d._id);
+    try {
+      const { _id, ...payload } = d;
+      await api.createExercise(lessonId, payload);
+      removeDraft(d._id);
+      onAdded?.();
+      showToast?.("Exercise added");
+    } catch (e) {
+      showToast?.(e.message || "Failed to add exercise", "err");
+    } finally {
+      setAddingId(null);
+    }
+  }
+
+  return (
+    <div className="rounded-3xl bg-gradient-to-br from-brand-50 to-white p-4 ring-1 ring-brand-100">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-2">
+        <div className="flex items-center gap-2 font-display text-sm font-extrabold text-slate-900">
+          <Sparkles className="h-4 w-4 text-brand-500" /> Generate with AI
+        </div>
+        {open ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+      </button>
+
+      {open && (
+        <div className="mt-4 space-y-3">
+          <textarea
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="Topic or vocab list, e.g. 'greetings: hello, goodbye, thank you, please, sorry'"
+            rows={2}
+            className="w-full rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:ring-brand-400 focus:outline-none"
+          />
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              Count
+              <input
+                type="number"
+                min={1}
+                max={15}
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+                className="w-16 rounded-xl bg-white px-2 py-1.5 text-sm ring-2 ring-slate-200 focus:ring-brand-400 focus:outline-none"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={generate}
+              disabled={busy || !topic.trim()}
+              className="btn3d btn3d-brand text-sm !py-2 inline-flex items-center gap-2 disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {busy ? "Generating…" : "Generate"}
+            </button>
+          </div>
+
+          {err && (
+            <div className="rounded-xl bg-cardinal-50 px-3 py-2 text-sm font-semibold text-cardinal-700 ring-1 ring-cardinal-200">
+              {err}
+            </div>
+          )}
+
+          {Array.isArray(drafts) && drafts.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
+                  {drafts.length} draft{drafts.length === 1 ? "" : "s"} — review before adding
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDrafts([])}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-cardinal-600"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Discard all
+                </button>
+              </div>
+              {drafts.map((d) => (
+                <AiDraftCard
+                  key={d._id}
+                  draft={d}
+                  onChange={(next) => updateDraft(d._id, next)}
+                  onAdd={() => addDraft(d)}
+                  onRemove={() => removeDraft(d._id)}
+                  adding={addingId === d._id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -336,6 +618,13 @@ export default function CmsShell() {
                       <Plus className="h-4 w-4" /> New exercise
                     </button>
                   </div>
+
+                  <AiExerciseGenerator
+                    api={api}
+                    lessonId={selectedLessonId}
+                    onAdded={() => refreshExercises(selectedLessonId)}
+                    showToast={showToast}
+                  />
 
                   {sortedExercises.length === 0 ? (
                     <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200 shadow-sm">
