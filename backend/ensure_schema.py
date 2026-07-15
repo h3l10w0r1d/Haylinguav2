@@ -247,6 +247,62 @@ def ensure_schema() -> None:
             )
         print("[ensure_schema] upserted shop_items catalogue")
 
+        # ---------- Premium pricing plans (CMS-editable, replaces the
+        # hardcoded single plan in src/Premium.jsx) ----------
+        ensure_table(
+            "pricing_plans",
+            """
+            CREATE TABLE pricing_plans (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                subtitle TEXT,
+                price INTEGER NOT NULL DEFAULT 0,
+                currency TEXT NOT NULL DEFAULT 'AMD',
+                interval TEXT NOT NULL DEFAULT 'month',
+                perks JSONB NOT NULL DEFAULT '[]'::jsonb,
+                badge_label TEXT,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        conn.execute(text("""
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'pricing_plans_title_unique' AND conrelid = 'pricing_plans'::regclass
+                ) THEN
+                    ALTER TABLE pricing_plans ADD CONSTRAINT pricing_plans_title_unique UNIQUE (title);
+                END IF;
+            END $$;
+        """))
+        _default_perks = (
+            "[\"Unlimited hearts — never wait to learn again\","
+            "\"Mistakes don't stop you mid-lesson\","
+            "\"Support Haylingua and help us build more\"]"
+        )
+        for t, sub, pr, iv, badge, so in [
+            ("Monthly", "Billed every month", 1490, "month", None, 1),
+            ("Annual", "Billed once a year", 12900, "year", "Best value · Save 28%", 2),
+        ]:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO pricing_plans (title, subtitle, price, interval, perks, badge_label, sort_order)
+                    VALUES (:t, :sub, :pr, :iv, CAST(:perks AS jsonb), :badge, :so)
+                    ON CONFLICT (title) DO NOTHING
+                    """
+                ),
+                {"t": t, "sub": sub, "pr": pr, "iv": iv, "perks": _default_perks, "badge": badge, "so": so},
+            )
+        print("[ensure_schema] seeded pricing_plans")
+
+        # Track which plan a (simulated, for now) premium purchase was for —
+        # no functional effect yet, but the data is captured ahead of real
+        # Stripe billing so historical purchases aren't lost.
+        add_col_if_missing("users", "premium_plan_id INTEGER")
+
         chest_existed = table_exists("chest_rewards")
         ensure_table(
             "chest_rewards",

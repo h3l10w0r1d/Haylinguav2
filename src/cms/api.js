@@ -103,6 +103,13 @@ export function createCmsApi(accessToken) {
   const updateShopItem = (id, payload) => req(`/cms/shop/items/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   const deleteShopItem = (id) => req(`/cms/shop/items/${id}`, { method: "DELETE" });
   const reorderShopItems = (order) => req("/cms/shop/items/reorder", { method: "POST", body: JSON.stringify({ order }) });
+
+  // Premium pricing plans
+  const listPremiumPlans = () => req("/cms/premium-plans");
+  const createPremiumPlan = (payload) => req("/cms/premium-plans", { method: "POST", body: JSON.stringify(payload) });
+  const updatePremiumPlan = (id, payload) => req(`/cms/premium-plans/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deletePremiumPlan = (id) => req(`/cms/premium-plans/${id}`, { method: "DELETE" });
+  const reorderPremiumPlans = (order) => req("/cms/premium-plans/reorder", { method: "POST", body: JSON.stringify({ order }) });
   const getChestConfig = () => req("/cms/shop/chest");
   const setChestConfig = (rewards, rarities) => req("/cms/shop/chest", { method: "PUT", body: JSON.stringify({ rewards, rarities }) });
 
@@ -205,6 +212,11 @@ export function createCmsApi(accessToken) {
     updateShopItem,
     deleteShopItem,
     reorderShopItems,
+    listPremiumPlans,
+    createPremiumPlan,
+    updatePremiumPlan,
+    deletePremiumPlan,
+    reorderPremiumPlans,
     getChestConfig,
     setChestConfig,
     listExercises,

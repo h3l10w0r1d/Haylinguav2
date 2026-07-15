@@ -1463,14 +1463,14 @@ def friends_suggestions(
                 u.id, u.league_tier, u.league_week, u.league_cohort, u.referred_by,
                 u.current_streak, DATE_TRUNC('week', u.joined_at) AS joined_week,
                 ob.country, ob.dialect, ob.primary_goal, ob.source_language,
-                COALESCE(SUM(lp.xp_earned), 0) AS xp
+                COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS xp
             FROM users u
             LEFT JOIN user_onboarding ob ON ob.user_id = u.id
             LEFT JOIN lesson_progress lp ON lp.user_id = u.id
             WHERE u.id = :me
             GROUP BY u.id, u.league_tier, u.league_week, u.league_cohort, u.referred_by,
                      u.current_streak, u.joined_at, ob.country, ob.dialect,
-                     ob.primary_goal, ob.source_language
+                     ob.primary_goal, ob.source_language, u.bonus_xp
             """
         ),
         {"me": int(user_id)},
@@ -1509,7 +1509,7 @@ def friends_suggestions(
                 u.current_streak, u.last_active_at,
                 DATE_TRUNC('week', u.joined_at) AS joined_week,
                 ob.country, ob.dialect, ob.primary_goal, ob.source_language,
-                COALESCE(SUM(lp.xp_earned), 0) AS xp,
+                COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS xp,
                 COALESCE(m.mutual_count, 0) AS mutual_count
             FROM users u
             LEFT JOIN user_onboarding ob ON ob.user_id = u.id
@@ -1519,7 +1519,7 @@ def friends_suggestions(
               AND COALESCE(u.is_hidden, FALSE) = FALSE
             GROUP BY u.id, u.username, u.display_name, u.email, u.avatar_url,
                      u.league_tier, u.league_week, u.league_cohort, u.referred_by,
-                     u.current_streak, u.last_active_at, u.joined_at,
+                     u.current_streak, u.last_active_at, u.joined_at, u.bonus_xp,
                      ob.country, ob.dialect, ob.primary_goal, ob.source_language,
                      m.mutual_count
             ORDER BY u.last_active_at DESC NULLS LAST
@@ -6212,6 +6212,19 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
 # /me/premium/checkout with a real Stripe webhook later.
 # ----------------------------
 
+@router.get("/premium/plans")
+def list_premium_plans(db: Connection = Depends(get_db)):
+    """Public — CMS-editable pricing plans for the Premium page. Unauthenticated
+    (pricing must be visible before login/signup)."""
+    rows = db.execute(
+        text(
+            "SELECT id, title, subtitle, price, currency, interval, perks, badge_label "
+            "FROM pricing_plans WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC"
+        )
+    ).mappings().all()
+    return {"plans": [dict(r) for r in rows]}
+
+
 @router.get("/me/premium")
 def me_premium_status(
     authorization: Optional[str] = Header(default=None),
@@ -6242,8 +6255,13 @@ def me_premium_status(
     }
 
 
+class PremiumCheckoutIn(BaseModel):
+    plan_id: Optional[int] = None
+
+
 @router.post("/me/premium/checkout")
 def me_premium_checkout(
+    payload: PremiumCheckoutIn = PremiumCheckoutIn(),
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
@@ -6255,17 +6273,28 @@ def me_premium_checkout(
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
+    plan_id = None
+    if payload.plan_id is not None:
+        plan = db.execute(
+            text("SELECT id FROM pricing_plans WHERE id = :id AND is_active = TRUE"),
+            {"id": payload.plan_id},
+        ).mappings().first()
+        if not plan:
+            raise HTTPException(status_code=400, detail="Unknown or inactive plan")
+        plan_id = plan["id"]
+
     db.execute(
         text(
             """
             UPDATE users
             SET is_premium = TRUE,
                 premium_since = COALESCE(premium_since, NOW()),
-                premium_until = NULL
+                premium_until = NULL,
+                premium_plan_id = COALESCE(:plan_id, premium_plan_id)
             WHERE id = :u
             """
         ),
-        {"u": user_id},
+        {"u": user_id, "plan_id": plan_id},
     )
     st = _hearts_state(db, user_id)
     return {"ok": True, **st}
@@ -9015,18 +9044,18 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
                 u.banner_url,
                 u.profile_theme,
                 u.joined_at,
-                COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+                COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
               WHERE u.id = :uid
-              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.banner_url, u.profile_theme, u.joined_at
+              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.banner_url, u.profile_theme, u.joined_at, u.bonus_xp
             ), ranked AS (
               SELECT
                 u2.id,
-                COALESCE(SUM(lp2.xp_earned), 0) AS total_xp
+                COALESCE(SUM(lp2.xp_earned), 0) + COALESCE(u2.bonus_xp, 0) AS total_xp
               FROM users u2
               LEFT JOIN lesson_progress lp2 ON lp2.user_id = u2.id
-              GROUP BY u2.id
+              GROUP BY u2.id, u2.bonus_xp
             ), ranks AS (
               SELECT
                 id,
@@ -9060,10 +9089,10 @@ def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[d
               SELECT u.id, u.username,
                      COALESCE(NULLIF(u.display_name, ''), NULLIF(u.username, ''), split_part(u.email, '@', 1)) AS display_name,
                      u.avatar_url,
-                     COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+                     COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.username, u.display_name, u.email, u.avatar_url
+              GROUP BY u.id, u.username, u.display_name, u.email, u.avatar_url, u.bonus_xp
             ), ranks AS (
               SELECT id,
                      RANK() OVER (ORDER BY total_xp DESC, id ASC) AS global_rank
@@ -9296,10 +9325,10 @@ def get_public_user_friends(
                 u.username,
                 u.display_name,
                 u.avatar_url,
-                COALESCE(SUM(lp.xp_earned), 0) AS total_xp
+                COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url
+              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.bonus_xp
             ), ranked AS (
               SELECT
                 xp.*,
@@ -10007,6 +10036,87 @@ async def cms_reorder_shop_items(request: Request, db=Depends(get_db)):
     body = await request.json()
     for i, iid in enumerate(body.get("order") or []):
         db.execute(text("UPDATE shop_items SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(iid)})
+    return {"ok": True}
+
+# ----------------------------
+# CMS: Premium pricing plans
+# ----------------------------
+PLAN_INTERVALS = {"month", "year", "lifetime"}
+
+@router.get("/cms/premium-plans")
+def cms_list_premium_plans(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT id, title, subtitle, price, currency, interval, perks, badge_label, sort_order, is_active
+        FROM pricing_plans ORDER BY sort_order ASC, id ASC
+    """)).mappings().all()
+    return {"plans": [dict(r) for r in rows], "intervals": sorted(PLAN_INTERVALS)}
+
+@router.post("/cms/premium-plans")
+async def cms_create_premium_plan(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    title = (body.get("title") or "").strip()
+    interval = (body.get("interval") or "month").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    if interval not in PLAN_INTERVALS:
+        raise HTTPException(status_code=400, detail=f"interval must be one of {sorted(PLAN_INTERVALS)}")
+    perks = body.get("perks")
+    if not isinstance(perks, list):
+        perks = []
+    pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM pricing_plans")).scalar() or 1
+    new_id = db.execute(
+        text("""
+            INSERT INTO pricing_plans (title, subtitle, price, currency, interval, perks, badge_label, sort_order, is_active)
+            VALUES (:t, :sub, :pr, :cur, :iv, CAST(:perks AS jsonb), :badge, :so, :act) RETURNING id
+        """),
+        {
+            "t": title, "sub": (body.get("subtitle") or "").strip() or None,
+            "pr": int(body.get("price") or 0), "cur": (body.get("currency") or "AMD").strip() or "AMD",
+            "iv": interval, "perks": json.dumps(perks), "badge": (body.get("badge_label") or "").strip() or None,
+            # Draft by default — same reasoning as shop items/lessons/chapters.
+            "so": int(pos), "act": bool(body.get("is_active", False)),
+        },
+    ).scalar_one()
+    return {"id": int(new_id)}
+
+@router.put("/cms/premium-plans/{plan_id}")
+async def cms_update_premium_plan(plan_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": plan_id}
+    for f in ("title", "subtitle", "price", "currency", "badge_label", "is_active"):
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = body[f]
+    if "interval" in body:
+        if body["interval"] not in PLAN_INTERVALS:
+            raise HTTPException(status_code=400, detail=f"interval must be one of {sorted(PLAN_INTERVALS)}")
+        set_parts.append("interval = :interval")
+        params["interval"] = body["interval"]
+    if "perks" in body:
+        if not isinstance(body["perks"], list):
+            raise HTTPException(status_code=400, detail="perks must be a list of strings")
+        set_parts.append("perks = CAST(:perks AS jsonb)")
+        params["perks"] = json.dumps(body["perks"])
+    if not set_parts:
+        return {"ok": True}
+    db.execute(text(f"UPDATE pricing_plans SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/premium-plans/{plan_id}")
+def cms_delete_premium_plan(plan_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM pricing_plans WHERE id = :id"), {"id": plan_id})
+    return {"ok": True}
+
+@router.post("/cms/premium-plans/reorder")
+async def cms_reorder_premium_plans(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    for i, pid in enumerate(body.get("order") or []):
+        db.execute(text("UPDATE pricing_plans SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(pid)})
     return {"ok": True}
 
 @router.get("/cms/shop/chest")

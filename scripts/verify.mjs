@@ -184,6 +184,10 @@ const ROUTES = [
   // new: email reminders
   ["POST", "/me/email-reminders", {}],
   ["POST", "/cron/send-streak-emails", {}],
+  // new: CMS-managed premium pricing plans
+  ["GET", "/premium/plans", { expect: [200] }],
+  ["POST", "/me/premium/checkout", {}],
+  ["GET", "/cms/premium-plans", {}],
 ];
 
 const health = await req("GET", "/health");
