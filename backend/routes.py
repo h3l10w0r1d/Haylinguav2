@@ -1431,7 +1431,7 @@ def _score_friend_suggestion(me: dict, cand: dict) -> tuple[int, list[str]]:
 
     # Recently active — don't surface a suggestion who churned months ago.
     last_active = cand.get("last_active_at")
-    if last_active and (datetime.utcnow() - last_active.replace(tzinfo=None)) <= timedelta(days=3):
+    if last_active and (datetime.utcnow() - last_active.astimezone(dt.timezone.utc).replace(tzinfo=None)) <= timedelta(days=3):
         score += _SUGGEST_PTS_RECENTLY_ACTIVE
 
     return score, reasons
@@ -3449,7 +3449,7 @@ def verify_email(
     if row is None:
         raise HTTPException(status_code=400, detail="NO_CODE")
 
-    if row["expires_at"] < datetime.utcnow():
+    if row["expires_at"].astimezone(dt.timezone.utc).replace(tzinfo=None) < datetime.utcnow():
         raise HTTPException(status_code=400, detail="CODE_EXPIRED")
 
     # Optional brute-force protection
@@ -3541,7 +3541,7 @@ def reset_password(payload: Dict[str, Any] = Body(...), db: Connection = Depends
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
 
     expires_at = user["password_reset_expires_at"]
-    if expires_at is None or expires_at.replace(tzinfo=None) < datetime.utcnow():
+    if expires_at is None or expires_at.astimezone(dt.timezone.utc).replace(tzinfo=None) < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Reset link has expired. Please request a new one.")
 
     from auth import hash_password as _hash_password
@@ -3592,7 +3592,7 @@ def resend_verification(
         last_sent_at = code_row["last_sent_at"]
 
     if last_sent_at is not None:
-        delta_s = (datetime.utcnow() - last_sent_at).total_seconds()
+        delta_s = (datetime.utcnow() - last_sent_at.astimezone(dt.timezone.utc).replace(tzinfo=None)).total_seconds()
         if delta_s < 60:
             retry_after = int(60 - delta_s)
             raise HTTPException(status_code=429, detail={"code": "RESEND_COOLDOWN", "retry_after_s": retry_after})
@@ -4437,7 +4437,7 @@ def _recommend_next_exercise(db: Connection, user_id: int, lesson_id: int) -> di
         if last is None:
             days_since = 999
         else:
-            last_naive = last.replace(tzinfo=None) if getattr(last, "tzinfo", None) else last
+            last_naive = last.astimezone(dt.timezone.utc).replace(tzinfo=None) if getattr(last, "tzinfo", None) else last
             days_since = (now - last_naive).total_seconds() / 86400.0
 
         recency_factor = _clamp(days_since / 7.0, 0.0, 1.0)
@@ -5420,7 +5420,7 @@ def me_practice(
         correct = int(r["correct"] or 0)
         accuracy = (correct / attempts) if attempts > 0 else 0.0
         last = r["last_attempt_at"]
-        last_naive = last.replace(tzinfo=None) if last and getattr(last, "tzinfo", None) else last
+        last_naive = last.astimezone(dt.timezone.utc).replace(tzinfo=None) if last and getattr(last, "tzinfo", None) else last
         days_since = (now - last_naive).total_seconds() / 86400.0 if last_naive else 999.0
         recency = _clamp(days_since / 7.0, 0.0, 1.0)
         need_score = (1 - accuracy) * 0.7 + recency * 0.3

@@ -7,6 +7,7 @@ if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
 import secrets
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
@@ -47,7 +48,18 @@ if _SENTRY_DSN:
         print(f"[sentry] init skipped: {e}")
 
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if os.getenv("SEED_ON_STARTUP", "false").lower() == "true":
+        seed_alphabet_lessons()
+        try:
+            seed_curriculum()
+        except Exception as e:
+            print(f"[seed_curriculum] failed: {e}")
+    yield
+
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
 _DOCS_USER = (os.getenv("DOCS_USERNAME") or "").strip()
 _DOCS_PASS = (os.getenv("DOCS_PASSWORD") or "").strip()
@@ -214,16 +226,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],  # needed for Authorization header preflight
 )
-
-
-@app.on_event("startup")
-def on_startup():
-    if os.getenv("SEED_ON_STARTUP", "false").lower() == "true":
-        seed_alphabet_lessons()
-        try:
-            seed_curriculum()
-        except Exception as e:
-            print(f"[seed_curriculum] failed: {e}")
 
 
 @app.get("/health")

@@ -1102,7 +1102,7 @@ def cms_invite_accept(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
     ).mappings().first()
     if not inv or inv["accepted_at"] is not None:
         raise HTTPException(status_code=404, detail="Invite not found")
-    if inv["expires_at"] <= datetime.utcnow():
+    if inv["expires_at"].astimezone(dt.timezone.utc).replace(tzinfo=None) <= datetime.utcnow():
         raise HTTPException(status_code=400, detail="Invite expired")
 
     # Create or update cms_user
