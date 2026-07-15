@@ -312,6 +312,7 @@ export default function ProfilePage() {
           setIsHidden(typeof data.is_hidden === "boolean" ? data.is_hidden : false);
 
           const theme = data.profile_theme || {};
+          const themeIsEmpty = !data.profile_theme || Object.keys(data.profile_theme).length === 0;
           setThemeBg(theme.background || "#fff7ed");
           setThemeGradient(theme.gradient || "");
 
@@ -330,6 +331,23 @@ export default function ProfilePage() {
           setAvatarPresetUrl(resolvedAvatar);
           setAvatarFile(null);
           avatarTouchedRef.current = Boolean(au);
+
+          // First-ever visit to this page: banner, avatar, AND theme are all
+          // still untouched. Rather than leaving the header blank, randomly
+          // assign one of each from the free preset catalogs — gated on ALL
+          // THREE being empty (not just one) so a returning user who already
+          // picked, say, a banner but never got to the avatar doesn't get a
+          // surprise random avatar on their next visit; that'd only be "first
+          // time" for the field they hadn't touched yet, not for the page.
+          if (!b && !au && themeIsEmpty) {
+            const randomTheme = PRESET_THEMES[Math.floor(Math.random() * PRESET_THEMES.length)];
+            const randomBanner = PRESET_BANNERS[Math.floor(Math.random() * PRESET_BANNERS.length)];
+            const randomAvatar = PRESET_AVATARS[Math.floor(Math.random() * PRESET_AVATARS.length)];
+            setThemeBg(randomTheme.bg);
+            setThemeGradient(randomTheme.gradient || "");
+            handleSelectPresetBanner(randomBanner, { silent: true });
+            handlePresetAvatarPick(randomAvatar, { silent: true });
+          }
 
           // Voice preference
           const vp = data.voice_pref || "Random";
@@ -576,11 +594,13 @@ export default function ProfilePage() {
     }
   }
 
-  function handleSelectPresetBanner(url) {
+  function handleSelectPresetBanner(url, opts = {}) {
     bannerTouchedRef.current = true;
     setBannerUrl(url);
-    setShowBannerPicker(false);
-    setMessage("Banner selected.");
+    if (!opts.silent) {
+      setShowBannerPicker(false);
+      setMessage("Banner selected.");
+    }
   }
 
   async function handleUploadBanner() {
@@ -648,8 +668,8 @@ export default function ProfilePage() {
     input.click();
   }
 
-  async function handlePresetAvatarPick(url) {
-    setShowAvatarPresets(false);
+  async function handlePresetAvatarPick(url, opts = {}) {
+    if (!opts.silent) setShowAvatarPresets(false);
     if (avatarObjectUrlRef.current) {
       try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
       avatarObjectUrlRef.current = null;
@@ -668,12 +688,12 @@ export default function ProfilePage() {
 
       setAvatarPresetUrl("");
       setAvatarFile(file);
-      setMessage("Avatar selected.");
+      if (!opts.silent) setMessage("Avatar selected.");
     } catch {
       // Fallback: keep the local preset URL (works in dev, but is less stable).
       setAvatarFile(null);
       setAvatarPresetUrl(url);
-      setMessage("Avatar selected.");
+      if (!opts.silent) setMessage("Avatar selected.");
     }
   }
 
