@@ -126,3 +126,22 @@ def test_preview_link_requires_cms_auth(client, db_conn):
     lesson_id = _create_lesson(client, cms_headers, suffix="needs-auth")
     r = client.post(f"/cms/lessons/{lesson_id}/preview-link")
     assert r.status_code == 401
+
+
+def test_draft_lesson_does_not_appear_on_the_roadmap(client, db_conn, make_user):
+    """Regression: /me/lessons/progress (the Dashboard roadmap) used to list
+    every lesson regardless of is_published, so a draft an admin was still
+    building would show up — and fail to open — for real students."""
+    cms_headers = _cms_headers(db_conn)
+    draft_id = _create_lesson(client, cms_headers, suffix="roadmap-draft")
+    draft_slug = db_conn.execute(text("SELECT slug FROM lessons WHERE id = :id"), {"id": draft_id}).mappings().first()["slug"]
+    live_id = _create_lesson(client, cms_headers, suffix="roadmap-live", is_published=True)
+    live_slug = db_conn.execute(text("SELECT slug FROM lessons WHERE id = :id"), {"id": live_id}).mappings().first()["slug"]
+
+    _user_id, headers = make_user()
+    r = client.get("/me/lessons/progress", headers=headers)
+    assert r.status_code == 200, r.text
+    slugs = [row["slug"] for row in r.json()]
+
+    assert draft_slug not in slugs
+    assert live_slug in slugs
