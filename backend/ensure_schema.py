@@ -40,6 +40,11 @@ def ensure_schema() -> None:
             if col_exists(table, col):
                 conn.execute(text(f'UPDATE "{table}" SET "{col}" = {value_sql} WHERE "{col}" IS NULL'))
 
+        # ---------- exercises (per-exercise XP, used by the roadmap's
+        # per-lesson XP total; not part of the models.py ORM definition) ----------
+        add_col_if_missing("exercises", "xp INTEGER NOT NULL DEFAULT 0")
+        fill_nulls("exercises", "xp", "0")
+
         # ---------- users (existing columns) ----------
         add_col_if_missing("users", "username TEXT")
         add_col_if_missing("users", "display_name TEXT")
@@ -404,6 +409,21 @@ def ensure_schema() -> None:
             """,
         )
         add_col_if_missing("lessons", "chapter_id INTEGER")
+        # xp / xp_reward used to only be added by seed_alphabet_lessons(), which
+        # only runs when SEED_ON_STARTUP=true — unset in CI, so a fresh database
+        # (CI's Postgres service container, or any deploy without that flag)
+        # never got these columns and every lesson-insert/CMS query referencing
+        # xp_reward failed with "column does not exist".
+        add_col_if_missing("lessons", "xp INTEGER")
+        set_default("lessons", "xp", "40")
+        add_col_if_missing("lessons", "xp_reward INTEGER NOT NULL DEFAULT 40")
+        # lesson_type/config: non-standard lesson kinds (e.g. Reading) — never
+        # had a migration anywhere, assumed pre-existing like several other
+        # lessons columns.
+        add_col_if_missing("lessons", "lesson_type TEXT NOT NULL DEFAULT 'standard'")
+        add_col_if_missing("lessons", "config JSONB NOT NULL DEFAULT '{}'::jsonb")
+        fill_nulls("lessons", "lesson_type", "'standard'")
+        fill_nulls("lessons", "config", "'{}'::jsonb")
         # Draft/published status for the CMS staging workflow (see
         # GET /lessons/{slug} + POST /cms/lessons/{id}/preview-link in
         # routes.py). DEFAULT TRUE preserves current behavior for any
@@ -585,5 +605,222 @@ def ensure_schema() -> None:
         # Better Stack) that pings /health directly — drop the short-lived
         # self-hosted health-log table from the earlier custom implementation.
         conn.execute(text("DROP TABLE IF EXISTS service_health_log"))
+
+        # ---------- Core tables that predate ensure_schema.py's coverage ----------
+        # These were never captured in any committed migration (created directly
+        # on production at some point). ensure_table() is a no-op wherever the
+        # table already exists, so this section only matters for a *fresh*
+        # database (new local/dev/staging setup) — it changes nothing in
+        # production. Reliability-audit follow-up: found via a full cross-check
+        # of every application SQL statement against this file's coverage.
+        ensure_table(
+            "lesson_progress",
+            """
+            CREATE TABLE lesson_progress (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                lesson_id INTEGER NOT NULL,
+                xp_earned INTEGER NOT NULL DEFAULT 0,
+                completed_at TIMESTAMPTZ,
+                UNIQUE (user_id, lesson_id)
+            )
+            """,
+        )
+        conn.execute(text("""
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'lesson_progress_user_id_lesson_id_key' AND conrelid = 'lesson_progress'::regclass
+                ) THEN
+                    ALTER TABLE lesson_progress ADD CONSTRAINT lesson_progress_user_id_lesson_id_key UNIQUE (user_id, lesson_id);
+                END IF;
+            END $$;
+        """))
+
+        ensure_table(
+            "user_lesson_progress",
+            """
+            CREATE TABLE user_lesson_progress (
+                user_id INTEGER NOT NULL,
+                lesson_id INTEGER NOT NULL,
+                started_at TIMESTAMPTZ,
+                last_seen_at TIMESTAMPTZ,
+                last_exercise_id INTEGER,
+                total_attempts INTEGER NOT NULL DEFAULT 0,
+                correct_attempts INTEGER NOT NULL DEFAULT 0,
+                accuracy REAL,
+                exercises_total INTEGER NOT NULL DEFAULT 0,
+                exercises_completed INTEGER NOT NULL DEFAULT 0,
+                xp_earned INTEGER NOT NULL DEFAULT 0,
+                completed_at TIMESTAMPTZ,
+                review_queue JSONB NOT NULL DEFAULT '[]'::jsonb,
+                UNIQUE (user_id, lesson_id)
+            )
+            """,
+        )
+        add_col_if_missing("user_lesson_progress", "exercises_total INTEGER NOT NULL DEFAULT 0")
+        fill_nulls("user_lesson_progress", "exercises_total", "0")
+
+        ensure_table(
+            "friends",
+            """
+            CREATE TABLE friends (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                friend_id INTEGER NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (user_id, friend_id)
+            )
+            """,
+        )
+
+        ensure_table(
+            "friend_requests",
+            """
+            CREATE TABLE friend_requests (
+                id SERIAL PRIMARY KEY,
+                requester_id INTEGER NOT NULL,
+                addressee_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                responded_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+
+        ensure_table(
+            "user_onboarding",
+            """
+            CREATE TABLE user_onboarding (
+                user_id INTEGER PRIMARY KEY,
+                age_range TEXT,
+                country TEXT,
+                planning_visit_armenia BOOLEAN,
+                knowledge_level TEXT,
+                dialect TEXT,
+                primary_goal TEXT,
+                source_language TEXT,
+                daily_goal_min INTEGER,
+                reminder_time TEXT,
+                voice_pref TEXT,
+                marketing_opt_in BOOLEAN,
+                accepted_terms BOOLEAN,
+                completed_at TIMESTAMPTZ,
+                updated_at TIMESTAMPTZ
+            )
+            """,
+        )
+
+        ensure_table(
+            "user_exercise_attempts",
+            """
+            CREATE TABLE user_exercise_attempts (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                lesson_id INTEGER,
+                exercise_id INTEGER,
+                attempt_no INTEGER,
+                is_correct BOOLEAN,
+                answer_text TEXT,
+                selected_indices JSONB,
+                time_ms INTEGER,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+
+        ensure_table(
+            "user_exercise_logs",
+            """
+            CREATE TABLE user_exercise_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                lesson_id INTEGER,
+                exercise_id INTEGER,
+                event_type TEXT,
+                correct BOOLEAN,
+                meta JSONB,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        add_col_if_missing("user_exercise_logs", "lesson_id INTEGER")
+        add_col_if_missing("user_exercise_logs", "exercise_id INTEGER")
+        add_col_if_missing("user_exercise_logs", "event_type TEXT")
+        add_col_if_missing("user_exercise_logs", "meta JSONB")
+        add_col_if_missing("user_exercise_logs", "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()")
+        fill_nulls("user_exercise_logs", "created_at", "NOW()")
+
+        ensure_table(
+            "cms_invites",
+            """
+            CREATE TABLE cms_invites (
+                id SERIAL PRIMARY KEY,
+                email TEXT NOT NULL,
+                role TEXT,
+                token_hash TEXT NOT NULL,
+                invited_by INTEGER,
+                accepted_at TIMESTAMPTZ,
+                expires_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+
+        ensure_table(
+            "email_verification_codes",
+            """
+            CREATE TABLE email_verification_codes (
+                user_id INTEGER PRIMARY KEY,
+                code_hash TEXT NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                last_sent_at TIMESTAMPTZ,
+                attempts INTEGER NOT NULL DEFAULT 0
+            )
+            """,
+        )
+
+        ensure_table(
+            "exercise_audio",
+            """
+            CREATE TABLE exercise_audio (
+                id SERIAL PRIMARY KEY,
+                exercise_id INTEGER NOT NULL,
+                voice_type TEXT NOT NULL,
+                source_type TEXT,
+                tts_text TEXT,
+                tts_voice_id TEXT,
+                audio_data BYTEA,
+                audio_format TEXT,
+                audio_size INTEGER,
+                duration_seconds REAL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ,
+                UNIQUE (exercise_id, voice_type)
+            )
+            """,
+        )
+
+        ensure_table(
+            "exercise_audio_targets",
+            """
+            CREATE TABLE exercise_audio_targets (
+                id SERIAL PRIMARY KEY,
+                exercise_id INTEGER NOT NULL,
+                target_key TEXT NOT NULL,
+                voice_type TEXT NOT NULL,
+                source_type TEXT,
+                tts_text TEXT,
+                tts_voice_id TEXT,
+                audio_data BYTEA,
+                audio_format TEXT,
+                audio_size INTEGER,
+                file_path TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ,
+                UNIQUE (exercise_id, target_key, voice_type)
+            )
+            """,
+        )
 
     print("[ensure_schema] done")

@@ -102,7 +102,7 @@ def support_search_users(
             text(
                 """
                 SELECT id, email, username, display_name, email_verified,
-                       COALESCE(is_premium, FALSE) AS is_premium
+                       (COALESCE(is_premium, FALSE) AND (premium_until IS NULL OR premium_until > NOW())) AS is_premium
                 FROM users
                 ORDER BY id DESC
                 LIMIT 100
@@ -114,7 +114,7 @@ def support_search_users(
         text(
             """
             SELECT id, email, username, display_name, email_verified,
-                   COALESCE(is_premium, FALSE) AS is_premium
+                   (COALESCE(is_premium, FALSE) AND (premium_until IS NULL OR premium_until > NOW())) AS is_premium
             FROM users
             WHERE CAST(id AS TEXT) = :exact
                OR lower(email) LIKE :like
@@ -138,7 +138,7 @@ def support_user_detail(
             """
             SELECT id, email, username, display_name, first_name, last_name,
                    bio, avatar_url, country, timezone,
-                   email_verified, COALESCE(is_premium, FALSE) AS is_premium, premium_since,
+                   email_verified, (COALESCE(is_premium, FALSE) AND (premium_until IS NULL OR premium_until > NOW())) AS is_premium, premium_since,
                    joined_at, last_active_at,
                    COALESCE(current_streak, 0) AS current_streak,
                    COALESCE(streak_freezes, 0) AS streak_freezes,
@@ -736,7 +736,7 @@ def cms_analytics(
         SELECT
             COUNT(*)                                                 AS total_users,
             COUNT(*) FILTER (WHERE email_verified)                  AS verified_users,
-            COUNT(*) FILTER (WHERE COALESCE(is_premium, FALSE))     AS premium_users,
+            COUNT(*) FILTER (WHERE COALESCE(is_premium, FALSE) AND (premium_until IS NULL OR premium_until > NOW())) AS premium_users,
             COUNT(*) FILTER (WHERE telegram_id IS NOT NULL)         AS telegram_users,
             COUNT(*) FILTER (WHERE google_id IS NOT NULL)           AS google_users,
             COUNT(*) FILTER (WHERE joined_at >= NOW() - INTERVAL '7 days')  AS new_7d,

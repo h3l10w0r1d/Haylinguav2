@@ -1084,6 +1084,8 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
         except Exception:
             sp_name = None
 
+        _expire_lapsed_trial(db, int(user_id))
+
         u = db.execute(
             text(
                 """
@@ -3831,13 +3833,17 @@ def complete_lesson(
             """
             SELECT
                 COALESCE(SUM(xp_earned), 0) AS total_xp,
-                COUNT(*) AS lessons_completed
+                COALESCE(SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS lessons_completed
             FROM lesson_progress
             WHERE user_id = :user_id
             """
         ),
         {"user_id": user_id},
     ).mappings().first()
+
+    # Include claimed quest/achievement reward XP, matching /me/stats.
+    bonus = int(db.execute(text("SELECT COALESCE(bonus_xp, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+    total_xp = int(stats_row["total_xp"]) + bonus
 
     streak = _compute_streak_days(db, int(user_id))
     _brevo_sync_user(db, int(user_id), event="lesson_completed", event_props={
@@ -3846,7 +3852,7 @@ def complete_lesson(
         "streak": int(streak),
     })
     return StatsOut(
-        total_xp=int(stats_row["total_xp"]),
+        total_xp=total_xp,
         lessons_completed=int(stats_row["lessons_completed"]),
         streak=int(streak),
     )
@@ -5672,6 +5678,9 @@ def me_profile_get(
         {"u": user_id},
     ).mappings().first()
 
+    # Include claimed quest/achievement reward XP, matching /me/stats.
+    bonus = int(db.execute(text("SELECT COALESCE(bonus_xp, 0) FROM users WHERE id = :u"), {"u": user_id}).scalar() or 0)
+
     ob_row = db.execute(
         text("SELECT voice_pref FROM user_onboarding WHERE user_id = :u LIMIT 1"),
         {"u": user_id},
@@ -5681,7 +5690,7 @@ def me_profile_get(
     payload = dict(row)
     payload["google_linked"] = bool(payload.pop("google_id", None))
     payload["facebook_linked"] = bool(payload.pop("facebook_id", None))
-    payload["total_xp"] = int(stats_row["total_xp"] or 0)
+    payload["total_xp"] = int(stats_row["total_xp"] or 0) + bonus
     payload["streak"] = int(streak)
     payload["best_streak"] = max(int(payload.get("best_streak") or 0), int(streak))
     payload["voice_pref"] = (ob_row or {}).get("voice_pref") or "Random"
@@ -8688,7 +8697,8 @@ async def me_live_events(
         try:
             while True:
                 try:
-                    with engine.connect() as conn:
+                    with engine.begin() as conn:
+                        _expire_lapsed_trial(conn, int(user_id))
                         row = conn.execute(
                             text("""
                                 SELECT u.gems, u.current_streak,
