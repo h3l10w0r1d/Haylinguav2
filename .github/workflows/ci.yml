@@ -1,10 +1,10 @@
 name: CI
 
-# Runs on every push to main and on pull requests. This is the pre-deploy
-# gate: it does NOT touch production. Vercel/Render currently deploy
-# independently on push regardless of this workflow's result — see
-# CI_CD.md for the follow-up steps to make a passing run a hard requirement
-# before deploy.
+# Runs on every push to main and on pull requests. main is branch-protected
+# to require the ci-status check before a PR can merge. Direct pushes to
+# main still bypass that (unchanged workflow) — see CI_CD.md for the
+# remaining manual steps to make Render/Vercel deploys themselves wait on
+# this workflow instead of firing on every push regardless of result.
 on:
   push:
     branches: [main]
@@ -78,10 +78,12 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Placeholder — becomes a real deploy gate once RENDER_DEPLOY_HOOK_URL and
-  # VERCEL_DEPLOY_HOOK_URL secrets exist and auto-deploy-on-push is turned
-  # off in the Render/Vercel dashboards. See CI_CD.md. Until then this job
-  # only reports whether the two gates above passed.
+  # Reports whether the two gates above passed. On push to main, also fires
+  # the Render/Vercel deploy hooks — but ONLY once RENDER_DEPLOY_HOOK_URL and
+  # VERCEL_DEPLOY_HOOK_URL secrets exist AND auto-deploy-on-push is turned
+  # off in both dashboards (see CI_CD.md). Until then this step is a no-op:
+  # empty secrets mean the curl calls are skipped, so nothing changes on a
+  # repo that hasn't done that manual setup yet.
   ci-status:
     if: always()
     needs: [backend-tests, frontend-build]
@@ -94,3 +96,22 @@ jobs:
             exit 1
           fi
           echo "All gates passed."
+
+      - name: Trigger deploys (only once hooks are configured)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ] && [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "No deploy hook secrets configured yet — see CI_CD.md. Skipping (Render/Vercel auto-deploy-on-push still controls deploys)."
+            exit 0
+          fi
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Triggering Render deploy..."
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+          fi
+          if [ -n "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "Triggering Vercel deploy..."
+            curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
+          fi
