@@ -92,6 +92,24 @@ def ensure_schema() -> None:
             )
         """)
 
+        # ---------- Exercise mistake explanations (GPT-4o cache, shared across
+        # users) — same pattern as word_hints. Keyed on (exercise_id, answer_norm)
+        # since the explanation depends only on the exercise + wrong answer, not
+        # on who asked. correct_answer is a snapshot for self-healing cache
+        # invalidation: if a CMS edit changes the answer, a hit whose snapshot
+        # no longer matches is treated as a miss and regenerated. ----------
+        ensure_table("exercise_explanations", """
+            CREATE TABLE exercise_explanations (
+                exercise_id    INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+                answer_norm    TEXT NOT NULL,
+                explanation    TEXT NOT NULL,
+                correct_answer TEXT,
+                hit_count      INTEGER NOT NULL DEFAULT 0,
+                created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (exercise_id, answer_norm)
+            )
+        """)
+
         # ---------- Per-user word exposure (drives NEW-word badges) ----------
         ensure_table("user_word_exposure", """
             CREATE TABLE user_word_exposure (

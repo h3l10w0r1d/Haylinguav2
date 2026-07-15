@@ -38,6 +38,10 @@ def _compile_rules() -> Tuple[Rule, ...]:
         Rule("POST", re.compile(r"^/me/change-password$"), limit=6, window_seconds=3600),
         Rule("POST", re.compile(r"^/me/email-change/.*"), limit=6, window_seconds=3600),
         Rule("POST", re.compile(r"^/me/2fa/.*"), limit=20, window_seconds=3600),
+        # Backstop against forcing cache misses on /explain (exercise_explanations
+        # cache handles steady-state cost; this caps the worst case of scripted
+        # spam hitting many distinct wrong answers to force fresh GPT-4o calls).
+        Rule("POST", re.compile(r"^/me/exercises/\d+/explain$"), limit=30, window_seconds=3600),
     ]
     return tuple(rules)
 
