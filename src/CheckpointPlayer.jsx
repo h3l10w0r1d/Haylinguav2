@@ -122,9 +122,18 @@ export default function CheckpointPlayer() {
   const [exerciseKey, setExerciseKey] = useState(0);
   useEffect(() => { setHasAnswered(false); }, [exerciseKey]);
 
-  async function gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance }) {
+  function gradeAndAdvance(payload) {
+    // Guard against a stale async onAnswer (e.g. handleAnswer's server round
+    // trip resolving after Skip already advanced synchronously) re-grading an
+    // exercise that's already been resolved — mirrors LessonPlayer's
+    // handleStepAnswer guard.
+    if (hasAnswered) return;
+    const isCorrect = payload?.isCorrect === true;
+    const autoAdvance = payload?.autoAdvance === true;
+    const xp = Number(payload?.xpEarned ?? 0) || 0;
+
     // char_intro and other always-correct exercises pass autoAdvance=true — skip
-    // the result sheet and don't call the attempt API (nothing to grade).
+    // the result sheet and don't touch attempt/heart state (nothing to grade).
     if (autoAdvance) {
       setExerciseQueue((q) => {
         const next = q.slice(1);
@@ -136,29 +145,19 @@ export default function CheckpointPlayer() {
       return;
     }
 
-    const token = getToken();
-    let serverCorrect = isCorrect;
-    if (currentExercise && token) {
-      try {
-        const res = await fetch(`${API_BASE}/me/exercises/${currentExercise.id}/attempt`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            answer_text: answerText || "",
-            time_spent_ms: Date.now() - exerciseStartRef.current,
-          }),
-        });
-        if (res.ok) {
-          const d = await res.json();
-          serverCorrect = Boolean(d.is_correct);
-          if (d.hearts_current !== undefined) {
-            const h = heartsState || {};
-            const next = { ...h, current: d.hearts_current, is_premium: d.is_premium ?? h.is_premium };
-            writeHearts(next);
-            window.dispatchEvent(new CustomEvent("hay_hearts", { detail: next }));
-          }
-        }
-      } catch {}
+    // ExerciseRenderer's own internal handleAnswer already POSTed this attempt
+    // to /me/exercises/{id}/attempt with the real selected_indices and got back
+    // the server-authoritative verdict (payload._synced marks this). This used
+    // to re-POST a second time here with a different, incomplete shape — no
+    // selected_indices at all — which silently overrode a correct answer with
+    // an incorrect one for every choice-based exercise kind. Trust the payload.
+    const serverCorrect = isCorrect;
+
+    if (payload?.hearts !== undefined && payload.hearts !== null) {
+      const h = heartsState || {};
+      const next = { ...h, current: payload.hearts, is_premium: h.is_premium };
+      writeHearts(next);
+      window.dispatchEvent(new CustomEvent("hay_hearts", { detail: next }));
     }
 
     totalAnswered.current += 1;
@@ -178,7 +177,7 @@ export default function CheckpointPlayer() {
       setResultData({
         variant: "wrong",
         xpEarned: 0,
-        correctAnswer: deriveCorrectAnswer(currentExercise),
+        correctAnswer: payload?.correctAnswer || deriveCorrectAnswer(currentExercise),
         combo,
       });
       pendingNextRef.current = { type: "requeue" };
@@ -298,8 +297,6 @@ export default function CheckpointPlayer() {
           key={`${currentExercise.id}-${renderNonce}`}
           exercise={currentExercise}
           lesson={{ id: currentExercise.lesson_id, exercises: exerciseQueue }}
-          onCorrect={({ answerText, xpEarned: xp, autoAdvance } = {}) => gradeAndAdvance({ isCorrect: true, answerText, xpEarned: xp, autoAdvance })}
-          onWrong={({ answerText } = {}) => gradeAndAdvance({ isCorrect: false, answerText, xpEarned: 0 })}
           onSkip={() => {
             // CP-3: skips count as wrong attempts in accuracy
             totalAnswered.current += 1;
@@ -311,8 +308,7 @@ export default function CheckpointPlayer() {
             pendingNextRef.current = { type: "advance" };
             setHasAnswered(true);
           }}
-          onAnswer={({ isCorrect, answerText, xpEarned: xp, autoAdvance } = {}) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}
-          submit={({ isCorrect, answerText, xpEarned: xp, autoAdvance } = {}) => gradeAndAdvance({ isCorrect, answerText, xpEarned: xp, autoAdvance })}
+          onAnswer={gradeAndAdvance}
           graded={hasAnswered}
         />
       ) : null}
