@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from middleware.rate_limit import RateLimitMiddleware
 
 from routes import router as api_router
+from routes_cms import router as cms_router  # CMS ("Content Studio") admin routes
 from routes_audio import router as audio_router  # NEW: Audio management
 from routes_conversation import router as conversation_router  # NEW: AI Conversation
 from db_utils import seed_alphabet_lessons
@@ -175,6 +176,8 @@ ensure_schema()
 app.include_router(lesson_analytics_router)
 app.include_router(api_router)
 app.include_router(api_router, prefix="/api")
+app.include_router(cms_router)  # CMS ("Content Studio") admin routes
+app.include_router(cms_router, prefix="/api")
 app.include_router(audio_router)  # NEW: Audio routes
 app.include_router(audio_router, prefix="/api")
 
