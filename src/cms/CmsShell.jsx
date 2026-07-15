@@ -24,7 +24,14 @@ function LessonRow({ lesson, active, onClick }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate font-semibold">{lesson.title}</div>
+          <div className="flex items-center gap-1.5">
+            <div className="truncate font-semibold">{lesson.title}</div>
+            {lesson.is_published === false ? (
+              <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-700">
+                Draft
+              </span>
+            ) : null}
+          </div>
           <div className={cx("mt-0.5 text-xs", active ? "text-brand-600/80" : "text-slate-500")}>
             <span className="font-mono">{lesson.slug}</span> · lvl {lesson.level} · {lesson.xp} xp
           </div>

@@ -1,7 +1,7 @@
 // src/cms/LessonEditor.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cmsApi } from "./api";
-import { Save, Trash2, Plus, GripVertical, X, Search } from "lucide-react";
+import { Save, Trash2, Plus, GripVertical, X, Search, Eye, EyeOff, ExternalLink } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { KIND_OPTIONS, KIND_CATEGORY } from "./ExerciseEditor";
 
@@ -77,6 +77,8 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
 
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [isPublished, setIsPublished] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     setErr("");
@@ -92,6 +94,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
       });
 
       setLessonType(String(lesson.lesson_type || "standard"));
+      setIsPublished(lesson.is_published !== false);
       const cfg = lesson.config && typeof lesson.config === "object" ? lesson.config : {};
       setReading({
         sections: Array.isArray(cfg?.reading?.sections)
@@ -120,6 +123,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
       });
 
       setLessonType("standard");
+      setIsPublished(false);
       setReading({ sections: [] });
     }
   }, [lesson?.id]);
@@ -220,6 +224,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
         xp: Number(form.xp),
         xp_reward: Number(form.xp_reward),
         chapter_id: form.chapter_id === "" || form.chapter_id == null ? null : Number(form.chapter_id),
+        is_published: isPublished,
         lesson_type: String(lessonType || "standard"),
         config:
           String(lessonType || "standard") === "reading"
@@ -372,6 +377,36 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
       setErr(e.message || "Delete failed");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Takes effect immediately (independent of the "Save changes" button) —
+  // same pattern as the chapters publish toggle, so flipping visibility
+  // doesn't get bundled in with unrelated in-progress edits.
+  async function togglePublished() {
+    if (!cmsApi || !isEdit) return;
+    setPublishing(true);
+    setErr("");
+    try {
+      const next = !isPublished;
+      await cmsApi.updateLesson(lesson.id, { is_published: next });
+      setIsPublished(next);
+      onSaved?.(next ? "Lesson published" : "Lesson set to draft");
+    } catch (e) {
+      setErr(e.message || "Update failed");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  async function openPreview() {
+    if (!cmsApi || !isEdit) return;
+    setErr("");
+    try {
+      const res = await cmsApi.getLessonPreviewLink(lesson.id);
+      if (res?.url) window.open(res.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      setErr(e.message || "Failed to create preview link");
     }
   }
 
@@ -678,6 +713,33 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
               ))}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {isEdit ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={togglePublished}
+            disabled={publishing}
+            className={cx(
+              "inline-flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-xs font-extrabold transition disabled:opacity-60",
+              isPublished
+                ? "bg-grass-50 text-grass-700 hover:bg-grass-100"
+                : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+            )}
+          >
+            {isPublished ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            {publishing ? "Updating…" : isPublished ? "Published" : "Draft"}
+          </button>
+          <button
+            type="button"
+            onClick={openPreview}
+            className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 px-3 py-1.5 text-xs font-extrabold text-slate-600 transition hover:bg-slate-200"
+            title={isPublished ? "Open this lesson" : "Open a preview link (works even while unpublished)"}
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> Preview
+          </button>
         </div>
       ) : null}
 
