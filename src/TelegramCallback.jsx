@@ -75,7 +75,12 @@ export default function TelegramCallback() {
         };
         localStorage.setItem("hay_user", JSON.stringify(user));
 
-        navigate(data.needs_onboarding ? "/onboarding" : "/dashboard", { replace: true });
+        // Full page navigation — see AuthCallback.jsx for why: /dashboard is
+        // guarded by a check on AppShell's `user` state, which is only ever
+        // populated from localStorage in a mount-only effect. A client-side
+        // navigate() here would land on /dashboard before that state updates,
+        // bouncing returning users straight back to "/".
+        window.location.href = data.needs_onboarding ? "/onboarding" : "/dashboard";
       })
       .catch((err) => {
         setError(err.message || "Something went wrong. Please try again.");

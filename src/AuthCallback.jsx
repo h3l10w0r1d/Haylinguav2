@@ -67,11 +67,16 @@ export default function AuthCallback({ provider = "google" }) {
         };
         localStorage.setItem("hay_user", JSON.stringify(user));
 
-        if (data.needs_onboarding) {
-          navigate("/onboarding", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
+        // Full page navigation, not React Router's navigate(): AppShell (the
+        // app's top-level component) only reads localStorage into its `user`
+        // state once, in a mount-only effect. A client-side navigate() here
+        // lands on /dashboard while that state is still null, and /dashboard
+        // is guarded by RequireOnboarded (`if (!user) return <Navigate to="/">`)
+        // — so returning users got bounced straight back to the landing page
+        // right after "Signing you in…". (/onboarding has no such guard, which
+        // is why brand-new signups never hit this.) A full reload forces
+        // AppShell to remount and read the token we just stored.
+        window.location.href = data.needs_onboarding ? "/onboarding" : "/dashboard";
       })
       .catch((err) => {
         setError(err.message || "Something went wrong. Please try again.");
