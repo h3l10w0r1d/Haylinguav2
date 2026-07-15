@@ -171,6 +171,15 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # Test suites hit the app hundreds of times per run through a single
+        # synthetic client IP ("testclient") sharing one in-memory bucket —
+        # unrelated tests start tripping each other's rate limits once the
+        # suite grows past a few dozen requests. Opt-in only (default off)
+        # so this can never be accidentally left on in a real deployment.
+        if os.getenv("DISABLE_RATE_LIMIT", "").strip().lower() == "true":
+            await self.app(scope, receive, send)
+            return
+
         request = Request(scope, receive)
         path = request.url.path
         method = request.method.upper()

@@ -25,6 +25,14 @@ os.environ.setdefault("DATABASE_URL", "postgresql://postgres:postgres@localhost:
 os.environ.setdefault("EMAIL_CODE_PEPPER", "test-only-pepper-not-a-real-secret")
 os.environ.setdefault("JWT_SECRET_KEY", "test-only-jwt-secret-not-a-real-secret")
 os.environ.setdefault("CRON_SECRET", "test-only-cron-secret")
+# The whole suite hits the app through one synthetic TestClient IP sharing a
+# single in-memory rate-limit bucket — unrelated tests trip each other's
+# limits once the suite grows past a few dozen requests (see
+# middleware/rate_limit.py's DISABLE_RATE_LIMIT check). No test currently
+# exercises rate-limiting behavior itself, so disabling it here costs no
+# coverage; add a dedicated test against the middleware directly (bypassing
+# this fixture) if that ever changes.
+os.environ.setdefault("DISABLE_RATE_LIMIT", "true")
 
 import pytest
 from sqlalchemy import text, create_engine
@@ -84,6 +92,23 @@ def db_engine():
             )
         )
     ensure_schema()
+
+    # Several tests assume at least one lesson exists without creating their
+    # own (e.g. "SELECT id FROM lessons LIMIT 1"). That was always true
+    # against the old shared local scratch DB (years of leftover rows) but
+    # not against a genuinely fresh database — nothing seeds the lessons
+    # table by default (SEED_ON_STARTUP is off in tests). Guarantee the
+    # invariant once here rather than patching every test that assumes it.
+    with engine.begin() as conn:
+        if not conn.execute(text("SELECT 1 FROM lessons LIMIT 1")).scalar():
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO lessons (slug, title, description, level, xp, xp_reward, is_published, lesson_type, config)
+                    VALUES ('pytest-baseline-lesson', 'Baseline lesson', '', 1, 10, 10, TRUE, 'standard', CAST('{}' AS jsonb))
+                    """
+                )
+            )
     return engine
 
 
