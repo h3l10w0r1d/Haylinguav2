@@ -1091,7 +1091,7 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
                 """
                 SELECT id, email, username, display_name, first_name, last_name, bio,
                        avatar_url, banner_url, friends_public, is_hidden, email_verified,
-                       country, timezone, joined_at, last_active_at,
+                       email_verified_at, country, timezone, joined_at, last_active_at,
                        is_premium, premium_since,
                        gems, chests, weekly_xp, league_tier,
                        streak_freezes, current_streak,
@@ -1148,12 +1148,18 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
             "COUNTRY": (u.get("country") or "") or None,
             "TIMEZONE": (u.get("timezone") or "") or None,
             # Account state
-            "EMAIL_VERIFIED": bool(u.get("email_verified")),
+            # EMAIL_VERIFIED is a Brevo *date* attribute (when it was verified,
+            # not whether) — sending the Python bool True/False here silently
+            # coerced to a garbage date (1970-01-01) instead of erroring.
+            "EMAIL_VERIFIED": _iso(u.get("email_verified_at")) if u.get("email_verified_at") else None,
             "IS_PREMIUM": bool(u.get("is_premium")),
             "PREMIUM_SINCE": _iso(u.get("premium_since")) if u.get("premium_since") else None,
-            "JOINED_AT": _iso(u.get("joined_at")) if u.get("joined_at") else None,
+            # Brevo's attribute is named REGISTERED_AT, not JOINED_AT — the old
+            # key name meant this never actually synced to that field.
+            "REGISTERED_AT": _iso(u.get("joined_at")) if u.get("joined_at") else None,
             "LAST_ACTIVE_AT": _iso(u.get("last_active_at")) if u.get("last_active_at") else None,
-            "TOTP_ENABLED": bool(u.get("totp_enabled")),
+            # Brevo's attribute is named TWO_FA_ENABLED, not TOTP_ENABLED.
+            "TWO_FA_ENABLED": bool(u.get("totp_enabled")),
             "FRIENDS_PUBLIC": bool(u.get("friends_public")),
             "IS_HIDDEN": bool(u.get("is_hidden")),
             # Progress
@@ -2169,6 +2175,9 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
     # success: clear counters
     with _LOGIN_GUARD_LOCK:
         _clear_login_failures(keys)
+
+    db.execute(text("UPDATE users SET last_active_at = NOW() WHERE id = :u"), {"u": row["id"]})
+    _brevo_sync_user(db, row["id"], event="login")
 
     tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": row["id"]}).scalar() or 0)
     token = create_token(row["id"], tv)
