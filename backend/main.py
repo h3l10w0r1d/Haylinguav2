@@ -27,8 +27,9 @@ from ensure_schema import ensure_schema
 from lesson_analytics import router as lesson_analytics_router
 from routes_seo import router as seo_router
 from routes_autofix import router as autofix_router
-from database import engine
+from database import Base, engine
 from sqlalchemy import text
+import models  # noqa: F401 — registers users/lessons/exercises/exercise_options on Base.metadata
 
 
 # Error tracking — no-op unless SENTRY_DSN is set. Init before the app so the
@@ -184,6 +185,17 @@ except (PermissionError, OSError):
 
 app.mount("/static/conv-audio", StaticFiles(directory=CONV_AUDIO_DIR), name="conv_audio")
 
+# Base ORM tables (users, lessons, exercises, exercise_options) — every other
+# table ensure_schema() manages assumes these already exist (columns get
+# ALTER'd onto them, or they're FOREIGN KEY targets). Only the test suite's
+# conftest.py did this bootstrap before; a genuinely fresh database booting
+# main.py directly (a new deploy target, disaster recovery, this Docker
+# image) had nothing create these tables and crashed on the first
+# ensure_table() call that references them. create_all() is a no-op for
+# tables that already exist, so this changes nothing for the current,
+# long-running production database.
+Base.metadata.create_all(engine)
+
 ensure_schema()
 
 app.include_router(lesson_analytics_router)
@@ -215,6 +227,7 @@ origins = [
     "https://www.haylingua.am",
     "http://localhost:5173",  # Added for local development
     "http://localhost:3000",    # Added for local development
+    "http://localhost:8080",  # docker-compose frontend container (Dockerfile.frontend/nginx)
     "https://cms.haylingua.am",
 ]
 

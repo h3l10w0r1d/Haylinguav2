@@ -1,0 +1,22 @@
+# Repo-root .dockerignore — applies to the build context when building from
+# the repo root (both `backend/Dockerfile` and the frontend Dockerfile use
+# repo-root context so they can COPY backend/ / package.json respectively).
+.git
+.github
+node_modules
+dist
+uploads
+backend/uploads
+backend/venv
+backend/.venv
+backend/__pycache__
+backend/**/__pycache__
+backend/*.pyc
+backend/tests
+.env
+.env.local
+.env.*.local
+*.md
+.claude
+.vscode
+.DS_Store

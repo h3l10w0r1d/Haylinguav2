@@ -46,6 +46,9 @@ def ensure_schema() -> None:
         fill_nulls("exercises", "xp", "0")
 
         # ---------- users (existing columns) ----------
+        # Optional display name captured at signup — see SignupIn.name in
+        # routes.py ("Stored in users.name"). Never had a migration anywhere.
+        add_col_if_missing("users", "name TEXT")
         add_col_if_missing("users", "username TEXT")
         add_col_if_missing("users", "display_name TEXT")
         add_col_if_missing("users", "first_name TEXT")
