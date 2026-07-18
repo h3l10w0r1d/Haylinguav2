@@ -1,6 +1,7 @@
 #backend/routes_audio.oy
 import os
 import time
+import uuid
 from collections import defaultdict
 from typing import Optional, Literal
 
@@ -17,6 +18,16 @@ from database import get_db
 from routes import require_cms_admin
 # Learner auth for speech-to-text (per-user; each call costs an STT request).
 from auth import get_current_user
+# Replicate Whisper gives much better Armenian STT accuracy than ElevenLabs
+# Scribe (Scribe frequently misreads Armenian words as unrelated English
+# words). Reuse the implementation already proven for AI Conversation rather
+# than duplicating it.
+from routes_conversation import (
+    _transcribe_whisper,
+    _conv_audio_dir,
+    _api_base_url,
+    REPLICATE_API_TOKEN,
+)
 
 router = APIRouter()
 
@@ -704,6 +715,31 @@ async def transcribe_speech(
     lang = (language_code or "hye").strip().lower()[:10]
     if lang not in _ALLOWED_LANG_CODES:
         lang = "hye"  # default to Eastern Armenian
+
+    # Primary: Replicate Whisper for Armenian (much better accuracy than
+    # ElevenLabs Scribe, which regularly mistranscribes Armenian words as
+    # unrelated English ones). Whisper needs a fetchable URL, so the audio is
+    # written to the same public static dir AI Conversation already uses.
+    if lang in ("hye", "hy") and REPLICATE_API_TOKEN:
+        audio_filename = f"{uuid.uuid4().hex}_ex.webm"
+        audio_file_path = os.path.join(_conv_audio_dir(), audio_filename)
+        try:
+            with open(audio_file_path, "wb") as f:
+                f.write(data)
+            audio_file_url = f"{_api_base_url()}/static/conv-audio/{audio_filename}"
+            transcription = await _transcribe_whisper(audio_file_url)
+        except Exception:
+            transcription = ""
+        finally:
+            try:
+                os.remove(audio_file_path)
+            except OSError:
+                pass
+        if transcription:
+            return {"text": transcription, "language_code": "hye"}
+
+    if not ELEVEN_API_KEY:
+        raise HTTPException(status_code=400, detail="Speech-to-text is not configured")
 
     files = {"file": (audio.filename or "speech.webm", data, audio.content_type or "audio/webm")}
     form = {"model_id": ELEVEN_STT_MODEL, "language_code": lang}
