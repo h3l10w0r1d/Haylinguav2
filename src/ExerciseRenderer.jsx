@@ -1322,11 +1322,13 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   const prompt = exercise?.prompt || "Say the phrase out loud";
   const target = String(exercise?.expected_answer ?? cfg.answer ?? cfg.target ?? cfg.phrase ?? "").trim();
   const lang = cfg.language_code || cfg.lang || "hye";
+  const hint = String(cfg.transliteration || cfg.romanization || "").trim();
 
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState("");
+  const [showHint, setShowHint] = useState(false);
   const mrRef = useRef(null);
   const chunksRef = useRef([]);
 
@@ -1335,6 +1337,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
     setBusy(false);
     setTranscript("");
     setError("");
+    setShowHint(false);
   }, [exercise?.id]);
 
   async function startRec() {
@@ -1407,11 +1410,30 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       <Title>{prompt}</Title>
 
       {target ? (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-          <div className="text-2xl font-extrabold text-slate-900">{target}</div>
-          <button type="button" onClick={playTarget} className="btn3d btn3d-neutral shrink-0 text-sm">
-            🔊 Listen
-          </button>
+        <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-2xl font-extrabold text-slate-900">{target}</div>
+            <div className="flex shrink-0 gap-2">
+              {hint ? (
+                <button
+                  type="button"
+                  onClick={() => setShowHint((v) => !v)}
+                  className="btn3d btn3d-neutral text-sm"
+                  aria-label="Show pronunciation hint"
+                >
+                  💬 {showHint ? "Hide" : "Hint"}
+                </button>
+              ) : null}
+              <button type="button" onClick={playTarget} className="btn3d btn3d-neutral text-sm">
+                🔊 Listen
+              </button>
+            </div>
+          </div>
+          {showHint && hint ? (
+            <div className="mt-3 text-sm font-semibold text-slate-500">
+              Sounds like: <span className="text-slate-700">{hint}</span>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -2240,15 +2262,17 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
   const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
   const target = String(exercise?.expected_answer ?? cfg.target ?? cfg.answer ?? "").trim();
   const lang = cfg.language_code || cfg.lang || "hye";
+  const hint = String(cfg.transliteration || cfg.romanization || "").trim();
 
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState("");
+  const [showHint, setShowHint] = useState(false);
   const mrRef = useRef(null);
   const chunksRef = useRef([]);
 
-  useEffect(() => { setRecording(false); setBusy(false); setTranscript(""); setError(""); }, [exercise?.id]);
+  useEffect(() => { setRecording(false); setBusy(false); setTranscript(""); setError(""); setShowHint(false); }, [exercise?.id]);
 
   async function startRec() {
     setError(""); setTranscript("");
@@ -2296,12 +2320,26 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
       </div>
 
       {target ? (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Your line</div>
-            <div className="text-xl font-extrabold text-slate-900">{target}</div>
+        <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Your line</div>
+              <div className="text-xl font-extrabold text-slate-900">{target}</div>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {hint ? (
+                <button type="button" onClick={() => setShowHint((v) => !v)} className="btn3d btn3d-neutral text-sm" aria-label="Show pronunciation hint">
+                  💬 {showHint ? "Hide" : "Hint"}
+                </button>
+              ) : null}
+              <button type="button" onClick={() => playLine(target)} className="btn3d btn3d-neutral text-sm">🔊 Listen</button>
+            </div>
           </div>
-          <button type="button" onClick={() => playLine(target)} className="btn3d btn3d-neutral shrink-0 text-sm">🔊 Listen</button>
+          {showHint && hint ? (
+            <div className="mt-3 text-sm font-semibold text-slate-500">
+              Sounds like: <span className="text-slate-700">{hint}</span>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

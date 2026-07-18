@@ -87,13 +87,18 @@ def mpq(prompt, tts_text, hear_choices, answer_index):
 
 def sp(prompt, target, accepted=None):
     """speak: learner records themselves saying `target`; graded by transcript
-    similarity. Prompt is English-only — the Armenian target is never shown
-    on screen, only used server-side for grading."""
+    similarity. Prompt is English-only — the Armenian target is shown on
+    screen (so the learner knows what to say) with an optional tap-to-reveal
+    romanized pronunciation hint (_ROMAN) for when they forget the sound."""
     return {
         "kind": "speak",
         "prompt": prompt,
         "expected_answer": target,
-        "config": {"acceptedAnswers": accepted or [], "language_code": "hye"},
+        "config": {
+            "acceptedAnswers": accepted or [],
+            "language_code": "hye",
+            "transliteration": _ROMAN.get(target, ""),
+        },
     }
 
 

@@ -290,7 +290,7 @@ function defaultConfigForKind(kind) {
       return { question: "Select all correct options", choices: ["Option A", "Option B", "Option C"], correctIndices: [0] };
 
     case "speak":
-      return { acceptedAnswers: [], language_code: "hye" };
+      return { acceptedAnswers: [], language_code: "hye", transliteration: "" };
 
     case "listen_type":
       return { ttsText: "Բարև", acceptedAnswers: [], hint: "" };
@@ -332,7 +332,7 @@ function defaultConfigForKind(kind) {
     case "flashcard":
       return { front: "Շնորհակալություն", back: "Thank you", hint: "" };
     case "speak_line":
-      return { lines: [{ from: "them", text: "Բարև! Ինչպե՞ս ես" }], target: "Լավ եմ, շնորհակալություն", language_code: "hye" };
+      return { lines: [{ from: "them", text: "Բարև! Ինչպե՞ս ես" }], target: "Լավ եմ, շնորհակալություն", language_code: "hye", transliteration: "" };
     case "write_translate":
       return { source: "I am learning Armenian", acceptedAnswers: ["Ես հայերեն եմ սովորում", "Ես սովորում եմ հայերեն"] };
 
@@ -554,6 +554,9 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           </Field>
           <Field label="Language code" hint="ElevenLabs ISO-639-3 code. Armenian = hye.">
             <Input value={cfg.language_code ?? "hye"} onChange={(e) => patchConfig({ language_code: e.target.value.trim() })} />
+          </Field>
+          <Field label="Pronunciation hint (optional)" hint="Romanized 'sounds like' text a learner can tap to reveal if they forget the sound. Example: hats">
+            <Input value={cfg.transliteration ?? ""} onChange={(e) => patchConfig({ transliteration: e.target.value })} placeholder="hats" />
           </Field>
         </div>
       );
@@ -1157,6 +1160,9 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
           </Field>
           <Field label="Language code" hint="ElevenLabs ISO-639-3. Armenian = hye.">
             <Input value={cfg.language_code ?? "hye"} onChange={(e) => patchConfig({ language_code: e.target.value.trim() })} />
+          </Field>
+          <Field label="Pronunciation hint (optional)" hint="Romanized 'sounds like' text a learner can tap to reveal if they forget the sound.">
+            <Input value={cfg.transliteration ?? ""} onChange={(e) => patchConfig({ transliteration: e.target.value })} placeholder="lav em, shnorhakalutyun" />
           </Field>
         </div>
       );
