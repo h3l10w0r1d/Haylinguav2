@@ -1471,6 +1471,20 @@ def cms_seed_sounds(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/alphabet")
+def cms_seed_alphabet(request: Request, db=Depends(get_db)):
+    """Populate Phase 1 (Alphabet) — the remaining 33 letters beyond the
+    6 already covered by hl-alphabet-1/2, plus a capstone review lesson.
+    Idempotent."""
+    require_cms(request, db)
+    from seed_alphabet import seed_alphabet_phase
+    try:
+        res = seed_alphabet_phase()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
