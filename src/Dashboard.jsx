@@ -1,4 +1,6 @@
-// src/Dashboard.jsx — a dark, glowing, modern command-center dashboard.
+// src/Dashboard.jsx — a dark, disciplined command-center dashboard.
+// One accent color, solid crisp cards, no scattered glow — the opposite of
+// the earlier "everything is a different neon badge" attempt.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2 } from "lucide-react";
@@ -9,19 +11,14 @@ import ChestOpening from "./lib/ChestOpening";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
-// Glow colors keyed to the Tailwind brand palette (rgba, not utility classes —
-// arbitrary colored box-shadows need a literal value to glow reliably).
-const GLOW = {
-  brand: "rgba(255,122,26,.45)",
-  grass: "rgba(88,204,2,.4)",
-  gold: "rgba(255,200,0,.4)",
-  cardinal: "rgba(255,75,75,.4)",
-  feather: "rgba(28,176,246,.4)",
-  pom: "rgba(225,29,72,.4)",
-};
+// The only glow on the page — reserved for the primary CTA.
+const BRAND_GLOW = "0 0 0 1px rgba(255,122,26,.4), 0 8px 24px -8px rgba(255,122,26,.5)";
 
-// Shared dark glass-card shell used across the whole page.
-const CARD = "relative rounded-3xl border border-white/[0.08] bg-white/[0.035] p-5 backdrop-blur-xl";
+// Solid, crisp card — no blur, no translucency. Meaning is carried by icon
+// color and copy, not by a different tinted background per card.
+const CARD = "relative rounded-2xl border border-white/[0.08] bg-[#141316] p-5";
+// Neutral chip for every icon badge — color lives in the icon, not the tile.
+const CHIP = "grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/[0.06]";
 
 // Animated checkmark — the stroke draws itself in via CSS (.quest-tick-path).
 function QuestTick({ className = "" }) {
@@ -93,12 +90,9 @@ function DailyQuestsCard({ token }) {
       return (
         <div className={"quests-celebrate flex flex-col items-center overflow-hidden text-center " + CARD}>
           <div className="relative grid place-items-center">
-            <span className="quests-ring absolute h-14 w-14 rounded-full bg-grass-500/30" />
-            <span className="quests-ring quests-ring-2 absolute h-14 w-14 rounded-full bg-grass-500/30" />
-            <div
-              className="quests-badge-pop relative grid h-14 w-14 place-items-center rounded-2xl bg-grass-500 text-white"
-              style={{ boxShadow: `0 0 24px -4px ${GLOW.grass}` }}
-            >
+            <span className="quests-ring absolute h-14 w-14 rounded-full bg-grass-500/25" />
+            <span className="quests-ring quests-ring-2 absolute h-14 w-14 rounded-full bg-grass-500/25" />
+            <div className="quests-badge-pop relative grid h-14 w-14 place-items-center rounded-2xl bg-grass-500 text-white">
               <QuestTick className="h-8 w-8" />
             </div>
           </div>
@@ -109,8 +103,8 @@ function DailyQuestsCard({ token }) {
     }
     return (
       <div className={"quests-collapse flex items-center gap-3 overflow-hidden " + CARD}>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-grass-500/15 text-grass-400">
-          <QuestTick className="h-5 w-5" />
+        <div className={CHIP}>
+          <QuestTick className="h-5 w-5 text-grass-400" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-extrabold text-white">Daily quests complete</div>
@@ -135,8 +129,8 @@ function DailyQuestsCard({ token }) {
           const pct = q.target ? Math.round((q.progress / q.target) * 100) : 0;
           return (
             <div key={q.id} className="flex items-center gap-3">
-              <div className={"grid h-9 w-9 shrink-0 place-items-center rounded-xl " + (q.done ? "bg-grass-500/15 text-grass-400" : "bg-white/[0.06] text-white/40")}>
-                {q.done ? <Check className="h-4.5 w-4.5" /> : <Icon className="h-4.5 w-4.5" />}
+              <div className={CHIP}>
+                {q.done ? <Check className="h-4.5 w-4.5 text-grass-400" /> : <Icon className="h-4.5 w-4.5 text-white/40" />}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
@@ -151,8 +145,7 @@ function DailyQuestsCard({ token }) {
                   <button
                     onClick={() => claim(q.id)}
                     disabled={claiming === q.id}
-                    className="mt-1.5 w-full rounded-lg bg-gold-500 py-1.5 text-xs font-extrabold uppercase text-black/80 transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
-                    style={{ boxShadow: `0 0 16px -4px ${GLOW.gold}` }}
+                    className="mt-1.5 w-full rounded-lg bg-brand-500 py-1.5 text-xs font-extrabold uppercase text-white transition hover:bg-brand-400 active:scale-[0.98] disabled:opacity-60"
                   >
                     {claiming === q.id ? "…" : `Claim +${q.reward_xp} XP`}
                   </button>
@@ -218,7 +211,7 @@ function ChestCard({ token }) {
     <>
       <div className={"text-center " + CARD}>
         <div
-          className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gold-500/15 text-2xl"
+          className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/[0.06] text-2xl"
           style={opening ? { animation: "chestShake .85s ease-in-out" } : undefined}
         >
           🎁
@@ -233,8 +226,7 @@ function ChestCard({ token }) {
         <button
           onClick={open}
           disabled={opening || chests <= 0}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold uppercase text-white transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
-          style={{ boxShadow: `0 0 20px -5px ${GLOW.brand}` }}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold uppercase text-white transition hover:bg-brand-400 active:scale-[0.98] disabled:opacity-60"
         >
           <Gift className="h-4 w-4" /> {opening ? "Opening…" : "Open chest"}
         </button>
@@ -277,17 +269,17 @@ function StreakCard({ token, streak }) {
   const cap = freeze.freeze_cap || 2;
 
   const badge = frozen
-    ? { text: "Frozen", tone: "bg-feather-500/15 text-feather-400" }
+    ? { text: "Frozen", tone: "bg-white/[0.06] text-feather-400" }
     : lit
-    ? { text: "Lit", tone: "bg-grass-500/15 text-grass-400" }
+    ? { text: "Lit", tone: "bg-white/[0.06] text-grass-400" }
     : atRisk
-    ? { text: "At risk", tone: "bg-gold-500/15 text-gold-400" }
+    ? { text: "At risk", tone: "bg-white/[0.06] text-gold-400" }
     : null;
 
   return (
     <div className={CARD}>
       <div className="flex items-center gap-3">
-        <StreakFlame size={44} lit={lit} frozen={frozen} />
+        <StreakFlame size={40} lit={lit} frozen={frozen} />
         <div className="flex-1">
           <div className="text-2xl font-extrabold leading-none tabular-nums text-white">{n}</div>
           <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-white/40">day streak</div>
@@ -308,7 +300,6 @@ function StreakCard({ token, streak }) {
                 title={`${d?.label ?? ""}: ${Number(d?.value ?? 0)} XP`}
                 className={"flex-1 grid place-items-center h-7 rounded-lg text-[10px] font-extrabold transition " +
                   (on ? "bg-brand-500 text-white" : "bg-white/[0.06] text-white/30")}
-                style={on ? { boxShadow: `0 0 10px -3px ${GLOW.brand}` } : undefined}
               >
                 {label}
               </div>
@@ -330,8 +321,7 @@ function StreakCard({ token, streak }) {
       {atRisk && freeze.freezes === 0 && (
         <button
           onClick={() => navigate("/practice")}
-          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold text-white transition hover:brightness-105 active:scale-[0.98]"
-          style={{ boxShadow: `0 0 20px -5px ${GLOW.brand}` }}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold text-white transition hover:bg-brand-400 active:scale-[0.98]"
         >
           Practice now <ArrowRight className="h-4 w-4" />
         </button>
@@ -346,7 +336,7 @@ function StreakCard({ token, streak }) {
             {Array.from({ length: cap }).map((_, i) => (
               <Snowflake
                 key={i}
-                className={"h-4 w-4 " + (i < freeze.freezes ? "fill-feather-400/40 text-feather-400" : "text-white/15")}
+                className={"h-4 w-4 " + (i < freeze.freezes ? "text-feather-400" : "text-white/15")}
               />
             ))}
           </div>
@@ -378,8 +368,8 @@ function AchievementsCard({ token, onOpen }) {
   return (
     <div className={CARD}>
       <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gold-500/15 text-gold-400">
-          <Trophy className="h-5 w-5" />
+        <div className={CHIP}>
+          <Trophy className="h-5 w-5 text-gold-400" />
         </div>
         <div className="text-sm font-extrabold text-white">Achievements</div>
       </div>
@@ -424,11 +414,11 @@ function ReviewCard({ token }) {
   const urgent = due > 0;
 
   return (
-    <div className={"cursor-pointer transition hover:border-white/[0.14] " + CARD} onClick={() => navigate("/review")}>
+    <div className={"cursor-pointer transition hover:border-white/[0.16] " + CARD} onClick={() => navigate("/review")}>
       <div className="flex items-center justify-between">
         <div className="text-sm font-extrabold text-white">Review</div>
         {urgent && (
-          <span className="rounded-lg bg-brand-500/15 px-2 py-0.5 text-xs font-extrabold text-brand-400">
+          <span className="rounded-lg bg-white/[0.06] px-2 py-0.5 text-xs font-extrabold text-brand-400">
             Due now
           </span>
         )}
@@ -448,9 +438,8 @@ function ReviewCard({ token }) {
         onClick={e => { e.stopPropagation(); navigate("/review"); }}
         className={
           "mt-4 w-full rounded-xl py-2.5 text-sm font-extrabold text-white transition active:scale-[0.98] " +
-          (urgent ? "bg-brand-500 hover:brightness-105" : "bg-white/[0.08] text-white/50")
+          (urgent ? "bg-brand-500 hover:bg-brand-400" : "bg-white/[0.08] text-white/50")
         }
-        style={urgent ? { boxShadow: `0 0 20px -5px ${GLOW.brand}` } : undefined}
       >
         {urgent ? "Start review" : "Nothing due yet"}
       </button>
@@ -473,10 +462,10 @@ function MistakesCard({ token, navigate }) {
   if (count === 0) return null;
 
   return (
-    <div className={"cursor-pointer transition hover:border-white/[0.14] " + CARD} onClick={() => navigate("/mistakes")}>
+    <div className={"cursor-pointer transition hover:border-white/[0.16] " + CARD} onClick={() => navigate("/mistakes")}>
       <div className="flex items-center justify-between">
         <div className="text-sm font-extrabold text-white">Your mistakes</div>
-        <span className="rounded-lg bg-cardinal-500/15 px-2 py-0.5 text-xs font-extrabold text-cardinal-400">Fix them</span>
+        <span className="rounded-lg bg-white/[0.06] px-2 py-0.5 text-xs font-extrabold text-cardinal-400">Fix them</span>
       </div>
       <div className="mt-3 flex items-end gap-2">
         <span className="text-3xl font-extrabold tabular-nums text-white">{count}</span>
@@ -484,8 +473,7 @@ function MistakesCard({ token, navigate }) {
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); navigate("/mistakes"); }}
-        className="mt-4 w-full rounded-xl bg-cardinal-500 py-2.5 text-sm font-extrabold text-white transition hover:brightness-105 active:scale-[0.98]"
-        style={{ boxShadow: `0 0 20px -5px ${GLOW.cardinal}` }}
+        className="mt-4 w-full rounded-xl bg-cardinal-500 py-2.5 text-sm font-extrabold text-white transition hover:bg-cardinal-400 active:scale-[0.98]"
       >
         Review mistakes
       </button>
@@ -512,7 +500,7 @@ function DailyGoalCard({ todayXp }) {
     <div className={CARD}>
       <div className="flex items-center justify-between">
         <div className="text-sm font-extrabold text-white">Daily goal</div>
-        {done ? <span className="rounded-lg bg-grass-500/15 px-2 py-0.5 text-xs font-extrabold text-grass-400">Done</span> : null}
+        {done ? <span className="rounded-lg bg-white/[0.06] px-2 py-0.5 text-xs font-extrabold text-grass-400">Done</span> : null}
       </div>
 
       <div className="mt-3 flex items-end gap-2">
@@ -543,8 +531,9 @@ function DailyGoalCard({ todayXp }) {
   );
 }
 
-// Compact always-visible KPI row — hearts / streak / XP / gems, each with a
-// glowing icon badge, dashboard-style.
+// Compact always-visible KPI row — hearts / streak / XP / gems. Neutral chips
+// throughout; only the icon carries color, so the row reads as one system
+// instead of four different colored badges competing for attention.
 function KpiStrip({ token, streak, xp }) {
   const [hearts, setHearts] = useState(null);
   const [gems, setGems] = useState(null);
@@ -583,18 +572,18 @@ function KpiStrip({ token, streak, xp }) {
     : "–";
 
   const items = [
-    { icon: Heart, label: "Hearts", value: heartLabel, tint: "bg-cardinal-500/15 text-cardinal-400", glow: GLOW.cardinal },
-    { icon: Flame, label: "Streak", value: streak, tint: "bg-brand-500/15 text-brand-400", glow: GLOW.brand },
-    { icon: Zap, label: "Total XP", value: xp, tint: "bg-gold-500/15 text-gold-400", glow: GLOW.gold },
-    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, tint: "bg-feather-500/15 text-feather-400", glow: GLOW.feather },
+    { icon: Heart, label: "Hearts", value: heartLabel, color: "text-cardinal-400" },
+    { icon: Flame, label: "Streak", value: streak, color: "text-brand-400" },
+    { icon: Zap, label: "Total XP", value: xp, color: "text-gold-400" },
+    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, color: "text-feather-400" },
   ];
 
   return (
     <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
       {items.map((it) => (
         <div key={it.label} className={"flex items-center gap-3 " + CARD}>
-          <span className={"grid h-9 w-9 shrink-0 place-items-center rounded-xl " + it.tint} style={{ boxShadow: `0 0 14px -5px ${it.glow}` }}>
-            <it.icon className="h-4 w-4" />
+          <span className={CHIP}>
+            <it.icon className={"h-4 w-4 " + it.color} />
           </span>
           <div className="min-w-0">
             <div className="text-base font-extrabold leading-none tabular-nums text-white">{it.value}</div>
@@ -606,17 +595,14 @@ function KpiStrip({ token, streak, xp }) {
   );
 }
 
-// The single most important element: resume the current lesson. A glowing
-// glass panel with an ambient orange radial behind it — the page's anchor.
+// The single most important element: resume the current lesson. The one
+// place on the page that gets an accent glow — everything else stays quiet
+// so this stays the obvious next action.
 function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, isNewUser, onStart, navigate }) {
   const pct = unitTotal ? Math.round((unitDone / unitTotal) * 100) : 0;
   return (
-    <section className={"mb-5 overflow-hidden p-6 sm:p-7 " + CARD}>
-      <div
-        className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full opacity-25 blur-3xl"
-        style={{ background: "radial-gradient(circle, #FF7A1A, transparent 70%)" }}
-      />
-      <div className="relative flex items-start justify-between gap-4">
+    <section className={"mb-5 p-6 sm:p-7 " + CARD}>
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-xs font-bold uppercase tracking-[0.14em] text-white/40">
             Բարև{firstName ? `, ${firstName}` : ""}
@@ -625,17 +611,17 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
             {loading ? "Loading your journey…" : lesson ? "Ready for today's lesson?" : "You've reached the summit"}
           </h1>
         </div>
-        <img src={owl} alt="" className="hidden h-16 w-auto shrink-0 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] sm:block" />
+        <img src={owl} alt="" className="hidden h-16 w-auto shrink-0 object-contain sm:block" />
       </div>
 
       {loading ? (
-        <div className="relative mt-6 h-16 animate-pulse rounded-2xl bg-white/[0.06]" />
+        <div className="mt-6 h-16 animate-pulse rounded-2xl bg-white/[0.06]" />
       ) : lesson ? (
         <button
           type="button"
           onClick={() => onStart(lesson)}
-          className="relative mt-6 flex w-full items-center gap-4 rounded-2xl bg-brand-500 px-5 py-4 text-left text-white transition hover:brightness-105 active:scale-[0.99]"
-          style={{ boxShadow: `0 0 32px -6px ${GLOW.brand}` }}
+          className="mt-6 flex w-full items-center gap-4 rounded-2xl bg-brand-500 px-5 py-4 text-left text-white transition hover:bg-brand-400 active:scale-[0.99]"
+          style={{ boxShadow: BRAND_GLOW }}
         >
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15">
             <Play className="h-5 w-5 fill-white" />
@@ -652,8 +638,7 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
         <button
           type="button"
           onClick={() => navigate("/practice")}
-          className="relative mt-6 flex w-full items-center gap-4 rounded-2xl bg-grass-500 px-5 py-4 text-left text-white transition hover:brightness-105 active:scale-[0.99]"
-          style={{ boxShadow: `0 0 32px -6px ${GLOW.grass}` }}
+          className="mt-6 flex w-full items-center gap-4 rounded-2xl bg-grass-500 px-5 py-4 text-left text-white transition hover:bg-grass-400 active:scale-[0.99]"
         >
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/20">
             <Check className="h-5 w-5" strokeWidth={3} />
@@ -667,13 +652,13 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
       )}
 
       {!loading && lesson && unitTotal > 0 && (
-        <div className="relative mt-4">
+        <div className="mt-4">
           <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wide text-white/40">
             <span className="truncate">{unitTitle}</span>
             <span className="tabular-nums">{unitDone}/{unitTotal}</span>
           </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
-            <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%`, boxShadow: `0 0 8px -1px ${GLOW.brand}` }} />
+            <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
           </div>
         </div>
       )}
@@ -682,7 +667,7 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
         <button
           type="button"
           onClick={() => navigate("/placement")}
-          className="relative mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-white/50 transition hover:text-white/80"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-white/50 transition hover:text-white/80"
         >
           <Target className="h-4 w-4" /> Not a beginner? Take the placement test
         </button>
@@ -705,47 +690,41 @@ function LessonTile({ lesson, onStart }) {
       title={locked ? "Finish the previous lesson to unlock" : lesson.title}
       aria-label={lesson.title}
       className={
-        "group relative flex flex-col items-center gap-2 rounded-2xl p-3 text-center transition active:scale-[0.97] " +
+        "flex flex-col items-center gap-2 rounded-xl p-3 text-center transition active:scale-[0.97] " +
         (current
-          ? "bg-brand-500/10 ring-2 ring-brand-500"
+          ? "bg-brand-500"
           : done
-          ? "bg-white/[0.03] ring-1 ring-white/[0.08] hover:ring-white/[0.16]"
-          : "cursor-default bg-white/[0.015] ring-1 ring-white/[0.04]")
+          ? "bg-white/[0.06] hover:bg-white/[0.09]"
+          : "cursor-default bg-white/[0.025]")
       }
-      style={current ? { boxShadow: `0 0 20px -6px ${GLOW.brand}` } : undefined}
     >
-      {current && (
-        <span className="absolute -right-1 -top-1 h-3 w-3 animate-pulse rounded-full bg-brand-500 ring-2 ring-[#0c0a08]" />
-      )}
       <span
         className={
-          "grid h-10 w-10 place-items-center rounded-xl " +
-          (done ? "bg-grass-500 text-white" : current ? "bg-brand-500 text-white" : "bg-white/[0.06] text-white/25")
+          "grid h-9 w-9 place-items-center rounded-lg " +
+          (current ? "bg-white/20 text-white" : done ? "bg-grass-500 text-white" : "bg-white/[0.06] text-white/25")
         }
       >
         {done ? <Check className="h-5 w-5" strokeWidth={3} /> : current ? <Play className="h-4 w-4 fill-white" /> : <Lock className="h-4 w-4" />}
       </span>
-      <span className={"line-clamp-2 text-[11px] font-bold leading-tight " + (locked ? "text-white/30" : "text-white/75")}>
+      <span className={"line-clamp-2 text-[11px] font-bold leading-tight " + (current ? "text-white" : locked ? "text-white/30" : "text-white/75")}>
         {lesson.title}
       </span>
     </button>
   );
 }
 
-// Warm Armenian palette rotation for the unit accent stripe.
-const UNIT_ACCENTS = ["#FF7A1A", "#E11D48", "#FFC800"];
-
 // A unit: header + progress bar + a clean grid of lesson tiles ending in a
-// checkpoint tile. Replaces the old winding "snake path" with a scannable grid.
-function CurriculumUnit({ unit, index, onStart, onCheckpoint }) {
+// checkpoint tile. The status stripe means something (locked / in progress /
+// done) instead of just rotating through colors by index.
+function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
   const total = unit.items.length;
   const done = unit.items.filter((l) => l.status === "completed").length;
   const complete = total > 0 && done === total;
   const pct = total ? Math.round((done / total) * 100) : 0;
-  const accent = UNIT_ACCENTS[index % UNIT_ACCENTS.length];
+  const statusColor = complete ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-white/10";
   return (
     <section className={"mb-4 overflow-hidden p-5 " + CARD}>
-      <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: accent, boxShadow: `0 0 12px -1px ${accent}` }} />
+      <div className={"absolute inset-x-0 top-0 h-[3px] " + statusColor} />
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-bold uppercase tracking-wider text-white/40">Unit {index + 1}</div>
@@ -758,7 +737,7 @@ function CurriculumUnit({ unit, index, onStart, onCheckpoint }) {
       </div>
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: accent }} />
+        <div className={"h-full rounded-full transition-all " + statusColor} style={{ width: `${pct}%` }} />
       </div>
 
       <div className="mt-5 grid grid-cols-4 gap-2.5 sm:grid-cols-5 md:grid-cols-6">
@@ -772,12 +751,11 @@ function CurriculumUnit({ unit, index, onStart, onCheckpoint }) {
           onClick={() => complete && onCheckpoint(unit)}
           title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
           className={
-            "flex flex-col items-center gap-2 rounded-2xl p-3 text-center transition active:scale-[0.97] " +
-            (complete ? "bg-gold-500/10 ring-1 ring-gold-500/40 hover:ring-gold-500/70" : "cursor-default bg-white/[0.015] ring-1 ring-white/[0.04]")
+            "flex flex-col items-center gap-2 rounded-xl p-3 text-center transition active:scale-[0.97] " +
+            (complete ? "bg-gold-500/15 hover:bg-gold-500/25" : "cursor-default bg-white/[0.025]")
           }
-          style={complete ? { boxShadow: `0 0 16px -6px ${GLOW.gold}` } : undefined}
         >
-          <span className={"grid h-10 w-10 place-items-center rounded-xl " + (complete ? "bg-gold-500 text-black/80" : "bg-white/[0.06] text-white/25")}>
+          <span className={"grid h-9 w-9 place-items-center rounded-lg " + (complete ? "bg-gold-500 text-black/80" : "bg-white/[0.06] text-white/25")}>
             <ShieldCheck className="h-5 w-5" />
           </span>
           <span className={"text-[11px] font-bold leading-tight " + (complete ? "text-gold-400" : "text-white/30")}>Checkpoint</span>
@@ -799,13 +777,13 @@ function CurriculumSummit({ pct }) {
 // Compact quick-access tiles.
 function QuickLinks({ navigate }) {
   const tiles = [
-    { icon: Dumbbell, label: "Practice", to: "/practice", tint: "bg-brand-500/15 text-brand-400" },
-    { icon: BookOpen, label: "Words", to: "/vocabulary", tint: "bg-grass-500/15 text-grass-400" },
-    { icon: BarChart2, label: "Progress", to: "/progress", tint: "bg-feather-500/15 text-feather-400" },
-    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", tint: "bg-gold-500/15 text-gold-400" },
-    { icon: Users, label: "Friends", to: "/friends", tint: "bg-feather-500/15 text-feather-400" },
-    { icon: Store, label: "Shop", to: "/shop", tint: "bg-pom-500/15 text-pom-400" },
-    { icon: Star, label: "Achievements", to: "/achievements", tint: "bg-gold-500/15 text-gold-400" },
+    { icon: Dumbbell, label: "Practice", to: "/practice", color: "text-brand-400" },
+    { icon: BookOpen, label: "Words", to: "/vocabulary", color: "text-grass-400" },
+    { icon: BarChart2, label: "Progress", to: "/progress", color: "text-feather-400" },
+    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", color: "text-gold-400" },
+    { icon: Users, label: "Friends", to: "/friends", color: "text-feather-400" },
+    { icon: Store, label: "Shop", to: "/shop", color: "text-pom-400" },
+    { icon: Star, label: "Achievements", to: "/achievements", color: "text-gold-400" },
   ];
   return (
     <div className="grid grid-cols-4 gap-2">
@@ -816,8 +794,8 @@ function QuickLinks({ navigate }) {
           onClick={() => navigate(t.to)}
           className={"flex flex-col items-center gap-1.5 px-1 py-3 transition hover:border-white/[0.16] active:scale-[0.97] " + CARD}
         >
-          <span className={"grid h-10 w-10 place-items-center rounded-xl " + t.tint}>
-            <t.icon className="h-5 w-5" />
+          <span className={CHIP}>
+            <t.icon className={"h-4 w-4 " + t.color} />
           </span>
           <span className="w-full truncate text-center text-[11px] font-extrabold text-white/60">{t.label}</span>
         </button>
@@ -932,19 +910,14 @@ export default function Dashboard({ user }) {
   };
 
   // ── Architecture ──────────────────────────────────────────────────────────
-  // A dark, glowing command center: a KPI row up top, a "continue" panel with
-  // an ambient orange glow, curriculum as a scannable grid of units, and a
-  // sidebar of supporting glass cards — sticky on desktop, stacked on mobile.
+  // A dark, disciplined command center: solid crisp cards, one accent color
+  // reserved for the primary action and "in progress" state, a KPI row up
+  // top, curriculum as a scannable grid of units, and a sidebar of supporting
+  // cards — sticky on desktop, stacked on mobile.
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0c0a08]">
-      {/* Ambient background glow — fixed, behind everything, purely atmospheric. */}
-      <div
-        className="pointer-events-none fixed left-1/2 top-0 h-[560px] w-[900px] -translate-x-1/2 opacity-[0.16] blur-3xl"
-        style={{ background: "radial-gradient(ellipse at top, #FF7A1A, transparent 65%)" }}
-      />
-
+    <div className="min-h-screen bg-[#0a0a0b]">
       <StreakCelebration streak={stats.streak} />
-      <div className="relative mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
+      <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
         {/* ── Main: KPIs + hero + curriculum ── */}
         <main className="mx-auto w-full max-w-xl lg:mx-0 lg:justify-self-center">
           <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} />
@@ -983,6 +956,7 @@ export default function Dashboard({ user }) {
                   key={unit.key}
                   unit={unit}
                   index={ui}
+                  isCurrent={unit.key === currentUnitKey}
                   onStart={handleStart}
                   onCheckpoint={openCheckpoint}
                 />
