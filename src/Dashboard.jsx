@@ -1,4 +1,4 @@
-// src/Dashboard.jsx — a modern, flat command-center dashboard for Haylingua.
+// src/Dashboard.jsx — a dark, glowing, modern command-center dashboard.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2 } from "lucide-react";
@@ -9,8 +9,19 @@ import ChestOpening from "./lib/ChestOpening";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
-// Shared flat-card shell used across the whole page.
-const CARD = "rounded-2xl border border-slate-200 bg-white p-5";
+// Glow colors keyed to the Tailwind brand palette (rgba, not utility classes —
+// arbitrary colored box-shadows need a literal value to glow reliably).
+const GLOW = {
+  brand: "rgba(255,122,26,.45)",
+  grass: "rgba(88,204,2,.4)",
+  gold: "rgba(255,200,0,.4)",
+  cardinal: "rgba(255,75,75,.4)",
+  feather: "rgba(28,176,246,.4)",
+  pom: "rgba(225,29,72,.4)",
+};
+
+// Shared dark glass-card shell used across the whole page.
+const CARD = "relative rounded-3xl border border-white/[0.08] bg-white/[0.035] p-5 backdrop-blur-xl";
 
 // Animated checkmark — the stroke draws itself in via CSS (.quest-tick-path).
 function QuestTick({ className = "" }) {
@@ -82,27 +93,30 @@ function DailyQuestsCard({ token }) {
       return (
         <div className={"quests-celebrate flex flex-col items-center overflow-hidden text-center " + CARD}>
           <div className="relative grid place-items-center">
-            <span className="quests-ring absolute h-14 w-14 rounded-full bg-grass-200" />
-            <span className="quests-ring quests-ring-2 absolute h-14 w-14 rounded-full bg-grass-200" />
-            <div className="quests-badge-pop relative grid h-14 w-14 place-items-center rounded-xl bg-grass-500 text-white">
+            <span className="quests-ring absolute h-14 w-14 rounded-full bg-grass-500/30" />
+            <span className="quests-ring quests-ring-2 absolute h-14 w-14 rounded-full bg-grass-500/30" />
+            <div
+              className="quests-badge-pop relative grid h-14 w-14 place-items-center rounded-2xl bg-grass-500 text-white"
+              style={{ boxShadow: `0 0 24px -4px ${GLOW.grass}` }}
+            >
               <QuestTick className="h-8 w-8" />
             </div>
           </div>
-          <div className="mt-3 text-sm font-extrabold text-slate-800">All quests complete</div>
-          <div className="mt-0.5 text-xs font-semibold text-slate-400">Come back tomorrow for more.</div>
+          <div className="mt-3 text-sm font-extrabold text-white">All quests complete</div>
+          <div className="mt-0.5 text-xs font-semibold text-white/40">Come back tomorrow for more.</div>
         </div>
       );
     }
     return (
       <div className={"quests-collapse flex items-center gap-3 overflow-hidden " + CARD}>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-grass-50 text-grass-600">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-grass-500/15 text-grass-400">
           <QuestTick className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-extrabold text-slate-800">Daily quests complete</div>
-          <div className="text-xs font-semibold text-slate-400">All {quests.length} done</div>
+          <div className="text-sm font-extrabold text-white">Daily quests complete</div>
+          <div className="text-xs font-semibold text-white/40">All {quests.length} done</div>
         </div>
-        <span className="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold tabular-nums text-slate-500">
+        <span className="shrink-0 rounded-lg bg-white/[0.06] px-2 py-1 text-xs font-bold tabular-nums text-white/50">
           {quests.length}/{quests.length}
         </span>
       </div>
@@ -112,8 +126,8 @@ function DailyQuestsCard({ token }) {
   return (
     <div className={CARD}>
       <div className="flex items-center justify-between">
-        <div className="text-sm font-extrabold text-slate-800">Daily quests</div>
-        <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold tabular-nums text-slate-500">{data.completed}/{data.total}</span>
+        <div className="text-sm font-extrabold text-white">Daily quests</div>
+        <span className="rounded-lg bg-white/[0.06] px-2 py-1 text-xs font-bold tabular-nums text-white/50">{data.completed}/{data.total}</span>
       </div>
       <div className="mt-4 space-y-3.5">
         {data.quests.map((q) => {
@@ -121,28 +135,29 @@ function DailyQuestsCard({ token }) {
           const pct = q.target ? Math.round((q.progress / q.target) * 100) : 0;
           return (
             <div key={q.id} className="flex items-center gap-3">
-              <div className={"grid h-9 w-9 shrink-0 place-items-center rounded-xl " + (q.done ? "bg-grass-50 text-grass-600" : "bg-slate-100 text-slate-400")}>
+              <div className={"grid h-9 w-9 shrink-0 place-items-center rounded-xl " + (q.done ? "bg-grass-500/15 text-grass-400" : "bg-white/[0.06] text-white/40")}>
                 {q.done ? <Check className="h-4.5 w-4.5" /> : <Icon className="h-4.5 w-4.5" />}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="truncate text-sm font-bold text-slate-700">{q.desc}</div>
+                  <div className="truncate text-sm font-bold text-white/85">{q.desc}</div>
                   {q.claimed ? (
-                    <span className="shrink-0 text-xs font-bold text-grass-600">Claimed</span>
+                    <span className="shrink-0 text-xs font-bold text-grass-400">Claimed</span>
                   ) : (
-                    <div className="shrink-0 text-xs font-bold tabular-nums text-slate-400">{q.progress}/{q.target}</div>
+                    <div className="shrink-0 text-xs font-bold tabular-nums text-white/35">{q.progress}/{q.target}</div>
                   )}
                 </div>
                 {q.claimable ? (
                   <button
                     onClick={() => claim(q.id)}
                     disabled={claiming === q.id}
-                    className="mt-1.5 w-full rounded-lg bg-gold-500 py-1.5 text-xs font-extrabold uppercase text-white transition hover:bg-gold-600 active:scale-[0.98] disabled:opacity-60"
+                    className="mt-1.5 w-full rounded-lg bg-gold-500 py-1.5 text-xs font-extrabold uppercase text-black/80 transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+                    style={{ boxShadow: `0 0 16px -4px ${GLOW.gold}` }}
                   >
                     {claiming === q.id ? "…" : `Claim +${q.reward_xp} XP`}
                   </button>
                 ) : (
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
                     <div className={"h-full rounded-full " + (q.done ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${Math.max(pct, 4)}%` }} />
                   </div>
                 )}
@@ -202,18 +217,24 @@ function ChestCard({ token }) {
   return (
     <>
       <div className={"text-center " + CARD}>
-        <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-amber-50 text-2xl" style={opening ? { animation: "chestShake .85s ease-in-out" } : undefined}>🎁</div>
-        <div className="mt-3 text-sm font-extrabold text-slate-800">
+        <div
+          className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gold-500/15 text-2xl"
+          style={opening ? { animation: "chestShake .85s ease-in-out" } : undefined}
+        >
+          🎁
+        </div>
+        <div className="mt-3 text-sm font-extrabold text-white">
           {chests} chest{chests === 1 ? "" : "s"} to open
         </div>
-        <p className="mt-1 text-xs font-semibold text-slate-400">Gems or an XP boost inside</p>
+        <p className="mt-1 text-xs font-semibold text-white/40">Gems or an XP boost inside</p>
         {openErr && (
-          <p className="mt-2 text-xs font-semibold text-cardinal-500">Couldn't open — try again.</p>
+          <p className="mt-2 text-xs font-semibold text-cardinal-400">Couldn't open — try again.</p>
         )}
         <button
           onClick={open}
           disabled={opening || chests <= 0}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-sm font-extrabold uppercase text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold uppercase text-white transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+          style={{ boxShadow: `0 0 20px -5px ${GLOW.brand}` }}
         >
           <Gift className="h-4 w-4" /> {opening ? "Opening…" : "Open chest"}
         </button>
@@ -256,11 +277,11 @@ function StreakCard({ token, streak }) {
   const cap = freeze.freeze_cap || 2;
 
   const badge = frozen
-    ? { text: "Frozen", tone: "bg-feather-50 text-feather-600" }
+    ? { text: "Frozen", tone: "bg-feather-500/15 text-feather-400" }
     : lit
-    ? { text: "Lit", tone: "bg-grass-50 text-grass-600" }
+    ? { text: "Lit", tone: "bg-grass-500/15 text-grass-400" }
     : atRisk
-    ? { text: "At risk", tone: "bg-amber-50 text-amber-600" }
+    ? { text: "At risk", tone: "bg-gold-500/15 text-gold-400" }
     : null;
 
   return (
@@ -268,8 +289,8 @@ function StreakCard({ token, streak }) {
       <div className="flex items-center gap-3">
         <StreakFlame size={44} lit={lit} frozen={frozen} />
         <div className="flex-1">
-          <div className="text-2xl font-extrabold leading-none tabular-nums text-slate-900">{n}</div>
-          <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">day streak</div>
+          <div className="text-2xl font-extrabold leading-none tabular-nums text-white">{n}</div>
+          <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-white/40">day streak</div>
         </div>
         {badge && (
           <span className={"rounded-lg px-2.5 py-1 text-xs font-extrabold " + badge.tone}>{badge.text}</span>
@@ -286,7 +307,8 @@ function StreakCard({ token, streak }) {
                 key={i}
                 title={`${d?.label ?? ""}: ${Number(d?.value ?? 0)} XP`}
                 className={"flex-1 grid place-items-center h-7 rounded-lg text-[10px] font-extrabold transition " +
-                  (on ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-400")}
+                  (on ? "bg-brand-500 text-white" : "bg-white/[0.06] text-white/30")}
+                style={on ? { boxShadow: `0 0 10px -3px ${GLOW.brand}` } : undefined}
               >
                 {label}
               </div>
@@ -295,7 +317,7 @@ function StreakCard({ token, streak }) {
         </div>
       )}
 
-      <p className="mt-3 text-xs font-semibold text-slate-400">
+      <p className="mt-3 text-xs font-semibold text-white/40">
         {frozen
           ? "A streak freeze is protecting your flame — practice today to thaw it."
           : lit
@@ -308,13 +330,14 @@ function StreakCard({ token, streak }) {
       {atRisk && freeze.freezes === 0 && (
         <button
           onClick={() => navigate("/practice")}
-          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold text-white transition hover:bg-brand-600 active:scale-[0.98]"
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold text-white transition hover:brightness-105 active:scale-[0.98]"
+          style={{ boxShadow: `0 0 20px -5px ${GLOW.brand}` }}
         >
           Practice now <ArrowRight className="h-4 w-4" />
         </button>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
         <div
           className="flex items-center gap-2"
           title="A streak freeze covers one missed day. Buy them in the shop with gems."
@@ -323,18 +346,18 @@ function StreakCard({ token, streak }) {
             {Array.from({ length: cap }).map((_, i) => (
               <Snowflake
                 key={i}
-                className={"h-4 w-4 " + (i < freeze.freezes ? "fill-feather-200 text-feather-500" : "text-slate-200")}
+                className={"h-4 w-4 " + (i < freeze.freezes ? "fill-feather-400/40 text-feather-400" : "text-white/15")}
               />
             ))}
           </div>
-          <span className="text-xs font-bold text-slate-400">
+          <span className="text-xs font-bold text-white/40">
             {freeze.freezes}/{cap} freeze{cap === 1 ? "" : "s"}
           </span>
         </div>
         {freeze.freezes < cap && (
           <button
             onClick={() => navigate("/shop")}
-            className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-extrabold text-slate-500 transition hover:bg-slate-200"
+            className="inline-flex items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 py-1.5 text-xs font-extrabold text-white/60 transition hover:bg-white/[0.1]"
           >
             <Gem className="h-3 w-3" /> Buy freeze
           </button>
@@ -355,15 +378,15 @@ function AchievementsCard({ token, onOpen }) {
   return (
     <div className={CARD}>
       <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-50 text-gold-600">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gold-500/15 text-gold-400">
           <Trophy className="h-5 w-5" />
         </div>
-        <div className="text-sm font-extrabold text-slate-800">Achievements</div>
+        <div className="text-sm font-extrabold text-white">Achievements</div>
       </div>
-      <p className="mt-3 text-xs font-semibold text-slate-400">
+      <p className="mt-3 text-xs font-semibold text-white/40">
         {data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn."}
       </p>
-      <button onClick={onOpen} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-slate-700 hover:text-slate-900">
+      <button onClick={onOpen} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-white/70 hover:text-white">
         View all <ChevronRight className="h-4 w-4" />
       </button>
     </div>
@@ -401,32 +424,33 @@ function ReviewCard({ token }) {
   const urgent = due > 0;
 
   return (
-    <div className={"cursor-pointer transition hover:border-slate-300 " + CARD} onClick={() => navigate("/review")}>
+    <div className={"cursor-pointer transition hover:border-white/[0.14] " + CARD} onClick={() => navigate("/review")}>
       <div className="flex items-center justify-between">
-        <div className="text-sm font-extrabold text-slate-800">Review</div>
+        <div className="text-sm font-extrabold text-white">Review</div>
         {urgent && (
-          <span className="rounded-lg bg-brand-50 px-2 py-0.5 text-xs font-extrabold text-brand-600">
+          <span className="rounded-lg bg-brand-500/15 px-2 py-0.5 text-xs font-extrabold text-brand-400">
             Due now
           </span>
         )}
       </div>
       <div className="mt-3 flex items-end gap-2">
-        <span className={"text-3xl font-extrabold tabular-nums " + (urgent ? "text-slate-900" : "text-slate-700")}>
+        <span className={"text-3xl font-extrabold tabular-nums " + (urgent ? "text-white" : "text-white/70")}>
           {due}
         </span>
-        <span className="mb-1 text-sm font-semibold text-slate-400">
+        <span className="mb-1 text-sm font-semibold text-white/40">
           {due === 1 ? "card due" : "cards due"}
         </span>
       </div>
-      <div className="mt-1 text-xs text-slate-400">
+      <div className="mt-1 text-xs text-white/35">
         {stats.mastered} mastered · {stats.learning} learning · {stats.new_cards} new
       </div>
       <button
         onClick={e => { e.stopPropagation(); navigate("/review"); }}
         className={
           "mt-4 w-full rounded-xl py-2.5 text-sm font-extrabold text-white transition active:scale-[0.98] " +
-          (urgent ? "bg-brand-500 hover:bg-brand-600" : "bg-slate-300")
+          (urgent ? "bg-brand-500 hover:brightness-105" : "bg-white/[0.08] text-white/50")
         }
+        style={urgent ? { boxShadow: `0 0 20px -5px ${GLOW.brand}` } : undefined}
       >
         {urgent ? "Start review" : "Nothing due yet"}
       </button>
@@ -449,18 +473,19 @@ function MistakesCard({ token, navigate }) {
   if (count === 0) return null;
 
   return (
-    <div className={"cursor-pointer transition hover:border-slate-300 " + CARD} onClick={() => navigate("/mistakes")}>
+    <div className={"cursor-pointer transition hover:border-white/[0.14] " + CARD} onClick={() => navigate("/mistakes")}>
       <div className="flex items-center justify-between">
-        <div className="text-sm font-extrabold text-slate-800">Your mistakes</div>
-        <span className="rounded-lg bg-cardinal-50 px-2 py-0.5 text-xs font-extrabold text-cardinal-600">Fix them</span>
+        <div className="text-sm font-extrabold text-white">Your mistakes</div>
+        <span className="rounded-lg bg-cardinal-500/15 px-2 py-0.5 text-xs font-extrabold text-cardinal-400">Fix them</span>
       </div>
       <div className="mt-3 flex items-end gap-2">
-        <span className="text-3xl font-extrabold tabular-nums text-slate-900">{count}</span>
-        <span className="mb-1 text-sm font-semibold text-slate-400">{count === 1 ? "exercise to re-master" : "exercises to re-master"}</span>
+        <span className="text-3xl font-extrabold tabular-nums text-white">{count}</span>
+        <span className="mb-1 text-sm font-semibold text-white/40">{count === 1 ? "exercise to re-master" : "exercises to re-master"}</span>
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); navigate("/mistakes"); }}
-        className="mt-4 w-full rounded-xl bg-cardinal-500 py-2.5 text-sm font-extrabold text-white transition hover:bg-cardinal-600 active:scale-[0.98]"
+        className="mt-4 w-full rounded-xl bg-cardinal-500 py-2.5 text-sm font-extrabold text-white transition hover:brightness-105 active:scale-[0.98]"
+        style={{ boxShadow: `0 0 20px -5px ${GLOW.cardinal}` }}
       >
         Review mistakes
       </button>
@@ -486,16 +511,16 @@ function DailyGoalCard({ todayXp }) {
   return (
     <div className={CARD}>
       <div className="flex items-center justify-between">
-        <div className="text-sm font-extrabold text-slate-800">Daily goal</div>
-        {done ? <span className="rounded-lg bg-grass-50 px-2 py-0.5 text-xs font-extrabold text-grass-600">Done</span> : null}
+        <div className="text-sm font-extrabold text-white">Daily goal</div>
+        {done ? <span className="rounded-lg bg-grass-500/15 px-2 py-0.5 text-xs font-extrabold text-grass-400">Done</span> : null}
       </div>
 
       <div className="mt-3 flex items-end gap-2">
-        <div className="text-2xl font-extrabold leading-none text-slate-900 tabular-nums">{xp}</div>
-        <div className="mb-0.5 text-sm font-bold text-slate-400">/ {goal} XP today</div>
+        <div className="text-2xl font-extrabold leading-none text-white tabular-nums">{xp}</div>
+        <div className="mb-0.5 text-sm font-bold text-white/40">/ {goal} XP today</div>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
         <div
           className={"h-full rounded-full transition-all duration-500 " + (done ? "bg-grass-500" : "bg-brand-500")}
           style={{ width: `${Math.max(pct, xp > 0 ? 6 : 0)}%` }}
@@ -508,7 +533,7 @@ function DailyGoalCard({ todayXp }) {
             key={g}
             disabled={done}
             onClick={() => !done && pickGoal(g)}
-            className={"flex-1 rounded-lg py-1 text-xs font-extrabold transition " + (done ? (goal === g ? "bg-grass-500 text-white cursor-default" : "bg-slate-100 text-slate-300 cursor-default") : goal === g ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+            className={"flex-1 rounded-lg py-1 text-xs font-extrabold transition " + (done ? (goal === g ? "bg-grass-500 text-white cursor-default" : "bg-white/[0.05] text-white/20 cursor-default") : goal === g ? "bg-brand-500 text-white" : "bg-white/[0.06] text-white/50 hover:bg-white/[0.1]")}
           >
             {g}
           </button>
@@ -518,7 +543,8 @@ function DailyGoalCard({ todayXp }) {
   );
 }
 
-// Compact always-visible KPI row — hearts / streak / XP / gems, dashboard-style.
+// Compact always-visible KPI row — hearts / streak / XP / gems, each with a
+// glowing icon badge, dashboard-style.
 function KpiStrip({ token, streak, xp }) {
   const [hearts, setHearts] = useState(null);
   const [gems, setGems] = useState(null);
@@ -557,22 +583,22 @@ function KpiStrip({ token, streak, xp }) {
     : "–";
 
   const items = [
-    { icon: Heart, label: "Hearts", value: heartLabel, tint: "bg-cardinal-50 text-cardinal-600" },
-    { icon: Flame, label: "Streak", value: streak, tint: "bg-brand-50 text-brand-600" },
-    { icon: Zap, label: "Total XP", value: xp, tint: "bg-gold-50 text-gold-600" },
-    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, tint: "bg-feather-50 text-feather-600" },
+    { icon: Heart, label: "Hearts", value: heartLabel, tint: "bg-cardinal-500/15 text-cardinal-400", glow: GLOW.cardinal },
+    { icon: Flame, label: "Streak", value: streak, tint: "bg-brand-500/15 text-brand-400", glow: GLOW.brand },
+    { icon: Zap, label: "Total XP", value: xp, tint: "bg-gold-500/15 text-gold-400", glow: GLOW.gold },
+    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, tint: "bg-feather-500/15 text-feather-400", glow: GLOW.feather },
   ];
 
   return (
     <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
       {items.map((it) => (
-        <div key={it.label} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5">
-          <span className={"grid h-9 w-9 shrink-0 place-items-center rounded-xl " + it.tint}>
+        <div key={it.label} className={"flex items-center gap-3 " + CARD}>
+          <span className={"grid h-9 w-9 shrink-0 place-items-center rounded-xl " + it.tint} style={{ boxShadow: `0 0 14px -5px ${it.glow}` }}>
             <it.icon className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <div className="text-base font-extrabold leading-none tabular-nums text-slate-800">{it.value}</div>
-            <div className="text-[11px] font-semibold text-slate-400">{it.label}</div>
+            <div className="text-base font-extrabold leading-none tabular-nums text-white">{it.value}</div>
+            <div className="text-[11px] font-semibold text-white/40">{it.label}</div>
           </div>
         </div>
       ))}
@@ -580,48 +606,54 @@ function KpiStrip({ token, streak, xp }) {
   );
 }
 
-// The single most important element: resume the current lesson. Flat card,
-// dark CTA, no gradients or bevels — a modern "continue" panel.
+// The single most important element: resume the current lesson. A glowing
+// glass panel with an ambient orange radial behind it — the page's anchor.
 function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, isNewUser, onStart, navigate }) {
   const pct = unitTotal ? Math.round((unitDone / unitTotal) * 100) : 0;
   return (
-    <section className="relative mb-5 overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-7">
-      <div className="flex items-start justify-between gap-4">
+    <section className={"mb-5 overflow-hidden p-6 sm:p-7 " + CARD}>
+      <div
+        className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full opacity-25 blur-3xl"
+        style={{ background: "radial-gradient(circle, #FF7A1A, transparent 70%)" }}
+      />
+      <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+          <div className="text-xs font-bold uppercase tracking-[0.14em] text-white/40">
             Բարև{firstName ? `, ${firstName}` : ""}
           </div>
-          <h1 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
             {loading ? "Loading your journey…" : lesson ? "Ready for today's lesson?" : "You've reached the summit"}
           </h1>
         </div>
-        <img src={owl} alt="" className="hidden h-16 w-auto shrink-0 object-contain sm:block" />
+        <img src={owl} alt="" className="hidden h-16 w-auto shrink-0 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] sm:block" />
       </div>
 
       {loading ? (
-        <div className="mt-6 h-16 animate-pulse rounded-2xl bg-slate-100" />
+        <div className="relative mt-6 h-16 animate-pulse rounded-2xl bg-white/[0.06]" />
       ) : lesson ? (
         <button
           type="button"
           onClick={() => onStart(lesson)}
-          className="mt-6 flex w-full items-center gap-4 rounded-2xl bg-slate-900 px-5 py-4 text-left text-white transition hover:bg-slate-800 active:scale-[0.99]"
+          className="relative mt-6 flex w-full items-center gap-4 rounded-2xl bg-brand-500 px-5 py-4 text-left text-white transition hover:brightness-105 active:scale-[0.99]"
+          style={{ boxShadow: `0 0 32px -6px ${GLOW.brand}` }}
         >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-500">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15">
             <Play className="h-5 w-5 fill-white" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/50">
+            <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">
               {pct > 0 ? "Continue" : "Start"}{unitTitle ? ` · ${unitTitle}` : ""}
             </span>
             <span className="block truncate text-lg font-extrabold">{lesson.title}</span>
           </span>
-          <ArrowRight className="h-5 w-5 shrink-0 text-white/60" />
+          <ArrowRight className="h-5 w-5 shrink-0 text-white/80" />
         </button>
       ) : (
         <button
           type="button"
           onClick={() => navigate("/practice")}
-          className="mt-6 flex w-full items-center gap-4 rounded-2xl bg-grass-500 px-5 py-4 text-left text-white transition hover:bg-grass-600 active:scale-[0.99]"
+          className="relative mt-6 flex w-full items-center gap-4 rounded-2xl bg-grass-500 px-5 py-4 text-left text-white transition hover:brightness-105 active:scale-[0.99]"
+          style={{ boxShadow: `0 0 32px -6px ${GLOW.grass}` }}
         >
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/20">
             <Check className="h-5 w-5" strokeWidth={3} />
@@ -630,18 +662,18 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
             <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">All lessons complete</span>
             <span className="block text-lg font-extrabold">Keep sharp with practice</span>
           </span>
-          <ArrowRight className="h-5 w-5 shrink-0 text-white/70" />
+          <ArrowRight className="h-5 w-5 shrink-0 text-white/80" />
         </button>
       )}
 
       {!loading && lesson && unitTotal > 0 && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+        <div className="relative mt-4">
+          <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wide text-white/40">
             <span className="truncate">{unitTitle}</span>
             <span className="tabular-nums">{unitDone}/{unitTotal}</span>
           </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+            <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%`, boxShadow: `0 0 8px -1px ${GLOW.brand}` }} />
           </div>
         </div>
       )}
@@ -650,7 +682,7 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
         <button
           type="button"
           onClick={() => navigate("/placement")}
-          className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-slate-800"
+          className="relative mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-white/50 transition hover:text-white/80"
         >
           <Target className="h-4 w-4" /> Not a beginner? Take the placement test
         </button>
@@ -675,29 +707,33 @@ function LessonTile({ lesson, onStart }) {
       className={
         "group relative flex flex-col items-center gap-2 rounded-2xl p-3 text-center transition active:scale-[0.97] " +
         (current
-          ? "bg-brand-50 ring-2 ring-brand-500"
+          ? "bg-brand-500/10 ring-2 ring-brand-500"
           : done
-          ? "bg-white ring-1 ring-slate-200 hover:ring-slate-300"
-          : "cursor-default bg-slate-50 ring-1 ring-slate-100")
+          ? "bg-white/[0.03] ring-1 ring-white/[0.08] hover:ring-white/[0.16]"
+          : "cursor-default bg-white/[0.015] ring-1 ring-white/[0.04]")
       }
+      style={current ? { boxShadow: `0 0 20px -6px ${GLOW.brand}` } : undefined}
     >
       {current && (
-        <span className="absolute -right-1 -top-1 h-3 w-3 animate-pulse rounded-full bg-brand-500 ring-2 ring-white" />
+        <span className="absolute -right-1 -top-1 h-3 w-3 animate-pulse rounded-full bg-brand-500 ring-2 ring-[#0c0a08]" />
       )}
       <span
         className={
           "grid h-10 w-10 place-items-center rounded-xl " +
-          (done ? "bg-grass-500 text-white" : current ? "bg-brand-500 text-white" : "bg-slate-200 text-slate-400")
+          (done ? "bg-grass-500 text-white" : current ? "bg-brand-500 text-white" : "bg-white/[0.06] text-white/25")
         }
       >
         {done ? <Check className="h-5 w-5" strokeWidth={3} /> : current ? <Play className="h-4 w-4 fill-white" /> : <Lock className="h-4 w-4" />}
       </span>
-      <span className={"line-clamp-2 text-[11px] font-bold leading-tight " + (locked ? "text-slate-400" : "text-slate-700")}>
+      <span className={"line-clamp-2 text-[11px] font-bold leading-tight " + (locked ? "text-white/30" : "text-white/75")}>
         {lesson.title}
       </span>
     </button>
   );
 }
+
+// Warm Armenian palette rotation for the unit accent stripe.
+const UNIT_ACCENTS = ["#FF7A1A", "#E11D48", "#FFC800"];
 
 // A unit: header + progress bar + a clean grid of lesson tiles ending in a
 // checkpoint tile. Replaces the old winding "snake path" with a scannable grid.
@@ -706,21 +742,23 @@ function CurriculumUnit({ unit, index, onStart, onCheckpoint }) {
   const done = unit.items.filter((l) => l.status === "completed").length;
   const complete = total > 0 && done === total;
   const pct = total ? Math.round((done / total) * 100) : 0;
+  const accent = UNIT_ACCENTS[index % UNIT_ACCENTS.length];
   return (
-    <section className="mb-4 rounded-3xl border border-slate-200 bg-white p-5">
+    <section className={"mb-4 overflow-hidden p-5 " + CARD}>
+      <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: accent, boxShadow: `0 0 12px -1px ${accent}` }} />
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Unit {index + 1}</div>
-          <h3 className="truncate text-lg font-extrabold text-slate-800">{unit.title}</h3>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-white/40">Unit {index + 1}</div>
+          <h3 className="truncate text-lg font-extrabold text-white">{unit.title}</h3>
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-sm font-extrabold tabular-nums text-slate-700">{done}/{total}</div>
-          <div className="text-[11px] font-semibold text-slate-400">{pct}%</div>
+          <div className="text-sm font-extrabold tabular-nums text-white/80">{done}/{total}</div>
+          <div className="text-[11px] font-semibold text-white/35">{pct}%</div>
         </div>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-        <div className="h-full rounded-full bg-slate-900 transition-all" style={{ width: `${pct}%` }} />
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: accent }} />
       </div>
 
       <div className="mt-5 grid grid-cols-4 gap-2.5 sm:grid-cols-5 md:grid-cols-6">
@@ -735,13 +773,14 @@ function CurriculumUnit({ unit, index, onStart, onCheckpoint }) {
           title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
           className={
             "flex flex-col items-center gap-2 rounded-2xl p-3 text-center transition active:scale-[0.97] " +
-            (complete ? "bg-gold-50 ring-1 ring-gold-300 hover:ring-gold-400" : "cursor-default bg-slate-50 ring-1 ring-slate-100")
+            (complete ? "bg-gold-500/10 ring-1 ring-gold-500/40 hover:ring-gold-500/70" : "cursor-default bg-white/[0.015] ring-1 ring-white/[0.04]")
           }
+          style={complete ? { boxShadow: `0 0 16px -6px ${GLOW.gold}` } : undefined}
         >
-          <span className={"grid h-10 w-10 place-items-center rounded-xl " + (complete ? "bg-gold-500 text-white" : "bg-slate-200 text-slate-400")}>
+          <span className={"grid h-10 w-10 place-items-center rounded-xl " + (complete ? "bg-gold-500 text-black/80" : "bg-white/[0.06] text-white/25")}>
             <ShieldCheck className="h-5 w-5" />
           </span>
-          <span className={"text-[11px] font-bold leading-tight " + (complete ? "text-gold-700" : "text-slate-400")}>Checkpoint</span>
+          <span className={"text-[11px] font-bold leading-tight " + (complete ? "text-gold-400" : "text-white/30")}>Checkpoint</span>
         </button>
       </div>
     </section>
@@ -751,8 +790,8 @@ function CurriculumUnit({ unit, index, onStart, onCheckpoint }) {
 function CurriculumSummit({ pct }) {
   return (
     <div className="flex flex-col items-center gap-1 py-8 text-center">
-      <div className="text-sm font-extrabold text-slate-700">You're at the summit</div>
-      <div className="text-xs font-semibold text-slate-400">{pct}% of the journey climbed</div>
+      <div className="text-sm font-extrabold text-white/70">You're at the summit</div>
+      <div className="text-xs font-semibold text-white/35">{pct}% of the journey climbed</div>
     </div>
   );
 }
@@ -760,13 +799,13 @@ function CurriculumSummit({ pct }) {
 // Compact quick-access tiles.
 function QuickLinks({ navigate }) {
   const tiles = [
-    { icon: Dumbbell, label: "Practice", to: "/practice", tint: "bg-brand-50 text-brand-600" },
-    { icon: BookOpen, label: "Words", to: "/vocabulary", tint: "bg-grass-50 text-grass-600" },
-    { icon: BarChart2, label: "Progress", to: "/progress", tint: "bg-feather-50 text-feather-700" },
-    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", tint: "bg-gold-50 text-gold-600" },
-    { icon: Users, label: "Friends", to: "/friends", tint: "bg-feather-50 text-feather-600" },
-    { icon: Store, label: "Shop", to: "/shop", tint: "bg-pom-50 text-pom-500" },
-    { icon: Star, label: "Achievements", to: "/achievements", tint: "bg-gold-50 text-gold-600" },
+    { icon: Dumbbell, label: "Practice", to: "/practice", tint: "bg-brand-500/15 text-brand-400" },
+    { icon: BookOpen, label: "Words", to: "/vocabulary", tint: "bg-grass-500/15 text-grass-400" },
+    { icon: BarChart2, label: "Progress", to: "/progress", tint: "bg-feather-500/15 text-feather-400" },
+    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", tint: "bg-gold-500/15 text-gold-400" },
+    { icon: Users, label: "Friends", to: "/friends", tint: "bg-feather-500/15 text-feather-400" },
+    { icon: Store, label: "Shop", to: "/shop", tint: "bg-pom-500/15 text-pom-400" },
+    { icon: Star, label: "Achievements", to: "/achievements", tint: "bg-gold-500/15 text-gold-400" },
   ];
   return (
     <div className="grid grid-cols-4 gap-2">
@@ -775,12 +814,12 @@ function QuickLinks({ navigate }) {
           key={t.to}
           type="button"
           onClick={() => navigate(t.to)}
-          className="flex flex-col items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-1 py-3 transition hover:border-slate-300 active:scale-[0.97]"
+          className={"flex flex-col items-center gap-1.5 px-1 py-3 transition hover:border-white/[0.16] active:scale-[0.97] " + CARD}
         >
           <span className={"grid h-10 w-10 place-items-center rounded-xl " + t.tint}>
             <t.icon className="h-5 w-5" />
           </span>
-          <span className="w-full truncate text-center text-[11px] font-extrabold text-slate-600">{t.label}</span>
+          <span className="w-full truncate text-center text-[11px] font-extrabold text-white/60">{t.label}</span>
         </button>
       ))}
     </div>
@@ -893,13 +932,19 @@ export default function Dashboard({ user }) {
   };
 
   // ── Architecture ──────────────────────────────────────────────────────────
-  // A flat, information-dense command center: a KPI row up top, a "continue"
-  // panel, curriculum as a scannable grid of units, and a sidebar of
-  // supporting cards — sticky on desktop, stacked on mobile.
+  // A dark, glowing command center: a KPI row up top, a "continue" panel with
+  // an ambient orange glow, curriculum as a scannable grid of units, and a
+  // sidebar of supporting glass cards — sticky on desktop, stacked on mobile.
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="relative min-h-screen overflow-hidden bg-[#0c0a08]">
+      {/* Ambient background glow — fixed, behind everything, purely atmospheric. */}
+      <div
+        className="pointer-events-none fixed left-1/2 top-0 h-[560px] w-[900px] -translate-x-1/2 opacity-[0.16] blur-3xl"
+        style={{ background: "radial-gradient(ellipse at top, #FF7A1A, transparent 65%)" }}
+      />
+
       <StreakCelebration streak={stats.streak} />
-      <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
+      <div className="relative mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
         {/* ── Main: KPIs + hero + curriculum ── */}
         <main className="mx-auto w-full max-w-xl lg:mx-0 lg:justify-self-center">
           <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} />
@@ -917,18 +962,18 @@ export default function Dashboard({ user }) {
           />
 
           {error && (
-            <div className="mb-4 rounded-2xl border border-cardinal-200 bg-cardinal-50 px-4 py-3 text-sm font-semibold text-cardinal-600">
+            <div className="mb-4 rounded-2xl border border-cardinal-500/30 bg-cardinal-500/10 px-4 py-3 text-sm font-semibold text-cardinal-300">
               {error}
             </div>
           )}
 
           {loadingLessons ? (
-            <div className="flex items-center justify-center gap-2 py-20 text-slate-500">
+            <div className="flex items-center justify-center gap-2 py-20 text-white/40">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span className="font-semibold">Mapping your journey…</span>
             </div>
           ) : units.length === 0 ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center font-semibold text-slate-600">
+            <div className={"p-8 text-center font-semibold text-white/50 " + CARD}>
               No lessons available yet. Check back soon!
             </div>
           ) : (
