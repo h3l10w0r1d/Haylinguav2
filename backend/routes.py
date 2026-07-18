@@ -3272,6 +3272,7 @@ def me_lessons_progress(
               ON ulp.lesson_id = l.id
              AND ulp.user_id = :u
             WHERE COALESCE(l.is_published, TRUE) = TRUE
+              AND COALESCE(c.is_published, TRUE) = TRUE
             ORDER BY COALESCE(c.position, l.level) ASC, l.level ASC, l.id ASC
             """
         ),
