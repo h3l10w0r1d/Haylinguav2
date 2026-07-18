@@ -628,7 +628,7 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">
-              {pct > 0 ? "Continue" : "Start"}{unitTitle ? ` · ${unitTitle}` : ""}
+              {pct > 0 ? "Continue lesson" : "Start lesson"}
             </span>
             <span className="block truncate text-lg font-extrabold">{lesson.title}</span>
           </span>
@@ -654,7 +654,7 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
       {!loading && lesson && unitTotal > 0 && (
         <div className="mt-4">
           <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wide text-white/40">
-            <span className="truncate">{unitTitle}</span>
+            <span className="truncate">{unitTitle} progress</span>
             <span className="tabular-nums">{unitDone}/{unitTotal}</span>
           </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
@@ -676,8 +676,9 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
   );
 }
 
-// One lesson, rendered as a compact tile inside the unit's grid.
-function LessonTile({ lesson, onStart }) {
+// One lesson, rendered as a full-width row — icon, title, and status all on
+// one line so order and state read at a glance, no truncated icon-grid guessing.
+function LessonRow({ lesson, onStart }) {
   const status = lesson.status || "locked";
   const done = status === "completed";
   const current = status === "current";
@@ -688,34 +689,38 @@ function LessonTile({ lesson, onStart }) {
       disabled={locked}
       onClick={() => !locked && onStart(lesson)}
       title={locked ? "Finish the previous lesson to unlock" : lesson.title}
-      aria-label={lesson.title}
       className={
-        "flex flex-col items-center gap-2 rounded-xl p-3 text-center transition active:scale-[0.97] " +
-        (current
-          ? "bg-brand-500"
-          : done
-          ? "bg-white/[0.06] hover:bg-white/[0.09]"
-          : "cursor-default bg-white/[0.025]")
+        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition active:scale-[0.99] " +
+        (current ? "bg-brand-500" : done ? "hover:bg-white/[0.05]" : "cursor-default")
       }
     >
       <span
         className={
-          "grid h-9 w-9 place-items-center rounded-lg " +
+          "grid h-9 w-9 shrink-0 place-items-center rounded-full " +
           (current ? "bg-white/20 text-white" : done ? "bg-grass-500 text-white" : "bg-white/[0.06] text-white/25")
         }
       >
-        {done ? <Check className="h-5 w-5" strokeWidth={3} /> : current ? <Play className="h-4 w-4 fill-white" /> : <Lock className="h-4 w-4" />}
+        {done ? <Check className="h-4.5 w-4.5" strokeWidth={3} /> : current ? <Play className="h-4 w-4 fill-white" /> : <Lock className="h-4 w-4" />}
       </span>
-      <span className={"line-clamp-2 text-[11px] font-bold leading-tight " + (current ? "text-white" : locked ? "text-white/30" : "text-white/75")}>
+      <span className={"min-w-0 flex-1 truncate text-sm font-bold " + (current ? "text-white" : locked ? "text-white/30" : "text-white/80")}>
         {lesson.title}
       </span>
+      {current ? (
+        <span className="shrink-0 rounded-lg bg-white/20 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-white">
+          Continue
+        </span>
+      ) : done ? (
+        <span className="shrink-0 text-xs font-bold text-grass-400">Done</span>
+      ) : (
+        <span className="shrink-0 text-xs font-semibold text-white/25">Locked</span>
+      )}
     </button>
   );
 }
 
-// A unit: header + progress bar + a clean grid of lesson tiles ending in a
-// checkpoint tile. The status stripe means something (locked / in progress /
-// done) instead of just rotating through colors by index.
+// A unit: header + progress bar + its lessons as a scannable list ending in
+// a distinctly-styled checkpoint row. The status stripe means something
+// (locked / in progress / done) instead of rotating through colors by index.
 function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
   const total = unit.items.length;
   const done = unit.items.filter((l) => l.status === "completed").length;
@@ -740,9 +745,9 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
         <div className={"h-full rounded-full transition-all " + statusColor} style={{ width: `${pct}%` }} />
       </div>
 
-      <div className="mt-5 grid grid-cols-4 gap-2.5 sm:grid-cols-5 md:grid-cols-6">
+      <div className="mt-4 space-y-1 border-t border-white/[0.06] pt-3">
         {unit.items.map((lesson) => (
-          <LessonTile key={lesson.id ?? lesson.slug} lesson={lesson} onStart={onStart} />
+          <LessonRow key={lesson.id ?? lesson.slug} lesson={lesson} onStart={onStart} />
         ))}
 
         <button
@@ -751,14 +756,23 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
           onClick={() => complete && onCheckpoint(unit)}
           title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
           className={
-            "flex flex-col items-center gap-2 rounded-xl p-3 text-center transition active:scale-[0.97] " +
-            (complete ? "bg-gold-500/15 hover:bg-gold-500/25" : "cursor-default bg-white/[0.025]")
+            "flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition active:scale-[0.99] " +
+            (complete ? "border-gold-500/30 bg-gold-500/10 hover:bg-gold-500/15" : "cursor-default border-transparent")
           }
         >
-          <span className={"grid h-9 w-9 place-items-center rounded-lg " + (complete ? "bg-gold-500 text-black/80" : "bg-white/[0.06] text-white/25")}>
-            <ShieldCheck className="h-5 w-5" />
+          <span className={"grid h-9 w-9 shrink-0 place-items-center rounded-full " + (complete ? "bg-gold-500 text-black/80" : "bg-white/[0.06] text-white/25")}>
+            <ShieldCheck className="h-4.5 w-4.5" />
           </span>
-          <span className={"text-[11px] font-bold leading-tight " + (complete ? "text-gold-400" : "text-white/30")}>Checkpoint</span>
+          <span className={"min-w-0 flex-1 text-sm font-bold " + (complete ? "text-gold-300" : "text-white/30")}>
+            Unit checkpoint
+          </span>
+          {complete ? (
+            <span className="shrink-0 rounded-lg bg-gold-500/25 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-gold-300">
+              Test now
+            </span>
+          ) : (
+            <span className="shrink-0 text-xs font-semibold text-white/25">Locked</span>
+          )}
         </button>
       </div>
     </section>
