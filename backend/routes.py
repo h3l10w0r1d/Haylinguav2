@@ -4184,6 +4184,75 @@ def _norm_answer(answer: Any) -> str:
     return a[:200]
 
 
+def _derive_correct_answer_display(
+    kind: Optional[str], expected_answer: Any, cfg: dict, options: List[dict]
+) -> str:
+    """Best-effort human-readable rendering of the correct answer, for the
+    explain-my-mistake prompt/response. Mirrors grading.grade_attempt's
+    per-kind correctness source (grading.py): several kinds store the answer
+    in config rather than expected_answer/exercise_options, which a naive
+    "expected_answer, else flagged option" lookup misses entirely — the kind
+    ends up "(unknown)", and GPT-4o then explains against a made-up required
+    format instead of the real one."""
+    kind = (kind or "").strip()
+
+    # true_false: config.correct is a boolean (or boolean-like value).
+    if kind == "true_false":
+        c = cfg.get("correct")
+        is_true = (c is True) or (c == 1) or (isinstance(c, str) and c.strip().lower() == "true")
+        return "True" if is_true else "False"
+
+    # Ordered-token kinds: config.solution is a list of words/tokens.
+    if kind in ("sentence_order", "word_bank", "listen_word_bank", "dialogue_order"):
+        sol = cfg.get("solution")
+        if isinstance(sol, list) and sol:
+            return " ".join(str(x) for x in sol)
+
+    # char_build_word: assembled from a single target string.
+    if kind == "char_build_word":
+        for key in ("answer", "correct", "expected", "targetWord", "target_word"):
+            v = cfg.get(key)
+            if v:
+                return str(v)
+
+    # categorize: item -> bucket assignments.
+    if kind == "categorize":
+        items = cfg.get("items")
+        if isinstance(items, list) and items:
+            parts = []
+            for it in items:
+                if isinstance(it, dict):
+                    txt = it.get("text") or it.get("item") or it.get("left")
+                    bucket = it.get("bucket") or it.get("group") or it.get("right")
+                    if txt and bucket:
+                        parts.append(f"{txt} → {bucket}")
+            if parts:
+                return "; ".join(parts)
+
+    # conjugation: cell label -> expected form.
+    if kind == "conjugation":
+        cells = cfg.get("cells")
+        if isinstance(cells, list) and cells:
+            parts = []
+            for c in cells:
+                if isinstance(c, dict) and c.get("answer"):
+                    label = (c.get("label") or "").strip()
+                    parts.append(f"{label}: {c['answer']}".strip(": "))
+            if parts:
+                return "; ".join(parts)
+
+    # Fallback for all other kinds: expected_answer column, else a flagged option.
+    expected = str(expected_answer).strip() if expected_answer else ""
+    if expected:
+        return expected
+    for o in options or []:
+        if o.get("is_correct") is True or o.get("isCorrect") is True:
+            t = (o.get("text") or "").strip()
+            if t:
+                return t
+    return ""
+
+
 @router.post("/me/exercises/{exercise_id}/explain")
 def explain_mistake(
     exercise_id: int,
@@ -4212,15 +4281,15 @@ def explain_mistake(
     if not ex:
         raise HTTPException(status_code=404, detail="Exercise not found")
 
-    # Gather the correct answer text (expected_answer or the flagged option).
-    correct = (ex["expected_answer"] or "").strip() if ex["expected_answer"] else ""
-    if not correct:
-        opt = db.execute(
-            text("SELECT text FROM exercise_options WHERE exercise_id = :ex AND is_correct = TRUE LIMIT 1"),
+    cfg = _as_cfg(ex["config"])
+    options = [
+        dict(o)
+        for o in db.execute(
+            text("SELECT text, is_correct FROM exercise_options WHERE exercise_id = :ex"),
             {"ex": exercise_id},
-        ).mappings().first()
-        if opt:
-            correct = (opt["text"] or "").strip()
+        ).mappings().all()
+    ]
+    correct = _derive_correct_answer_display(ex["kind"], ex["expected_answer"], cfg, options)
 
     user_ans = (payload.user_answer or "").strip()
     answer_norm = _norm_answer(user_ans)
@@ -4251,7 +4320,6 @@ def explain_mistake(
     # sentence_before/sentence_after columns or in config.before/config.after
     # (both renderers accept either) — check config too, or GPT never learns
     # that only the single blank word is expected and may contradict the grader.
-    cfg = _as_cfg(ex["config"])
     sentence_before = ex["sentence_before"] or cfg.get("before") or ""
     sentence_after = ex["sentence_after"] or cfg.get("after") or ""
 
