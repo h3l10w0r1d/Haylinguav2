@@ -16,6 +16,7 @@ import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 import teacher from "./assets/character-teacher.png";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
+import SiteFooter from "./SiteFooter";
 import { getTheme, toggleTheme } from "./lib/theme";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -23,7 +24,7 @@ gsap.registerPlugin(ScrollTrigger);
 const FOUNDERS = [
   {
     name: "Armen Ghazaryan",
-    role: "Founder & Developer",
+    role: "Co-founder & Developer",
     photo: null, // drop a real photo path here, e.g. "/team/armen.jpg"
     bio: "An IB Diploma Programme graduate of Quantum College, Armen built the first version of Haylingua as a school project — and kept building once it was clear how badly diaspora Armenians needed it.",
   },
@@ -140,25 +141,6 @@ function AboutNav() {
         </div>
       )}
     </nav>
-  );
-}
-
-function AboutFooter() {
-  return (
-    <footer className="border-t border-slate-100 dark:border-white/[0.06]">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 sm:flex-row">
-        <div className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-500 font-display font-extrabold text-white">Հ</span>
-          <span className="font-display font-extrabold text-slate-700 dark:text-stone-200">Haylingua</span>
-        </div>
-        <div className="flex items-center gap-6 text-sm font-bold text-slate-500 dark:text-stone-400">
-          <Link to="/" className="hover:text-slate-800 dark:hover:text-white">Home</Link>
-          <a href="/#faq" className="hover:text-slate-800 dark:hover:text-white">FAQ</a>
-          <a href="https://blog.haylingua.am" target="_blank" rel="noreferrer" className="hover:text-slate-800 dark:hover:text-white">Blog</a>
-        </div>
-        <div className="text-sm font-semibold text-slate-600 dark:text-stone-300">© {new Date().getFullYear()} Haylingua</div>
-      </div>
-    </footer>
   );
 }
 
@@ -476,7 +458,6 @@ export default function AboutPage() {
         {/* ── CTA ── */}
         <section className="px-5 py-16">
           <div data-reveal className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
-            <img src={teacher} alt="" className="pointer-events-none absolute -bottom-4 -left-2 hidden h-40 w-40 -rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
             <CarpetBorder className="absolute inset-x-0 top-0 h-2 opacity-60" />
             <MapPin className="h-6 w-6 opacity-80" />
             <h2 className="mt-3 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Come learn Armenian with us</h2>
@@ -493,7 +474,7 @@ export default function AboutPage() {
         </section>
       </main>
 
-      <AboutFooter />
+      <SiteFooter />
     </div>
   );
 }
