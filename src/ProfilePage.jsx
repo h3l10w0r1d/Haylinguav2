@@ -139,12 +139,12 @@ const PRESET_THEMES = [
 
 function StatTile({ icon: Icon, label, value, tone }) {
   return (
-    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className={"grid h-9 w-9 place-items-center rounded-xl " + tone}>
         <Icon className="h-5 w-5" />
       </div>
-      <div className="mt-2 font-display text-2xl font-extrabold tabular-nums text-slate-800">{value}</div>
-      <div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="mt-2 font-display text-2xl font-extrabold tabular-nums text-slate-800 dark:text-white">{value}</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">{label}</div>
     </div>
   );
 }
@@ -158,7 +158,7 @@ function TabButton({ active, onClick, icon: Icon, children }) {
         "inline-flex items-center gap-2 whitespace-nowrap rounded-2xl px-4 py-2.5 font-display text-sm font-extrabold transition " +
         (active
           ? "bg-brand-500 text-white shadow-btn-brand"
-          : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50")
+          : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-stone-400 dark:ring-white/[0.08] dark:hover:bg-white/[0.04]")
       }
     >
       <Icon className="h-4 w-4" /> {children}
@@ -928,17 +928,17 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
-        <div className="max-w-5xl mx-auto px-4 py-10 font-display font-extrabold text-slate-500">Loading…</div>
+      <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:bg-[#0d0d0f] dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
+        <div className="max-w-5xl mx-auto px-4 py-10 font-display font-extrabold text-slate-500 dark:text-stone-400">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:bg-[#0d0d0f] dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* ===================== HERO ===================== */}
-      <div className="rounded-3xl overflow-hidden shadow-sm ring-1 ring-slate-200 bg-white">
+      <div className="rounded-3xl overflow-hidden shadow-sm ring-1 ring-slate-200 bg-white dark:ring-white/[0.08] dark:bg-[#18181b]">
         {/* Banner */}
         <div
           className="relative h-40 md:h-48"
@@ -982,11 +982,11 @@ export default function ProfilePage() {
           <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
               <div className="relative shrink-0">
-                <div className="h-24 w-24 overflow-hidden rounded-3xl bg-white ring-4 ring-white shadow-md">
+                <div className="h-24 w-24 overflow-hidden rounded-3xl bg-white ring-4 ring-white shadow-md dark:bg-[#18181b]">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600">
+                    <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
                       {(firstName || username || "H")[0]?.toUpperCase()}
                     </div>
                   )}
@@ -1002,10 +1002,10 @@ export default function ProfilePage() {
               </div>
 
               <div className="pb-1">
-                <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800">
+                <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800 dark:text-white">
                   {firstName || lastName ? `${firstName} ${lastName}`.trim() : username || "Your profile"}
                 </h1>
-                <div className="text-sm font-bold text-slate-400">@{username || "set-a-username"}</div>
+                <div className="text-sm font-bold text-slate-400 dark:text-stone-500">@{username || "set-a-username"}</div>
               </div>
             </div>
 
@@ -1024,12 +1024,12 @@ export default function ProfilePage() {
 
           {/* Avatar picker (toggled) */}
           {showAvatarPresets && (
-            <div className="mt-4 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+            <div className="mt-4 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={handleAvatarPick} className="btn3d btn3d-brand text-xs">
                   <ImageIcon className="h-4 w-4" /> Upload
                 </button>
-                <span className="px-1 text-xs font-bold text-slate-400">or pick a preset</span>
+                <span className="px-1 text-xs font-bold text-slate-400 dark:text-stone-500">or pick a preset</span>
                 {PRESET_AVATARS.map((url, idx) => {
                   const active = avatarPreview === url || avatarPresetUrl === url;
                   return (
@@ -1048,14 +1048,14 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {bio ? <p className="mt-4 max-w-2xl text-sm font-semibold text-slate-600">{bio}</p> : null}
+          {bio ? <p className="mt-4 max-w-2xl text-sm font-semibold text-slate-600 dark:text-stone-300">{bio}</p> : null}
 
           {/* Stat tiles */}
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatTile icon={Trophy} tone="bg-brand-50 text-brand-600" label="Level" value={level} />
-            <StatTile icon={StarMotif} tone="bg-gold-100 text-gold-600" label="Total XP" value={xp} />
-            <StatTile icon={Flame} tone="bg-cardinal-50 text-cardinal-500" label="Day streak" value={streak} />
-            <StatTile icon={BookOpen} tone="bg-grass-50 text-grass-600" label="Lessons" value={lessonsCompleted} />
+            <StatTile icon={Trophy} tone="bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400" label="Level" value={level} />
+            <StatTile icon={StarMotif} tone="bg-gold-100 text-gold-600 dark:bg-gold-500/20 dark:text-gold-400" label="Total XP" value={xp} />
+            <StatTile icon={Flame} tone="bg-cardinal-50 text-cardinal-500 dark:bg-cardinal-500/15 dark:text-cardinal-400" label="Day streak" value={streak} />
+            <StatTile icon={BookOpen} tone="bg-grass-50 text-grass-600 dark:bg-grass-500/15 dark:text-grass-400" label="Lessons" value={lessonsCompleted} />
           </div>
         </div>
       </div>
@@ -1075,17 +1075,17 @@ export default function ProfilePage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => (bannerBusy ? null : setShowBannerPicker(false))}
           />
-          <div className="relative w-full max-w-3xl rounded-3xl ring-1 ring-slate-200 bg-white shadow-xl overflow-hidden">
-            <div className="p-5 md:p-6 border-b border-slate-100 flex items-center justify-between">
+          <div className="relative w-full max-w-3xl rounded-3xl ring-1 ring-slate-200 bg-white shadow-xl overflow-hidden dark:ring-white/[0.08] dark:bg-[#18181b]">
+            <div className="p-5 md:p-6 border-b border-slate-100 flex items-center justify-between dark:border-white/[0.06]">
               <div>
-                <div className="font-display text-base font-extrabold text-slate-800">Choose a banner</div>
-                <div className="text-xs font-semibold text-slate-500 mt-0.5">Pick a preset or upload your own.</div>
+                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">Choose a banner</div>
+                <div className="text-xs font-semibold text-slate-500 mt-0.5 dark:text-stone-400">Pick a preset or upload your own.</div>
               </div>
               <button
                 type="button"
                 disabled={bannerBusy}
                 onClick={() => setShowBannerPicker(false)}
-                className="rounded-xl px-3 py-2 text-sm font-extrabold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                className="rounded-xl px-3 py-2 text-sm font-extrabold text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:text-stone-300 dark:hover:bg-white/[0.06]"
               >
                 Close
               </button>
@@ -1104,7 +1104,7 @@ export default function ProfilePage() {
                         "group relative h-20 rounded-2xl overflow-hidden ring-2 transition " +
                         (active
                           ? "ring-brand-400"
-                          : "ring-slate-200 hover:ring-brand-300")
+                          : "ring-slate-200 hover:ring-brand-300 dark:ring-white/[0.08]")
                       }
                       title="Select banner"
                     >
@@ -1140,7 +1140,7 @@ export default function ProfilePage() {
                   </button>
                 </div>
 
-                <div className="text-xs font-semibold text-slate-500">
+                <div className="text-xs font-semibold text-slate-500 dark:text-stone-400">
                   Tip: presets are fast; uploads let you personalize fully.
                 </div>
               </div>
@@ -1151,16 +1151,16 @@ export default function ProfilePage() {
 
       {/* ===== Edit profile tab ===== */}
       {tab === "edit" && (
-      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">Profile details</h2>
+      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4 dark:text-white">Profile details</h2>
 
         <form onSubmit={handleSaveCore} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">First name</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">First name</label>
               <input
                 type="text"
-                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="e.g. Armen"
@@ -1169,10 +1169,10 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Last name</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Last name</label>
               <input
                 type="text"
-                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="e.g. Ghazaryan"
@@ -1181,41 +1181,41 @@ export default function ProfilePage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Public username</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Public username</label>
               <input
                 type="text"
-                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="your-username"
                 autoComplete="username"
               />
               <div className="mt-2 flex items-center gap-2">
-                <div className="flex-1 rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-600 ring-2 ring-slate-200 truncate">
+                <div className="flex-1 rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-600 ring-2 ring-slate-200 truncate dark:bg-white/[0.04] dark:text-stone-300 dark:ring-white/[0.08]">
                   {publicProfileHref ? `${window.location.origin}${publicProfileHref}` : "—"}
                 </div>
                 {publicProfileHref ? (
                   <a
                     href={publicProfileHref}
-                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-extrabold bg-brand-50 text-brand-600 ring-2 ring-brand-100 hover:bg-brand-100 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-extrabold bg-brand-50 text-brand-600 ring-2 ring-brand-100 hover:bg-brand-100 transition-colors dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/30 dark:hover:bg-brand-500/20"
                   >
                     <Link2 className="w-4 h-4" />
                     Open
                   </a>
                 ) : (
-                  <span className="text-xs font-semibold text-slate-400">Set a username</span>
+                  <span className="text-xs font-semibold text-slate-400 dark:text-stone-500">Set a username</span>
                 )}
               </div>
-              <p className="mt-1.5 text-xs font-semibold text-slate-400">
+              <p className="mt-1.5 text-xs font-semibold text-slate-400 dark:text-stone-500">
                 If the account is hidden, your public page will show only “This account is hidden”.
               </p>
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Bio</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Bio</label>
               <textarea
                 rows={3}
-                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="Write something short…"
@@ -1223,15 +1223,15 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Email address</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Email address</label>
               <input
                 type="email"
-                className="w-full rounded-2xl bg-slate-100 px-4 py-3 font-semibold text-slate-500 ring-2 ring-slate-200 cursor-not-allowed"
+                className="w-full rounded-2xl bg-slate-100 px-4 py-3 font-semibold text-slate-500 ring-2 ring-slate-200 cursor-not-allowed dark:bg-white/[0.06] dark:text-stone-400 dark:ring-white/[0.08]"
                 value={email}
                 readOnly
                 disabled
               />
-              <p className="mt-1.5 text-xs font-semibold text-slate-400">
+              <p className="mt-1.5 text-xs font-semibold text-slate-400 dark:text-stone-500">
                 Email can only be changed via Account security (with confirmation).
               </p>
             </div>
@@ -1240,15 +1240,15 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => setFriendsPublic((v) => !v)}
-                className={"w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-1 transition " + (friendsPublic ? "bg-grass-50 ring-grass-200" : "bg-slate-50 ring-slate-200")}
+                className={"w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-1 transition " + (friendsPublic ? "bg-grass-50 ring-grass-200 dark:bg-grass-500/15 dark:ring-grass-500/30" : "bg-slate-50 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]")}
               >
                 <div className="text-left">
-                  <p className="text-sm font-extrabold text-slate-700">Show friends list publicly</p>
-                  <p className="text-xs font-semibold text-slate-400 mt-0.5">
+                  <p className="text-sm font-extrabold text-slate-700 dark:text-stone-200">Show friends list publicly</p>
+                  <p className="text-xs font-semibold text-slate-400 mt-0.5 dark:text-stone-500">
                     {friendsPublic ? "Visible on your public profile" : "Hidden from your public profile"}
                   </p>
                 </div>
-                <div className={"relative shrink-0 h-6 w-11 rounded-full transition-colors duration-200 " + (friendsPublic ? "bg-grass-500" : "bg-slate-300")}>
+                <div className={"relative shrink-0 h-6 w-11 rounded-full transition-colors duration-200 " + (friendsPublic ? "bg-grass-500" : "bg-slate-300 dark:bg-white/10")}>
                   <span className={"absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 " + (friendsPublic ? "translate-x-5" : "translate-x-0")} />
                 </div>
               </button>
@@ -1256,8 +1256,8 @@ export default function ProfilePage() {
           </div>
 
           <div className="md:col-span-2">
-            <div className="text-sm font-extrabold text-slate-700 mb-2">Voice preference</div>
-            <p className="text-xs font-semibold text-slate-400 mb-3">
+            <div className="text-sm font-extrabold text-slate-700 mb-2 dark:text-stone-200">Voice preference</div>
+            <p className="text-xs font-semibold text-slate-400 mb-3 dark:text-stone-500">
               Choose the voice used when listening to Armenian words and phrases.
             </p>
             <div className="grid grid-cols-3 gap-3">
@@ -1291,8 +1291,8 @@ export default function ProfilePage() {
                   className={
                     "flex flex-col items-start gap-1 rounded-2xl p-3 ring-2 text-left transition " +
                     (active
-                      ? "bg-brand-50 ring-brand-400 text-brand-700"
-                      : "bg-slate-50 ring-slate-200 text-slate-700 hover:ring-brand-300")
+                      ? "bg-brand-50 ring-brand-400 text-brand-700 dark:bg-brand-500/15 dark:ring-brand-500/30 dark:text-brand-400"
+                      : "bg-slate-50 ring-slate-200 text-slate-700 hover:ring-brand-300 dark:bg-white/[0.04] dark:ring-white/[0.08] dark:text-stone-200")
                   }
                 >
                   <span className="font-display text-sm font-extrabold">{label}</span>
@@ -1323,14 +1323,14 @@ export default function ProfilePage() {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setEmailModalOpen(false)}
           />
-          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden dark:bg-[#18181b] dark:ring-white/[0.08]">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between dark:border-white/[0.06]">
+              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2 dark:text-white">
                 <Mail className="w-4 h-4 text-brand-500" /> Change email
               </div>
               <button
                 type="button"
-                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold"
+                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold dark:hover:bg-white/[0.06] dark:text-stone-400"
                 onClick={() => setEmailModalOpen(false)}
                 aria-label="Close"
               >
@@ -1341,10 +1341,10 @@ export default function ProfilePage() {
             <div className="p-5">
               {emailStage === "start" ? (
                 <>
-                  <p className="text-sm font-semibold text-slate-600">
+                  <p className="text-sm font-semibold text-slate-600 dark:text-stone-300">
                     We’ll send a 6‑digit code to your new email address.
                   </p>
-                  <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">
+                  <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">
                     New email
                   </label>
                   <input
@@ -1352,7 +1352,7 @@ export default function ProfilePage() {
                     onChange={(e) => setNewEmail(e.target.value)}
                     type="email"
                     placeholder="name@example.com"
-                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
                   />
                   <div className="mt-4 flex justify-end gap-2">
                     <button
@@ -1374,21 +1374,21 @@ export default function ProfilePage() {
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-semibold text-slate-600">
-                    Enter the code sent to <span className="font-extrabold text-slate-800">{newEmail}</span>.
+                  <p className="text-sm font-semibold text-slate-600 dark:text-stone-300">
+                    Enter the code sent to <span className="font-extrabold text-slate-800 dark:text-white">{newEmail}</span>.
                   </p>
                   {!!emailDevCode && (
-                    <div className="mt-3 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">
+                    <div className="mt-3 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 dark:ring-brand-500/30 dark:bg-brand-500/15 dark:text-brand-400">
                       Email delivery is not configured. Use this code: <span className="font-mono font-bold">{emailDevCode}</span>
                     </div>
                   )}
-                  <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">6‑digit code</label>
+                  <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">6‑digit code</label>
                   <input
                     value={emailCode}
                     onChange={(e) => setEmailCode(e.target.value)}
                     inputMode="numeric"
                     placeholder="123456"
-                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                    className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
                   />
                   <div className="mt-4 flex justify-between gap-2">
                     <button
@@ -1422,14 +1422,14 @@ export default function ProfilePage() {
       {pwModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPwModalOpen(false)} />
-          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden dark:bg-[#18181b] dark:ring-white/[0.08]">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between dark:border-white/[0.06]">
+              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2 dark:text-white">
                 <KeyRound className="w-4 h-4 text-brand-500" /> Change password
               </div>
               <button
                 type="button"
-                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold"
+                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold dark:hover:bg-white/[0.06] dark:text-stone-400"
                 onClick={() => setPwModalOpen(false)}
                 aria-label="Close"
               >
@@ -1437,28 +1437,28 @@ export default function ProfilePage() {
               </button>
             </div>
             <div className="p-5">
-              <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Current password</label>
+              <label className="block text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Current password</label>
               <input
                 value={currentPw}
                 onChange={(e) => setCurrentPw(e.target.value)}
                 type="password"
-                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
               />
 
-              <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">New password</label>
+              <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">New password</label>
               <input
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
                 type="password"
-                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
               />
 
-              <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">Repeat new password</label>
+              <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Repeat new password</label>
               <input
                 value={newPw2}
                 onChange={(e) => setNewPw2(e.target.value)}
                 type="password"
-                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
               />
 
               <div className="mt-4 flex justify-end gap-2">
@@ -1487,14 +1487,14 @@ export default function ProfilePage() {
       {twoFaOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setTwoFaOpen(false)} />
-          <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2">
+          <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden dark:bg-[#18181b] dark:ring-white/[0.08]">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between dark:border-white/[0.06]">
+              <div className="font-display font-extrabold text-slate-800 flex items-center gap-2 dark:text-white">
                 <ShieldCheck className="w-4 h-4 text-brand-500" /> Two‑factor authentication
               </div>
               <button
                 type="button"
-                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold"
+                className="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500 font-bold dark:hover:bg-white/[0.06] dark:text-stone-400"
                 onClick={() => setTwoFaOpen(false)}
                 aria-label="Close"
               >
@@ -1504,11 +1504,11 @@ export default function ProfilePage() {
 
             <div className="p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm font-bold text-slate-700">
+                <div className="text-sm font-bold text-slate-700 dark:text-stone-200">
                   Status: {twoFaEnabled ? (
-                    <span className="inline-flex items-center gap-1 font-extrabold text-grass-600">Enabled</span>
+                    <span className="inline-flex items-center gap-1 font-extrabold text-grass-600 dark:text-grass-400">Enabled</span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 font-extrabold text-slate-500">Disabled</span>
+                    <span className="inline-flex items-center gap-1 font-extrabold text-slate-500 dark:text-stone-400">Disabled</span>
                   )}
                 </div>
 
@@ -1535,33 +1535,33 @@ export default function ProfilePage() {
 
               {!twoFaEnabled && twoFaSetup && (
                 <div className="mt-5 grid md:grid-cols-[260px,1fr] gap-4">
-                  <div className="rounded-3xl ring-1 ring-slate-200 p-4 bg-slate-50">
-                    <div className="text-xs font-extrabold text-slate-700">Scan QR</div>
+                  <div className="rounded-3xl ring-1 ring-slate-200 p-4 bg-slate-50 dark:ring-white/[0.08] dark:bg-white/[0.04]">
+                    <div className="text-xs font-extrabold text-slate-700 dark:text-stone-200">Scan QR</div>
                     <img
                       src={twoFaSetup.qr_png}
                       alt="2FA QR"
-                      className="mt-3 w-full rounded-2xl bg-white p-3 ring-1 ring-slate-200"
+                      className="mt-3 w-full rounded-2xl bg-white p-3 ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]"
                     />
-                    <div className="mt-3 text-xs font-semibold text-slate-500">
+                    <div className="mt-3 text-xs font-semibold text-slate-500 dark:text-stone-400">
                       Or enter this secret manually:
                     </div>
-                    <div className="mt-1 font-mono text-xs bg-white ring-1 ring-slate-200 rounded-2xl px-3 py-2 text-slate-700">
+                    <div className="mt-1 font-mono text-xs bg-white ring-1 ring-slate-200 rounded-2xl px-3 py-2 text-slate-700 dark:bg-[#18181b] dark:ring-white/[0.08] dark:text-stone-200">
                       {twoFaSetup.secret}
                     </div>
                   </div>
 
-                  <div className="rounded-3xl ring-1 ring-slate-200 p-4">
-                    <div className="font-display text-sm font-extrabold text-slate-800">Verify</div>
-                    <p className="mt-1 text-sm font-semibold text-slate-600">
+                  <div className="rounded-3xl ring-1 ring-slate-200 p-4 dark:ring-white/[0.08]">
+                    <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">Verify</div>
+                    <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-stone-300">
                       After adding Haylingua to your authenticator app, enter the 6‑digit code.
                     </p>
-                    <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5">Code</label>
+                    <label className="block mt-4 text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Code</label>
                     <input
                       value={twoFaCode}
                       onChange={(e) => setTwoFaCode(e.target.value)}
                       inputMode="numeric"
                       placeholder="123456"
-                      className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                      className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
                     />
                     <div className="mt-4 flex justify-end">
                       <button
@@ -1578,29 +1578,29 @@ export default function ProfilePage() {
               )}
 
               {twoFaEnabled && (
-                <div className="mt-5 rounded-3xl ring-1 ring-slate-200 p-4 bg-slate-50">
-                  <div className="font-display text-sm font-extrabold text-slate-800">Disable 2FA</div>
-                  <p className="mt-1 text-sm font-semibold text-slate-600">
+                <div className="mt-5 rounded-3xl ring-1 ring-slate-200 p-4 bg-slate-50 dark:ring-white/[0.08] dark:bg-white/[0.04]">
+                  <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">Disable 2FA</div>
+                  <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-stone-300">
                     For safety, provide either a current authenticator code or your password.
                   </p>
                   <div className="mt-4 grid md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Authenticator code</label>
+                      <label className="block text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Authenticator code</label>
                       <input
                         value={twoFaDisableCode}
                         onChange={(e) => setTwoFaDisableCode(e.target.value)}
                         inputMode="numeric"
                         placeholder="123456"
-                        className="w-full rounded-2xl bg-white px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                        className="w-full rounded-2xl bg-white px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:placeholder:text-stone-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-extrabold text-slate-700 mb-1.5">Current password</label>
+                      <label className="block text-sm font-extrabold text-slate-700 mb-1.5 dark:text-stone-200">Current password</label>
                       <input
                         value={twoFaDisablePw}
                         onChange={(e) => setTwoFaDisablePw(e.target.value)}
                         type="password"
-                        className="w-full rounded-2xl bg-white px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:ring-brand-400 focus:outline-none placeholder:text-slate-400"
+                        className="w-full rounded-2xl bg-white px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 focus:ring-brand-400 focus:outline-none placeholder:text-slate-400 dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:placeholder:text-stone-500"
                       />
                     </div>
                   </div>
@@ -1616,16 +1616,16 @@ export default function ProfilePage() {
                   </div>
 
                   {twoFaRecovery?.length > 0 && (
-                    <div className="mt-4 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3">
-                      <div className="text-xs font-extrabold text-brand-700">Recovery codes</div>
-                      <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-brand-800">
+                    <div className="mt-4 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3 dark:ring-brand-500/30 dark:bg-brand-500/15">
+                      <div className="text-xs font-extrabold text-brand-700 dark:text-brand-400">Recovery codes</div>
+                      <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-brand-800 dark:text-brand-400">
                         {twoFaRecovery.map((c) => (
-                          <div key={c} className="rounded-xl bg-white/70 ring-1 ring-brand-100 px-3 py-2">
+                          <div key={c} className="rounded-xl bg-white/70 ring-1 ring-brand-100 px-3 py-2 dark:bg-white/[0.06] dark:ring-brand-500/30">
                             {c}
                           </div>
                         ))}
                       </div>
-                      <div className="mt-2 text-xs font-semibold text-brand-700">
+                      <div className="mt-2 text-xs font-semibold text-brand-700 dark:text-brand-400">
                         Save these codes somewhere safe. Each code can be used once.
                       </div>
                     </div>
@@ -1634,16 +1634,16 @@ export default function ProfilePage() {
               )}
 
               {!twoFaEnabled && twoFaRecovery?.length > 0 && (
-                <div className="mt-5 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3">
-                  <div className="text-xs font-extrabold text-brand-700">Recovery codes</div>
-                  <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-brand-800">
+                <div className="mt-5 rounded-2xl ring-1 ring-brand-200 bg-brand-50 px-4 py-3 dark:ring-brand-500/30 dark:bg-brand-500/15">
+                  <div className="text-xs font-extrabold text-brand-700 dark:text-brand-400">Recovery codes</div>
+                  <div className="mt-2 grid sm:grid-cols-2 gap-2 font-mono text-xs text-brand-800 dark:text-brand-400">
                     {twoFaRecovery.map((c) => (
-                      <div key={c} className="rounded-xl bg-white/70 ring-1 ring-brand-100 px-3 py-2">
+                      <div key={c} className="rounded-xl bg-white/70 ring-1 ring-brand-100 px-3 py-2 dark:bg-white/[0.06] dark:ring-brand-500/30">
                         {c}
                       </div>
                     ))}
                   </div>
-                  <div className="mt-2 text-xs font-semibold text-brand-700">
+                  <div className="mt-2 text-xs font-semibold text-brand-700 dark:text-brand-400">
                     Save these codes somewhere safe. Each code can be used once.
                   </div>
                 </div>
@@ -1655,15 +1655,15 @@ export default function ProfilePage() {
 
       {/* ===== Appearance tab ===== */}
       {tab === "appearance" && (
-<section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+<section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
   <div className="flex items-center justify-between gap-3 mb-1">
-    <h2 className="font-display text-lg font-extrabold text-slate-800">Profile theme</h2>
-    <div className="text-xs font-bold text-slate-500 flex items-center gap-2">
+    <h2 className="font-display text-lg font-extrabold text-slate-800 dark:text-white">Profile theme</h2>
+    <div className="text-xs font-bold text-slate-500 flex items-center gap-2 dark:text-stone-400">
       <Palette className="w-4 h-4 text-brand-500" />
       {bgSaving ? "Saving…" : "Auto-saved"}
     </div>
   </div>
-  <p className="text-sm font-semibold text-slate-500 mb-4">
+  <p className="text-sm font-semibold text-slate-500 mb-4 dark:text-stone-400">
     Pick a colour theme for your profile header. Changes save automatically.
   </p>
 
@@ -1682,7 +1682,7 @@ export default function ProfilePage() {
           title={t.label}
           className={
             "group relative h-20 overflow-hidden rounded-2xl ring-2 transition " +
-            (active ? "ring-brand-500 ring-offset-2" : "ring-slate-200 hover:ring-brand-300")
+            (active ? "ring-brand-500 ring-offset-2" : "ring-slate-200 hover:ring-brand-300 dark:ring-white/[0.08]")
           }
           style={{ background: value }}
         >
@@ -1699,8 +1699,8 @@ export default function ProfilePage() {
     })}
   </div>
 
-  <div className="mt-5 rounded-2xl ring-1 ring-slate-200 overflow-hidden">
-    <div className="px-4 py-2.5 text-xs font-extrabold text-slate-700 bg-slate-50 border-b border-slate-200">
+  <div className="mt-5 rounded-2xl ring-1 ring-slate-200 overflow-hidden dark:ring-white/[0.08]">
+    <div className="px-4 py-2.5 text-xs font-extrabold text-slate-700 bg-slate-50 border-b border-slate-200 dark:text-stone-200 dark:bg-white/[0.04] dark:border-white/[0.08]">
       Live preview
     </div>
     <div className="h-24" style={{ background: headerBackground }} />
@@ -1710,20 +1710,20 @@ export default function ProfilePage() {
 
       {/* ===== Avatar frames ===== */}
       {tab === "appearance" && (
-<section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+<section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
   <div className="flex items-center gap-2 mb-1">
     <Award className="w-5 h-5 text-brand-500 shrink-0" />
-    <h2 className="font-display text-lg font-extrabold text-slate-800">Avatar frame</h2>
+    <h2 className="font-display text-lg font-extrabold text-slate-800 dark:text-white">Avatar frame</h2>
   </div>
-  <p className="text-sm font-semibold text-slate-500 mb-4">
+  <p className="text-sm font-semibold text-slate-500 mb-4 dark:text-stone-400">
     Equip a frame you own from the shop to show it on your public profile.
   </p>
 
   {ownedFrames.length === 0 ? (
     <div className="flex flex-col items-center gap-2 py-6 text-center">
-      <Award className="w-10 h-10 text-slate-300" />
-      <p className="text-sm font-bold text-slate-400">No frames owned yet.</p>
-      <p className="text-xs font-semibold text-slate-400">Visit the shop to buy avatar frames.</p>
+      <Award className="w-10 h-10 text-slate-300 dark:text-stone-600" />
+      <p className="text-sm font-bold text-slate-400 dark:text-stone-500">No frames owned yet.</p>
+      <p className="text-xs font-semibold text-slate-400 dark:text-stone-500">Visit the shop to buy avatar frames.</p>
     </div>
   ) : (
     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -1739,12 +1739,12 @@ export default function ProfilePage() {
           } catch {}
           setFrameEquipping(null);
         }}
-        className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (activeFrame === null ? "ring-brand-500 bg-brand-50" : "ring-slate-200 hover:ring-brand-300 bg-white")}
+        className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (activeFrame === null ? "ring-brand-500 bg-brand-50 dark:bg-brand-500/15" : "ring-slate-200 hover:ring-brand-300 bg-white dark:ring-white/[0.08] dark:bg-[#18181b]")}
       >
-        <div className="w-12 h-12 rounded-full bg-slate-100 ring-2 ring-slate-200 flex items-center justify-center">
-          <span className="text-xl font-extrabold text-slate-400">{String(username || "?")[0]?.toUpperCase()}</span>
+        <div className="w-12 h-12 rounded-full bg-slate-100 ring-2 ring-slate-200 flex items-center justify-center dark:bg-white/[0.06] dark:ring-white/[0.08]">
+          <span className="text-xl font-extrabold text-slate-400 dark:text-stone-500">{String(username || "?")[0]?.toUpperCase()}</span>
         </div>
-        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide leading-tight">None</span>
+        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide leading-tight dark:text-stone-400">None</span>
         {activeFrame === null && <Check className="h-3.5 w-3.5 text-brand-500" />}
       </button>
 
@@ -1768,7 +1768,7 @@ export default function ProfilePage() {
               } catch {}
               setFrameEquipping(null);
             }}
-            className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (isActive ? "ring-brand-500 bg-brand-50" : "ring-slate-200 hover:ring-brand-300 bg-white")}
+            className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (isActive ? "ring-brand-500 bg-brand-50 dark:bg-brand-500/15" : "ring-slate-200 hover:ring-brand-300 bg-white dark:ring-white/[0.08] dark:bg-[#18181b]")}
           >
             <div className="w-12 h-12 rounded-full relative flex items-center justify-center"
               style={{ background: `${frameColor}22` }}>
@@ -1778,9 +1778,9 @@ export default function ProfilePage() {
                 {String(username || "?")[0]?.toUpperCase()}
               </span>
             </div>
-            <span className="text-[10px] font-extrabold text-slate-600 leading-tight text-center">{frameTitle}</span>
+            <span className="text-[10px] font-extrabold text-slate-600 leading-tight text-center dark:text-stone-300">{frameTitle}</span>
             {isActive && <Check className="h-3.5 w-3.5 text-brand-500" />}
-            {isEquipping && <span className="text-[10px] text-slate-400 font-bold">Saving…</span>}
+            {isEquipping && <span className="text-[10px] text-slate-400 font-bold dark:text-stone-500">Saving…</span>}
           </button>
         );
       })}
@@ -1791,16 +1791,16 @@ export default function ProfilePage() {
 
       {/* ===== Security tab ===== */}
       {tab === "security" && (
-      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">Account security</h2>
+      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4 dark:text-white">Account security</h2>
 
         <div className="grid md:grid-cols-2 gap-4">
-          <div className="rounded-2xl ring-1 ring-slate-200 p-4">
-            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 dark:ring-white/[0.08]">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800 dark:text-white">
               <Mail className="w-4 h-4 text-brand-500" />
               Change email
             </div>
-            <p className="mt-2 text-sm font-semibold text-slate-600">
+            <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-stone-300">
               Update your account email with a confirmation code sent to the new address.
             </p>
             <button
@@ -1818,12 +1818,12 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <div className="rounded-2xl ring-1 ring-slate-200 p-4">
-            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 dark:ring-white/[0.08]">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800 dark:text-white">
               <KeyRound className="w-4 h-4 text-brand-500" />
               Change password
             </div>
-            <p className="mt-2 text-sm font-semibold text-slate-600">
+            <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-stone-300">
               Change your password securely (requires your current password).
             </p>
             <button
@@ -1840,12 +1840,12 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <div className="rounded-2xl ring-1 ring-slate-200 p-4 md:col-span-2">
-            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 dark:ring-white/[0.08] md:col-span-2">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800 dark:text-white">
               <ShieldCheck className="w-4 h-4 text-brand-500" />
               Two-factor authentication (2FA)
             </div>
-            <p className="mt-2 text-sm font-semibold text-slate-600">
+            <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-stone-300">
               Add an extra security layer with an authenticator app (TOTP). You’ll receive recovery codes after enabling.
             </p>
             <button
@@ -1858,8 +1858,8 @@ export default function ProfilePage() {
           </div>
 
           {/* Telegram account linking */}
-          <div className="rounded-2xl ring-1 ring-slate-200 p-4 md:col-span-2">
-            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 dark:ring-white/[0.08] md:col-span-2">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800 dark:text-white">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="shrink-0">
                 <path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1869,9 +1869,9 @@ export default function ProfilePage() {
 
             {telegramId ? (
               <>
-                <p className="mt-2 text-sm font-semibold text-slate-600">
+                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-stone-300">
                   Your account is linked to Telegram (ID&nbsp;
-                  <span className="font-mono font-bold text-slate-800">{telegramId}</span>).
+                  <span className="font-mono font-bold text-slate-800 dark:text-white">{telegramId}</span>).
                   You can sign in with Telegram on any device.
                 </p>
                 <button
@@ -1893,7 +1893,7 @@ export default function ProfilePage() {
               </>
             ) : (
               <>
-                <p className="mt-2 text-sm font-semibold text-slate-600">
+                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-stone-300">
                   Link your Telegram account to sign in with one tap — no password needed.
                 </p>
                 <div className="relative mt-3 h-11 w-48">
@@ -1903,7 +1903,7 @@ export default function ProfilePage() {
                   />
                   <div
                     style={{ pointerEvents: "none" }}
-                    className="absolute inset-0 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-extrabold text-slate-700 shadow-sm"
+                    className="absolute inset-0 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-extrabold text-slate-700 shadow-sm dark:border-white/[0.08] dark:bg-[#18181b] dark:text-stone-200"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                       <path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1917,8 +1917,8 @@ export default function ProfilePage() {
           </div>
 
           {/* Google account linking */}
-          <div className="rounded-2xl ring-1 ring-slate-200 p-4 md:col-span-2">
-            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 dark:ring-white/[0.08] md:col-span-2">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800 dark:text-white">
               <svg width="18" height="18" viewBox="0 0 24 24" className="shrink-0" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
@@ -1946,20 +1946,20 @@ export default function ProfilePage() {
                 >
                   Unlink Google
                 </button>
-                <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-grass-700">
+                <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-grass-700 dark:text-grass-400">
                   <Check className="h-4 w-4 shrink-0" />
                   Linked — sign in with Google on any device.
                 </p>
               </>
             ) : (
               <>
-                <p className="mt-2 text-sm font-semibold text-slate-600">
+                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-stone-300">
                   Link your Google account to sign in with one tap — no password needed.
                 </p>
                 {GOOGLE_CLIENT_ID ? (
                   <button
                     type="button"
-                    className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                    className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-white/[0.08] dark:bg-[#18181b] dark:text-stone-200 dark:hover:bg-white/[0.04]"
                     onClick={() => {
                       const state = "link_" + (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
                       sessionStorage.setItem("oauth_state", state);
@@ -1975,7 +1975,7 @@ export default function ProfilePage() {
                     Link Google
                   </button>
                 ) : (
-                  <p className="mt-3 text-xs font-semibold text-slate-400">
+                  <p className="mt-3 text-xs font-semibold text-slate-400 dark:text-stone-500">
                     Google sign-in isn’t configured on this server.
                   </p>
                 )}
@@ -1984,8 +1984,8 @@ export default function ProfilePage() {
           </div>
 
           {/* Facebook account linking */}
-          <div className="rounded-2xl ring-1 ring-slate-200 p-4 md:col-span-2">
-            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800">
+          <div className="rounded-2xl ring-1 ring-slate-200 p-4 dark:ring-white/[0.08] md:col-span-2">
+            <div className="flex items-center gap-2 font-display font-extrabold text-slate-800 dark:text-white">
               <svg width="18" height="18" viewBox="0 0 18 18" className="shrink-0" aria-hidden="true">
                 <path fill="#1877F2" d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.309V9h2.285V7.017c0-2.256 1.344-3.502 3.4-3.502.985 0 2.015.176 2.015.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z"/>
               </svg>
@@ -2010,20 +2010,20 @@ export default function ProfilePage() {
                 >
                   Unlink Facebook
                 </button>
-                <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-grass-700">
+                <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-grass-700 dark:text-grass-400">
                   <Check className="h-4 w-4 shrink-0" />
                   Linked — sign in with Facebook on any device.
                 </p>
               </>
             ) : (
               <>
-                <p className="mt-2 text-sm font-semibold text-slate-600">
+                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-stone-300">
                   Link your Facebook account to sign in with one tap — no password needed.
                 </p>
                 {FACEBOOK_APP_ID ? (
                   <button
                     type="button"
-                    className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                    className="mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-white/[0.08] dark:bg-[#18181b] dark:text-stone-200 dark:hover:bg-white/[0.04]"
                     onClick={() => {
                       const state = "link_" + (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
                       sessionStorage.setItem("oauth_state", state);
@@ -2036,7 +2036,7 @@ export default function ProfilePage() {
                     Link Facebook
                   </button>
                 ) : (
-                  <p className="mt-3 text-xs font-semibold text-slate-400">
+                  <p className="mt-3 text-xs font-semibold text-slate-400 dark:text-stone-500">
                     Facebook sign-in isn’t configured on this server.
                   </p>
                 )}
@@ -2049,15 +2049,24 @@ export default function ProfilePage() {
 
       {/* ===== Overview tab: recent learning activity ===== */}
       {tab === "overview" && (
-      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
-        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4">
+      <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+        <h2 className="font-display text-lg font-extrabold text-slate-800 mb-4 dark:text-white">
           Learning activity
         </h2>
 
         {/* 30-day heatmap */}
         <div className="mb-5">
-          <div className="text-xs font-extrabold text-slate-500 mb-2 uppercase tracking-wide">
-            Last 30 days
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <div className="text-xs font-extrabold text-slate-500 uppercase tracking-wide dark:text-stone-400">
+              Last 30 days
+            </div>
+            {Array.isArray(last7) && last7.length ? (
+              <div className="text-xs font-semibold text-slate-400 dark:text-stone-500">
+                <span className="font-extrabold text-slate-600 dark:text-stone-300">{last7.filter((d) => Number(d?.value || 0) > 0).length}</span> active days
+                <span className="mx-1.5 text-slate-300 dark:text-stone-600">·</span>
+                <span className="font-extrabold text-slate-600 dark:text-stone-300">{last7.reduce((s, d) => s + (Number(d?.value) || 0), 0)}</span> exercises
+              </div>
+            ) : null}
           </div>
           {Array.isArray(last7) && last7.length ? (
             <div>
@@ -2082,50 +2091,62 @@ export default function ProfilePage() {
                   );
                 })}
               </div>
-              <div className="mt-1 flex justify-between text-[11px] font-semibold text-slate-400">
+              <div className="mt-1 flex justify-between text-[11px] font-semibold text-slate-400 dark:text-stone-500">
                 <span>30 days ago</span>
                 <span>Today</span>
               </div>
             </div>
           ) : (
-            <div className="flex h-14 items-center justify-center text-sm font-semibold text-slate-400">
+            <div className="flex h-14 items-center justify-center text-sm font-semibold text-slate-400 dark:text-stone-500">
               No activity yet — start a lesson to see your progress here.
             </div>
           )}
         </div>
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="flex flex-col items-center rounded-2xl bg-brand-50 px-3 py-3">
-            <span className="font-display text-2xl font-extrabold text-slate-800">{lessonsCompleted}</span>
-            <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Lessons<br/>completed</span>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="flex flex-col items-center rounded-2xl bg-brand-50 px-3 py-3 dark:bg-brand-500/15">
+            <span className="font-display text-2xl font-extrabold text-slate-800 tabular-nums dark:text-white">{lessonsCompleted}</span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500 dark:text-stone-400">Lessons<br/>completed</span>
           </div>
-          <div className="flex flex-col items-center rounded-2xl bg-grass-50 px-3 py-3">
-            <span className="font-display text-2xl font-extrabold text-slate-800">{streak}</span>
-            <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Day<br/>streak</span>
+          <div className="flex flex-col items-center rounded-2xl bg-grass-50 px-3 py-3 dark:bg-grass-500/15">
+            <span className="font-display text-2xl font-extrabold text-slate-800 tabular-nums dark:text-white">{streak}</span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500 dark:text-stone-400">Day<br/>streak</span>
             {bestStreak > streak && (
-              <span className="mt-1 text-center text-[10px] font-bold text-grass-600 opacity-70">best {bestStreak}</span>
+              <span className="mt-1 text-center text-[10px] font-bold text-grass-600 opacity-70 dark:text-grass-400">best {bestStreak}</span>
             )}
           </div>
-          <div className="flex flex-col items-center rounded-2xl bg-feather-50 px-3 py-3">
-            <span className="font-display text-2xl font-extrabold text-slate-800">{xp}</span>
-            <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Lifetime<br/>XP</span>
+          <div className="flex flex-col items-center rounded-2xl bg-feather-50 px-3 py-3 dark:bg-feather-500/15">
+            <span className="font-display text-2xl font-extrabold text-slate-800 tabular-nums dark:text-white">{Number(xp || 0).toLocaleString()}</span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500 dark:text-stone-400">Lifetime<br/>XP</span>
           </div>
-          <div className="flex flex-col items-center rounded-2xl bg-gold-50 px-3 py-3">
-            <span className="font-display text-2xl font-extrabold text-slate-800">
+          <div className="flex flex-col items-center rounded-2xl bg-gold-50 px-3 py-3 dark:bg-gold-500/15">
+            <span className="font-display text-2xl font-extrabold text-slate-800 tabular-nums dark:text-white">
               {summary ? `${Math.round(summary.accuracy)}%` : "–"}
             </span>
-            <span className="mt-0.5 text-center text-xs font-bold text-slate-500">Accuracy<br/>(14 days)</span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500 dark:text-stone-400">Accuracy<br/>(14 days)</span>
+          </div>
+          <div className="flex flex-col items-center rounded-2xl bg-pom-50 px-3 py-3 dark:bg-pom-500/15">
+            <span className="font-display text-2xl font-extrabold text-slate-800 tabular-nums dark:text-white">
+              {summary ? Number(summary.attempts || 0).toLocaleString() : "–"}
+            </span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500 dark:text-stone-400">Exercises<br/>(14 days)</span>
+          </div>
+          <div className="flex flex-col items-center rounded-2xl bg-slate-100 px-3 py-3 dark:bg-white/[0.06]">
+            <span className="font-display text-2xl font-extrabold text-slate-800 tabular-nums dark:text-white">
+              {summary ? Number(summary.correct || 0).toLocaleString() : "–"}
+            </span>
+            <span className="mt-0.5 text-center text-xs font-bold text-slate-500 dark:text-stone-400">Correct<br/>(14 days)</span>
           </div>
         </div>
 
         {/* Share profile */}
         {username && (
-          <div className="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 flex items-center gap-3">
+          <div className="mt-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 flex items-center gap-3 dark:bg-white/[0.04] dark:ring-white/[0.08]">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-extrabold text-slate-500 uppercase tracking-widest mb-0.5">Your public profile</p>
-              <p className="text-sm font-semibold text-slate-700 truncate">
-                haylingua.am/u/<span className="text-brand-600">{username}</span>
+              <p className="text-xs font-extrabold text-slate-500 uppercase tracking-widest mb-0.5 dark:text-stone-400">Your public profile</p>
+              <p className="text-sm font-semibold text-slate-700 truncate dark:text-stone-200">
+                haylingua.am/u/<span className="text-brand-600 dark:text-brand-400">{username}</span>
               </p>
             </div>
             <button

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Trophy, Flame, BookOpen, Users, Loader2, Lock, UserPlus, Check, Clock, Target, Zap, Crown, Star, Award } from "lucide-react";
+import { Trophy, Flame, BookOpen, Users, Loader2, Lock, UserPlus, Check, Clock, Target, Zap, Crown, Star, Award, Medal, CalendarCheck } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import ActivityChart from "./lib/ActivityChart";
 
@@ -82,18 +82,18 @@ function normalizeFriendshipStatus(raw) {
 
 function StatTile({ icon: Icon, label, value, tone }) {
   return (
-    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className={"grid h-9 w-9 place-items-center rounded-xl " + tone}>
         <Icon className="h-5 w-5" />
       </div>
-      <div className="mt-2 font-display text-2xl font-extrabold tabular-nums text-slate-800">{value}</div>
-      <div className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="mt-2 font-display text-2xl font-extrabold tabular-nums text-slate-800 dark:text-white">{value}</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">{label}</div>
     </div>
   );
 }
 
 function Card({ className = "", children }) {
-  return <div className={`rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm ${className}`}>{children}</div>;
+  return <div className={`rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08] ${className}`}>{children}</div>;
 }
 
 export default function PublicUserPage({ token }) {
@@ -192,6 +192,17 @@ export default function PublicUserPage({ token }) {
     if (Number.isFinite(Number(v))) return Number(v);
     return Math.max(1, Math.floor(totalXp / 100) + 1);
   }, [data, profile, stats, totalXp]);
+  const globalRank = useMemo(() => {
+    const v = stats?.global_rank ?? profile?.global_rank ?? data?.global_rank ?? 0;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }, [data, profile, stats]);
+
+  // This-week engagement, derived from the 7-day activity series (each day's
+  // `value` is exercises completed that day).
+  const weekDays = Array.isArray(activity?.days) ? activity.days : [];
+  const weekExercises = weekDays.reduce((s, d) => s + (Number(d?.value) || 0), 0);
+  const activeDays = weekDays.filter((d) => (Number(d?.value) || 0) > 0).length;
 
   const joinDate = fmtJoinDate(profile?.created_at || profile?.joined_at || data?.created_at || data?.joined_at || data?.createdAt);
   const bio = profile?.bio || profile?.about || data?.bio || data?.about || "";
@@ -302,21 +313,21 @@ export default function PublicUserPage({ token }) {
   const friendsCountDisplay = (!isPrivateView && canSeeFriendsSection) ? friendsCount : "—";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-24 text-slate-500">
+          <div className="flex items-center justify-center gap-2 py-24 text-slate-500 dark:text-stone-400">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="font-semibold">Loading profile…</span>
           </div>
         ) : err ? (
-          <div className="rounded-2xl bg-cardinal-50 px-4 py-3 font-semibold text-cardinal-600 ring-1 ring-cardinal-100">{err}</div>
+          <div className="rounded-2xl bg-cardinal-50 px-4 py-3 font-semibold text-cardinal-600 ring-1 ring-cardinal-100 dark:bg-cardinal-500/15 dark:text-cardinal-400 dark:ring-cardinal-500/30">{err}</div>
         ) : !data ? (
-          <div className="rounded-3xl bg-white p-12 text-center font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm">User not found.</div>
+          <div className="rounded-3xl bg-white p-12 text-center font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:text-stone-400 dark:ring-white/[0.08]">User not found.</div>
         ) : (
           <>
             {/* ============ HERO ============ */}
-            <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm">
+            <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
               <div
                 className="relative h-40 overflow-hidden rounded-t-3xl md:h-52 bg-cover bg-center"
                 style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : { background: bannerBg }}
@@ -327,7 +338,7 @@ export default function PublicUserPage({ token }) {
               <div className="px-5 pb-6 md:px-8">
                 {/* Avatar — pulled up to overlap the banner */}
                 <div className="-mt-12 mb-3 flex items-end justify-between">
-                  <div className="relative z-10 h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-brand-50 ring-4 ring-white shadow-md">
+                  <div className="relative z-10 h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-brand-50 ring-4 ring-white shadow-md dark:bg-brand-500/15 dark:ring-[#18181b]">
                     {avatarUrl && !avatarBroken ? (
                       <img
                         src={avatarUrl}
@@ -336,7 +347,7 @@ export default function PublicUserPage({ token }) {
                         onError={() => setAvatarBroken(true)}
                       />
                     ) : (
-                      <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600">
+                      <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
                         {String(displayName || "H")[0]?.toUpperCase()}
                       </div>
                     )}
@@ -345,21 +356,25 @@ export default function PublicUserPage({ token }) {
                 </div>
                 {/* Name + username — always in white area below banner */}
                 <div>
-                  <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800 sm:text-3xl">{displayName}</h1>
-                  <div className="text-sm font-bold text-slate-400">
+                  <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800 sm:text-3xl dark:text-white">{displayName}</h1>
+                  <div className="text-sm font-bold text-slate-400 dark:text-stone-500">
                     @{data.username}
                     {joinDate ? <span className="ml-1.5">· Joined {joinDate}</span> : null}
                   </div>
                 </div>
 
-                {bio ? <p className="mt-4 max-w-2xl text-sm font-semibold text-slate-600">{bio}</p> : null}
+                {bio ? <p className="mt-4 max-w-2xl text-sm font-semibold text-slate-600 dark:text-stone-300">{bio}</p> : null}
 
                 {!isPrivateView && (
-                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <StatTile icon={Trophy} tone="bg-brand-50 text-brand-600" label="Level" value={level} />
-                    <StatTile icon={StarMotif} tone="bg-gold-100 text-gold-600" label="Total XP" value={totalXp} />
-                    <StatTile icon={Flame} tone="bg-cardinal-50 text-cardinal-500" label="Day streak" value={streak} />
-                    <StatTile icon={Users} tone="bg-feather-50 text-feather-600" label="Friends" value={friendsCountDisplay} />
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                    <StatTile icon={Trophy} tone="bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400" label="Level" value={level} />
+                    {globalRank > 0 && (
+                      <StatTile icon={Medal} tone="bg-gold-100 text-gold-600 dark:bg-gold-500/20 dark:text-gold-400" label="Global rank" value={`#${globalRank.toLocaleString()}`} />
+                    )}
+                    <StatTile icon={StarMotif} tone="bg-gold-100 text-gold-600 dark:bg-gold-500/20 dark:text-gold-400" label="Total XP" value={totalXp.toLocaleString()} />
+                    <StatTile icon={Flame} tone="bg-cardinal-50 text-cardinal-500 dark:bg-cardinal-500/15 dark:text-cardinal-400" label="Day streak" value={streak} />
+                    <StatTile icon={BookOpen} tone="bg-grass-50 text-grass-600 dark:bg-grass-500/15 dark:text-grass-400" label="Lessons" value={lessonsCompleted} />
+                    <StatTile icon={Users} tone="bg-feather-50 text-feather-600 dark:bg-feather-500/15 dark:text-feather-400" label="Friends" value={friendsCountDisplay} />
                   </div>
                 )}
               </div>
@@ -367,12 +382,12 @@ export default function PublicUserPage({ token }) {
 
             {/* ============ BODY ============ */}
             {isPrivateView ? (
-              <div className="mt-6 grid place-items-center rounded-3xl bg-white p-12 text-center ring-1 ring-slate-200 shadow-sm">
-                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+              <div className="mt-6 grid place-items-center rounded-3xl bg-white p-12 text-center ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-white/[0.06] dark:text-stone-500">
                   <Lock className="h-7 w-7" />
                 </div>
-                <div className="mt-3 font-display text-lg font-extrabold text-slate-800">This profile is private</div>
-                <p className="mt-1 max-w-sm font-semibold text-slate-500">Send a friend request to see {displayName}'s learning stats and activity.</p>
+                <div className="mt-3 font-display text-lg font-extrabold text-slate-800 dark:text-white">This profile is private</div>
+                <p className="mt-1 max-w-sm font-semibold text-slate-500 dark:text-stone-400">Send a friend request to see {displayName}'s learning stats and activity.</p>
                 {heroCta ? <div className="mt-5">{heroCta}</div> : null}
               </div>
             ) : (
@@ -382,14 +397,14 @@ export default function PublicUserPage({ token }) {
                 <Card className="mt-6 p-6">
                   <div className="flex items-center gap-2">
                     <Award className="h-5 w-5 text-gold-500" />
-                    <div className="font-display text-lg font-extrabold text-slate-800">Achievements</div>
-                    <span className="ml-1 rounded-full bg-gold-100 px-2 py-0.5 text-xs font-extrabold text-gold-600">{achievements.length}</span>
+                    <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">Achievements</div>
+                    <span className="ml-1 rounded-full bg-gold-100 px-2 py-0.5 text-xs font-extrabold text-gold-600 dark:bg-gold-500/20 dark:text-gold-400">{achievements.length}</span>
                   </div>
                   <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {achievements.map((a) => {
                       const Icon = ACH_ICON[a.icon] || Star;
                       return (
-                        <div key={a.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 ring-1 ring-gold-200">
+                        <div key={a.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 ring-1 ring-gold-200 dark:bg-[#18181b] dark:ring-gold-500/30">
                           <div
                             className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white"
                             style={{ background: a.color || "#F59E0B", boxShadow: "0 3px 0 0 rgba(0,0,0,0.22)" }}
@@ -397,8 +412,8 @@ export default function PublicUserPage({ token }) {
                             <Icon className="h-5 w-5" />
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate font-display text-sm font-extrabold text-slate-800">{a.title}</div>
-                            <div className="truncate text-xs font-semibold text-slate-500">{a.desc}</div>
+                            <div className="truncate font-display text-sm font-extrabold text-slate-800 dark:text-white">{a.title}</div>
+                            <div className="truncate text-xs font-semibold text-slate-500 dark:text-stone-400">{a.desc}</div>
                           </div>
                         </div>
                       );
@@ -411,20 +426,33 @@ export default function PublicUserPage({ token }) {
                 {/* activity */}
                 <div className="lg:col-span-2">
                   <Card className="p-6">
-                    <div className="font-display text-lg font-extrabold text-slate-800">Recent learning activity</div>
-                    <div className="text-sm font-semibold text-slate-500">Exercises completed in the last 7 days</div>
+                    <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">Recent learning activity</div>
+                    <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">Exercises completed in the last 7 days</div>
                     {!activity?.days ? (
-                      <div className="mt-6 grid place-items-center rounded-2xl bg-slate-50 py-10 text-sm font-semibold text-slate-400 ring-1 ring-slate-100">
+                      <div className="mt-6 grid place-items-center rounded-2xl bg-slate-50 py-10 text-sm font-semibold text-slate-400 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-stone-500 dark:ring-white/[0.06]">
                         No activity to show yet.
                       </div>
                     ) : (
-                      <ActivityChart days={activity.days} />
+                      <>
+                        <ActivityChart days={activity.days} />
+                        <div className="mt-5 grid grid-cols-2 gap-3">
+                          <div className="rounded-2xl bg-brand-50 px-4 py-3 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:ring-brand-500/30">
+                            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">
+                              <Zap className="h-3.5 w-3.5 text-brand-500" /> Exercises this week
+                            </div>
+                            <div className="mt-0.5 font-display text-xl font-extrabold tabular-nums text-slate-800 dark:text-white">{weekExercises}</div>
+                          </div>
+                          <div className="rounded-2xl bg-grass-50 px-4 py-3 ring-1 ring-grass-100 dark:bg-grass-500/15 dark:ring-grass-500/30">
+                            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">
+                              <CalendarCheck className="h-3.5 w-3.5 text-grass-600" /> Active days
+                            </div>
+                            <div className="mt-0.5 font-display text-xl font-extrabold tabular-nums text-slate-800 dark:text-white">
+                              {activeDays}<span className="text-sm font-bold text-slate-400 dark:text-stone-500">/7</span>
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     )}
-                    <div className="mt-5 flex items-center gap-2 rounded-2xl bg-grass-50 px-4 py-2.5 ring-1 ring-grass-100">
-                      <BookOpen className="h-4 w-4 text-grass-600" />
-                      <span className="text-sm font-bold text-slate-600">Lessons completed</span>
-                      <span className="ml-auto font-display text-sm font-extrabold text-slate-800">{lessonsCompleted}</span>
-                    </div>
                   </Card>
                 </div>
 
@@ -434,18 +462,18 @@ export default function PublicUserPage({ token }) {
                     <Card className="p-6">
                       <div className="flex items-end justify-between gap-4">
                         <div>
-                          <div className="font-display text-lg font-extrabold text-slate-800">Friends</div>
-                          <div className="text-sm font-semibold text-slate-500">A peek at top friends</div>
+                          <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">Friends</div>
+                          <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">A peek at top friends</div>
                         </div>
                         {isSelf ? (
-                          <button onClick={() => navigate("/friends")} className="text-sm font-extrabold text-brand-600 hover:text-brand-700">
+                          <button onClick={() => navigate("/friends")} className="text-sm font-extrabold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
                             View all
                           </button>
                         ) : null}
                       </div>
 
                       {topFriends.length === 0 ? (
-                        <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400 ring-1 ring-slate-100">
+                        <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-stone-500 dark:ring-white/[0.06]">
                           No friends to show yet.
                         </div>
                       ) : (
@@ -462,11 +490,11 @@ export default function PublicUserPage({ token }) {
                                 key={fHandle || idx}
                                 {...(clickable ? { onClick: () => navigate(`/u/${encodeURIComponent(fHandle)}`) } : {})}
                                 className={
-                                  "flex w-full items-center gap-3 rounded-2xl bg-white p-2.5 text-left ring-1 ring-slate-200 " +
-                                  (clickable ? "transition hover:bg-slate-50 hover:ring-brand-200" : "")
+                                  "flex w-full items-center gap-3 rounded-2xl bg-white p-2.5 text-left ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08] " +
+                                  (clickable ? "transition hover:bg-slate-50 hover:ring-brand-200 dark:hover:bg-white/[0.04] dark:hover:ring-brand-500/30" : "")
                                 }
                               >
-                                <div className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-50 font-display text-sm font-extrabold text-brand-600">
+                                <div className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-50 font-display text-sm font-extrabold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
                                   <span>{String(fName)[0]?.toUpperCase()}</span>
                                   {fAvatar ? (
                                     <img
@@ -478,10 +506,10 @@ export default function PublicUserPage({ token }) {
                                   ) : null}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="truncate text-sm font-extrabold text-slate-800">{fName}</div>
-                                  {fHandle ? <div className="truncate text-xs font-semibold text-slate-400">@{fHandle}</div> : null}
+                                  <div className="truncate text-sm font-extrabold text-slate-800 dark:text-white">{fName}</div>
+                                  {fHandle ? <div className="truncate text-xs font-semibold text-slate-400 dark:text-stone-500">@{fHandle}</div> : null}
                                 </div>
-                                <div className="shrink-0 font-display text-xs font-extrabold text-slate-400">{fXp} XP</div>
+                                <div className="shrink-0 font-display text-xs font-extrabold text-slate-400 dark:text-stone-500">{fXp} XP</div>
                               </Tag>
                             );
                           })}
@@ -490,8 +518,8 @@ export default function PublicUserPage({ token }) {
                     </Card>
                   ) : (
                     <Card className="p-6 text-center">
-                      <div className="font-display font-extrabold text-slate-800">Friends are private</div>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">{displayName} keeps their friends list private.</p>
+                      <div className="font-display font-extrabold text-slate-800 dark:text-white">Friends are private</div>
+                      <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">{displayName} keeps their friends list private.</p>
                     </Card>
                   )}
                 </div>

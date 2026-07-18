@@ -34,6 +34,7 @@ module.exports = {
         grass: {
           50: "#EFFCE3",
           100: "#D7F5BA",
+          300: "#A5E86B",
           400: "#7CE246",
           500: "#58CC02",
           600: "#46A302",
@@ -43,6 +44,7 @@ module.exports = {
         cardinal: {
           50: "#FFECEC",
           100: "#FFD1D1",
+          300: "#FF9B9B",
           400: "#FF6B6B",
           500: "#FF4B4B",
           600: "#E63232",
@@ -52,6 +54,7 @@ module.exports = {
         feather: {
           50: "#E7F7FF",
           100: "#C5ECFF",
+          300: "#8AD6FF",
           400: "#4EC2FF",
           500: "#1CB0F6",
           600: "#1899D6",
@@ -61,6 +64,7 @@ module.exports = {
         gold: {
           50: "#FFF8E1",
           100: "#FFEFB8",
+          300: "#FFE066",
           400: "#FFD43B",
           500: "#FFC800",
           600: "#E0A800",
