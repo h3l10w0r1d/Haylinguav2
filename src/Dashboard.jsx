@@ -1,6 +1,7 @@
-// src/Dashboard.jsx — a dark, disciplined command-center dashboard.
-// One accent color, solid crisp cards, no scattered glow — the opposite of
-// the earlier "everything is a different neon badge" attempt.
+// src/Dashboard.jsx — a minimal, modern dashboard.
+// Flat near-black ground, hairline surfaces, one accent (apricot orange),
+// calm typography. Primitive by design: no glow, no nested card chrome,
+// one consistent radius scale, restraint over decoration.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2 } from "lucide-react";
@@ -11,14 +12,13 @@ import ChestOpening from "./lib/ChestOpening";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
-// The only glow on the page — reserved for the primary CTA.
-const BRAND_GLOW = "0 0 0 1px rgba(255,122,26,.4), 0 8px 24px -8px rgba(255,122,26,.5)";
+// One card primitive: hairline border, barely-there surface, single radius.
+const CARD = "rounded-2xl border border-white/[0.07] bg-white/[0.02]";
 
-// Solid, crisp card — no blur, no translucency. Meaning is carried by icon
-// color and copy, not by a different tinted background per card.
-const CARD = "relative rounded-2xl border border-white/[0.08] bg-[#141316] p-5";
-// Neutral chip for every icon badge — color lives in the icon, not the tile.
-const CHIP = "grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/[0.06]";
+// Small muted section label used across every card header.
+function Label({ children }) {
+  return <div className="text-[13px] font-bold text-white/90">{children}</div>;
+}
 
 // Animated checkmark — the stroke draws itself in via CSS (.quest-tick-path).
 function QuestTick({ className = "" }) {
@@ -88,73 +88,69 @@ function DailyQuestsCard({ token }) {
   if (allDone) {
     if (celebrating) {
       return (
-        <div className={"quests-celebrate flex flex-col items-center overflow-hidden text-center " + CARD}>
+        <div className={"quests-celebrate flex flex-col items-center overflow-hidden p-6 text-center " + CARD}>
           <div className="relative grid place-items-center">
             <span className="quests-ring absolute h-14 w-14 rounded-full bg-grass-500/25" />
             <span className="quests-ring quests-ring-2 absolute h-14 w-14 rounded-full bg-grass-500/25" />
-            <div className="quests-badge-pop relative grid h-14 w-14 place-items-center rounded-2xl bg-grass-500 text-white">
+            <div className="quests-badge-pop relative grid h-14 w-14 place-items-center rounded-full bg-grass-500 text-white">
               <QuestTick className="h-8 w-8" />
             </div>
           </div>
-          <div className="mt-3 text-sm font-extrabold text-white">All quests complete</div>
-          <div className="mt-0.5 text-xs font-semibold text-white/40">Come back tomorrow for more.</div>
+          <div className="mt-3 text-sm font-bold text-white">All quests complete</div>
+          <div className="mt-0.5 text-xs text-white/40">Come back tomorrow for more.</div>
         </div>
       );
     }
     return (
-      <div className={"quests-collapse flex items-center gap-3 overflow-hidden " + CARD}>
-        <div className={CHIP}>
-          <QuestTick className="h-5 w-5 text-grass-400" />
-        </div>
+      <div className={"quests-collapse flex items-center gap-3 overflow-hidden p-4 " + CARD}>
+        <QuestTick className="h-5 w-5 shrink-0 text-grass-400" />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-extrabold text-white">Daily quests complete</div>
-          <div className="text-xs font-semibold text-white/40">All {quests.length} done</div>
+          <div className="text-[13px] font-bold text-white">Daily quests complete</div>
+          <div className="text-xs text-white/40">All {quests.length} done</div>
         </div>
-        <span className="shrink-0 rounded-lg bg-white/[0.06] px-2 py-1 text-xs font-bold tabular-nums text-white/50">
-          {quests.length}/{quests.length}
-        </span>
+        <span className="shrink-0 text-xs font-semibold tabular-nums text-white/40">{quests.length}/{quests.length}</span>
       </div>
     );
   }
 
   return (
-    <div className={CARD}>
+    <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
-        <div className="text-sm font-extrabold text-white">Daily quests</div>
-        <span className="rounded-lg bg-white/[0.06] px-2 py-1 text-xs font-bold tabular-nums text-white/50">{data.completed}/{data.total}</span>
+        <Label>Daily quests</Label>
+        <span className="text-xs font-semibold tabular-nums text-white/40">{data.completed}/{data.total}</span>
       </div>
-      <div className="mt-4 space-y-3.5">
+      <div className="mt-4 space-y-4">
         {data.quests.map((q) => {
           const Icon = QICON[q.icon] || Target;
           const pct = q.target ? Math.round((q.progress / q.target) * 100) : 0;
           return (
-            <div key={q.id} className="flex items-center gap-3">
-              <div className={CHIP}>
-                {q.done ? <Check className="h-4.5 w-4.5 text-grass-400" /> : <Icon className="h-4.5 w-4.5 text-white/40" />}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="truncate text-sm font-bold text-white/85">{q.desc}</div>
-                  {q.claimed ? (
-                    <span className="shrink-0 text-xs font-bold text-grass-400">Claimed</span>
-                  ) : (
-                    <div className="shrink-0 text-xs font-bold tabular-nums text-white/35">{q.progress}/{q.target}</div>
-                  )}
-                </div>
-                {q.claimable ? (
-                  <button
-                    onClick={() => claim(q.id)}
-                    disabled={claiming === q.id}
-                    className="mt-1.5 w-full rounded-lg bg-brand-500 py-1.5 text-xs font-extrabold uppercase text-white transition hover:bg-brand-400 active:scale-[0.98] disabled:opacity-60"
-                  >
-                    {claiming === q.id ? "…" : `Claim +${q.reward_xp} XP`}
-                  </button>
+            <div key={q.id}>
+              <div className="flex items-center gap-2.5">
+                {q.done ? (
+                  <Check className="h-4 w-4 shrink-0 text-grass-400" strokeWidth={3} />
                 ) : (
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
-                    <div className={"h-full rounded-full " + (q.done ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${Math.max(pct, 4)}%` }} />
-                  </div>
+                  <Icon className="h-4 w-4 shrink-0 text-white/35" />
+                )}
+                <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-white/80">{q.desc}</div>
+                {q.claimed ? (
+                  <span className="shrink-0 text-xs font-semibold text-grass-400">Claimed</span>
+                ) : (
+                  <span className="shrink-0 text-xs font-semibold tabular-nums text-white/35">{q.progress}/{q.target}</span>
                 )}
               </div>
+              {q.claimable ? (
+                <button
+                  onClick={() => claim(q.id)}
+                  disabled={claiming === q.id}
+                  className="mt-2 w-full rounded-lg bg-brand-500 py-1.5 text-xs font-bold text-white transition hover:bg-brand-400 active:scale-[0.99] disabled:opacity-60"
+                >
+                  {claiming === q.id ? "…" : `Claim +${q.reward_xp} XP`}
+                </button>
+              ) : (
+                <div className="mt-2 ml-6 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+                  <div className={"h-full rounded-full " + (q.done ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${Math.max(pct, 4)}%` }} />
+                </div>
+              )}
             </div>
           );
         })}
@@ -209,26 +205,27 @@ function ChestCard({ token }) {
 
   return (
     <>
-      <div className={"text-center " + CARD}>
+      <div className={"flex items-center gap-3 p-4 " + CARD}>
         <div
-          className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/[0.06] text-2xl"
+          className="grid h-10 w-10 shrink-0 place-items-center text-2xl"
           style={opening ? { animation: "chestShake .85s ease-in-out" } : undefined}
         >
           🎁
         </div>
-        <div className="mt-3 text-sm font-extrabold text-white">
-          {chests} chest{chests === 1 ? "" : "s"} to open
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-bold text-white">
+            {chests} chest{chests === 1 ? "" : "s"} to open
+          </div>
+          <div className="text-xs text-white/40">
+            {openErr ? <span className="text-cardinal-400">Couldn't open — try again.</span> : "Gems or an XP boost inside"}
+          </div>
         </div>
-        <p className="mt-1 text-xs font-semibold text-white/40">Gems or an XP boost inside</p>
-        {openErr && (
-          <p className="mt-2 text-xs font-semibold text-cardinal-400">Couldn't open — try again.</p>
-        )}
         <button
           onClick={open}
           disabled={opening || chests <= 0}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold uppercase text-white transition hover:bg-brand-400 active:scale-[0.98] disabled:opacity-60"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-400 active:scale-[0.98] disabled:opacity-60"
         >
-          <Gift className="h-4 w-4" /> {opening ? "Opening…" : "Open chest"}
+          <Gift className="h-3.5 w-3.5" /> {opening ? "Opening…" : "Open"}
         </button>
       </div>
 
@@ -268,25 +265,25 @@ function StreakCard({ token, streak }) {
   const week = Array.isArray(days) ? days.slice(-7) : [];
   const cap = freeze.freeze_cap || 2;
 
-  const badge = frozen
-    ? { text: "Frozen", tone: "bg-white/[0.06] text-feather-400" }
+  const status = frozen
+    ? { text: "Frozen", color: "text-feather-400" }
     : lit
-    ? { text: "Lit", tone: "bg-white/[0.06] text-grass-400" }
+    ? { text: "Lit", color: "text-grass-400" }
     : atRisk
-    ? { text: "At risk", tone: "bg-white/[0.06] text-gold-400" }
+    ? { text: "At risk", color: "text-gold-400" }
     : null;
 
   return (
-    <div className={CARD}>
+    <div className={"p-5 " + CARD}>
       <div className="flex items-center gap-3">
         <StreakFlame size={40} lit={lit} frozen={frozen} />
         <div className="flex-1">
-          <div className="text-2xl font-extrabold leading-none tabular-nums text-white">{n}</div>
-          <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-white/40">day streak</div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-extrabold leading-none tabular-nums text-white">{n}</span>
+            <span className="text-[13px] font-medium text-white/50">day streak</span>
+          </div>
+          {status && <div className={"mt-1 text-xs font-semibold " + status.color}>{status.text}</div>}
         </div>
-        {badge && (
-          <span className={"rounded-lg px-2.5 py-1 text-xs font-extrabold " + badge.tone}>{badge.text}</span>
-        )}
       </div>
 
       {week.length > 0 && (
@@ -298,8 +295,8 @@ function StreakCard({ token, streak }) {
               <div
                 key={i}
                 title={`${d?.label ?? ""}: ${Number(d?.value ?? 0)} XP`}
-                className={"flex-1 grid place-items-center h-7 rounded-lg text-[10px] font-extrabold transition " +
-                  (on ? "bg-brand-500 text-white" : "bg-white/[0.06] text-white/30")}
+                className={"flex-1 grid place-items-center h-7 rounded-md text-[10px] font-bold transition " +
+                  (on ? "bg-brand-500 text-white" : "bg-white/[0.05] text-white/30")}
               >
                 {label}
               </div>
@@ -308,7 +305,7 @@ function StreakCard({ token, streak }) {
         </div>
       )}
 
-      <p className="mt-3 text-xs font-semibold text-white/40">
+      <p className="mt-3 text-xs leading-relaxed text-white/45">
         {frozen
           ? "A streak freeze is protecting your flame — practice today to thaw it."
           : lit
@@ -321,35 +318,29 @@ function StreakCard({ token, streak }) {
       {atRisk && freeze.freezes === 0 && (
         <button
           onClick={() => navigate("/practice")}
-          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-extrabold text-white transition hover:bg-brand-400 active:scale-[0.98]"
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-bold text-white transition hover:bg-brand-400 active:scale-[0.98]"
         >
           Practice now <ArrowRight className="h-4 w-4" />
         </button>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
-        <div
-          className="flex items-center gap-2"
-          title="A streak freeze covers one missed day. Buy them in the shop with gems."
-        >
+      <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
+        <div className="flex items-center gap-2" title="A streak freeze covers one missed day.">
           <div className="flex gap-0.5">
             {Array.from({ length: cap }).map((_, i) => (
-              <Snowflake
-                key={i}
-                className={"h-4 w-4 " + (i < freeze.freezes ? "text-feather-400" : "text-white/15")}
-              />
+              <Snowflake key={i} className={"h-3.5 w-3.5 " + (i < freeze.freezes ? "text-feather-400" : "text-white/15")} />
             ))}
           </div>
-          <span className="text-xs font-bold text-white/40">
+          <span className="text-xs text-white/40">
             {freeze.freezes}/{cap} freeze{cap === 1 ? "" : "s"}
           </span>
         </div>
         {freeze.freezes < cap && (
           <button
             onClick={() => navigate("/shop")}
-            className="inline-flex items-center gap-1 rounded-lg bg-white/[0.06] px-2.5 py-1.5 text-xs font-extrabold text-white/60 transition hover:bg-white/[0.1]"
+            className="text-xs font-semibold text-white/50 transition hover:text-white"
           >
-            <Gem className="h-3 w-3" /> Buy freeze
+            Buy freeze
           </button>
         )}
       </div>
@@ -366,20 +357,14 @@ function AchievementsCard({ token, onOpen }) {
       .catch(() => {});
   }, [token]);
   return (
-    <div className={CARD}>
-      <div className="flex items-center gap-3">
-        <div className={CHIP}>
-          <Trophy className="h-5 w-5 text-gold-400" />
-        </div>
-        <div className="text-sm font-extrabold text-white">Achievements</div>
+    <button onClick={onOpen} className={"flex w-full items-center gap-3 p-4 text-left transition hover:border-white/[0.14] " + CARD}>
+      <Trophy className="h-5 w-5 shrink-0 text-gold-400" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-bold text-white">Achievements</div>
+        <div className="text-xs text-white/40">{data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn."}</div>
       </div>
-      <p className="mt-3 text-xs font-semibold text-white/40">
-        {data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn."}
-      </p>
-      <button onClick={onOpen} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-white/70 hover:text-white">
-        View all <ChevronRight className="h-4 w-4" />
-      </button>
-    </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-white/30" />
+    </button>
   );
 }
 
@@ -414,31 +399,23 @@ function ReviewCard({ token }) {
   const urgent = due > 0;
 
   return (
-    <div className={"cursor-pointer transition hover:border-white/[0.16] " + CARD} onClick={() => navigate("/review")}>
+    <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
-        <div className="text-sm font-extrabold text-white">Review</div>
-        {urgent && (
-          <span className="rounded-lg bg-white/[0.06] px-2 py-0.5 text-xs font-extrabold text-brand-400">
-            Due now
-          </span>
-        )}
+        <Label>Review</Label>
+        {urgent && <span className="text-xs font-semibold text-brand-400">Due now</span>}
       </div>
-      <div className="mt-3 flex items-end gap-2">
-        <span className={"text-3xl font-extrabold tabular-nums " + (urgent ? "text-white" : "text-white/70")}>
-          {due}
-        </span>
-        <span className="mb-1 text-sm font-semibold text-white/40">
-          {due === 1 ? "card due" : "cards due"}
-        </span>
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className={"text-3xl font-extrabold tabular-nums " + (urgent ? "text-white" : "text-white/60")}>{due}</span>
+        <span className="text-sm text-white/45">{due === 1 ? "card due" : "cards due"}</span>
       </div>
       <div className="mt-1 text-xs text-white/35">
         {stats.mastered} mastered · {stats.learning} learning · {stats.new_cards} new
       </div>
       <button
-        onClick={e => { e.stopPropagation(); navigate("/review"); }}
+        onClick={() => navigate("/review")}
         className={
-          "mt-4 w-full rounded-xl py-2.5 text-sm font-extrabold text-white transition active:scale-[0.98] " +
-          (urgent ? "bg-brand-500 hover:bg-brand-400" : "bg-white/[0.08] text-white/50")
+          "mt-4 w-full rounded-xl py-2.5 text-sm font-bold transition active:scale-[0.99] " +
+          (urgent ? "bg-brand-500 text-white hover:bg-brand-400" : "bg-white/[0.06] text-white/50 hover:bg-white/[0.1]")
         }
       >
         {urgent ? "Start review" : "Nothing due yet"}
@@ -462,18 +439,18 @@ function MistakesCard({ token, navigate }) {
   if (count === 0) return null;
 
   return (
-    <div className={"cursor-pointer transition hover:border-white/[0.16] " + CARD} onClick={() => navigate("/mistakes")}>
+    <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
-        <div className="text-sm font-extrabold text-white">Your mistakes</div>
-        <span className="rounded-lg bg-white/[0.06] px-2 py-0.5 text-xs font-extrabold text-cardinal-400">Fix them</span>
+        <Label>Your mistakes</Label>
+        <span className="text-xs font-semibold text-cardinal-400">Fix them</span>
       </div>
-      <div className="mt-3 flex items-end gap-2">
+      <div className="mt-3 flex items-baseline gap-2">
         <span className="text-3xl font-extrabold tabular-nums text-white">{count}</span>
-        <span className="mb-1 text-sm font-semibold text-white/40">{count === 1 ? "exercise to re-master" : "exercises to re-master"}</span>
+        <span className="text-sm text-white/45">{count === 1 ? "to re-master" : "to re-master"}</span>
       </div>
       <button
-        onClick={(e) => { e.stopPropagation(); navigate("/mistakes"); }}
-        className="mt-4 w-full rounded-xl bg-cardinal-500 py-2.5 text-sm font-extrabold text-white transition hover:bg-cardinal-400 active:scale-[0.98]"
+        onClick={() => navigate("/mistakes")}
+        className="mt-4 w-full rounded-xl bg-white/[0.06] py-2.5 text-sm font-bold text-white transition hover:bg-white/[0.1] active:scale-[0.99]"
       >
         Review mistakes
       </button>
@@ -497,15 +474,15 @@ function DailyGoalCard({ todayXp }) {
   const done = xp >= goal;
 
   return (
-    <div className={CARD}>
+    <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
-        <div className="text-sm font-extrabold text-white">Daily goal</div>
-        {done ? <span className="rounded-lg bg-white/[0.06] px-2 py-0.5 text-xs font-extrabold text-grass-400">Done</span> : null}
+        <Label>Daily goal</Label>
+        {done && <span className="text-xs font-semibold text-grass-400">Done</span>}
       </div>
 
-      <div className="mt-3 flex items-end gap-2">
-        <div className="text-2xl font-extrabold leading-none text-white tabular-nums">{xp}</div>
-        <div className="mb-0.5 text-sm font-bold text-white/40">/ {goal} XP today</div>
+      <div className="mt-3 flex items-baseline gap-1.5">
+        <span className="text-2xl font-extrabold leading-none text-white tabular-nums">{xp}</span>
+        <span className="text-sm text-white/45">/ {goal} XP today</span>
       </div>
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
@@ -521,7 +498,7 @@ function DailyGoalCard({ todayXp }) {
             key={g}
             disabled={done}
             onClick={() => !done && pickGoal(g)}
-            className={"flex-1 rounded-lg py-1 text-xs font-extrabold transition " + (done ? (goal === g ? "bg-grass-500 text-white cursor-default" : "bg-white/[0.05] text-white/20 cursor-default") : goal === g ? "bg-brand-500 text-white" : "bg-white/[0.06] text-white/50 hover:bg-white/[0.1]")}
+            className={"flex-1 rounded-lg py-1.5 text-xs font-bold transition " + (done ? (goal === g ? "bg-grass-500/80 text-white cursor-default" : "bg-white/[0.04] text-white/20 cursor-default") : goal === g ? "bg-brand-500 text-white" : "bg-white/[0.05] text-white/45 hover:bg-white/[0.09]")}
           >
             {g}
           </button>
@@ -531,9 +508,9 @@ function DailyGoalCard({ todayXp }) {
   );
 }
 
-// Compact always-visible KPI row — hearts / streak / XP / gems. Neutral chips
-// throughout; only the icon carries color, so the row reads as one system
-// instead of four different colored badges competing for attention.
+// Compact always-visible stat row — hearts / streak / XP / gems. Flat mini
+// cards: muted label with a small colored icon, then a big number. The color
+// lives only in the small icon so the row reads as one calm system.
 function KpiStrip({ token, streak, xp }) {
   const [hearts, setHearts] = useState(null);
   const [gems, setGems] = useState(null);
@@ -574,63 +551,57 @@ function KpiStrip({ token, streak, xp }) {
   const items = [
     { icon: Heart, label: "Hearts", value: heartLabel, color: "text-cardinal-400" },
     { icon: Flame, label: "Streak", value: streak, color: "text-brand-400" },
-    { icon: Zap, label: "Total XP", value: xp, color: "text-gold-400" },
+    { icon: Zap, label: "XP", value: xp, color: "text-gold-400" },
     { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, color: "text-feather-400" },
   ];
 
   return (
-    <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+    <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {items.map((it) => (
-        <div key={it.label} className={"flex items-center gap-3 " + CARD}>
-          <span className={CHIP}>
-            <it.icon className={"h-4 w-4 " + it.color} />
-          </span>
-          <div className="min-w-0">
-            <div className="text-base font-extrabold leading-none tabular-nums text-white">{it.value}</div>
-            <div className="text-[11px] font-semibold text-white/40">{it.label}</div>
+        <div key={it.label} className={"px-4 py-3 " + CARD}>
+          <div className="flex items-center gap-1.5 text-white/45">
+            <it.icon className={"h-3.5 w-3.5 " + it.color} />
+            <span className="text-[11px] font-semibold uppercase tracking-wide">{it.label}</span>
           </div>
+          <div className="mt-1.5 text-2xl font-extrabold leading-none tabular-nums text-white">{it.value}</div>
         </div>
       ))}
     </div>
   );
 }
 
-// The single most important element: resume the current lesson. The one
-// place on the page that gets an accent glow — everything else stays quiet
-// so this stays the obvious next action.
+// The anchor of the page: greeting + the single next action. The one place
+// the accent fills a whole surface, so "what do I do now" is never a question.
 function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, isNewUser, onStart, navigate }) {
   const pct = unitTotal ? Math.round((unitDone / unitTotal) * 100) : 0;
   return (
-    <section className={"mb-5 p-6 sm:p-7 " + CARD}>
+    <section className={"mb-4 p-6 sm:p-8 " + CARD}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-[0.14em] text-white/40">
-            Բարև{firstName ? `, ${firstName}` : ""}
+          <div className="text-sm font-medium text-white/45">
+            Բարև{firstName ? `, ${firstName}` : ""} 👋
           </div>
-          <h1 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-white sm:text-[28px]">
             {loading ? "Loading your journey…" : lesson ? "Ready for today's lesson?" : "You've reached the summit"}
           </h1>
         </div>
-        <img src={owl} alt="" className="hidden h-16 w-auto shrink-0 object-contain sm:block" />
+        <img src={owl} alt="" className="hidden h-14 w-auto shrink-0 object-contain sm:block" />
       </div>
 
       {loading ? (
-        <div className="mt-6 h-16 animate-pulse rounded-2xl bg-white/[0.06]" />
+        <div className="mt-6 h-16 animate-pulse rounded-xl bg-white/[0.05]" />
       ) : lesson ? (
         <button
           type="button"
           onClick={() => onStart(lesson)}
-          className="mt-6 flex w-full items-center gap-4 rounded-2xl bg-brand-500 px-5 py-4 text-left text-white transition hover:bg-brand-400 active:scale-[0.99]"
-          style={{ boxShadow: BRAND_GLOW }}
+          className="mt-6 flex w-full items-center gap-4 rounded-xl bg-brand-500 px-5 py-4 text-left text-white transition hover:bg-brand-400 active:scale-[0.99]"
         >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15">
-            <Play className="h-5 w-5 fill-white" />
-          </span>
+          <Play className="h-5 w-5 shrink-0 fill-white" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-white/70">
               {pct > 0 ? "Continue lesson" : "Start lesson"}
             </span>
-            <span className="block truncate text-lg font-extrabold">{lesson.title}</span>
+            <span className="block truncate text-lg font-bold">{lesson.title}</span>
           </span>
           <ArrowRight className="h-5 w-5 shrink-0 text-white/80" />
         </button>
@@ -638,14 +609,12 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
         <button
           type="button"
           onClick={() => navigate("/practice")}
-          className="mt-6 flex w-full items-center gap-4 rounded-2xl bg-grass-500 px-5 py-4 text-left text-white transition hover:bg-grass-400 active:scale-[0.99]"
+          className="mt-6 flex w-full items-center gap-4 rounded-xl bg-grass-500 px-5 py-4 text-left text-white transition hover:bg-grass-400 active:scale-[0.99]"
         >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/20">
-            <Check className="h-5 w-5" strokeWidth={3} />
-          </span>
+          <Check className="h-5 w-5 shrink-0" strokeWidth={3} />
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-extrabold uppercase tracking-[0.14em] text-white/70">All lessons complete</span>
-            <span className="block text-lg font-extrabold">Keep sharp with practice</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-white/70">All lessons complete</span>
+            <span className="block text-lg font-bold">Keep sharp with practice</span>
           </span>
           <ArrowRight className="h-5 w-5 shrink-0 text-white/80" />
         </button>
@@ -653,11 +622,11 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
 
       {!loading && lesson && unitTotal > 0 && (
         <div className="mt-4">
-          <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-wide text-white/40">
-            <span className="truncate">{unitTitle} progress</span>
+          <div className="flex items-center justify-between text-xs text-white/45">
+            <span className="truncate font-medium">{unitTitle}</span>
             <span className="tabular-nums">{unitDone}/{unitTotal}</span>
           </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.07]">
             <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
           </div>
         </div>
@@ -667,7 +636,7 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
         <button
           type="button"
           onClick={() => navigate("/placement")}
-          className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-white/50 transition hover:text-white/80"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-white/50 transition hover:text-white"
         >
           <Target className="h-4 w-4" /> Not a beginner? Take the placement test
         </button>
@@ -676,9 +645,9 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
   );
 }
 
-// One lesson, rendered as a full-width row — icon, title, and status all on
-// one line so order and state read at a glance, no truncated icon-grid guessing.
-function LessonRow({ lesson, onStart }) {
+// One lesson as a full-width row: status dot, title, plain-word state. Reads
+// top-to-bottom like an outline — no icon-grid decoding.
+function LessonRow({ lesson, onStart, last }) {
   const status = lesson.status || "locked";
   const done = status === "completed";
   const current = status === "current";
@@ -690,64 +659,66 @@ function LessonRow({ lesson, onStart }) {
       onClick={() => !locked && onStart(lesson)}
       title={locked ? "Finish the previous lesson to unlock" : lesson.title}
       className={
-        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition active:scale-[0.99] " +
-        (current ? "bg-brand-500" : done ? "hover:bg-white/[0.05]" : "cursor-default")
+        "flex w-full items-center gap-3 py-3 text-left transition " +
+        (last ? "" : "border-b border-white/[0.05] ") +
+        (current ? "" : done ? "hover:opacity-80" : "cursor-default")
       }
     >
       <span
         className={
-          "grid h-9 w-9 shrink-0 place-items-center rounded-full " +
-          (current ? "bg-white/20 text-white" : done ? "bg-grass-500 text-white" : "bg-white/[0.06] text-white/25")
+          "grid h-7 w-7 shrink-0 place-items-center rounded-full " +
+          (current ? "bg-brand-500 text-white" : done ? "bg-grass-500 text-white" : "border border-white/10 text-white/25")
         }
       >
-        {done ? <Check className="h-4.5 w-4.5" strokeWidth={3} /> : current ? <Play className="h-4 w-4 fill-white" /> : <Lock className="h-4 w-4" />}
+        {done ? <Check className="h-4 w-4" strokeWidth={3} /> : current ? <Play className="h-3.5 w-3.5 fill-white" /> : <Lock className="h-3.5 w-3.5" />}
       </span>
-      <span className={"min-w-0 flex-1 truncate text-sm font-bold " + (current ? "text-white" : locked ? "text-white/30" : "text-white/80")}>
+      <span className={"min-w-0 flex-1 truncate text-sm font-medium " + (current ? "text-white" : locked ? "text-white/30" : "text-white/75")}>
         {lesson.title}
       </span>
       {current ? (
-        <span className="shrink-0 rounded-lg bg-white/20 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-white">
-          Continue
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-brand-500 px-2.5 py-1 text-xs font-bold text-white">
+          Continue <ArrowRight className="h-3 w-3" />
         </span>
       ) : done ? (
-        <span className="shrink-0 text-xs font-bold text-grass-400">Done</span>
+        <span className="shrink-0 text-xs font-semibold text-grass-400">Done</span>
       ) : (
-        <span className="shrink-0 text-xs font-semibold text-white/25">Locked</span>
+        <span className="shrink-0 text-xs text-white/25">Locked</span>
       )}
     </button>
   );
 }
 
-// A unit: header + progress bar + its lessons as a scannable list ending in
-// a distinctly-styled checkpoint row. The status stripe means something
-// (locked / in progress / done) instead of rotating through colors by index.
+// A unit: a plain header (number · title · count) with a thin status-colored
+// progress bar, then its lessons as a clean divided list ending in the
+// checkpoint. No decorative stripe — the progress bar carries the state.
 function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
   const total = unit.items.length;
   const done = unit.items.filter((l) => l.status === "completed").length;
   const complete = total > 0 && done === total;
   const pct = total ? Math.round((done / total) * 100) : 0;
-  const statusColor = complete ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-white/10";
+  const barColor = complete ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-white/15";
   return (
-    <section className={"mb-4 overflow-hidden p-5 " + CARD}>
-      <div className={"absolute inset-x-0 top-0 h-[3px] " + statusColor} />
-      <div className="flex items-center justify-between gap-3">
+    <section className={"mb-3 p-5 " + CARD}>
+      <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-white/40">Unit {index + 1}</div>
-          <h3 className="truncate text-lg font-extrabold text-white">{unit.title}</h3>
+          <span className="text-xs font-semibold uppercase tracking-wide text-white/35">Unit {index + 1}</span>
+          <h3 className="truncate text-base font-bold text-white">{unit.title}</h3>
         </div>
-        <div className="shrink-0 text-right">
-          <div className="text-sm font-extrabold tabular-nums text-white/80">{done}/{total}</div>
-          <div className="text-[11px] font-semibold text-white/35">{pct}%</div>
-        </div>
+        <span className="shrink-0 text-xs font-semibold tabular-nums text-white/45">{done}/{total}</span>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
-        <div className={"h-full rounded-full transition-all " + statusColor} style={{ width: `${pct}%` }} />
+      <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+        <div className={"h-full rounded-full transition-all " + barColor} style={{ width: `${pct}%` }} />
       </div>
 
-      <div className="mt-4 space-y-1 border-t border-white/[0.06] pt-3">
-        {unit.items.map((lesson) => (
-          <LessonRow key={lesson.id ?? lesson.slug} lesson={lesson} onStart={onStart} />
+      <div className="mt-2">
+        {unit.items.map((lesson, i) => (
+          <LessonRow
+            key={lesson.id ?? lesson.slug}
+            lesson={lesson}
+            onStart={onStart}
+            last={i === unit.items.length - 1}
+          />
         ))}
 
         <button
@@ -756,22 +727,20 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
           onClick={() => complete && onCheckpoint(unit)}
           title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
           className={
-            "flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition active:scale-[0.99] " +
-            (complete ? "border-gold-500/30 bg-gold-500/10 hover:bg-gold-500/15" : "cursor-default border-transparent")
+            "mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition " +
+            (complete ? "bg-gold-500/10 hover:bg-gold-500/15" : "cursor-default bg-white/[0.02]")
           }
         >
-          <span className={"grid h-9 w-9 shrink-0 place-items-center rounded-full " + (complete ? "bg-gold-500 text-black/80" : "bg-white/[0.06] text-white/25")}>
-            <ShieldCheck className="h-4.5 w-4.5" />
+          <span className={"grid h-7 w-7 shrink-0 place-items-center rounded-full " + (complete ? "bg-gold-500 text-black/80" : "border border-white/10 text-white/25")}>
+            <ShieldCheck className="h-4 w-4" />
           </span>
-          <span className={"min-w-0 flex-1 text-sm font-bold " + (complete ? "text-gold-300" : "text-white/30")}>
+          <span className={"min-w-0 flex-1 text-sm font-medium " + (complete ? "text-gold-300" : "text-white/30")}>
             Unit checkpoint
           </span>
           {complete ? (
-            <span className="shrink-0 rounded-lg bg-gold-500/25 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-gold-300">
-              Test now
-            </span>
+            <span className="shrink-0 text-xs font-bold text-gold-300">Test now</span>
           ) : (
-            <span className="shrink-0 text-xs font-semibold text-white/25">Locked</span>
+            <span className="shrink-0 text-xs text-white/25">Locked</span>
           )}
         </button>
       </div>
@@ -782,13 +751,13 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
 function CurriculumSummit({ pct }) {
   return (
     <div className="flex flex-col items-center gap-1 py-8 text-center">
-      <div className="text-sm font-extrabold text-white/70">You're at the summit</div>
-      <div className="text-xs font-semibold text-white/35">{pct}% of the journey climbed</div>
+      <div className="text-sm font-bold text-white/60">You're at the summit</div>
+      <div className="text-xs text-white/35">{pct}% of the journey climbed</div>
     </div>
   );
 }
 
-// Compact quick-access tiles.
+// Quick access — one card holding a clean grid of icon+label targets.
 function QuickLinks({ navigate }) {
   const tiles = [
     { icon: Dumbbell, label: "Practice", to: "/practice", color: "text-brand-400" },
@@ -800,18 +769,16 @@ function QuickLinks({ navigate }) {
     { icon: Star, label: "Achievements", to: "/achievements", color: "text-gold-400" },
   ];
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className={"grid grid-cols-4 gap-1 p-2 " + CARD}>
       {tiles.map((t) => (
         <button
           key={t.to}
           type="button"
           onClick={() => navigate(t.to)}
-          className={"flex flex-col items-center gap-1.5 px-1 py-3 transition hover:border-white/[0.16] active:scale-[0.97] " + CARD}
+          className="flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition hover:bg-white/[0.04] active:scale-[0.97]"
         >
-          <span className={CHIP}>
-            <t.icon className={"h-4 w-4 " + t.color} />
-          </span>
-          <span className="w-full truncate text-center text-[11px] font-extrabold text-white/60">{t.label}</span>
+          <t.icon className={"h-5 w-5 " + t.color} />
+          <span className="w-full truncate text-center text-[11px] font-medium text-white/55">{t.label}</span>
         </button>
       ))}
     </div>
@@ -924,15 +891,14 @@ export default function Dashboard({ user }) {
   };
 
   // ── Architecture ──────────────────────────────────────────────────────────
-  // A dark, disciplined command center: solid crisp cards, one accent color
-  // reserved for the primary action and "in progress" state, a KPI row up
-  // top, curriculum as a scannable grid of units, and a sidebar of supporting
-  // cards — sticky on desktop, stacked on mobile.
+  // A calm, minimal command center: a flat stat row, a single-action hero,
+  // curriculum as a plain outline of units, and a sidebar of quiet cards —
+  // sticky on desktop, stacked on mobile. One accent, lots of air.
   return (
-    <div className="min-h-screen bg-[#0a0a0b]">
+    <div className="min-h-screen bg-[#0a0a0a]">
       <StreakCelebration streak={stats.streak} />
-      <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
-        {/* ── Main: KPIs + hero + curriculum ── */}
+      <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_336px] lg:items-start lg:gap-6">
+        {/* ── Main: stats + hero + curriculum ── */}
         <main className="mx-auto w-full max-w-xl lg:mx-0 lg:justify-self-center">
           <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} />
 
@@ -949,7 +915,7 @@ export default function Dashboard({ user }) {
           />
 
           {error && (
-            <div className="mb-4 rounded-2xl border border-cardinal-500/30 bg-cardinal-500/10 px-4 py-3 text-sm font-semibold text-cardinal-300">
+            <div className="mb-4 rounded-xl border border-cardinal-500/30 bg-cardinal-500/10 px-4 py-3 text-sm font-medium text-cardinal-300">
               {error}
             </div>
           )}
@@ -957,10 +923,10 @@ export default function Dashboard({ user }) {
           {loadingLessons ? (
             <div className="flex items-center justify-center gap-2 py-20 text-white/40">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span className="font-semibold">Mapping your journey…</span>
+              <span className="font-medium">Mapping your journey…</span>
             </div>
           ) : units.length === 0 ? (
-            <div className={"p-8 text-center font-semibold text-white/50 " + CARD}>
+            <div className={"p-8 text-center font-medium text-white/50 " + CARD}>
               No lessons available yet. Check back soon!
             </div>
           ) : (
@@ -981,7 +947,7 @@ export default function Dashboard({ user }) {
         </main>
 
         {/* ── Rail: everything that supports the journey ── */}
-        <aside className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:pb-6">
+        <aside className="space-y-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:pb-6">
           <DailyGoalCard todayXp={stats.today_xp} />
           <DailyQuestsCard token={token} />
           <ReviewCard token={token} />
