@@ -49,7 +49,7 @@
   .btn3d-grass   { @apply bg-grass-500 text-white shadow-btn-grass hover:brightness-105; }
   .btn3d-cardinal{ @apply bg-cardinal-500 text-white shadow-btn-cardinal hover:brightness-105; }
   .btn3d-feather { @apply bg-feather-500 text-white shadow-btn-feather hover:brightness-105; }
-  .btn3d-neutral { @apply bg-white text-slate-600 shadow-btn-neutral ring-2 ring-slate-200 hover:bg-slate-50; }
+  .btn3d-neutral { @apply bg-white text-slate-600 shadow-btn-neutral ring-2 ring-slate-200 hover:bg-slate-50 dark:bg-[#1f1f23] dark:text-stone-300 dark:ring-white/10 dark:hover:bg-[#26262b]; }
   .btn3d:disabled.btn3d-brand,
   .btn3d:disabled.btn3d-grass,
   .btn3d:disabled.btn3d-cardinal,
@@ -59,21 +59,26 @@
   .tile {
     @apply relative w-full cursor-pointer rounded-2xl bg-white px-4 py-4 text-left
            font-bold text-slate-700 ring-2 ring-slate-200 transition-all duration-100
-           hover:bg-slate-50 active:translate-y-0.5;
+           hover:bg-slate-50 active:translate-y-0.5
+           dark:bg-[#1f1f23] dark:text-stone-200 dark:ring-white/10 dark:hover:bg-[#26262b];
     box-shadow: 0 3px 0 0 #E2E8F0;
   }
+  .dark .tile { box-shadow: 0 3px 0 0 rgba(255,255,255,0.08); }
   .tile-selected {
-    @apply bg-feather-50 text-feather-700 ring-feather-400;
+    @apply bg-feather-50 text-feather-700 ring-feather-400 dark:bg-feather-500/15 dark:text-feather-300;
     box-shadow: 0 3px 0 0 #4EC2FF;
   }
   .tile-correct {
-    @apply bg-grass-50 text-grass-700 ring-grass-400;
+    @apply bg-grass-50 text-grass-700 ring-grass-400 dark:bg-grass-500/15 dark:text-grass-300;
     box-shadow: 0 3px 0 0 #7CE246;
   }
   .tile-wrong {
-    @apply bg-cardinal-50 text-cardinal-700 ring-cardinal-400;
+    @apply bg-cardinal-50 text-cardinal-700 ring-cardinal-400 dark:bg-cardinal-500/15 dark:text-cardinal-300;
     box-shadow: 0 3px 0 0 #FF6B6B;
   }
+  .dark .tile-selected { box-shadow: 0 3px 0 0 rgba(28,176,246,0.5); }
+  .dark .tile-correct { box-shadow: 0 3px 0 0 rgba(88,204,2,0.5); }
+  .dark .tile-wrong { box-shadow: 0 3px 0 0 rgba(255,75,75,0.5); }
 }
 
 /* Hide scrollbars on the learning path while keeping scroll. */

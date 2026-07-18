@@ -68,7 +68,7 @@ function RankBadge({ rank }) {
   if (colors[rank]) return (
     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full font-display text-sm font-extrabold text-white" style={{ background: colors[rank] }}>{rank}</div>
   );
-  return <div className="w-8 shrink-0 text-center font-display text-sm font-extrabold text-slate-400">{rank}</div>;
+  return <div className="w-8 shrink-0 text-center font-display text-sm font-extrabold text-slate-400 dark:text-stone-500">{rank}</div>;
 }
 
 function Podium({ entries }) {
@@ -88,7 +88,7 @@ function Podium({ entries }) {
             {rank}
           </div>
         </div>
-        <div className="mt-3 max-w-[80px] truncate text-center font-display text-xs font-extrabold text-slate-700">{e.name}</div>
+        <div className="mt-3 max-w-[80px] truncate text-center font-display text-xs font-extrabold text-slate-700 dark:text-stone-200">{e.name}</div>
         <div className="font-display text-sm font-extrabold tabular-nums" style={{ color }}>{e.weekly_xp.toLocaleString()} XP</div>
         <div className={`w-full rounded-t-xl ${isFirst ? "h-20" : rank === 2 ? "h-14" : "h-10"}`} style={{ background: color, opacity: 0.12 }} />
       </div>
@@ -117,18 +117,18 @@ function Row({ entry }) {
       <RankBadge rank={entry.rank} />
       <Avatar name={entry.name} url={entry.avatar_url} size="h-10 w-10" text="text-base" />
       <div className="min-w-0 flex-1">
-        <div className={`truncate font-display text-sm font-extrabold ${isSelf ? "text-brand-600" : "text-slate-800"}`}>
+        <div className={`truncate font-display text-sm font-extrabold ${isSelf ? "text-brand-600 dark:text-brand-400" : "text-slate-800 dark:text-white"}`}>
           {entry.name}
-          {isSelf && <span className="ml-1.5 rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] text-brand-600">You</span>}
+          {isSelf && <span className="ml-1.5 rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] text-brand-600 dark:bg-brand-500/20 dark:text-brand-400">You</span>}
         </div>
       </div>
-      <div className={`font-display text-sm font-extrabold tabular-nums ${isSelf ? "text-brand-600" : "text-slate-400"}`}>
+      <div className={`font-display text-sm font-extrabold tabular-nums ${isSelf ? "text-brand-600 dark:text-brand-400" : "text-slate-400 dark:text-stone-500"}`}>
         {entry.weekly_xp.toLocaleString()} XP
       </div>
-      {to ? <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" /> : null}
+      {to ? <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-stone-600" /> : null}
     </>
   );
-  const base = `flex items-center gap-3 rounded-2xl px-3 py-2.5 transition ${isSelf ? "bg-brand-50 ring-1 ring-brand-200" : "hover:bg-slate-50"}`;
+  const base = `flex items-center gap-3 rounded-2xl px-3 py-2.5 transition ${isSelf ? "bg-brand-50 ring-1 ring-brand-200 dark:bg-brand-500/15 dark:ring-brand-500/30" : "hover:bg-slate-50 dark:hover:bg-white/[0.04]"}`;
   if (!to) return <div className={base}>{inner}</div>;
   return <Link to={to} className={base + " active:scale-[0.99]"}>{inner}</Link>;
 }
@@ -136,13 +136,13 @@ function Row({ entry }) {
 function ZoneDivider({ type }) {
   const promote = type === "promote";
   return (
-    <div className={`my-1.5 flex items-center gap-2 rounded-xl px-2 py-1 ${promote ? "bg-grass-50" : "bg-cardinal-50"}`}>
-      <div className={`h-0.5 flex-1 rounded-full ${promote ? "bg-grass-300" : "bg-cardinal-200"}`} />
-      <span className={`inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide ${promote ? "text-grass-600" : "text-cardinal-500"}`}>
+    <div className={`my-1.5 flex items-center gap-2 rounded-xl px-2 py-1 ${promote ? "bg-grass-50 dark:bg-grass-500/15" : "bg-cardinal-50 dark:bg-cardinal-500/15"}`}>
+      <div className={`h-0.5 flex-1 rounded-full ${promote ? "bg-grass-300 dark:bg-grass-500/30" : "bg-cardinal-200 dark:bg-cardinal-500/30"}`} />
+      <span className={`inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide ${promote ? "text-grass-600 dark:text-grass-400" : "text-cardinal-500 dark:text-cardinal-400"}`}>
         {promote ? <ArrowUp className="h-3.5 w-3.5" strokeWidth={3} /> : <ArrowDown className="h-3.5 w-3.5" strokeWidth={3} />}
         {promote ? "Promotion zone" : "Demotion zone"}
       </span>
-      <div className={`h-0.5 flex-1 rounded-full ${promote ? "bg-grass-300" : "bg-cardinal-200"}`} />
+      <div className={`h-0.5 flex-1 rounded-full ${promote ? "bg-grass-300 dark:bg-grass-500/30" : "bg-cardinal-200 dark:bg-cardinal-500/30"}`} />
     </div>
   );
 }
@@ -184,26 +184,26 @@ export default function Leaderboard() {
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500" />
-        <span className="font-semibold text-slate-500">Loading league…</span>
+        <span className="font-semibold text-slate-500 dark:text-stone-400">Loading league…</span>
       </div>
     </div>
   );
 
   if (error) return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
-      <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200 shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-cardinal-50">
+      <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-cardinal-50 dark:bg-cardinal-500/15">
           <Zap className="h-8 w-8 text-cardinal-500" />
         </div>
-        <div className="mt-4 font-display text-lg font-extrabold text-slate-800">Couldn't load leaderboard</div>
-        <p className="mt-1.5 text-sm font-semibold text-slate-500">Check your connection and try again.</p>
+        <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">Couldn't load leaderboard</div>
+        <p className="mt-1.5 text-sm font-semibold text-slate-500 dark:text-stone-400">Check your connection and try again.</p>
         <button onClick={() => window.location.reload()} className="btn3d btn3d-brand mt-5 uppercase">Retry</button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50/30 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/30 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <div className="mx-auto max-w-2xl px-4 py-8">
 
         {/* ── Hero header ── */}
@@ -249,7 +249,7 @@ export default function Leaderboard() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="mt-4 flex gap-2 rounded-2xl bg-slate-100 p-1">
+        <div className="mt-4 flex gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.06]">
           {[
             { id: "league",  label: "League",  icon: Trophy },
             { id: "friends", label: "Friends", icon: Users, disabled: !data?.has_friends },
@@ -260,9 +260,9 @@ export default function Leaderboard() {
               disabled={disabled}
               title={disabled ? "Add friends to compete" : ""}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-extrabold transition ${
-                tab === id ? "bg-white text-slate-800 shadow-sm"
-                : disabled ? "cursor-not-allowed text-slate-300"
-                : "text-slate-500 hover:text-slate-700"
+                tab === id ? "bg-white text-slate-800 shadow-sm dark:bg-[#18181b] dark:text-white"
+                : disabled ? "cursor-not-allowed text-slate-300 dark:text-stone-600"
+                : "text-slate-500 hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200"
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -274,22 +274,22 @@ export default function Leaderboard() {
         {/* ── Content ── */}
         <div className="mt-4">
           {tab === "league" && !data?.joined ? (
-            <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200 shadow-sm">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50">
+            <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 dark:bg-brand-500/15">
                 <Trophy className="h-8 w-8 text-brand-500" />
               </div>
-              <div className="mt-4 font-display text-lg font-extrabold text-slate-800">Join this week's league</div>
-              <p className="mt-1.5 text-sm font-semibold text-slate-500">
-                Earn XP in a lesson to enter the <span className="text-brand-600">{tierName}</span> division and start climbing.
+              <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">Join this week's league</div>
+              <p className="mt-1.5 text-sm font-semibold text-slate-500 dark:text-stone-400">
+                Earn XP in a lesson to enter the <span className="text-brand-600 dark:text-brand-400">{tierName}</span> division and start climbing.
               </p>
               <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand mt-6 uppercase">Start a lesson</button>
             </div>
           ) : list.length === 0 ? (
-            <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200 shadow-sm">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50">
-                <Medal className="h-8 w-8 text-slate-300" />
+            <div className="rounded-3xl bg-white p-10 text-center ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 dark:bg-white/[0.04]">
+                <Medal className="h-8 w-8 text-slate-300 dark:text-stone-600" />
               </div>
-              <div className="mt-3 font-display text-base font-extrabold text-slate-800">
+              <div className="mt-3 font-display text-base font-extrabold text-slate-800 dark:text-white">
                 {tab === "friends" ? "No friends in the league yet" : "No one here yet — be first!"}
               </div>
             </div>
@@ -297,7 +297,7 @@ export default function Leaderboard() {
             <div className="space-y-3">
               {/* Podium — top 3 */}
               {topThree.length >= 2 && (
-                <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm overflow-hidden">
+                <div className="rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm overflow-hidden dark:bg-[#18181b] dark:ring-white/[0.08]">
                   <Podium entries={topThree} />
                   {showZones && !everyonePromotes && promoteTop <= 3 && (
                     <div className="px-3 pb-2"><ZoneDivider type="promote" /></div>
@@ -307,7 +307,7 @@ export default function Leaderboard() {
 
               {/* Rows 4+ */}
               {rest.length > 0 && (
-                <div className="rounded-3xl bg-white p-2 ring-1 ring-slate-200 shadow-sm sm:p-3">
+                <div className="rounded-3xl bg-white p-2 ring-1 ring-slate-200 shadow-sm sm:p-3 dark:bg-[#18181b] dark:ring-white/[0.08]">
                   {rest.map((e, i) => {
                     const globalIdx = i + 3;
                     return (
@@ -325,7 +325,7 @@ export default function Leaderboard() {
 
               {/* Small league: everyone qualifies for promotion — no cutoff to draw a line at. */}
               {everyonePromotes && (
-                <div className="flex items-center justify-center gap-1.5 rounded-2xl bg-grass-50 px-4 py-2.5 text-center text-xs font-extrabold uppercase tracking-wide text-grass-600">
+                <div className="flex items-center justify-center gap-1.5 rounded-2xl bg-grass-50 px-4 py-2.5 text-center text-xs font-extrabold uppercase tracking-wide text-grass-600 dark:bg-grass-500/15 dark:text-grass-400">
                   <ArrowUp className="h-3.5 w-3.5" strokeWidth={3} />
                   Everyone here advances this week!
                 </div>

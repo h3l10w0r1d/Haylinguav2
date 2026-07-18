@@ -29,12 +29,12 @@ export default function CharBuildWord({ exercise, cfg, correct, wrong, onSkip, o
       <Title>{prompt}</Title>
       {targetWord && (
         <Muted className="mt-2">
-          Target: <span className="font-semibold text-slate-800">{targetWord}</span>
+          Target: <span className="font-semibold text-slate-800 dark:text-white">{targetWord}</span>
         </Muted>
       )}
 
-      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-        <div className="text-2xl font-extrabold text-slate-900 min-h-[2.5rem]">
+      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+        <div className="text-2xl font-extrabold text-slate-900 min-h-[2.5rem] dark:text-white">
           {built || "…"}
         </div>
         <div className="mt-3 flex gap-2">

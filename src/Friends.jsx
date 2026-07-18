@@ -395,17 +395,17 @@ export default function Friends() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <div className="mx-auto max-w-3xl px-4 py-8">
         {/* Title */}
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800">Friends</h1>
-            <p className="mt-1 font-semibold text-slate-500">
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white">Friends</h1>
+            <p className="mt-1 font-semibold text-slate-500 dark:text-stone-400">
               Send requests, accept incoming, and learn together.
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand-50 px-3 py-2 text-brand-600 ring-1 ring-brand-100">
+          <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand-50 px-3 py-2 text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/30">
             <Users className="h-4 w-4" />
             <span className="text-sm font-extrabold">{friendsList.length} friends</span>
           </div>
@@ -421,7 +421,7 @@ export default function Friends() {
                 "rounded-2xl px-4 py-2.5 font-display text-sm font-extrabold transition " +
                 (activeTab === t.key
                   ? "bg-brand-500 text-white shadow-btn-brand"
-                  : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50")
+                  : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-stone-400 dark:ring-white/[0.08] dark:hover:bg-white/[0.04]")
               }
             >
               {t.label}
@@ -429,7 +429,7 @@ export default function Friends() {
                 <span
                   className={
                     "ml-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs " +
-                    (activeTab === t.key ? "bg-white/25" : "bg-brand-100 text-brand-700")
+                    (activeTab === t.key ? "bg-white/25" : "bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400")
                   }
                 >
                   {t.badge}
@@ -441,24 +441,24 @@ export default function Friends() {
 
         {/* Search */}
         <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-stone-500" />
           <input
             type="text"
             placeholder="Search by name or email…"
-            className="w-full rounded-2xl bg-white py-3.5 pl-12 pr-4 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:outline-none focus:ring-brand-400 placeholder:text-slate-400"
+            className="w-full rounded-2xl bg-white py-3.5 pl-12 pr-4 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:placeholder:text-stone-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         {/* Main card */}
-        <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm sm:p-6">
+        <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm sm:p-6 dark:bg-[#18181b] dark:ring-white/[0.08]">
           {!token ? (
             <EmptyState title="Log in to use Friends" text="You need to be logged in to send and accept friend requests." />
           ) : loading ? (
             <div className="py-12 text-center">
               <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
-              <p className="font-semibold text-slate-500">Loading…</p>
+              <p className="font-semibold text-slate-500 dark:text-stone-400">Loading…</p>
             </div>
           ) : (
             <>
@@ -467,20 +467,20 @@ export default function Friends() {
                 <>
                   {/* Referral invite card */}
                   {referral && (
-                    <div className="mb-5 flex items-center gap-4 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-100">
+                    <div className="mb-5 flex items-center gap-4 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:ring-brand-500/30">
                       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500 text-white">
                         <UserPlus className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="font-display text-sm font-extrabold text-slate-800">
+                        <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">
                           Invite a friend, earn +3 hearts
                         </div>
                         <div className="mt-0.5 flex items-center gap-2">
-                          <code className="rounded-lg bg-white px-2 py-0.5 text-xs font-bold tracking-widest text-brand-700 ring-1 ring-brand-200">
+                          <code className="rounded-lg bg-white px-2 py-0.5 text-xs font-bold tracking-widest text-brand-700 ring-1 ring-brand-200 dark:bg-[#18181b] dark:text-brand-400 dark:ring-brand-500/30">
                             {referral.code}
                           </code>
-                          <span className="text-xs text-slate-400">·</span>
-                          <span className="text-xs font-semibold text-slate-500">
+                          <span className="text-xs text-slate-400 dark:text-stone-500">·</span>
+                          <span className="text-xs font-semibold text-slate-500 dark:text-stone-400">
                             {referral.referred_count} referred
                           </span>
                         </div>
@@ -531,7 +531,7 @@ export default function Friends() {
                 activityLoading ? (
                   <div className="flex flex-col items-center gap-3 py-16">
                     <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
-                    <p className="font-semibold text-slate-400">Loading activity…</p>
+                    <p className="font-semibold text-slate-400 dark:text-stone-500">Loading activity…</p>
                   </div>
                 ) : activity.length === 0 ? (
                   <EmptyState
@@ -552,7 +552,7 @@ export default function Friends() {
                   <div className="mb-6">
                     <SectionLabel icon={Inbox} title="Incoming requests" count={incomingList.length} />
                     {applySearch(incomingList).length === 0 ? (
-                      <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                      <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-white/[0.04] dark:text-stone-400">
                         No incoming requests.
                       </div>
                     ) : (
@@ -575,7 +575,7 @@ export default function Friends() {
                   <div>
                     <SectionLabel icon={Send} title="Sent requests" count={sentList.length} />
                     {applySearch(sentList).length === 0 ? (
-                      <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+                      <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-white/[0.04] dark:text-stone-400">
                         No sent requests.
                       </div>
                     ) : (
@@ -721,9 +721,9 @@ function ActivityFeed({ activity, onOpenProfile }) {
         <div key={gi}>
           {/* Day separator */}
           <div className="mb-3 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-100" />
-            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400">{group.label}</span>
-            <div className="h-px flex-1 bg-slate-100" />
+            <div className="h-px flex-1 bg-slate-100 dark:bg-white/[0.06]" />
+            <span className="text-xs font-extrabold uppercase tracking-widest text-slate-400 dark:text-stone-500">{group.label}</span>
+            <div className="h-px flex-1 bg-slate-100 dark:bg-white/[0.06]" />
           </div>
 
           <div className="space-y-2">
@@ -736,7 +736,7 @@ function ActivityFeed({ activity, onOpenProfile }) {
                   onClick={() => onOpenProfile?.(a)}
                   className="group w-full text-left"
                 >
-                  <div className="flex items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-slate-50 active:bg-slate-100">
+                  <div className="flex items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-white/[0.04] dark:active:bg-white/[0.06]">
                     {/* Avatar with XP ring */}
                     <div className="relative shrink-0">
                       <div className={`absolute -inset-0.5 rounded-full bg-gradient-to-br ${color} opacity-0 transition group-hover:opacity-100`} />
@@ -753,12 +753,12 @@ function ActivityFeed({ activity, onOpenProfile }) {
 
                     {/* Text */}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm leading-snug text-slate-700">
-                        <span className="font-extrabold text-slate-900">{a.name}</span>
+                      <p className="text-sm leading-snug text-slate-700 dark:text-stone-200">
+                        <span className="font-extrabold text-slate-900 dark:text-white">{a.name}</span>
                         {" finished "}
-                        <span className="font-bold text-brand-600">"{a.lesson_title}"</span>
+                        <span className="font-bold text-brand-600 dark:text-brand-400">"{a.lesson_title}"</span>
                       </p>
-                      <p className="mt-0.5 text-xs font-semibold text-slate-400">{timeAgo(a.completed_at)}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-slate-400 dark:text-stone-500">{timeAgo(a.completed_at)}</p>
                     </div>
 
                     {/* XP pill */}
@@ -779,10 +779,10 @@ function ActivityFeed({ activity, onOpenProfile }) {
 function SectionLabel({ icon: Icon, title, count }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      <Icon className="h-4 w-4 text-slate-500" />
-      <h3 className="font-display text-sm font-extrabold text-slate-700">{title}</h3>
+      <Icon className="h-4 w-4 text-slate-500 dark:text-stone-400" />
+      <h3 className="font-display text-sm font-extrabold text-slate-700 dark:text-stone-200">{title}</h3>
       {count > 0 ? (
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{count}</span>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 dark:bg-white/[0.06] dark:text-stone-300">{count}</span>
       ) : null}
     </div>
   );
@@ -792,8 +792,8 @@ function EmptyState({ title, text, cta, onCta }) {
   return (
     <div className="py-10 text-center">
       <img src={grandma} alt="" className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover" />
-      <h3 className="font-display text-lg font-extrabold text-slate-800">{title}</h3>
-      <p className="mx-auto mt-1 max-w-sm font-semibold text-slate-500">{text}</p>
+      <h3 className="font-display text-lg font-extrabold text-slate-800 dark:text-white">{title}</h3>
+      <p className="mx-auto mt-1 max-w-sm font-semibold text-slate-500 dark:text-stone-400">{text}</p>
       {cta ? (
         <button onClick={onCta} className="btn3d btn3d-brand mt-5 uppercase">
           {cta}
@@ -831,8 +831,8 @@ function PersonCard({
   return (
     <div
       className={
-        "rounded-2xl bg-white p-4 ring-1 ring-slate-200 transition " +
-        (isHidden ? "opacity-80 " : canNavigate ? "cursor-pointer hover:ring-brand-300 hover:shadow-sm " : "")
+        "rounded-2xl bg-white p-4 ring-1 ring-slate-200 transition dark:bg-[#18181b] dark:ring-white/[0.08] " +
+        (isHidden ? "opacity-80 " : canNavigate ? "cursor-pointer hover:ring-brand-300 hover:shadow-sm dark:hover:ring-brand-500/30 " : "")
       }
       onClick={() => (canNavigate ? onOpenProfile?.() : null)}
       role={canNavigate ? "button" : undefined}
@@ -858,10 +858,10 @@ function PersonCard({
             )}
           </div>
           <div className="min-w-0">
-            <h3 className="truncate font-display text-base font-extrabold text-slate-800">
+            <h3 className="truncate font-display text-base font-extrabold text-slate-800 dark:text-white">
               {isHidden ? "Hidden" : person.name}
             </h3>
-            <p className="truncate text-sm font-semibold text-slate-400">
+            <p className="truncate text-sm font-semibold text-slate-400 dark:text-stone-500">
               {isHidden ? "This user is hidden" : (person.email || person.username || "")}
             </p>
           </div>
@@ -872,7 +872,7 @@ function PersonCard({
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); onMessage?.(); }}
-                className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200"
+                className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-300 dark:hover:bg-white/10"
                 title="Open profile"
               >
                 <MessageCircle className="h-5 w-5" />
@@ -908,7 +908,7 @@ function PersonCard({
           {mode === "discover" ? (
             <>
               {isFriend ? (
-                <div className="inline-flex items-center gap-2 rounded-2xl bg-grass-50 px-4 py-2 text-sm font-extrabold text-grass-700">
+                <div className="inline-flex items-center gap-2 rounded-2xl bg-grass-50 px-4 py-2 text-sm font-extrabold text-grass-700 dark:bg-grass-500/15 dark:text-grass-400">
                   <UserCheck className="h-4 w-4" /> Friends
                 </div>
               ) : null}
@@ -942,13 +942,13 @@ function PersonCard({
 
       {isHidden ? null : (
         <div className="mt-4 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand-50 px-3 py-1.5 text-sm font-bold text-slate-700">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand-50 px-3 py-1.5 text-sm font-bold text-slate-700 dark:bg-brand-500/15 dark:text-stone-200">
             <Trophy className="h-4 w-4 text-brand-500" /> Lv {Number(person.level ?? 1) || 1}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-sm font-bold text-slate-700">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-sm font-bold text-slate-700 dark:bg-amber-500/15 dark:text-stone-200">
             <StarMotif className="h-4 w-4 text-gold-500" /> {Number(person.xp ?? 0) || 0} XP
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-cardinal-50 px-3 py-1.5 text-sm font-bold text-slate-700">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-cardinal-50 px-3 py-1.5 text-sm font-bold text-slate-700 dark:bg-cardinal-500/15 dark:text-stone-200">
             <Flame className="h-4 w-4 text-cardinal-500" /> {streak} day streak
           </span>
         </div>
@@ -960,7 +960,7 @@ function PersonCard({
           {person.reasons.map((reason) => (
             <span
               key={reason}
-              className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500"
+              className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500 dark:bg-white/[0.06] dark:text-stone-400"
             >
               {reason}
             </span>

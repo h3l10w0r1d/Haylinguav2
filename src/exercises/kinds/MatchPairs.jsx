@@ -58,7 +58,7 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
       <Title>{prompt}</Title>
       <Muted className="mt-2">
         Matched:{" "}
-        <span className="font-semibold text-slate-800">{matchedLeft.size}</span> /{" "}
+        <span className="font-semibold text-slate-800 dark:text-white">{matchedLeft.size}</span> /{" "}
         {totalMatches}
       </Muted>
 
@@ -75,10 +75,10 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
                 className={cx(
                   "w-full rounded-xl px-4 py-3 font-semibold text-left ring-1 transition",
                   done
-                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed"
+                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed dark:bg-white/[0.06] dark:text-stone-500 dark:ring-white/[0.08]"
                     : active
-                    ? "bg-orange-50 text-orange-800 ring-orange-300"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-orange-50 text-orange-800 ring-orange-300 dark:bg-orange-500/15 dark:text-orange-400 dark:ring-orange-500/30"
+                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.04]"
                 )}
               >
                 {item.t}
@@ -102,8 +102,8 @@ export default function MatchPairs({ exercise, cfg, correct, wrong, onSkip, onAn
                 className={cx(
                   "w-full rounded-xl px-4 py-3 font-semibold text-left ring-1 transition",
                   disabled
-                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed dark:bg-white/[0.06] dark:text-stone-500 dark:ring-white/[0.08]"
+                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.04]"
                 )}
               >
                 {item.t}

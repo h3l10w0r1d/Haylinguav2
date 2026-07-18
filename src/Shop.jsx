@@ -22,14 +22,14 @@ const ICON = {
   image: ImageIcon,
 };
 const TONE = {
-  snowflake: "bg-feather-50 text-feather-500",
-  heart: "bg-cardinal-50 text-cardinal-500",
-  zap: "bg-gold-100 text-gold-600",
-  shield: "bg-feather-50 text-feather-600",
-  "shield-check": "bg-grass-50 text-grass-600",
-  "trending-up": "bg-brand-50 text-brand-500",
-  award: "bg-gold-50 text-gold-600",
-  image: "bg-pom-50 text-pom-500",
+  snowflake: "bg-feather-50 text-feather-500 dark:bg-feather-500/15 dark:text-feather-400",
+  heart: "bg-cardinal-50 text-cardinal-500 dark:bg-cardinal-500/15 dark:text-cardinal-400",
+  zap: "bg-gold-100 text-gold-600 dark:bg-gold-500/20 dark:text-gold-400",
+  shield: "bg-feather-50 text-feather-600 dark:bg-feather-500/15 dark:text-feather-400",
+  "shield-check": "bg-grass-50 text-grass-600 dark:bg-grass-500/15 dark:text-grass-400",
+  "trending-up": "bg-brand-50 text-brand-500 dark:bg-brand-500/15 dark:text-brand-400",
+  award: "bg-gold-50 text-gold-600 dark:bg-gold-500/15 dark:text-gold-400",
+  image: "bg-pom-50 text-pom-500 dark:bg-pom-500/15 dark:text-pom-400",
 };
 
 // Group items into sections by their effect.
@@ -41,11 +41,11 @@ const SECTIONS = [
 
 // Non-buyable states → badge copy.
 const STATUS_BADGE = {
-  owned: { text: "Owned", cls: "bg-grass-50 text-grass-600 ring-grass-200" },
-  active: { text: "Active", cls: "bg-feather-50 text-feather-600 ring-feather-100" },
-  maxed: { text: "Max owned", cls: "bg-slate-100 text-slate-500 ring-slate-200" },
-  full: { text: "Hearts full", cls: "bg-slate-100 text-slate-500 ring-slate-200" },
-  not_needed: { text: "Premium ∞", cls: "bg-gold-50 text-gold-600 ring-gold-100" },
+  owned: { text: "Owned", cls: "bg-grass-50 text-grass-600 ring-grass-200 dark:bg-grass-500/15 dark:text-grass-400 dark:ring-grass-500/30" },
+  active: { text: "Active", cls: "bg-feather-50 text-feather-600 ring-feather-100 dark:bg-feather-500/15 dark:text-feather-400 dark:ring-feather-500/30" },
+  maxed: { text: "Max owned", cls: "bg-slate-100 text-slate-500 ring-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:ring-white/[0.08]" },
+  full: { text: "Hearts full", cls: "bg-slate-100 text-slate-500 ring-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:ring-white/[0.08]" },
+  not_needed: { text: "Premium ∞", cls: "bg-gold-50 text-gold-600 ring-gold-100 dark:bg-gold-500/15 dark:text-gold-400 dark:ring-gold-500/30" },
 };
 
 function ItemCard({ item, onBuy }) {
@@ -53,14 +53,14 @@ function ItemCard({ item, onBuy }) {
   const badge = STATUS_BADGE[item.status];
   const buyable = !badge;
   return (
-    <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className="flex items-center gap-3">
-        <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500")}>
+        <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
           <Icon className="h-6 w-6" />
         </div>
         <div className="min-w-0">
-          <div className="font-display text-base font-extrabold text-slate-800">{item.title}</div>
-          <div className="text-sm font-semibold text-slate-500">{item.desc}</div>
+          <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{item.title}</div>
+          <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">{item.desc}</div>
         </div>
       </div>
       {buyable ? (
@@ -71,7 +71,7 @@ function ItemCard({ item, onBuy }) {
             "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl py-2.5 font-display text-sm font-extrabold uppercase transition " +
             (item.affordable
               ? "bg-feather-500 text-white shadow-btn-feather active:translate-y-0.5"
-              : "bg-slate-100 text-slate-400 cursor-not-allowed")
+              : "bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-white/[0.06] dark:text-stone-500")
           }
         >
           <Gem className="h-4 w-4" /> {item.price}
@@ -94,36 +94,36 @@ function ConfirmSheet({ item, gems, busy, onConfirm, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-slate-900/50" onClick={busy ? undefined : onCancel} />
-      <div className="animate-pop relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl">
+      <div className="animate-pop relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl dark:bg-[#18181b]">
         <button
           onClick={onCancel}
           disabled={busy}
           aria-label="Cancel"
-          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200"
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:hover:bg-white/10"
         >
           <X className="h-4 w-4" />
         </button>
 
         <div className="flex items-center gap-3">
-          <div className={"grid h-14 w-14 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500")}>
+          <div className={"grid h-14 w-14 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
             <Icon className="h-7 w-7" />
           </div>
           <div className="min-w-0">
-            <div className="font-display text-lg font-extrabold text-slate-800">{item.title}</div>
-            <div className="text-sm font-semibold text-slate-500">{item.desc}</div>
+            <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">{item.title}</div>
+            <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">{item.desc}</div>
           </div>
         </div>
 
-        <div className="mt-5 space-y-2 rounded-2xl bg-slate-50 p-4 text-sm font-bold ring-1 ring-slate-100">
-          <div className="flex items-center justify-between text-slate-500">
+        <div className="mt-5 space-y-2 rounded-2xl bg-slate-50 p-4 text-sm font-bold ring-1 ring-slate-100 dark:bg-white/[0.04] dark:ring-white/[0.06]">
+          <div className="flex items-center justify-between text-slate-500 dark:text-stone-400">
             <span>Price</span>
-            <span className="inline-flex items-center gap-1 text-feather-600"><Gem className="h-4 w-4" />{item.price}</span>
+            <span className="inline-flex items-center gap-1 text-feather-600 dark:text-feather-400"><Gem className="h-4 w-4" />{item.price}</span>
           </div>
-          <div className="flex items-center justify-between text-slate-500">
+          <div className="flex items-center justify-between text-slate-500 dark:text-stone-400">
             <span>Your balance</span>
             <span className="tabular-nums">{gems}</span>
           </div>
-          <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-slate-700">
+          <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-slate-700 dark:border-white/[0.08] dark:text-stone-200">
             <span>Balance after</span>
             <span className="tabular-nums">{after}</span>
           </div>
@@ -151,7 +151,7 @@ function SuccessBurst({ item, onDone }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center" role="status">
       <div className="absolute inset-0 bg-slate-900/40" />
-      <div className="animate-pop relative flex flex-col items-center rounded-3xl bg-white px-10 py-8 shadow-xl">
+      <div className="animate-pop relative flex flex-col items-center rounded-3xl bg-white px-10 py-8 shadow-xl dark:bg-[#18181b]">
         <div className="relative grid place-items-center">
           <span className="quests-ring absolute h-16 w-16 rounded-full bg-grass-300/50" />
           <div className="quests-badge-pop relative grid h-16 w-16 place-items-center rounded-full bg-grass-500 text-white shadow-[0_6px_0_0_#3f8f34]">
@@ -160,8 +160,8 @@ function SuccessBurst({ item, onDone }) {
             </svg>
           </div>
         </div>
-        <div className="mt-4 font-display text-lg font-extrabold text-slate-800">{item.title}</div>
-        <div className="text-sm font-semibold text-slate-500">is yours!</div>
+        <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">{item.title}</div>
+        <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">is yours!</div>
       </div>
     </div>
   );
@@ -228,27 +228,27 @@ export default function Shop() {
   const misc = items.filter((it) => !known.has(it.effect));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <div className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-6 flex items-end justify-between gap-3">
           <div>
-            <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800">Shop</h1>
-            <p className="mt-1 font-semibold text-slate-500">Spend gems you earn from chests.</p>
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white">Shop</h1>
+            <p className="mt-1 font-semibold text-slate-500 dark:text-stone-400">Spend gems you earn from chests.</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-2xl bg-feather-50 px-4 py-2.5 ring-1 ring-feather-100">
-            <Gem className="h-5 w-5 text-feather-500" />
-            <span className="font-display text-lg font-extrabold text-feather-600 tabular-nums">{data?.gems ?? "–"}</span>
+          <div className="inline-flex items-center gap-2 rounded-2xl bg-feather-50 px-4 py-2.5 ring-1 ring-feather-100 dark:bg-feather-500/15 dark:ring-feather-500/30">
+            <Gem className="h-5 w-5 text-feather-500 dark:text-feather-400" />
+            <span className="font-display text-lg font-extrabold text-feather-600 tabular-nums dark:text-feather-400">{data?.gems ?? "–"}</span>
           </div>
         </div>
 
         {err ? (
-          <div className="mb-4 rounded-2xl bg-cardinal-50 px-4 py-2.5 text-sm font-bold text-cardinal-600 ring-1 ring-cardinal-100">
+          <div className="mb-4 rounded-2xl bg-cardinal-50 px-4 py-2.5 text-sm font-bold text-cardinal-600 ring-1 ring-cardinal-100 dark:bg-cardinal-500/15 dark:text-cardinal-400 dark:ring-cardinal-500/30">
             {err}
           </div>
         ) : null}
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-20 text-slate-500">
+          <div className="flex items-center justify-center gap-2 py-20 text-slate-500 dark:text-stone-400">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="font-semibold">Loading shop…</span>
           </div>
@@ -256,7 +256,7 @@ export default function Shop() {
           <div className="space-y-8">
             {sections.map((s) => (
               <section key={s.key}>
-                <h2 className="mb-3 font-display text-lg font-extrabold text-slate-700">{s.title}</h2>
+                <h2 className="mb-3 font-display text-lg font-extrabold text-slate-700 dark:text-stone-200">{s.title}</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {s.items.map((item) => (
                     <ItemCard key={item.id} item={item} onBuy={setConfirmItem} />
@@ -266,7 +266,7 @@ export default function Shop() {
             ))}
             {misc.length > 0 && (
               <section>
-                <h2 className="mb-3 font-display text-lg font-extrabold text-slate-700">More</h2>
+                <h2 className="mb-3 font-display text-lg font-extrabold text-slate-700 dark:text-stone-200">More</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {misc.map((item) => (
                     <ItemCard key={item.id} item={item} onBuy={setConfirmItem} />

@@ -40,7 +40,7 @@ function AudioButton({ src }) {
   return (
     <button
       onClick={() => new Audio(src).play().catch(() => {})}
-      className="inline-flex items-center gap-1.5 rounded-xl bg-brand-100 px-3 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-200 transition"
+      className="inline-flex items-center gap-1.5 rounded-xl bg-brand-100 px-3 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-200 transition dark:bg-brand-500/20 dark:text-brand-400 dark:hover:bg-brand-500/30"
     >
       <Volume2 size={14} /> Play audio
     </button>
@@ -55,11 +55,11 @@ function ExerciseView({ card, revealed }) {
   if (kind === "flashcard") {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Flashcard</p>
-        <p className="text-2xl font-extrabold text-slate-800">{config.front || card.prompt}</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-stone-500">Flashcard</p>
+        <p className="text-2xl font-extrabold text-slate-800 dark:text-white">{config.front || card.prompt}</p>
         {revealed && (
-          <div className="mt-4 rounded-2xl bg-emerald-50 px-6 py-4 ring-1 ring-emerald-200">
-            <p className="text-xl font-bold text-emerald-800">{config.back || card.expected_answer}</p>
+          <div className="mt-4 rounded-2xl bg-emerald-50 px-6 py-4 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:ring-emerald-500/30">
+            <p className="text-xl font-bold text-emerald-800 dark:text-emerald-400">{config.back || card.expected_answer}</p>
           </div>
         )}
       </div>
@@ -70,17 +70,17 @@ function ExerciseView({ card, revealed }) {
   if (kind === "translate" || kind === "listen_type" || kind === "listen_type_am") {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-stone-500">
           {kind.startsWith("listen") ? "Listen & translate" : "Translate"}
         </p>
         {config.audio_url && <AudioButton src={config.audio_url} />}
         {!kind.startsWith("listen") && (
-          <p className="text-2xl font-extrabold text-slate-800">{card.prompt}</p>
+          <p className="text-2xl font-extrabold text-slate-800 dark:text-white">{card.prompt}</p>
         )}
         {revealed && (
-          <div className="mt-4 rounded-2xl bg-emerald-50 px-6 py-4 ring-1 ring-emerald-200">
-            <p className="font-semibold text-slate-500 text-sm mb-1">Correct answer</p>
-            <p className="text-xl font-bold text-emerald-800">{card.expected_answer}</p>
+          <div className="mt-4 rounded-2xl bg-emerald-50 px-6 py-4 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:ring-emerald-500/30">
+            <p className="font-semibold text-slate-500 text-sm mb-1 dark:text-stone-400">Correct answer</p>
+            <p className="text-xl font-bold text-emerald-800 dark:text-emerald-400">{card.expected_answer}</p>
           </div>
         )}
       </div>
@@ -91,15 +91,15 @@ function ExerciseView({ card, revealed }) {
   const correctOpt = (card.options || []).find(o => o.is_correct);
   return (
     <div className="space-y-4 text-center">
-      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+      <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-stone-500">
         {card.lesson_title || "Review"}
       </p>
       {config.audio_url && <AudioButton src={config.audio_url} />}
-      <p className="text-2xl font-extrabold text-slate-800">{card.prompt}</p>
+      <p className="text-2xl font-extrabold text-slate-800 dark:text-white">{card.prompt}</p>
       {revealed && correctOpt && (
-        <div className="mt-4 rounded-2xl bg-emerald-50 px-6 py-4 ring-1 ring-emerald-200">
-          <p className="font-semibold text-slate-500 text-sm mb-1">Correct answer</p>
-          <p className="text-xl font-bold text-emerald-800">{correctOpt.text}</p>
+        <div className="mt-4 rounded-2xl bg-emerald-50 px-6 py-4 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:ring-emerald-500/30">
+          <p className="font-semibold text-slate-500 text-sm mb-1 dark:text-stone-400">Correct answer</p>
+          <p className="text-xl font-bold text-emerald-800 dark:text-emerald-400">{correctOpt.text}</p>
         </div>
       )}
     </div>
@@ -110,17 +110,17 @@ function ExerciseView({ card, revealed }) {
 
 function CompletionScreen({ total, onDone }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-brand-50/40 to-white px-4">
-      <div className="rounded-3xl bg-white px-10 py-10 text-center shadow-sm ring-1 ring-slate-200 max-w-sm w-full">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-brand-50/40 to-white px-4 dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
+      <div className="rounded-3xl bg-white px-10 py-10 text-center shadow-sm ring-1 ring-slate-200 max-w-sm w-full dark:bg-[#18181b] dark:ring-white/[0.08]">
         <CheckCircle className="mx-auto mb-4 text-emerald-500" size={52} strokeWidth={1.5} />
-        <h2 className="font-display text-2xl font-extrabold text-slate-800">
+        <h2 className="font-display text-2xl font-extrabold text-slate-800 dark:text-white">
           Session complete!
         </h2>
-        <p className="mt-2 text-slate-500">
-          You reviewed <span className="font-bold text-slate-700">{total}</span>{" "}
+        <p className="mt-2 text-slate-500 dark:text-stone-400">
+          You reviewed <span className="font-bold text-slate-700 dark:text-stone-200">{total}</span>{" "}
           {total === 1 ? "card" : "cards"}.
         </p>
-        <p className="mt-1 text-sm text-slate-400">Cards will return based on how well you knew them.</p>
+        <p className="mt-1 text-sm text-slate-400 dark:text-stone-500">Cards will return based on how well you knew them.</p>
         <button
           onClick={onDone}
           className="mt-7 w-full rounded-2xl bg-brand-500 py-3 text-sm font-extrabold text-white shadow-[0_4px_0_0_#c2410c] transition active:translate-y-0.5"
@@ -187,8 +187,8 @@ export default function ReviewMode() {
   if (error) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
-        <p className="text-slate-600">{error}</p>
-        <button onClick={() => navigate("/dashboard")} className="text-brand-600 font-bold underline text-sm">
+        <p className="text-slate-600 dark:text-stone-300">{error}</p>
+        <button onClick={() => navigate("/dashboard")} className="text-brand-600 font-bold underline text-sm dark:text-brand-400">
           Back to dashboard
         </button>
       </div>
@@ -203,31 +203,31 @@ export default function ReviewMode() {
   const progress = ((idx) / cards.length) * 100;
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-brand-50/30 to-white">
+    <div className="flex min-h-screen flex-col bg-gradient-to-b from-brand-50/30 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       {/* Header */}
       <header className="flex items-center gap-3 px-4 py-4 sm:px-6">
         <button
           onClick={() => navigate("/dashboard")}
-          className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+          className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition dark:text-stone-500 dark:hover:bg-white/[0.06] dark:hover:text-stone-300"
         >
           <ChevronLeft size={20} />
         </button>
         <div className="flex-1">
-          <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+          <div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
             <div
               className="h-3 rounded-full bg-brand-500 transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
-        <span className="text-sm font-bold text-slate-500 tabular-nums">
+        <span className="text-sm font-bold text-slate-500 tabular-nums dark:text-stone-400">
           {idx + 1} / {cards.length}
         </span>
       </header>
 
       {/* Card */}
       <div className="mx-auto w-full max-w-lg flex-1 flex flex-col justify-center px-4 pb-8 sm:px-6">
-        <div className="rounded-3xl bg-white px-6 py-10 shadow-sm ring-1 ring-slate-200 min-h-[220px] flex flex-col items-center justify-center">
+        <div className="rounded-3xl bg-white px-6 py-10 shadow-sm ring-1 ring-slate-200 min-h-[220px] flex flex-col items-center justify-center dark:bg-[#18181b] dark:ring-white/[0.08]">
           <ExerciseView card={card} revealed={revealed} />
         </div>
 
@@ -259,7 +259,7 @@ export default function ReviewMode() {
 
         {/* SR hint */}
         {revealed && (
-          <p className="mt-3 text-center text-xs text-slate-400">
+          <p className="mt-3 text-center text-xs text-slate-400 dark:text-stone-500">
             Rate how well you remembered — this adjusts when you'll see it next.
           </p>
         )}

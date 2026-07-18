@@ -65,18 +65,18 @@ function OptionCard({ active, onClick, icon, label, sub }) {
         "group relative flex items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all w-full ring-2 " +
         (active
           ? "bg-brand-500 ring-brand-500 shadow-[0_4px_0_0_#c2430a] text-white"
-          : "bg-white ring-slate-200 hover:ring-brand-300 hover:bg-brand-50/40 text-slate-800")
+          : "bg-white ring-slate-200 hover:ring-brand-300 hover:bg-brand-50/40 text-slate-800 dark:bg-[#18181b] dark:ring-white/[0.08] dark:hover:bg-brand-500/10 dark:text-white")
       }
     >
       {icon ? (
         <span className={
           "text-xl leading-none shrink-0 grid place-items-center w-9 h-9 rounded-xl " +
-          (active ? "bg-white/20" : "bg-slate-100 group-hover:bg-brand-100/60")
+          (active ? "bg-white/20" : "bg-slate-100 group-hover:bg-brand-100/60 dark:bg-white/[0.06]")
         }>{icon}</span>
       ) : null}
       <div className="flex-1 min-w-0">
-        <div className={"font-display font-extrabold text-sm leading-tight " + (active ? "text-white" : "text-slate-900")}>{label}</div>
-        {sub ? <div className={"text-xs mt-0.5 " + (active ? "text-brand-100" : "text-slate-500")}>{sub}</div> : null}
+        <div className={"font-display font-extrabold text-sm leading-tight " + (active ? "text-white" : "text-slate-900 dark:text-white")}>{label}</div>
+        {sub ? <div className={"text-xs mt-0.5 " + (active ? "text-brand-100" : "text-slate-500 dark:text-stone-400")}>{sub}</div> : null}
       </div>
       {active ? <Check className="h-4 w-4 shrink-0 text-white" /> : null}
     </button>
@@ -86,8 +86,8 @@ function OptionCard({ active, onClick, icon, label, sub }) {
 function SectionLabel({ title, subtitle }) {
   return (
     <div className="mb-4">
-      <div className="font-display text-base font-extrabold text-slate-900">{title}</div>
-      {subtitle ? <div className="text-sm text-slate-500 mt-0.5">{subtitle}</div> : null}
+      <div className="font-display text-base font-extrabold text-slate-900 dark:text-white">{title}</div>
+      {subtitle ? <div className="text-sm text-slate-500 mt-0.5 dark:text-stone-400">{subtitle}</div> : null}
     </div>
   );
 }
@@ -128,39 +128,39 @@ function CountryPicker({ value, onChange }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={
-          "w-full flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 font-semibold text-slate-800 ring-2 transition-all text-left shadow-sm " +
-          (open ? "ring-brand-400" : "ring-slate-200 hover:ring-brand-300")
+          "w-full flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 font-semibold text-slate-800 ring-2 transition-all text-left shadow-sm dark:bg-[#18181b] dark:text-white " +
+          (open ? "ring-brand-400" : "ring-slate-200 hover:ring-brand-300 dark:ring-white/[0.08]")
         }
       >
         <span className="text-2xl leading-none w-8 text-center shrink-0">{flag}</span>
         <span className="flex-1 truncate text-sm">{name || "Select country"}</span>
-        <ChevronDown className={"h-4 w-4 text-slate-400 transition-transform shrink-0 " + (open ? "rotate-180" : "")} />
+        <ChevronDown className={"h-4 w-4 text-slate-400 dark:text-stone-500 transition-transform shrink-0 " + (open ? "rotate-180" : "")} />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-full rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 overflow-hidden">
-          <div className="p-2 border-b border-slate-100">
-            <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200 focus-within:ring-brand-400 focus-within:bg-white transition-all">
-              <Search className="h-4 w-4 text-slate-400 shrink-0" />
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-full rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 overflow-hidden dark:bg-[#18181b] dark:ring-white/[0.08]">
+          <div className="p-2 border-b border-slate-100 dark:border-white/[0.06]">
+            <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200 focus-within:ring-brand-400 focus-within:bg-white transition-all dark:bg-white/[0.04] dark:ring-white/[0.08] dark:focus-within:bg-[#18181b]">
+              <Search className="h-4 w-4 text-slate-400 shrink-0 dark:text-stone-500" />
               <input
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search countries…"
-                className="flex-1 bg-transparent text-sm font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none"
+                className="flex-1 bg-transparent text-sm font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none dark:text-white dark:placeholder:text-stone-500"
                 onKeyDown={(e) => {
                   if (e.key === "Escape") setOpen(false);
                   if (e.key === "Enter" && filtered.length === 1) { onChange(filtered[0]); setOpen(false); }
                 }}
               />
               {query && (
-                <button type="button" onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                <button type="button" onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600 text-xs dark:text-stone-500 dark:hover:text-stone-300">✕</button>
               )}
             </div>
           </div>
           <div className="max-h-64 overflow-y-auto overscroll-contain py-1">
             {filtered.length === 0 ? (
-              <div className="px-4 py-4 text-sm text-slate-400 text-center">No countries found</div>
+              <div className="px-4 py-4 text-sm text-slate-400 text-center dark:text-stone-500">No countries found</div>
             ) : (
               filtered.map((c) => {
                 const { flag: f, name: n } = splitCountry(c);
@@ -172,12 +172,12 @@ function CountryPicker({ value, onChange }) {
                     onClick={() => { onChange(c); setOpen(false); }}
                     className={
                       "w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-left transition-colors " +
-                      (selected ? "bg-brand-50 text-brand-700" : "text-slate-800 hover:bg-slate-50")
+                      (selected ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-400" : "text-slate-800 hover:bg-slate-50 dark:text-white dark:hover:bg-white/[0.04]")
                     }
                   >
                     <span className="text-xl leading-none w-7 text-center shrink-0">{f}</span>
                     <span className="flex-1">{n}</span>
-                    {selected && <Check className="h-4 w-4 text-brand-500 shrink-0" />}
+                    {selected && <Check className="h-4 w-4 text-brand-500 shrink-0 dark:text-brand-400" />}
                   </button>
                 );
               })
@@ -340,20 +340,20 @@ export default function Onboarding({ token, onCompleted }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-brand-50/50 to-white">
-        <div className="font-semibold text-slate-500">Loading…</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-brand-50/50 to-white dark:from-[#0d0d0f] dark:to-[#0d0d0f]">
+        <div className="font-semibold text-slate-500 dark:text-stone-400">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50/60 via-white to-feather-50/40 flex flex-col items-center justify-start py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50/60 via-white to-feather-50/40 flex flex-col items-center justify-start py-8 px-4 dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       {/* Logo mark */}
       <div className="mb-6 flex items-center gap-2.5">
         <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-500 text-white shadow-[0_4px_0_0_#c2430a]">
           <span className="font-display text-xl font-extrabold leading-none">Հ</span>
         </div>
-        <span className="font-display text-lg font-extrabold text-slate-900">Haylingua</span>
+        <span className="font-display text-lg font-extrabold text-slate-900 dark:text-white">Haylingua</span>
       </div>
 
       {/* Step indicator */}
@@ -367,15 +367,15 @@ export default function Onboarding({ token, onCompleted }) {
               <div className={
                 "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all text-xs font-bold " +
                 (active ? "bg-brand-500 text-white shadow-sm" :
-                  done ? "bg-grass-100 text-grass-700" :
-                    "bg-slate-100 text-slate-400")
+                  done ? "bg-grass-100 text-grass-700 dark:bg-grass-500/20 dark:text-grass-400" :
+                    "bg-slate-100 text-slate-400 dark:bg-white/[0.06] dark:text-stone-500")
               }>
                 {done ? <Check className="h-3 w-3" /> : <span>{m.emoji}</span>}
                 <span className="hidden sm:inline">{m.label}</span>
                 {!done && !active && <span className="sm:hidden">{idx}</span>}
               </div>
               {idx < totalSteps && (
-                <div className={"h-0.5 w-6 rounded-full transition-all " + (done ? "bg-grass-400" : "bg-slate-200")} />
+                <div className={"h-0.5 w-6 rounded-full transition-all " + (done ? "bg-grass-400" : "bg-slate-200 dark:bg-white/10")} />
               )}
             </React.Fragment>
           );
@@ -384,17 +384,17 @@ export default function Onboarding({ token, onCompleted }) {
 
       {/* Card */}
       <div className="w-full max-w-lg">
-        <div className="rounded-3xl bg-white shadow-xl ring-1 ring-slate-200/80 overflow-hidden">
+        <div className="rounded-3xl bg-white shadow-xl ring-1 ring-slate-200/80 overflow-hidden dark:bg-[#18181b] dark:ring-white/[0.08]">
           {/* Card header */}
-          <div className="px-6 pt-6 pb-5 border-b border-slate-100">
+          <div className="px-6 pt-6 pb-5 border-b border-slate-100 dark:border-white/[0.06]">
             <div className="text-2xl mb-1">{STEP_META[step - 1].emoji}</div>
-            <h1 className="font-display text-xl font-extrabold text-slate-900 leading-snug">
+            <h1 className="font-display text-xl font-extrabold text-slate-900 leading-snug dark:text-white">
               {step === 1 && "Let's personalize your path"}
               {step === 2 && "Curriculum calibration"}
               {step === 3 && "Set your daily plan"}
               {step === 4 && "Almost done"}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500 mt-1 dark:text-stone-400">
               {step === 1 && "A few quick questions so we start you at the right level."}
               {step === 2 && "Pick your level, dialect, and what you're learning for."}
               {step === 3 && "Set a realistic goal — consistency beats intensity every time."}
@@ -405,7 +405,7 @@ export default function Onboarding({ token, onCompleted }) {
           {/* Card body */}
           <div className="p-6 space-y-7">
             {error && (
-              <div className="rounded-2xl bg-cardinal-50 ring-1 ring-cardinal-200 px-4 py-3 text-sm font-semibold text-cardinal-700">
+              <div className="rounded-2xl bg-cardinal-50 ring-1 ring-cardinal-200 px-4 py-3 text-sm font-semibold text-cardinal-700 dark:bg-cardinal-500/15 dark:ring-cardinal-500/30 dark:text-cardinal-400">
                 {error}
               </div>
             )}
@@ -416,7 +416,7 @@ export default function Onboarding({ token, onCompleted }) {
                 <div>
                   <SectionLabel title="What's your name?" subtitle="This is how we'll address you throughout the app." />
                   <div className="relative">
-                    <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-stone-500" />
                     <input
                       type="text"
                       value={displayName}
@@ -424,7 +424,7 @@ export default function Onboarding({ token, onCompleted }) {
                       placeholder="e.g. Armen"
                       autoComplete="given-name"
                       maxLength={50}
-                      className="w-full rounded-2xl bg-slate-50 py-3 pl-10 pr-4 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 placeholder:font-normal"
+                      className="w-full rounded-2xl bg-slate-50 py-3 pl-10 pr-4 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 placeholder:font-normal dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-[#18181b] dark:placeholder:text-stone-500"
                     />
                   </div>
                 </div>
@@ -519,11 +519,11 @@ export default function Onboarding({ token, onCompleted }) {
                           "flex flex-col items-center justify-center rounded-2xl py-3 px-2 transition-all ring-2 font-display font-extrabold " +
                           (dailyGoalMin === min
                             ? "bg-brand-500 ring-brand-500 shadow-[0_4px_0_0_#c2430a] text-white"
-                            : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800")
+                            : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800 dark:bg-[#18181b] dark:ring-white/[0.08] dark:text-white")
                         }
                       >
                         <span className="text-base leading-none">{label}</span>
-                        <span className={"text-[10px] mt-1 font-semibold " + (dailyGoalMin === min ? "text-brand-100" : "text-slate-400")}>{sub}</span>
+                        <span className={"text-[10px] mt-1 font-semibold " + (dailyGoalMin === min ? "text-brand-100" : "text-slate-400 dark:text-stone-500")}>{sub}</span>
                       </button>
                     ))}
                   </div>
@@ -551,13 +551,13 @@ export default function Onboarding({ token, onCompleted }) {
                             "flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all ring-2 " +
                             (active
                               ? "bg-brand-500 ring-brand-500 shadow-[0_3px_0_0_#c2430a] text-white"
-                              : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800")
+                              : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800 dark:bg-[#18181b] dark:ring-white/[0.08] dark:text-white")
                           }
                         >
-                          <Icon className={"h-4 w-4 shrink-0 " + (active ? "text-white" : "text-slate-400")} />
+                          <Icon className={"h-4 w-4 shrink-0 " + (active ? "text-white" : "text-slate-400 dark:text-stone-500")} />
                           <div>
-                            <div className={"font-display font-extrabold text-sm " + (active ? "text-white" : "text-slate-900")}>{t}</div>
-                            <div className={"text-xs " + (active ? "text-brand-100" : "text-slate-400")}>{sub}</div>
+                            <div className={"font-display font-extrabold text-sm " + (active ? "text-white" : "text-slate-900 dark:text-white")}>{t}</div>
+                            <div className={"text-xs " + (active ? "text-brand-100" : "text-slate-400 dark:text-stone-500")}>{sub}</div>
                           </div>
                         </button>
                       );
@@ -587,15 +587,15 @@ export default function Onboarding({ token, onCompleted }) {
                           "w-full flex items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all ring-2 " +
                           (active
                             ? "bg-brand-500 ring-brand-500 shadow-[0_3px_0_0_#c2430a] text-white"
-                            : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800")
+                            : "bg-white ring-slate-200 hover:ring-brand-300 text-slate-800 dark:bg-[#18181b] dark:ring-white/[0.08] dark:text-white")
                         }
                       >
-                        <span className={"grid place-items-center w-9 h-9 rounded-xl shrink-0 " + (active ? "bg-white/20" : "bg-slate-100")}>
-                          <Icon className={"h-4 w-4 " + (active ? "text-white" : "text-slate-500")} />
+                        <span className={"grid place-items-center w-9 h-9 rounded-xl shrink-0 " + (active ? "bg-white/20" : "bg-slate-100 dark:bg-white/[0.06]")}>
+                          <Icon className={"h-4 w-4 " + (active ? "text-white" : "text-slate-500 dark:text-stone-400")} />
                         </span>
                         <div className="flex-1">
-                          <div className={"font-display font-extrabold text-sm " + (active ? "text-white" : "text-slate-900")}>{label}</div>
-                          <div className={"text-xs " + (active ? "text-brand-100" : "text-slate-500")}>{sub}</div>
+                          <div className={"font-display font-extrabold text-sm " + (active ? "text-white" : "text-slate-900 dark:text-white")}>{label}</div>
+                          <div className={"text-xs " + (active ? "text-brand-100" : "text-slate-500 dark:text-stone-400")}>{sub}</div>
                         </div>
                         {active && <Check className="h-4 w-4 shrink-0 text-white" />}
                       </button>
@@ -609,11 +609,11 @@ export default function Onboarding({ token, onCompleted }) {
             {step === 4 && (
               <>
                 {/* Summary card */}
-                <div className="rounded-2xl bg-brand-50 ring-1 ring-brand-200 p-5">
+                <div className="rounded-2xl bg-brand-50 ring-1 ring-brand-200 p-5 dark:bg-brand-500/15 dark:ring-brand-500/30">
                   <div className="flex items-start gap-4">
                     <img src={grandma} alt="" className="hidden sm:block w-16 h-16 object-contain shrink-0 drop-shadow-sm" />
                     <div className="flex-1">
-                      <div className="font-display text-base font-extrabold text-slate-900 mb-3">Your plan</div>
+                      <div className="font-display text-base font-extrabold text-slate-900 mb-3 dark:text-white">Your plan</div>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         {[
                           ["Level", knowledgeLevel || "—"],
@@ -624,8 +624,8 @@ export default function Onboarding({ token, onCompleted }) {
                           ["Reminder", remindersEnabled ? reminderTime : "Off"],
                         ].map(([k, v]) => (
                           <div key={k} className="flex flex-col">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">{k}</span>
-                            <span className="font-semibold text-slate-900 text-sm leading-snug">{v}</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide dark:text-stone-500">{k}</span>
+                            <span className="font-semibold text-slate-900 text-sm leading-snug dark:text-white">{v}</span>
                           </div>
                         ))}
                       </div>
@@ -643,26 +643,26 @@ export default function Onboarding({ token, onCompleted }) {
                   ].map(({ id, checked, onChange, label, sub }) => (
                     <label key={id} className={
                       "flex items-start gap-3 rounded-2xl p-4 cursor-pointer transition-all ring-2 " +
-                      (checked ? "bg-brand-50 ring-brand-300" : "bg-white ring-slate-200 hover:ring-brand-200")
+                      (checked ? "bg-brand-50 ring-brand-300 dark:bg-brand-500/15 dark:ring-brand-500/30" : "bg-white ring-slate-200 hover:ring-brand-200 dark:bg-[#18181b] dark:ring-white/[0.08]")
                     }>
                       <div className={
                         "mt-0.5 h-5 w-5 shrink-0 rounded-lg grid place-items-center transition-all " +
-                        (checked ? "bg-brand-500" : "bg-slate-100 ring-1 ring-slate-300")
+                        (checked ? "bg-brand-500" : "bg-slate-100 ring-1 ring-slate-300 dark:bg-white/[0.06] dark:ring-white/10")
                       }>
                         {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
                       </div>
                       <input type="checkbox" className="sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
                       <div>
-                        <div className="font-semibold text-slate-900 text-sm">{label}</div>
-                        <div className="text-xs text-slate-500 mt-0.5">{sub}</div>
+                        <div className="font-semibold text-slate-900 text-sm dark:text-white">{label}</div>
+                        <div className="text-xs text-slate-500 mt-0.5 dark:text-stone-400">{sub}</div>
                       </div>
                     </label>
                   ))}
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4">
-                  <div className="font-display text-sm font-bold text-slate-900 mb-1">Why we ask these questions</div>
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+                  <div className="font-display text-sm font-bold text-slate-900 mb-1 dark:text-white">Why we ask these questions</div>
+                  <p className="text-xs text-slate-500 leading-relaxed dark:text-stone-400">
                     Haylingua calibrates your starting point and vocabulary priorities. A diaspora Armenian who already speaks the language shouldn't grind the alphabet — and a total beginner shouldn't be overwhelmed.
                   </p>
                 </div>
@@ -671,13 +671,13 @@ export default function Onboarding({ token, onCompleted }) {
           </div>
 
           {/* Footer nav */}
-          <div className="px-6 pb-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
+          <div className="px-6 pb-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-5 dark:border-white/[0.06]">
             <button
               type="button"
               onClick={back}
               disabled={step === 1 || saving}
               className={
-                "rounded-2xl bg-slate-100 px-5 py-2.5 text-sm font-extrabold text-slate-700 transition hover:bg-slate-200 " +
+                "rounded-2xl bg-slate-100 px-5 py-2.5 text-sm font-extrabold text-slate-700 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-200 dark:hover:bg-white/10 " +
                 (step === 1 || saving ? "opacity-40 cursor-not-allowed" : "")
               }
             >
@@ -686,7 +686,7 @@ export default function Onboarding({ token, onCompleted }) {
 
             <div className="flex items-center gap-1.5">
               {Array.from({ length: totalSteps }, (_, i) => (
-                <div key={i} className={"h-1.5 rounded-full transition-all " + (i + 1 === step ? "w-6 bg-brand-500" : i + 1 < step ? "w-3 bg-grass-400" : "w-3 bg-slate-200")} />
+                <div key={i} className={"h-1.5 rounded-full transition-all " + (i + 1 === step ? "w-6 bg-brand-500" : i + 1 < step ? "w-3 bg-grass-400" : "w-3 bg-slate-200 dark:bg-white/10")} />
               ))}
             </div>
 
@@ -702,7 +702,7 @@ export default function Onboarding({ token, onCompleted }) {
           </div>
         </div>
 
-        <p className="mt-4 text-center text-xs text-slate-400">You can change all preferences later in your profile.</p>
+        <p className="mt-4 text-center text-xs text-slate-400 dark:text-stone-500">You can change all preferences later in your profile.</p>
       </div>
     </div>
   );

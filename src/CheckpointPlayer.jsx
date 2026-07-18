@@ -220,7 +220,7 @@ export default function CheckpointPlayer() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center dark:bg-[#0d0d0f]">
         <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
       </div>
     );
@@ -228,8 +228,8 @@ export default function CheckpointPlayer() {
 
   if (error) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="font-bold text-cardinal-600">{error}</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center dark:bg-[#0d0d0f]">
+        <p className="font-bold text-cardinal-600 dark:text-cardinal-400">{error}</p>
         <button className="btn3d btn3d-brand" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
       </div>
     );
@@ -239,29 +239,29 @@ export default function CheckpointPlayer() {
     const accuracy = originalTotal > 0 ? Math.round((firstAttemptCorrect.current / originalTotal) * 100) : 0;
     const passed = accuracy >= 70;
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-brand-50 to-white p-8 text-center">
-        <div className={`flex h-24 w-24 items-center justify-center rounded-full ${passed ? "bg-grass-100" : "bg-cardinal-50"}`}>
-          <ShieldCheck className={`h-12 w-12 ${passed ? "text-grass-600" : "text-cardinal-500"}`} />
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-brand-50 to-white p-8 text-center dark:bg-[#0d0d0f] dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
+        <div className={`flex h-24 w-24 items-center justify-center rounded-full ${passed ? "bg-grass-100 dark:bg-grass-500/20" : "bg-cardinal-50 dark:bg-cardinal-500/15"}`}>
+          <ShieldCheck className={`h-12 w-12 ${passed ? "text-grass-600 dark:text-grass-400" : "text-cardinal-500 dark:text-cardinal-400"}`} />
         </div>
         <div>
-          <div className="font-display text-3xl font-extrabold text-slate-800">
+          <div className="font-display text-3xl font-extrabold text-slate-800 dark:text-white">
             {passed ? "Checkpoint Passed!" : "Keep Practicing"}
           </div>
-          <div className="mt-2 text-lg font-semibold text-slate-500">
+          <div className="mt-2 text-lg font-semibold text-slate-500 dark:text-stone-400">
             {unitTitle} · {accuracy}% accuracy
           </div>
           {!passed && (
-            <div className="mt-1 text-sm text-slate-400">70% needed to pass</div>
+            <div className="mt-1 text-sm text-slate-400 dark:text-stone-500">70% needed to pass</div>
           )}
         </div>
         <div className="grid grid-cols-2 gap-4 text-center">
-          <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-            <div className="font-display text-2xl font-extrabold text-grass-600">{totalCorrect.current}</div>
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Correct</div>
+          <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
+            <div className="font-display text-2xl font-extrabold text-grass-600 dark:text-grass-400">{totalCorrect.current}</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">Correct</div>
           </div>
-          <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-            <div className="font-display text-2xl font-extrabold text-gold-500">+{xpEarned} XP</div>
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Earned</div>
+          <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
+            <div className="font-display text-2xl font-extrabold text-gold-500 dark:text-gold-400">+{xpEarned} XP</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">Earned</div>
           </div>
         </div>
         <div className="flex gap-3">

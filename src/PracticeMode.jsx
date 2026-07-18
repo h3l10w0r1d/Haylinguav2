@@ -211,7 +211,7 @@ export default function PracticeMode({
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center dark:bg-[#0d0d0f]">
         <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
       </div>
     );
@@ -219,8 +219,8 @@ export default function PracticeMode({
 
   if (error) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="font-bold text-cardinal-600">Failed to load: {error}</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center dark:bg-[#0d0d0f]">
+        <p className="font-bold text-cardinal-600 dark:text-cardinal-400">Failed to load: {error}</p>
         <button className="btn3d btn3d-brand" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
       </div>
     );
@@ -228,10 +228,10 @@ export default function PracticeMode({
 
   if (phase === "verify-email") {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
-        <div className="grid h-16 w-16 place-items-center rounded-full bg-brand-50 text-3xl">✉️</div>
-        <h2 className="font-display text-2xl font-extrabold text-slate-700">Verify your email first</h2>
-        <p className="max-w-sm text-slate-500">
+      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center dark:bg-[#0d0d0f]">
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-brand-50 text-3xl dark:bg-brand-500/15">✉️</div>
+        <h2 className="font-display text-2xl font-extrabold text-slate-700 dark:text-stone-200">Verify your email first</h2>
+        <p className="max-w-sm text-slate-500 dark:text-stone-400">
           This feature unlocks once your email address is verified. Check your inbox for the code we sent you.
         </p>
         <div className="flex gap-3">
@@ -244,10 +244,10 @@ export default function PracticeMode({
 
   if (phase === "empty") {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
-        <Dumbbell className="h-16 w-16 text-slate-300" />
-        <h2 className="font-display text-2xl font-extrabold text-slate-700">{emptyHeading}</h2>
-        <p className="text-slate-500">{emptyText}</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center dark:bg-[#0d0d0f]">
+        <Dumbbell className="h-16 w-16 text-slate-300 dark:text-stone-600" />
+        <h2 className="font-display text-2xl font-extrabold text-slate-700 dark:text-stone-200">{emptyHeading}</h2>
+        <p className="text-slate-500 dark:text-stone-400">{emptyText}</p>
         <button className="btn3d btn3d-brand mt-2" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
       </div>
     );

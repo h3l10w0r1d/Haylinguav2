@@ -147,18 +147,18 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
   const goalLeft = Math.max(0, dailyGoal - todayXp);
 
   return (
-    <div className="mx-auto mt-6 max-w-md divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white text-left ring-1 ring-slate-200 shadow-sm">
+    <div className="mx-auto mt-6 max-w-md divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white text-left ring-1 ring-slate-200 shadow-sm dark:divide-white/[0.06] dark:bg-[#18181b] dark:ring-white/[0.08]">
       {/* XP roll-up — always visible, counts up on mount */}
       <RevealRow show>
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-500">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-500 dark:bg-brand-500/15 dark:text-brand-400">
           <Zap className="h-5 w-5" />
         </div>
         <div className="flex-1">
-          <div className="font-display text-lg font-extrabold leading-none text-slate-800">+{xpCount} XP</div>
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">This lesson</div>
+          <div className="font-display text-lg font-extrabold leading-none text-slate-800 dark:text-white">+{xpCount} XP</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">This lesson</div>
         </div>
         {comboBonusXp > 0 ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2.5 py-1 text-xs font-extrabold text-brand-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2.5 py-1 text-xs font-extrabold text-brand-700 dark:bg-brand-500/20 dark:text-brand-400">
             <Sparkles className="h-3.5 w-3.5" /> +{comboBonusXp} combo
           </span>
         ) : null}
@@ -167,17 +167,17 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
       {/* Daily goal nudge */}
       {d.stats ? (
         <RevealRow show={stage >= 1}>
-          <div className={"grid h-10 w-10 place-items-center rounded-xl " + (goalMet ? "bg-grass-50 text-grass-600" : "bg-feather-50 text-feather-600")}>
+          <div className={"grid h-10 w-10 place-items-center rounded-xl " + (goalMet ? "bg-grass-50 text-grass-600 dark:bg-grass-500/15 dark:text-grass-400" : "bg-feather-50 text-feather-600 dark:bg-feather-500/15 dark:text-feather-400")}>
             <Target className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-display text-sm font-extrabold text-slate-800">
+              <span className="font-display text-sm font-extrabold text-slate-800 dark:text-white">
                 {goalMet ? "Daily goal reached! 🎉" : `${goalLeft} XP to your daily goal`}
               </span>
-              <span className="shrink-0 text-xs font-bold text-slate-400">{todayXp}/{dailyGoal}</span>
+              <span className="shrink-0 text-xs font-bold text-slate-400 dark:text-stone-500">{todayXp}/{dailyGoal}</span>
             </div>
-            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200">
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
               <div className={"h-2 rounded-full transition-all duration-700 " + (goalMet ? "bg-grass-500" : "bg-feather-500")} style={{ width: `${Math.max(goalPct, 3)}%` }} />
             </div>
           </div>
@@ -187,17 +187,17 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
       {/* Streak */}
       {d.streak ? (
         <RevealRow show={stage >= 2}>
-          <div className={"grid h-10 w-10 place-items-center rounded-xl " + (streakN > 0 ? "bg-brand-50 text-brand-500" : "bg-slate-100 text-slate-400")}>
+          <div className={"grid h-10 w-10 place-items-center rounded-xl " + (streakN > 0 ? "bg-brand-50 text-brand-500 dark:bg-brand-500/15 dark:text-brand-400" : "bg-slate-100 text-slate-400 dark:bg-white/[0.06] dark:text-stone-500")}>
             <Flame className={"h-5 w-5 " + (streakN > 0 ? "fill-brand-400" : "")} />
           </div>
           <div className="flex-1">
-            <div className="font-display text-lg font-extrabold leading-none text-slate-800">
+            <div className="font-display text-lg font-extrabold leading-none text-slate-800 dark:text-white">
               {streakN} day{streakN === 1 ? "" : "s"}
             </div>
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Streak</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">Streak</div>
           </div>
           {practicedToday ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-grass-50 px-2.5 py-1 text-xs font-extrabold text-grass-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-grass-50 px-2.5 py-1 text-xs font-extrabold text-grass-700 dark:bg-grass-500/15 dark:text-grass-400">
               <Check className="h-3.5 w-3.5" /> Today done
             </span>
           ) : null}
@@ -207,7 +207,7 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
       {/* Daily quests progress */}
       {activeQuests.length ? (
         <RevealRow show={stage >= 3}>
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-feather-50 text-feather-600">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-feather-50 text-feather-600 dark:bg-feather-500/15 dark:text-feather-400">
             <Target className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1 space-y-2">
@@ -218,12 +218,12 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
               return (
                 <div key={i}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-xs font-bold text-slate-600">{q.title || "Daily quest"}</span>
-                    <span className="shrink-0 text-xs font-bold text-slate-400">
+                    <span className="truncate text-xs font-bold text-slate-600 dark:text-stone-300">{q.title || "Daily quest"}</span>
+                    <span className="shrink-0 text-xs font-bold text-slate-400 dark:text-stone-500">
                       {q.claimable ? "Claimable!" : `${Math.min(prog, tgt)}/${tgt}`}
                     </span>
                   </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                     <div className={"h-2 rounded-full transition-all duration-700 " + (q.claimable || q.done ? "bg-grass-500" : "bg-feather-500")} style={{ width: `${Math.max(pct, 3)}%` }} />
                   </div>
                 </div>
@@ -236,15 +236,15 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
       {/* League standing */}
       {self && leagueTier ? (
         <RevealRow show={stage >= 4}>
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-100 text-gold-600">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-100 text-gold-600 dark:bg-gold-500/20 dark:text-gold-400">
             <Trophy className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <div className="font-display text-lg font-extrabold leading-none text-slate-800">#{leagueRank} in {leagueTier}</div>
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">League this week</div>
+            <div className="font-display text-lg font-extrabold leading-none text-slate-800 dark:text-white">#{leagueRank} in {leagueTier}</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">League this week</div>
           </div>
           {leagueRank <= 7 ? (
-            <span className="rounded-full bg-grass-50 px-2.5 py-1 text-xs font-extrabold text-grass-700">Promotion zone</span>
+            <span className="rounded-full bg-grass-50 px-2.5 py-1 text-xs font-extrabold text-grass-700 dark:bg-grass-500/15 dark:text-grass-400">Promotion zone</span>
           ) : null}
         </RevealRow>
       ) : null}
@@ -252,14 +252,14 @@ function RewardReveal({ xp, comboBonusXp = 0 }) {
       {/* Chest — openable right here, at the peak of the celebration */}
       {chests > 0 ? (
         <RevealRow show={stage >= 5}>
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-50 text-gold-600">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-50 text-gold-600 dark:bg-gold-500/15 dark:text-gold-400">
             <Gift className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-display text-lg font-extrabold leading-none text-slate-800">
+            <div className="font-display text-lg font-extrabold leading-none text-slate-800 dark:text-white">
               {chests} chest{chests === 1 ? "" : "s"} to open
             </div>
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">
               {chestErr ? "Couldn't open — try again" : "Gems or an XP boost inside"}
             </div>
           </div>
@@ -324,28 +324,28 @@ function StarsRow({ percent }) {
         {[1, 2, 3, 4, 5].map((i) => (
           <Star
             key={i}
-            className={"h-7 w-7 " + (i <= filled ? "text-gold-500 fill-gold-500" : "text-slate-200 fill-slate-200")}
+            className={"h-7 w-7 " + (i <= filled ? "text-gold-500 fill-gold-500" : "text-slate-200 fill-slate-200 dark:text-stone-600 dark:fill-stone-600")}
           />
         ))}
       </div>
-      <div className="font-display text-lg font-extrabold text-grass-600">{p}%</div>
+      <div className="font-display text-lg font-extrabold text-grass-600 dark:text-grass-400">{p}%</div>
     </div>
   );
 }
 
 function StatCard({ icon: Icon, value, label, tone = "brand" }) {
   const tones = {
-    brand: "text-brand-500 bg-brand-50",
-    grass: "text-grass-600 bg-grass-50",
-    feather: "text-feather-600 bg-feather-50",
+    brand: "text-brand-500 bg-brand-50 dark:text-brand-400 dark:bg-brand-500/15",
+    grass: "text-grass-600 bg-grass-50 dark:text-grass-400 dark:bg-grass-500/15",
+    feather: "text-feather-600 bg-feather-50 dark:text-feather-400 dark:bg-feather-500/15",
   };
   return (
-    <div className="rounded-2xl bg-white px-4 py-4 text-center ring-1 ring-slate-200/80 shadow-sm">
+    <div className="rounded-2xl bg-white px-4 py-4 text-center ring-1 ring-slate-200/80 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className={`mx-auto grid h-10 w-10 place-items-center rounded-xl ${tones[tone]}`}>
         <Icon className="h-5 w-5" />
       </div>
-      <div className="mt-2 font-display text-2xl font-extrabold leading-none text-slate-800">{value}</div>
-      <div className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="mt-2 font-display text-2xl font-extrabold leading-none text-slate-800 dark:text-white">{value}</div>
+      <div className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">{label}</div>
     </div>
   );
 }
@@ -408,7 +408,7 @@ export default function LessonCompletionScreen({
   }, []);
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-white shadow-md ring-1 ring-slate-200">
+    <div className="relative overflow-hidden rounded-3xl bg-white shadow-md ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
       {percent >= 70 ? <Confetti /> : null}
 
       <div className="relative px-6 py-10 sm:px-10 sm:py-12">
@@ -419,16 +419,16 @@ export default function LessonCompletionScreen({
             className="mx-auto block h-28 w-28 rounded-3xl object-cover"
           />
 
-          <h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight text-brand-500 sm:text-5xl">
+          <h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight text-brand-500 sm:text-5xl dark:text-brand-400">
             {perfect ? "Perfect Lesson!" : "Lesson Complete!"}
           </h2>
-          <p className="mt-2 text-base font-semibold text-slate-500">
+          <p className="mt-2 text-base font-semibold text-slate-500 dark:text-stone-400">
             {perfect
               ? "Կեցցե՛ս! Flawless — not a single mistake. 🎉"
               : `Done! ${mistakes} mistake${Number(mistakes) === 1 ? "" : "s"} along the way — review them to master it.`}
           </p>
           {perfect ? (
-            <div className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-gold-100 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-gold-600">
+            <div className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-gold-100 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-gold-600 dark:bg-gold-500/20 dark:text-gold-400">
               ★ No mistakes
             </div>
           ) : null}
@@ -439,11 +439,11 @@ export default function LessonCompletionScreen({
             <StatCard icon={CheckCircle2} value={total ? `${correct}/${total}` : `${correct}`} label="Correct" tone="grass" />
           </div>
 
-          <div className="mt-6 rounded-2xl bg-brand-50 px-5 py-3 ring-1 ring-brand-100">
+          <div className="mt-6 rounded-2xl bg-brand-50 px-5 py-3 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:ring-brand-500/30">
             <StarsRow percent={percent} />
           </div>
 
-          <div className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl bg-grass-50 px-5 py-3 font-bold text-grass-700 ring-1 ring-grass-100">
+          <div className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl bg-grass-50 px-5 py-3 font-bold text-grass-700 ring-1 ring-grass-100 dark:bg-grass-500/15 dark:text-grass-400 dark:ring-grass-500/30">
             <span aria-hidden>✨</span>
             <span>{message}</span>
           </div>
@@ -490,7 +490,7 @@ export default function LessonCompletionScreen({
                 setTimeout(() => setShareDone(false), 2500);
               }
             }}
-            className="mt-3 inline-flex items-center justify-center gap-2 rounded-2xl bg-feather-50 px-5 py-2.5 text-sm font-bold text-feather-700 ring-1 ring-feather-200 transition hover:bg-feather-100 active:scale-95"
+            className="mt-3 inline-flex items-center justify-center gap-2 rounded-2xl bg-feather-50 px-5 py-2.5 text-sm font-bold text-feather-700 ring-1 ring-feather-200 transition hover:bg-feather-100 active:scale-95 dark:bg-feather-500/15 dark:text-feather-400 dark:ring-feather-500/30 dark:hover:bg-feather-500/20"
           >
             {shareDone
               ? <><Check className="h-4 w-4 text-grass-500" /> Copied to clipboard!</>
@@ -498,14 +498,14 @@ export default function LessonCompletionScreen({
           </button>
 
           {analyticsLoading ? (
-            <div className="mt-6 flex items-center justify-center gap-2 font-semibold text-slate-500">
+            <div className="mt-6 flex items-center justify-center gap-2 font-semibold text-slate-500 dark:text-stone-400">
               <BarChart3 className="h-5 w-5" />
               <span>Loading analytics…</span>
             </div>
           ) : null}
 
           {analyticsError ? (
-            <div className="mt-6 mx-auto flex max-w-xl items-start gap-2 rounded-2xl border-2 border-cardinal-100 bg-cardinal-50 p-4 text-sm font-semibold text-cardinal-600">
+            <div className="mt-6 mx-auto flex max-w-xl items-start gap-2 rounded-2xl border-2 border-cardinal-100 bg-cardinal-50 p-4 text-sm font-semibold text-cardinal-600 dark:border-cardinal-500/30 dark:bg-cardinal-500/15 dark:text-cardinal-400">
               <AlertTriangle className="mt-0.5 h-5 w-5" />
               <div>
                 <div className="font-bold">Couldn’t load analytics</div>
@@ -519,7 +519,7 @@ export default function LessonCompletionScreen({
               <button
                 type="button"
                 onClick={() => setDetailsOpen((v) => !v)}
-                className="mx-auto inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-700"
+                className="mx-auto inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200"
               >
                 {detailsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 View details
@@ -531,8 +531,8 @@ export default function LessonCompletionScreen({
 
       {detailsOpen && analytics?.exercises?.length ? (
         <div className="px-6 pb-8 sm:px-10 sm:pb-10">
-          <div className="font-display text-sm font-extrabold text-slate-800">Exercise breakdown</div>
-          <div className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+          <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">Exercise breakdown</div>
+          <div className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 dark:divide-white/[0.06] dark:bg-[#18181b] dark:ring-white/[0.08]">
             {analytics.exercises.map((ex) => {
               const completed = !!ex.completed;
               return (
@@ -540,23 +540,23 @@ export default function LessonCompletionScreen({
                   key={ex.exercise_id}
                   type="button"
                   onClick={() => onOpenExercise?.(ex.exercise_id)}
-                  className="flex w-full items-center justify-between gap-4 p-4 text-left hover:bg-slate-50"
+                  className="flex w-full items-center justify-between gap-4 p-4 text-left hover:bg-slate-50 dark:hover:bg-white/[0.04]"
                 >
                   <div>
-                    <div className="text-sm font-bold text-slate-800">
-                      #{ex.sort_order}. <span className="font-mono text-slate-500">{ex.kind}</span>
+                    <div className="text-sm font-bold text-slate-800 dark:text-white">
+                      #{ex.sort_order}. <span className="font-mono text-slate-500 dark:text-stone-400">{ex.kind}</span>
                     </div>
                     {ex.prompt ? (
-                      <div className="mt-1 max-h-10 overflow-hidden text-sm text-slate-500">{ex.prompt}</div>
+                      <div className="mt-1 max-h-10 overflow-hidden text-sm text-slate-500 dark:text-stone-400">{ex.prompt}</div>
                     ) : null}
-                    <div className="mt-2 text-xs font-semibold text-slate-400">
+                    <div className="mt-2 text-xs font-semibold text-slate-400 dark:text-stone-500">
                       Attempts: {ex.attempts ?? 0} · Accuracy: {Math.round((ex.accuracy ?? 0) * 100)}% · XP: {ex.xp ?? 0}
                     </div>
                   </div>
                   <span
                     className={
                       "rounded-full px-3 py-1 text-xs font-bold " +
-                      (completed ? "bg-grass-50 text-grass-700" : "bg-slate-100 text-slate-500")
+                      (completed ? "bg-grass-50 text-grass-700 dark:bg-grass-500/15 dark:text-grass-400" : "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")
                     }
                   >
                     {completed ? "Done" : "Incomplete"}
@@ -566,10 +566,10 @@ export default function LessonCompletionScreen({
             })}
           </div>
 
-          <div className="mt-4 text-xs font-semibold text-slate-400">
-            Lesson completes at <span className="text-slate-600">70%</span> correct.
+          <div className="mt-4 text-xs font-semibold text-slate-400 dark:text-stone-500">
+            Lesson completes at <span className="text-slate-600 dark:text-stone-300">70%</span> correct.
             {totalXp ? (
-              <> · XP: <span className="text-slate-600">{earnedXp}</span> / {totalXp}</>
+              <> · XP: <span className="text-slate-600 dark:text-stone-300">{earnedXp}</span> / {totalXp}</>
             ) : null}
           </div>
         </div>

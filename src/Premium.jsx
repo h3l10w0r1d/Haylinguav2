@@ -28,10 +28,10 @@ function formatPrice(price, currency) {
 function CardField({ label, ...props }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-extrabold text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-extrabold text-slate-700 dark:text-stone-200">{label}</span>
       <input
         {...props}
-        className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400"
+        className="w-full rounded-2xl bg-slate-50 px-4 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-[#18181b] dark:placeholder:text-stone-500"
       />
     </label>
   );
@@ -45,7 +45,7 @@ function PlanCard({ plan, selected, onSelect }) {
       onClick={onSelect}
       className={
         "relative flex w-full flex-col rounded-3xl p-5 text-left ring-2 transition " +
-        (selected ? "bg-brand-50 ring-brand-400 shadow-sm" : "bg-white ring-slate-200 hover:ring-slate-300")
+        (selected ? "bg-brand-50 ring-brand-400 shadow-sm dark:bg-brand-500/15" : "bg-white ring-slate-200 hover:ring-slate-300 dark:bg-[#18181b] dark:ring-white/[0.08] dark:hover:ring-white/10")
       }
     >
       {plan.badge_label ? (
@@ -55,26 +55,26 @@ function PlanCard({ plan, selected, onSelect }) {
       ) : null}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="font-display text-lg font-extrabold text-slate-800">{plan.title}</div>
-          {plan.subtitle ? <div className="text-xs font-semibold text-slate-400">{plan.subtitle}</div> : null}
+          <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">{plan.title}</div>
+          {plan.subtitle ? <div className="text-xs font-semibold text-slate-400 dark:text-stone-500">{plan.subtitle}</div> : null}
         </div>
         <div
           className={
             "grid h-5 w-5 shrink-0 place-items-center rounded-full ring-2 " +
-            (selected ? "bg-brand-500 ring-brand-500" : "ring-slate-300")
+            (selected ? "bg-brand-500 ring-brand-500" : "ring-slate-300 dark:ring-white/10")
           }
         >
           {selected ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} /> : null}
         </div>
       </div>
-      <div className="mt-2 font-display text-2xl font-extrabold text-slate-800">
+      <div className="mt-2 font-display text-2xl font-extrabold text-slate-800 dark:text-white">
         {formatPrice(plan.price, plan.currency)}
-        <span className="ml-1 text-sm font-bold text-slate-400">{INTERVAL_LABEL[plan.interval] || ""}</span>
+        <span className="ml-1 text-sm font-bold text-slate-400 dark:text-stone-500">{INTERVAL_LABEL[plan.interval] || ""}</span>
       </div>
       {perks ? (
         <ul className="mt-3 space-y-1.5">
           {perks.map((p, i) => (
-            <li key={i} className="flex items-start gap-1.5 text-xs font-semibold text-slate-600">
+            <li key={i} className="flex items-start gap-1.5 text-xs font-semibold text-slate-600 dark:text-stone-300">
               <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-grass-500" /> {p}
             </li>
           ))}
@@ -152,22 +152,22 @@ export default function Premium() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50/40 to-white">
-        <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
+        <Loader2 className="h-6 w-6 animate-spin text-brand-500 dark:text-brand-400" />
       </div>
     );
   }
 
   if (isPremium) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+      <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
         <div className="mx-auto max-w-md px-4 py-16 text-center">
           <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gold-500 text-white shadow-[0_6px_0_0_#B45309]">
             <Crown className="h-10 w-10" />
           </div>
-          <h1 className="mt-5 font-display text-3xl font-extrabold text-slate-800">You’re Premium! ✨</h1>
-          <p className="mt-2 font-semibold text-slate-500">
-            You now have <span className="font-extrabold text-brand-600">unlimited hearts</span>. Mistakes won’t stop you anymore.
+          <h1 className="mt-5 font-display text-3xl font-extrabold text-slate-800 dark:text-white">You’re Premium! ✨</h1>
+          <p className="mt-2 font-semibold text-slate-500 dark:text-stone-400">
+            You now have <span className="font-extrabold text-brand-600 dark:text-brand-400">unlimited hearts</span>. Mistakes won’t stop you anymore.
           </p>
           <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand mt-7 uppercase">
             Back to learning
@@ -178,24 +178,24 @@ export default function Premium() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50/50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/50 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <div className="mx-auto grid max-w-5xl items-start gap-8 px-4 py-12 lg:grid-cols-2">
         {/* Pitch */}
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full bg-gold-500 px-3 py-1.5 font-display text-sm font-extrabold text-white shadow-[0_3px_0_0_#B45309]">
             <Crown className="h-4 w-4" /> Haylingua Premium
           </div>
-          <h1 className="mt-4 font-display text-4xl font-extrabold leading-tight tracking-tight text-slate-800 sm:text-5xl">
-            Never run out of <span className="text-brand-500">hearts</span>.
+          <h1 className="mt-4 font-display text-4xl font-extrabold leading-tight tracking-tight text-slate-800 sm:text-5xl dark:text-white">
+            Never run out of <span className="text-brand-500 dark:text-brand-400">hearts</span>.
           </h1>
-          <p className="mt-3 max-w-md text-lg font-semibold text-slate-500">
+          <p className="mt-3 max-w-md text-lg font-semibold text-slate-500 dark:text-stone-400">
             Keep learning Armenian without interruptions. Make all the mistakes you need.
           </p>
 
           <ul className="mt-6 space-y-3">
             {FALLBACK_PERKS.map((p) => (
-              <li key={p.text} className="flex items-center gap-3 font-bold text-slate-700">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-500">
+              <li key={p.text} className="flex items-center gap-3 font-bold text-slate-700 dark:text-stone-200">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-500 dark:bg-brand-500/15 dark:text-brand-400">
                   <p.icon className="h-5 w-5" />
                 </span>
                 {p.text}
@@ -210,10 +210,10 @@ export default function Premium() {
         <div>
           {plansLoading ? (
             <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-brand-500 dark:text-brand-400" />
             </div>
           ) : plans.length === 0 ? (
-            <div className="rounded-3xl bg-white p-6 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200">
+            <div className="rounded-3xl bg-white p-6 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-[#18181b] dark:text-stone-400 dark:ring-white/[0.08]">
               No plans are available right now — please check back soon.
             </div>
           ) : (
@@ -224,19 +224,19 @@ export default function Premium() {
                 ))}
               </div>
 
-              <div className="mt-5 rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+              <div className="mt-5 rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
                 <div className="flex items-baseline justify-between">
-                  <div className="font-display text-xl font-extrabold text-slate-800">
+                  <div className="font-display text-xl font-extrabold text-slate-800 dark:text-white">
                     {selectedPlan?.title || "Premium"}
                   </div>
                   {selectedPlan ? (
-                    <div className="font-display text-2xl font-extrabold text-slate-800">
+                    <div className="font-display text-2xl font-extrabold text-slate-800 dark:text-white">
                       {formatPrice(selectedPlan.price, selectedPlan.currency)}
-                      <span className="text-base font-bold text-slate-400"> {INTERVAL_LABEL[selectedPlan.interval] || ""}</span>
+                      <span className="text-base font-bold text-slate-400 dark:text-stone-500"> {INTERVAL_LABEL[selectedPlan.interval] || ""}</span>
                     </div>
                   ) : null}
                 </div>
-                <div className="mt-1 flex items-center gap-1 text-xs font-bold text-grass-600">
+                <div className="mt-1 flex items-center gap-1 text-xs font-bold text-grass-600 dark:text-grass-400">
                   <Check className="h-4 w-4" /> Cancel anytime
                 </div>
 
@@ -283,7 +283,7 @@ export default function Premium() {
                     )}
                   </button>
 
-                  <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-stone-500">
                     <Lock className="h-3.5 w-3.5" />
                     Simulated payment — no card is charged yet.
                   </div>

@@ -60,7 +60,7 @@ function HeartsBadge() {
 
   if (hearts == null) return null;
   return (
-    <div className={"flex items-center gap-1.5 font-display text-lg font-extrabold " + (shaking ? "heart-shake text-red-600" : "text-cardinal-500")}>
+    <div className={"flex items-center gap-1.5 font-display text-lg font-extrabold " + (shaking ? "heart-shake text-red-600" : "text-cardinal-500 dark:text-cardinal-400")}>
       <Heart className={"h-6 w-6 " + (shaking ? "fill-red-600 text-red-600" : "fill-cardinal-500 text-cardinal-500")} />
       {hearts.is_premium ? "∞" : hearts.current}
     </div>
@@ -97,7 +97,7 @@ function ExplainMistake({ exerciseId, userAnswer }) {
         type="button"
         onClick={ask}
         disabled={state === "loading"}
-        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-xs font-extrabold text-cardinal-600 shadow-sm ring-1 ring-cardinal-200 transition hover:bg-white disabled:opacity-60"
+        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-xs font-extrabold text-cardinal-600 shadow-sm ring-1 ring-cardinal-200 transition hover:bg-white disabled:opacity-60 dark:bg-white/10 dark:text-cardinal-400 dark:ring-cardinal-500/30 dark:hover:bg-white/20"
       >
         {state === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <HelpCircle className="h-3.5 w-3.5" />}
         {state === "loading" ? "Thinking…" : "Why was this wrong?"}
@@ -105,8 +105,8 @@ function ExplainMistake({ exerciseId, userAnswer }) {
     );
   }
   return (
-    <div className="mt-2 rounded-xl bg-white/70 p-3 text-sm font-semibold leading-snug text-slate-700 shadow-sm ring-1 ring-cardinal-100">
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-cardinal-500">
+    <div className="mt-2 rounded-xl bg-white/70 p-3 text-sm font-semibold leading-snug text-slate-700 shadow-sm ring-1 ring-cardinal-100 dark:bg-white/[0.06] dark:text-stone-200 dark:ring-cardinal-500/30">
+      <div className="mb-1 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-cardinal-500 dark:text-cardinal-400">
         <Sparkles className="h-3.5 w-3.5" /> Explanation
       </div>
       {text}
@@ -252,9 +252,9 @@ export default function ExerciseShell({
   const tone =
     variant === "correct"
       ? {
-          wrap: "bg-gradient-to-br from-grass-50 to-white border-grass-400",
+          wrap: "bg-gradient-to-br from-grass-50 to-white border-grass-400 dark:from-grass-500/15 dark:to-[#18181b] dark:border-grass-500/30",
           carpet: "rgba(88,204,2,0.28)",
-          title: "text-grass-700",
+          title: "text-grass-700 dark:text-grass-400",
           heading: pickFrom(
             (result?.combo || 0) >= 6 ? PRAISE_MEGA : (result?.combo || 0) >= 3 ? PRAISE_HOT : PRAISE_NORMAL
           ),
@@ -263,17 +263,17 @@ export default function ExerciseShell({
         }
       : variant === "skipped"
       ? {
-          wrap: "bg-slate-50 border-slate-200",
+          wrap: "bg-slate-50 border-slate-200 dark:bg-white/[0.04] dark:border-white/[0.08]",
           carpet: "rgba(100,116,139,0.18)",
-          title: "text-slate-600",
+          title: "text-slate-600 dark:text-stone-300",
           heading: "Skipped",
           btn: "btn3d-neutral",
-          medallion: "bg-slate-200 text-slate-500",
+          medallion: "bg-slate-200 text-slate-500 dark:bg-white/10 dark:text-stone-400",
         }
       : {
-          wrap: "bg-gradient-to-br from-cardinal-50 to-pom-50 border-cardinal-300",
+          wrap: "bg-gradient-to-br from-cardinal-50 to-pom-50 border-cardinal-300 dark:from-cardinal-500/15 dark:to-pom-500/15 dark:border-cardinal-500/30",
           carpet: "rgba(225,29,72,0.2)",
-          title: "text-cardinal-600",
+          title: "text-cardinal-600 dark:text-cardinal-400",
           heading: "Փորձիր նորից · Not quite",
           btn: "btn3d-cardinal",
           medallion: "bg-cardinal-500 text-white",
@@ -287,20 +287,20 @@ export default function ExerciseShell({
 
   return (
     <ExerciseFooterContext.Provider value={footerNode}>
-    <div className="lesson-shell relative flex flex-col bg-white">
+    <div className="lesson-shell relative flex flex-col bg-white dark:bg-[#0d0d0f]">
       {/* Top bar */}
-      <header className="shrink-0 bg-white">
+      <header className="shrink-0 bg-white dark:bg-[#18181b]">
         <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-4">
           <button
             type="button"
             onClick={onBack}
             aria-label="Quit lesson"
-            className="text-slate-400 transition hover:text-slate-600 active:scale-90"
+            className="text-slate-400 transition hover:text-slate-600 active:scale-90 dark:text-stone-500 dark:hover:text-stone-300"
           >
             <X className="h-7 w-7" strokeWidth={3} />
           </button>
 
-          <div className={"h-4 flex-1 overflow-hidden rounded-full bg-slate-200 transition-shadow duration-300 " + (justAdvanced ? "shadow-[0_0_0_3px_rgba(88,204,2,0.35)]" : "")}>
+          <div className={"h-4 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10 transition-shadow duration-300 " + (justAdvanced ? "shadow-[0_0_0_3px_rgba(88,204,2,0.35)]" : "")}>
             <div
               className={"relative h-4 rounded-full bg-brand-500 transition-all duration-500 " + (justAdvanced ? "progress-pulse" : "")}
               style={{ width: `${Math.max(pct, 6)}%` }}
@@ -314,7 +314,7 @@ export default function ExerciseShell({
         </div>
         {title ? (
           <div className="mx-auto max-w-2xl px-4 pb-1">
-            <div className="line-clamp-1 text-xs font-bold uppercase tracking-wide text-slate-400">
+            <div className="line-clamp-1 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">
               {title}
             </div>
           </div>
@@ -322,9 +322,9 @@ export default function ExerciseShell({
       </header>
 
       {instruction ? (
-        <div className="shrink-0 border-b border-slate-100 bg-white">
+        <div className="shrink-0 border-b border-slate-100 bg-white dark:border-white/[0.06] dark:bg-[#18181b]">
           <div className="mx-auto max-w-2xl px-4 pb-2 pt-1">
-            <div className="text-xs font-extrabold uppercase tracking-widest text-slate-400">{instruction}</div>
+            <div className="text-xs font-extrabold uppercase tracking-widest text-slate-400 dark:text-stone-500">{instruction}</div>
           </div>
         </div>
       ) : null}
@@ -345,7 +345,7 @@ export default function ExerciseShell({
           whether it's driven by explicit primaryLabel props (Phase2Exercise)
           or portaled in by ExerciseRenderer via FooterSlot. */}
       {!result && !hideFooter ? (
-        <div className="safe-b shrink-0 border-t-2 border-slate-100 bg-white">
+        <div className="safe-b shrink-0 border-t-2 border-slate-100 bg-white dark:border-white/[0.06] dark:bg-[#18181b]">
           <div ref={setFooterNode} className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-5">
             {secondaryLabel ? (
               <button
@@ -411,26 +411,26 @@ export default function ExerciseShell({
                   <div className={"font-display text-xl font-extrabold " + tone.title}>
                     {variant === "correct" && result.typo ? "Correct — mind the spelling" : heading}
                   </div>
-                  <div className="text-sm font-bold text-slate-500">
+                  <div className="text-sm font-bold text-slate-500 dark:text-stone-400">
                     {variant === "correct"
                       ? (
                         <>
                           <div className="flex items-center gap-1.5">
                             <span>{`+${Number(result.xpEarned || 0)} XP earned`}</span>
                             {Number(result.comboBonusXp) > 0 ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-extrabold text-brand-700">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-extrabold text-brand-700 dark:bg-brand-500/20 dark:text-brand-400">
                                 <Sparkles className="h-3 w-3" /> +{Number(result.comboBonusXp)} combo
                               </span>
                             ) : null}
                           </div>
                           {result.typo && result.correctAnswer ? (
-                            <div className="mt-1 flex items-center gap-2 text-amber-700">
+                            <div className="mt-1 flex items-center gap-2 text-amber-700 dark:text-amber-400">
                               <span className="text-xs font-bold">Correct spelling:</span>
-                              <span className="font-display text-base font-extrabold text-slate-800">{result.correctAnswer}</span>
+                              <span className="font-display text-base font-extrabold text-slate-800 dark:text-white">{result.correctAnswer}</span>
                               <button
                                 type="button"
                                 onClick={() => speakText(result.correctAnswer)}
-                                className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/70 text-amber-600 shadow-sm ring-1 ring-amber-200 transition hover:bg-white"
+                                className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/70 text-amber-600 shadow-sm ring-1 ring-amber-200 transition hover:bg-white dark:bg-white/10 dark:text-amber-400 dark:ring-amber-500/30 dark:hover:bg-white/20"
                                 aria-label="Hear pronunciation"
                               >
                                 <Volume2 className="h-3 w-3" />
@@ -445,13 +445,13 @@ export default function ExerciseShell({
                         <>
                           {result.correctAnswer ? (
                             <div className="mb-1 flex items-center gap-2">
-                              <div className="font-display text-base font-extrabold text-cardinal-700">
-                                Correct: <span className="text-slate-800">{result.correctAnswer}</span>
+                              <div className="font-display text-base font-extrabold text-cardinal-700 dark:text-cardinal-400">
+                                Correct: <span className="text-slate-800 dark:text-white">{result.correctAnswer}</span>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => speakText(result.correctAnswer)}
-                                className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/70 text-cardinal-500 shadow-sm ring-1 ring-cardinal-200 transition hover:bg-white"
+                                className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/70 text-cardinal-500 shadow-sm ring-1 ring-cardinal-200 transition hover:bg-white dark:bg-white/10 dark:text-cardinal-400 dark:ring-cardinal-500/30 dark:hover:bg-white/20"
                                 aria-label="Hear pronunciation"
                               >
                                 <Volume2 className="h-3.5 w-3.5" />
@@ -466,7 +466,7 @@ export default function ExerciseShell({
                       )}
                   </div>
                   {result.subtext ? (
-                    <div className="text-xs font-semibold text-slate-400">{result.subtext}</div>
+                    <div className="text-xs font-semibold text-slate-400 dark:text-stone-500">{result.subtext}</div>
                   ) : null}
                 </div>
               </div>

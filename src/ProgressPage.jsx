@@ -10,7 +10,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onren
 function XPChart({ data, days }) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-28 items-center justify-center text-sm text-slate-400">
+      <div className="flex h-28 items-center justify-center text-sm text-slate-400 dark:text-stone-500">
         No activity in the last {days} days yet.
       </div>
     );
@@ -46,7 +46,7 @@ function XPChart({ data, days }) {
                 "w-full min-w-[2px] rounded-t transition-all " +
                 (s.xp > 0
                   ? isToday ? "bg-brand-500" : "bg-brand-300"
-                  : "bg-slate-100")
+                  : "bg-slate-100 dark:bg-white/[0.06]")
               }
               style={{ height: `${h}px` }}
             />
@@ -65,13 +65,13 @@ function XPChart({ data, days }) {
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, color }) {
   return (
-    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className={`mb-2 grid h-9 w-9 place-items-center rounded-xl ${color}`}>
         <Icon size={16} />
       </div>
-      <p className="text-2xl font-black text-slate-800 leading-none">{value}</p>
-      <p className="mt-0.5 text-xs font-bold text-slate-500">{label}</p>
-      {sub && <p className="mt-0.5 text-[10px] text-slate-400">{sub}</p>}
+      <p className="text-2xl font-black text-slate-800 leading-none dark:text-white">{value}</p>
+      <p className="mt-0.5 text-xs font-bold text-slate-500 dark:text-stone-400">{label}</p>
+      {sub && <p className="mt-0.5 text-[10px] text-slate-400 dark:text-stone-500">{sub}</p>}
     </div>
   );
 }
@@ -79,20 +79,20 @@ function StatCard({ icon: Icon, label, value, sub, color }) {
 // ── Streak display ────────────────────────────────────────────────────────────
 function StreakBlock({ lessonStreak, reviewStreak, bestStreak }) {
   return (
-    <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-      <h3 className="font-display text-base font-extrabold text-slate-800 mb-3">Streaks</h3>
+    <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+      <h3 className="font-display text-base font-extrabold text-slate-800 mb-3 dark:text-white">Streaks</h3>
       <div className="grid grid-cols-3 gap-3">
         <div className="text-center">
-          <p className="text-2xl font-black text-brand-500">{lessonStreak}</p>
-          <p className="text-[10px] font-bold text-slate-500 mt-0.5">Lesson streak</p>
+          <p className="text-2xl font-black text-brand-500 dark:text-brand-400">{lessonStreak}</p>
+          <p className="text-[10px] font-bold text-slate-500 mt-0.5 dark:text-stone-400">Lesson streak</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-black text-emerald-500">{reviewStreak}</p>
-          <p className="text-[10px] font-bold text-slate-500 mt-0.5">Review streak</p>
+          <p className="text-2xl font-black text-emerald-500 dark:text-emerald-400">{reviewStreak}</p>
+          <p className="text-[10px] font-bold text-slate-500 mt-0.5 dark:text-stone-400">Review streak</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-black text-amber-500">{bestStreak}</p>
-          <p className="text-[10px] font-bold text-slate-500 mt-0.5">Best ever</p>
+          <p className="text-2xl font-black text-amber-500 dark:text-amber-400">{bestStreak}</p>
+          <p className="text-[10px] font-bold text-slate-500 mt-0.5 dark:text-stone-400">Best ever</p>
         </div>
       </div>
     </div>
@@ -106,26 +106,26 @@ function SRBar({ mastered, learning, newCards, total }) {
   const lPct = Math.round((learning / total) * 100);
   const nPct = 100 - mPct - lPct;
   return (
-    <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
+    <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-display text-base font-extrabold text-slate-800">Word mastery</h3>
-        <span className="text-xs font-bold text-slate-500">{total} cards total</span>
+        <h3 className="font-display text-base font-extrabold text-slate-800 dark:text-white">Word mastery</h3>
+        <span className="text-xs font-bold text-slate-500 dark:text-stone-400">{total} cards total</span>
       </div>
-      <div className="flex h-4 overflow-hidden rounded-full bg-slate-100 gap-0.5">
+      <div className="flex h-4 overflow-hidden rounded-full bg-slate-100 gap-0.5 dark:bg-white/[0.06]">
         {mPct > 0 && <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${mPct}%` }} />}
         {lPct > 0 && <div className="h-full bg-amber-400 rounded-full transition-all"   style={{ width: `${lPct}%` }} />}
-        {nPct > 0 && <div className="h-full bg-slate-200 rounded-full transition-all"   style={{ width: `${nPct}%` }} />}
+        {nPct > 0 && <div className="h-full bg-slate-200 rounded-full transition-all dark:bg-white/10"   style={{ width: `${nPct}%` }} />}
       </div>
       <div className="mt-2 flex gap-4">
         {[
           { color: "bg-emerald-500", label: "Mastered", count: mastered },
           { color: "bg-amber-400",   label: "Learning",  count: learning },
-          { color: "bg-slate-300",   label: "New",        count: newCards },
+          { color: "bg-slate-300 dark:bg-white/10",   label: "New",        count: newCards },
         ].map(({ color, label, count }) => (
-          <div key={label} className="flex items-center gap-1.5 text-xs text-slate-600">
+          <div key={label} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-stone-300">
             <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
             <span className="font-semibold">{label}</span>
-            <span className="font-bold text-slate-800">{count}</span>
+            <span className="font-bold text-slate-800 dark:text-white">{count}</span>
           </div>
         ))}
       </div>
@@ -149,17 +149,17 @@ export default function ProgressPage() {
   }, [days]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50/30 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/30 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <header className="flex items-center gap-3 px-4 py-4 sm:px-6">
         <button
           onClick={() => navigate(-1)}
-          className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+          className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition dark:text-stone-500 dark:hover:bg-white/[0.06] dark:hover:text-stone-300"
         >
           <ChevronLeft size={20} />
         </button>
         <div>
-          <h1 className="font-display text-xl font-extrabold text-slate-800">Progress</h1>
-          <p className="text-xs text-slate-500">Your learning stats</p>
+          <h1 className="font-display text-xl font-extrabold text-slate-800 dark:text-white">Progress</h1>
+          <p className="text-xs text-slate-500 dark:text-stone-400">Your learning stats</p>
         </div>
       </header>
 
@@ -169,15 +169,15 @@ export default function ProgressPage() {
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-200 border-t-brand-500" />
           </div>
         ) : !data ? (
-          <p className="text-center text-sm text-slate-500 py-12">Could not load stats.</p>
+          <p className="text-center text-sm text-slate-500 py-12 dark:text-stone-400">Could not load stats.</p>
         ) : (
           <>
             {/* Summary grid */}
             <div className="grid grid-cols-2 gap-3">
-              <StatCard icon={Zap}      label="Total XP"       value={data.total_xp.toLocaleString()} color="bg-amber-100 text-amber-600" />
-              <StatCard icon={BookOpen} label="Lessons done"   value={data.total_lessons}             color="bg-brand-100 text-brand-600" />
-              <StatCard icon={Star}     label="Words mastered" value={data.sr_mastered}               color="bg-emerald-100 text-emerald-600" />
-              <StatCard icon={Trophy}   label="Best streak"    value={`${data.best_streak}d`}         color="bg-purple-100 text-purple-600" />
+              <StatCard icon={Zap}      label="Total XP"       value={data.total_xp.toLocaleString()} color="bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400" />
+              <StatCard icon={BookOpen} label="Lessons done"   value={data.total_lessons}             color="bg-brand-100 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400" />
+              <StatCard icon={Star}     label="Words mastered" value={data.sr_mastered}               color="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400" />
+              <StatCard icon={Trophy}   label="Best streak"    value={`${data.best_streak}d`}         color="bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400" />
             </div>
 
             {/* Streaks */}
@@ -196,17 +196,17 @@ export default function ProgressPage() {
             />
 
             {/* XP chart */}
-            <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
+            <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-display text-base font-extrabold text-slate-800">XP history</h3>
-                <div className="flex rounded-xl bg-slate-100 p-0.5 gap-0.5">
+                <h3 className="font-display text-base font-extrabold text-slate-800 dark:text-white">XP history</h3>
+                <div className="flex rounded-xl bg-slate-100 p-0.5 gap-0.5 dark:bg-white/[0.06]">
                   {[7, 30, 60].map(d => (
                     <button
                       key={d}
                       onClick={() => setDays(d)}
                       className={
                         "rounded-lg px-2.5 py-1 text-xs font-bold transition " +
-                        (days === d ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700")
+                        (days === d ? "bg-white shadow-sm text-slate-800 dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200")
                       }
                     >
                       {d}d

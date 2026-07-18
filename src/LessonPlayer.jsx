@@ -119,11 +119,11 @@ function ReadingSectionCard({ section, userLevel, onNext }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200/80 shadow-sm">
+      <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200/80 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-feather-500">Reading</div>
-            <h2 className="mt-1 font-display text-xl font-extrabold text-slate-800">{section?.title || 'Read and listen'}</h2>
+            <div className="text-xs font-bold uppercase tracking-wide text-feather-500 dark:text-feather-400">Reading</div>
+            <h2 className="mt-1 font-display text-xl font-extrabold text-slate-800 dark:text-white">{section?.title || 'Read and listen'}</h2>
           </div>
           <button
             type="button"
@@ -135,7 +135,7 @@ function ReadingSectionCard({ section, userLevel, onNext }) {
           </button>
         </div>
 
-        <div className="mt-4 whitespace-pre-wrap text-lg leading-relaxed text-slate-700">
+        <div className="mt-4 whitespace-pre-wrap text-lg leading-relaxed text-slate-700 dark:text-stone-200">
           {section?.text || ''}
         </div>
 
@@ -729,8 +729,8 @@ export default function LessonPlayer() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="flex items-center gap-2 font-semibold text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#0d0d0f]">
+        <div className="flex items-center gap-2 font-semibold text-slate-500 dark:text-stone-400">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span>Loading lesson…</span>
         </div>
@@ -740,8 +740,8 @@ export default function LessonPlayer() {
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
-        <p className="mb-4 text-center font-semibold text-cardinal-600">{loadError}</p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-[#0d0d0f]">
+        <p className="mb-4 text-center font-semibold text-cardinal-600 dark:text-cardinal-400">{loadError}</p>
         <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand uppercase">
           Back to dashboard
         </button>
@@ -751,8 +751,8 @@ export default function LessonPlayer() {
 
   if (!lesson) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
-        <p className="mb-4 font-semibold text-slate-600">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-[#0d0d0f]">
+        <p className="mb-4 font-semibold text-slate-600 dark:text-stone-300">
           Lesson data is empty. Check the console and backend logs.
         </p>
         <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand uppercase">
@@ -943,8 +943,8 @@ export default function LessonPlayer() {
 
         {/* Fallback */}
         {!showDoneFooter && !currentExercise ? (
-          <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8">
-            <p className="text-slate-700 mb-4">
+          <div className="bg-white rounded-3xl shadow-md p-6 sm:p-8 dark:bg-[#18181b]">
+            <p className="text-slate-700 mb-4 dark:text-stone-200">
               No exercise found (queue empty). Check console logs for
               lesson data and exercise kinds.
             </p>

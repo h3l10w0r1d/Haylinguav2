@@ -108,7 +108,7 @@ export function WordHint({ word, hint, isNew, children, alwaysUnderline = true }
         type="button"
         onClick={toggle}
         className={
-          "cursor-pointer underline-offset-2 hover:text-brand-600 " +
+          "cursor-pointer underline-offset-2 hover:text-brand-600 dark:hover:text-brand-400 " +
           (hint || alwaysUnderline
             ? "underline decoration-dotted decoration-brand-400"
             : "hover:underline hover:decoration-dotted")
@@ -117,7 +117,7 @@ export function WordHint({ word, hint, isNew, children, alwaysUnderline = true }
         {display}
       </button>
       {isNew ? (
-        <span className="ml-0.5 align-super text-[8px] font-black uppercase tracking-wide text-grass-600">new</span>
+        <span className="ml-0.5 align-super text-[8px] font-black uppercase tracking-wide text-grass-600 dark:text-grass-400">new</span>
       ) : null}
       {open && (
         <span className="absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-xl bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white shadow-lg">

@@ -46,30 +46,30 @@ export default function Achievements() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <div className="mx-auto max-w-3xl px-4 py-8">
         <button
           onClick={() => navigate(-1)}
-          className="mb-4 inline-flex items-center gap-1.5 rounded-2xl bg-white px-3.5 py-2 text-sm font-extrabold text-slate-600 ring-1 ring-slate-200 shadow-sm transition hover:bg-slate-50 hover:text-brand-600"
+          className="mb-4 inline-flex items-center gap-1.5 rounded-2xl bg-white px-3.5 py-2 text-sm font-extrabold text-slate-600 ring-1 ring-slate-200 shadow-sm transition hover:bg-slate-50 hover:text-brand-600 dark:bg-[#18181b] dark:text-stone-300 dark:ring-white/[0.08] dark:hover:bg-white/[0.04] dark:hover:text-brand-400"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <div className="mb-6">
-          <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800">Achievements</h1>
-          <p className="mt-1 font-semibold text-slate-500">
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white">Achievements</h1>
+          <p className="mt-1 font-semibold text-slate-500 dark:text-stone-400">
             {data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn Armenian."}
           </p>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-20 text-slate-500">
+          <div className="flex items-center justify-center gap-2 py-20 text-slate-500 dark:text-stone-400">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="font-semibold">Loading…</span>
           </div>
         ) : !data?.achievements?.length ? (
-          <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200">
+          <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
             <img src={grandma} alt="" className="mx-auto h-20 w-20 rounded-2xl object-cover" />
-            <p className="mt-3 font-semibold text-slate-500">Start a lesson to earn your first badge!</p>
+            <p className="mt-3 font-semibold text-slate-500 dark:text-stone-400">Start a lesson to earn your first badge!</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -79,7 +79,7 @@ export default function Achievements() {
               return (
                 <div
                   key={a.id}
-                  className={"rounded-3xl p-5 shadow-sm ring-1 " + (a.earned ? "bg-white ring-gold-200" : "bg-slate-50 ring-slate-200")}
+                  className={"rounded-3xl p-5 shadow-sm ring-1 " + (a.earned ? "bg-white ring-gold-200 dark:bg-[#18181b] dark:ring-gold-500/30" : "bg-slate-50 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]")}
                 >
                   <div className="flex items-center gap-3">
                     <div
@@ -93,20 +93,20 @@ export default function Achievements() {
                       <Icon className="h-6 w-6" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 font-display text-base font-extrabold text-slate-800">
+                      <div className="flex items-center gap-1.5 font-display text-base font-extrabold text-slate-800 dark:text-white">
                         {a.title}
                         {a.earned ? <Check className="h-4 w-4 text-grass-500" /> : null}
                       </div>
-                      <div className="text-sm font-semibold text-slate-500">{a.desc}</div>
+                      <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">{a.desc}</div>
                     </div>
                   </div>
 
                   {!a.earned ? (
                     <div className="mt-3">
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                         <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 4)}%` }} />
                       </div>
-                      <div className="mt-1 text-xs font-bold text-slate-400">{a.progress}/{a.target}</div>
+                      <div className="mt-1 text-xs font-bold text-slate-400 dark:text-stone-500">{a.progress}/{a.target}</div>
                     </div>
                   ) : a.claimable ? (
                     <button
@@ -117,7 +117,7 @@ export default function Achievements() {
                       {claiming === a.id ? "…" : `Claim +${a.reward_xp} XP`}
                     </button>
                   ) : (
-                    <div className="mt-3 text-xs font-extrabold uppercase tracking-wide text-grass-600">+{a.reward_xp} XP claimed ✓</div>
+                    <div className="mt-3 text-xs font-extrabold uppercase tracking-wide text-grass-600 dark:text-grass-400">+{a.reward_xp} XP claimed ✓</div>
                   )}
                 </div>
               );

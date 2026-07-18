@@ -303,7 +303,7 @@ export default function PlacementTest() {
   if (loadError) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="font-bold text-cardinal-600">{loadError}</p>
+        <p className="font-bold text-cardinal-600 dark:text-cardinal-400">{loadError}</p>
         <button className="btn3d btn3d-brand" onClick={() => navigate("/dashboard")}>Skip test</button>
       </div>
     );
@@ -326,14 +326,14 @@ export default function PlacementTest() {
     const visibleHistory = history.filter((h) => h.passed !== null);
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-brand-50 to-white p-8 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-100">
-          <Target className="h-10 w-10 text-brand-600" />
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-b from-brand-50 to-white p-8 text-center dark:from-[#0d0d0f] dark:to-[#0d0d0f]">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-500/20">
+          <Target className="h-10 w-10 text-brand-600 dark:text-brand-400" />
         </div>
 
         <div>
-          <div className="font-display text-3xl font-extrabold text-slate-800">Level found!</div>
-          <div className="mt-2 text-lg font-semibold text-slate-500">
+          <div className="font-display text-3xl font-extrabold text-slate-800 dark:text-white">Level found!</div>
+          <div className="mt-2 text-lg font-semibold text-slate-500 dark:text-stone-400">
             {isBeginning
               ? "Start from the very beginning — welcome!"
               : isEnd
@@ -341,9 +341,9 @@ export default function PlacementTest() {
               : "We'll place you at:"}
           </div>
           {!isBeginning && !isEnd && placementUnit && (
-            <div className="mt-3 rounded-2xl bg-white px-6 py-4 ring-1 ring-brand-200 shadow-sm">
-              <div className="font-display text-2xl font-extrabold text-brand-700">{placementUnit.title}</div>
-              <div className="text-sm font-semibold text-slate-500 mt-1">
+            <div className="mt-3 rounded-2xl bg-white px-6 py-4 ring-1 ring-brand-200 shadow-sm dark:bg-[#18181b] dark:ring-brand-500/30">
+              <div className="font-display text-2xl font-extrabold text-brand-700 dark:text-brand-400">{placementUnit.title}</div>
+              <div className="text-sm font-semibold text-slate-500 mt-1 dark:text-stone-400">
                 Unit {placementIdx + 1} of {units.length}
               </div>
             </div>
@@ -353,10 +353,10 @@ export default function PlacementTest() {
         {visibleHistory.length > 0 && (
           <div className="w-full max-w-xs space-y-2">
             {visibleHistory.map((h, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl bg-white px-4 py-2 ring-1 ring-slate-100 text-sm font-semibold">
-                <CheckCircle className={`h-4 w-4 shrink-0 ${h.passed ? "text-grass-500" : "text-slate-300"}`} />
-                <span className="truncate text-slate-700">{h.unitTitle}</span>
-                <span className={`ml-auto text-xs font-bold ${h.passed ? "text-grass-600" : "text-slate-400"}`}>
+              <div key={i} className="flex items-center gap-3 rounded-xl bg-white px-4 py-2 ring-1 ring-slate-100 text-sm font-semibold dark:bg-[#18181b] dark:ring-white/[0.06]">
+                <CheckCircle className={`h-4 w-4 shrink-0 ${h.passed ? "text-grass-500" : "text-slate-300 dark:text-stone-600"}`} />
+                <span className="truncate text-slate-700 dark:text-stone-200">{h.unitTitle}</span>
+                <span className={`ml-auto text-xs font-bold ${h.passed ? "text-grass-600 dark:text-grass-400" : "text-slate-400 dark:text-stone-500"}`}>
                   {h.passed ? "Passed" : "Too hard"}
                 </span>
               </div>
@@ -381,7 +381,7 @@ export default function PlacementTest() {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
-        <p className="font-semibold text-slate-500">
+        <p className="font-semibold text-slate-500 dark:text-stone-400">
           {units?.[currentUnitIdx] ? `Checking ${units[currentUnitIdx].title}…` : "Preparing next round…"}
         </p>
       </div>
@@ -404,9 +404,9 @@ export default function PlacementTest() {
       exerciseId={currentExercise?.id}
       lessonId={currentExercise?.lesson_id}
     >
-      <div className="mb-4 flex items-center gap-2 rounded-xl bg-brand-50 px-4 py-2.5 ring-1 ring-brand-100">
+      <div className="mb-4 flex items-center gap-2 rounded-xl bg-brand-50 px-4 py-2.5 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:ring-brand-500/30">
         <Target className="h-4 w-4 shrink-0 text-brand-500" />
-        <span className="text-sm font-extrabold text-brand-700">
+        <span className="text-sm font-extrabold text-brand-700 dark:text-brand-400">
           Testing: {units[currentUnitIdx]?.title}
         </span>
         <span className="ml-auto text-xs font-bold text-brand-400">

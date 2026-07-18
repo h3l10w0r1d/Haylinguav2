@@ -39,14 +39,14 @@ export function Card({ children, className }) {
 
 export function Title({ children }) {
   return (
-    <div className="font-display text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">
+    <div className="font-display text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight dark:text-white">
       {children}
     </div>
   );
 }
 
 export function Muted({ children, className }) {
-  return <div className={cx("text-sm font-semibold text-slate-500", className)}>{children}</div>;
+  return <div className={cx("text-sm font-semibold text-slate-500 dark:text-stone-400", className)}>{children}</div>;
 }
 
 /** Affirmative action (Check / Continue) — Haylingua apricot, pressable 3D. */
@@ -150,7 +150,7 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
           ? "bg-cardinal-500 text-white ring-cardinal-500"
           : isSelected
           ? "bg-feather-500 text-white ring-feather-500"
-          : "text-slate-400 ring-slate-200";
+          : "text-slate-400 ring-slate-200 dark:text-stone-500 dark:ring-white/[0.08]";
         const badge = isCorrect ? "✓" : isWrongPick ? "✕" : idx + 1;
 
         return (
@@ -180,10 +180,10 @@ export function Pill({ children, onClick, disabled, active = false, className })
       className={cx(
         "rounded-2xl px-4 py-3 text-base font-bold ring-2 transition active:translate-y-0.5",
         disabled
-          ? "bg-slate-50 text-slate-300 ring-slate-100 cursor-not-allowed"
+          ? "bg-slate-50 text-slate-300 ring-slate-100 cursor-not-allowed dark:bg-white/[0.04] dark:text-stone-600 dark:ring-white/[0.06]"
           : active
-          ? "bg-feather-50 text-feather-700 ring-feather-300"
-          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50",
+          ? "bg-feather-50 text-feather-700 ring-feather-300 dark:bg-feather-500/15 dark:text-feather-400 dark:ring-feather-500/30"
+          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-stone-200 dark:ring-white/[0.08] dark:hover:bg-white/[0.04]",
         className
       )}
       style={!disabled ? { boxShadow: active ? "0 3px 0 0 #4EC2FF" : "0 3px 0 0 #E2E8F0" } : undefined}
@@ -204,7 +204,7 @@ export function InlineInput({ value, onChange, placeholder, autoFocus = true }) 
       autoCorrect="off"
       autoComplete="off"
       spellCheck={false}
-      className="w-full rounded-2xl bg-slate-50 px-4 py-4 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
+      className="w-full rounded-2xl bg-slate-50 px-4 py-4 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
     />
   );
 }

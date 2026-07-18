@@ -44,7 +44,7 @@ export default function SentenceOrder({ exercise, cfg, correct, wrong, onSkip, o
     <Card>
       <Title>{prompt}</Title>
 
-      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 min-h-[4.5rem]">
+      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 min-h-[4.5rem] dark:bg-white/[0.04] dark:ring-white/[0.08]">
         <div className="flex flex-wrap gap-2">
           {picked.length === 0 ? (
             <Muted>Tap words below to build the sentence…</Muted>

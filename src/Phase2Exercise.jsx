@@ -424,12 +424,12 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     const hasBlankContext = kind === "fill_blank" && (blankBefore || blankAfter);
     return (
       <Card>
-        <div className="text-slate-800 text-xl font-extrabold leading-snug">{prompt}</div>
+        <div className="text-slate-800 text-xl font-extrabold leading-snug dark:text-white">{prompt}</div>
         {hasBlankContext ? (
-          <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-            <div className="text-lg font-semibold text-slate-900">
+          <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+            <div className="text-lg font-semibold text-slate-900 dark:text-white">
               {blankBefore}{" "}
-              <span className="px-2 py-1 rounded-lg bg-white ring-1 ring-slate-200">
+              <span className="px-2 py-1 rounded-lg bg-white ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
                 {cfg?.placeholder ?? "___"}
               </span>{" "}
               {blankAfter}
@@ -441,7 +441,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             placeholder="Type your answer"
-            className="w-full rounded-2xl bg-slate-50 px-4 py-4 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
+            className="w-full rounded-2xl bg-slate-50 px-4 py-4 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
             autoFocus
             autoCapitalize="none"
             autoCorrect="off"
@@ -450,7 +450,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
           />
         </div>
         {expectedAnswers.length ? (
-          <div className="mt-3 text-xs text-slate-500">
+          <div className="mt-3 text-xs text-slate-500 dark:text-stone-400">
             Tip: capitalization doesn't matter.
           </div>
         ) : null}
@@ -463,18 +463,18 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     const built = orderChosen.map((i) => sentenceTokens[i]).join(" ").trim();
     return (
       <Card>
-        <div className="text-slate-800 text-xl font-extrabold leading-snug">{prompt}</div>
+        <div className="text-slate-800 text-xl font-extrabold leading-snug dark:text-white">{prompt}</div>
 
-        <div className="mt-4 p-3 rounded-2xl bg-white ring-1 ring-slate-200 min-h-[56px]">
+        <div className="mt-4 p-3 rounded-2xl bg-white ring-1 ring-slate-200 min-h-[56px] dark:bg-[#18181b] dark:ring-white/[0.08]">
           {built ? (
-            <div className="text-slate-800 font-semibold">{built}</div>
+            <div className="text-slate-800 font-semibold dark:text-white">{built}</div>
           ) : (
-            <div className="text-slate-400 font-semibold">Tap words in order…</div>
+            <div className="text-slate-400 font-semibold dark:text-stone-500">Tap words in order…</div>
           )}
           {orderChosen.length ? (
             <button
               type="button"
-              className="mt-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
+              className="mt-2 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200"
               onClick={() => setOrderChosen([])}
             >
               Clear
@@ -494,8 +494,8 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
                 className={
                   "px-3 py-2 rounded-xl font-semibold ring-1 transition " +
                   (isPicked
-                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 active:scale-[0.99]")
+                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed dark:bg-white/[0.06] dark:text-stone-500 dark:ring-white/[0.08]"
+                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 active:scale-[0.99] dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.04]")
                 }
               >
                 {w}
@@ -512,18 +512,18 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     const built = buildChosen.map((i) => buildTiles[i]).join("").trim();
     return (
       <Card>
-        <div className="text-slate-800 text-xl font-extrabold leading-snug">{prompt}</div>
+        <div className="text-slate-800 text-xl font-extrabold leading-snug dark:text-white">{prompt}</div>
 
-        <div className="mt-4 p-3 rounded-2xl bg-white ring-1 ring-slate-200 min-h-[56px]">
+        <div className="mt-4 p-3 rounded-2xl bg-white ring-1 ring-slate-200 min-h-[56px] dark:bg-[#18181b] dark:ring-white/[0.08]">
           {built ? (
-            <div className="text-slate-800 text-2xl font-extrabold tracking-wide">{built}</div>
+            <div className="text-slate-800 text-2xl font-extrabold tracking-wide dark:text-white">{built}</div>
           ) : (
-            <div className="text-slate-400 font-semibold">Tap letters to build the word…</div>
+            <div className="text-slate-400 font-semibold dark:text-stone-500">Tap letters to build the word…</div>
           )}
           {buildChosen.length ? (
             <button
               type="button"
-              className="mt-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
+              className="mt-2 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200"
               onClick={() => setBuildChosen([])}
             >
               Clear
@@ -543,8 +543,8 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
                 className={
                   "w-12 h-12 rounded-2xl font-extrabold text-xl ring-1 transition " +
                   (isPicked
-                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 active:scale-[0.99]")
+                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed dark:bg-white/[0.06] dark:text-stone-500 dark:ring-white/[0.08]"
+                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 active:scale-[0.99] dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.04]")
                 }
               >
                 {t}
@@ -561,7 +561,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
     <Card>
       <div className="flex items-start gap-3">
         <div className="flex-1">
-          <div className="text-slate-800 text-xl font-extrabold leading-snug">{prompt}</div>
+          <div className="text-slate-800 text-xl font-extrabold leading-snug dark:text-white">{prompt}</div>
           {kind === "char_mcq_sound" && audioRef.current ? (
             <div className="mt-3">
               <button
@@ -572,7 +572,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
                     audioRef.current.play();
                   } catch {}
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white ring-1 ring-slate-200 font-semibold text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white ring-1 ring-slate-200 font-semibold text-slate-700 hover:bg-slate-50 dark:bg-[#18181b] dark:ring-white/[0.08] dark:text-stone-200 dark:hover:bg-white/[0.04]"
               >
                 <Volume2 className="w-4 h-4" />
                 Play
@@ -615,7 +615,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
                 <div
                   className={
                     "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-extrabold ring-2 " +
-                    (active ? "bg-feather-500 text-white ring-feather-500" : "bg-white text-slate-400 ring-slate-200")
+                    (active ? "bg-feather-500 text-white ring-feather-500" : "bg-white text-slate-400 ring-slate-200 dark:bg-[#18181b] dark:text-stone-500 dark:ring-white/[0.08]")
                   }
                 >
                   {idx + 1}
@@ -623,7 +623,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
                 <div className="leading-snug">{c}</div>
               </div>
               {isMulti && active ? (
-                <div className="mt-2 text-xs font-bold text-feather-700">Selected</div>
+                <div className="mt-2 text-xs font-bold text-feather-700 dark:text-feather-400">Selected</div>
               ) : null}
             </button>
           );
@@ -631,11 +631,11 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
       </div>
 
       {isMulti ? (
-        <div className="mt-4 text-xs text-slate-500">
+        <div className="mt-4 text-xs text-slate-500 dark:text-stone-400">
           Select all that apply.
         </div>
       ) : (
-        <div className="mt-4 text-xs text-slate-500">
+        <div className="mt-4 text-xs text-slate-500 dark:text-stone-400">
           Tip: press 1–9 to choose, Enter to check.
         </div>
       )}
