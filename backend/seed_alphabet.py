@@ -164,13 +164,21 @@ def _true_false(letter, translit, hint, correct=True):
 
 
 def _char_build_word(word, translit):
-    tiles = list(word)
+    # Shuffle tile order so tapping them in the order shown isn't a free win —
+    # solutionIndices records which shuffled-tile position spells the word,
+    # resolved by original letter position (not by character) so repeated
+    # letters in a word don't collide.
+    order = list(range(len(word)))
+    _rng.shuffle(order)
+    tiles = [word[i] for i in order]
+    pos_of_tile = {orig_idx: tile_idx for tile_idx, orig_idx in enumerate(order)}
+    solution_indices = [pos_of_tile[i] for i in range(len(word))]
     return {
         "kind": "char_build_word",
         "prompt": "Spell the word.",
         "config": {
             "tiles": tiles,
-            "solutionIndices": list(range(len(tiles))),
+            "solutionIndices": solution_indices,
             "targetWord": word,
         },
         "expected_answer": word,
