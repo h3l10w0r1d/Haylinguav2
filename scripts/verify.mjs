@@ -188,6 +188,9 @@ const ROUTES = [
   ["GET", "/premium/plans", { expect: [200] }],
   ["POST", "/me/premium/checkout", {}],
   ["GET", "/cms/premium-plans", {}],
+  // new: sounds-first curriculum infra
+  ["POST", "/cms/exercises/bulk-import", {}],
+  ["POST", "/cms/seed/sounds", {}],
 ];
 
 const health = await req("GET", "/health");

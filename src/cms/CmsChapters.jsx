@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff, Sparkles } from "lucide-react";
+import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff, Sparkles, Ear } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 
 function cx(...a) {
@@ -142,19 +142,51 @@ export default function CmsChapters() {
     }
   }
 
+  async function seedSounds() {
+    if (!confirm(
+      "Add Phase 0 (Sounds) — 4 chapters of pure listening/speaking practice that come before the " +
+      "alphabet. This will also hide (not delete) the older duplicate alphabet/greetings chapters " +
+      "that collide in position with the starter curriculum, and shift existing chapters to make room."
+    )) return;
+    setBusy(true);
+    try {
+      const res = await api.seedSounds();
+      await refresh();
+      showToast(
+        res?.created
+          ? `Added ${res.chapters} chapters · ${res.exercises} exercises${res.hidden_chapters ? ` · hid ${res.hidden_chapters} duplicate chapter(s)` : ""}`
+          : "Sounds phase already present"
+      );
+    } catch (err) {
+      showToast(err.message || "Seeding failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <CmsLayout
       active="chapters"
       title="Chapters"
       actions={
-        <button
-          type="button"
-          onClick={seed}
-          disabled={busy}
-          className="btn3d btn3d-neutral text-sm !py-2 inline-flex items-center gap-2 disabled:opacity-60"
-        >
-          <Sparkles className="h-4 w-4 text-brand-500" /> Add starter curriculum
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={seedSounds}
+            disabled={busy}
+            className="btn3d btn3d-neutral text-sm !py-2 inline-flex items-center gap-2 disabled:opacity-60"
+          >
+            <Ear className="h-4 w-4 text-brand-500" /> Add sounds-first curriculum
+          </button>
+          <button
+            type="button"
+            onClick={seed}
+            disabled={busy}
+            className="btn3d btn3d-neutral text-sm !py-2 inline-flex items-center gap-2 disabled:opacity-60"
+          >
+            <Sparkles className="h-4 w-4 text-brand-500" /> Add starter curriculum
+          </button>
+        </div>
       }
     >
       <div className="space-y-5">

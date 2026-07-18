@@ -1456,6 +1456,21 @@ def cms_seed_curriculum(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+@router.post("/cms/seed/sounds")
+def cms_seed_sounds(request: Request, db=Depends(get_db)):
+    """Populate Phase 0 (Sounds) — pure audio-in/audio-out content that
+    precedes the alphabet in the sounds-first curriculum redesign. Also hides
+    (never deletes) the ad-hoc duplicate chapter track that collides in
+    position with the canonical seeded curriculum, and shifts existing
+    chapters back to make room. Idempotent."""
+    require_cms(request, db)
+    from seed_sounds import seed_sounds_phase
+    try:
+        res = seed_sounds_phase()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
@@ -2085,6 +2100,152 @@ async def cms_create_exercise(request: Request, db=Depends(get_db)):
 
     new_id = db.execute(q, params).scalar_one()
     return {"id": new_id}
+
+
+# Mirrors grading.grade_attempt's handled kinds (backend/grading.py) — an
+# exercise whose kind isn't graded anywhere is silently never answerable
+# (grade_attempt's fallthrough is `return False` with no error), so bulk
+# import rejects unknown kinds up front instead of that failing invisibly
+# the first time a learner answers it.
+_BULK_IMPORT_KNOWN_KINDS = {
+    "char_intro", "reading_section", "flashcard",
+    "letter_typing", "word_spelling", "fill_blank", "listen_type", "write_translate",
+    "speak", "speech_to_text", "pronounce", "speak_line",
+    "true_false",
+    "categorize",
+    "conjugation",
+    "letter_recognition", "multi_select", "highlight_grammar",
+    "translate_mcq", "char_mcq_sound", "audio_choice_tts", "multiple_choice", "select_missing_word",
+    "dialogue_mcq", "image_select", "reading_comprehension", "minimal_pairs",
+    "sentence_order", "word_bank", "listen_word_bank", "dialogue_order",
+    "char_build_word",
+    "match_pairs",
+}
+
+
+class BulkImportExerciseRow(BaseModel):
+    kind: str
+    prompt: Optional[str] = None
+    expected_answer: Optional[str] = None
+    order: Optional[int] = None
+    xp: Optional[int] = None
+    config: Optional[dict] = None
+    # For kinds that use exercise_options rows (translate_mcq, match_pairs, ...)
+    # rather than config.choices — same shape as POST /cms/options.
+    options: Optional[List[dict]] = None
+
+
+class BulkImportLessonExercises(BaseModel):
+    lesson_slug: str
+    exercises: List[BulkImportExerciseRow]
+
+
+class BulkImportExercisesIn(BaseModel):
+    lessons: List[BulkImportLessonExercises]
+
+
+@router.post("/cms/exercises/bulk-import")
+async def cms_bulk_import_exercises(payload: BulkImportExercisesIn, request: Request, db=Depends(get_db)):
+    """JSON -> exercises, grouped by lesson slug. Exists because the CSV
+    lesson importer (POST /cms/lessons/bulk-import) explicitly excludes
+    exercises — config shape varies too much per kind for a flat CSV row —
+    which otherwise leaves no path to create exercises at scale besides one
+    POST /cms/exercises call per exercise. Each exercise gets its own
+    SAVEPOINT, same pattern as the lesson importer, so one bad kind or
+    malformed config doesn't roll back the rest of a large batch."""
+    require_cms(request, db)
+    if not payload.lessons:
+        raise HTTPException(status_code=400, detail="lessons is required")
+    total_exercises = sum(len(l.exercises) for l in payload.lessons)
+    if total_exercises == 0:
+        raise HTTPException(status_code=400, detail="At least one exercise is required")
+    if total_exercises > 2000:
+        raise HTTPException(status_code=400, detail="Max 2000 exercises per import")
+
+    lesson_results: list[dict] = []
+    for lesson_entry in payload.lessons:
+        slug = (lesson_entry.lesson_slug or "").strip()
+        lesson_row = db.execute(text("SELECT id FROM lessons WHERE slug = :s"), {"s": slug}).mappings().first()
+        if not lesson_row:
+            lesson_results.append({
+                "lesson_slug": slug, "created": 0, "total": len(lesson_entry.exercises),
+                "results": [{"index": i, "status": "error", "error": "lesson not found"} for i in range(len(lesson_entry.exercises))],
+            })
+            continue
+        lesson_id = int(lesson_row["id"])
+
+        # New exercises append after whatever's already in the lesson unless
+        # a row explicitly sets its own order.
+        next_order = int(db.execute(
+            text('SELECT COALESCE(MAX("order"), 0) + 1 FROM exercises WHERE lesson_id = :l'), {"l": lesson_id}
+        ).scalar() or 1)
+
+        results: list[dict] = []
+        for i, ex in enumerate(lesson_entry.exercises):
+            sp = f"sp_bulk_ex_{lesson_id}_{i}"
+            try:
+                db.execute(text(f"SAVEPOINT {sp}"))
+
+                kind = normalize_kind((ex.kind or "").strip())
+                if kind not in _BULK_IMPORT_KNOWN_KINDS:
+                    raise ValueError(f"unknown exercise kind {kind!r}")
+                config = ex.config or {}
+                validate_exercise_config(kind, config)
+
+                order = int(ex.order) if ex.order is not None else next_order
+                next_order = (order + 1) if ex.order is not None else (next_order + 1)
+                xp = int(ex.xp) if ex.xp is not None else 10
+
+                new_id = db.execute(
+                    text(
+                        'INSERT INTO exercises (lesson_id, kind, prompt, expected_answer, "order", xp, config) '
+                        'VALUES (:lesson_id, :kind, :prompt, :expected_answer, :order, :xp, CAST(:config AS jsonb)) '
+                        "RETURNING id"
+                    ),
+                    {
+                        "lesson_id": lesson_id,
+                        "kind": kind,
+                        "prompt": (ex.prompt or "").strip(),
+                        "expected_answer": ex.expected_answer,
+                        "order": order,
+                        "xp": xp,
+                        "config": json.dumps(config),
+                    },
+                ).scalar_one()
+
+                for opt in (ex.options or []):
+                    opt_text = (opt.get("text") or "").strip()
+                    if not opt_text:
+                        continue
+                    db.execute(
+                        text(
+                            "INSERT INTO exercise_options (exercise_id, text, is_correct, side, match_key) "
+                            "VALUES (:eid, :text, :is_correct, :side, :match_key)"
+                        ),
+                        {
+                            "eid": new_id, "text": opt_text,
+                            "is_correct": bool(opt.get("is_correct") or False),
+                            "side": opt.get("side"), "match_key": opt.get("match_key"),
+                        },
+                    )
+
+                db.execute(text(f"RELEASE SAVEPOINT {sp}"))
+                results.append({"index": i, "status": "created", "exercise_id": int(new_id), "kind": kind})
+            except HTTPException as exc:
+                db.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
+                results.append({"index": i, "status": "error", "error": str(exc.detail)[:200]})
+            except Exception as exc:
+                db.execute(text(f"ROLLBACK TO SAVEPOINT {sp}"))
+                results.append({"index": i, "status": "error", "error": str(exc)[:200]})
+
+        created = sum(1 for r in results if r["status"] == "created")
+        lesson_results.append({
+            "lesson_slug": slug, "created": created, "total": len(lesson_entry.exercises), "results": results,
+        })
+
+    total_created = sum(l["created"] for l in lesson_results)
+    return {"created": total_created, "total": total_exercises, "lessons": lesson_results}
+
 
 @router.put("/cms/exercises/{exercise_id}")
 async def cms_update_exercise(exercise_id: int, request: Request, db=Depends(get_db)):

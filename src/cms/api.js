@@ -71,6 +71,7 @@ export function createCmsApi(accessToken) {
   const reorderChapters = (order) =>
     req("/cms/chapters/reorder", { method: "POST", body: JSON.stringify({ order }) });
   const seedCurriculum = () => req("/cms/seed/curriculum", { method: "POST" });
+  const seedSounds = () => req("/cms/seed/sounds", { method: "POST" });
 
   // Lessons
   const listLessons = () => req("/cms/lessons");
@@ -195,6 +196,7 @@ export function createCmsApi(accessToken) {
     deleteChapter,
     reorderChapters,
     seedCurriculum,
+    seedSounds,
     listLessons,
     getLesson,
     createLesson,
