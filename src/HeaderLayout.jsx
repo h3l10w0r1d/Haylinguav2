@@ -1,7 +1,8 @@
 // src/HeaderLayout.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store } from "lucide-react";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon } from "lucide-react";
+import { getTheme, toggleTheme } from "./lib/theme";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -52,6 +53,15 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
   const [xp, setXp] = useState(() => Number(user?.xp ?? 0) || 0);
   const [streak, setStreak] = useState(() => Number(user?.streak ?? 0) || 0);
+
+  // Light/dark theme — the class is already on <html> (index.html inline
+  // script); this just tracks it so the toggle icon reflects current state.
+  const [theme, setTheme] = useState(getTheme);
+  useEffect(() => {
+    const onChange = (e) => e?.detail?.theme && setTheme(e.detail.theme);
+    window.addEventListener("hay_theme_changed", onChange);
+    return () => window.removeEventListener("hay_theme_changed", onChange);
+  }, []);
 
   // Keep xp/streak in sync when user prop updates (login/refresh)
   useEffect(() => { if (user?.xp != null) setXp(Number(user.xp) || 0); }, [user?.xp]);
@@ -206,7 +216,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
   const linkBase =
     "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors";
   const activeClass = "bg-orange-600 text-white shadow-sm";
-  const inactiveClass = "text-gray-600 hover:bg-orange-50 hover:text-orange-700";
+  const inactiveClass = "text-gray-600 hover:bg-orange-50 hover:text-orange-700 dark:text-stone-300 dark:hover:bg-white/[0.06] dark:hover:text-white";
 
   const navLinkClass = ({ isActive }) =>
     `${linkBase} ${isActive ? activeClass : inactiveClass}`;
@@ -219,9 +229,9 @@ export default function HeaderLayout({ user, onLogout, children }) {
   const avatarSrc = resolveUrl(user?.avatar_url || user?.avatarUrl || user?.avatar || "");
 
   return (
-    <div className="min-h-screen bg-orange-50">
+    <div className="min-h-screen bg-orange-50 dark:bg-[#0d0d0f]">
       {/* Top header (desktop & tablet) */}
-      <header className="fixed top-0 inset-x-0 z-20 bg-white/90 backdrop-blur shadow-sm">
+      <header className="fixed top-0 inset-x-0 z-20 bg-white/90 backdrop-blur shadow-sm dark:bg-[#151517]/90 dark:shadow-none dark:ring-1 dark:ring-white/[0.06]">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 px-4 py-3">
           {/* Logo / home */}
           <button
@@ -232,8 +242,8 @@ export default function HeaderLayout({ user, onLogout, children }) {
               Հ
             </div>
             <div className="hidden flex-col items-start sm:flex">
-              <span className="font-bold text-lg leading-tight text-gray-900">Haylingua</span>
-              <span className="whitespace-nowrap text-[11px] leading-tight text-gray-500">
+              <span className="font-bold text-lg leading-tight text-gray-900 dark:text-white">Haylingua</span>
+              <span className="whitespace-nowrap text-[11px] leading-tight text-gray-500 dark:text-stone-400">
                 Armenian made playful
               </span>
             </div>
@@ -271,16 +281,16 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 type="button"
                 onClick={() => navigate("/premium")}
                 title={hearts?.is_premium ? "Premium — unlimited hearts" : "Get unlimited hearts"}
-                className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25"
               >
                 <Heart className={"w-4 h-4 " + (hearts?.is_premium ? "fill-rose-500" : "")} />
                 <span>{hearts ? (hearts.is_premium ? "∞" : `${hearts.current}/${hearts.max}`) : "–"}</span>
               </button>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">
                 <Flame className={"w-4 h-4 fill-orange-500 text-orange-500" + (streak > 0 ? " flame-flicker" : "")} />
                 <span>{streak}</span>
               </div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-yellow-700">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-yellow-700 dark:bg-amber-500/15 dark:text-amber-300">
                 <Zap className="w-4 h-4" />
                 <span>{xp}</span>
               </div>
@@ -288,12 +298,23 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 type="button"
                 onClick={() => navigate("/shop")}
                 title="Spend your gems in the shop"
-                className="inline-flex items-center gap-1.5 rounded-full bg-feather-50 px-3 py-1.5 text-xs font-semibold text-feather-600 transition hover:bg-feather-100"
+                className="inline-flex items-center gap-1.5 rounded-full bg-feather-50 px-3 py-1.5 text-xs font-semibold text-feather-600 transition hover:bg-feather-100 dark:bg-feather-500/15 dark:text-feather-300 dark:hover:bg-feather-500/25"
               >
                 <Gem className="w-4 h-4" />
                 <span>{gems == null ? "–" : gems}</span>
               </button>
             </div>
+
+            {/* Light / dark toggle */}
+            <button
+              type="button"
+              onClick={() => toggleTheme()}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label="Toggle theme"
+              className="grid h-9 w-9 place-items-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 dark:text-stone-300 dark:hover:bg-white/[0.08] dark:hover:text-white"
+            >
+              {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+            </button>
             {user ? (
               <>
                 <button
@@ -310,7 +331,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
                 <button
                   onClick={() => onLogout?.()}
-                  className="hidden md:inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-full transition-colors"
+                  className="hidden md:inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-full transition-colors dark:text-stone-400 dark:hover:bg-red-500/15 dark:hover:text-red-300"
                 >
                   <LogOut className="w-3 h-3" />
                   <span>Log out</span>
@@ -329,13 +350,13 @@ export default function HeaderLayout({ user, onLogout, children }) {
       </header>
 
       {/* Bottom nav (mobile only) */}
-      <nav className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-orange-100 md:hidden">
+      <nav className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-orange-100 md:hidden dark:bg-[#151517] dark:border-white/[0.06]">
         <div className="max-w-md mx-auto flex justify-around py-1.5">
           <NavLink
             to="/dashboard"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600" : "text-gray-500"
+                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
               }`
             }
           >
@@ -347,7 +368,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
             to="/friends"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600" : "text-gray-500"
+                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
               }`
             }
           >
@@ -359,7 +380,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
             to="/leaderboard"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600" : "text-gray-500"
+                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
               }`
             }
           >
@@ -371,7 +392,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
             to="/profile"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600" : "text-gray-500"
+                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
               }`
             }
           >

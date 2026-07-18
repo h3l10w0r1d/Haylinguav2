@@ -1,7 +1,7 @@
-// src/Dashboard.jsx — a vibrant, premium LIGHT dashboard.
-// A gradient hero anchors the page, white cards lift on soft shadows, colored
-// tinted chips carry energy, and the mascot has life. Rich, warm, consumer-app
-// feel — the opposite of flat. (Dark variant layered on later.)
+// src/Dashboard.jsx — a vibrant, premium dashboard with light + dark themes.
+// A gradient hero anchors the page, cards lift on soft shadows (light) or a
+// hairline ring (dark), colored tinted chips carry energy, the mascot has life.
+// Theme is class-based (Tailwind darkMode: "class"); see src/lib/theme.js.
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2 } from "lucide-react";
@@ -12,19 +12,33 @@ import ChestOpening from "./lib/ChestOpening";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
-// One card primitive: white, lifted on a soft shadow with a hairline ring.
-const CARD = "rounded-2xl bg-white shadow-[0_2px_10px_-2px_rgba(28,25,23,0.08)] ring-1 ring-black/[0.03]";
+// One card primitive: white lifted on a soft shadow (light) / dark surface with
+// a hairline ring (dark).
+const CARD =
+  "rounded-2xl bg-white shadow-[0_2px_10px_-2px_rgba(28,25,23,0.08)] ring-1 ring-black/[0.03] " +
+  "dark:bg-[#18181b] dark:shadow-none dark:ring-white/[0.07]";
+
+// Accent chip presets — tinted circle bg + icon color, both themes. Color lives
+// here so the whole page pulls from one palette.
+const ACCENT = {
+  brand:    { chip: "bg-brand-50 dark:bg-brand-500/15",       icon: "text-brand-500 dark:text-brand-400" },
+  grass:    { chip: "bg-grass-50 dark:bg-grass-500/15",       icon: "text-grass-600 dark:text-grass-400" },
+  amber:    { chip: "bg-amber-50 dark:bg-amber-500/15",       icon: "text-amber-500 dark:text-amber-400" },
+  feather:  { chip: "bg-feather-50 dark:bg-feather-500/15",   icon: "text-feather-500 dark:text-feather-400" },
+  cardinal: { chip: "bg-cardinal-50 dark:bg-cardinal-500/15", icon: "text-cardinal-500 dark:text-cardinal-400" },
+  pom:      { chip: "bg-pom-50 dark:bg-pom-500/15",           icon: "text-pom-500 dark:text-pom-400" },
+};
 
 // Small section label used across every card header.
 function Label({ children }) {
-  return <div className="text-[13px] font-extrabold text-stone-800">{children}</div>;
+  return <div className="text-[13px] font-extrabold text-stone-800 dark:text-stone-100">{children}</div>;
 }
 
 // A colored tinted circle behind an icon — the page's unit of "energy".
-function Chip({ tint, text, icon: Icon, size = "h-9 w-9", ic = "h-4.5 w-4.5" }) {
+function Chip({ chip, icon: Icon, size = "h-9 w-9", ic = "h-4.5 w-4.5" }) {
   return (
-    <span className={`grid shrink-0 place-items-center rounded-full ${size} ${tint}`}>
-      <Icon className={`${ic} ${text}`} />
+    <span className={`grid shrink-0 place-items-center rounded-full ${size} ${chip.chip}`}>
+      <Icon className={`${ic} ${chip.icon}`} />
     </span>
   );
 }
@@ -105,19 +119,19 @@ function DailyQuestsCard({ token }) {
               <QuestTick className="h-8 w-8" />
             </div>
           </div>
-          <div className="mt-3 text-sm font-extrabold text-stone-900">All quests complete!</div>
-          <div className="mt-0.5 text-xs text-stone-400">Come back tomorrow for more.</div>
+          <div className="mt-3 text-sm font-extrabold text-stone-900 dark:text-white">All quests complete!</div>
+          <div className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">Come back tomorrow for more.</div>
         </div>
       );
     }
     return (
       <div className={"quests-collapse flex items-center gap-3 overflow-hidden p-4 " + CARD}>
-        <Chip tint="bg-grass-50" text="text-grass-600" icon={QuestTick} size="h-10 w-10" ic="h-5 w-5" />
+        <Chip chip={ACCENT.grass} icon={QuestTick} size="h-10 w-10" ic="h-5 w-5" />
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-extrabold text-stone-900">Daily quests complete</div>
-          <div className="text-xs text-stone-400">All {quests.length} done</div>
+          <div className="text-[13px] font-extrabold text-stone-900 dark:text-white">Daily quests complete</div>
+          <div className="text-xs text-stone-400 dark:text-stone-500">All {quests.length} done</div>
         </div>
-        <span className="shrink-0 text-xs font-bold tabular-nums text-grass-600">{quests.length}/{quests.length}</span>
+        <span className="shrink-0 text-xs font-bold tabular-nums text-grass-600 dark:text-grass-400">{quests.length}/{quests.length}</span>
       </div>
     );
   }
@@ -126,7 +140,7 @@ function DailyQuestsCard({ token }) {
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Daily quests</Label>
-        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold tabular-nums text-brand-600">{data.completed}/{data.total}</span>
+        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold tabular-nums text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">{data.completed}/{data.total}</span>
       </div>
       <div className="mt-4 space-y-4">
         {data.quests.map((q) => {
@@ -134,18 +148,14 @@ function DailyQuestsCard({ token }) {
           const pct = q.target ? Math.round((q.progress / q.target) * 100) : 0;
           return (
             <div key={q.id} className="flex items-center gap-3">
-              <Chip
-                tint={q.done ? "bg-grass-50" : "bg-brand-50"}
-                text={q.done ? "text-grass-600" : "text-brand-500"}
-                icon={q.done ? Check : Icon}
-              />
+              <Chip chip={q.done ? ACCENT.grass : ACCENT.brand} icon={q.done ? Check : Icon} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="truncate text-[13px] font-semibold text-stone-700">{q.desc}</div>
+                  <div className="truncate text-[13px] font-semibold text-stone-700 dark:text-stone-200">{q.desc}</div>
                   {q.claimed ? (
-                    <span className="shrink-0 text-xs font-bold text-grass-600">Claimed</span>
+                    <span className="shrink-0 text-xs font-bold text-grass-600 dark:text-grass-400">Claimed</span>
                   ) : (
-                    <span className="shrink-0 text-xs font-bold tabular-nums text-stone-400">{q.progress}/{q.target}</span>
+                    <span className="shrink-0 text-xs font-bold tabular-nums text-stone-400 dark:text-stone-500">{q.progress}/{q.target}</span>
                   )}
                 </div>
                 {q.claimable ? (
@@ -157,7 +167,7 @@ function DailyQuestsCard({ token }) {
                     {claiming === q.id ? "…" : `Claim +${q.reward_xp} XP`}
                   </button>
                 ) : (
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-stone-100">
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-white/[0.07]">
                     <div className={"h-full rounded-full " + (q.done ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${Math.max(pct, 4)}%` }} />
                   </div>
                 )}
@@ -218,17 +228,17 @@ function ChestCard({ token }) {
     <>
       <div className={"flex items-center gap-3 p-4 " + CARD}>
         <div
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-amber-50 text-2xl"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-amber-50 text-2xl dark:bg-amber-500/15"
           style={opening ? { animation: "chestShake .85s ease-in-out" } : undefined}
         >
           🎁
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-extrabold text-stone-900">
+          <div className="text-[13px] font-extrabold text-stone-900 dark:text-white">
             {chests} chest{chests === 1 ? "" : "s"} to open
           </div>
-          <div className="text-xs text-stone-400">
-            {openErr ? <span className="text-cardinal-500">Couldn't open — try again.</span> : "Gems or an XP boost inside"}
+          <div className="text-xs text-stone-400 dark:text-stone-500">
+            {openErr ? <span className="text-cardinal-500 dark:text-cardinal-400">Couldn't open — try again.</span> : "Gems or an XP boost inside"}
           </div>
         </div>
         <button
@@ -277,11 +287,11 @@ function StreakCard({ token, streak }) {
   const cap = freeze.freeze_cap || 2;
 
   const status = frozen
-    ? { text: "Frozen", cls: "bg-feather-50 text-feather-600" }
+    ? { text: "Frozen", cls: "bg-feather-50 text-feather-600 dark:bg-feather-500/15 dark:text-feather-400" }
     : lit
-    ? { text: "Lit", cls: "bg-brand-50 text-brand-600" }
+    ? { text: "Lit", cls: "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400" }
     : atRisk
-    ? { text: "At risk", cls: "bg-amber-50 text-amber-600" }
+    ? { text: "At risk", cls: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400" }
     : null;
 
   return (
@@ -290,8 +300,8 @@ function StreakCard({ token, streak }) {
         <StreakFlame size={44} lit={lit} frozen={frozen} />
         <div className="flex-1">
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-extrabold leading-none tabular-nums text-stone-900">{n}</span>
-            <span className="text-[13px] font-semibold text-stone-500">day streak</span>
+            <span className="text-2xl font-extrabold leading-none tabular-nums text-stone-900 dark:text-white">{n}</span>
+            <span className="text-[13px] font-semibold text-stone-500 dark:text-stone-400">day streak</span>
           </div>
         </div>
         {status && <span className={"rounded-full px-2.5 py-1 text-xs font-extrabold " + status.cls}>{status.text}</span>}
@@ -307,7 +317,7 @@ function StreakCard({ token, streak }) {
                 key={i}
                 title={`${d?.label ?? ""}: ${Number(d?.value ?? 0)} XP`}
                 className={"flex-1 grid place-items-center h-7 rounded-lg text-[10px] font-extrabold transition " +
-                  (on ? "bg-gradient-to-b from-brand-400 to-brand-500 text-white shadow-[0_2px_6px_-2px_rgba(232,95,0,0.5)]" : "bg-stone-100 text-stone-400")}
+                  (on ? "bg-gradient-to-b from-brand-400 to-brand-500 text-white shadow-[0_2px_6px_-2px_rgba(232,95,0,0.5)]" : "bg-stone-100 text-stone-400 dark:bg-white/[0.07] dark:text-stone-500")}
               >
                 {label}
               </div>
@@ -316,7 +326,7 @@ function StreakCard({ token, streak }) {
         </div>
       )}
 
-      <p className="mt-3 text-xs leading-relaxed text-stone-500">
+      <p className="mt-3 text-xs leading-relaxed text-stone-500 dark:text-stone-400">
         {frozen
           ? "A streak freeze is protecting your flame — practice today to thaw it."
           : lit
@@ -335,21 +345,21 @@ function StreakCard({ token, streak }) {
         </button>
       )}
 
-      <div className="mt-4 flex items-center justify-between gap-2 border-t border-stone-100 pt-3">
+      <div className="mt-4 flex items-center justify-between gap-2 border-t border-stone-100 pt-3 dark:border-white/[0.07]">
         <div className="flex items-center gap-2" title="A streak freeze covers one missed day.">
           <div className="flex gap-0.5">
             {Array.from({ length: cap }).map((_, i) => (
-              <Snowflake key={i} className={"h-3.5 w-3.5 " + (i < freeze.freezes ? "text-feather-500" : "text-stone-300")} />
+              <Snowflake key={i} className={"h-3.5 w-3.5 " + (i < freeze.freezes ? "text-feather-500" : "text-stone-300 dark:text-stone-600")} />
             ))}
           </div>
-          <span className="text-xs text-stone-400">
+          <span className="text-xs text-stone-400 dark:text-stone-500">
             {freeze.freezes}/{cap} freeze{cap === 1 ? "" : "s"}
           </span>
         </div>
         {freeze.freezes < cap && (
           <button
             onClick={() => navigate("/shop")}
-            className="inline-flex items-center gap-1 rounded-lg bg-feather-50 px-2.5 py-1.5 text-xs font-extrabold text-feather-600 transition hover:bg-feather-100"
+            className="inline-flex items-center gap-1 rounded-lg bg-feather-50 px-2.5 py-1.5 text-xs font-extrabold text-feather-600 transition hover:bg-feather-100 dark:bg-feather-500/15 dark:text-feather-300 dark:hover:bg-feather-500/25"
           >
             <Gem className="h-3 w-3" /> Buy freeze
           </button>
@@ -369,12 +379,12 @@ function AchievementsCard({ token, onOpen }) {
   }, [token]);
   return (
     <button onClick={onOpen} className={"flex w-full items-center gap-3 p-4 text-left transition hover:-translate-y-0.5 " + CARD}>
-      <Chip tint="bg-amber-50" text="text-amber-500" icon={Trophy} size="h-10 w-10" ic="h-5 w-5" />
+      <Chip chip={ACCENT.amber} icon={Trophy} size="h-10 w-10" ic="h-5 w-5" />
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-extrabold text-stone-900">Achievements</div>
-        <div className="text-xs text-stone-400">{data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn."}</div>
+        <div className="text-[13px] font-extrabold text-stone-900 dark:text-white">Achievements</div>
+        <div className="text-xs text-stone-400 dark:text-stone-500">{data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn."}</div>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-stone-300" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-stone-300 dark:text-stone-600" />
     </button>
   );
 }
@@ -413,20 +423,22 @@ function ReviewCard({ token }) {
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Review</Label>
-        {urgent && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-600">Due now</span>}
+        {urgent && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">Due now</span>}
       </div>
       <div className="mt-3 flex items-baseline gap-2">
-        <span className={"text-3xl font-extrabold tabular-nums " + (urgent ? "text-brand-600" : "text-stone-400")}>{due}</span>
-        <span className="text-sm text-stone-500">{due === 1 ? "card due" : "cards due"}</span>
+        <span className={"text-3xl font-extrabold tabular-nums " + (urgent ? "text-brand-600 dark:text-brand-400" : "text-stone-400 dark:text-stone-500")}>{due}</span>
+        <span className="text-sm text-stone-500 dark:text-stone-400">{due === 1 ? "card due" : "cards due"}</span>
       </div>
-      <div className="mt-1 text-xs text-stone-400">
+      <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">
         {stats.mastered} mastered · {stats.learning} learning · {stats.new_cards} new
       </div>
       <button
         onClick={() => navigate("/review")}
         className={
           "mt-4 w-full rounded-xl py-2.5 text-sm font-extrabold transition active:scale-[0.99] " +
-          (urgent ? "bg-brand-500 text-white shadow-[0_6px_16px_-6px_rgba(255,122,26,0.6)] hover:bg-brand-600" : "bg-stone-100 text-stone-500 hover:bg-stone-200")
+          (urgent
+            ? "bg-brand-500 text-white shadow-[0_6px_16px_-6px_rgba(255,122,26,0.6)] hover:bg-brand-600"
+            : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-white/[0.07] dark:text-stone-300 dark:hover:bg-white/[0.12]")
         }
       >
         {urgent ? "Start review" : "Nothing due yet"}
@@ -453,11 +465,11 @@ function MistakesCard({ token, navigate }) {
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Your mistakes</Label>
-        <span className="rounded-full bg-cardinal-50 px-2 py-0.5 text-xs font-bold text-cardinal-500">Fix them</span>
+        <span className="rounded-full bg-cardinal-50 px-2 py-0.5 text-xs font-bold text-cardinal-500 dark:bg-cardinal-500/15 dark:text-cardinal-400">Fix them</span>
       </div>
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-3xl font-extrabold tabular-nums text-cardinal-500">{count}</span>
-        <span className="text-sm text-stone-500">{count === 1 ? "to re-master" : "to re-master"}</span>
+        <span className="text-3xl font-extrabold tabular-nums text-cardinal-500 dark:text-cardinal-400">{count}</span>
+        <span className="text-sm text-stone-500 dark:text-stone-400">{count === 1 ? "to re-master" : "to re-master"}</span>
       </div>
       <button
         onClick={() => navigate("/mistakes")}
@@ -488,15 +500,15 @@ function DailyGoalCard({ todayXp }) {
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Daily goal</Label>
-        {done && <span className="rounded-full bg-grass-50 px-2 py-0.5 text-xs font-bold text-grass-600">Done 🎉</span>}
+        {done && <span className="rounded-full bg-grass-50 px-2 py-0.5 text-xs font-bold text-grass-600 dark:bg-grass-500/15 dark:text-grass-400">Done 🎉</span>}
       </div>
 
       <div className="mt-3 flex items-baseline gap-1.5">
-        <span className="text-2xl font-extrabold leading-none text-stone-900 tabular-nums">{xp}</span>
-        <span className="text-sm text-stone-500">/ {goal} XP today</span>
+        <span className="text-2xl font-extrabold leading-none text-stone-900 tabular-nums dark:text-white">{xp}</span>
+        <span className="text-sm text-stone-500 dark:text-stone-400">/ {goal} XP today</span>
       </div>
 
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100">
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-white/[0.07]">
         <div
           className={"h-full rounded-full transition-all duration-500 " + (done ? "bg-gradient-to-r from-grass-400 to-grass-500" : "bg-gradient-to-r from-brand-400 to-brand-500")}
           style={{ width: `${Math.max(pct, xp > 0 ? 6 : 0)}%` }}
@@ -509,7 +521,7 @@ function DailyGoalCard({ todayXp }) {
             key={g}
             disabled={done}
             onClick={() => !done && pickGoal(g)}
-            className={"flex-1 rounded-lg py-1.5 text-xs font-extrabold transition " + (done ? (goal === g ? "bg-grass-500 text-white cursor-default" : "bg-stone-100 text-stone-300 cursor-default") : goal === g ? "bg-brand-500 text-white shadow-[0_4px_10px_-4px_rgba(255,122,26,0.6)]" : "bg-stone-100 text-stone-500 hover:bg-stone-200")}
+            className={"flex-1 rounded-lg py-1.5 text-xs font-extrabold transition " + (done ? (goal === g ? "bg-grass-500 text-white cursor-default" : "bg-stone-100 text-stone-300 cursor-default dark:bg-white/[0.05] dark:text-stone-600") : goal === g ? "bg-brand-500 text-white shadow-[0_4px_10px_-4px_rgba(255,122,26,0.6)]" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-white/[0.07] dark:text-stone-300 dark:hover:bg-white/[0.12]")}
           >
             {g}
           </button>
@@ -519,8 +531,8 @@ function DailyGoalCard({ todayXp }) {
   );
 }
 
-// Stat row — hearts / streak / XP / gems. Each a lifted white card with a
-// colored tinted chip + big number. This is where the palette gets to sing.
+// Stat row — hearts / streak / XP / gems. Each a lifted card with a colored
+// tinted chip + big number. This is where the palette gets to sing.
 function KpiStrip({ token, streak, xp }) {
   const [hearts, setHearts] = useState(null);
   const [gems, setGems] = useState(null);
@@ -559,20 +571,20 @@ function KpiStrip({ token, streak, xp }) {
     : "–";
 
   const items = [
-    { icon: Heart, label: "Hearts", value: heartLabel, tint: "bg-cardinal-50", text: "text-cardinal-500" },
-    { icon: Flame, label: "Streak", value: streak, tint: "bg-brand-50", text: "text-brand-500" },
-    { icon: Zap, label: "XP", value: xp, tint: "bg-amber-50", text: "text-amber-500" },
-    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, tint: "bg-feather-50", text: "text-feather-500" },
+    { icon: Heart, label: "Hearts", value: heartLabel, accent: ACCENT.cardinal },
+    { icon: Flame, label: "Streak", value: streak, accent: ACCENT.brand },
+    { icon: Zap, label: "XP", value: xp, accent: ACCENT.amber },
+    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, accent: ACCENT.feather },
   ];
 
   return (
     <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {items.map((it) => (
         <div key={it.label} className={"flex items-center gap-2.5 px-3.5 py-3 " + CARD}>
-          <Chip tint={it.tint} text={it.text} icon={it.icon} size="h-9 w-9" ic="h-4.5 w-4.5" />
+          <Chip chip={it.accent} icon={it.icon} size="h-9 w-9" ic="h-4.5 w-4.5" />
           <div className="min-w-0">
-            <div className="text-xl font-extrabold leading-none tabular-nums text-stone-900">{it.value}</div>
-            <div className="text-[11px] font-semibold text-stone-400">{it.label}</div>
+            <div className="text-xl font-extrabold leading-none tabular-nums text-stone-900 dark:text-white">{it.value}</div>
+            <div className="text-[11px] font-semibold text-stone-400 dark:text-stone-500">{it.label}</div>
           </div>
         </div>
       ))}
@@ -581,7 +593,8 @@ function KpiStrip({ token, streak, xp }) {
 }
 
 // The hero: a warm apricot→pomegranate gradient with the mascot, the greeting,
-// and the single next action on a white button. The energetic anchor.
+// and the single next action on a white button. Identical in both themes — the
+// signature colorful anchor.
 function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, isNewUser, onStart, navigate }) {
   const pct = unitTotal ? Math.round((unitDone / unitTotal) * 100) : 0;
   const complete = !loading && !lesson;
@@ -688,21 +701,21 @@ function LessonRow({ lesson, onStart }) {
       className={
         "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition " +
         (current
-          ? "bg-gradient-to-r from-brand-50 to-pom-50 ring-1 ring-brand-100"
+          ? "bg-gradient-to-r from-brand-50 to-pom-50 ring-1 ring-brand-100 dark:from-brand-500/10 dark:to-pom-500/10 dark:ring-brand-500/25"
           : done
-          ? "hover:bg-stone-50"
+          ? "hover:bg-stone-50 dark:hover:bg-white/[0.04]"
           : "cursor-default")
       }
     >
       <span
         className={
           "grid h-8 w-8 shrink-0 place-items-center rounded-full " +
-          (current ? "bg-brand-500 text-white shadow-[0_4px_10px_-3px_rgba(255,122,26,0.7)]" : done ? "bg-grass-500 text-white" : "bg-stone-100 text-stone-300")
+          (current ? "bg-brand-500 text-white shadow-[0_4px_10px_-3px_rgba(255,122,26,0.7)]" : done ? "bg-grass-500 text-white" : "bg-stone-100 text-stone-300 dark:bg-white/[0.07] dark:text-stone-600")
         }
       >
         {done ? <Check className="h-4 w-4" strokeWidth={3} /> : current ? <Play className="h-3.5 w-3.5 fill-white" /> : <Lock className="h-3.5 w-3.5" />}
       </span>
-      <span className={"min-w-0 flex-1 truncate text-sm font-semibold " + (current ? "text-stone-900" : locked ? "text-stone-400" : "text-stone-700")}>
+      <span className={"min-w-0 flex-1 truncate text-sm font-semibold " + (current ? "text-stone-900 dark:text-white" : locked ? "text-stone-400 dark:text-stone-600" : "text-stone-700 dark:text-stone-200")}>
         {lesson.title}
       </span>
       {current ? (
@@ -710,9 +723,9 @@ function LessonRow({ lesson, onStart }) {
           Continue <ArrowRight className="h-3 w-3" />
         </span>
       ) : done ? (
-        <span className="shrink-0 text-xs font-bold text-grass-600">Done</span>
+        <span className="shrink-0 text-xs font-bold text-grass-600 dark:text-grass-400">Done</span>
       ) : (
-        <span className="shrink-0 text-xs font-semibold text-stone-300">Locked</span>
+        <span className="shrink-0 text-xs font-semibold text-stone-300 dark:text-stone-600">Locked</span>
       )}
     </button>
   );
@@ -729,18 +742,18 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
     ? "bg-gradient-to-r from-grass-400 to-grass-500"
     : isCurrent
     ? "bg-gradient-to-r from-brand-400 to-brand-500"
-    : "bg-stone-200";
+    : "bg-stone-200 dark:bg-white/10";
   return (
     <section className={"mb-3 p-5 " + CARD}>
       <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0">
-          <span className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Unit {index + 1}</span>
-          <h3 className="truncate text-base font-extrabold text-stone-900">{unit.title}</h3>
+          <span className="text-xs font-extrabold uppercase tracking-wide text-stone-400 dark:text-stone-500">Unit {index + 1}</span>
+          <h3 className="truncate text-base font-extrabold text-stone-900 dark:text-white">{unit.title}</h3>
         </div>
-        <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-xs font-bold tabular-nums text-stone-500">{done}/{total}</span>
+        <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-xs font-bold tabular-nums text-stone-500 dark:bg-white/[0.07] dark:text-stone-300">{done}/{total}</span>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-100">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-white/[0.07]">
         <div className={"h-full rounded-full transition-all " + bar} style={{ width: `${pct}%` }} />
       </div>
 
@@ -756,19 +769,19 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
           title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
           className={
             "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition " +
-            (complete ? "bg-amber-50 ring-1 ring-amber-100 hover:bg-amber-100" : "cursor-default")
+            (complete ? "bg-amber-50 ring-1 ring-amber-100 hover:bg-amber-100 dark:bg-amber-500/10 dark:ring-amber-500/25 dark:hover:bg-amber-500/20" : "cursor-default")
           }
         >
-          <span className={"grid h-8 w-8 shrink-0 place-items-center rounded-full " + (complete ? "bg-amber-500 text-white shadow-[0_4px_10px_-3px_rgba(245,158,11,0.6)]" : "bg-stone-100 text-stone-300")}>
+          <span className={"grid h-8 w-8 shrink-0 place-items-center rounded-full " + (complete ? "bg-amber-500 text-white shadow-[0_4px_10px_-3px_rgba(245,158,11,0.6)]" : "bg-stone-100 text-stone-300 dark:bg-white/[0.07] dark:text-stone-600")}>
             <ShieldCheck className="h-4 w-4" />
           </span>
-          <span className={"min-w-0 flex-1 text-sm font-semibold " + (complete ? "text-amber-700" : "text-stone-400")}>
+          <span className={"min-w-0 flex-1 text-sm font-semibold " + (complete ? "text-amber-700 dark:text-amber-300" : "text-stone-400 dark:text-stone-600")}>
             Unit checkpoint
           </span>
           {complete ? (
             <span className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-[0_4px_10px_-3px_rgba(245,158,11,0.6)]">Test now</span>
           ) : (
-            <span className="shrink-0 text-xs font-semibold text-stone-300">Locked</span>
+            <span className="shrink-0 text-xs font-semibold text-stone-300 dark:text-stone-600">Locked</span>
           )}
         </button>
       </div>
@@ -779,8 +792,8 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
 function CurriculumSummit({ pct }) {
   return (
     <div className="flex flex-col items-center gap-1 py-8 text-center">
-      <div className="text-sm font-extrabold text-stone-600">You're at the summit 🎉</div>
-      <div className="text-xs text-stone-400">{pct}% of the journey climbed</div>
+      <div className="text-sm font-extrabold text-stone-600 dark:text-stone-300">You're at the summit 🎉</div>
+      <div className="text-xs text-stone-400 dark:text-stone-500">{pct}% of the journey climbed</div>
     </div>
   );
 }
@@ -788,13 +801,13 @@ function CurriculumSummit({ pct }) {
 // Quick access — colored tinted chips in one card.
 function QuickLinks({ navigate }) {
   const tiles = [
-    { icon: Dumbbell, label: "Practice", to: "/practice", tint: "bg-brand-50", text: "text-brand-500" },
-    { icon: BookOpen, label: "Words", to: "/vocabulary", tint: "bg-grass-50", text: "text-grass-600" },
-    { icon: BarChart2, label: "Progress", to: "/progress", tint: "bg-feather-50", text: "text-feather-500" },
-    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", tint: "bg-amber-50", text: "text-amber-500" },
-    { icon: Users, label: "Friends", to: "/friends", tint: "bg-feather-50", text: "text-feather-500" },
-    { icon: Store, label: "Shop", to: "/shop", tint: "bg-pom-50", text: "text-pom-500" },
-    { icon: Star, label: "Achievements", to: "/achievements", tint: "bg-amber-50", text: "text-amber-500" },
+    { icon: Dumbbell, label: "Practice", to: "/practice", accent: ACCENT.brand },
+    { icon: BookOpen, label: "Words", to: "/vocabulary", accent: ACCENT.grass },
+    { icon: BarChart2, label: "Progress", to: "/progress", accent: ACCENT.feather },
+    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", accent: ACCENT.amber },
+    { icon: Users, label: "Friends", to: "/friends", accent: ACCENT.feather },
+    { icon: Store, label: "Shop", to: "/shop", accent: ACCENT.pom },
+    { icon: Star, label: "Achievements", to: "/achievements", accent: ACCENT.amber },
   ];
   return (
     <div className={"grid grid-cols-4 gap-1 p-2.5 " + CARD}>
@@ -803,10 +816,10 @@ function QuickLinks({ navigate }) {
           key={t.to}
           type="button"
           onClick={() => navigate(t.to)}
-          className="flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition hover:bg-stone-50 active:scale-[0.96]"
+          className="flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition hover:bg-stone-50 active:scale-[0.96] dark:hover:bg-white/[0.04]"
         >
-          <Chip tint={t.tint} text={t.text} icon={t.icon} size="h-10 w-10" ic="h-5 w-5" />
-          <span className="w-full truncate text-center text-[11px] font-bold text-stone-600">{t.label}</span>
+          <Chip chip={t.accent} icon={t.icon} size="h-10 w-10" ic="h-5 w-5" />
+          <span className="w-full truncate text-center text-[11px] font-bold text-stone-600 dark:text-stone-300">{t.label}</span>
         </button>
       ))}
     </div>
@@ -919,11 +932,11 @@ export default function Dashboard({ user }) {
   };
 
   // ── Architecture ──────────────────────────────────────────────────────────
-  // A vibrant light command center: a colored stat row, a gradient hero that
-  // owns the primary action, curriculum as lifted white cards, and a sidebar
-  // of colorful supporting cards — sticky on desktop, stacked on mobile.
+  // A vibrant command center: a colored stat row, a gradient hero that owns the
+  // primary action, curriculum as lifted cards, and a sidebar of colorful
+  // supporting cards. Light + dark via Tailwind's class strategy.
   return (
-    <div className="min-h-screen bg-[#f5f4f1]">
+    <div className="min-h-screen bg-[#f5f4f1] dark:bg-[#0d0d0f]">
       <StreakCelebration streak={stats.streak} />
       <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_336px] lg:items-start lg:gap-6">
         {/* ── Main: stats + hero + curriculum ── */}
@@ -943,18 +956,18 @@ export default function Dashboard({ user }) {
           />
 
           {error && (
-            <div className="mb-4 rounded-xl border border-cardinal-200 bg-cardinal-50 px-4 py-3 text-sm font-medium text-cardinal-600">
+            <div className="mb-4 rounded-xl border border-cardinal-200 bg-cardinal-50 px-4 py-3 text-sm font-medium text-cardinal-600 dark:border-cardinal-500/30 dark:bg-cardinal-500/10 dark:text-cardinal-300">
               {error}
             </div>
           )}
 
           {loadingLessons ? (
-            <div className="flex items-center justify-center gap-2 py-20 text-stone-400">
+            <div className="flex items-center justify-center gap-2 py-20 text-stone-400 dark:text-stone-500">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span className="font-medium">Mapping your journey…</span>
             </div>
           ) : units.length === 0 ? (
-            <div className={"p-8 text-center font-medium text-stone-500 " + CARD}>
+            <div className={"p-8 text-center font-medium text-stone-500 dark:text-stone-400 " + CARD}>
               No lessons available yet. Check back soon!
             </div>
           ) : (
