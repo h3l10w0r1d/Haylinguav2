@@ -1,8 +1,8 @@
 # backend/seed_sounds.py
 """
 Phase 0 — Sounds. Seeds pure audio-in/audio-out content (minimal_pairs +
-speak only, zero letters shown) that must be completed before the alphabet
-chapters, per the sounds-first curriculum redesign.
+speak only) that must be completed before the alphabet chapters, per the
+sounds-first curriculum redesign.
 
 Why this exists: Eastern Armenian has a three-way stop/affricate contrast —
 voiced (բ/գ/դ/ձ/ջ), voiceless aspirated (փ/ք/թ/ց/չ), and voiceless
@@ -15,6 +15,17 @@ failure mode in Armenian-as-a-foreign-language pedagogy. Section 0c below
 minimal-pair discipline; 0a/0b/0d use real, clear common words without
 requiring every exercise to be a surgical minimal pair, since those sub-phases
 are explicitly the "easy" on-ramp, not the hard part.
+
+NO ARMENIAN SCRIPT IS EVER RENDERED ON SCREEN in this phase — only Duolingo's
+own approach for unfamiliar scripts, applied here: audio plays the real
+Armenian, but the on-screen answer choices are romanized (Latin letters the
+learner already knows), not the native glyphs, so answering is a genuine
+ear-discrimination task rather than blind squiggle-matching. The romanization
+itself encodes the three-way contrast (plain = tenuis "p", apostrophe =
+aspirated "p'", plain voiced = "b") so the visual marker reinforces rather
+than hides the distinction. First exposure to the actual Armenian letters is
+reserved for Phase 1 (Alphabet), which is the whole point of sequencing sounds
+before letters — showing the script early here would undercut that premise.
 
 Idempotent: namespaces lessons with the "snd-" slug prefix and skips
 entirely if that content already exists — same pattern as seed_curriculum.py.
@@ -37,18 +48,47 @@ from database import engine
 
 _XP = {"minimal_pairs": 10, "speak": 15}
 
+# Armenian word -> romanized display form. Romanization is deliberately
+# phonetic-for-English-readers, not scholarly transliteration, since the goal
+# is "readable without knowing the script" — but it's consistent throughout,
+# and for the three-way contrast specifically it always uses the same marker
+# (apostrophe = aspirated) so the pattern itself is learnable.
+_ROMAN = {
+    "հաց": "hats", "ջուր": "jur", "միս": "mis", "ձի": "dzi", "ձու": "dzu",
+    "կաթ": "kat", "պանիր": "panir",
+    "մատ": "mat", "մոտ": "mot", "սար": "sar", "զանգ": "zang", "շուն": "shun",
+    "ժամ": "zham", "մայր": "mayr", "հայր": "hayr", "լույս": "luys", "նույն": "nuyn",
+    "վարդ": "vard", "յոթ": "yot", "ֆիլմ": "film",
+    "պապ": "pap", "փիղ": "p'igh", "բադ": "bad",
+    "կով": "kov", "քիթ": "k'it'", "գառ": "gar",
+    "տուն": "tun", "թիվ": "t'iv", "դուռ": "dur",
+    "ծառ": "tsar", "ցուրտ": "ts'urt", "ձեռք": "dzerk'",
+    "ճամփա": "champa", "չար": "ch'ar", "ջերմ": "jerm",
+    "աղ": "agh", "խնձոր": "khndzor", "ողջույն": "voghjuyn", "խոզ": "khoz",
+    "առյուծ": "arryuts", "թռչուն": "t'rrchun",
+}
 
-def mpq(prompt, tts_text, choices, answer_index):
-    """minimal_pairs: play `tts_text`, learner picks which of `choices` they heard."""
+
+def mpq(prompt, tts_text, hear_choices, answer_index):
+    """minimal_pairs: play `tts_text` (real Armenian), learner picks which of
+    `hear_choices` (Armenian words) they heard. On-screen the choices render
+    as their romanized form (_ROMAN), never the raw script — see module
+    docstring. `tts_text` must be one of `hear_choices`."""
     return {
         "kind": "minimal_pairs",
         "prompt": prompt,
-        "config": {"ttsText": tts_text, "choices": choices, "answerIndex": answer_index},
+        "config": {
+            "ttsText": tts_text,
+            "choices": [_ROMAN[w] for w in hear_choices],
+            "answerIndex": answer_index,
+        },
     }
 
 
 def sp(prompt, target, accepted=None):
-    """speak: learner records themselves saying `target`; graded by transcript similarity."""
+    """speak: learner records themselves saying `target`; graded by transcript
+    similarity. Prompt is English-only — the Armenian target is never shown
+    on screen, only used server-side for grading."""
     return {
         "kind": "speak",
         "prompt": prompt,
@@ -68,16 +108,18 @@ _ADHOC_LESSON_SLUGS = ["alphabet-basics", "alphabet-sounds", "basic-words", "gre
 # 0a — Vowels (ա ե ը ի ո ու). Quick, low-difficulty pass.
 # ---------------------------------------------------------------------------
 _VOWELS_LESSON = ("snd-vowels-1", "The Six Vowels", "Warm up your ear before anything else.", [
-    mpq("Listen carefully. Later you'll learn to read these words — for now, just listen and choose what you hear.",
+    mpq("Listen carefully. You'll learn to read these words later — for now, just listen and "
+        "choose what you hear. The options below are spelled the way they sound, not in Armenian "
+        "script — you haven't learned the letters yet, and that's the point!",
         "հաց", ["հաց", "միս", "ջուր"], 0),
     mpq(_LISTEN, "ջուր", ["հաց", "ջուր", "կաթ"], 1),
     mpq(_LISTEN, "միս", ["միս", "պանիր", "հաց"], 0),
     sp("Now you try — say \"bread\".", "հաց"),
-    mpq("These two differ in just one vowel sound — ի vs ու.", "ձի", ["ձի", "ձու", "գառ"], 0),
+    mpq("These two differ in just one vowel sound.", "ձի", ["ձի", "ձու", "գառ"], 0),
     mpq(_LISTEN, "ձու", ["ձի", "ձու", "հաց"], 1),
     sp("Say \"horse\".", "ձի"),
     sp("Say \"egg\".", "ձու"),
-    mpq("Another close pair — ա vs ո.", "մատ", ["մատ", "մոտ", "միս"], 0),
+    mpq("Another close pair.", "մատ", ["մատ", "մոտ", "միս"], 0),
     mpq(_LISTEN, "մոտ", ["մատ", "մոտ", "ջուր"], 1),
     sp("Say \"finger\".", "մատ"),
     sp("Say \"near\".", "մոտ"),
@@ -115,7 +157,10 @@ _CONSONANTS_LESSON_2 = ("snd-consonants-2", "Nasals & Glides", "Sounds like m, n
 # ---------------------------------------------------------------------------
 # 0c — THE three-way contrast. The pedagogical core of Phase 0.
 # Each lesson: 3-way intro -> 3x speak -> 3x pairwise drill -> mixed review.
-# Strict minimal-pair / clear-triplet discipline throughout.
+# Strict minimal-pair / clear-triplet discipline throughout. The romanized
+# choices always use the same p/p'/b-style marker for the contrast, so the
+# spelling pattern itself teaches "plain vs puff-of-air vs voiced" even
+# before the learner can read a single Armenian letter.
 # ---------------------------------------------------------------------------
 def _triad_lesson(slug, title, desc, intro, w_plain, w_aspirated, w_voiced,
                    gloss_plain, gloss_aspirated, gloss_voiced):
@@ -134,40 +179,41 @@ def _triad_lesson(slug, title, desc, intro, w_plain, w_aspirated, w_voiced,
 
 
 _TRIAD_LABIAL = _triad_lesson(
-    "snd-triad-labial", "Պ / Փ / Բ", "The labial three-way split.",
+    "snd-triad-labial", "P / P' / B", "The labial three-way split.",
     "This is the hardest part of Armenian sounds — but also the most important! "
-    "Three sounds, three ways of saying (roughly) \"p/b\": պ (crisp, no puff of air), "
-    "փ (with a strong puff of air), բ (voiced, like English b). Listen closely.",
+    "Three sounds, three ways of saying (roughly) \"p/b\": plain p (crisp, no puff of air), "
+    "p' (with a strong puff of air — that's what the apostrophe means throughout this course), "
+    "b (voiced, like English b). Listen closely.",
     "պապ", "փիղ", "բադ", "grandpa", "elephant", "duck",
 )
 _TRIAD_VELAR = _triad_lesson(
-    "snd-triad-velar", "Կ / Ք / Գ", "The velar three-way split.",
-    "Same idea, new set of sounds: կ (crisp k), ք (k with a strong puff of air), գ (voiced, like English g).",
+    "snd-triad-velar", "K / K' / G", "The velar three-way split.",
+    "Same idea, new set of sounds: k (crisp), k' (with a strong puff of air), g (voiced, like English g).",
     "կով", "քիթ", "գառ", "cow", "nose", "lamb",
 )
 _TRIAD_DENTAL = _triad_lesson(
-    "snd-triad-dental", "Տ / Թ / Դ", "The dental three-way split.",
-    "Third set: տ (crisp t), թ (t with a strong puff of air), դ (voiced, like English d).",
+    "snd-triad-dental", "T / T' / D", "The dental three-way split.",
+    "Third set: t (crisp), t' (with a strong puff of air), d (voiced, like English d).",
     "տուն", "թիվ", "դուռ", "house", "number", "door",
 )
 _TRIAD_AFFRICATE_1 = _triad_lesson(
-    "snd-triad-affricate1", "Ծ / Ց / Ձ", "The first affricate three-way split.",
-    "These \"ts\" sounds don't exist in English at all — ծ (crisp ts), ց (ts with a strong puff "
-    "of air), ձ (voiced, like \"ds\" in \"kids\"). Listen closely.",
+    "snd-triad-affricate1", "Ts / Ts' / Dz", "The first affricate three-way split.",
+    "These \"ts\" sounds don't exist in English at all — ts (crisp), ts' (with a strong puff "
+    "of air), dz (voiced, like \"ds\" in \"kids\"). Listen closely.",
     "ծառ", "ցուրտ", "ձեռք", "tree", "cold", "hand",
 )
 _TRIAD_AFFRICATE_2 = _triad_lesson(
-    "snd-triad-affricate2", "Ճ / Չ / Ջ", "The second affricate three-way split.",
-    "Last set of hard sounds: ճ (crisp ch), չ (ch with a strong puff of air), ջ (voiced, like English j).",
+    "snd-triad-affricate2", "Ch / Ch' / J", "The second affricate three-way split.",
+    "Last set of hard sounds: ch (crisp), ch' (with a strong puff of air), j (voiced, like English j).",
     "ճամփա", "չար", "ջերմ", "road", "naughty", "warm",
 )
 
 # ---------------------------------------------------------------------------
 # 0d — Sounds with no close English equivalent.
 # ---------------------------------------------------------------------------
-_UNIQUE_LESSON_1 = ("snd-unique-1", "Ղ vs Խ", "Two throaty sounds English doesn't have.", [
-    mpq("Two sounds with no English equivalent: ղ is a soft, gargled sound (a bit like a French r); "
-        "խ is a rougher, throat-clearing sound (like German \"Bach\" or Scottish \"loch\").",
+_UNIQUE_LESSON_1 = ("snd-unique-1", "Gh vs Kh", "Two throaty sounds English doesn't have.", [
+    mpq("Two sounds with no English equivalent: gh is a soft, gargled sound (a bit like a French r); "
+        "kh is a rougher, throat-clearing sound (like German \"Bach\" or Scottish \"loch\").",
         "աղ", ["աղ", "խնձոր"], 0),
     mpq(_LISTEN, "խնձոր", ["աղ", "խնձոր"], 1),
     sp("Say \"salt\".", "աղ"),
@@ -179,9 +225,10 @@ _UNIQUE_LESSON_1 = ("snd-unique-1", "Ղ vs Խ", "Two throaty sounds English does
     mpq("Mixed review.", "աղ", ["աղ", "խոզ"], 0),
     mpq("Mixed review.", "խնձոր", ["ողջույն", "խնձոր"], 1),
 ])
-_UNIQUE_LESSON_2 = ("snd-unique-2", "Ր vs Ռ", "A quick tap vs. a rolled r.", [
-    mpq("Armenian has TWO different r-sounds: ր is a quick tap (like Spanish \"pero\"); "
-        "ռ is a rolled/trilled r (like Spanish \"perro\" or Russian r). This is subtle — listen carefully!",
+_UNIQUE_LESSON_2 = ("snd-unique-2", "R vs Rr", "A quick tap vs. a rolled r.", [
+    mpq("Armenian has TWO different r-sounds: r is a quick tap (like Spanish \"pero\"); "
+        "rr is a rolled/trilled r (like Spanish \"perro\" or Russian r) — written doubled throughout "
+        "this course. This is subtle — listen carefully!",
         "սար", ["սար", "դուռ"], 0),
     mpq(_LISTEN, "դուռ", ["սար", "դուռ"], 1),
     sp("Say \"mountain\".", "սար"),
