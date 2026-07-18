@@ -1,7 +1,8 @@
-// src/Dashboard.jsx — a minimal, modern dashboard.
-// Flat near-black ground, hairline surfaces, one accent (apricot orange),
-// calm typography. Primitive by design: no glow, no nested card chrome,
-// one consistent radius scale, restraint over decoration.
+// src/Dashboard.jsx — a minimal, modern LIGHT dashboard.
+// Warm off-white ground (stone) to pair with the apricot brand, white cards
+// with soft shadows for depth, one restrained accent. Primitive by design:
+// one radius scale, no heavy chrome, color reserved for the next action.
+// (A dark variant will be layered on later.)
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2 } from "lucide-react";
@@ -12,12 +13,12 @@ import ChestOpening from "./lib/ChestOpening";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
-// One card primitive: hairline border, barely-there surface, single radius.
-const CARD = "rounded-2xl border border-white/[0.07] bg-white/[0.02]";
+// One card primitive: hairline border, white surface, whisper of a shadow.
+const CARD = "rounded-2xl border border-stone-200/80 bg-white shadow-[0_1px_2px_rgba(28,25,23,0.04)]";
 
-// Small muted section label used across every card header.
+// Small section label used across every card header.
 function Label({ children }) {
-  return <div className="text-[13px] font-bold text-white/90">{children}</div>;
+  return <div className="text-[13px] font-bold text-stone-800">{children}</div>;
 }
 
 // Animated checkmark — the stroke draws itself in via CSS (.quest-tick-path).
@@ -96,19 +97,19 @@ function DailyQuestsCard({ token }) {
               <QuestTick className="h-8 w-8" />
             </div>
           </div>
-          <div className="mt-3 text-sm font-bold text-white">All quests complete</div>
-          <div className="mt-0.5 text-xs text-white/40">Come back tomorrow for more.</div>
+          <div className="mt-3 text-sm font-bold text-stone-900">All quests complete</div>
+          <div className="mt-0.5 text-xs text-stone-400">Come back tomorrow for more.</div>
         </div>
       );
     }
     return (
       <div className={"quests-collapse flex items-center gap-3 overflow-hidden p-4 " + CARD}>
-        <QuestTick className="h-5 w-5 shrink-0 text-grass-400" />
+        <QuestTick className="h-5 w-5 shrink-0 text-grass-600" />
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold text-white">Daily quests complete</div>
-          <div className="text-xs text-white/40">All {quests.length} done</div>
+          <div className="text-[13px] font-bold text-stone-900">Daily quests complete</div>
+          <div className="text-xs text-stone-400">All {quests.length} done</div>
         </div>
-        <span className="shrink-0 text-xs font-semibold tabular-nums text-white/40">{quests.length}/{quests.length}</span>
+        <span className="shrink-0 text-xs font-semibold tabular-nums text-stone-400">{quests.length}/{quests.length}</span>
       </div>
     );
   }
@@ -117,7 +118,7 @@ function DailyQuestsCard({ token }) {
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Daily quests</Label>
-        <span className="text-xs font-semibold tabular-nums text-white/40">{data.completed}/{data.total}</span>
+        <span className="text-xs font-semibold tabular-nums text-stone-400">{data.completed}/{data.total}</span>
       </div>
       <div className="mt-4 space-y-4">
         {data.quests.map((q) => {
@@ -127,27 +128,27 @@ function DailyQuestsCard({ token }) {
             <div key={q.id}>
               <div className="flex items-center gap-2.5">
                 {q.done ? (
-                  <Check className="h-4 w-4 shrink-0 text-grass-400" strokeWidth={3} />
+                  <Check className="h-4 w-4 shrink-0 text-grass-600" strokeWidth={3} />
                 ) : (
-                  <Icon className="h-4 w-4 shrink-0 text-white/35" />
+                  <Icon className="h-4 w-4 shrink-0 text-stone-400" />
                 )}
-                <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-white/80">{q.desc}</div>
+                <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-stone-700">{q.desc}</div>
                 {q.claimed ? (
-                  <span className="shrink-0 text-xs font-semibold text-grass-400">Claimed</span>
+                  <span className="shrink-0 text-xs font-semibold text-grass-600">Claimed</span>
                 ) : (
-                  <span className="shrink-0 text-xs font-semibold tabular-nums text-white/35">{q.progress}/{q.target}</span>
+                  <span className="shrink-0 text-xs font-semibold tabular-nums text-stone-400">{q.progress}/{q.target}</span>
                 )}
               </div>
               {q.claimable ? (
                 <button
                   onClick={() => claim(q.id)}
                   disabled={claiming === q.id}
-                  className="mt-2 w-full rounded-lg bg-brand-500 py-1.5 text-xs font-bold text-white transition hover:bg-brand-400 active:scale-[0.99] disabled:opacity-60"
+                  className="mt-2 w-full rounded-lg bg-brand-500 py-1.5 text-xs font-bold text-white transition hover:bg-brand-600 active:scale-[0.99] disabled:opacity-60"
                 >
                   {claiming === q.id ? "…" : `Claim +${q.reward_xp} XP`}
                 </button>
               ) : (
-                <div className="mt-2 ml-6 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+                <div className="mt-2 ml-6 h-1 overflow-hidden rounded-full bg-stone-200/70">
                   <div className={"h-full rounded-full " + (q.done ? "bg-grass-500" : "bg-brand-500")} style={{ width: `${Math.max(pct, 4)}%` }} />
                 </div>
               )}
@@ -213,17 +214,17 @@ function ChestCard({ token }) {
           🎁
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold text-white">
+          <div className="text-[13px] font-bold text-stone-900">
             {chests} chest{chests === 1 ? "" : "s"} to open
           </div>
-          <div className="text-xs text-white/40">
-            {openErr ? <span className="text-cardinal-400">Couldn't open — try again.</span> : "Gems or an XP boost inside"}
+          <div className="text-xs text-stone-400">
+            {openErr ? <span className="text-cardinal-500">Couldn't open — try again.</span> : "Gems or an XP boost inside"}
           </div>
         </div>
         <button
           onClick={open}
           disabled={opening || chests <= 0}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-400 active:scale-[0.98] disabled:opacity-60"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-600 active:scale-[0.98] disabled:opacity-60"
         >
           <Gift className="h-3.5 w-3.5" /> {opening ? "Opening…" : "Open"}
         </button>
@@ -266,11 +267,11 @@ function StreakCard({ token, streak }) {
   const cap = freeze.freeze_cap || 2;
 
   const status = frozen
-    ? { text: "Frozen", color: "text-feather-400" }
+    ? { text: "Frozen", color: "text-feather-600" }
     : lit
-    ? { text: "Lit", color: "text-grass-400" }
+    ? { text: "Lit", color: "text-grass-600" }
     : atRisk
-    ? { text: "At risk", color: "text-gold-400" }
+    ? { text: "At risk", color: "text-amber-600" }
     : null;
 
   return (
@@ -279,8 +280,8 @@ function StreakCard({ token, streak }) {
         <StreakFlame size={40} lit={lit} frozen={frozen} />
         <div className="flex-1">
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-extrabold leading-none tabular-nums text-white">{n}</span>
-            <span className="text-[13px] font-medium text-white/50">day streak</span>
+            <span className="text-2xl font-extrabold leading-none tabular-nums text-stone-900">{n}</span>
+            <span className="text-[13px] font-medium text-stone-500">day streak</span>
           </div>
           {status && <div className={"mt-1 text-xs font-semibold " + status.color}>{status.text}</div>}
         </div>
@@ -296,7 +297,7 @@ function StreakCard({ token, streak }) {
                 key={i}
                 title={`${d?.label ?? ""}: ${Number(d?.value ?? 0)} XP`}
                 className={"flex-1 grid place-items-center h-7 rounded-md text-[10px] font-bold transition " +
-                  (on ? "bg-brand-500 text-white" : "bg-white/[0.05] text-white/30")}
+                  (on ? "bg-brand-500 text-white" : "bg-stone-100 text-stone-400")}
               >
                 {label}
               </div>
@@ -305,7 +306,7 @@ function StreakCard({ token, streak }) {
         </div>
       )}
 
-      <p className="mt-3 text-xs leading-relaxed text-white/45">
+      <p className="mt-3 text-xs leading-relaxed text-stone-500">
         {frozen
           ? "A streak freeze is protecting your flame — practice today to thaw it."
           : lit
@@ -318,27 +319,27 @@ function StreakCard({ token, streak }) {
       {atRisk && freeze.freezes === 0 && (
         <button
           onClick={() => navigate("/practice")}
-          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-bold text-white transition hover:bg-brand-400 active:scale-[0.98]"
+          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-sm font-bold text-white transition hover:bg-brand-600 active:scale-[0.98]"
         >
           Practice now <ArrowRight className="h-4 w-4" />
         </button>
       )}
 
-      <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
+      <div className="mt-4 flex items-center justify-between gap-2 border-t border-stone-100 pt-3">
         <div className="flex items-center gap-2" title="A streak freeze covers one missed day.">
           <div className="flex gap-0.5">
             {Array.from({ length: cap }).map((_, i) => (
-              <Snowflake key={i} className={"h-3.5 w-3.5 " + (i < freeze.freezes ? "text-feather-400" : "text-white/15")} />
+              <Snowflake key={i} className={"h-3.5 w-3.5 " + (i < freeze.freezes ? "text-feather-500" : "text-stone-300")} />
             ))}
           </div>
-          <span className="text-xs text-white/40">
+          <span className="text-xs text-stone-400">
             {freeze.freezes}/{cap} freeze{cap === 1 ? "" : "s"}
           </span>
         </div>
         {freeze.freezes < cap && (
           <button
             onClick={() => navigate("/shop")}
-            className="text-xs font-semibold text-white/50 transition hover:text-white"
+            className="text-xs font-semibold text-stone-500 transition hover:text-stone-900"
           >
             Buy freeze
           </button>
@@ -357,13 +358,13 @@ function AchievementsCard({ token, onOpen }) {
       .catch(() => {});
   }, [token]);
   return (
-    <button onClick={onOpen} className={"flex w-full items-center gap-3 p-4 text-left transition hover:border-white/[0.14] " + CARD}>
-      <Trophy className="h-5 w-5 shrink-0 text-gold-400" />
+    <button onClick={onOpen} className={"flex w-full items-center gap-3 p-4 text-left transition hover:border-stone-300 " + CARD}>
+      <Trophy className="h-5 w-5 shrink-0 text-amber-500" />
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-bold text-white">Achievements</div>
-        <div className="text-xs text-white/40">{data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn."}</div>
+        <div className="text-[13px] font-bold text-stone-900">Achievements</div>
+        <div className="text-xs text-stone-400">{data ? `${data.earned} of ${data.total} unlocked` : "Earn badges as you learn."}</div>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-white/30" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-stone-300" />
     </button>
   );
 }
@@ -402,20 +403,20 @@ function ReviewCard({ token }) {
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Review</Label>
-        {urgent && <span className="text-xs font-semibold text-brand-400">Due now</span>}
+        {urgent && <span className="text-xs font-semibold text-brand-600">Due now</span>}
       </div>
       <div className="mt-3 flex items-baseline gap-2">
-        <span className={"text-3xl font-extrabold tabular-nums " + (urgent ? "text-white" : "text-white/60")}>{due}</span>
-        <span className="text-sm text-white/45">{due === 1 ? "card due" : "cards due"}</span>
+        <span className={"text-3xl font-extrabold tabular-nums " + (urgent ? "text-stone-900" : "text-stone-400")}>{due}</span>
+        <span className="text-sm text-stone-500">{due === 1 ? "card due" : "cards due"}</span>
       </div>
-      <div className="mt-1 text-xs text-white/35">
+      <div className="mt-1 text-xs text-stone-400">
         {stats.mastered} mastered · {stats.learning} learning · {stats.new_cards} new
       </div>
       <button
         onClick={() => navigate("/review")}
         className={
           "mt-4 w-full rounded-xl py-2.5 text-sm font-bold transition active:scale-[0.99] " +
-          (urgent ? "bg-brand-500 text-white hover:bg-brand-400" : "bg-white/[0.06] text-white/50 hover:bg-white/[0.1]")
+          (urgent ? "bg-brand-500 text-white hover:bg-brand-600" : "bg-stone-100 text-stone-500 hover:bg-stone-200")
         }
       >
         {urgent ? "Start review" : "Nothing due yet"}
@@ -442,15 +443,15 @@ function MistakesCard({ token, navigate }) {
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Your mistakes</Label>
-        <span className="text-xs font-semibold text-cardinal-400">Fix them</span>
+        <span className="text-xs font-semibold text-cardinal-500">Fix them</span>
       </div>
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-3xl font-extrabold tabular-nums text-white">{count}</span>
-        <span className="text-sm text-white/45">{count === 1 ? "to re-master" : "to re-master"}</span>
+        <span className="text-3xl font-extrabold tabular-nums text-stone-900">{count}</span>
+        <span className="text-sm text-stone-500">{count === 1 ? "to re-master" : "to re-master"}</span>
       </div>
       <button
         onClick={() => navigate("/mistakes")}
-        className="mt-4 w-full rounded-xl bg-white/[0.06] py-2.5 text-sm font-bold text-white transition hover:bg-white/[0.1] active:scale-[0.99]"
+        className="mt-4 w-full rounded-xl bg-stone-100 py-2.5 text-sm font-bold text-stone-700 transition hover:bg-stone-200 active:scale-[0.99]"
       >
         Review mistakes
       </button>
@@ -477,15 +478,15 @@ function DailyGoalCard({ todayXp }) {
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Daily goal</Label>
-        {done && <span className="text-xs font-semibold text-grass-400">Done</span>}
+        {done && <span className="text-xs font-semibold text-grass-600">Done</span>}
       </div>
 
       <div className="mt-3 flex items-baseline gap-1.5">
-        <span className="text-2xl font-extrabold leading-none text-white tabular-nums">{xp}</span>
-        <span className="text-sm text-white/45">/ {goal} XP today</span>
+        <span className="text-2xl font-extrabold leading-none text-stone-900 tabular-nums">{xp}</span>
+        <span className="text-sm text-stone-500">/ {goal} XP today</span>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-200/70">
         <div
           className={"h-full rounded-full transition-all duration-500 " + (done ? "bg-grass-500" : "bg-brand-500")}
           style={{ width: `${Math.max(pct, xp > 0 ? 6 : 0)}%` }}
@@ -498,7 +499,7 @@ function DailyGoalCard({ todayXp }) {
             key={g}
             disabled={done}
             onClick={() => !done && pickGoal(g)}
-            className={"flex-1 rounded-lg py-1.5 text-xs font-bold transition " + (done ? (goal === g ? "bg-grass-500/80 text-white cursor-default" : "bg-white/[0.04] text-white/20 cursor-default") : goal === g ? "bg-brand-500 text-white" : "bg-white/[0.05] text-white/45 hover:bg-white/[0.09]")}
+            className={"flex-1 rounded-lg py-1.5 text-xs font-bold transition " + (done ? (goal === g ? "bg-grass-500 text-white cursor-default" : "bg-stone-100 text-stone-300 cursor-default") : goal === g ? "bg-brand-500 text-white" : "bg-stone-100 text-stone-500 hover:bg-stone-200")}
           >
             {g}
           </button>
@@ -508,9 +509,8 @@ function DailyGoalCard({ todayXp }) {
   );
 }
 
-// Compact always-visible stat row — hearts / streak / XP / gems. Flat mini
-// cards: muted label with a small colored icon, then a big number. The color
-// lives only in the small icon so the row reads as one calm system.
+// Compact always-visible stat row — hearts / streak / XP / gems. Flat white
+// mini cards: muted label with a small colored icon, then a big number.
 function KpiStrip({ token, streak, xp }) {
   const [hearts, setHearts] = useState(null);
   const [gems, setGems] = useState(null);
@@ -549,21 +549,21 @@ function KpiStrip({ token, streak, xp }) {
     : "–";
 
   const items = [
-    { icon: Heart, label: "Hearts", value: heartLabel, color: "text-cardinal-400" },
-    { icon: Flame, label: "Streak", value: streak, color: "text-brand-400" },
-    { icon: Zap, label: "XP", value: xp, color: "text-gold-400" },
-    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, color: "text-feather-400" },
+    { icon: Heart, label: "Hearts", value: heartLabel, color: "text-cardinal-500" },
+    { icon: Flame, label: "Streak", value: streak, color: "text-brand-500" },
+    { icon: Zap, label: "XP", value: xp, color: "text-amber-500" },
+    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, color: "text-feather-500" },
   ];
 
   return (
     <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {items.map((it) => (
         <div key={it.label} className={"px-4 py-3 " + CARD}>
-          <div className="flex items-center gap-1.5 text-white/45">
+          <div className="flex items-center gap-1.5 text-stone-500">
             <it.icon className={"h-3.5 w-3.5 " + it.color} />
             <span className="text-[11px] font-semibold uppercase tracking-wide">{it.label}</span>
           </div>
-          <div className="mt-1.5 text-2xl font-extrabold leading-none tabular-nums text-white">{it.value}</div>
+          <div className="mt-1.5 text-2xl font-extrabold leading-none tabular-nums text-stone-900">{it.value}</div>
         </div>
       ))}
     </div>
@@ -578,10 +578,10 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
     <section className={"mb-4 p-6 sm:p-8 " + CARD}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-white/45">
+          <div className="text-sm font-medium text-stone-500">
             Բարև{firstName ? `, ${firstName}` : ""} 👋
           </div>
-          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-white sm:text-[28px]">
+          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-stone-900 sm:text-[28px]">
             {loading ? "Loading your journey…" : lesson ? "Ready for today's lesson?" : "You've reached the summit"}
           </h1>
         </div>
@@ -589,44 +589,44 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
       </div>
 
       {loading ? (
-        <div className="mt-6 h-16 animate-pulse rounded-xl bg-white/[0.05]" />
+        <div className="mt-6 h-16 animate-pulse rounded-xl bg-stone-100" />
       ) : lesson ? (
         <button
           type="button"
           onClick={() => onStart(lesson)}
-          className="mt-6 flex w-full items-center gap-4 rounded-xl bg-brand-500 px-5 py-4 text-left text-white transition hover:bg-brand-400 active:scale-[0.99]"
+          className="mt-6 flex w-full items-center gap-4 rounded-xl bg-brand-500 px-5 py-4 text-left text-white shadow-[0_6px_16px_-6px_rgba(255,122,26,0.6)] transition hover:bg-brand-600 active:scale-[0.99]"
         >
           <Play className="h-5 w-5 shrink-0 fill-white" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-white/70">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-white/75">
               {pct > 0 ? "Continue lesson" : "Start lesson"}
             </span>
             <span className="block truncate text-lg font-bold">{lesson.title}</span>
           </span>
-          <ArrowRight className="h-5 w-5 shrink-0 text-white/80" />
+          <ArrowRight className="h-5 w-5 shrink-0 text-white/85" />
         </button>
       ) : (
         <button
           type="button"
           onClick={() => navigate("/practice")}
-          className="mt-6 flex w-full items-center gap-4 rounded-xl bg-grass-500 px-5 py-4 text-left text-white transition hover:bg-grass-400 active:scale-[0.99]"
+          className="mt-6 flex w-full items-center gap-4 rounded-xl bg-grass-500 px-5 py-4 text-left text-white shadow-[0_6px_16px_-6px_rgba(88,204,2,0.55)] transition hover:bg-grass-600 active:scale-[0.99]"
         >
           <Check className="h-5 w-5 shrink-0" strokeWidth={3} />
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-white/70">All lessons complete</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-white/80">All lessons complete</span>
             <span className="block text-lg font-bold">Keep sharp with practice</span>
           </span>
-          <ArrowRight className="h-5 w-5 shrink-0 text-white/80" />
+          <ArrowRight className="h-5 w-5 shrink-0 text-white/85" />
         </button>
       )}
 
       {!loading && lesson && unitTotal > 0 && (
         <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-white/45">
+          <div className="flex items-center justify-between text-xs text-stone-500">
             <span className="truncate font-medium">{unitTitle}</span>
             <span className="tabular-nums">{unitDone}/{unitTotal}</span>
           </div>
-          <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-stone-200/70">
             <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
           </div>
         </div>
@@ -636,7 +636,7 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
         <button
           type="button"
           onClick={() => navigate("/placement")}
-          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-white/50 transition hover:text-white"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 transition hover:text-stone-900"
         >
           <Target className="h-4 w-4" /> Not a beginner? Take the placement test
         </button>
@@ -660,19 +660,19 @@ function LessonRow({ lesson, onStart, last }) {
       title={locked ? "Finish the previous lesson to unlock" : lesson.title}
       className={
         "flex w-full items-center gap-3 py-3 text-left transition " +
-        (last ? "" : "border-b border-white/[0.05] ") +
-        (current ? "" : done ? "hover:opacity-80" : "cursor-default")
+        (last ? "" : "border-b border-stone-100 ") +
+        (current ? "" : done ? "hover:opacity-70" : "cursor-default")
       }
     >
       <span
         className={
           "grid h-7 w-7 shrink-0 place-items-center rounded-full " +
-          (current ? "bg-brand-500 text-white" : done ? "bg-grass-500 text-white" : "border border-white/10 text-white/25")
+          (current ? "bg-brand-500 text-white" : done ? "bg-grass-500 text-white" : "border border-stone-300 text-stone-300")
         }
       >
         {done ? <Check className="h-4 w-4" strokeWidth={3} /> : current ? <Play className="h-3.5 w-3.5 fill-white" /> : <Lock className="h-3.5 w-3.5" />}
       </span>
-      <span className={"min-w-0 flex-1 truncate text-sm font-medium " + (current ? "text-white" : locked ? "text-white/30" : "text-white/75")}>
+      <span className={"min-w-0 flex-1 truncate text-sm font-medium " + (current ? "text-stone-900" : locked ? "text-stone-300" : "text-stone-600")}>
         {lesson.title}
       </span>
       {current ? (
@@ -680,9 +680,9 @@ function LessonRow({ lesson, onStart, last }) {
           Continue <ArrowRight className="h-3 w-3" />
         </span>
       ) : done ? (
-        <span className="shrink-0 text-xs font-semibold text-grass-400">Done</span>
+        <span className="shrink-0 text-xs font-semibold text-grass-600">Done</span>
       ) : (
-        <span className="shrink-0 text-xs text-white/25">Locked</span>
+        <span className="shrink-0 text-xs text-stone-300">Locked</span>
       )}
     </button>
   );
@@ -696,18 +696,18 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
   const done = unit.items.filter((l) => l.status === "completed").length;
   const complete = total > 0 && done === total;
   const pct = total ? Math.round((done / total) * 100) : 0;
-  const barColor = complete ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-white/15";
+  const barColor = complete ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-stone-300";
   return (
     <section className={"mb-3 p-5 " + CARD}>
       <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0">
-          <span className="text-xs font-semibold uppercase tracking-wide text-white/35">Unit {index + 1}</span>
-          <h3 className="truncate text-base font-bold text-white">{unit.title}</h3>
+          <span className="text-xs font-semibold uppercase tracking-wide text-stone-400">Unit {index + 1}</span>
+          <h3 className="truncate text-base font-bold text-stone-900">{unit.title}</h3>
         </div>
-        <span className="shrink-0 text-xs font-semibold tabular-nums text-white/45">{done}/{total}</span>
+        <span className="shrink-0 text-xs font-semibold tabular-nums text-stone-500">{done}/{total}</span>
       </div>
 
-      <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+      <div className="mt-3 h-1 overflow-hidden rounded-full bg-stone-200/70">
         <div className={"h-full rounded-full transition-all " + barColor} style={{ width: `${pct}%` }} />
       </div>
 
@@ -728,19 +728,19 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
           title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
           className={
             "mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition " +
-            (complete ? "bg-gold-500/10 hover:bg-gold-500/15" : "cursor-default bg-white/[0.02]")
+            (complete ? "bg-amber-50 hover:bg-amber-100" : "cursor-default bg-stone-50")
           }
         >
-          <span className={"grid h-7 w-7 shrink-0 place-items-center rounded-full " + (complete ? "bg-gold-500 text-black/80" : "border border-white/10 text-white/25")}>
+          <span className={"grid h-7 w-7 shrink-0 place-items-center rounded-full " + (complete ? "bg-amber-500 text-white" : "border border-stone-300 text-stone-300")}>
             <ShieldCheck className="h-4 w-4" />
           </span>
-          <span className={"min-w-0 flex-1 text-sm font-medium " + (complete ? "text-gold-300" : "text-white/30")}>
+          <span className={"min-w-0 flex-1 text-sm font-medium " + (complete ? "text-amber-700" : "text-stone-300")}>
             Unit checkpoint
           </span>
           {complete ? (
-            <span className="shrink-0 text-xs font-bold text-gold-300">Test now</span>
+            <span className="shrink-0 text-xs font-bold text-amber-700">Test now</span>
           ) : (
-            <span className="shrink-0 text-xs text-white/25">Locked</span>
+            <span className="shrink-0 text-xs text-stone-300">Locked</span>
           )}
         </button>
       </div>
@@ -751,8 +751,8 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
 function CurriculumSummit({ pct }) {
   return (
     <div className="flex flex-col items-center gap-1 py-8 text-center">
-      <div className="text-sm font-bold text-white/60">You're at the summit</div>
-      <div className="text-xs text-white/35">{pct}% of the journey climbed</div>
+      <div className="text-sm font-bold text-stone-600">You're at the summit</div>
+      <div className="text-xs text-stone-400">{pct}% of the journey climbed</div>
     </div>
   );
 }
@@ -760,13 +760,13 @@ function CurriculumSummit({ pct }) {
 // Quick access — one card holding a clean grid of icon+label targets.
 function QuickLinks({ navigate }) {
   const tiles = [
-    { icon: Dumbbell, label: "Practice", to: "/practice", color: "text-brand-400" },
-    { icon: BookOpen, label: "Words", to: "/vocabulary", color: "text-grass-400" },
-    { icon: BarChart2, label: "Progress", to: "/progress", color: "text-feather-400" },
-    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", color: "text-gold-400" },
-    { icon: Users, label: "Friends", to: "/friends", color: "text-feather-400" },
-    { icon: Store, label: "Shop", to: "/shop", color: "text-pom-400" },
-    { icon: Star, label: "Achievements", to: "/achievements", color: "text-gold-400" },
+    { icon: Dumbbell, label: "Practice", to: "/practice", color: "text-brand-500" },
+    { icon: BookOpen, label: "Words", to: "/vocabulary", color: "text-grass-600" },
+    { icon: BarChart2, label: "Progress", to: "/progress", color: "text-feather-500" },
+    { icon: Trophy, label: "Leaderboard", to: "/leaderboard", color: "text-amber-500" },
+    { icon: Users, label: "Friends", to: "/friends", color: "text-feather-500" },
+    { icon: Store, label: "Shop", to: "/shop", color: "text-pom-500" },
+    { icon: Star, label: "Achievements", to: "/achievements", color: "text-amber-500" },
   ];
   return (
     <div className={"grid grid-cols-4 gap-1 p-2 " + CARD}>
@@ -775,10 +775,10 @@ function QuickLinks({ navigate }) {
           key={t.to}
           type="button"
           onClick={() => navigate(t.to)}
-          className="flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition hover:bg-white/[0.04] active:scale-[0.97]"
+          className="flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition hover:bg-stone-100 active:scale-[0.97]"
         >
           <t.icon className={"h-5 w-5 " + t.color} />
-          <span className="w-full truncate text-center text-[11px] font-medium text-white/55">{t.label}</span>
+          <span className="w-full truncate text-center text-[11px] font-medium text-stone-600">{t.label}</span>
         </button>
       ))}
     </div>
@@ -891,11 +891,11 @@ export default function Dashboard({ user }) {
   };
 
   // ── Architecture ──────────────────────────────────────────────────────────
-  // A calm, minimal command center: a flat stat row, a single-action hero,
-  // curriculum as a plain outline of units, and a sidebar of quiet cards —
-  // sticky on desktop, stacked on mobile. One accent, lots of air.
+  // A calm, minimal light command center: a flat stat row, a single-action
+  // hero, curriculum as a plain outline of units, and a sidebar of quiet white
+  // cards — sticky on desktop, stacked on mobile. One accent, lots of air.
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[#f6f5f2]">
       <StreakCelebration streak={stats.streak} />
       <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_336px] lg:items-start lg:gap-6">
         {/* ── Main: stats + hero + curriculum ── */}
@@ -915,18 +915,18 @@ export default function Dashboard({ user }) {
           />
 
           {error && (
-            <div className="mb-4 rounded-xl border border-cardinal-500/30 bg-cardinal-500/10 px-4 py-3 text-sm font-medium text-cardinal-300">
+            <div className="mb-4 rounded-xl border border-cardinal-200 bg-cardinal-50 px-4 py-3 text-sm font-medium text-cardinal-600">
               {error}
             </div>
           )}
 
           {loadingLessons ? (
-            <div className="flex items-center justify-center gap-2 py-20 text-white/40">
+            <div className="flex items-center justify-center gap-2 py-20 text-stone-400">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span className="font-medium">Mapping your journey…</span>
             </div>
           ) : units.length === 0 ? (
-            <div className={"p-8 text-center font-medium text-white/50 " + CARD}>
+            <div className={"p-8 text-center font-medium text-stone-500 " + CARD}>
               No lessons available yet. Check back soon!
             </div>
           ) : (
