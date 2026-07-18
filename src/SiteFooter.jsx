@@ -143,7 +143,7 @@ export default function SiteFooter() {
           <div className="flex items-center gap-4 text-sm font-semibold text-slate-400 dark:text-stone-500">
             <a href="mailto:info@haylingua.am" className="transition hover:text-slate-700 dark:hover:text-stone-200">Contact</a>
             <span className="text-slate-300 dark:text-stone-700">·</span>
-            <span>Made with ♥ in Armenia</span>
+            <span>Made with ❤️ in Armenia</span>
           </div>
         </div>
       </div>
