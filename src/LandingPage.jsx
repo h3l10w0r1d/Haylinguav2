@@ -2,15 +2,18 @@
 // All auth logic preserved: login, signup, 2FA, captcha, email verification.
 import Turnstile from "./lib/Turnstile";
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  Menu, X, Eye, EyeOff, Play, RotateCw, Loader2,
+  Menu, X, Eye, EyeOff, Play, RotateCw, Loader2, Sun, Moon,
 } from "lucide-react";
+import SiteFooter from "./SiteFooter";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 import { ttsFetch } from "./exercises/tts";
+import { getTheme, toggleTheme } from "./lib/theme";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
@@ -259,8 +262,8 @@ function VoiceChip({ text, label, tone = "brand" }) {
   }
 
   const tones = {
-    brand: "bg-white text-brand-700 ring-brand-200 hover:bg-brand-50",
-    slate: "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50",
+    brand: "bg-white dark:bg-[#18181b] text-brand-700 ring-brand-200 hover:bg-brand-50",
+    slate: "bg-white dark:bg-[#18181b] text-slate-600 dark:text-stone-300 ring-slate-200 dark:ring-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.04]",
   };
   return (
     <button
@@ -274,7 +277,7 @@ function VoiceChip({ text, label, tone = "brand" }) {
         <Volume2 className={"h-4 w-4 " + (state === "playing" ? "animate-pulse" : "")} />
       )}
       <span>{text}</span>
-      {label && <span className="font-bold text-slate-400">· {label}</span>}
+      {label && <span className="font-bold text-slate-400 dark:text-stone-500">· {label}</span>}
     </button>
   );
 }
@@ -357,20 +360,20 @@ function LandingExerciseDemo({ onSignup }) {
 
   if (done) {
     return (
-      <div className="rounded-3xl bg-white p-6 text-center shadow-xl ring-1 ring-slate-200">
+      <div className="rounded-3xl bg-white dark:bg-[#18181b] p-6 text-center shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-grass-50 text-grass-500">
           <Trophy className="h-7 w-7" />
         </div>
-        <div className="mt-4 font-display text-xl font-extrabold text-slate-800">
+        <div className="mt-4 font-display text-xl font-extrabold text-slate-800 dark:text-white">
           You just learned {DEMO_QUESTIONS.length} Armenian words!
         </div>
-        <p className="mt-2 text-sm font-semibold text-slate-500">
+        <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">
           Create a free account to save this progress and keep going — the real
           course picks up right where this demo leaves off.
         </p>
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {DEMO_QUESTIONS.map((dq) => (
-            <span key={dq.prompt} className="rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500 ring-1 ring-slate-200">
+            <span key={dq.prompt} className="rounded-full bg-slate-50 dark:bg-white/[0.04] px-3 py-1 text-xs font-bold text-slate-500 dark:text-stone-400 ring-1 ring-slate-200 dark:ring-white/[0.08]">
               {dq.prompt} — {dq.meaning}
             </span>
           ))}
@@ -378,7 +381,7 @@ function LandingExerciseDemo({ onSignup }) {
         <button type="button" onClick={onSignup} className="btn3d btn3d-brand mt-6 w-full text-base uppercase">
           Create free account <ArrowRight className="h-5 w-5" />
         </button>
-        <button type="button" onClick={practiceAgain} className="mt-3 text-sm font-bold text-slate-400 hover:text-slate-600">
+        <button type="button" onClick={practiceAgain} className="mt-3 text-sm font-bold text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300">
           Practice again
         </button>
       </div>
@@ -386,10 +389,10 @@ function LandingExerciseDemo({ onSignup }) {
   }
 
   return (
-    <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
+    <div className="rounded-3xl bg-white dark:bg-[#18181b] p-5 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
       <div className="flex items-center gap-3">
-        <span className="text-slate-300">✕</span>
-        <div className="h-3.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+        <span className="text-slate-300 dark:text-stone-600">✕</span>
+        <div className="h-3.5 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
           <div
             className="h-full rounded-full bg-brand-500 transition-all duration-300"
             style={{ width: `${((qi + (checked ? 1 : 0)) / DEMO_QUESTIONS.length) * 100}%` }}
@@ -401,9 +404,9 @@ function LandingExerciseDemo({ onSignup }) {
         </span>
       </div>
 
-      <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-600">Select the correct translation</div>
+      <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-stone-300">Select the correct translation</div>
       <div className="mt-1 flex items-center gap-2">
-        <div className="font-display text-2xl font-extrabold text-slate-800">"{q.prompt}" means…</div>
+        <div className="font-display text-2xl font-extrabold text-slate-800 dark:text-white">"{q.prompt}" means…</div>
         <VoiceChip text={q.prompt} tone="slate" />
       </div>
 
@@ -436,7 +439,7 @@ function LandingExerciseDemo({ onSignup }) {
                       ? "bg-cardinal-500 text-white ring-cardinal-500"
                       : isSel
                       ? "bg-feather-500 text-white ring-feather-500"
-                      : "text-slate-400 ring-slate-200")
+                      : "text-slate-400 dark:text-stone-500 ring-slate-200 dark:ring-white/[0.08]")
                   }
                 >
                   {i + 1}
@@ -477,9 +480,9 @@ function LandingExerciseDemo({ onSignup }) {
               </button>
             </div>
 
-            <div className="mt-2 min-h-[3.5rem] text-sm font-semibold leading-relaxed text-slate-700">
+            <div className="mt-2 min-h-[3.5rem] text-sm font-semibold leading-relaxed text-slate-700 dark:text-stone-200">
               {aiPhase === "thinking" ? (
-                <span className="inline-flex items-center gap-2 text-slate-400">
+                <span className="inline-flex items-center gap-2 text-slate-400 dark:text-stone-500">
                   <span className="flex gap-1">
                     <span className="h-2 w-2 animate-bounce rounded-full bg-cardinal-400 [animation-delay:-0.2s]" />
                     <span className="h-2 w-2 animate-bounce rounded-full bg-cardinal-400 [animation-delay:-0.1s]" />
@@ -534,9 +537,9 @@ const PATH_PREVIEW_LESSONS = [
 
 function PathPreview() {
   return (
-    <div className="relative rounded-3xl bg-white p-6 shadow-xl ring-1 ring-slate-200 sm:p-7">
+    <div className="relative rounded-3xl bg-white dark:bg-[#18181b] p-6 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08] sm:p-7">
       <div className="flex items-center justify-between">
-        <div className="font-display text-sm font-extrabold uppercase tracking-wide text-slate-400">Your path</div>
+        <div className="font-display text-sm font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">Your path</div>
         <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold text-brand-600">
           <Flame className="h-3.5 w-3.5 fill-brand-500 text-brand-500" /> 487-day streak
         </div>
@@ -553,7 +556,7 @@ function PathPreview() {
                 <div
                   className={
                     "absolute left-[19px] top-10 h-full w-1 -translate-x-1/2 rounded-full " +
-                    (isDone ? "bg-grass-300" : "bg-slate-100")
+                    (isDone ? "bg-grass-300" : "bg-slate-100 dark:bg-white/[0.06]")
                   }
                 />
               )}
@@ -564,7 +567,7 @@ function PathPreview() {
                 <div
                   className={
                     "grid h-10 w-10 place-items-center rounded-full text-white " +
-                    (isDone ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-slate-200 text-slate-400")
+                    (isDone ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-slate-200 dark:bg-white/10 text-slate-400 dark:text-stone-500")
                   }
                 >
                   {isDone ? (
@@ -577,10 +580,10 @@ function PathPreview() {
                 </div>
               </div>
               <div className="min-w-0 flex-1 pt-1.5">
-                <div className={"font-display text-base font-extrabold " + (lesson.status === "locked" ? "text-slate-400" : "text-slate-800")}>
+                <div className={"font-display text-base font-extrabold " + (lesson.status === "locked" ? "text-slate-400 dark:text-stone-500" : "text-slate-800 dark:text-white")}>
                   {lesson.title}
                 </div>
-                <div className={"text-xs font-bold " + (isDone ? "text-grass-600" : isCurrent ? "text-brand-500" : "text-slate-300")}>
+                <div className={"text-xs font-bold " + (isDone ? "text-grass-600" : isCurrent ? "text-brand-500" : "text-slate-300 dark:text-stone-600")}>
                   {isDone ? "Completed" : isCurrent ? "You are here" : "Locked"}
                 </div>
               </div>
@@ -681,19 +684,19 @@ function StatCard({ cfg, delay }) {
 
   return (
     <Reveal delay={delay}>
-      <div className="rounded-3xl bg-white p-5 text-center ring-1 ring-slate-200 shadow-sm">
+      <div className="rounded-3xl bg-white dark:bg-[#18181b] p-5 text-center ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm">
         <div className={"mx-auto grid h-11 w-11 place-items-center rounded-2xl " + cfg.bg}>
           <cfg.icon className={"h-5 w-5 " + cfg.tone} />
         </div>
         <div
           className={
-            "mt-3 font-display text-2xl font-extrabold tabular-nums text-slate-800 transition-transform duration-200 sm:text-3xl " +
+            "mt-3 font-display text-2xl font-extrabold tabular-nums text-slate-800 dark:text-white transition-transform duration-200 sm:text-3xl " +
             (bump ? "scale-110" : "scale-100")
           }
         >
           {value.toLocaleString()}
         </div>
-        <div className="mt-1 text-xs font-bold text-slate-500">{cfg.label}</div>
+        <div className="mt-1 text-xs font-bold text-slate-500 dark:text-stone-400">{cfg.label}</div>
       </div>
     </Reveal>
   );
@@ -739,6 +742,12 @@ export default function LandingPage({ onLogin, onSignup }) {
   const [faqOpen, setFaqOpen] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [theme, setTheme] = useState(getTheme);
+  useEffect(() => {
+    const onChange = (e) => e?.detail?.theme && setTheme(e.detail.theme);
+    window.addEventListener("hay_theme_changed", onChange);
+    return () => window.removeEventListener("hay_theme_changed", onChange);
+  }, []);
   const [wordIdx, setWordIdx] = useState(0);
   const [wordFade, setWordFade] = useState(true);
   const [showStickyCta, setShowStickyCta] = useState(false);
@@ -964,12 +973,12 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   if (mode === "verify") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-brand-50/60 to-white px-4">
-        <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl ring-1 ring-slate-200">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-brand-50/60 to-white dark:from-[#0d0d0f] dark:to-[#0d0d0f] px-4">
+        <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#18181b] p-8 text-center shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
           <img src={grandma} alt="" className="mx-auto h-20 w-20 animate-floaty rounded-2xl object-cover" />
-          <h2 className="mt-4 font-display text-2xl font-extrabold text-slate-800">Check your inbox</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">
-            We sent a 6-digit code to <span className="text-slate-700">{email}</span>
+          <h2 className="mt-4 font-display text-2xl font-extrabold text-slate-800 dark:text-white">Check your inbox</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">
+            We sent a 6-digit code to <span className="text-slate-700 dark:text-stone-200">{email}</span>
           </p>
 
           {devCode && (
@@ -990,7 +999,7 @@ export default function LandingPage({ onLogin, onSignup }) {
               inputMode="numeric"
               maxLength={6}
               autoFocus
-              className="w-full rounded-2xl bg-slate-50 px-4 py-4 text-center font-mono text-3xl font-extrabold tracking-[0.4em] text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:outline-none focus:ring-brand-400"
+              className="w-full rounded-2xl bg-slate-50 dark:bg-white/[0.04] px-4 py-4 text-center font-mono text-3xl font-extrabold tracking-[0.4em] text-slate-800 dark:text-white ring-2 ring-slate-200 dark:ring-white/[0.08] focus:bg-white dark:focus:bg-white/[0.06] focus:outline-none focus:ring-brand-400"
             />
             {error && <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
             <button type="submit" disabled={loading || code.trim().length !== 6} className="btn3d btn3d-grass mt-4 w-full uppercase">
@@ -998,10 +1007,10 @@ export default function LandingPage({ onLogin, onSignup }) {
             </button>
           </form>
 
-          <button onClick={handleResend} disabled={loading || cooldown > 0} className="mt-4 text-sm font-bold text-slate-500 hover:text-slate-700 disabled:opacity-50">
+          <button onClick={handleResend} disabled={loading || cooldown > 0} className="mt-4 text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-700 dark:hover:text-stone-200 disabled:opacity-50">
             {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
           </button>
-          <p className="mt-2 text-xs font-semibold text-slate-400">Code expires in 10 minutes</p>
+          <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-stone-500">Code expires in 10 minutes</p>
         </div>
       </div>
     );
@@ -1009,23 +1018,23 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   // ── Auth card ────────────────────────────────────────────────────────────────
   const authCard = (
-    <div ref={authRef} className="relative w-full bg-white px-6 pb-6 pt-12 sm:px-7 sm:pb-7 sm:pt-12">
+    <div ref={authRef} className="relative w-full bg-white dark:bg-[#18181b] px-6 pb-6 pt-12 sm:px-7 sm:pb-7 sm:pt-12">
       <button
         type="button"
         onClick={() => setAuthOpen(false)}
         aria-label="Close"
-        className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+        className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-stone-400 transition hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-stone-200"
       >
         <X className="h-4 w-4" />
       </button>
-      <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
+      <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 dark:bg-white/[0.06] p-1">
         {["login", "signup"].map((m) => (
           <button
             key={m}
             onClick={() => { setMode(m); setError(""); setForgotSent(false); }}
             className={
               "rounded-xl py-2.5 font-display text-sm font-extrabold transition " +
-              (mode === m ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")
+              (mode === m ? "bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-stone-400 hover:text-slate-700 dark:hover:text-stone-200")
             }
           >
             {m === "login" ? "Log in" : "Sign up"}
@@ -1047,10 +1056,10 @@ export default function LandingPage({ onLogin, onSignup }) {
         ) : mode === "forgot" ? (
           <>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => { setMode("login"); setError(""); }} className="text-slate-400 hover:text-slate-600 transition">
+              <button type="button" onClick={() => { setMode("login"); setError(""); }} className="text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300 transition">
                 ←
               </button>
-              <p className="text-sm font-semibold text-slate-600">Enter your email and we'll send a reset link.</p>
+              <p className="text-sm font-semibold text-slate-600 dark:text-stone-300">Enter your email and we'll send a reset link.</p>
             </div>
             <Field label="Email" icon={Mail} name="email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" />
             {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
@@ -1099,8 +1108,8 @@ export default function LandingPage({ onLogin, onSignup }) {
             )}
 
             {mode === "login" && needsCaptcha && (
-              <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-                <div className="mb-2 text-xs font-bold text-slate-600">Security check</div>
+              <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] p-3 ring-1 ring-slate-200 dark:ring-white/[0.08]">
+                <div className="mb-2 text-xs font-bold text-slate-600 dark:text-stone-300">Security check</div>
                 <Turnstile key={captchaKey} onVerify={(t) => { setCaptchaToken(t); if (t) setError(""); }} />
               </div>
             )}
@@ -1119,9 +1128,9 @@ export default function LandingPage({ onLogin, onSignup }) {
       {mode !== "forgot" && (GOOGLE_CLIENT_ID || FACEBOOK_APP_ID || TELEGRAM_BOT_USERNAME) && (
         <div className="mt-5">
           <div className="relative mb-4 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs font-semibold text-slate-400">or</span>
-            <div className="h-px flex-1 bg-slate-200" />
+            <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
+            <span className="text-xs font-semibold text-slate-400 dark:text-stone-500">or</span>
+            <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             {TELEGRAM_BOT_ID && (
@@ -1141,7 +1150,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                     "&request_access=write" +
                     "&return_to=" + encodeURIComponent(cb);
                 }}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#18181b] text-sm font-semibold text-slate-700 dark:text-stone-200 shadow-sm transition hover:bg-slate-50 dark:hover:bg-white/[0.04]"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#2AABEE" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Telegram
@@ -1157,7 +1166,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                   sessionStorage.setItem("oauth_state", state);
                   window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/google/callback")}&response_type=code&scope=openid%20email%20profile&prompt=select_account&state=${encodeURIComponent(state)}`;
                 }}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#18181b] text-sm font-semibold text-slate-700 dark:text-stone-200 shadow-sm transition hover:bg-slate-50 dark:hover:bg-white/[0.04]"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908C16.658 14.015 17.64 11.707 17.64 9.2z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
                 Google
@@ -1173,7 +1182,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                   sessionStorage.setItem("oauth_state", state);
                   window.location.href = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent("https://haylingua.am/auth/facebook/callback")}&response_type=code&scope=email,public_profile&state=${encodeURIComponent(state)}`;
                 }}
-                className="col-span-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className="col-span-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#18181b] text-sm font-semibold text-slate-700 dark:text-stone-200 shadow-sm transition hover:bg-slate-50 dark:hover:bg-white/[0.04]"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.309V9h2.285V7.017c0-2.256 1.344-3.502 3.4-3.502.985 0 2.015.176 2.015.176v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.497l-.4 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z" fill="#1877F2"/></svg>
                 Facebook
@@ -1184,7 +1193,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       )}
 
       {mode === "signup" && (
-        <p className="mt-4 text-center text-xs font-medium text-slate-400">
+        <p className="mt-4 text-center text-xs font-medium text-slate-400 dark:text-stone-500">
           By signing up you agree to our terms and privacy policy.
         </p>
       )}
@@ -1195,31 +1204,41 @@ export default function LandingPage({ onLogin, onSignup }) {
   const word = ARMENIAN_WORDS[wordIdx];
 
   return (
-    <div className="min-h-screen bg-white text-slate-800">
+    <div className="min-h-screen bg-white dark:bg-[#0d0d0f] text-slate-800 dark:text-white">
       {/* Nav */}
-      <nav className="sticky top-0 z-40 border-b border-slate-100 bg-white/85 backdrop-blur">
+      <nav className="sticky top-0 z-40 border-b border-slate-100 dark:border-white/[0.06] bg-white/85 dark:bg-[#151517]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
           <a href="/" className="flex items-center gap-2">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 font-display text-lg font-extrabold text-white shadow-btn-brand">Հ</span>
-            <span className="font-display text-xl font-extrabold tracking-tight text-slate-800">Haylingua</span>
+            <span className="font-display text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">Haylingua</span>
           </a>
 
           {/* Desktop links */}
           <div className="hidden items-center gap-7 md:flex">
-            <a href="#how" className="text-sm font-bold text-slate-500 hover:text-slate-800">How it works</a>
-            <a href="#features" className="text-sm font-bold text-slate-500 hover:text-slate-800">Features</a>
-            <a href="#faq" className="text-sm font-bold text-slate-500 hover:text-slate-800">FAQ</a>
+            <a href="#how" className="text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-white">How it works</a>
+            <a href="#features" className="text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-white">Features</a>
+            <a href="#faq" className="text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-white">FAQ</a>
+            <Link to="/about" className="text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-white">About us</Link>
           </div>
 
           <div className="flex items-center gap-2">
-            <button onClick={() => goAuth("login")} className="hidden rounded-xl px-4 py-2 text-sm font-extrabold text-slate-600 hover:bg-slate-100 sm:block">
+            <button
+              type="button"
+              onClick={() => toggleTheme()}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label="Toggle theme"
+              className="grid h-9 w-9 place-items-center rounded-full text-slate-500 dark:text-stone-300 transition hover:bg-slate-100 dark:hover:bg-white/[0.08]"
+            >
+              {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+            </button>
+            <button onClick={() => goAuth("login")} className="hidden rounded-xl px-4 py-2 text-sm font-extrabold text-slate-600 dark:text-stone-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] sm:block">
               Log in
             </button>
             <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand !py-2.5 text-sm">Get started</button>
             {/* Mobile hamburger */}
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="grid h-9 w-9 place-items-center rounded-xl text-slate-600 hover:bg-slate-100 md:hidden"
+              className="grid h-9 w-9 place-items-center rounded-xl text-slate-600 dark:text-stone-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] md:hidden"
               aria-label="Toggle menu"
             >
               {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -1229,13 +1248,14 @@ export default function LandingPage({ onLogin, onSignup }) {
 
         {/* Mobile dropdown */}
         {menuOpen && (
-          <div className="border-t border-slate-100 bg-white px-5 pb-4 pt-2 md:hidden">
+          <div className="border-t border-slate-100 dark:border-white/[0.06] bg-white dark:bg-[#18181b] px-5 pb-4 pt-2 md:hidden">
             <div className="flex flex-col gap-1">
-              <a href="#how" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">How it works</a>
-              <a href="#features" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Features</a>
-              <a href="#faq" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">FAQ</a>
-              <div className="mt-1 border-t border-slate-100 pt-2 flex gap-2">
-                <button onClick={() => goAuth("login")} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-extrabold text-slate-700">Log in</button>
+              <a href="#how" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-stone-200 hover:bg-slate-50 dark:hover:bg-white/[0.04]">How it works</a>
+              <a href="#features" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-stone-200 hover:bg-slate-50 dark:hover:bg-white/[0.04]">Features</a>
+              <a href="#faq" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-stone-200 hover:bg-slate-50 dark:hover:bg-white/[0.04]">FAQ</a>
+              <Link to="/about" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-stone-200 hover:bg-slate-50 dark:hover:bg-white/[0.04]">About us</Link>
+              <div className="mt-1 border-t border-slate-100 dark:border-white/[0.06] pt-2 flex gap-2">
+                <button onClick={() => goAuth("login")} className="flex-1 rounded-xl bg-slate-100 dark:bg-white/[0.06] px-4 py-2.5 text-sm font-extrabold text-slate-700 dark:text-stone-200">Log in</button>
                 <button onClick={() => goAuth("signup")} className="flex-1 btn3d btn3d-brand !py-2.5 text-sm">Sign up free</button>
               </div>
             </div>
@@ -1253,17 +1273,17 @@ export default function LandingPage({ onLogin, onSignup }) {
             <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100">
               <Sparkles className="h-3.5 w-3.5" /> Armenian made playful
             </div>
-            <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-800 sm:text-6xl">
+            <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-6xl">
               Learn Armenian.
               <br />
               <span className="text-brand-500">Actually stick with it.</span>
             </h1>
-            <p className="mt-5 max-w-md text-lg font-semibold text-slate-500">
+            <p className="mt-5 max-w-md text-lg font-semibold text-slate-500 dark:text-stone-400">
               Bite-sized lessons, instant feedback, audio on every word, and streaks that make you want to come back tomorrow.
             </p>
 
             {/* Armenian word showcase */}
-            <div className="mt-6 inline-flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
+            <div className="mt-6 inline-flex items-center gap-4 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#18181b] px-5 py-3 shadow-sm">
               <div
                 style={{
                   opacity: wordFade ? 1 : 0,
@@ -1273,15 +1293,15 @@ export default function LandingPage({ onLogin, onSignup }) {
                 }}
               >
                 <div className="font-display text-2xl font-extrabold tracking-wide text-brand-600">{word.arm}</div>
-                <div className="mt-0.5 text-xs font-bold text-slate-400">{word.rom}</div>
+                <div className="mt-0.5 text-xs font-bold text-slate-400 dark:text-stone-500">{word.rom}</div>
               </div>
-              <div className="h-8 w-px bg-slate-200" />
+              <div className="h-8 w-px bg-slate-200 dark:bg-white/10" />
               <div
                 style={{
                   opacity: wordFade ? 1 : 0,
                   transition: "opacity 0.3s ease 0.05s",
                 }}
-                className="text-base font-bold text-slate-600"
+                className="text-base font-bold text-slate-600 dark:text-stone-300"
               >
                 {word.eng}
               </div>
@@ -1299,7 +1319,7 @@ export default function LandingPage({ onLogin, onSignup }) {
               </button>
               <button onClick={() => goAuth("login")} className="btn3d btn3d-neutral text-base">I have an account</button>
             </div>
-            <div className="mt-5 flex items-center gap-4 text-sm font-bold text-slate-600">
+            <div className="mt-5 flex items-center gap-4 text-sm font-bold text-slate-600 dark:text-stone-300">
               <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> Free to start</span>
               <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> No card needed</span>
             </div>
@@ -1312,7 +1332,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       </header>
 
       {/* Value band */}
-      <section className="border-y border-slate-100 bg-slate-50">
+      <section className="border-y border-slate-100 dark:border-white/[0.06] bg-slate-50 dark:bg-white/[0.04]">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-5 py-8 md:grid-cols-4">
           {[
             { icon: Sparkles, label: "AI tutor", sub: "Explains every mistake" },
@@ -1321,12 +1341,12 @@ export default function LandingPage({ onLogin, onSignup }) {
             { icon: Trophy, label: "Leagues", sub: "Climb the leaderboard" },
           ].map((v) => (
             <div key={v.label} className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-brand-500 ring-1 ring-slate-200">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white dark:bg-[#18181b] text-brand-500 ring-1 ring-slate-200 dark:ring-white/[0.08]">
                 <v.icon className="h-5 w-5" />
               </div>
               <div>
-                <div className="font-display text-base font-extrabold text-slate-800">{v.label}</div>
-                <div className="text-xs font-bold text-slate-600">{v.sub}</div>
+                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{v.label}</div>
+                <div className="text-xs font-bold text-slate-600 dark:text-stone-300">{v.sub}</div>
               </div>
             </div>
           ))}
@@ -1346,13 +1366,13 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="mt-10 grid gap-5 md:grid-cols-3">
           {STEPS.map((s, i) => (
             <Reveal key={s.n} delay={i * 100}>
-              <div className="relative rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm h-full">
+              <div className="relative rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm h-full">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white shadow-btn-brand">
                   <s.icon className="h-6 w-6" />
                 </div>
                 <div className="mt-4 font-display text-xs font-extrabold uppercase tracking-wide text-brand-500">Step {s.n}</div>
-                <div className="mt-1 font-display text-xl font-extrabold text-slate-800">{s.title}</div>
-                <p className="mt-2 text-sm font-semibold text-slate-500">{s.text}</p>
+                <div className="mt-1 font-display text-xl font-extrabold text-slate-800 dark:text-white">{s.title}</div>
+                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{s.text}</p>
               </div>
             </Reveal>
           ))}
@@ -1360,17 +1380,17 @@ export default function LandingPage({ onLogin, onSignup }) {
       </section>
 
       {/* Product preview */}
-      <section className="bg-gradient-to-b from-brand-50/60 to-white">
+      <section className="bg-gradient-to-b from-brand-50/60 to-white dark:from-[#0d0d0f] dark:to-[#0d0d0f]">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 lg:grid-cols-2">
           <Reveal>
             <div>
               <SectionHeading align="left" eyebrow="See it in action" title="A path you'll actually want to finish" />
-              <p className="mt-4 max-w-md text-base font-semibold text-slate-500">
+              <p className="mt-4 max-w-md text-base font-semibold text-slate-500 dark:text-stone-400">
                 Follow a winding path of lessons — tap through letters, listen and repeat, build words, and watch your streak grow. Just like the apps you already love, but for Armenian.
               </p>
               <ul className="mt-6 space-y-3">
                 {["Instant right/wrong feedback", "Audio you can replay any time", "Hearts keep mistakes low-stakes", "XP, streaks, and a friends leaderboard"].map((t) => (
-                  <li key={t} className="flex items-center gap-3 font-bold text-slate-700">
+                  <li key={t} className="flex items-center gap-3 font-bold text-slate-700 dark:text-stone-200">
                     <span className="grid h-6 w-6 place-items-center rounded-lg bg-grass-100 text-grass-600"><Check className="h-4 w-4" /></span>
                     {t}
                   </li>
@@ -1394,12 +1414,12 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={i * 80}>
-              <div className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-1 hover:shadow-md h-full">
+              <div className="rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm transition hover:-translate-y-1 hover:shadow-md h-full">
                 <div className={"grid h-12 w-12 place-items-center rounded-2xl " + TONES[f.tone]}>
                   <f.icon className="h-6 w-6" />
                 </div>
-                <div className="mt-4 font-display text-lg font-extrabold text-slate-800">{f.title}</div>
-                <p className="mt-2 text-sm font-semibold text-slate-500">{f.text}</p>
+                <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">{f.title}</div>
+                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{f.text}</p>
               </div>
             </Reveal>
           ))}
@@ -1407,7 +1427,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       </section>
 
       {/* Testimonials */}
-      <section className="bg-slate-50">
+      <section className="bg-slate-50 dark:bg-white/[0.04]">
         <div className="mx-auto max-w-6xl px-5 py-16">
           <Reveal>
             <SectionHeading eyebrow="Learners love it" title="Real words from real learners" />
@@ -1415,20 +1435,20 @@ export default function LandingPage({ onLogin, onSignup }) {
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {TESTIMONIALS.map((t, i) => (
               <Reveal key={t.name} delay={i * 100}>
-                <div className="flex h-full flex-col rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm">
+                <div className="flex h-full flex-col rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm">
                   <div className="flex gap-0.5 mb-4">
                     {Array.from({ length: t.stars }).map((_, j) => (
                       <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <p className="flex-1 text-sm font-semibold leading-relaxed text-slate-600">"{t.quote}"</p>
+                  <p className="flex-1 text-sm font-semibold leading-relaxed text-slate-600 dark:text-stone-300">"{t.quote}"</p>
                   <div className="mt-5 flex items-center gap-3">
                     <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-100 font-display text-sm font-extrabold text-brand-600">
                       {t.name[0]}
                     </div>
                     <div>
-                      <div className="text-sm font-extrabold text-slate-800">{t.name}</div>
-                      <div className="text-xs font-semibold text-slate-400">{t.role}</div>
+                      <div className="text-sm font-extrabold text-slate-800 dark:text-white">{t.name}</div>
+                      <div className="text-xs font-semibold text-slate-400 dark:text-stone-500">{t.role}</div>
                     </div>
                   </div>
                 </div>
@@ -1439,7 +1459,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="bg-white">
+      <section id="faq" className="bg-white dark:bg-[#0d0d0f]">
         <div className="mx-auto max-w-3xl px-5 py-16">
           <Reveal>
             <SectionHeading eyebrow="FAQ" title="Questions, answered" />
@@ -1449,15 +1469,15 @@ export default function LandingPage({ onLogin, onSignup }) {
               const open = faqOpen === i;
               return (
                 <Reveal key={i} delay={i * 60}>
-                  <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+                  <div className="overflow-hidden rounded-2xl bg-white dark:bg-[#18181b] ring-1 ring-slate-200 dark:ring-white/[0.08]">
                     <button
                       onClick={() => setFaqOpen(open ? -1 : i)}
                       className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
                     >
-                      <span className="font-display text-base font-extrabold text-slate-800">{f.q}</span>
-                      <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 transition " + (open ? "rotate-180" : "")} />
+                      <span className="font-display text-base font-extrabold text-slate-800 dark:text-white">{f.q}</span>
+                      <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 dark:text-stone-500 transition " + (open ? "rotate-180" : "")} />
                     </button>
-                    {open && <div className="px-5 pb-5 text-sm font-semibold text-slate-500">{f.a}</div>}
+                    {open && <div className="px-5 pb-5 text-sm font-semibold text-slate-500 dark:text-stone-400">{f.a}</div>}
                   </div>
                 </Reveal>
               );
@@ -1487,20 +1507,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-100">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-500 font-display font-extrabold text-white">Հ</span>
-            <span className="font-display font-extrabold text-slate-700">Haylingua</span>
-          </div>
-          <div className="flex items-center gap-6 text-sm font-bold text-slate-500">
-            <a href="#how" className="hover:text-slate-800">How it works</a>
-            <a href="#features" className="hover:text-slate-800">Features</a>
-            <a href="https://blog.haylingua.am" target="_blank" rel="noreferrer" className="hover:text-slate-800">Blog</a>
-          </div>
-          <div className="text-sm font-semibold text-slate-600">© {new Date().getFullYear()} Haylingua</div>
-        </div>
-      </footer>
+      <SiteFooter />
 
       {/* Sticky mobile CTA — keeps signup one tap away once the hero's own
           buttons have scrolled out of view. Hidden on desktop (header CTA is
@@ -1526,7 +1533,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setAuthOpen(false); }}
         >
-          <div className="max-h-[92vh] w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl md:max-w-4xl md:grid md:grid-cols-[44%_56%]">
+          <div className="max-h-[92vh] w-full max-w-md overflow-hidden rounded-3xl bg-white dark:bg-[#18181b] shadow-2xl md:max-w-4xl md:grid md:grid-cols-[44%_56%]">
             <SignupPromoPanel mode={mode} />
             <div className="min-w-0 overflow-y-auto">{authCard}</div>
           </div>
@@ -1544,13 +1551,13 @@ function Field({ label, optional, icon: Icon, value, onChange, placeholder, type
   const inputType = isPassword ? (showPw ? "text" : "password") : type;
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-extrabold text-slate-700">
-        {label} {optional && <span className="font-semibold text-slate-400">(optional)</span>}
+      <label className="mb-1.5 block text-sm font-extrabold text-slate-700 dark:text-stone-200">
+        {label} {optional && <span className="font-semibold text-slate-400 dark:text-stone-500">(optional)</span>}
       </label>
       <div className="relative">
-        {Icon && <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />}
+        {Icon && <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-stone-500" />}
         <input
-          className={"w-full rounded-2xl bg-slate-50 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 " + (Icon ? "pl-10" : "px-3.5") + (isPassword ? " pr-10" : " pr-3.5")}
+          className={"w-full rounded-2xl bg-slate-50 dark:bg-white/[0.04] py-3 font-semibold text-slate-800 dark:text-white ring-2 ring-slate-200 dark:ring-white/[0.08] transition focus:bg-white dark:focus:bg-white/[0.06] focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 dark:placeholder:text-stone-500 " + (Icon ? "pl-10" : "px-3.5") + (isPassword ? " pr-10" : " pr-3.5")}
           type={inputType}
           name={name}
           id={name}
@@ -1563,7 +1570,7 @@ function Field({ label, optional, icon: Icon, value, onChange, placeholder, type
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300 transition"
             tabIndex={-1}
             aria-label={showPw ? "Hide password" : "Show password"}
           >
@@ -1579,7 +1586,7 @@ function SectionHeading({ eyebrow, title, align = "center" }) {
   return (
     <div className={align === "center" ? "text-center" : "text-left"}>
       <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{eyebrow}</div>
-      <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 sm:text-4xl">{title}</h2>
+      <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">{title}</h2>
     </div>
   );
 }
