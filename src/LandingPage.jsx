@@ -1194,7 +1194,10 @@ export default function LandingPage({ onLogin, onSignup }) {
 
       {mode === "signup" && (
         <p className="mt-4 text-center text-xs font-medium text-slate-400 dark:text-stone-500">
-          By signing up you agree to our terms and privacy policy.
+          By signing up you agree to our{" "}
+          <Link to="/terms" className="font-bold text-slate-500 underline hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200">terms</Link>{" "}
+          and{" "}
+          <Link to="/privacy" className="font-bold text-slate-500 underline hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200">privacy policy</Link>.
         </p>
       )}
     </div>

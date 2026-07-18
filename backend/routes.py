@@ -502,9 +502,9 @@ def _render_streak_reminder_html(name: str, streak: int, app_url: str) -> str:
     return _email_shell(preheader, cards)
 
 
-def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None) -> bool:
+def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None, reply_to_email: Optional[str] = None, reply_to_name: Optional[str] = None) -> bool:
     """Send email via SMTP if configured; otherwise log to server console.
-    
+
     Returns:
         bool: True if email was sent via SMTP, False if only logged to console
     """
@@ -516,7 +516,7 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
         _brevo_send = None
     if _brevo_send is not None:
         try:
-            if _brevo_send(to_email=to_email, subject=subject, text=body, html=html_body):
+            if _brevo_send(to_email=to_email, subject=subject, text=body, html=html_body, reply_to_email=reply_to_email, reply_to_name=reply_to_name):
                 return True
         except Exception as e:
             print(f" ⚠️  Brevo email error, trying SMTP: {e}")
@@ -2785,6 +2785,51 @@ def verify_email(
     # Sync verification to Brevo (so you can trigger onboarding sequences).
     _brevo_sync_user(db, int(user_id), event="email_verified")
 
+    return {"ok": True}
+
+
+_CONTACT_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@router.post("/contact")
+def contact_form(payload: Dict[str, Any] = Body(...), request: Request = None):
+    """Public 'Contact us' form — no auth required. Verifies a Turnstile token,
+    then forwards the message to the support inbox via Brevo (with reply-to set
+    to the visitor's email so support can just hit reply)."""
+    name = (payload.get("name") or "").strip()[:200]
+    email = (payload.get("email") or "").strip().lower()[:200]
+    topic = (payload.get("topic") or "General").strip()[:80]
+    message = (payload.get("message") or "").strip()[:5000]
+    turnstile_token = (payload.get("turnstile_token") or "").strip()
+
+    if not name or not email or not message:
+        raise HTTPException(status_code=400, detail="Name, email, and message are required")
+    if not _CONTACT_EMAIL_RE.match(email):
+        raise HTTPException(status_code=400, detail="Enter a valid email address")
+
+    ip = _client_ip(request) if request is not None else ""
+    if not _verify_turnstile(turnstile_token, ip):
+        raise HTTPException(status_code=400, detail="Security check failed — please try again")
+
+    to_email = (os.getenv("CONTACT_INBOX_EMAIL") or os.getenv("BREVO_SENDER_EMAIL") or os.getenv("EMAIL_FROM") or "info@haylingua.am").strip()
+
+    plain = f"New contact form message\n\nFrom: {name} <{email}>\nTopic: {topic}\n\n{message}"
+    html = f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;">
+      <h2 style="color:#1c1917;">New contact form message</h2>
+      <p style="color:#57534e;"><strong>From:</strong> {name} &lt;{email}&gt;<br/>
+      <strong>Topic:</strong> {topic}</p>
+      <div style="white-space:pre-wrap;background:#f5f5f4;border-radius:12px;padding:16px;color:#292524;">{message}</div>
+    </div>"""
+
+    _send_email(
+        to_email=to_email,
+        subject=f"[Haylingua Contact] {topic} — {name}",
+        body=plain,
+        html_body=html,
+        reply_to_email=email,
+        reply_to_name=name,
+    )
     return {"ok": True}
 
 

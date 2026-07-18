@@ -100,6 +100,8 @@ def send_transactional_email_result(
     html: Optional[str] = None,
     sender_email: Optional[str] = None,
     sender_name: Optional[str] = None,
+    reply_to_email: Optional[str] = None,
+    reply_to_name: Optional[str] = None,
     timeout_s: float = 8.0,
 ) -> Dict[str, Any]:
     """Like send_transactional_email but returns a diagnostic dict:
@@ -118,6 +120,9 @@ def send_transactional_email_result(
         "to": [{"email": to_email}],
         "subject": subject,
     }
+    reply_to_email = (reply_to_email or "").strip()
+    if reply_to_email:
+        payload["replyTo"] = {"email": reply_to_email, "name": (reply_to_name or reply_to_email).strip()}
     if html:
         payload["htmlContent"] = html
     if text:
@@ -152,6 +157,8 @@ def send_transactional_email(
     html: Optional[str] = None,
     sender_email: Optional[str] = None,
     sender_name: Optional[str] = None,
+    reply_to_email: Optional[str] = None,
+    reply_to_name: Optional[str] = None,
     timeout_s: float = 8.0,
 ) -> bool:
     """Send a transactional email via Brevo's HTTP API (POST /v3/smtp/email).
@@ -163,7 +170,8 @@ def send_transactional_email(
     """
     res = send_transactional_email_result(
         to_email=to_email, subject=subject, text=text, html=html,
-        sender_email=sender_email, sender_name=sender_name, timeout_s=timeout_s,
+        sender_email=sender_email, sender_name=sender_name,
+        reply_to_email=reply_to_email, reply_to_name=reply_to_name, timeout_s=timeout_s,
     )
     return bool(res.get("ok"))
 

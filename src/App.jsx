@@ -26,6 +26,11 @@ const Leaderboard = lazy(() => import('./Leaderboard'));
 const ProfilePage = lazy(() => import('./ProfilePage'));
 const PublicUserPage = lazy(() => import('./PublicUserPage'));
 const AboutPage = lazy(() => import('./AboutPage'));
+const ContactPage = lazy(() => import('./ContactPage'));
+const TermsPage = lazy(() => import('./TermsPage'));
+const PrivacyPolicyPage = lazy(() => import('./PrivacyPolicyPage'));
+const RefundPolicyPage = lazy(() => import('./RefundPolicyPage'));
+const CookiePolicyPage = lazy(() => import('./CookiePolicyPage'));
 const Onboarding = lazy(() => import('./Onboarding'));
 const CmsGate = lazy(() => import('./cms/CmsGate'));
 const CmsLogin = lazy(() => import('./cms/CmsLogin'));
@@ -358,6 +363,11 @@ function AppShell() {
       {/* Marketing page — standalone (own nav/footer, like LandingPage), no
           auth required and accessible even when logged in. */}
       <Route path="/about" element={<AboutPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/refund-policy" element={<RefundPolicyPage />} />
+      <Route path="/cookie-policy" element={<CookiePolicyPage />} />
 
       <Route
         path="/"
