@@ -25,6 +25,7 @@ const Friends = lazy(() => import('./Friends'));
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const ProfilePage = lazy(() => import('./ProfilePage'));
 const PublicUserPage = lazy(() => import('./PublicUserPage'));
+const AboutPage = lazy(() => import('./AboutPage'));
 const Onboarding = lazy(() => import('./Onboarding'));
 const CmsGate = lazy(() => import('./cms/CmsGate'));
 const CmsLogin = lazy(() => import('./cms/CmsLogin'));
@@ -353,6 +354,10 @@ function AppShell() {
           </HeaderLayout>
         }
       />
+
+      {/* Marketing page — standalone (own nav/footer, like LandingPage), no
+          auth required and accessible even when logged in. */}
+      <Route path="/about" element={<AboutPage />} />
 
       <Route
         path="/"
