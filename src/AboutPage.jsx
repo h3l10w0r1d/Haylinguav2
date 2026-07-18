@@ -1,21 +1,15 @@
 // src/AboutPage.jsx — "About us": the Haylingua origin story, mission,
 // founders, and milestones. Public, unauthenticated marketing page.
 //
-// ⚠️ PLACEHOLDER CONTENT: everything inside FOUNDERS, TIMELINE, and the
-// bracketed [Our story] paragraphs below is a structural placeholder, NOT
-// real biographical/company fact — it was deliberately written this way
-// because those are facts only the Haylingua team can supply. Search this
-// file for "[" to find every spot that needs real copy, names, dates, and
-// photos before this page ships. Everything about the PRODUCT itself
-// (lessons, streaks, hearts, spaced repetition, AI tutor) is accurate and
-// pulled from the real app.
+// Founder photos: FOUNDERS[i].photo is still null — drop real image paths
+// in once available (e.g. import from ./assets or a /team/ public path).
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowRight, ArrowLeft, Sparkles, Heart, Flame, Languages, Users,
-  Sun, Moon, Menu, X, Quote, MapPin, Calendar, Github, Linkedin, Twitter,
+  Sun, Moon, Menu, X, MapPin, Calendar,
 } from "lucide-react";
 import owl from "./assets/character-owl.png";
 import grandma from "./assets/character-grandma.png";
@@ -26,30 +20,26 @@ import { getTheme, toggleTheme } from "./lib/theme";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Placeholder content — replace before shipping ───────────────────────────
-
 const FOUNDERS = [
   {
-    name: "[Founder name]",
-    role: "[Co-founder & CEO]",
-    photo: null, // drop a real photo path here, e.g. "/team/name.jpg"
-    bio: "[A couple of sentences on who they are, why Armenian, why now — their real path to starting Haylingua.]",
-    links: { linkedin: "#", twitter: "#" },
+    name: "Armen Ghazaryan",
+    role: "Founder & Developer",
+    photo: null, // drop a real photo path here, e.g. "/team/armen.jpg"
+    bio: "An IB Diploma Programme graduate of Quantum College, Armen built the first version of Haylingua as a school project — and kept building once it was clear how badly diaspora Armenians needed it.",
   },
   {
-    name: "[Founder name]",
-    role: "[Co-founder & CTO]",
-    photo: null,
-    bio: "[A couple of sentences on who they are and what they bring to the team.]",
-    links: { linkedin: "#", github: "#" },
+    name: "Lilit Hakobyan",
+    role: "Co-founder & Armenian Language Lead",
+    photo: null, // drop a real photo path here, e.g. "/team/lilit.jpg"
+    bio: "An Armenian language teacher across the IB programme and several other institutions, Lilit is the one who set Haylingua in motion — and shapes how the app actually teaches the language.",
   },
 ];
 
 const TIMELINE = [
-  { year: "[20XX]", title: "[The spark]", text: "[What personal moment or frustration started this — a grandmother's letters that couldn't be read, a trip to Armenia, a gap you couldn't find any app to fill.]" },
-  { year: "[20XX]", title: "[First prototype]", text: "[The scrappy first version — what it looked like, who tested it first.]" },
-  { year: "[20XX]", title: "[Public launch]", text: "[Opening Haylingua up to everyone — what changed, what you learned.]" },
-  { year: "Today", title: "Still building", text: "Every lesson, sound, and exercise on Haylingua is shaped by real learners — heritage speakers, complete beginners, and everyone in between." },
+  { year: "Oct 2024", title: "The idea", text: "Armen's IB teacher, Lilit Hakobyan, sets him a project: build something that could actually teach Armenian to the diaspora." },
+  { year: "Nov 2024", title: "First prototype", text: "A month later, the first working version of Haylingua exists." },
+  { year: "Jan 2026", title: "The real build begins", text: "Armen starts rebuilding Haylingua as a full product — real backend, real curriculum — with Lilit shaping how it teaches Armenian." },
+  { year: "Aug 2026", title: "Public launch", text: "Haylingua opens up to everyone. Coming soon." },
 ];
 
 const VALUES = [
@@ -323,32 +313,26 @@ export default function AboutPage() {
           <div data-reveal>
             <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">How it started</div>
             <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-              [The real story goes here]
+              It started as a school assignment
             </h2>
           </div>
 
           <div data-reveal className="prose prose-slate mt-6 max-w-none text-base font-semibold leading-relaxed text-slate-600 dark:text-stone-300">
             <p>
-              [This paragraph should tell the actual, true origin story of Haylingua —
-              who started it, what problem they personally ran into, and why an
-              Armenian-learning app specifically. Was it a grandmother whose letters
-              nobody in the family could read anymore? A trip to Yerevan that made the
-              gap obvious? A search for "learn Armenian" that came up nearly empty next
-              to dozens of options for Spanish or French? Replace this bracket with
-              that real story.]
+              In October 2024, Armen's IB teacher — Lilit Hakobyan, who has taught
+              Armenian across the IB Diploma Programme and several other institutions —
+              set him a project: build something that could actually teach Armenian to
+              the diaspora, to the people growing up without easy access to the
+              language of their grandparents. A month later, the first version of
+              Haylingua existed.
             </p>
             <p className="mt-4">
-              [A second paragraph on what happened next — building the first version,
-              who the first learners were, what surprised the team, what changed along
-              the way to the app as it exists today.]
-            </p>
-          </div>
-
-          <div data-reveal className="mt-8 flex items-center gap-3 rounded-2xl bg-brand-50 px-5 py-4 ring-1 ring-brand-100 dark:bg-brand-500/10 dark:ring-brand-500/20">
-            <Quote className="h-6 w-6 shrink-0 text-brand-500" />
-            <p className="text-sm font-bold text-brand-800 dark:text-brand-300">
-              "[A short, real quote from a founder — the sentence that captures why this
-              exists, in their own words.]"
+              That prototype sat for over a year while Armen finished the rest of the
+              IB Diploma. In January 2026, with the idea still nagging at him, he
+              started rebuilding Haylingua from scratch — a real backend, a real
+              curriculum, real lesson content — with Lilit shaping how the app
+              actually teaches the language. Haylingua is set to launch publicly in
+              August 2026.
             </p>
           </div>
         </section>
@@ -434,7 +418,7 @@ export default function AboutPage() {
               Meet the team
             </h2>
             <p className="mx-auto mt-3 max-w-md text-sm font-semibold text-slate-500 dark:text-stone-400">
-              [One line on the team as a whole — where you're based, what unites you.]
+              A student developer and the teacher who started it all — building Haylingua one lesson at a time.
             </p>
           </div>
 
@@ -450,30 +434,13 @@ export default function AboutPage() {
                     <img src={f.photo} alt={f.name} className="h-full w-full object-cover" />
                   ) : (
                     <span className="font-display text-3xl font-extrabold text-brand-500">
-                      {f.name.replace(/[\[\]]/g, "")[0] || "?"}
+                      {f.name[0] || "?"}
                     </span>
                   )}
                 </div>
                 <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">{f.name}</div>
                 <div className="text-sm font-bold text-brand-500">{f.role}</div>
                 <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{f.bio}</p>
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  {f.links?.linkedin && (
-                    <a href={f.links.linkedin} className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:hover:bg-white/10" aria-label="LinkedIn">
-                      <Linkedin className="h-4 w-4" />
-                    </a>
-                  )}
-                  {f.links?.twitter && (
-                    <a href={f.links.twitter} className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:hover:bg-white/10" aria-label="Twitter / X">
-                      <Twitter className="h-4 w-4" />
-                    </a>
-                  )}
-                  {f.links?.github && (
-                    <a href={f.links.github} className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:hover:bg-white/10" aria-label="GitHub">
-                      <Github className="h-4 w-4" />
-                    </a>
-                  )}
-                </div>
               </div>
             ))}
           </div>
