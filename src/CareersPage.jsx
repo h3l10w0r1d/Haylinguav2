@@ -172,40 +172,52 @@ export default function CareersPage() {
         </div>
       </section>
 
-      {/* Open roles — only rendered when the CMS has published vacancies */}
-      {vacancies.length > 0 && (
-        <section id="open-roles" className="mx-auto max-w-4xl px-5 py-16">
-          <div data-reveal className="text-center">
-            <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Open roles</div>
-            <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-              Come build with us
-            </h2>
-          </div>
-          <div data-reveal-group className="mt-10 space-y-4">
-            {vacancies.map((v) => (
-              <div key={v.id} data-reveal-item className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <div className="font-display text-xl font-extrabold text-slate-800 dark:text-white">{v.title}</div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-400 dark:text-stone-500">
-                      {v.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {v.location}</span>}
-                      <span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" /> {EMPLOYMENT_LABELS[v.employment_type] || v.employment_type}</span>
+      {/* Open roles — the CMS-published vacancy list. This section wrapper is
+          ALWAYS mounted (never conditionally added/removed) even though its
+          content is empty when there are no vacancies. It sits immediately
+          before the GSAP-pinned horizontal-scroll section below, which GSAP
+          wraps in its own "pin-spacer" DOM node after mount; if this section
+          were conditionally inserted/removed as a sibling *after* that pin
+          setup (e.g. once the async vacancies fetch resolves), React would
+          try to insertBefore a node whose sibling's parent GSAP had already
+          restructured, throwing "insertBefore ... not a child of this node".
+          Keeping the wrapper stable and only swapping its inner content
+          avoids ever touching that sibling relationship. */}
+      <section id="open-roles" className={vacancies.length > 0 ? "mx-auto max-w-4xl px-5 py-16" : "sr-only"}>
+        {vacancies.length > 0 && (
+          <>
+            <div data-reveal className="text-center">
+              <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Open roles</div>
+              <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
+                Come build with us
+              </h2>
+            </div>
+            <div data-reveal-group className="mt-10 space-y-4">
+              {vacancies.map((v) => (
+                <div key={v.id} data-reveal-item className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="font-display text-xl font-extrabold text-slate-800 dark:text-white">{v.title}</div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-400 dark:text-stone-500">
+                        {v.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {v.location}</span>}
+                        <span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" /> {EMPLOYMENT_LABELS[v.employment_type] || v.employment_type}</span>
+                      </div>
+                      {v.summary && <p className="mt-3 max-w-xl text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{v.summary}</p>}
                     </div>
-                    {v.summary && <p className="mt-3 max-w-xl text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{v.summary}</p>}
+                    <a
+                      href={`mailto:info@haylingua.am?subject=${encodeURIComponent(`Application: ${v.title}`)}`}
+                      className="btn3d btn3d-brand shrink-0 text-sm"
+                    >
+                      Apply <Mail className="h-4 w-4" />
+                    </a>
                   </div>
-                  <a
-                    href={`mailto:info@haylingua.am?subject=${encodeURIComponent(`Application: ${v.title}`)}`}
-                    className="btn3d btn3d-brand shrink-0 text-sm"
-                  >
-                    Apply <Mail className="h-4 w-4" />
-                  </a>
+                  {v.description && <p className="mt-4 whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-500 dark:text-stone-400">{v.description}</p>}
                 </div>
-                {v.description && <p className="mt-4 whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-500 dark:text-stone-400">{v.description}</p>}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+              ))}
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Pinned horizontal scroll — "what building this looks like" */}
       <section ref={pinRef} className="relative overflow-hidden border-y border-slate-100 bg-slate-50 dark:border-white/[0.06] dark:bg-white/[0.04]">
