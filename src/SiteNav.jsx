@@ -24,15 +24,6 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
 
   const closeMenu = () => setMenuOpen(false);
 
-  // On the landing page: plain same-page anchors (native scroll, no route
-  // change). Elsewhere: route to "/" + the section hash.
-  const NavLink = ({ hash, children, ...rest }) =>
-    inPage ? (
-      <a href={hash} {...rest}>{children}</a>
-    ) : (
-      <Link to={`/${hash}`} {...rest}>{children}</Link>
-    );
-
   const linkCls = "text-sm font-bold text-slate-500 hover:text-slate-800 dark:text-stone-400 dark:hover:text-white";
   const mobileLinkCls = "rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-stone-200 dark:hover:bg-white/[0.04]";
 
@@ -45,9 +36,6 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
         </Link>
 
         <div className="hidden items-center gap-7 md:flex">
-          <NavLink hash="#how" className={linkCls}>How it works</NavLink>
-          <NavLink hash="#features" className={linkCls}>Features</NavLink>
-          <NavLink hash="#faq" className={linkCls}>FAQ</NavLink>
           <Link to="/about" className={linkCls}>About us</Link>
           <Link to="/contact" className={linkCls}>Contact</Link>
         </div>
@@ -89,9 +77,6 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
       {menuOpen && (
         <div className="border-t border-slate-100 bg-white px-5 pb-4 pt-2 dark:border-white/[0.06] dark:bg-[#18181b] md:hidden">
           <div className="flex flex-col gap-1">
-            <NavLink hash="#how" onClick={closeMenu} className={mobileLinkCls}>How it works</NavLink>
-            <NavLink hash="#features" onClick={closeMenu} className={mobileLinkCls}>Features</NavLink>
-            <NavLink hash="#faq" onClick={closeMenu} className={mobileLinkCls}>FAQ</NavLink>
             <Link to="/about" onClick={closeMenu} className={mobileLinkCls}>About us</Link>
             <Link to="/contact" onClick={closeMenu} className={mobileLinkCls}>Contact</Link>
             {inPage ? (
