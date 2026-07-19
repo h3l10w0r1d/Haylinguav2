@@ -8,7 +8,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowRight, Sparkles, Heart, Languages, Rocket, Feather, Mail, Users, MapPin, Briefcase,
 } from "lucide-react";
-import teacher from "./assets/character-teacher.png";
+import owl from "./assets/character-owl.png";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 
@@ -146,7 +146,7 @@ export default function CareersPage() {
           </div>
           <div data-hero-art className="relative flex items-center justify-center">
             <div className="absolute h-72 w-72 rounded-full bg-gradient-to-br from-brand-100 to-feather-100 blur-2xl dark:from-brand-500/15 dark:to-feather-500/10" />
-            <img src={teacher} alt="" className="relative h-64 w-auto object-contain drop-shadow-2xl sm:h-80" />
+            <img src={owl} alt="Haylingua's mascot owl, holding an Armenian phrasebook" className="relative h-64 w-auto object-contain drop-shadow-2xl sm:h-80" />
           </div>
         </div>
       </header>
