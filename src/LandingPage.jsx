@@ -405,8 +405,8 @@ function LandingExerciseDemo({ onSignup }) {
       </div>
 
       <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-stone-300">Select the correct translation</div>
-      <div className="mt-1 flex items-center gap-2">
-        <div className="font-display text-2xl font-extrabold text-slate-800 dark:text-white">"{q.prompt}" means…</div>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <div className="max-w-full font-display text-2xl font-extrabold text-slate-800 [overflow-wrap:anywhere] dark:text-white">"{q.prompt}" means…</div>
         <VoiceChip text={q.prompt} tone="slate" />
       </div>
 
