@@ -912,6 +912,7 @@ def ensure_schema() -> None:
             )
             """,
         )
+        add_col_if_missing("affiliates", "payout_requested_at TIMESTAMPTZ")
         ensure_table(
             "referral_clicks",
             """

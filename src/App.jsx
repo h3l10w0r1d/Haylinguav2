@@ -383,7 +383,6 @@ function AppShell() {
       <Route path="/careers" element={<CareersPage />} />
       <Route path="/careers/apply/:vacancyId" element={<CareersApplyPage />} />
       <Route path="/affiliates" element={<AffiliatesPage />} />
-      <Route path="/affiliate-dashboard" element={<AffiliateDashboardPage />} />
       <Route path="/community" element={<ForumPage />} />
       <Route path="/community/thread/:id" element={<ForumThreadPage />} />
       <Route path="/community/:slug" element={<ForumCategoryPage />} />
@@ -477,6 +476,14 @@ function AppShell() {
           element={
             <RequireOnboarded>
               <Shop />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/affiliate-dashboard"
+          element={
+            <RequireOnboarded>
+              <AffiliateDashboardPage />
             </RequireOnboarded>
           }
         />

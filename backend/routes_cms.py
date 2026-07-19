@@ -1823,6 +1823,7 @@ def cms_list_affiliates(request: Request, db=Depends(get_db)):
     require_cms(request, db)
     rows = db.execute(text("""
         SELECT a.id, a.user_id, a.referral_code, a.commission_rate, a.status,
+               a.payout_email, a.payout_requested_at,
                a.applied_name, a.applied_email, a.applied_platform, a.applied_audience, a.applied_message,
                a.created_at, a.approved_at,
                COALESCE((SELECT COUNT(*) FROM referral_clicks c WHERE c.affiliate_id = a.id), 0) AS click_count,
@@ -1830,9 +1831,46 @@ def cms_list_affiliates(request: Request, db=Depends(get_db)):
                COALESCE((SELECT COUNT(*) FROM affiliate_referrals r WHERE r.affiliate_id = a.id AND r.converted_at IS NOT NULL), 0) AS converted_count,
                COALESCE((SELECT SUM(commission_amount) FROM affiliate_referrals r WHERE r.affiliate_id = a.id AND r.payout_status = 'unpaid'), 0) AS pending_commission
         FROM affiliates a
-        ORDER BY (a.status = 'pending') DESC, a.created_at DESC
+        ORDER BY (a.status = 'pending') DESC, a.payout_requested_at DESC NULLS LAST, a.created_at DESC
     """)).mappings().all()
     return {"affiliates": [dict(r) for r in rows]}
+
+@router.get("/cms/affiliates/analytics")
+def cms_affiliates_analytics(request: Request, db=Depends(get_db)):
+    """Site-wide affiliate program totals + a 30-day daily trend, for the
+    summary bar and chart at the top of the CMS Affiliates page."""
+    require_cms(request, db)
+    totals = db.execute(text("""
+        SELECT
+            (SELECT COUNT(*) FROM affiliates WHERE status = 'approved') AS approved_count,
+            (SELECT COUNT(*) FROM affiliates WHERE status = 'pending') AS pending_count,
+            (SELECT COUNT(*) FROM referral_clicks) AS total_clicks,
+            (SELECT COUNT(*) FROM affiliate_referrals) AS total_referred,
+            (SELECT COUNT(*) FROM affiliate_referrals WHERE converted_at IS NOT NULL) AS total_converted,
+            (SELECT COALESCE(SUM(commission_amount), 0) FROM affiliate_referrals WHERE payout_status = 'unpaid') AS total_pending_commission,
+            (SELECT COALESCE(SUM(commission_amount), 0) FROM affiliate_referrals WHERE payout_status = 'paid') AS total_paid_commission
+    """)).mappings().first()
+
+    clicks_daily = db.execute(text("""
+        SELECT DATE(created_at) AS day, COUNT(*) AS count FROM referral_clicks
+        WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day
+    """)).mappings().all()
+    signups_daily = db.execute(text("""
+        SELECT DATE(referred_at) AS day, COUNT(*) AS count FROM affiliate_referrals
+        WHERE referred_at >= NOW() - INTERVAL '30 days' GROUP BY day ORDER BY day
+    """)).mappings().all()
+
+    return {
+        "approved_count": int(totals["approved_count"]),
+        "pending_count": int(totals["pending_count"]),
+        "total_clicks": int(totals["total_clicks"]),
+        "total_referred": int(totals["total_referred"]),
+        "total_converted": int(totals["total_converted"]),
+        "total_pending_commission": float(totals["total_pending_commission"]),
+        "total_paid_commission": float(totals["total_paid_commission"]),
+        "clicks_daily": [dict(r) for r in clicks_daily],
+        "signups_daily": [dict(r) for r in signups_daily],
+    }
 
 @router.post("/cms/affiliates/{affiliate_id}/approve")
 def cms_approve_affiliate(affiliate_id: int, request: Request, db=Depends(get_db)):
@@ -1887,7 +1925,16 @@ def cms_list_affiliate_referrals(affiliate_id: int, request: Request, db=Depends
 @router.post("/cms/affiliate-referrals/{referral_id}/mark-paid")
 def cms_mark_referral_paid(referral_id: int, request: Request, db=Depends(get_db)):
     require_cms(request, db)
+    referral = db.execute(text("SELECT affiliate_id FROM affiliate_referrals WHERE id = :id"), {"id": referral_id}).mappings().first()
+    if referral is None:
+        raise HTTPException(status_code=404, detail="Referral not found")
     db.execute(text("UPDATE affiliate_referrals SET payout_status = 'paid' WHERE id = :id"), {"id": referral_id})
+    remaining_unpaid = db.execute(
+        text("SELECT COUNT(*) FROM affiliate_referrals WHERE affiliate_id = :id AND payout_status = 'unpaid' AND commission_amount IS NOT NULL"),
+        {"id": referral["affiliate_id"]},
+    ).scalar() or 0
+    if remaining_unpaid == 0:
+        db.execute(text("UPDATE affiliates SET payout_requested_at = NULL WHERE id = :id"), {"id": referral["affiliate_id"]})
     return {"ok": True}
 
 # ==================== Community forum (moderation) ====================

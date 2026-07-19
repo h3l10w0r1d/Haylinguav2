@@ -2,10 +2,11 @@
 // commission rates, and track referrals/payouts.
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import {
   Check, ChevronRight, Percent, MousePointerClick, Users, DollarSign,
-  Copy, Ban, RotateCcw,
+  Copy, Ban, RotateCcw, Wallet, Mail,
 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 
@@ -21,10 +22,86 @@ const STATUS_TONE = {
   rejected: "bg-slate-100 text-slate-500 ring-slate-200",
 };
 
+// Turns sparse {day, count} backend rows into a dense 30-point series so the
+// chart doesn't jump around on days with zero activity.
+function fillDays(clicksRows, signupsRows) {
+  const clickMap = {}, signupMap = {};
+  (clicksRows || []).forEach((r) => { clickMap[String(r.day).slice(0, 10)] = Number(r.count) || 0; });
+  (signupsRows || []).forEach((r) => { signupMap[String(r.day).slice(0, 10)] = Number(r.count) || 0; });
+  const out = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const iso = d.toISOString().slice(0, 10);
+    out.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, clicks: clickMap[iso] || 0, signups: signupMap[iso] || 0 });
+  }
+  return out;
+}
+
 function Stat({ icon: Icon, label, value }) {
   return (
     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
       <Icon className="h-3.5 w-3.5 text-slate-400" /> {value} <span className="font-semibold text-slate-400">{label}</span>
+    </div>
+  );
+}
+
+function SummaryCard({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+      <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-500"><Icon className="h-4.5 w-4.5" /></div>
+      <div className="mt-2 font-display text-xl font-extrabold tabular-nums text-slate-800">{value}</div>
+      <div className="text-xs font-bold text-slate-400">{label}</div>
+    </div>
+  );
+}
+
+function AnalyticsSummary({ api, showToast }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    api.getAffiliatesAnalytics().then(setData).catch((err) => showToast(err.message || "Failed to load analytics", "err"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!data) return null;
+  const series = fillDays(data.clicks_daily, data.signups_daily);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <SummaryCard icon={Users} label="Approved affiliates" value={data.approved_count} />
+        <SummaryCard icon={MousePointerClick} label="Total clicks" value={data.total_clicks} />
+        <SummaryCard icon={Users} label="Total referred" value={data.total_referred} />
+        <SummaryCard icon={Check} label="Converted" value={data.total_converted} />
+        <SummaryCard icon={Wallet} label="Owed" value={`֏${data.total_pending_commission.toLocaleString()}`} />
+        <SummaryCard icon={DollarSign} label="Paid out" value={`֏${data.total_paid_commission.toLocaleString()}`} />
+      </div>
+      <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+        <div className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Clicks & signups — last 30 days</div>
+        <div className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={series} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="grad_clicks" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f2994a" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#f2994a" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="grad_signups" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#94a3b8" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 9, fill: "#94a3b8" }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="clicks" name="Clicks" stroke="#f2994a" strokeWidth={2} fill="url(#grad_clicks)" dot={false} />
+              <Area type="monotone" dataKey="signups" name="Signups" stroke="#22c55e" strokeWidth={2} fill="url(#grad_signups)" dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }
@@ -178,6 +255,8 @@ export default function CmsAffiliates() {
 
   return (
     <CmsLayout active="affiliates" title="Affiliates">
+      <div className="space-y-6">
+        <AnalyticsSummary api={api} showToast={showToast} />
       <div className="space-y-3">
         {loading ? (
           <div className="p-6 text-sm text-slate-500">Loading…</div>
@@ -191,6 +270,11 @@ export default function CmsAffiliates() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-display text-base font-extrabold text-slate-800">{a.applied_name}</span>
                     <span className={cx("rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ring-1", STATUS_TONE[a.status])}>{a.status}</span>
+                    {a.payout_requested_at && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gold-50 px-2 py-0.5 text-[10px] font-extrabold uppercase text-gold-700 ring-1 ring-gold-200">
+                        <Wallet className="h-3 w-3" /> Payout requested
+                      </span>
+                    )}
                   </div>
                   <div className="mt-0.5 text-xs font-semibold text-slate-400">{a.applied_email} · {a.applied_platform}{a.applied_audience ? ` · ${a.applied_audience}` : ""}</div>
                   {a.applied_message && <p className="mt-2 text-xs font-medium text-slate-500">{a.applied_message}</p>}
@@ -203,6 +287,7 @@ export default function CmsAffiliates() {
                       <Stat icon={MousePointerClick} label="clicks" value={a.click_count} />
                       <Stat icon={Users} label={`referred (${a.converted_count} paid)`} value={a.referred_count} />
                       <Stat icon={DollarSign} label="owed" value={`֏${Number(a.pending_commission).toLocaleString()}`} />
+                      {a.payout_email && <Stat icon={Mail} label="payout email" value={a.payout_email} />}
                     </div>
                   )}
                 </div>
@@ -241,6 +326,7 @@ export default function CmsAffiliates() {
             </div>
           ))
         )}
+      </div>
       </div>
 
       {toast && (

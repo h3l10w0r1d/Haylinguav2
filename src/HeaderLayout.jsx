@@ -1,7 +1,7 @@
 // src/HeaderLayout.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon } from "lucide-react";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent } from "lucide-react";
 import { getTheme, toggleTheme } from "./lib/theme";
 
 const API_BASE =
@@ -266,6 +266,10 @@ export default function HeaderLayout({ user, onLogout, children }) {
             <NavLink to="/shop" className={navLinkClass}>
               <Store className="w-4 h-4" />
               <span>Shop</span>
+            </NavLink>
+            <NavLink to="/affiliate-dashboard" className={navLinkClass}>
+              <Percent className="w-4 h-4" />
+              <span>Affiliate</span>
             </NavLink>
             <NavLink to="/profile" className={navLinkClass}>
               <User className="w-4 h-4" />

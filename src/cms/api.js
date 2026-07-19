@@ -116,6 +116,7 @@ export function createCmsApi(accessToken) {
 
   // Affiliate program
   const listAffiliates = () => req("/cms/affiliates");
+  const getAffiliatesAnalytics = () => req("/cms/affiliates/analytics");
   const approveAffiliate = (id) => req(`/cms/affiliates/${id}/approve`, { method: "POST" });
   const updateAffiliate = (id, payload) => req(`/cms/affiliates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   const listAffiliateReferrals = (id) => req(`/cms/affiliates/${id}/referrals`);
@@ -282,6 +283,7 @@ export function createCmsApi(accessToken) {
     deleteVacancy,
     reorderVacancies,
     listAffiliates,
+    getAffiliatesAnalytics,
     approveAffiliate,
     updateAffiliate,
     listAffiliateReferrals,

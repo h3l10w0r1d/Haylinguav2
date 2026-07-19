@@ -2921,20 +2921,30 @@ def affiliates_track_click(payload: Dict[str, Any] = Body(...), db: Connection =
     return {"ok": True}
 
 
-@router.get("/affiliate/me")
-def affiliate_me(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    """The logged-in user's affiliate status + dashboard stats. 404 if they've
-    never applied — the frontend uses that to point them at /affiliates."""
-    user_id = _get_user_id_from_bearer(authorization, db)
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
-
+def _get_affiliate_or_404(user_id: int, db: Connection):
     affiliate = db.execute(
-        text("SELECT id, referral_code, commission_rate, status, created_at, approved_at FROM affiliates WHERE user_id = :uid"),
+        text("""
+            SELECT id, referral_code, commission_rate, status, payout_email, payout_requested_at, created_at, approved_at
+            FROM affiliates WHERE user_id = :uid
+        """),
         {"uid": user_id},
     ).mappings().first()
     if affiliate is None:
         raise HTTPException(status_code=404, detail="Not an affiliate")
+    return affiliate
+
+
+@router.get("/affiliate/me")
+def affiliate_me(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """The logged-in user's affiliate status + dashboard stats, including a
+    30-day daily trend of clicks/signups for the dashboard chart. 404 if
+    they've never applied — the frontend uses that to point them at
+    /affiliates."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    affiliate = _get_affiliate_or_404(user_id, db)
 
     clicks = db.execute(text("SELECT COUNT(*) FROM referral_clicks WHERE affiliate_id = :id"), {"id": affiliate["id"]}).scalar() or 0
     stats = db.execute(
@@ -2949,6 +2959,23 @@ def affiliate_me(authorization: Optional[str] = Header(default=None), db: Connec
         {"id": affiliate["id"]},
     ).mappings().first()
 
+    clicks_daily = db.execute(
+        text("""
+            SELECT DATE(created_at) AS day, COUNT(*) AS count FROM referral_clicks
+            WHERE affiliate_id = :id AND created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY day ORDER BY day
+        """),
+        {"id": affiliate["id"]},
+    ).mappings().all()
+    signups_daily = db.execute(
+        text("""
+            SELECT DATE(referred_at) AS day, COUNT(*) AS count FROM affiliate_referrals
+            WHERE affiliate_id = :id AND referred_at >= NOW() - INTERVAL '30 days'
+            GROUP BY day ORDER BY day
+        """),
+        {"id": affiliate["id"]},
+    ).mappings().all()
+
     return {
         "affiliate": dict(affiliate),
         "clicks": int(clicks),
@@ -2956,7 +2983,52 @@ def affiliate_me(authorization: Optional[str] = Header(default=None), db: Connec
         "converted_count": int(stats["converted_count"]),
         "pending_commission": float(stats["pending_commission"]),
         "paid_commission": float(stats["paid_commission"]),
+        "clicks_daily": [dict(r) for r in clicks_daily],
+        "signups_daily": [dict(r) for r in signups_daily],
     }
+
+
+@router.put("/affiliate/me")
+async def affiliate_update_me(request: Request, authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """The affiliate sets where they want to be paid. Investigation-scoped —
+    this just records the email; nothing here moves money."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    _get_affiliate_or_404(user_id, db)
+
+    body = await request.json()
+    payout_email = (body.get("payout_email") or "").strip()[:200]
+    if payout_email and not _CONTACT_EMAIL_RE.match(payout_email):
+        raise HTTPException(status_code=400, detail="Enter a valid email address")
+
+    db.execute(text("UPDATE affiliates SET payout_email = :e WHERE user_id = :uid"), {"e": payout_email or None, "uid": user_id})
+    return {"ok": True}
+
+
+@router.post("/affiliate/request-payout")
+def affiliate_request_payout(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """Flags to the CMS that this affiliate wants to be paid. Purely a
+    signal — payouts are still fulfilled manually via the CMS's mark-paid
+    action, no real transfer happens here."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    affiliate = _get_affiliate_or_404(user_id, db)
+    if affiliate["status"] != "approved":
+        raise HTTPException(status_code=400, detail="Only approved affiliates can request a payout")
+    if not affiliate["payout_email"]:
+        raise HTTPException(status_code=400, detail="Add a payout email first")
+
+    pending = db.execute(
+        text("SELECT COALESCE(SUM(commission_amount), 0) FROM affiliate_referrals WHERE affiliate_id = :id AND payout_status = 'unpaid'"),
+        {"id": affiliate["id"]},
+    ).scalar() or 0
+    if float(pending) <= 0:
+        raise HTTPException(status_code=400, detail="Nothing owed yet")
+
+    db.execute(text("UPDATE affiliates SET payout_requested_at = NOW() WHERE id = :id"), {"id": affiliate["id"]})
+    return {"ok": True}
 
 
 @router.post("/auth/forgot-password")
