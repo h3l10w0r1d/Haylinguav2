@@ -335,10 +335,11 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
                 <button
                   onClick={() => onLogout?.()}
-                  className="hidden md:inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-full transition-colors dark:text-stone-400 dark:hover:bg-red-500/15 dark:hover:text-red-300"
+                  title="Log out"
+                  className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 p-2 md:px-2.5 md:py-1.5 rounded-full transition-colors dark:text-stone-400 dark:hover:bg-red-500/15 dark:hover:text-red-300"
                 >
-                  <LogOut className="w-3 h-3" />
-                  <span>Log out</span>
+                  <LogOut className="w-4 h-4 md:w-3 md:h-3" />
+                  <span className="hidden md:inline">Log out</span>
                 </button>
               </>
             ) : (
