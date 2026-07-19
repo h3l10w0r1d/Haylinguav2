@@ -184,7 +184,7 @@ export default function CmsCareers() {
                         </select>
                       </div>
                       <input value={e.summary || ""} onChange={(ev) => patch(it.id, { summary: ev.target.value })} placeholder="One-line summary shown on the card" className={cx(inputCls, "!py-2 text-xs")} />
-                      <textarea value={e.description || ""} onChange={(ev) => patch(it.id, { description: ev.target.value })} placeholder="Full role description (shown when someone opens the role)" rows={3} className={cx(inputCls, "!py-2 text-xs")} />
+                      <textarea value={e.description || ""} onChange={(ev) => patch(it.id, { description: ev.target.value })} placeholder="Full role description (shown when someone opens the role)" rows={3} className={cx(inputCls, "!py-2 text-xs")} data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" />
                       <div className="flex flex-wrap items-center gap-2 pt-0.5">
                         <button type="button" onClick={() => toggleItem(it)} disabled={busy}
                           className={cx("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 transition",

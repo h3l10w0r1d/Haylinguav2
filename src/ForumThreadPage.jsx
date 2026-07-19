@@ -152,6 +152,9 @@ export default function ForumThreadPage() {
                     rows={3}
                     maxLength={10000}
                     className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-stone-200 dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
+                    data-gramm="false"
+                    data-gramm_editor="false"
+                    data-enable-grammarly="false"
                   />
                   {errorMsg && (
                     <div className="flex items-center gap-2 text-sm font-bold text-cardinal-600 dark:text-cardinal-400">
