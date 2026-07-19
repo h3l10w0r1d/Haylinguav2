@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
+import Pressable3D from '../../components/Pressable3D';
 
 export default function SelectMissingWord({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
@@ -47,13 +48,13 @@ export default function SelectMissingWord({ exercise, onSubmit, onAdvance }) {
         </View>
       </View>
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={graded ? onAdvance : check}
         disabled={!canCheck && !graded}
         className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
       >
         <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </TouchableOpacity>
+      </Pressable3D>
     </View>
   );
 }

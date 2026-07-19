@@ -3,8 +3,10 @@
 // also offers a "type with keyboard" toggle for a harder mode — omitted here,
 // tap-to-build is the primary path and matches every other tap-based kind.
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { normalizeText } from '../choiceHelpers';
+import Pressable3D from '../../components/Pressable3D';
+import { haptics } from '../../lib/haptics';
 
 export default function WordBank({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
@@ -30,6 +32,7 @@ export default function WordBank({ exercise, onSubmit, onAdvance }) {
     if (graded) return;
     const item = available[idx];
     if (!item) return;
+    haptics.impact();
     setAvailable((a) => a.filter((_, i) => i !== idx));
     setPicked((p) => [...p, item]);
   }
@@ -37,6 +40,7 @@ export default function WordBank({ exercise, onSubmit, onAdvance }) {
     if (graded) return;
     const item = picked[idx];
     if (!item) return;
+    haptics.impact();
     setPicked((p) => p.filter((_, i) => i !== idx));
     setAvailable((a) => [...a, item]);
   }
@@ -45,7 +49,10 @@ export default function WordBank({ exercise, onSubmit, onAdvance }) {
     const picks = picked.map((p) => p.t);
     const ok = solution.length === picks.length && solution.every((v, i) => normalizeText(v) === normalizeText(picks[i]));
     const altOk = normalizeText(built) === normalizeText(solution.join(' '));
-    setGraded({ ok: ok || altOk });
+    const isOk = ok || altOk;
+    setGraded({ ok: isOk });
+    if (isOk) haptics.success();
+    else haptics.error();
     onSubmit({ answerText: built });
   }
 
@@ -66,9 +73,9 @@ export default function WordBank({ exercise, onSubmit, onAdvance }) {
               <Text className="text-sm font-semibold text-stone-400">Tap words to build your answer…</Text>
             ) : (
               picked.map((p, i) => (
-                <TouchableOpacity key={p.key} onPress={() => remove(i)} className="rounded-xl border-2 border-brand-500 bg-brand-50 px-3 py-2">
+                <Pressable3D key={p.key} onPress={() => remove(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-brand-500 bg-brand-50 px-3 py-2">
                   <Text className="text-base font-bold text-brand-700">{p.t}</Text>
-                </TouchableOpacity>
+                </Pressable3D>
               ))
             )}
           </View>
@@ -76,9 +83,9 @@ export default function WordBank({ exercise, onSubmit, onAdvance }) {
 
         <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
           {available.map((p, i) => (
-            <TouchableOpacity key={p.key} onPress={() => add(i)} className="rounded-xl border-2 border-stone-200 bg-white px-3 py-2">
+            <Pressable3D key={p.key} onPress={() => add(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-stone-200 bg-white px-3 py-2">
               <Text className="text-base font-semibold text-stone-800">{p.t}</Text>
-            </TouchableOpacity>
+            </Pressable3D>
           ))}
         </View>
 
@@ -89,13 +96,13 @@ export default function WordBank({ exercise, onSubmit, onAdvance }) {
         )}
       </View>
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={graded ? onAdvance : check}
         disabled={!canCheck && !graded}
         className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
       >
         <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </TouchableOpacity>
+      </Pressable3D>
     </View>
   );
 }

@@ -5,8 +5,10 @@
 // arbitrary text (POST /tts) — not wired on mobile yet (see AudioChoiceTts),
 // so this version omits per-token audio and keeps only the tap-to-build flow.
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { normalizeText } from '../choiceHelpers';
+import Pressable3D from '../../components/Pressable3D';
+import { haptics } from '../../lib/haptics';
 
 export default function SentenceOrder({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
@@ -35,6 +37,7 @@ export default function SentenceOrder({ exercise, onSubmit, onAdvance }) {
 
   function removePicked(idx) {
     if (graded) return;
+    haptics.impact();
     const item = picked[idx];
     setPicked((p) => p.filter((_, i) => i !== idx));
     setAvailable((a) => [...a, item]);
@@ -42,6 +45,7 @@ export default function SentenceOrder({ exercise, onSubmit, onAdvance }) {
 
   function addToken(idx) {
     if (graded) return;
+    haptics.impact();
     const item = available[idx];
     setAvailable((a) => a.filter((_, i) => i !== idx));
     setPicked((p) => [...p, item]);
@@ -61,6 +65,8 @@ export default function SentenceOrder({ exercise, onSubmit, onAdvance }) {
       ok = normalizeText(builtSentence) === normalizeText(answer);
     }
     setGraded({ ok });
+    if (ok) haptics.success();
+    else haptics.error();
     onSubmit({ answerText: pickedTexts.join(' ') });
   }
 
@@ -75,9 +81,9 @@ export default function SentenceOrder({ exercise, onSubmit, onAdvance }) {
               <Text className="text-sm font-semibold text-stone-400">Tap words below to build the sentence…</Text>
             ) : (
               picked.map((item, i) => (
-                <TouchableOpacity key={item.key} onPress={() => removePicked(i)} className="rounded-xl border-2 border-brand-500 bg-brand-50 px-3 py-2">
+                <Pressable3D key={item.key} onPress={() => removePicked(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-brand-500 bg-brand-50 px-3 py-2">
                   <Text className="text-base font-bold text-brand-700">{item.t}</Text>
-                </TouchableOpacity>
+                </Pressable3D>
               ))
             )}
           </View>
@@ -85,9 +91,9 @@ export default function SentenceOrder({ exercise, onSubmit, onAdvance }) {
 
         <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
           {available.map((item, i) => (
-            <TouchableOpacity key={item.key} onPress={() => addToken(i)} className="rounded-xl border-2 border-stone-200 bg-white px-3 py-2">
+            <Pressable3D key={item.key} onPress={() => addToken(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-stone-200 bg-white px-3 py-2">
               <Text className="text-base font-semibold text-stone-800">{item.t}</Text>
-            </TouchableOpacity>
+            </Pressable3D>
           ))}
         </View>
 
@@ -98,13 +104,13 @@ export default function SentenceOrder({ exercise, onSubmit, onAdvance }) {
         )}
       </View>
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={graded ? onAdvance : check}
         disabled={!canCheck && !graded}
         className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
       >
         <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </TouchableOpacity>
+      </Pressable3D>
     </View>
   );
 }

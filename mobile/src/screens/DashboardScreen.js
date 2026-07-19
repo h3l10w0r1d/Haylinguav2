@@ -2,14 +2,25 @@
 // gradient "continue lesson" hero (src/Dashboard.jsx) to RN. Same visual
 // language (apricot->pomegranate gradient, tinted stat chips), wired to the
 // real backend: GET /me/lessons/progress + the shared statsStore.
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, ActivityIndicator, ScrollView, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { Heart, Flame, Zap, Gem, Play, ArrowRight } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withDelay,
+  withTiming,
+  withSpring,
+  withRepeat,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
 import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
+import Pressable3D from '../components/Pressable3D';
 
 const ACCENT = {
   cardinal: { tint: '#FFECEC', icon: '#FF4B4B' },
@@ -18,18 +29,82 @@ const ACCENT = {
   feather: { tint: '#E7F7FF', icon: '#1CB0F6' },
 };
 
-function KpiTile({ icon: Icon, accent, label, value }) {
+// A subtle continuous scale/rotate wobble mirroring the web header's still-
+// live .flame-flicker + .flame-glow combo on the streak icon.
+function FlameIcon({ color, size }) {
+  const wobble = useSharedValue(0);
+
+  useEffect(() => {
+    wobble.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 550, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration: 550, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + wobble.value * 0.08 }, { rotate: `${(wobble.value - 0.5) * 6}deg` }],
+    shadowColor: color,
+    shadowOpacity: 0.35 + wobble.value * 0.35,
+    shadowRadius: 4 + wobble.value * 6,
+    shadowOffset: { width: 0, height: 0 },
+  }));
+
   return (
-    <View className="w-[47%] flex-row items-center gap-2.5 rounded-2xl bg-white px-3.5 py-3" style={{ shadowColor: '#1c1917', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
-      <View className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: accent.tint }}>
-        <Icon size={18} color={accent.icon} />
-      </View>
-      <View>
-        <Text className="text-xl font-extrabold text-stone-900">{value}</Text>
-        <Text className="text-[11px] font-semibold text-stone-400">{label}</Text>
-      </View>
-    </View>
+    <Animated.View style={style}>
+      <Flame size={size} color={color} />
+    </Animated.View>
   );
+}
+
+function KpiTile({ icon: Icon, accent, label, value, index, animateFlame }) {
+  const enter = useSharedValue(0);
+
+  useEffect(() => {
+    enter.value = withDelay(index * 70, withSpring(1, { damping: 12, stiffness: 140 }));
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: enter.value,
+    transform: [{ scale: 0.85 + enter.value * 0.15 }, { translateY: (1 - enter.value) * 10 }],
+  }));
+
+  return (
+    <Animated.View style={[animatedStyle, { width: '47%' }]}>
+      <View
+        className="flex-row items-center gap-2.5 rounded-2xl bg-white px-3.5 py-3"
+        style={{ shadowColor: '#1c1917', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}
+      >
+        <View className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: accent.tint }}>
+          {animateFlame ? <FlameIcon color={accent.icon} size={18} /> : <Icon size={18} color={accent.icon} />}
+        </View>
+        <View>
+          <Text className="text-xl font-extrabold text-stone-900">{value}</Text>
+          <Text className="text-[11px] font-semibold text-stone-400">{label}</Text>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+// Fade + slide-in entrance for the hero card on mount (mirrors the web's
+// .page-in). style is the caller's outer box style (radius/margin/overflow).
+function HeroCard({ style, children }) {
+  const enter = useSharedValue(0);
+
+  useEffect(() => {
+    enter.value = withDelay(120, withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) }));
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: enter.value,
+    transform: [{ translateY: (1 - enter.value) * 16 }],
+  }));
+
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }
 
 export default function DashboardScreen({ navigation }) {
@@ -78,54 +153,62 @@ export default function DashboardScreen({ navigation }) {
     >
       {/* KPI strip */}
       <View className="mb-4 flex-row flex-wrap justify-between gap-y-2.5">
-        <KpiTile icon={Heart} accent={ACCENT.cardinal} label="Hearts" value={heartLabel} />
-        <KpiTile icon={Flame} accent={ACCENT.brand} label="Streak" value={stats.streak} />
-        <KpiTile icon={Zap} accent={ACCENT.gold} label="XP" value={stats.totalXp} />
-        <KpiTile icon={Gem} accent={ACCENT.feather} label="Gems" value={stats.gems ?? '–'} />
+        <KpiTile icon={Heart} accent={ACCENT.cardinal} label="Hearts" value={heartLabel} index={0} />
+        <KpiTile icon={Flame} accent={ACCENT.brand} label="Streak" value={stats.streak} index={1} animateFlame />
+        <KpiTile icon={Zap} accent={ACCENT.gold} label="XP" value={stats.totalXp} index={2} />
+        <KpiTile icon={Gem} accent={ACCENT.feather} label="Gems" value={stats.gems ?? '–'} index={3} />
       </View>
 
-      {/* Hero */}
-      <LinearGradient
-        colors={allComplete ? ['#7CE246', '#58CC02', '#1CB0F6'] : ['#FF9342', '#FF7A1A', '#E11D48']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ borderRadius: 24, padding: 24, marginBottom: 16, overflow: 'hidden' }}
-      >
-        <Text className="text-sm font-bold text-white/85">Բարև 👋</Text>
-        <Text className="mt-1.5 text-2xl font-extrabold text-white">
-          {loadingLessons ? 'Loading your journey…' : currentLesson ? "Ready for today's lesson?" : "You've reached the summit!"}
-        </Text>
+      {/* Hero — the gradient is a pure absolute-fill background; the padded
+          content View is what actually determines this box's height. Keeping
+          the gradient decoupled from content sizing avoids a real layout bug
+          where the outer box's auto-computed height came up short by exactly
+          one padding unit, clipping the CTA button off (confirmed via onLayout
+          measurements: content needed ~214px, box only got ~190px). */}
+      <HeroCard style={{ borderRadius: 24, marginBottom: 16, overflow: 'hidden' }}>
+        <LinearGradient
+          colors={allComplete ? ['#7CE246', '#58CC02', '#1CB0F6'] : ['#FF9342', '#FF7A1A', '#E11D48']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={{ padding: 24 }}>
+          <Text className="text-sm font-bold text-white/85">Բարև 👋</Text>
+          <Text className="mt-1.5 text-2xl font-extrabold text-white">
+            {loadingLessons ? 'Loading your journey…' : currentLesson ? "Ready for today's lesson?" : "You've reached the summit!"}
+          </Text>
 
-        {loadingLessons ? (
-          <View className="mt-6 h-[72px] items-center justify-center rounded-2xl bg-white/20">
-            <ActivityIndicator color="#fff" />
-          </View>
-        ) : currentLesson ? (
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Lesson', { slug: currentLesson.slug, title: currentLesson.title })}
-            className="mt-6 flex-row items-center gap-4 rounded-2xl bg-white px-5 py-4"
-          >
-            <View className="h-12 w-12 items-center justify-center rounded-xl bg-brand-500">
-              <Play size={20} color="#fff" fill="#fff" />
+          {loadingLessons ? (
+            <View className="mt-6 h-[72px] items-center justify-center rounded-2xl bg-white/20">
+              <ActivityIndicator color="#fff" />
             </View>
-            <View className="flex-1">
-              <Text className="text-[11px] font-extrabold uppercase tracking-wide text-brand-600">
-                {currentLesson.completion_pct > 0 ? 'Continue lesson' : 'Start lesson'}
-              </Text>
-              <Text className="text-lg font-extrabold text-stone-900" numberOfLines={1}>{currentLesson.title}</Text>
+          ) : currentLesson ? (
+            <Pressable3D
+              onPress={() => navigation.navigate('Lesson', { slug: currentLesson.slug, title: currentLesson.title })}
+              className="mt-6 flex-row items-center gap-4 rounded-2xl bg-white px-5 py-4"
+            >
+              <View className="h-12 w-12 items-center justify-center rounded-xl bg-brand-500">
+                <Play size={20} color="#fff" fill="#fff" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[11px] font-extrabold uppercase tracking-wide text-brand-600">
+                  {currentLesson.completion_pct > 0 ? 'Continue lesson' : 'Start lesson'}
+                </Text>
+                <Text className="text-lg font-extrabold text-stone-900" numberOfLines={1}>{currentLesson.title}</Text>
+              </View>
+              <ArrowRight size={20} color="#FF7A1A" />
+            </Pressable3D>
+          ) : (
+            <View className="mt-6 rounded-2xl bg-white/15 px-5 py-4">
+              <Text className="text-sm font-bold text-white">No lessons available yet.</Text>
             </View>
-            <ArrowRight size={20} color="#FF7A1A" />
-          </TouchableOpacity>
-        ) : (
-          <View className="mt-6 rounded-2xl bg-white/15 px-5 py-4">
-            <Text className="text-sm font-bold text-white">No lessons available yet.</Text>
-          </View>
-        )}
+          )}
 
-        {isNewUser && (
-          <Text className="mt-4 text-sm font-bold text-white/90">Not a beginner? Take the placement test (coming soon)</Text>
-        )}
-      </LinearGradient>
+          {isNewUser && (
+            <Text className="mt-4 text-sm font-bold text-white/90">Not a beginner? Take the placement test (coming soon)</Text>
+          )}
+        </View>
+      </HeroCard>
 
       {/* Curriculum outline (read-only in Phase 0 — tapping the current lesson above is the way in) */}
       {lessons.length > 0 && (

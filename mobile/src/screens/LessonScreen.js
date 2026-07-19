@@ -2,12 +2,15 @@
 // exercise kinds ported so far; any other kind shows a "not supported yet"
 // placeholder with a Skip button so a real lesson containing mixed kinds
 // doesn't hard-crash the demo.
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { X } from 'lucide-react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence } from 'react-native-reanimated';
 import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
+import { checkStreakMilestone } from '../lib/streakMilestones';
 import CharIntro from '../exercises/kinds/CharIntro';
 import TranslateMcq from '../exercises/kinds/TranslateMcq';
 import LetterRecognition from '../exercises/kinds/LetterRecognition';
@@ -34,6 +37,21 @@ const SUPPORTED_KINDS = {
   sentence_order: SentenceOrder,
 };
 
+function UnsupportedKindFallback({ kind, onAdvance }) {
+  return (
+    <View className="flex-1 justify-between">
+      <View className="items-center justify-center pt-16">
+        <Text className="text-center text-base font-bold text-stone-600">
+          Exercise type "{kind}" isn't supported in this Phase 0 build yet.
+        </Text>
+      </View>
+      <TouchableOpacity onPress={onAdvance} className="items-center rounded-2xl bg-stone-800 py-4">
+        <Text className="text-base font-extrabold text-white">Skip</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function LessonScreen({ route, navigation }) {
   const { slug } = route.params;
   const [lesson, setLesson] = useState(null);
@@ -42,6 +60,15 @@ export default function LessonScreen({ route, navigation }) {
   const [error, setError] = useState('');
   const applyAttempt = useStatsStore((s) => s.applyAttempt);
   const refreshStats = useStatsStore((s) => s.refresh);
+
+  // A brief brightness flash on the progress bar each time an exercise
+  // advances — mirrors the web's .progress-pulse.
+  const progressFlash = useSharedValue(0);
+  const pulseProgress = useCallback(() => {
+    progressFlash.value = withSequence(withTiming(0.6, { duration: 120 }), withTiming(0, { duration: 300 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const progressFlashStyle = useAnimatedStyle(() => ({ opacity: progressFlash.value }));
 
   useEffect(() => {
     (async () => {
@@ -80,16 +107,23 @@ export default function LessonScreen({ route, navigation }) {
   const advance = useCallback(async () => {
     if (index + 1 < exercises.length) {
       setIndex(index + 1);
+      pulseProgress();
     } else {
-      // Lesson complete — mirrors the web's "Done" button (POST .../complete),
-      // then bounce back to the Dashboard with fresh stats.
+      // Lesson complete — mirrors the web's "Done" button (POST .../complete).
+      // Snapshot XP/streak before completing so the celebration screen can
+      // show what was actually earned this lesson (no per-lesson XP delta
+      // field exists server-side — /complete returns cumulative totals only).
+      const xpBefore = useStatsStore.getState().totalXp;
       try {
         await api.post(`/lessons/${slug}/complete`, {});
       } catch {
         // non-fatal — attempts already recorded progress server-side
       }
       await refreshStats();
-      navigation.goBack();
+      const after = useStatsStore.getState();
+      const xpEarned = Math.max(0, (after.totalXp ?? 0) - (xpBefore ?? 0));
+      const milestoneHit = await checkStreakMilestone(after.streak ?? 0);
+      navigation.replace('LessonComplete', { xpEarned, streak: after.streak ?? 0, milestoneHit });
     }
   }, [index, exercises.length, slug, navigation, refreshStats]);
 
@@ -122,7 +156,9 @@ export default function LessonScreen({ route, navigation }) {
           <X size={18} color="#57534e" />
         </TouchableOpacity>
         <View className="h-2 flex-1 overflow-hidden rounded-full bg-stone-200">
-          <View className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 4)}%` }} />
+          <View className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 4)}%` }}>
+            <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff' }, progressFlashStyle]} />
+          </View>
         </View>
       </View>
 
@@ -134,16 +170,7 @@ export default function LessonScreen({ route, navigation }) {
         ) : ExerciseComponent ? (
           <ExerciseComponent key={current.id} exercise={current} onSubmit={submitAttempt} onAdvance={advance} />
         ) : (
-          <View className="flex-1 justify-between">
-            <View className="items-center justify-center pt-16">
-              <Text className="text-center text-base font-bold text-stone-600">
-                Exercise type "{current.kind}" isn't supported in this Phase 0 build yet.
-              </Text>
-            </View>
-            <TouchableOpacity onPress={advance} className="items-center rounded-2xl bg-stone-800 py-4">
-              <Text className="text-base font-extrabold text-white">Skip</Text>
-            </TouchableOpacity>
-          </View>
+          <UnsupportedKindFallback key={current.id} kind={current.kind} onAdvance={advance} />
         )}
       </View>
     </SafeAreaView>

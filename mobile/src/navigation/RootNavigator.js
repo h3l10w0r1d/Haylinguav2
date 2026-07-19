@@ -10,6 +10,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import MainTabs from './MainTabs';
 import LessonScreen from '../screens/LessonScreen';
+import LessonCompleteScreen from '../screens/LessonCompleteScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -41,6 +42,7 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Lesson" component={LessonScreen} options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="LessonComplete" component={LessonCompleteScreen} options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
           </>
         )}
       </Stack.Navigator>

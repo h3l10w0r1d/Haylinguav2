@@ -2,9 +2,56 @@
 // left/right column matching — no drag library needed. Tap a left item to
 // select it, then tap a right item to attempt a match; correct matches lock
 // in place. Once all pairs are matched, submits the whole mapping at once.
+//
+// Animation: a locked-in tile pops (scale bounce); a wrong attempt shakes
+// both tapped tiles and fires a haptic error buzz; a correct match fires a
+// haptic success buzz.
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring } from 'react-native-reanimated';
 import { normalizeText } from '../choiceHelpers';
+import Pressable3D from '../../components/Pressable3D';
+import { haptics } from '../../lib/haptics';
+
+function MatchTile({ text, isDone, active, disabled, onPress, wrongKey }) {
+  const pop = useSharedValue(1);
+  const shakeX = useSharedValue(0);
+
+  useEffect(() => {
+    if (isDone) pop.value = withSequence(withTiming(1.08, { duration: 110 }), withSpring(1, { damping: 9 }));
+  }, [isDone]);
+
+  useEffect(() => {
+    if (!wrongKey) return;
+    shakeX.value = withSequence(
+      withTiming(-6, { duration: 50 }),
+      withTiming(6, { duration: 50 }),
+      withTiming(-4, { duration: 50 }),
+      withTiming(4, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wrongKey]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pop.value }, { translateX: shakeX.value }],
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable3D disabled={disabled} onPress={onPress} hapticOnPress={false} pressDepth={2}>
+        <View
+          className={
+            'rounded-xl border-2 px-3 py-3 ' +
+            (isDone ? 'border-stone-200 bg-stone-100' : active ? 'border-brand-500 bg-brand-50' : 'border-stone-200 bg-white')
+          }
+        >
+          <Text className={'text-sm font-semibold ' + (isDone ? 'text-stone-400' : 'text-stone-800')}>{text}</Text>
+        </View>
+      </Pressable3D>
+    </Animated.View>
+  );
+}
 
 export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
@@ -27,6 +74,7 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
   const [matchedRight, setMatchedRight] = useState(new Set());
   const [matchedPairs, setMatchedPairs] = useState([]);
   const [done, setDone] = useState(false);
+  const [wrongAttempt, setWrongAttempt] = useState({ lIdx: null, rIdx: null, key: 0 });
 
   useEffect(() => {
     setSelectedLeft(null);
@@ -34,6 +82,7 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
     setMatchedRight(new Set());
     setMatchedPairs([]);
     setDone(false);
+    setWrongAttempt({ lIdx: null, rIdx: null, key: 0 });
   }, [exercise.id]);
 
   const totalMatches = pairs.length;
@@ -45,6 +94,7 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
 
     const correctPair = pairs.find((p) => normalizeText(p.left) === normalizeText(l));
     if (correctPair && normalizeText(correctPair.right) === normalizeText(r)) {
+      haptics.success();
       const nl = new Set(matchedLeft);
       nl.add(lIdx);
       setMatchedLeft(nl);
@@ -63,6 +113,8 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
         onSubmit({ answerText: JSON.stringify(nextPairs) });
       }
     } else {
+      haptics.error();
+      setWrongAttempt({ lIdx, rIdx, key: wrongAttempt.key + 1 });
       setSelectedLeft(null);
     }
   }
@@ -77,57 +129,38 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
 
         <View className="mt-4 flex-row" style={{ gap: 12 }}>
           <View className="flex-1" style={{ gap: 8 }}>
-            {left.map((t, idx) => {
-              const isDone = matchedLeft.has(idx);
-              const active = selectedLeft === idx;
-              return (
-                <TouchableOpacity
-                  key={idx}
-                  disabled={isDone}
-                  onPress={() => setSelectedLeft(idx)}
-                  className={
-                    'rounded-xl border-2 px-3 py-3 ' +
-                    (isDone
-                      ? 'border-stone-200 bg-stone-100'
-                      : active
-                      ? 'border-brand-500 bg-brand-50'
-                      : 'border-stone-200 bg-white')
-                  }
-                >
-                  <Text className={'text-sm font-semibold ' + (isDone ? 'text-stone-400' : 'text-stone-800')}>{t}</Text>
-                </TouchableOpacity>
-              );
-            })}
+            {left.map((t, idx) => (
+              <MatchTile
+                key={idx}
+                text={t}
+                isDone={matchedLeft.has(idx)}
+                active={selectedLeft === idx}
+                disabled={matchedLeft.has(idx)}
+                onPress={() => setSelectedLeft(idx)}
+                wrongKey={wrongAttempt.lIdx === idx ? wrongAttempt.key : 0}
+              />
+            ))}
           </View>
 
           <View className="flex-1" style={{ gap: 8 }}>
-            {shuffledRight.map((t, idx) => {
-              const isDone = matchedRight.has(idx);
-              return (
-                <TouchableOpacity
-                  key={idx}
-                  disabled={isDone || selectedLeft === null}
-                  onPress={() => tryMatch(selectedLeft, idx)}
-                  className={
-                    'rounded-xl border-2 px-3 py-3 ' +
-                    (isDone ? 'border-stone-200 bg-stone-100' : 'border-stone-200 bg-white')
-                  }
-                >
-                  <Text className={'text-sm font-semibold ' + (isDone ? 'text-stone-400' : 'text-stone-800')}>{t}</Text>
-                </TouchableOpacity>
-              );
-            })}
+            {shuffledRight.map((t, idx) => (
+              <MatchTile
+                key={idx}
+                text={t}
+                isDone={matchedRight.has(idx)}
+                active={false}
+                disabled={matchedRight.has(idx) || selectedLeft === null}
+                onPress={() => tryMatch(selectedLeft, idx)}
+                wrongKey={wrongAttempt.rIdx === idx ? wrongAttempt.key : 0}
+              />
+            ))}
           </View>
         </View>
       </View>
 
-      <TouchableOpacity
-        onPress={onAdvance}
-        disabled={!done}
-        className={'items-center rounded-2xl py-4 ' + (done ? 'bg-brand-500' : 'bg-stone-300')}
-      >
+      <Pressable3D onPress={onAdvance} disabled={!done} className={'items-center rounded-2xl py-4 ' + (done ? 'bg-brand-500' : 'bg-stone-300')}>
         <Text className="text-base font-extrabold text-white">Continue</Text>
-      </TouchableOpacity>
+      </Pressable3D>
     </View>
   );
 }

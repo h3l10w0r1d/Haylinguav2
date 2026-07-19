@@ -3,6 +3,29 @@
 // reading the web source: tiles are tapped, not dragged).
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring } from 'react-native-reanimated';
+import Pressable3D from '../../components/Pressable3D';
+import { haptics } from '../../lib/haptics';
+
+function Tile({ text, isUsed, disabled, onPress }) {
+  const pop = useSharedValue(1);
+
+  useEffect(() => {
+    if (isUsed) pop.value = withSequence(withTiming(0.85, { duration: 90 }), withSpring(1, { damping: 9 }));
+  }, [isUsed]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable3D disabled={disabled} onPress={onPress} hapticOnPress={false} pressDepth={2}>
+        <View className={'rounded-xl border-2 px-4 py-2.5 ' + (isUsed ? 'border-stone-200 bg-stone-100' : 'border-stone-200 bg-white')}>
+          <Text className={'text-lg font-bold ' + (isUsed ? 'text-stone-300' : 'text-stone-800')}>{text}</Text>
+        </View>
+      </Pressable3D>
+    </Animated.View>
+  );
+}
 
 export default function CharBuildWord({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
@@ -30,6 +53,7 @@ export default function CharBuildWord({ exercise, onSubmit, onAdvance }) {
 
   function pick(idx) {
     if (used.has(idx) || graded) return;
+    haptics.impact();
     const next = new Set(used);
     next.add(idx);
     setUsed(next);
@@ -42,6 +66,8 @@ export default function CharBuildWord({ exercise, onSubmit, onAdvance }) {
       ? solutionIndices.length === chosen.length && solutionIndices.every((v, i) => Number(v) === Number(chosen[i]))
       : built.trim() === (targetWord ?? '').trim();
     setGraded({ ok });
+    if (ok) haptics.success();
+    else haptics.error();
     onSubmit({ selectedIndices: chosen, answerText: built });
   }
 
@@ -67,19 +93,9 @@ export default function CharBuildWord({ exercise, onSubmit, onAdvance }) {
         </View>
 
         <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
-          {tiles.map((t, idx) => {
-            const isUsed = used.has(idx);
-            return (
-              <TouchableOpacity
-                key={idx}
-                disabled={isUsed || !!graded}
-                onPress={() => pick(idx)}
-                className={'rounded-xl border-2 px-4 py-2.5 ' + (isUsed ? 'border-stone-200 bg-stone-100' : 'border-stone-200 bg-white')}
-              >
-                <Text className={'text-lg font-bold ' + (isUsed ? 'text-stone-300' : 'text-stone-800')}>{t}</Text>
-              </TouchableOpacity>
-            );
-          })}
+          {tiles.map((t, idx) => (
+            <Tile key={idx} text={t} isUsed={used.has(idx)} disabled={used.has(idx) || !!graded} onPress={() => pick(idx)} />
+          ))}
         </View>
 
         {graded && (
@@ -89,13 +105,13 @@ export default function CharBuildWord({ exercise, onSubmit, onAdvance }) {
         )}
       </View>
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={graded ? onAdvance : check}
         disabled={!canCheck && !graded}
         className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
       >
         <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </TouchableOpacity>
+      </Pressable3D>
     </View>
   );
 }

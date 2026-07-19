@@ -6,6 +6,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
+import Pressable3D from '../../components/Pressable3D';
 
 export default function CharIntro({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
@@ -39,7 +40,7 @@ export default function CharIntro({ exercise, onSubmit, onAdvance }) {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={async () => {
           await onSubmit({});
           onAdvance();
@@ -47,7 +48,7 @@ export default function CharIntro({ exercise, onSubmit, onAdvance }) {
         className="items-center rounded-2xl bg-brand-500 py-4"
       >
         <Text className="text-base font-extrabold text-white">Continue</Text>
-      </TouchableOpacity>
+      </Pressable3D>
     </View>
   );
 }

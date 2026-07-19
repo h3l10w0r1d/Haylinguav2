@@ -1,7 +1,9 @@
 // src/exercises/kinds/TrueFalse.js — ports ExTrueFalse. Two-button choice,
 // no options/choices array involved at all — cfg.correct is the boolean.
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
+import Pressable3D from '../../components/Pressable3D';
+import { haptics } from '../../lib/haptics';
 
 export default function TrueFalse({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
@@ -18,6 +20,8 @@ export default function TrueFalse({ exercise, onSubmit, onAdvance }) {
   function check() {
     const pick = selected === 1;
     setGraded({ correct: correctBool });
+    if (pick === correctBool) haptics.success();
+    else haptics.error();
     onSubmit({ selectedIndices: [selected], answerText: pick ? 'true' : 'false' });
   }
 
@@ -44,30 +48,38 @@ export default function TrueFalse({ exercise, onSubmit, onAdvance }) {
         )}
 
         <View className="mt-5 flex-row" style={{ gap: 10 }}>
-          <TouchableOpacity
-            disabled={!!graded}
-            onPress={() => setSelected(0)}
-            className={'flex-1 items-center rounded-2xl border-2 py-4 ' + optionStyle(false)}
-          >
-            <Text className="text-base font-bold text-stone-800">False</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            disabled={!!graded}
-            onPress={() => setSelected(1)}
-            className={'flex-1 items-center rounded-2xl border-2 py-4 ' + optionStyle(true)}
-          >
-            <Text className="text-base font-bold text-stone-800">True</Text>
-          </TouchableOpacity>
+          {/* Pressable3D's press animation lives on an outer wrapper View, so
+              the flex-1 that splits this row evenly has to go on a plain View
+              around it — className on Pressable3D itself only sizes its own
+              inner Pressable, not the animated wrapper. */}
+          <View className="flex-1">
+            <Pressable3D
+              disabled={!!graded}
+              onPress={() => setSelected(0)}
+              className={'items-center rounded-2xl border-2 py-4 ' + optionStyle(false)}
+            >
+              <Text className="text-base font-bold text-stone-800">False</Text>
+            </Pressable3D>
+          </View>
+          <View className="flex-1">
+            <Pressable3D
+              disabled={!!graded}
+              onPress={() => setSelected(1)}
+              className={'items-center rounded-2xl border-2 py-4 ' + optionStyle(true)}
+            >
+              <Text className="text-base font-bold text-stone-800">True</Text>
+            </Pressable3D>
+          </View>
         </View>
       </View>
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={graded ? onAdvance : check}
         disabled={!canCheck && !graded}
         className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
       >
         <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </TouchableOpacity>
+      </Pressable3D>
     </View>
   );
 }
