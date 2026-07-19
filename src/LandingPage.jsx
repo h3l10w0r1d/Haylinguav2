@@ -7,13 +7,13 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  Menu, X, Eye, EyeOff, Play, RotateCw, Loader2, Sun, Moon,
+  X, Eye, EyeOff, Play, RotateCw, Loader2,
 } from "lucide-react";
+import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 import { ttsFetch } from "./exercises/tts";
-import { getTheme, toggleTheme } from "./lib/theme";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
@@ -740,14 +740,7 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   // UI-only state
   const [faqOpen, setFaqOpen] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [theme, setTheme] = useState(getTheme);
-  useEffect(() => {
-    const onChange = (e) => e?.detail?.theme && setTheme(e.detail.theme);
-    window.addEventListener("hay_theme_changed", onChange);
-    return () => window.removeEventListener("hay_theme_changed", onChange);
-  }, []);
   const [wordIdx, setWordIdx] = useState(0);
   const [wordFade, setWordFade] = useState(true);
   const [showStickyCta, setShowStickyCta] = useState(false);
@@ -807,7 +800,6 @@ export default function LandingPage({ onLogin, onSignup }) {
   const goAuth = (m) => {
     setMode(m);
     setError("");
-    setMenuOpen(false);
     setAuthOpen(true);
   };
 
@@ -1208,63 +1200,10 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0d0d0f] text-slate-800 dark:text-white">
-      {/* Nav */}
-      <nav className="sticky top-0 z-40 border-b border-slate-100 dark:border-white/[0.06] bg-white/85 dark:bg-[#151517]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-          <a href="/" className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 font-display text-lg font-extrabold text-white shadow-btn-brand">Հ</span>
-            <span className="font-display text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">Haylingua</span>
-          </a>
-
-          {/* Desktop links */}
-          <div className="hidden items-center gap-7 md:flex">
-            <a href="#how" className="text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-white">How it works</a>
-            <a href="#features" className="text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-white">Features</a>
-            <a href="#faq" className="text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-white">FAQ</a>
-            <Link to="/about" className="text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-white">About us</Link>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => toggleTheme()}
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              aria-label="Toggle theme"
-              className="grid h-9 w-9 place-items-center rounded-full text-slate-500 dark:text-stone-300 transition hover:bg-slate-100 dark:hover:bg-white/[0.08]"
-            >
-              {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-            </button>
-            <button onClick={() => goAuth("login")} className="hidden rounded-xl px-4 py-2 text-sm font-extrabold text-slate-600 dark:text-stone-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] sm:block">
-              Log in
-            </button>
-            <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand !py-2.5 text-sm">Get started</button>
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className="grid h-9 w-9 place-items-center rounded-xl text-slate-600 dark:text-stone-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] md:hidden"
-              aria-label="Toggle menu"
-            >
-              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile dropdown */}
-        {menuOpen && (
-          <div className="border-t border-slate-100 dark:border-white/[0.06] bg-white dark:bg-[#18181b] px-5 pb-4 pt-2 md:hidden">
-            <div className="flex flex-col gap-1">
-              <a href="#how" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-stone-200 hover:bg-slate-50 dark:hover:bg-white/[0.04]">How it works</a>
-              <a href="#features" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-stone-200 hover:bg-slate-50 dark:hover:bg-white/[0.04]">Features</a>
-              <a href="#faq" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-stone-200 hover:bg-slate-50 dark:hover:bg-white/[0.04]">FAQ</a>
-              <Link to="/about" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-stone-200 hover:bg-slate-50 dark:hover:bg-white/[0.04]">About us</Link>
-              <div className="mt-1 border-t border-slate-100 dark:border-white/[0.06] pt-2 flex gap-2">
-                <button onClick={() => goAuth("login")} className="flex-1 rounded-xl bg-slate-100 dark:bg-white/[0.06] px-4 py-2.5 text-sm font-extrabold text-slate-700 dark:text-stone-200">Log in</button>
-                <button onClick={() => goAuth("signup")} className="flex-1 btn3d btn3d-brand !py-2.5 text-sm">Sign up free</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </nav>
+      {/* Nav — shared header (src/SiteNav.jsx), same on every marketing page.
+          `inPage` swaps the section links to same-page anchors and routes
+          the auth buttons into this page's own login/signup modal. */}
+      <SiteNav inPage onLogin={() => goAuth("login")} onSignup={() => goAuth("signup")} />
 
       <main>
       {/* Hero */}

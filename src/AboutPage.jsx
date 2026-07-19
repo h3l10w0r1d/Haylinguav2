@@ -9,15 +9,15 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowRight, ArrowLeft, Sparkles, Heart, Flame, Languages, Users,
-  Sun, Moon, Menu, X, MapPin, Calendar,
+  MapPin, Calendar, ChevronDown,
 } from "lucide-react";
 import owl from "./assets/character-owl.png";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 import teacher from "./assets/character-teacher.png";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
+import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
-import { getTheme, toggleTheme } from "./lib/theme";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -66,10 +66,12 @@ const VALUES = [
   },
 ];
 
-// Real product facts — safe to state as-is.
+// Real product facts — safe to state as-is. `count`/`suffix` on a stat means
+// its number counts up on scroll instead of just appearing; omit them for a
+// value like "0 → 1" that isn't a number to animate.
 const BY_THE_NUMBERS = [
-  { value: "39", label: "Armenian letters taught from scratch" },
-  { value: "100%", label: "Audio on every word, real text-to-speech" },
+  { value: "39", count: 39, suffix: "", label: "Armenian letters taught from scratch" },
+  { value: "100%", count: 100, suffix: "%", label: "Audio on every word, real text-to-speech" },
   { value: "0 → 1", label: "No prior Armenian needed to start" },
 ];
 
@@ -83,66 +85,6 @@ const GALLERY = [
   { src: teacher, caption: "[The workshop — coming soon]" },
 ];
 
-// ── Small shared nav (this page is public, standalone like LandingPage) ─────
-
-function AboutNav() {
-  const [theme, setTheme] = useState(getTheme);
-  const [menuOpen, setMenuOpen] = useState(false);
-  useEffect(() => {
-    const onChange = (e) => e?.detail?.theme && setTheme(e.detail.theme);
-    window.addEventListener("hay_theme_changed", onChange);
-    return () => window.removeEventListener("hay_theme_changed", onChange);
-  }, []);
-
-  return (
-    <nav className="sticky top-0 z-40 border-b border-slate-100 bg-white/85 backdrop-blur dark:border-white/[0.06] dark:bg-[#151517]/90">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 font-display text-lg font-extrabold text-white shadow-btn-brand">Հ</span>
-          <span className="font-display text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">Haylingua</span>
-        </Link>
-
-        <div className="hidden items-center gap-7 md:flex">
-          <Link to="/#how" className="text-sm font-bold text-slate-500 hover:text-slate-800 dark:text-stone-400 dark:hover:text-white">How it works</Link>
-          <Link to="/#features" className="text-sm font-bold text-slate-500 hover:text-slate-800 dark:text-stone-400 dark:hover:text-white">Features</Link>
-          <Link to="/about" className="text-sm font-bold text-brand-600 dark:text-brand-400">About us</Link>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => toggleTheme()}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            aria-label="Toggle theme"
-            className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.08]"
-          >
-            {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-          </button>
-          <Link to="/" className="btn3d btn3d-brand hidden !py-2.5 text-sm sm:inline-flex">
-            Start learning <ArrowRight className="h-4 w-4" />
-          </Link>
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            className="grid h-9 w-9 place-items-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.06] md:hidden"
-            aria-label="Toggle menu"
-          >
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
-
-      {menuOpen && (
-        <div className="border-t border-slate-100 bg-white px-5 pb-4 pt-2 dark:border-white/[0.06] dark:bg-[#18181b] md:hidden">
-          <div className="flex flex-col gap-1">
-            <Link to="/#how" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-stone-200 dark:hover:bg-white/[0.04]">How it works</Link>
-            <Link to="/#features" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-stone-200 dark:hover:bg-white/[0.04]">Features</Link>
-            <Link to="/" onClick={() => setMenuOpen(false)} className="mt-1 btn3d btn3d-brand !py-2.5 text-sm justify-center">Start learning</Link>
-          </div>
-        </div>
-      )}
-    </nav>
-  );
-}
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
@@ -159,7 +101,14 @@ export default function AboutPage() {
         // Snap everything to its resting state — no motion, still fully visible.
         gsap.set("[data-reveal]", { opacity: 1, y: 0, scale: 1 });
         gsap.set("[data-hero-item]", { opacity: 1, y: 0 });
+        gsap.set("[data-icon-pop]", { opacity: 1, scale: 1, rotate: 0 });
+        // Only opacity — leaving scale untouched keeps the CSS hover-zoom free.
+        gsap.set("[data-gallery-img]", { opacity: 1 });
         if (timelineLineRef.current) gsap.set(timelineLineRef.current, { scaleY: 1 });
+        // Numbers still need their final text — there's no tween to snap.
+        document.querySelectorAll("[data-count-target]").forEach((el) => {
+          el.textContent = el.getAttribute("data-count-target") + (el.getAttribute("data-count-suffix") || "");
+        });
         return;
       }
 
@@ -197,6 +146,54 @@ export default function AboutPage() {
           {
             opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power2.out", stagger: 0.12,
             scrollTrigger: { trigger: group, start: "top 82%", once: true },
+          }
+        );
+      });
+
+      // "By the numbers" — counts up from 0 to its real value once it scrolls
+      // into view, instead of just appearing (the row itself still fades in
+      // via its own [data-reveal] above; this animates the number inside it).
+      gsap.utils.toArray("[data-count-target]").forEach((el) => {
+        const target = parseFloat(el.getAttribute("data-count-target"));
+        const suffix = el.getAttribute("data-count-suffix") || "";
+        if (Number.isNaN(target)) return;
+        const counter = { val: 0 };
+        gsap.to(counter, {
+          val: target,
+          duration: 1.3,
+          ease: "power2.out",
+          scrollTrigger: { trigger: el, start: "top 88%", once: true },
+          onUpdate: () => { el.textContent = Math.round(counter.val) + suffix; },
+        });
+      });
+
+      // Value-card icons pop in with a little overshoot, layered slightly
+      // after the card's own fade so the icon reads as its own beat.
+      gsap.utils.toArray("[data-icon-pop]").forEach((el) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, scale: 0.4, rotate: -18 },
+          {
+            opacity: 1, scale: 1, rotate: 0, duration: 0.55, ease: "back.out(2.4)", delay: 0.1,
+            scrollTrigger: { trigger: el, start: "top 85%", once: true },
+          }
+        );
+      });
+
+      // Gallery photos settle in from a slight zoom instead of a plain fade —
+      // gives the "behind the scenes" tiles a bit more life than the generic
+      // card reveal their container already gets.
+      gsap.utils.toArray("[data-gallery-img]").forEach((img) => {
+        gsap.fromTo(
+          img,
+          { opacity: 0, scale: 1.2 },
+          {
+            opacity: 1, scale: 1, duration: 0.9, ease: "power3.out",
+            scrollTrigger: { trigger: img, start: "top 88%", once: true },
+            // Drop the inline transform/opacity once settled so the existing
+            // CSS `group-hover:scale-105` (a class-driven transform) can still
+            // take over on hover — an inline style left behind would win over it.
+            onComplete: () => gsap.set(img, { clearProps: "transform,opacity" }),
           }
         );
       });
@@ -246,7 +243,7 @@ export default function AboutPage() {
 
   return (
     <div ref={rootRef} className="min-h-screen bg-white text-slate-800 dark:bg-[#0d0d0f] dark:text-white">
-      <AboutNav />
+      <SiteNav />
 
       <main>
         {/* ── Hero ── */}
@@ -288,6 +285,16 @@ export default function AboutPage() {
               <StarMotif className="absolute -left-4 bottom-8 h-6 w-6 text-feather-400 dark:text-feather-400/80" />
             </div>
           </div>
+
+          {/* A small nudge that there's more below — bounces in place via the
+              existing Tailwind `animate-bouncey` keyframe (no GSAP needed). */}
+          <a
+            href="#story"
+            aria-label="Scroll to read our story"
+            className="relative mx-auto hidden w-fit animate-bouncey items-center justify-center pb-6 text-slate-300 transition hover:text-brand-400 dark:text-white/15 dark:hover:text-brand-400 sm:flex"
+          >
+            <ChevronDown className="h-6 w-6" />
+          </a>
         </header>
 
         {/* ── The story ── */}
@@ -324,7 +331,12 @@ export default function AboutPage() {
           <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-5 py-12 sm:grid-cols-3">
             {BY_THE_NUMBERS.map((s) => (
               <div key={s.label} data-reveal className="text-center">
-                <div className="font-display text-4xl font-extrabold tabular-nums text-brand-500">{s.value}</div>
+                <div
+                  className="font-display text-4xl font-extrabold tabular-nums text-brand-500"
+                  {...(s.count != null ? { "data-count-target": s.count, "data-count-suffix": s.suffix || "" } : {})}
+                >
+                  {s.count != null ? `0${s.suffix || ""}` : s.value}
+                </div>
                 <div className="mt-1 text-sm font-bold text-slate-600 dark:text-stone-300">{s.label}</div>
               </div>
             ))}
@@ -347,7 +359,7 @@ export default function AboutPage() {
                 data-reveal-item
                 className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]"
               >
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-500 dark:bg-brand-500/15 dark:text-brand-400">
+                <div data-icon-pop className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-500 dark:bg-brand-500/15 dark:text-brand-400">
                   <v.icon className="h-6 w-6" />
                 </div>
                 <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">{v.title}</div>
@@ -445,7 +457,7 @@ export default function AboutPage() {
                   data-reveal-item
                   className="group relative aspect-square overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]"
                 >
-                  <img src={g.src} alt="" className="h-full w-full object-contain p-6 transition duration-300 group-hover:scale-105" />
+                  <img data-gallery-img src={g.src} alt="" className="h-full w-full object-contain p-6 transition duration-300 group-hover:scale-105" />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
                     <span className="text-xs font-bold text-white">{g.caption}</span>
                   </div>
