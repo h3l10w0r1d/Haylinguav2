@@ -14,6 +14,7 @@ import SiteFooter from "./SiteFooter";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 import { ttsFetch } from "./exercises/tts";
+import { sfx } from "./lib/sfx";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
@@ -291,6 +292,7 @@ function LandingExerciseDemo({ onSignup }) {
   const [aiPhase, setAiPhase] = useState("thinking"); // thinking | reveal
   const [typed, setTyped] = useState(0);         // typewriter cursor position
   const [done, setDone] = useState(false);       // finished all demo questions
+  const comboRef = useRef(0);                    // correct-answer streak, for sfx pitch escalation
 
   const q = DEMO_QUESTIONS[qi];
   const isCorrect = checked && selected === q.correct;
@@ -323,7 +325,14 @@ function LandingExerciseDemo({ onSignup }) {
   function onCheck() {
     if (selected == null || checked) return;
     setChecked(true);
-    if (selected !== q.correct) setHearts((h) => Math.max(0, h - 1));
+    if (selected === q.correct) {
+      sfx.correct(comboRef.current);
+      comboRef.current += 1;
+    } else {
+      comboRef.current = 0;
+      sfx.wrong();
+      setHearts((h) => Math.max(0, h - 1));
+    }
   }
 
   function regenerate() {
@@ -335,6 +344,7 @@ function LandingExerciseDemo({ onSignup }) {
     // all four questions just proved to themselves the product works, which is
     // exactly the moment to ask for the signup, not silently restart.
     if (qi >= DEMO_QUESTIONS.length - 1) {
+      sfx.complete();
       setDone(true);
       return;
     }
