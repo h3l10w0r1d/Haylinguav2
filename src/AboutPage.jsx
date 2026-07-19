@@ -328,7 +328,7 @@ export default function AboutPage() {
 
       <main>
         {/* ── Hero ── */}
-        <header ref={heroRef} className="relative overflow-hidden">
+        <header ref={heroRef} className="relative flex min-h-screen flex-col overflow-hidden">
           <div data-parallax-slow className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
           <div data-parallax-slow className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
 
@@ -345,7 +345,7 @@ export default function AboutPage() {
             </span>
           </div>
 
-          <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-14 lg:grid-cols-2 lg:py-20">
+          <div className="relative mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-10 px-5 py-14 lg:grid-cols-2 lg:py-20">
             <div>
               <div data-hero-item className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/25">
                 <Sparkles className="h-3.5 w-3.5" /> Our story
