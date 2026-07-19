@@ -2833,6 +2833,54 @@ def contact_form(payload: Dict[str, Any] = Body(...), request: Request = None):
     return {"ok": True}
 
 
+@router.post("/affiliate-apply")
+def affiliate_apply(payload: Dict[str, Any] = Body(...), request: Request = None):
+    """Public affiliate/partner program application — no auth required. Same
+    shape as /contact (Turnstile-verified, emailed via Brevo with reply-to set
+    to the applicant) since there's no automated payout/tracking system yet;
+    applications are reviewed and onboarded manually for now."""
+    name = (payload.get("name") or "").strip()[:200]
+    email = (payload.get("email") or "").strip().lower()[:200]
+    platform = (payload.get("platform") or "").strip()[:120]
+    audience = (payload.get("audience") or "").strip()[:120]
+    message = (payload.get("message") or "").strip()[:5000]
+    turnstile_token = (payload.get("turnstile_token") or "").strip()
+
+    if not name or not email or not platform:
+        raise HTTPException(status_code=400, detail="Name, email, and platform/channel are required")
+    if not _CONTACT_EMAIL_RE.match(email):
+        raise HTTPException(status_code=400, detail="Enter a valid email address")
+
+    ip = _client_ip(request) if request is not None else ""
+    if not _verify_turnstile(turnstile_token, ip):
+        raise HTTPException(status_code=400, detail="Security check failed — please try again")
+
+    to_email = (os.getenv("CONTACT_INBOX_EMAIL") or os.getenv("BREVO_SENDER_EMAIL") or os.getenv("EMAIL_FROM") or "info@haylingua.am").strip()
+
+    plain = (
+        f"New affiliate program application\n\n"
+        f"From: {name} <{email}>\nPlatform/channel: {platform}\nAudience size: {audience or 'not given'}\n\n{message}"
+    )
+    html = f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;">
+      <h2 style="color:#1c1917;">New affiliate program application</h2>
+      <p style="color:#57534e;"><strong>From:</strong> {name} &lt;{email}&gt;<br/>
+      <strong>Platform/channel:</strong> {platform}<br/>
+      <strong>Audience size:</strong> {audience or 'not given'}</p>
+      <div style="white-space:pre-wrap;background:#f5f5f4;border-radius:12px;padding:16px;color:#292524;">{message}</div>
+    </div>"""
+
+    _send_email(
+        to_email=to_email,
+        subject=f"[Haylingua Affiliate] {platform} — {name}",
+        body=plain,
+        html_body=html,
+        reply_to_email=email,
+        reply_to_name=name,
+    )
+    return {"ok": True}
+
+
 @router.post("/auth/forgot-password")
 def forgot_password(payload: Dict[str, Any] = Body(...), db: Connection = Depends(get_db)):
     email = (payload.get("email") or "").strip().lower()

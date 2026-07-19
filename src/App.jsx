@@ -31,6 +31,10 @@ const TermsPage = lazy(() => import('./TermsPage'));
 const PrivacyPolicyPage = lazy(() => import('./PrivacyPolicyPage'));
 const RefundPolicyPage = lazy(() => import('./RefundPolicyPage'));
 const CookiePolicyPage = lazy(() => import('./CookiePolicyPage'));
+const PricingPage = lazy(() => import('./PricingPage'));
+const CareersPage = lazy(() => import('./CareersPage'));
+const AffiliatesPage = lazy(() => import('./AffiliatesPage'));
+const CommunityPage = lazy(() => import('./CommunityPage'));
 const Onboarding = lazy(() => import('./Onboarding'));
 const CmsGate = lazy(() => import('./cms/CmsGate'));
 const CmsLogin = lazy(() => import('./cms/CmsLogin'));
@@ -368,6 +372,10 @@ function AppShell() {
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/refund-policy" element={<RefundPolicyPage />} />
       <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/careers" element={<CareersPage />} />
+      <Route path="/affiliates" element={<AffiliatesPage />} />
+      <Route path="/community" element={<CommunityPage />} />
 
       <Route
         path="/"

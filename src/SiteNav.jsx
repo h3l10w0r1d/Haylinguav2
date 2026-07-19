@@ -36,6 +36,7 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
         </Link>
 
         <div className="hidden items-center gap-7 md:flex">
+          <Link to="/pricing" className={linkCls}>Pricing</Link>
           <Link to="/about" className={linkCls}>About us</Link>
           <Link to="/contact" className={linkCls}>Contact</Link>
         </div>
@@ -77,6 +78,7 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
       {menuOpen && (
         <div className="border-t border-slate-100 bg-white px-5 pb-4 pt-2 dark:border-white/[0.06] dark:bg-[#18181b] md:hidden">
           <div className="flex flex-col gap-1">
+            <Link to="/pricing" onClick={closeMenu} className={mobileLinkCls}>Pricing</Link>
             <Link to="/about" onClick={closeMenu} className={mobileLinkCls}>About us</Link>
             <Link to="/contact" onClick={closeMenu} className={mobileLinkCls}>Contact</Link>
             {inPage ? (

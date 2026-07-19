@@ -2,7 +2,7 @@
 // All auth logic preserved: login, signup, 2FA, captcha, email verification.
 import Turnstile from "./lib/Turnstile";
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
@@ -802,6 +802,18 @@ export default function LandingPage({ onLogin, onSignup }) {
     setError("");
     setAuthOpen(true);
   };
+
+  // Other pages (e.g. Pricing) navigate here with `state: { openAuth: "signup" }`
+  // to deep-link straight into this page's own auth modal. Clear the state
+  // right after so a back-nav or refresh doesn't reopen it.
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (location.state?.openAuth) {
+      goAuth(location.state.openAuth);
+      navigate(".", { replace: true, state: {} });
+    }
+  }, [location.state]);
 
   // ── Auth Handlers ───────────────────────────────────────────────────────────
 

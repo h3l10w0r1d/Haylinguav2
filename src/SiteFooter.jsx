@@ -167,12 +167,12 @@ export default function SiteFooter() {
 
           {/* Link columns */}
           <FooterCol
-            title="Learn"
-            links={[["How it works", "#how"], ["Features", "#features"], ["FAQ", "#faq"]]}
+            title="Product"
+            links={[["Pricing", "/pricing"], ["How it works", "/#how"], ["Features", "/#features"], ["FAQ", "/#faq"]]}
           />
           <FooterCol
             title="Company"
-            links={[["About us", "/about"], ["Blog", "https://blog.haylingua.am"], ["Contact", "/contact"]]}
+            links={[["About us", "/about"], ["Careers", "/careers"], ["Affiliates", "/affiliates"], ["Community", "/community"], ["Blog", "https://blog.haylingua.am"], ["Contact", "/contact"]]}
           />
           <FooterCol
             title="Legal"
