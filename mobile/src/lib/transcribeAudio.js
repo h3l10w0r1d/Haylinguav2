@@ -15,10 +15,12 @@ let recording = false;
 export async function startRecording() {
   if (recording) return;
   recording = true;
-  // .m4a/AAC on iOS, .mp4 on Android — both accepted by the backend's
-  // upload handler, which reads bytes regardless of container.
-  const path = Platform.OS === 'ios' ? 'speech.m4a' : 'speech.mp4';
-  await Sound.startRecorder(path);
+  // No path passed: a bare relative filename (e.g. 'speech.m4a') resolves
+  // to a non-writable directory on iOS ("Recording setup failed: Directory
+  // is not writable") — omitting `uri` lets the native module pick its own
+  // writable cache/temp location, which is exactly what we want since we
+  // only need the file transiently to upload it.
+  await Sound.startRecorder();
 }
 
 export async function stopRecording() {
