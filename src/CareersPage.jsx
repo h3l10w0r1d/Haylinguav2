@@ -204,12 +204,9 @@ export default function CareersPage() {
                       </div>
                       {v.summary && <p className="mt-3 max-w-xl text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{v.summary}</p>}
                     </div>
-                    <a
-                      href={`mailto:info@haylingua.am?subject=${encodeURIComponent(`Application: ${v.title}`)}`}
-                      className="btn3d btn3d-brand shrink-0 text-sm"
-                    >
-                      Apply <Mail className="h-4 w-4" />
-                    </a>
+                    <Link to={`/careers/apply/${v.id}`} className="btn3d btn3d-brand shrink-0 text-sm">
+                      Apply <ArrowRight className="h-4 w-4" />
+                    </Link>
                   </div>
                   {v.description && <p className="mt-4 whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-500 dark:text-stone-400">{v.description}</p>}
                 </div>

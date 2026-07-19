@@ -844,6 +844,53 @@ def ensure_schema() -> None:
             """,
         )
 
+        # ---------- Careers: CMS-defined application fields + submissions ----------
+        ensure_table(
+            "job_vacancy_fields",
+            """
+            CREATE TABLE job_vacancy_fields (
+                id SERIAL PRIMARY KEY,
+                vacancy_id INTEGER NOT NULL REFERENCES job_vacancies(id) ON DELETE CASCADE,
+                label TEXT NOT NULL,
+                field_type TEXT NOT NULL DEFAULT 'text',
+                is_required BOOLEAN NOT NULL DEFAULT FALSE,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        ensure_table(
+            "job_applications",
+            """
+            CREATE TABLE job_applications (
+                id SERIAL PRIMARY KEY,
+                vacancy_id INTEGER NOT NULL REFERENCES job_vacancies(id) ON DELETE CASCADE,
+                applicant_name TEXT NOT NULL,
+                applicant_email TEXT NOT NULL,
+                linkedin_url TEXT,
+                cv_path TEXT NOT NULL,
+                cv_filename TEXT NOT NULL,
+                cover_letter_path TEXT,
+                cover_letter_filename TEXT,
+                status TEXT NOT NULL DEFAULT 'new',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        ensure_table(
+            "job_application_answers",
+            """
+            CREATE TABLE job_application_answers (
+                id SERIAL PRIMARY KEY,
+                application_id INTEGER NOT NULL REFERENCES job_applications(id) ON DELETE CASCADE,
+                field_id INTEGER NOT NULL REFERENCES job_vacancy_fields(id) ON DELETE CASCADE,
+                value TEXT,
+                file_path TEXT,
+                file_name TEXT
+            )
+            """,
+        )
+
         # ---------- Community forum ----------
         ensure_table(
             "forum_categories",

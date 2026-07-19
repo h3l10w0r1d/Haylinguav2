@@ -2,16 +2,214 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Briefcase } from "lucide-react";
+import {
+  Plus, Save, Trash2, ChevronUp, ChevronDown, ChevronRight, Eye, EyeOff, Briefcase,
+  ListPlus, FileText, Download, Linkedin, Mail,
+} from "lucide-react";
 import CmsLayout from "./CmsLayout";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
+const FIELD_TYPES = ["text", "textarea", "url", "file"];
+const APPLICATION_STATUSES = ["new", "reviewed", "shortlisted", "rejected", "hired"];
+const STATUS_TONE = {
+  new: "bg-brand-50 text-brand-700 ring-brand-200",
+  reviewed: "bg-slate-100 text-slate-600 ring-slate-200",
+  shortlisted: "bg-gold-50 text-gold-700 ring-gold-200",
+  rejected: "bg-cardinal-50 text-cardinal-700 ring-cardinal-200",
+  hired: "bg-grass-50 text-grass-700 ring-grass-200",
+};
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
 }
 const inputCls =
   "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
+
+// Fields + applications for one vacancy — fetched lazily when its card expands.
+function VacancyPanel({ vacancy, api, showToast }) {
+  const [fields, setFields] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [fieldDraft, setFieldDraft] = useState({ label: "", field_type: "text", is_required: false });
+  const [openAppId, setOpenAppId] = useState(null);
+  const [appDetail, setAppDetail] = useState(null);
+
+  async function refresh() {
+    const [f, a] = await Promise.all([api.listVacancyFields(vacancy.id), api.listApplications(vacancy.id)]);
+    setFields(Array.isArray(f?.fields) ? f.fields : []);
+    setApplications(Array.isArray(a?.applications) ? a.applications : []);
+  }
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        await refresh();
+      } catch (err) {
+        showToast(err.message || "Failed to load", "err");
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vacancy.id]);
+
+  async function addField() {
+    if (!fieldDraft.label.trim()) return;
+    setBusy(true);
+    try {
+      await api.createVacancyField(vacancy.id, fieldDraft);
+      setFieldDraft({ label: "", field_type: "text", is_required: false });
+      await refresh();
+    } catch (err) {
+      showToast(err.message || "Add field failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeField(f) {
+    if (!confirm(`Delete the "${f.label}" question? Existing answers to it will also be removed.`)) return;
+    setBusy(true);
+    try {
+      await api.deleteVacancyField(f.id);
+      await refresh();
+    } catch (err) {
+      showToast(err.message || "Delete failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleApp(appId) {
+    if (openAppId === appId) { setOpenAppId(null); setAppDetail(null); return; }
+    setOpenAppId(appId);
+    try {
+      const d = await api.getApplication(appId);
+      setAppDetail(d);
+    } catch (err) {
+      showToast(err.message || "Failed to load application", "err");
+    }
+  }
+
+  async function setStatus(appId, status) {
+    setBusy(true);
+    try {
+      await api.updateApplicationStatus(appId, status);
+      await refresh();
+      if (openAppId === appId) {
+        const d = await api.getApplication(appId);
+        setAppDetail(d);
+      }
+    } catch (err) {
+      showToast(err.message || "Update failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function download(appId, kind, filename) {
+    try {
+      await api.downloadApplicationFile(appId, kind, filename);
+    } catch (err) {
+      showToast(err.message || "Download failed", "err");
+    }
+  }
+
+  if (loading) return <div className="border-t border-slate-100 p-4 text-sm text-slate-500">Loading…</div>;
+
+  return (
+    <div className="space-y-5 border-t border-slate-100 p-4">
+      {/* Application form fields */}
+      <div>
+        <div className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Application questions</div>
+        <p className="mb-2 text-xs font-semibold text-slate-400">Name, email, LinkedIn, and CV are always collected. Add extra questions candidates should answer.</p>
+        <div className="space-y-1.5">
+          {fields.map((f) => (
+            <div key={f.id} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-700">{f.label}</span>
+              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-extrabold uppercase text-slate-400 ring-1 ring-slate-200">{f.field_type}</span>
+              {f.is_required && <span className="rounded-full bg-cardinal-50 px-2 py-0.5 text-[10px] font-extrabold uppercase text-cardinal-600">Required</span>}
+              <button type="button" onClick={() => removeField(f)} disabled={busy} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-cardinal-500 hover:bg-cardinal-50"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1.4fr_1fr_auto_auto]">
+          <input value={fieldDraft.label} onChange={(e) => setFieldDraft({ ...fieldDraft, label: e.target.value })} placeholder="Question — e.g. Portfolio link" className={cx(inputCls, "!py-2 text-sm")} />
+          <select value={fieldDraft.field_type} onChange={(e) => setFieldDraft({ ...fieldDraft, field_type: e.target.value })} className={cx(inputCls, "!py-2 text-sm")}>
+            {FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <label className="flex items-center gap-1.5 whitespace-nowrap rounded-2xl bg-slate-50 px-3 text-xs font-bold text-slate-600 ring-2 ring-slate-200">
+            <input type="checkbox" checked={fieldDraft.is_required} onChange={(e) => setFieldDraft({ ...fieldDraft, is_required: e.target.checked })} /> Required
+          </label>
+          <button type="button" onClick={addField} disabled={busy || !fieldDraft.label.trim()} className="btn3d btn3d-neutral text-xs inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
+            <ListPlus className="h-3.5 w-3.5" /> Add question
+          </button>
+        </div>
+      </div>
+
+      {/* Applications */}
+      <div>
+        <div className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Applications ({applications.length})</div>
+        {applications.length === 0 ? (
+          <div className="rounded-xl bg-slate-50 p-4 text-center text-xs font-semibold text-slate-400">No applications yet.</div>
+        ) : (
+          <div className="space-y-1.5">
+            {applications.map((a) => (
+              <div key={a.id} className="rounded-xl bg-slate-50">
+                <button type="button" onClick={() => toggleApp(a.id)} className="flex w-full items-center gap-2 px-3 py-2 text-left">
+                  <ChevronRight className={cx("h-4 w-4 shrink-0 text-slate-400 transition-transform", openAppId === a.id && "rotate-90")} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-700">{a.applicant_name}</span>
+                  <span className={cx("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ring-1", STATUS_TONE[a.status] || STATUS_TONE.new)}>{a.status}</span>
+                </button>
+                {openAppId === a.id && (
+                  <div className="space-y-3 border-t border-white px-3 pb-3 pt-2">
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500">
+                      <span className="inline-flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {a.applicant_email}</span>
+                      {a.linkedin_url && <a href={a.linkedin_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-600 hover:underline"><Linkedin className="h-3.5 w-3.5" /> LinkedIn</a>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button type="button" onClick={() => download(a.id, "cv", a.cv_filename)} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">
+                        <Download className="h-3.5 w-3.5" /> CV
+                      </button>
+                      {a.has_cover_letter && (
+                        <button type="button" onClick={() => download(a.id, "cover_letter", a.cover_letter_filename)} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">
+                          <Download className="h-3.5 w-3.5" /> Cover letter
+                        </button>
+                      )}
+                      <select value={a.status} onChange={(e) => setStatus(a.id, e.target.value)} disabled={busy} className="ml-auto rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+                        {APPLICATION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    {appDetail?.application?.id === a.id && appDetail.answers?.length > 0 && (
+                      <div className="space-y-1.5 rounded-xl bg-white p-3 ring-1 ring-slate-200">
+                        {appDetail.answers.map((ans) => (
+                          <div key={ans.field_id} className="text-xs">
+                            <div className="font-extrabold text-slate-400">{ans.label}</div>
+                            {ans.field_type === "file" ? (
+                              ans.file_name ? (
+                                <button type="button" onClick={() => download(a.id, `answer:${ans.field_id}`, ans.file_name)} className="mt-0.5 inline-flex items-center gap-1 font-bold text-brand-600 hover:underline">
+                                  <FileText className="h-3.5 w-3.5" /> {ans.file_name}
+                                </button>
+                              ) : <div className="mt-0.5 text-slate-400">No file uploaded</div>
+                            ) : (
+                              <div className="mt-0.5 whitespace-pre-wrap font-semibold text-slate-600">{ans.value || "—"}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function CmsCareers() {
   const token = getCmsToken();
@@ -24,6 +222,7 @@ export default function CmsCareers() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState({ title: "", location: "Remote", employment_type: "full-time" });
+  const [expandedId, setExpandedId] = useState(null);
 
   function showToast(msg, kind = "ok") {
     setToast({ msg, kind });
@@ -192,6 +391,14 @@ export default function CmsCareers() {
                           {it.is_active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                           {it.is_active ? "Published" : "Hidden"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(expandedId === it.id ? null : it.id)}
+                          className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200"
+                        >
+                          <ChevronRight className={cx("h-3.5 w-3.5 transition-transform", expandedId === it.id && "rotate-90")} />
+                          Questions & applications
+                        </button>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -199,6 +406,7 @@ export default function CmsCareers() {
                       <button type="button" onClick={() => removeItem(it)} disabled={busy} className="btn3d btn3d-cardinal text-xs inline-flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                     </div>
                   </div>
+                  {expandedId === it.id && <VacancyPanel vacancy={it} api={api} showToast={showToast} />}
                 </div>
               );
             })}

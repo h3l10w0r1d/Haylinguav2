@@ -30,7 +30,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 import pyotp
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -64,6 +64,8 @@ from routes import (
     # Exercises
     normalize_kind,
     validate_exercise_config,
+    # Careers: application file storage (shared with the public apply endpoint)
+    _applications_upload_dir,
     # Email
     _send_email,
     _render_cms_invite_html,
@@ -1660,6 +1662,150 @@ async def cms_reorder_vacancies(request: Request, db=Depends(get_db)):
     for i, vid in enumerate(body.get("order") or []):
         db.execute(text("UPDATE job_vacancies SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(vid)})
     return {"ok": True}
+
+# ==================== Careers: application form fields ====================
+
+FIELD_TYPES = {"text", "textarea", "url", "file"}
+
+@router.get("/cms/vacancies/{vacancy_id}/fields")
+def cms_list_vacancy_fields(vacancy_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(
+        text("SELECT id, label, field_type, is_required, sort_order FROM job_vacancy_fields WHERE vacancy_id = :id ORDER BY sort_order ASC, id ASC"),
+        {"id": vacancy_id},
+    ).mappings().all()
+    return {"fields": [dict(r) for r in rows], "field_types": sorted(FIELD_TYPES)}
+
+@router.post("/cms/vacancies/{vacancy_id}/fields")
+async def cms_create_vacancy_field(vacancy_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    label = (body.get("label") or "").strip()
+    field_type = (body.get("field_type") or "text").strip()
+    if not label:
+        raise HTTPException(status_code=400, detail="label is required")
+    if field_type not in FIELD_TYPES:
+        raise HTTPException(status_code=400, detail=f"field_type must be one of {sorted(FIELD_TYPES)}")
+    pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM job_vacancy_fields WHERE vacancy_id = :id"), {"id": vacancy_id}).scalar() or 1
+    new_id = db.execute(
+        text("""
+            INSERT INTO job_vacancy_fields (vacancy_id, label, field_type, is_required, sort_order)
+            VALUES (:vid, :l, :ft, :req, :so) RETURNING id
+        """),
+        {"vid": vacancy_id, "l": label, "ft": field_type, "req": bool(body.get("is_required", False)), "so": int(pos)},
+    ).scalar_one()
+    return {"id": int(new_id)}
+
+@router.put("/cms/vacancy-fields/{field_id}")
+async def cms_update_vacancy_field(field_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": field_id}
+    if "label" in body:
+        set_parts.append("label = :label")
+        params["label"] = (body["label"] or "").strip()
+    if "is_required" in body:
+        set_parts.append("is_required = :is_required")
+        params["is_required"] = bool(body["is_required"])
+    if "field_type" in body:
+        if body["field_type"] not in FIELD_TYPES:
+            raise HTTPException(status_code=400, detail="invalid field_type")
+        set_parts.append("field_type = :field_type")
+        params["field_type"] = body["field_type"]
+    if not set_parts:
+        return {"ok": True}
+    db.execute(text(f"UPDATE job_vacancy_fields SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/vacancy-fields/{field_id}")
+def cms_delete_vacancy_field(field_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM job_vacancy_fields WHERE id = :id"), {"id": field_id})
+    return {"ok": True}
+
+@router.post("/cms/vacancies/{vacancy_id}/fields/reorder")
+async def cms_reorder_vacancy_fields(vacancy_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    for i, fid in enumerate(body.get("order") or []):
+        db.execute(text("UPDATE job_vacancy_fields SET sort_order = :p WHERE id = :id AND vacancy_id = :vid"), {"p": i + 1, "id": int(fid), "vid": vacancy_id})
+    return {"ok": True}
+
+# ==================== Careers: applications ====================
+
+@router.get("/cms/vacancies/{vacancy_id}/applications")
+def cms_list_applications(vacancy_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(
+        text("""
+            SELECT id, applicant_name, applicant_email, linkedin_url, status, created_at,
+                   cv_filename IS NOT NULL AS has_cv, cover_letter_filename IS NOT NULL AS has_cover_letter
+            FROM job_applications WHERE vacancy_id = :id ORDER BY created_at DESC
+        """),
+        {"id": vacancy_id},
+    ).mappings().all()
+    return {"applications": [dict(r) for r in rows]}
+
+@router.get("/cms/applications/{application_id}")
+def cms_get_application(application_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    app_row = db.execute(
+        text("""
+            SELECT a.id, a.vacancy_id, a.applicant_name, a.applicant_email, a.linkedin_url, a.status, a.created_at,
+                   a.cv_filename, a.cover_letter_filename, v.title AS vacancy_title
+            FROM job_applications a JOIN job_vacancies v ON v.id = a.vacancy_id
+            WHERE a.id = :id
+        """),
+        {"id": application_id},
+    ).mappings().first()
+    if app_row is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    answers = db.execute(
+        text("""
+            SELECT f.id AS field_id, f.label, f.field_type, ans.value, ans.file_name
+            FROM job_vacancy_fields f
+            LEFT JOIN job_application_answers ans ON ans.field_id = f.id AND ans.application_id = :aid
+            WHERE f.vacancy_id = :vid
+            ORDER BY f.sort_order ASC, f.id ASC
+        """),
+        {"aid": application_id, "vid": app_row["vacancy_id"]},
+    ).mappings().all()
+    return {"application": dict(app_row), "answers": [dict(a) for a in answers]}
+
+APPLICATION_STATUSES = {"new", "reviewed", "shortlisted", "rejected", "hired"}
+
+@router.put("/cms/applications/{application_id}")
+async def cms_update_application(application_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    status_val = (body.get("status") or "").strip()
+    if status_val not in APPLICATION_STATUSES:
+        raise HTTPException(status_code=400, detail=f"status must be one of {sorted(APPLICATION_STATUSES)}")
+    db.execute(text("UPDATE job_applications SET status = :s WHERE id = :id"), {"s": status_val, "id": application_id})
+    return {"ok": True}
+
+@router.get("/cms/applications/{application_id}/files/{kind}")
+def cms_download_application_file(application_id: int, kind: str, request: Request, db=Depends(get_db)):
+    """kind is 'cv', 'cover_letter', or 'answer:<field_id>'. Files live in a
+    private (non-static-mounted) directory — this authenticated endpoint is
+    the only way to fetch an applicant's documents."""
+    require_cms(request, db)
+    if kind == "cv":
+        row = db.execute(text("SELECT cv_path AS path, cv_filename AS filename FROM job_applications WHERE id = :id"), {"id": application_id}).mappings().first()
+    elif kind == "cover_letter":
+        row = db.execute(text("SELECT cover_letter_path AS path, cover_letter_filename AS filename FROM job_applications WHERE id = :id"), {"id": application_id}).mappings().first()
+    elif kind.startswith("answer:"):
+        field_id = kind.split(":", 1)[1]
+        row = db.execute(
+            text("SELECT file_path AS path, file_name AS filename FROM job_application_answers WHERE application_id = :aid AND field_id = :fid"),
+            {"aid": application_id, "fid": field_id},
+        ).mappings().first()
+    else:
+        raise HTTPException(status_code=400, detail="Invalid file kind")
+
+    if row is None or not row["path"] or not os.path.exists(row["path"]):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(row["path"], filename=row["filename"] or os.path.basename(row["path"]))
 
 # ==================== Community forum (moderation) ====================
 

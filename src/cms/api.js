@@ -121,6 +121,35 @@ export function createCmsApi(accessToken) {
   const deleteVacancy = (id) => req(`/cms/vacancies/${id}`, { method: "DELETE" });
   const reorderVacancies = (order) => req("/cms/vacancies/reorder", { method: "POST", body: JSON.stringify({ order }) });
 
+  // Careers: application form fields
+  const listVacancyFields = (vacancyId) => req(`/cms/vacancies/${vacancyId}/fields`);
+  const createVacancyField = (vacancyId, payload) => req(`/cms/vacancies/${vacancyId}/fields`, { method: "POST", body: JSON.stringify(payload) });
+  const updateVacancyField = (fieldId, payload) => req(`/cms/vacancy-fields/${fieldId}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteVacancyField = (fieldId) => req(`/cms/vacancy-fields/${fieldId}`, { method: "DELETE" });
+  const reorderVacancyFields = (vacancyId, order) => req(`/cms/vacancies/${vacancyId}/fields/reorder`, { method: "POST", body: JSON.stringify({ order }) });
+
+  // Careers: applications
+  const listApplications = (vacancyId) => req(`/cms/vacancies/${vacancyId}/applications`);
+  const getApplication = (id) => req(`/cms/applications/${id}`);
+  const updateApplicationStatus = (id, status) => req(`/cms/applications/${id}`, { method: "PUT", body: JSON.stringify({ status }) });
+  // Downloads need the Bearer token, which a plain <a href> can't send — fetch
+  // as a blob and trigger the save via a temporary object URL instead.
+  const downloadApplicationFile = async (applicationId, kind, filename) => {
+    const res = await fetch(`${API_BASE}/cms/applications/${applicationId}/files/${kind}`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    });
+    if (!res.ok) throw new Error(`Download failed (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   // Community forum
   const listForumCategories = () => req("/cms/forum/categories");
   const createForumCategory = (payload) => req("/cms/forum/categories", { method: "POST", body: JSON.stringify(payload) });
@@ -245,6 +274,15 @@ export function createCmsApi(accessToken) {
     updateVacancy,
     deleteVacancy,
     reorderVacancies,
+    listVacancyFields,
+    createVacancyField,
+    updateVacancyField,
+    deleteVacancyField,
+    reorderVacancyFields,
+    listApplications,
+    getApplication,
+    updateApplicationStatus,
+    downloadApplicationFile,
     listForumCategories,
     createForumCategory,
     updateForumCategory,

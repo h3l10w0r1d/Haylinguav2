@@ -5714,6 +5714,175 @@ def list_vacancies(db: Connection = Depends(get_db)):
     return {"vacancies": [dict(r) for r in rows]}
 
 
+@router.get("/careers/vacancies/{vacancy_id}")
+def get_vacancy(vacancy_id: int, db: Connection = Depends(get_db)):
+    """Public — a single active vacancy plus its CMS-defined application
+    fields, for rendering the application form (src/CareersApplyPage.jsx)."""
+    vacancy = db.execute(
+        text(
+            "SELECT id, title, location, employment_type, summary, description "
+            "FROM job_vacancies WHERE id = :id AND is_active = TRUE"
+        ),
+        {"id": vacancy_id},
+    ).mappings().first()
+    if vacancy is None:
+        raise HTTPException(status_code=404, detail="Vacancy not found")
+    fields = db.execute(
+        text(
+            "SELECT id, label, field_type, is_required FROM job_vacancy_fields "
+            "WHERE vacancy_id = :id ORDER BY sort_order ASC, id ASC"
+        ),
+        {"id": vacancy_id},
+    ).mappings().all()
+    return {"vacancy": dict(vacancy), "fields": [dict(f) for f in fields]}
+
+
+def _applications_upload_dir() -> str:
+    """Where CV/cover-letter/custom-file application uploads live on disk.
+
+    Deliberately NOT mounted as a public StaticFiles route (unlike avatars/
+    banners) — these are applicants' private documents, only ever served
+    back out through an authenticated CMS download endpoint."""
+    candidates = []
+    env = os.getenv("UPLOADS_DIR")
+    if env:
+        candidates.append(env)
+    candidates.append("/var/data/uploads")
+    candidates.append("uploads")
+    for base in candidates:
+        p = os.path.join(base, "applications")
+        try:
+            os.makedirs(p, exist_ok=True)
+        except (PermissionError, OSError):
+            continue
+        if os.access(p, os.W_OK):
+            return p
+    p = os.path.join("uploads", "applications")
+    os.makedirs(p, exist_ok=True)
+    return p
+
+
+_APPLICATION_FILE_TYPES = {
+    "application/pdf": ".pdf",
+    "application/msword": ".doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+}
+
+
+async def _save_application_file(upload_file, prefix: str):
+    ext = _APPLICATION_FILE_TYPES.get((upload_file.content_type or "").lower())
+    if not ext:
+        raise HTTPException(status_code=400, detail="Only PDF, DOC, or DOCX files are allowed")
+    content = await upload_file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 8MB)")
+    filename = f"{prefix}_{uuid.uuid4().hex}{ext}"
+    path = os.path.join(_applications_upload_dir(), filename)
+    with open(path, "wb") as f:
+        f.write(content)
+    return path, (upload_file.filename or filename)
+
+
+@router.post("/careers/vacancies/{vacancy_id}/apply")
+async def apply_to_vacancy(vacancy_id: int, request: Request, db: Connection = Depends(get_db)):
+    """Public — submit a job application. multipart/form-data: name, email,
+    linkedin_url (optional), cv (file, required), cover_letter (file,
+    optional), turnstile_token, plus one `field_<id>` entry per CMS-defined
+    custom field (text value or file, depending on the field's type)."""
+    vacancy = db.execute(
+        text("SELECT id, title FROM job_vacancies WHERE id = :id AND is_active = TRUE"), {"id": vacancy_id}
+    ).mappings().first()
+    if vacancy is None:
+        raise HTTPException(status_code=404, detail="Vacancy not found")
+
+    form = await request.form()
+    name = (form.get("name") or "").strip()[:200]
+    email = (form.get("email") or "").strip().lower()[:200]
+    linkedin_url = (form.get("linkedin_url") or "").strip()[:500]
+    turnstile_token = (form.get("turnstile_token") or "").strip()
+    cv = form.get("cv")
+    cover_letter = form.get("cover_letter")
+
+    if not name or not email or cv is None or not getattr(cv, "filename", None):
+        raise HTTPException(status_code=400, detail="Name, email, and a CV are required")
+    if not _CONTACT_EMAIL_RE.match(email):
+        raise HTTPException(status_code=400, detail="Enter a valid email address")
+
+    fields = db.execute(
+        text("SELECT id, label, field_type, is_required FROM job_vacancy_fields WHERE vacancy_id = :id ORDER BY sort_order ASC, id ASC"),
+        {"id": vacancy_id},
+    ).mappings().all()
+
+    # Validate every required custom field is present before touching disk/DB.
+    for f in fields:
+        key = f"field_{f['id']}"
+        val = form.get(key)
+        if f["field_type"] == "file":
+            if f["is_required"] and (val is None or not getattr(val, "filename", None)):
+                raise HTTPException(status_code=400, detail=f"\"{f['label']}\" is required")
+        else:
+            if f["is_required"] and not (val or "").strip():
+                raise HTTPException(status_code=400, detail=f"\"{f['label']}\" is required")
+
+    ip = _client_ip(request)
+    if not _verify_turnstile(turnstile_token, ip):
+        raise HTTPException(status_code=400, detail="Security check failed — please try again")
+
+    cv_path, cv_filename = await _save_application_file(cv, "cv")
+    cover_letter_path = cover_letter_filename = None
+    if cover_letter is not None and getattr(cover_letter, "filename", None):
+        cover_letter_path, cover_letter_filename = await _save_application_file(cover_letter, "cover_letter")
+
+    application_id = db.execute(
+        text("""
+            INSERT INTO job_applications
+                (vacancy_id, applicant_name, applicant_email, linkedin_url, cv_path, cv_filename, cover_letter_path, cover_letter_filename)
+            VALUES (:vid, :name, :email, :li, :cvp, :cvf, :clp, :clf)
+            RETURNING id
+        """),
+        {
+            "vid": vacancy_id, "name": name, "email": email, "li": linkedin_url or None,
+            "cvp": cv_path, "cvf": cv_filename, "clp": cover_letter_path, "clf": cover_letter_filename,
+        },
+    ).scalar_one()
+
+    for f in fields:
+        key = f"field_{f['id']}"
+        val = form.get(key)
+        if f["field_type"] == "file":
+            if val is not None and getattr(val, "filename", None):
+                fpath, fname = await _save_application_file(val, f"field_{f['id']}")
+                db.execute(
+                    text("INSERT INTO job_application_answers (application_id, field_id, file_path, file_name) VALUES (:aid, :fid, :p, :n)"),
+                    {"aid": application_id, "fid": f["id"], "p": fpath, "n": fname},
+                )
+        else:
+            text_val = (val or "").strip()
+            if text_val:
+                db.execute(
+                    text("INSERT INTO job_application_answers (application_id, field_id, value) VALUES (:aid, :fid, :v)"),
+                    {"aid": application_id, "fid": f["id"], "v": text_val[:5000]},
+                )
+
+    to_email = (os.getenv("CONTACT_INBOX_EMAIL") or os.getenv("BREVO_SENDER_EMAIL") or os.getenv("EMAIL_FROM") or "info@haylingua.am").strip()
+    _send_email(
+        to_email=to_email,
+        subject=f"[Haylingua Careers] New application — {vacancy['title']}",
+        body=f"New application for {vacancy['title']} from {name} <{email}>.\n\nReview it in the CMS: /cms/careers",
+        html_body=f"""
+        <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;">
+          <h2 style="color:#1c1917;">New application — {vacancy['title']}</h2>
+          <p style="color:#57534e;"><strong>From:</strong> {name} &lt;{email}&gt;</p>
+          <p style="color:#57534e;">Review the CV, cover letter, and any custom answers in the CMS under Careers.</p>
+        </div>""",
+        reply_to_email=email,
+        reply_to_name=name,
+    )
+    return {"ok": True}
+
+
 # ----------------------------
 # Community forum (src/ForumPage.jsx, ForumCategoryPage.jsx, ForumThreadPage.jsx)
 # Public read; posting requires a regular user login (get_current_user).
