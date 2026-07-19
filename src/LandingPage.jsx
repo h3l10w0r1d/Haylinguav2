@@ -262,7 +262,7 @@ function VoiceChip({ text, label, tone = "brand" }) {
   }
 
   const tones = {
-    brand: "bg-white dark:bg-[#18181b] text-brand-700 ring-brand-200 hover:bg-brand-50",
+    brand: "bg-white dark:bg-[#18181b] text-brand-700 dark:text-brand-400 ring-brand-200 dark:ring-brand-500/30 hover:bg-brand-50 dark:hover:bg-brand-500/10",
     slate: "bg-white dark:bg-[#18181b] text-slate-600 dark:text-stone-300 ring-slate-200 dark:ring-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.04]",
   };
   return (
@@ -453,27 +453,27 @@ function LandingExerciseDemo({ onSignup }) {
 
       {checked ? (
         isCorrect ? (
-          <div className="mt-5 -mx-5 -mb-5 rounded-b-3xl bg-grass-50 px-5 py-4">
+          <div className="mt-5 -mx-5 -mb-5 rounded-b-3xl bg-grass-50 px-5 py-4 dark:bg-grass-500/10">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="font-display text-base font-extrabold text-grass-700">Ապրե՛ս! (Nice!)</div>
+                <div className="font-display text-base font-extrabold text-grass-700 dark:text-grass-300">Ապրե՛ս! (Nice!)</div>
                 <div className="mt-2"><VoiceChip text={q.prompt} label={q.meaning} /></div>
               </div>
               <button type="button" onClick={onContinue} className="btn3d btn3d-grass uppercase">Continue</button>
             </div>
           </div>
         ) : (
-          <div className="mt-5 -mx-5 -mb-5 rounded-b-3xl bg-cardinal-50 px-5 py-4">
+          <div className="mt-5 -mx-5 -mb-5 rounded-b-3xl bg-cardinal-50 px-5 py-4 dark:bg-cardinal-500/10">
             {/* Simulated AI tutor: explains the specific mistake instead of just
                 flashing the right answer, so a visitor sees why they were wrong. */}
             <div className="flex items-center justify-between">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-cardinal-500/10 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-cardinal-700">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-cardinal-500/10 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-cardinal-700 dark:bg-cardinal-500/20 dark:text-cardinal-300">
                 <Sparkles className="h-3.5 w-3.5" /> Aram · AI tutor
               </div>
               <button
                 type="button"
                 onClick={regenerate}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-cardinal-600 hover:bg-cardinal-500/10"
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-cardinal-600 hover:bg-cardinal-500/10 dark:text-cardinal-400 dark:hover:bg-cardinal-500/15"
                 title="See the explanation phrased another way"
               >
                 <RotateCw className="h-3.5 w-3.5" /> Explain differently
@@ -1251,8 +1251,8 @@ export default function LandingPage({ onLogin, onSignup }) {
 
             {/* Lead with the trial offer where it can actually change a visitor's
                 mind — before the CTA, not buried inside the signup modal. */}
-            <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-gold-50 px-4 py-2 text-sm font-extrabold text-amber-800 ring-1 ring-gold-100">
-              <Sparkles className="h-4 w-4 text-amber-800" /> 14 days of Premium free when you sign up — no card
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-gold-50 px-4 py-2 text-sm font-extrabold text-amber-800 ring-1 ring-gold-100 dark:bg-gold-500/15 dark:text-gold-300 dark:ring-gold-500/25">
+              <Sparkles className="h-4 w-4 text-amber-800 dark:text-gold-300" /> 14 days of Premium free when you sign up — no card
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
