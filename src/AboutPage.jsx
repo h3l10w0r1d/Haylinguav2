@@ -300,7 +300,23 @@ export default function AboutPage() {
       });
     }, rootRef);
 
-    return () => ctx.revert();
+    // Every trigger above was positioned using whatever layout existed at
+    // mount — but the custom display font swaps in after that (fallback
+    // metrics are narrower/shorter), and images (founder photos, mascot art)
+    // can finish decoding later too. Without a refresh once those settle,
+    // sections below the fold keep the stale, too-short measurements and
+    // pinned sections end up overlapping the section above them instead of
+    // sitting below it.
+    const refresh = () => ScrollTrigger.refresh();
+    document.fonts?.ready?.then(refresh);
+    window.addEventListener("load", refresh);
+    const images = rootRef.current ? Array.from(rootRef.current.querySelectorAll("img")) : [];
+    Promise.all(images.map((img) => img.decode?.().catch(() => {}))).then(refresh);
+
+    return () => {
+      window.removeEventListener("load", refresh);
+      ctx.revert();
+    };
   }, [reduceMotion]);
 
   return (
