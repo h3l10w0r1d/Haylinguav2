@@ -35,7 +35,9 @@ const FOUNDERS = [
 const TIMELINE = [
   { year: "Oct 2024", title: "The idea", text: "Armen's IB teacher, Lilit Hakobyan, sets him a project: build something that could actually teach Armenian to the diaspora." },
   { year: "Nov 2024", title: "First prototype", text: "A month later, the first working version of Haylingua exists." },
+  { year: "Sep 2025", title: "Back to it", text: "Armen finishes the rest of the IB Diploma — the prototype's been sitting for a year, but the idea never really left." },
   { year: "Jan 2026", title: "The real build begins", text: "Armen starts rebuilding Haylingua as a full product — real backend, real curriculum — with Lilit shaping how it teaches Armenian." },
+  { year: "May 2026", title: "Curriculum takes shape", text: "The alphabet-to-conversation path comes together — every letter, every word, real audio on all of it." },
   { year: "Aug 2026", title: "Public launch", text: "Haylingua opens up to everyone. Coming soon." },
 ];
 
