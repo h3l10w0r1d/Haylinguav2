@@ -107,11 +107,12 @@ export default function AboutPage() {
       }
 
       // Hero entrance — a confident, staggered wipe-up on mount. The pinned
-      // "portal" exit further down targets these same elements, so it's
-      // wired up only once this finishes (see onComplete below) — otherwise
-      // the two tweens race over the same opacity/transform on mount and
-      // whichever rendered last wins, sometimes leaving the hero invisible.
-      const heroEntranceTl = gsap.timeline({ defaults: { ease: "power3.out" } })
+      // "portal" exit further down targets these same elements and is
+      // created in this same synchronous pass (see below) — it uses
+      // explicit from/to values rather than relying on whatever the DOM
+      // happens to hold at creation time, so it can't stomp this entrance
+      // tween's in-flight state and leave the hero stuck invisible.
+      gsap.timeline({ defaults: { ease: "power3.out" } })
         .fromTo("[data-hero-item]", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.7, stagger: 0.1 })
         .fromTo(
           "[data-hero-art]",
@@ -119,6 +120,32 @@ export default function AboutPage() {
           { opacity: 1, scale: 1, rotate: 0, duration: 0.9, ease: "back.out(1.4)" },
           "-=0.5"
         );
+
+      // Pinned "portal" intro — the giant watermark letter behind the hero
+      // copy grows and fades while the copy itself dissolves upward, so
+      // scrolling off the hero reads as passing *through* the letter into
+      // the story below, instead of a plain scroll-past. Created here, in
+      // the same synchronous pass as every other trigger below it — GSAP
+      // batches same-tick trigger creation into one measurement pass, so
+      // this pin's spacer is accounted for when Values/Timeline/etc. below
+      // it compute their own positions. Creating it later (e.g. gated on
+      // the entrance animation finishing) left those positions stale by
+      // this pin's spacer height, causing the Timeline section to render
+      // on top of the Values section above it instead of below it.
+      if (heroRef.current) {
+        gsap.timeline({
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: "top top",
+            end: "+=70%",
+            scrub: 1,
+            pin: true,
+          },
+        })
+          .fromTo("[data-hero-letter-glyph]", { scale: 1, opacity: 1 }, { scale: 4.2, opacity: 0, ease: "none" }, 0)
+          .fromTo("[data-hero-item]", { opacity: 1, y: 0 }, { opacity: 0, y: -36, stagger: 0.04, ease: "none" }, 0)
+          .fromTo("[data-hero-art]", { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.82, ease: "none" }, 0);
+      }
 
       // Generic scroll reveal for every section marked data-reveal.
       gsap.utils.toArray("[data-reveal]").forEach((el) => {
@@ -228,30 +255,6 @@ export default function AboutPage() {
           scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true },
         });
       }
-
-      // Pinned "portal" intro — the giant watermark letter behind the hero
-      // copy grows and fades while the copy itself dissolves upward, so
-      // scrolling off the hero reads as passing *through* the letter into
-      // the story below, instead of a plain scroll-past. Wired up only
-      // after the entrance timeline finishes (see comment above) — and
-      // uses explicit from/to values rather than relying on whatever the
-      // DOM happens to hold at creation time, so a later ScrollTrigger
-      // refresh always resolves back to the correct resting state.
-      heroEntranceTl.eventCallback("onComplete", () => {
-        if (!heroRef.current) return;
-        gsap.timeline({
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: "top top",
-            end: "+=70%",
-            scrub: 1,
-            pin: true,
-          },
-        })
-          .fromTo("[data-hero-letter-glyph]", { scale: 1, opacity: 1 }, { scale: 4.2, opacity: 0, ease: "none" }, 0)
-          .fromTo("[data-hero-item]", { opacity: 1, y: 0 }, { opacity: 0, y: -36, stagger: 0.04, ease: "none" }, 0)
-          .fromTo("[data-hero-art]", { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.82, ease: "none" }, 0);
-      });
 
       // Story section — a thin "0 → 1" progress rail fills as you read
       // through the origin story, echoing the same 0 → 1 language used in
