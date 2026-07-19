@@ -1591,6 +1591,226 @@ async def cms_reorder_shop_items(request: Request, db=Depends(get_db)):
         db.execute(text("UPDATE shop_items SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(iid)})
     return {"ok": True}
 
+# ==================== Careers: job vacancies ====================
+
+EMPLOYMENT_TYPES = {"full-time", "part-time", "contract", "internship"}
+
+@router.get("/cms/vacancies")
+def cms_list_vacancies(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT id, title, location, employment_type, summary, description, sort_order, is_active
+        FROM job_vacancies ORDER BY sort_order ASC, id ASC
+    """)).mappings().all()
+    return {"vacancies": [dict(r) for r in rows], "employment_types": sorted(EMPLOYMENT_TYPES)}
+
+@router.post("/cms/vacancies")
+async def cms_create_vacancy(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    employment_type = (body.get("employment_type") or "full-time").strip()
+    if employment_type not in EMPLOYMENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"employment_type must be one of {sorted(EMPLOYMENT_TYPES)}")
+    pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM job_vacancies")).scalar() or 1
+    new_id = db.execute(
+        text("""
+            INSERT INTO job_vacancies (title, location, employment_type, summary, description, sort_order, is_active)
+            VALUES (:t, :loc, :et, :sum, :desc, :so, :act) RETURNING id
+        """),
+        {
+            "t": title, "loc": (body.get("location") or "").strip(), "et": employment_type,
+            "sum": (body.get("summary") or "").strip(), "desc": (body.get("description") or "").strip(),
+            "so": int(pos), "act": bool(body.get("is_active", False)),
+        },
+    ).scalar_one()
+    return {"id": int(new_id)}
+
+@router.put("/cms/vacancies/{vacancy_id}")
+async def cms_update_vacancy(vacancy_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": vacancy_id}
+    for f in ("title", "location", "summary", "description", "is_active"):
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = body[f]
+    if "employment_type" in body:
+        if body["employment_type"] not in EMPLOYMENT_TYPES:
+            raise HTTPException(status_code=400, detail="invalid employment_type")
+        set_parts.append("employment_type = :employment_type")
+        params["employment_type"] = body["employment_type"]
+    if not set_parts:
+        return {"ok": True}
+    db.execute(text(f"UPDATE job_vacancies SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/vacancies/{vacancy_id}")
+def cms_delete_vacancy(vacancy_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM job_vacancies WHERE id = :id"), {"id": vacancy_id})
+    return {"ok": True}
+
+@router.post("/cms/vacancies/reorder")
+async def cms_reorder_vacancies(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    for i, vid in enumerate(body.get("order") or []):
+        db.execute(text("UPDATE job_vacancies SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(vid)})
+    return {"ok": True}
+
+# ==================== Community forum (moderation) ====================
+
+@router.get("/cms/forum/categories")
+def cms_list_forum_categories(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT id, name, slug, description, icon, sort_order, is_active
+        FROM forum_categories ORDER BY sort_order ASC, id ASC
+    """)).mappings().all()
+    return {"categories": [dict(r) for r in rows]}
+
+@router.post("/cms/forum/categories")
+async def cms_create_forum_category(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    slug = (body.get("slug") or "").strip().lower()
+    if not name or not slug:
+        raise HTTPException(status_code=400, detail="name and slug are required")
+    if not re.match(r"^[a-z0-9-]+$", slug):
+        raise HTTPException(status_code=400, detail="slug may only contain lowercase letters, numbers, and hyphens")
+    pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM forum_categories")).scalar() or 1
+    try:
+        new_id = db.execute(
+            text("""
+                INSERT INTO forum_categories (name, slug, description, icon, sort_order, is_active)
+                VALUES (:n, :s, :d, :ic, :so, :act) RETURNING id
+            """),
+            {
+                "n": name, "s": slug, "d": (body.get("description") or "").strip(),
+                "ic": (body.get("icon") or "message-circle").strip() or "message-circle",
+                "so": int(pos), "act": bool(body.get("is_active", True)),
+            },
+        ).scalar_one()
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="A category with that name or slug already exists")
+    return {"id": int(new_id)}
+
+@router.put("/cms/forum/categories/{category_id}")
+async def cms_update_forum_category(category_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": category_id}
+    for f in ("name", "description", "icon", "is_active"):
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = body[f]
+    if "slug" in body:
+        slug = (body["slug"] or "").strip().lower()
+        if not re.match(r"^[a-z0-9-]+$", slug):
+            raise HTTPException(status_code=400, detail="slug may only contain lowercase letters, numbers, and hyphens")
+        set_parts.append("slug = :slug")
+        params["slug"] = slug
+    if not set_parts:
+        return {"ok": True}
+    try:
+        db.execute(text(f"UPDATE forum_categories SET {', '.join(set_parts)} WHERE id = :id"), params)
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="A category with that name or slug already exists")
+    return {"ok": True}
+
+@router.delete("/cms/forum/categories/{category_id}")
+def cms_delete_forum_category(category_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM forum_categories WHERE id = :id"), {"id": category_id})
+    return {"ok": True}
+
+@router.post("/cms/forum/categories/reorder")
+async def cms_reorder_forum_categories(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    for i, cid in enumerate(body.get("order") or []):
+        db.execute(text("UPDATE forum_categories SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(cid)})
+    return {"ok": True}
+
+@router.get("/cms/forum/threads")
+def cms_list_forum_threads(request: Request, category_id: Optional[int] = None, db=Depends(get_db)):
+    require_cms(request, db)
+    where = "WHERE t.category_id = :cid" if category_id else ""
+    rows = db.execute(
+        text(f"""
+            SELECT t.id, t.title, t.is_pinned, t.is_locked, t.reply_count, t.last_reply_at, t.created_at,
+                   c.name AS category_name, c.slug AS category_slug,
+                   COALESCE(u.display_name, u.username, split_part(u.email, '@', 1)) AS author_name
+            FROM forum_threads t
+            JOIN forum_categories c ON c.id = t.category_id
+            JOIN users u ON u.id = t.user_id
+            {where}
+            ORDER BY t.last_reply_at DESC
+            LIMIT 100
+        """),
+        {"cid": category_id} if category_id else {},
+    ).mappings().all()
+    return {"threads": [dict(r) for r in rows]}
+
+@router.put("/cms/forum/threads/{thread_id}")
+async def cms_update_forum_thread(thread_id: int, request: Request, db=Depends(get_db)):
+    """Moderation: pin/unpin, lock/unlock, or move to another category."""
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": thread_id}
+    for f in ("is_pinned", "is_locked"):
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = bool(body[f])
+    if "category_id" in body:
+        set_parts.append("category_id = :category_id")
+        params["category_id"] = int(body["category_id"])
+    if not set_parts:
+        return {"ok": True}
+    db.execute(text(f"UPDATE forum_threads SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.delete("/cms/forum/threads/{thread_id}")
+def cms_delete_forum_thread(thread_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM forum_threads WHERE id = :id"), {"id": thread_id})
+    return {"ok": True}
+
+@router.get("/cms/forum/threads/{thread_id}/posts")
+def cms_list_forum_posts(thread_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(
+        text("""
+            SELECT p.id, p.body, p.created_at,
+                   COALESCE(u.display_name, u.username, split_part(u.email, '@', 1)) AS author_name
+            FROM forum_posts p
+            JOIN users u ON u.id = p.user_id
+            WHERE p.thread_id = :tid
+            ORDER BY p.id ASC
+        """),
+        {"tid": thread_id},
+    ).mappings().all()
+    return {"posts": [dict(r) for r in rows]}
+
+@router.delete("/cms/forum/posts/{post_id}")
+def cms_delete_forum_post(post_id: int, request: Request, db=Depends(get_db)):
+    """Moderation delete of a single reply. To remove a whole thread
+    (including its first post), delete the thread instead."""
+    require_cms(request, db)
+    post = db.execute(text("SELECT thread_id FROM forum_posts WHERE id = :id"), {"id": post_id}).mappings().first()
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    db.execute(text("DELETE FROM forum_posts WHERE id = :id"), {"id": post_id})
+    db.execute(
+        text("UPDATE forum_threads SET reply_count = GREATEST(reply_count - 1, 0) WHERE id = :id"),
+        {"id": post["thread_id"]},
+    )
+    return {"ok": True}
+
 # ==================== Premium plans ====================
 
 PLAN_INTERVALS = {"month", "year", "lifetime"}

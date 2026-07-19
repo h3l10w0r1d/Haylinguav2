@@ -34,7 +34,9 @@ const CookiePolicyPage = lazy(() => import('./CookiePolicyPage'));
 const PricingPage = lazy(() => import('./PricingPage'));
 const CareersPage = lazy(() => import('./CareersPage'));
 const AffiliatesPage = lazy(() => import('./AffiliatesPage'));
-const CommunityPage = lazy(() => import('./CommunityPage'));
+const ForumPage = lazy(() => import('./ForumPage'));
+const ForumCategoryPage = lazy(() => import('./ForumCategoryPage'));
+const ForumThreadPage = lazy(() => import('./ForumThreadPage'));
 const Onboarding = lazy(() => import('./Onboarding'));
 const CmsGate = lazy(() => import('./cms/CmsGate'));
 const CmsLogin = lazy(() => import('./cms/CmsLogin'));
@@ -46,6 +48,8 @@ const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
 const CmsPremium = lazy(() => import('./cms/CmsPremium'));
+const CmsCareers = lazy(() => import('./cms/CmsCareers'));
+const CmsForum = lazy(() => import('./cms/CmsForum'));
 const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
 const CmsVoiceLab = lazy(() => import('./cms/CmsVoiceLab'));
 const CmsAccount = lazy(() => import('./cms/CmsAccount'));
@@ -375,7 +379,9 @@ function AppShell() {
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/careers" element={<CareersPage />} />
       <Route path="/affiliates" element={<AffiliatesPage />} />
-      <Route path="/community" element={<CommunityPage />} />
+      <Route path="/community" element={<ForumPage />} />
+      <Route path="/community/thread/:id" element={<ForumThreadPage />} />
+      <Route path="/community/:slug" element={<ForumCategoryPage />} />
 
       <Route
         path="/"
@@ -597,6 +603,8 @@ function AppShell() {
       <Route path="/cms/achievements" element={<CmsAchievements />} />
       <Route path="/cms/shop" element={<CmsShop />} />
       <Route path="/cms/premium" element={<CmsPremium />} />
+      <Route path="/cms/careers" element={<CmsCareers />} />
+      <Route path="/cms/forum" element={<CmsForum />} />
       <Route path="/cms/analytics" element={<CmsAnalytics />} />
       <Route path="/cms/voice-lab" element={<CmsVoiceLab />} />
       <Route path="/cms/account" element={<CmsAccount />} />

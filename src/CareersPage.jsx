@@ -1,18 +1,21 @@
 // src/CareersPage.jsx — Careers. Honest positioning for a 2-person team (see
 // AboutPage's real founder story): no fake job listings, just culture + an
 // open invitation. Public, unauthenticated marketing page.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
-  ArrowRight, Sparkles, Heart, Languages, Rocket, Feather, Mail, Users,
+  ArrowRight, Sparkles, Heart, Languages, Rocket, Feather, Mail, Users, MapPin, Briefcase,
 } from "lucide-react";
-import owl from "./assets/character-owl.png";
+import teacher from "./assets/character-teacher.png";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 
 gsap.registerPlugin(ScrollTrigger);
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+const EMPLOYMENT_LABELS = { "full-time": "Full-time", "part-time": "Part-time", contract: "Contract", internship: "Internship" };
 
 const VALUES = [
   { icon: Languages, title: "The mission comes first", text: "We started this because Armenian deserved better tools — every decision gets weighed against that, not against a roadmap." },
@@ -35,6 +38,14 @@ export default function CareersPage() {
   const rootRef = useRef(null);
   const pinRef = useRef(null);
   const trackRef = useRef(null);
+  const [vacancies, setVacancies] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/careers/vacancies`)
+      .then((r) => (r.ok ? r.json() : { vacancies: [] }))
+      .then((d) => setVacancies(Array.isArray(d?.vacancies) ? d.vacancies : []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -116,19 +127,26 @@ export default function CareersPage() {
               We're a team of two,<br /><span className="text-brand-500">building something we love.</span>
             </h1>
             <p data-hero-item className="mt-5 max-w-md text-lg font-semibold text-slate-500 dark:text-stone-400">
-              We're not hiring for a specific role right now — but we're always glad to hear
-              from people who care about Armenian, language learning, or building products with real craft.
+              {vacancies.length > 0
+                ? "We're hiring — see the open roles below. We're always glad to hear from people who care about Armenian, language learning, or building products with real craft."
+                : "We're not hiring for a specific role right now — but we're always glad to hear from people who care about Armenian, language learning, or building products with real craft."}
             </p>
             <div data-hero-item className="mt-7 flex flex-wrap items-center gap-3">
-              <a href="mailto:info@haylingua.am?subject=Interested%20in%20Haylingua" className="btn3d btn3d-brand text-base">
-                Say hello <Mail className="h-5 w-5" />
-              </a>
+              {vacancies.length > 0 ? (
+                <a href="#open-roles" className="btn3d btn3d-brand text-base">
+                  See open roles <ArrowRight className="h-5 w-5" />
+                </a>
+              ) : (
+                <a href="mailto:info@haylingua.am?subject=Interested%20in%20Haylingua" className="btn3d btn3d-brand text-base">
+                  Say hello <Mail className="h-5 w-5" />
+                </a>
+              )}
               <Link to="/about" className="btn3d btn3d-neutral text-base">Meet the team</Link>
             </div>
           </div>
           <div data-hero-art className="relative flex items-center justify-center">
             <div className="absolute h-72 w-72 rounded-full bg-gradient-to-br from-brand-100 to-feather-100 blur-2xl dark:from-brand-500/15 dark:to-feather-500/10" />
-            <img src={owl} alt="" className="relative h-64 w-auto object-contain drop-shadow-2xl sm:h-80" />
+            <img src={teacher} alt="" className="relative h-64 w-auto object-contain drop-shadow-2xl sm:h-80" />
           </div>
         </div>
       </header>
@@ -153,6 +171,41 @@ export default function CareersPage() {
           ))}
         </div>
       </section>
+
+      {/* Open roles — only rendered when the CMS has published vacancies */}
+      {vacancies.length > 0 && (
+        <section id="open-roles" className="mx-auto max-w-4xl px-5 py-16">
+          <div data-reveal className="text-center">
+            <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Open roles</div>
+            <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
+              Come build with us
+            </h2>
+          </div>
+          <div data-reveal-group className="mt-10 space-y-4">
+            {vacancies.map((v) => (
+              <div key={v.id} data-reveal-item className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className="font-display text-xl font-extrabold text-slate-800 dark:text-white">{v.title}</div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-400 dark:text-stone-500">
+                      {v.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {v.location}</span>}
+                      <span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" /> {EMPLOYMENT_LABELS[v.employment_type] || v.employment_type}</span>
+                    </div>
+                    {v.summary && <p className="mt-3 max-w-xl text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{v.summary}</p>}
+                  </div>
+                  <a
+                    href={`mailto:info@haylingua.am?subject=${encodeURIComponent(`Application: ${v.title}`)}`}
+                    className="btn3d btn3d-brand shrink-0 text-sm"
+                  >
+                    Apply <Mail className="h-4 w-4" />
+                  </a>
+                </div>
+                {v.description && <p className="mt-4 whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-500 dark:text-stone-400">{v.description}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Pinned horizontal scroll — "what building this looks like" */}
       <section ref={pinRef} className="relative overflow-hidden border-y border-slate-100 bg-slate-50 dark:border-white/[0.06] dark:bg-white/[0.04]">
@@ -185,7 +238,7 @@ export default function CareersPage() {
             <Users className="h-7 w-7" />
           </span>
           <h2 className="mt-4 font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-3xl">
-            Nothing open right now — but that changes fast
+            {vacancies.length > 0 ? "Don't see the right role?" : "Nothing open right now — but that changes fast"}
           </h2>
           <p className="mt-3 text-base font-semibold leading-relaxed text-slate-500 dark:text-stone-400">
             If you're an Armenian speaker, a designer, an engineer, or just someone who's obsessed

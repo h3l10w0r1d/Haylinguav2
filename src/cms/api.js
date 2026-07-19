@@ -114,6 +114,25 @@ export function createCmsApi(accessToken) {
   const getChestConfig = () => req("/cms/shop/chest");
   const setChestConfig = (rewards, rarities) => req("/cms/shop/chest", { method: "PUT", body: JSON.stringify({ rewards, rarities }) });
 
+  // Careers: job vacancies
+  const listVacancies = () => req("/cms/vacancies");
+  const createVacancy = (payload) => req("/cms/vacancies", { method: "POST", body: JSON.stringify(payload) });
+  const updateVacancy = (id, payload) => req(`/cms/vacancies/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteVacancy = (id) => req(`/cms/vacancies/${id}`, { method: "DELETE" });
+  const reorderVacancies = (order) => req("/cms/vacancies/reorder", { method: "POST", body: JSON.stringify({ order }) });
+
+  // Community forum
+  const listForumCategories = () => req("/cms/forum/categories");
+  const createForumCategory = (payload) => req("/cms/forum/categories", { method: "POST", body: JSON.stringify(payload) });
+  const updateForumCategory = (id, payload) => req(`/cms/forum/categories/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteForumCategory = (id) => req(`/cms/forum/categories/${id}`, { method: "DELETE" });
+  const reorderForumCategories = (order) => req("/cms/forum/categories/reorder", { method: "POST", body: JSON.stringify({ order }) });
+  const listForumThreadsAdmin = (categoryId) => req(`/cms/forum/threads${categoryId ? `?category_id=${categoryId}` : ""}`);
+  const updateForumThread = (id, payload) => req(`/cms/forum/threads/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteForumThread = (id) => req(`/cms/forum/threads/${id}`, { method: "DELETE" });
+  const listForumThreadPosts = (threadId) => req(`/cms/forum/threads/${threadId}/posts`);
+  const deleteForumPost = (id) => req(`/cms/forum/posts/${id}`, { method: "DELETE" });
+
   // Exercises
   const listExercises = (lessonId) => req(`/cms/lessons/${lessonId}/exercises`);
   const reorderExercises = (order) =>
@@ -221,6 +240,21 @@ export function createCmsApi(accessToken) {
     reorderPremiumPlans,
     getChestConfig,
     setChestConfig,
+    listVacancies,
+    createVacancy,
+    updateVacancy,
+    deleteVacancy,
+    reorderVacancies,
+    listForumCategories,
+    createForumCategory,
+    updateForumCategory,
+    deleteForumCategory,
+    reorderForumCategories,
+    listForumThreadsAdmin,
+    updateForumThread,
+    deleteForumThread,
+    listForumThreadPosts,
+    deleteForumPost,
     listExercises,
     reorderExercises,
     getExercise,

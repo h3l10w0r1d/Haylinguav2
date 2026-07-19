@@ -826,4 +826,86 @@ def ensure_schema() -> None:
             """,
         )
 
+        # ---------- Careers: CMS-editable job vacancies ----------
+        ensure_table(
+            "job_vacancies",
+            """
+            CREATE TABLE job_vacancies (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                location TEXT,
+                employment_type TEXT NOT NULL DEFAULT 'full-time',
+                summary TEXT,
+                description TEXT,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                is_active BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+
+        # ---------- Community forum ----------
+        ensure_table(
+            "forum_categories",
+            """
+            CREATE TABLE forum_categories (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                slug TEXT NOT NULL UNIQUE,
+                description TEXT,
+                icon TEXT NOT NULL DEFAULT 'message-circle',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        ensure_table(
+            "forum_threads",
+            """
+            CREATE TABLE forum_threads (
+                id SERIAL PRIMARY KEY,
+                category_id INTEGER NOT NULL REFERENCES forum_categories(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+                is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+                reply_count INTEGER NOT NULL DEFAULT 0,
+                last_reply_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        ensure_table(
+            "forum_posts",
+            """
+            CREATE TABLE forum_posts (
+                id SERIAL PRIMARY KEY,
+                thread_id INTEGER NOT NULL REFERENCES forum_threads(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                body TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+
+        # Seed a starter set of categories so the forum isn't empty at launch.
+        # slug is the natural key — safe to re-run.
+        seed_categories = [
+            ("Introduce yourself", "introductions", "New here? Say hello and tell us what brought you to Armenian.", "hand"),
+            ("General discussion", "general", "Anything about learning Armenian, the app, or the language itself.", "message-circle"),
+            ("Learning tips", "tips", "Share what's working for you — mnemonics, resources, study habits.", "lightbulb"),
+            ("Feedback & bugs", "feedback", "Found a bug or have an idea? Tell us here — we read every post.", "bug"),
+        ]
+        for i, (name, slug, desc, icon) in enumerate(seed_categories):
+            conn.execute(
+                text("""
+                    INSERT INTO forum_categories (name, slug, description, icon, sort_order)
+                    VALUES (:n, :s, :d, :ic, :so)
+                    ON CONFLICT (slug) DO NOTHING
+                """),
+                {"n": name, "s": slug, "d": desc, "ic": icon, "so": i},
+            )
+        print("[ensure_schema] upserted forum_categories")
+
     print("[ensure_schema] done")

@@ -5698,6 +5698,184 @@ def list_premium_plans(db: Connection = Depends(get_db)):
     return {"plans": [dict(r) for r in rows]}
 
 
+# ----------------------------
+# Careers: public, CMS-editable job vacancies (src/CareersPage.jsx)
+# ----------------------------
+
+@router.get("/careers/vacancies")
+def list_vacancies(db: Connection = Depends(get_db)):
+    """Public — active job vacancies. Unauthenticated."""
+    rows = db.execute(
+        text(
+            "SELECT id, title, location, employment_type, summary, description "
+            "FROM job_vacancies WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC"
+        )
+    ).mappings().all()
+    return {"vacancies": [dict(r) for r in rows]}
+
+
+# ----------------------------
+# Community forum (src/ForumPage.jsx, ForumCategoryPage.jsx, ForumThreadPage.jsx)
+# Public read; posting requires a regular user login (get_current_user).
+# Moderation (pin/lock/delete, category management) lives in the CMS —
+# see the forum section in routes_cms.py.
+# ----------------------------
+
+FORUM_TITLE_MAX = 200
+FORUM_BODY_MAX = 10000
+
+
+def _forum_author_fields():
+    return "u.id AS author_id, COALESCE(u.display_name, u.username, split_part(u.email, '@', 1)) AS author_name, u.avatar_url AS author_avatar"
+
+
+@router.get("/forum/categories")
+def forum_list_categories(db: Connection = Depends(get_db)):
+    rows = db.execute(text(f"""
+        SELECT c.id, c.name, c.slug, c.description, c.icon,
+               COUNT(t.id) AS thread_count,
+               MAX(t.last_reply_at) AS last_activity_at
+        FROM forum_categories c
+        LEFT JOIN forum_threads t ON t.category_id = c.id
+        WHERE c.is_active = TRUE
+        GROUP BY c.id
+        ORDER BY c.sort_order ASC, c.id ASC
+    """)).mappings().all()
+    return {"categories": [dict(r) for r in rows]}
+
+
+@router.get("/forum/categories/{slug}/threads")
+def forum_list_threads(slug: str, page: int = 1, db: Connection = Depends(get_db)):
+    category = db.execute(
+        text("SELECT id, name, slug, description FROM forum_categories WHERE slug = :s AND is_active = TRUE"),
+        {"s": slug},
+    ).mappings().first()
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    page = max(1, int(page or 1))
+    page_size = 25
+    rows = db.execute(
+        text(f"""
+            SELECT t.id, t.title, t.is_pinned, t.is_locked, t.reply_count, t.last_reply_at, t.created_at,
+                   {_forum_author_fields()}
+            FROM forum_threads t
+            JOIN users u ON u.id = t.user_id
+            WHERE t.category_id = :cid
+            ORDER BY t.is_pinned DESC, t.last_reply_at DESC
+            LIMIT :lim OFFSET :off
+        """),
+        {"cid": category["id"], "lim": page_size, "off": (page - 1) * page_size},
+    ).mappings().all()
+    total = db.execute(text("SELECT COUNT(*) FROM forum_threads WHERE category_id = :cid"), {"cid": category["id"]}).scalar() or 0
+    return {"category": dict(category), "threads": [dict(r) for r in rows], "page": page, "page_size": page_size, "total": int(total)}
+
+
+@router.get("/forum/threads/{thread_id}")
+def forum_get_thread(thread_id: int, page: int = 1, db: Connection = Depends(get_db)):
+    thread = db.execute(
+        text(f"""
+            SELECT t.id, t.title, t.is_pinned, t.is_locked, t.reply_count, t.created_at,
+                   c.name AS category_name, c.slug AS category_slug,
+                   {_forum_author_fields()}
+            FROM forum_threads t
+            JOIN users u ON u.id = t.user_id
+            JOIN forum_categories c ON c.id = t.category_id
+            WHERE t.id = :id
+        """),
+        {"id": thread_id},
+    ).mappings().first()
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    page = max(1, int(page or 1))
+    page_size = 25
+    posts = db.execute(
+        text(f"""
+            SELECT p.id, p.body, p.created_at, {_forum_author_fields()}
+            FROM forum_posts p
+            JOIN users u ON u.id = p.user_id
+            WHERE p.thread_id = :tid
+            ORDER BY p.id ASC
+            LIMIT :lim OFFSET :off
+        """),
+        {"tid": thread_id, "lim": page_size, "off": (page - 1) * page_size},
+    ).mappings().all()
+    total = db.execute(text("SELECT COUNT(*) FROM forum_posts WHERE thread_id = :tid"), {"tid": thread_id}).scalar() or 0
+    return {"thread": dict(thread), "posts": [dict(r) for r in posts], "page": page, "page_size": page_size, "total": int(total)}
+
+
+@router.post("/forum/threads")
+async def forum_create_thread(request: Request, user: dict = Depends(get_current_user), db: Connection = Depends(get_db)):
+    body = await request.json()
+    title = (body.get("title") or "").strip()[:FORUM_TITLE_MAX]
+    post_body = (body.get("body") or "").strip()[:FORUM_BODY_MAX]
+    category_id = body.get("category_id")
+    if not title or not post_body or not category_id:
+        raise HTTPException(status_code=400, detail="category_id, title, and body are required")
+
+    category = db.execute(
+        text("SELECT id FROM forum_categories WHERE id = :id AND is_active = TRUE"), {"id": category_id}
+    ).mappings().first()
+    if category is None:
+        raise HTTPException(status_code=400, detail="Invalid category")
+
+    thread_id = db.execute(
+        text("INSERT INTO forum_threads (category_id, user_id, title) VALUES (:cid, :uid, :t) RETURNING id"),
+        {"cid": category_id, "uid": user["id"], "t": title},
+    ).scalar_one()
+    db.execute(
+        text("INSERT INTO forum_posts (thread_id, user_id, body) VALUES (:tid, :uid, :b)"),
+        {"tid": thread_id, "uid": user["id"], "b": post_body},
+    )
+    return {"id": int(thread_id)}
+
+
+@router.post("/forum/threads/{thread_id}/posts")
+async def forum_create_post(thread_id: int, request: Request, user: dict = Depends(get_current_user), db: Connection = Depends(get_db)):
+    body = await request.json()
+    post_body = (body.get("body") or "").strip()[:FORUM_BODY_MAX]
+    if not post_body:
+        raise HTTPException(status_code=400, detail="body is required")
+
+    thread = db.execute(text("SELECT id, is_locked FROM forum_threads WHERE id = :id"), {"id": thread_id}).mappings().first()
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    if thread["is_locked"]:
+        raise HTTPException(status_code=403, detail="This thread is locked")
+
+    post_id = db.execute(
+        text("INSERT INTO forum_posts (thread_id, user_id, body) VALUES (:tid, :uid, :b) RETURNING id"),
+        {"tid": thread_id, "uid": user["id"], "b": post_body},
+    ).scalar_one()
+    db.execute(
+        text("UPDATE forum_threads SET reply_count = reply_count + 1, last_reply_at = NOW() WHERE id = :id"),
+        {"id": thread_id},
+    )
+    return {"id": int(post_id)}
+
+
+@router.delete("/forum/posts/{post_id}")
+def forum_delete_post(post_id: int, user: dict = Depends(get_current_user), db: Connection = Depends(get_db)):
+    """A learner can delete their own replies. The thread-starting post can't
+    be removed this way — deleting a whole thread is a moderation action."""
+    post = db.execute(text("SELECT id, thread_id, user_id FROM forum_posts WHERE id = :id"), {"id": post_id}).mappings().first()
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if int(post["user_id"]) != int(user["id"]):
+        raise HTTPException(status_code=403, detail="You can only delete your own posts")
+    root_id = db.execute(text("SELECT id FROM forum_posts WHERE thread_id = :tid ORDER BY id ASC LIMIT 1"), {"tid": post["thread_id"]}).scalar()
+    if int(root_id) == post_id:
+        raise HTTPException(status_code=400, detail="Can't delete the first post of a thread — contact us to remove a whole thread")
+
+    db.execute(text("DELETE FROM forum_posts WHERE id = :id"), {"id": post_id})
+    db.execute(
+        text("UPDATE forum_threads SET reply_count = GREATEST(reply_count - 1, 0) WHERE id = :id"),
+        {"id": post["thread_id"]},
+    )
+    return {"ok": True}
+
+
 @router.get("/me/premium")
 def me_premium_status(
     authorization: Optional[str] = Header(default=None),
