@@ -8,7 +8,8 @@ import {
   ArrowRight, ArrowLeft, Sparkles, Heart, Flame, Languages, Users,
   MapPin, Calendar, ChevronDown,
 } from "lucide-react";
-import owl from "./assets/character-owl.png";
+import teamHeroDesktop from "./assets/team-hero-desktop.jpg";
+import teamHeroMobile from "./assets/team-hero-mobile.jpg";
 import armenPhoto from "./assets/team/armen-ghazaryan.jpg";
 import lilitPhoto from "./assets/team/lilit-hakobyan.jpg";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
@@ -212,8 +213,8 @@ export default function AboutPage() {
       });
 
       // Layered parallax across the hero — background glow moves slowest,
-      // the owl in the middle, the little stars fastest — so the whole
-      // scene reads as having depth instead of one flat plane.
+      // the team illustration in the middle, the little stars fastest — so
+      // the whole scene reads as having depth instead of one flat plane.
       if (heroRef.current) {
         gsap.to("[data-parallax-slow]", {
           yPercent: 8,
@@ -376,11 +377,19 @@ export default function AboutPage() {
 
             <div data-hero-art className="relative flex items-center justify-center">
               <div className="absolute h-72 w-72 rounded-full bg-gradient-to-br from-brand-100 to-feather-100 blur-2xl dark:from-brand-500/15 dark:to-feather-500/10" />
+              {/* Portrait crop for narrow screens, landscape crop from sm up —
+                  same illustration, framed differently per viewport. */}
               <img
                 data-parallax
-                src={owl}
-                alt="Haylingua's mascot owl, holding an Armenian phrasebook"
-                className="relative h-36 w-auto object-contain drop-shadow-2xl sm:h-64 lg:h-80"
+                src={teamHeroMobile}
+                alt="The Haylingua community, together with our owl mascot"
+                className="relative w-full max-w-[280px] rounded-3xl object-cover shadow-2xl sm:hidden"
+              />
+              <img
+                data-parallax
+                src={teamHeroDesktop}
+                alt="The Haylingua community, together with our owl mascot"
+                className="relative hidden w-full max-w-md rounded-3xl object-cover shadow-2xl sm:block"
               />
               <StarMotif data-parallax-fast className="absolute -right-2 top-4 h-8 w-8 text-gold-400 dark:text-gold-400/80" />
               <StarMotif data-parallax-fast className="absolute -left-4 bottom-8 h-6 w-6 text-feather-400 dark:text-feather-400/80" />
