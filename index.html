@@ -9,14 +9,14 @@
     <meta name="robots" content="index,follow" />
     <meta name="theme-color" content="#f97316" />
 
-    <!-- Apply the saved (or system) theme BEFORE first paint so there's no
-         flash of the wrong theme. Mirrors src/lib/theme.js. -->
+    <!-- Apply the saved theme BEFORE first paint so there's no flash of the
+         wrong theme. Default is always light — deliberately ignores
+         prefers-color-scheme so first-time visitors land on the brand's
+         intended look. Mirrors src/lib/theme.js. -->
     <script>
       (function () {
         try {
-          var t = localStorage.getItem("hay_theme");
-          if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          if (t === "dark") document.documentElement.classList.add("dark");
+          if (localStorage.getItem("hay_theme") === "dark") document.documentElement.classList.add("dark");
         } catch (e) {}
       })();
     </script>

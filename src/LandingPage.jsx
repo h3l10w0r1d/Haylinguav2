@@ -1249,21 +1249,19 @@ export default function LandingPage({ onLogin, onSignup }) {
               </div>
             </div>
 
-            {/* Lead with the trial offer where it can actually change a visitor's
-                mind — before the CTA, not buried inside the signup modal. */}
-            <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-gold-50 px-4 py-2 text-sm font-extrabold text-amber-800 ring-1 ring-gold-100 dark:bg-gold-500/15 dark:text-gold-300 dark:ring-gold-500/25">
-              <Sparkles className="h-4 w-4 text-amber-800 dark:text-gold-300" /> 14 days of Premium free when you sign up — no card
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center gap-3">
+            {/* One CTA row, one trust line underneath — the trial offer used to
+                be its own boxed pill here; folded into the trust line instead
+                so the hero reads as fewer, calmer chunks. */}
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand text-base">
                 Start learning — free <ArrowRight className="h-5 w-5" />
               </button>
               <button onClick={() => goAuth("login")} className="btn3d btn3d-neutral text-base">I have an account</button>
             </div>
-            <div className="mt-5 flex items-center gap-4 text-sm font-bold text-slate-600 dark:text-stone-300">
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm font-bold text-slate-600 dark:text-stone-300">
               <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> Free to start</span>
               <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> No card needed</span>
+              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> 14 days of Premium free</span>
             </div>
           </div>
 

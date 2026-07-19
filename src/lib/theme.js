@@ -2,6 +2,11 @@
 // The initial class is applied by an inline script in index.html to avoid a
 // flash of the wrong theme; this module is the runtime source of truth used by
 // the toggle and any component that wants to react to changes.
+//
+// Default is always light — deliberately NOT following the OS/browser
+// `prefers-color-scheme`, so a first-time visitor always lands on the brand's
+// intended light look regardless of their system setting. Once someone picks
+// a theme via the toggle, that choice is remembered and wins from then on.
 const KEY = "hay_theme";
 
 export function getTheme() {
@@ -9,9 +14,7 @@ export function getTheme() {
     const saved = localStorage.getItem(KEY);
     if (saved === "light" || saved === "dark") return saved;
   } catch {}
-  return typeof matchMedia !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return "light";
 }
 
 export function applyTheme(theme) {
