@@ -9,9 +9,6 @@ import {
   MapPin, Calendar, ChevronDown,
 } from "lucide-react";
 import owl from "./assets/character-owl.png";
-import grandma from "./assets/character-grandma.png";
-import student from "./assets/character-student.png";
-import teacher from "./assets/character-teacher.png";
 import armenPhoto from "./assets/team/armen-ghazaryan.jpg";
 import lilitPhoto from "./assets/team/lilit-hakobyan.jpg";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
@@ -74,17 +71,6 @@ const BY_THE_NUMBERS = [
   { value: "0 → 1", label: "No prior Armenian needed to start" },
 ];
 
-// Placeholder gallery — swap these for real team/office photos. Using the
-// app's existing mascot/character art as stand-ins keeps the page looking
-// finished in the meantime, without inventing fake human photos.
-const GALLERY = [
-  { src: owl, caption: "[Team photo — coming soon]" },
-  { src: grandma, caption: "[Behind the scenes — coming soon]" },
-  { src: student, caption: "[Our learners — coming soon]" },
-  { src: teacher, caption: "[The workshop — coming soon]" },
-];
-
-
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function AboutPage() {
@@ -101,8 +87,6 @@ export default function AboutPage() {
         gsap.set("[data-reveal]", { opacity: 1, y: 0, scale: 1 });
         gsap.set("[data-hero-item]", { opacity: 1, y: 0 });
         gsap.set("[data-icon-pop]", { opacity: 1, scale: 1, rotate: 0 });
-        // Only opacity — leaving scale untouched keeps the CSS hover-zoom free.
-        gsap.set("[data-gallery-img]", { opacity: 1 });
         if (timelineLineRef.current) gsap.set(timelineLineRef.current, { scaleY: 1 });
         // Numbers still need their final text — there's no tween to snap.
         document.querySelectorAll("[data-count-target]").forEach((el) => {
@@ -175,24 +159,6 @@ export default function AboutPage() {
           {
             opacity: 1, scale: 1, rotate: 0, duration: 0.55, ease: "back.out(2.4)", delay: 0.1,
             scrollTrigger: { trigger: el, start: "top 85%", once: true },
-          }
-        );
-      });
-
-      // Gallery photos settle in from a slight zoom instead of a plain fade —
-      // gives the "behind the scenes" tiles a bit more life than the generic
-      // card reveal their container already gets.
-      gsap.utils.toArray("[data-gallery-img]").forEach((img) => {
-        gsap.fromTo(
-          img,
-          { opacity: 0, scale: 1.2 },
-          {
-            opacity: 1, scale: 1, duration: 0.9, ease: "power3.out",
-            scrollTrigger: { trigger: img, start: "top 88%", once: true },
-            // Drop the inline transform/opacity once settled so the existing
-            // CSS `group-hover:scale-105` (a class-driven transform) can still
-            // take over on hover — an inline style left behind would win over it.
-            onComplete: () => gsap.set(img, { clearProps: "transform,opacity" }),
           }
         );
       });
@@ -436,33 +402,6 @@ export default function AboutPage() {
                 <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{f.bio}</p>
               </div>
             ))}
-          </div>
-        </section>
-
-        {/* ── Gallery ── */}
-        <section className="bg-slate-50 dark:bg-white/[0.04]">
-          <div className="mx-auto max-w-6xl px-5 py-16">
-            <div data-reveal className="text-center">
-              <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Behind the scenes</div>
-              <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-                A few glimpses
-              </h2>
-            </div>
-
-            <div data-reveal-group className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
-              {GALLERY.map((g, i) => (
-                <div
-                  key={i}
-                  data-reveal-item
-                  className="group relative aspect-square overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]"
-                >
-                  <img data-gallery-img src={g.src} alt="" className="h-full w-full object-contain p-6 transition duration-300 group-hover:scale-105" />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
-                    <span className="text-xs font-bold text-white">{g.caption}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
