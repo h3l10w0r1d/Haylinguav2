@@ -2,9 +2,9 @@
 import React from "react";
 
 /** An 8-pointed Armenian star (carpets, khachkars). Inherits text color. */
-export function StarMotif({ className }) {
+export function StarMotif({ className, ...rest }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden {...rest}>
       <path d="M12 1.5l2.2 5.1 5.1-2.2-2.2 5.1 2.2 5.1-5.1-2.2L12 22.5l-2.2-5.1-5.1 2.2 2.2-5.1-2.2-5.1 5.1 2.2z" />
     </svg>
   );

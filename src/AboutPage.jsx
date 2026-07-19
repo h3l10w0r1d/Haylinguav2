@@ -77,10 +77,20 @@ export default function AboutPage() {
   const rootRef = useRef(null);
   const heroRef = useRef(null);
   const timelineLineRef = useRef(null);
+  const storyRef = useRef(null);
+  const storyProgressRef = useRef(null);
+  const timelinePinRef = useRef(null);
+  const timelineTrackRef = useRef(null);
+
+  // Read once at mount — drives which layout (pinned horizontal vs. plain
+  // vertical) the timeline renders, not just how it animates. A reduced-
+  // motion visitor should never end up with a scroll-jacked section that
+  // has no way to reach the cards past the first one.
+  const [reduceMotion] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 
   useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
     const ctx = gsap.context(() => {
       if (reduceMotion) {
         // Snap everything to its resting state — no motion, still fully visible.
@@ -88,6 +98,7 @@ export default function AboutPage() {
         gsap.set("[data-hero-item]", { opacity: 1, y: 0 });
         gsap.set("[data-icon-pop]", { opacity: 1, scale: 1, rotate: 0 });
         if (timelineLineRef.current) gsap.set(timelineLineRef.current, { scaleY: 1 });
+        if (storyProgressRef.current) gsap.set(storyProgressRef.current, { height: "100%" });
         // Numbers still need their final text — there's no tween to snap.
         document.querySelectorAll("[data-count-target]").forEach((el) => {
           el.textContent = el.getAttribute("data-count-target") + (el.getAttribute("data-count-suffix") || "");
@@ -95,8 +106,12 @@ export default function AboutPage() {
         return;
       }
 
-      // Hero entrance — a confident, staggered wipe-up on mount.
-      gsap.timeline({ defaults: { ease: "power3.out" } })
+      // Hero entrance — a confident, staggered wipe-up on mount. The pinned
+      // "portal" exit further down targets these same elements, so it's
+      // wired up only once this finishes (see onComplete below) — otherwise
+      // the two tweens race over the same opacity/transform on mount and
+      // whichever rendered last wins, sometimes leaving the hero invisible.
+      const heroEntranceTl = gsap.timeline({ defaults: { ease: "power3.out" } })
         .fromTo("[data-hero-item]", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.7, stagger: 0.1 })
         .fromTo(
           "[data-hero-art]",
@@ -193,18 +208,100 @@ export default function AboutPage() {
         );
       });
 
-      // Gentle parallax on the hero mascot as the page scrolls past it.
+      // Layered parallax across the hero — background glow moves slowest,
+      // the owl in the middle, the little stars fastest — so the whole
+      // scene reads as having depth instead of one flat plane.
       if (heroRef.current) {
+        gsap.to("[data-parallax-slow]", {
+          yPercent: 8,
+          ease: "none",
+          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true },
+        });
         gsap.to("[data-parallax]", {
           yPercent: 18,
           ease: "none",
           scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true },
         });
+        gsap.to("[data-parallax-fast]", {
+          yPercent: 34,
+          ease: "none",
+          scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true },
+        });
       }
+
+      // Pinned "portal" intro — the giant watermark letter behind the hero
+      // copy grows and fades while the copy itself dissolves upward, so
+      // scrolling off the hero reads as passing *through* the letter into
+      // the story below, instead of a plain scroll-past. Wired up only
+      // after the entrance timeline finishes (see comment above) — and
+      // uses explicit from/to values rather than relying on whatever the
+      // DOM happens to hold at creation time, so a later ScrollTrigger
+      // refresh always resolves back to the correct resting state.
+      heroEntranceTl.eventCallback("onComplete", () => {
+        if (!heroRef.current) return;
+        gsap.timeline({
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: "top top",
+            end: "+=70%",
+            scrub: 1,
+            pin: true,
+          },
+        })
+          .fromTo("[data-hero-letter-glyph]", { scale: 1, opacity: 1 }, { scale: 4.2, opacity: 0, ease: "none" }, 0)
+          .fromTo("[data-hero-item]", { opacity: 1, y: 0 }, { opacity: 0, y: -36, stagger: 0.04, ease: "none" }, 0)
+          .fromTo("[data-hero-art]", { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.82, ease: "none" }, 0);
+      });
+
+      // Story section — a thin "0 → 1" progress rail fills as you read
+      // through the origin story, echoing the same 0 → 1 language used in
+      // the stats row just below it.
+      if (storyProgressRef.current && storyRef.current) {
+        gsap.fromTo(
+          storyProgressRef.current,
+          { height: "0%" },
+          {
+            height: "100%",
+            ease: "none",
+            scrollTrigger: { trigger: storyRef.current, start: "top 65%", end: "bottom 75%", scrub: 0.6 },
+          }
+        );
+      }
+
+      // Timeline — pinned horizontal scroll-jack on desktop (lg+); on
+      // smaller screens the plain vertical list above stays untouched and
+      // is the only one rendered, so there's no scroll-jacked section a
+      // touch-scroll visitor can get stuck in.
+      const mm = gsap.matchMedia();
+      mm.add("(min-width: 1024px)", () => {
+        const track = timelineTrackRef.current;
+        const pinWrap = timelinePinRef.current;
+        if (!track || !pinWrap) return;
+
+        const getDistance = () => Math.max(0, track.scrollWidth - pinWrap.offsetWidth);
+
+        const xTween = gsap.to(track, {
+          x: () => -getDistance(),
+          ease: "none",
+          scrollTrigger: {
+            trigger: pinWrap,
+            start: "top top",
+            end: () => "+=" + getDistance(),
+            pin: true,
+            scrub: 1,
+            invalidateOnRefresh: true,
+          },
+        });
+
+        return () => {
+          xTween.scrollTrigger?.kill();
+          xTween.kill();
+        };
+      });
     }, rootRef);
 
     return () => ctx.revert();
-  }, []);
+  }, [reduceMotion]);
 
   return (
     <div ref={rootRef} className="min-h-screen bg-white text-slate-800 dark:bg-[#0d0d0f] dark:text-white">
@@ -213,8 +310,21 @@ export default function AboutPage() {
       <main>
         {/* ── Hero ── */}
         <header ref={heroRef} className="relative overflow-hidden">
-          <div className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
-          <div className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
+          <div data-parallax-slow className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
+          <div data-parallax-slow className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
+
+          {/* Giant watermark letter — the pinned scroll timeline below grows
+              and fades this, then dissolves the copy up and over it, so
+              leaving the hero reads as scrolling *through* the letter. */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
+            <span
+              data-hero-letter-glyph
+              className="select-none font-display font-extrabold leading-none text-brand-500/5 dark:text-brand-400/5"
+              style={{ fontSize: "48vw" }}
+            >
+              Հ
+            </span>
+          </div>
 
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-14 lg:grid-cols-2 lg:py-20">
             <div>
@@ -246,8 +356,8 @@ export default function AboutPage() {
                 alt="Haylingua's mascot owl, holding an Armenian phrasebook"
                 className="relative h-64 w-auto object-contain drop-shadow-2xl sm:h-80"
               />
-              <StarMotif className="absolute -right-2 top-4 h-8 w-8 text-gold-400 dark:text-gold-400/80" />
-              <StarMotif className="absolute -left-4 bottom-8 h-6 w-6 text-feather-400 dark:text-feather-400/80" />
+              <StarMotif data-parallax-fast className="absolute -right-2 top-4 h-8 w-8 text-gold-400 dark:text-gold-400/80" />
+              <StarMotif data-parallax-fast className="absolute -left-4 bottom-8 h-6 w-6 text-feather-400 dark:text-feather-400/80" />
             </div>
           </div>
 
@@ -263,31 +373,49 @@ export default function AboutPage() {
         </header>
 
         {/* ── The story ── */}
-        <section id="story" className="mx-auto max-w-3xl px-5 py-16">
-          <div data-reveal>
-            <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">How it started</div>
-            <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-              It started as a school assignment
-            </h2>
-          </div>
+        <section id="story" ref={storyRef} className="mx-auto max-w-3xl px-5 py-16">
+          <div className="sm:flex sm:gap-8">
+            {/* "0 → 1" progress rail — fills as you read, foreshadowing the
+                same 0 → 1 language used in the stats row right below. */}
+            <div className="hidden shrink-0 sm:flex sm:w-6 sm:flex-col sm:items-center" aria-hidden="true">
+              <span className="text-[11px] font-extrabold tabular-nums text-slate-300 dark:text-white/20">0</span>
+              <div className="relative my-2 w-0.5 flex-1 rounded-full bg-slate-200 dark:bg-white/10">
+                <div
+                  ref={storyProgressRef}
+                  className="absolute inset-x-0 top-0 w-full origin-top rounded-full bg-brand-500"
+                  style={{ height: "0%" }}
+                />
+              </div>
+              <span className="text-[11px] font-extrabold tabular-nums text-brand-500">1</span>
+            </div>
 
-          <div data-reveal className="prose prose-slate mt-6 max-w-none text-base font-semibold leading-relaxed text-slate-600 dark:text-stone-300">
-            <p>
-              In October 2024, Armen's IB teacher — Lilit Hakobyan, who has taught
-              Armenian across the IB Diploma Programme and several other institutions —
-              set him a project: build something that could actually teach Armenian to
-              the diaspora, to the people growing up without easy access to the
-              language of their grandparents. A month later, the first version of
-              Haylingua existed.
-            </p>
-            <p className="mt-4">
-              That prototype sat for over a year while Armen finished the rest of the
-              IB Diploma. In January 2026, with the idea still nagging at him, he
-              started rebuilding Haylingua from scratch — a real backend, a real
-              curriculum, real lesson content — with Lilit shaping how the app
-              actually teaches the language. Haylingua is set to launch publicly in
-              August 2026.
-            </p>
+            <div className="min-w-0 flex-1">
+              <div data-reveal>
+                <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">How it started</div>
+                <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
+                  It started as a school assignment
+                </h2>
+              </div>
+
+              <div data-reveal className="prose prose-slate mt-6 max-w-none text-base font-semibold leading-relaxed text-slate-600 dark:text-stone-300">
+                <p>
+                  In October 2024, Armen's IB teacher — Lilit Hakobyan, who has taught
+                  Armenian across the IB Diploma Programme and several other institutions —
+                  set him a project: build something that could actually teach Armenian to
+                  the diaspora, to the people growing up without easy access to the
+                  language of their grandparents. A month later, the first version of
+                  Haylingua existed.
+                </p>
+                <p className="mt-4">
+                  That prototype sat for over a year while Armen finished the rest of the
+                  IB Diploma. In January 2026, with the idea still nagging at him, he
+                  started rebuilding Haylingua from scratch — a real backend, a real
+                  curriculum, real lesson content — with Lilit shaping how the app
+                  actually teaches the language. Haylingua is set to launch publicly in
+                  August 2026.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -334,9 +462,14 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* ── Timeline ── */}
+        {/* ── Timeline ──
+            Desktop (lg+): pinned horizontal scroll-jack — the section holds
+            scroll while the milestone cards slide past a fixed guide line.
+            Small screens / prefers-reduced-motion: plain vertical list, the
+            only version rendered there, so nobody's stuck unable to reach
+            the later cards. */}
         <section className="bg-slate-50 dark:bg-white/[0.04]">
-          <div className="mx-auto max-w-3xl px-5 py-16">
+          <div className={`mx-auto max-w-3xl px-5 py-16 ${reduceMotion ? "" : "lg:hidden"}`}>
             <div data-reveal className="text-center">
               <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Milestones</div>
               <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
@@ -367,6 +500,41 @@ export default function AboutPage() {
               </div>
             </div>
           </div>
+
+          {!reduceMotion && (
+            <div ref={timelinePinRef} className="relative hidden lg:block">
+              <div className="mx-auto max-w-6xl px-5 pt-16 text-center">
+                <div data-reveal>
+                  <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Milestones</div>
+                  <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
+                    The road so far
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold text-slate-400 dark:text-stone-500">Keep scrolling →</p>
+                </div>
+              </div>
+
+              <div className="relative mt-16 h-[60vh] overflow-hidden">
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-slate-200 dark:bg-white/10" />
+                <div
+                  ref={timelineTrackRef}
+                  className="absolute left-0 top-1/2 flex -translate-y-1/2 items-center gap-16 px-[8vw] will-change-transform"
+                >
+                  {TIMELINE.map((t) => (
+                    <div key={t.title} className="relative z-10 w-[340px] shrink-0">
+                      <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-500 text-white shadow-btn-brand">
+                        <Calendar className="h-5 w-5" />
+                      </div>
+                      <div className="mt-5 rounded-3xl bg-white p-6 text-center ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+                        <div className="text-xs font-extrabold uppercase tracking-wide text-brand-500">{t.year}</div>
+                        <div className="mt-1 font-display text-lg font-extrabold text-slate-800 dark:text-white">{t.title}</div>
+                        <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{t.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ── Founders ── */}
