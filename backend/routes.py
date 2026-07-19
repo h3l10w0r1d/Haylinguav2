@@ -842,6 +842,9 @@ class UserCreate(BaseModel):
     username: str
     email: str
     password: str
+    # Affiliate attribution — the referral code from localStorage if the
+    # visitor arrived via an affiliate link within the last 30 days.
+    ref_code: str | None = None
 
     @field_validator("password")
     @classmethod
@@ -1948,6 +1951,19 @@ def signup(user: UserCreate, db: Connection = Depends(get_db)):
 
     user_id = row["id"]
 
+    # Affiliate attribution — first-touch, one referral per user (enforced by
+    # the UNIQUE constraint on affiliate_referrals.user_id).
+    ref_code = (user.ref_code or "").strip()
+    if ref_code:
+        affiliate = db.execute(
+            text("SELECT id FROM affiliates WHERE referral_code = :c AND status = 'approved'"), {"c": ref_code}
+        ).mappings().first()
+        if affiliate:
+            db.execute(
+                text("INSERT INTO affiliate_referrals (affiliate_id, user_id) VALUES (:aid, :uid) ON CONFLICT (user_id) DO NOTHING"),
+                {"aid": affiliate["id"], "uid": user_id},
+            )
+
     # Welcome bonus: 14-day free Premium trial (no card, nothing to cancel).
     _grant_welcome_trial(db, user_id)
 
@@ -2834,11 +2850,11 @@ def contact_form(payload: Dict[str, Any] = Body(...), request: Request = None):
 
 
 @router.post("/affiliate-apply")
-def affiliate_apply(payload: Dict[str, Any] = Body(...), request: Request = None):
-    """Public affiliate/partner program application — no auth required. Same
-    shape as /contact (Turnstile-verified, emailed via Brevo with reply-to set
-    to the applicant) since there's no automated payout/tracking system yet;
-    applications are reviewed and onboarded manually for now."""
+def affiliate_apply(payload: Dict[str, Any] = Body(...), request: Request = None, db: Connection = Depends(get_db)):
+    """Public affiliate/partner program application — no auth required.
+    Turnstile-verified, emailed via Brevo with reply-to set to the applicant,
+    AND recorded in `affiliates` (status='pending') so the CMS can approve it
+    into a tracked, referral-code-bearing affiliate — see /cms/affiliates."""
     name = (payload.get("name") or "").strip()[:200]
     email = (payload.get("email") or "").strip().lower()[:200]
     platform = (payload.get("platform") or "").strip()[:120]
@@ -2854,6 +2870,16 @@ def affiliate_apply(payload: Dict[str, Any] = Body(...), request: Request = None
     ip = _client_ip(request) if request is not None else ""
     if not _verify_turnstile(turnstile_token, ip):
         raise HTTPException(status_code=400, detail="Security check failed — please try again")
+
+    existing = db.execute(text("SELECT id FROM affiliates WHERE applied_email = :e"), {"e": email}).mappings().first()
+    if existing is None:
+        db.execute(
+            text("""
+                INSERT INTO affiliates (applied_name, applied_email, applied_platform, applied_audience, applied_message)
+                VALUES (:n, :e, :p, :a, :m)
+            """),
+            {"n": name, "e": email, "p": platform, "a": audience, "m": message},
+        )
 
     to_email = (os.getenv("CONTACT_INBOX_EMAIL") or os.getenv("BREVO_SENDER_EMAIL") or os.getenv("EMAIL_FROM") or "info@haylingua.am").strip()
 
@@ -2879,6 +2905,58 @@ def affiliate_apply(payload: Dict[str, Any] = Body(...), request: Request = None
         reply_to_name=name,
     )
     return {"ok": True}
+
+
+@router.post("/affiliates/track-click")
+def affiliates_track_click(payload: Dict[str, Any] = Body(...), db: Connection = Depends(get_db)):
+    """Public, unauthenticated, fire-and-forget — logged from the landing
+    page when it detects `?ref=<code>` so affiliates can see click counts
+    even for visitors who never sign up."""
+    code = (payload.get("code") or "").strip()
+    if not code:
+        return {"ok": True}
+    affiliate = db.execute(text("SELECT id FROM affiliates WHERE referral_code = :c AND status = 'approved'"), {"c": code}).mappings().first()
+    if affiliate:
+        db.execute(text("INSERT INTO referral_clicks (affiliate_id) VALUES (:id)"), {"id": affiliate["id"]})
+    return {"ok": True}
+
+
+@router.get("/affiliate/me")
+def affiliate_me(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """The logged-in user's affiliate status + dashboard stats. 404 if they've
+    never applied — the frontend uses that to point them at /affiliates."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    affiliate = db.execute(
+        text("SELECT id, referral_code, commission_rate, status, created_at, approved_at FROM affiliates WHERE user_id = :uid"),
+        {"uid": user_id},
+    ).mappings().first()
+    if affiliate is None:
+        raise HTTPException(status_code=404, detail="Not an affiliate")
+
+    clicks = db.execute(text("SELECT COUNT(*) FROM referral_clicks WHERE affiliate_id = :id"), {"id": affiliate["id"]}).scalar() or 0
+    stats = db.execute(
+        text("""
+            SELECT
+                COUNT(*) AS referred_count,
+                COUNT(*) FILTER (WHERE converted_at IS NOT NULL) AS converted_count,
+                COALESCE(SUM(commission_amount) FILTER (WHERE payout_status = 'unpaid'), 0) AS pending_commission,
+                COALESCE(SUM(commission_amount) FILTER (WHERE payout_status = 'paid'), 0) AS paid_commission
+            FROM affiliate_referrals WHERE affiliate_id = :id
+        """),
+        {"id": affiliate["id"]},
+    ).mappings().first()
+
+    return {
+        "affiliate": dict(affiliate),
+        "clicks": int(clicks),
+        "referred_count": int(stats["referred_count"]),
+        "converted_count": int(stats["converted_count"]),
+        "pending_commission": float(stats["pending_commission"]),
+        "paid_commission": float(stats["paid_commission"]),
+    }
 
 
 @router.post("/auth/forgot-password")
@@ -6094,14 +6172,16 @@ def me_premium_checkout(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     plan_id = None
+    plan_price = None
     if payload.plan_id is not None:
         plan = db.execute(
-            text("SELECT id FROM pricing_plans WHERE id = :id AND is_active = TRUE"),
+            text("SELECT id, price FROM pricing_plans WHERE id = :id AND is_active = TRUE"),
             {"id": payload.plan_id},
         ).mappings().first()
         if not plan:
             raise HTTPException(status_code=400, detail="Unknown or inactive plan")
         plan_id = plan["id"]
+        plan_price = plan["price"]
 
     db.execute(
         text(
@@ -6116,6 +6196,29 @@ def me_premium_checkout(
         ),
         {"u": user_id, "plan_id": plan_id},
     )
+
+    # Affiliate conversion — first paid checkout after a tracked referral
+    # earns that affiliate a commission. Plan price is only known when the
+    # frontend passes plan_id; without it we still mark the conversion but
+    # leave commission_amount NULL for a human to fill in from the CMS.
+    referral = db.execute(
+        text("""
+            SELECT ar.id, a.commission_rate
+            FROM affiliate_referrals ar JOIN affiliates a ON a.id = ar.affiliate_id
+            WHERE ar.user_id = :uid AND ar.converted_at IS NULL
+        """),
+        {"uid": user_id},
+    ).mappings().first()
+    if referral:
+        commission_amount = (
+            round(float(plan_price) * float(referral["commission_rate"]) / 100, 2)
+            if plan_price is not None else None
+        )
+        db.execute(
+            text("UPDATE affiliate_referrals SET converted_at = NOW(), commission_amount = :amt WHERE id = :id"),
+            {"amt": commission_amount, "id": referral["id"]},
+        )
+
     st = _hearts_state(db, user_id)
     return {"ok": True, **st}
 

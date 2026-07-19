@@ -114,6 +114,13 @@ export function createCmsApi(accessToken) {
   const getChestConfig = () => req("/cms/shop/chest");
   const setChestConfig = (rewards, rarities) => req("/cms/shop/chest", { method: "PUT", body: JSON.stringify({ rewards, rarities }) });
 
+  // Affiliate program
+  const listAffiliates = () => req("/cms/affiliates");
+  const approveAffiliate = (id) => req(`/cms/affiliates/${id}/approve`, { method: "POST" });
+  const updateAffiliate = (id, payload) => req(`/cms/affiliates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const listAffiliateReferrals = (id) => req(`/cms/affiliates/${id}/referrals`);
+  const markReferralPaid = (referralId) => req(`/cms/affiliate-referrals/${referralId}/mark-paid`, { method: "POST" });
+
   // Careers: job vacancies
   const listVacancies = () => req("/cms/vacancies");
   const createVacancy = (payload) => req("/cms/vacancies", { method: "POST", body: JSON.stringify(payload) });
@@ -274,6 +281,11 @@ export function createCmsApi(accessToken) {
     updateVacancy,
     deleteVacancy,
     reorderVacancies,
+    listAffiliates,
+    approveAffiliate,
+    updateAffiliate,
+    listAffiliateReferrals,
+    markReferralPaid,
     listVacancyFields,
     createVacancyField,
     updateVacancyField,

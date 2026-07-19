@@ -35,6 +35,7 @@ const PricingPage = lazy(() => import('./PricingPage'));
 const CareersPage = lazy(() => import('./CareersPage'));
 const CareersApplyPage = lazy(() => import('./CareersApplyPage'));
 const AffiliatesPage = lazy(() => import('./AffiliatesPage'));
+const AffiliateDashboardPage = lazy(() => import('./AffiliateDashboardPage'));
 const ForumPage = lazy(() => import('./ForumPage'));
 const ForumCategoryPage = lazy(() => import('./ForumCategoryPage'));
 const ForumThreadPage = lazy(() => import('./ForumThreadPage'));
@@ -50,6 +51,7 @@ const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
 const CmsPremium = lazy(() => import('./cms/CmsPremium'));
 const CmsCareers = lazy(() => import('./cms/CmsCareers'));
+const CmsAffiliates = lazy(() => import('./cms/CmsAffiliates'));
 const CmsForum = lazy(() => import('./cms/CmsForum'));
 const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
 const CmsVoiceLab = lazy(() => import('./cms/CmsVoiceLab'));
@@ -381,6 +383,7 @@ function AppShell() {
       <Route path="/careers" element={<CareersPage />} />
       <Route path="/careers/apply/:vacancyId" element={<CareersApplyPage />} />
       <Route path="/affiliates" element={<AffiliatesPage />} />
+      <Route path="/affiliate-dashboard" element={<AffiliateDashboardPage />} />
       <Route path="/community" element={<ForumPage />} />
       <Route path="/community/thread/:id" element={<ForumThreadPage />} />
       <Route path="/community/:slug" element={<ForumCategoryPage />} />
@@ -606,6 +609,7 @@ function AppShell() {
       <Route path="/cms/shop" element={<CmsShop />} />
       <Route path="/cms/premium" element={<CmsPremium />} />
       <Route path="/cms/careers" element={<CmsCareers />} />
+      <Route path="/cms/affiliates" element={<CmsAffiliates />} />
       <Route path="/cms/forum" element={<CmsForum />} />
       <Route path="/cms/analytics" element={<CmsAnalytics />} />
       <Route path="/cms/voice-lab" element={<CmsVoiceLab />} />

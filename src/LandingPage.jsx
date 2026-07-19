@@ -825,6 +825,21 @@ export default function LandingPage({ onLogin, onSignup }) {
     }
   }, [location.state]);
 
+  // Affiliate attribution — a `?ref=CODE` visit is remembered for 30 days
+  // (matches the cookie-window promise on /affiliates) so signup can credit
+  // whichever affiliate sent this visitor, even if they sign up days later.
+  useEffect(() => {
+    const code = new URLSearchParams(location.search).get("ref");
+    if (!code) return;
+    localStorage.setItem("hay_ref_code", code);
+    localStorage.setItem("hay_ref_ts", String(Date.now()));
+    fetch(`${API_BASE}/affiliates/track-click`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    }).catch(() => {});
+  }, [location.search]);
+
   // ── Auth Handlers ───────────────────────────────────────────────────────────
 
   const handleSubmit = async (e) => {
@@ -883,6 +898,14 @@ export default function LandingPage({ onLogin, onSignup }) {
     }
   };
 
+  function getStoredRefCode() {
+    const code = localStorage.getItem("hay_ref_code");
+    const ts = Number(localStorage.getItem("hay_ref_ts") || 0);
+    if (!code || !ts) return null;
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    return Date.now() - ts < THIRTY_DAYS_MS ? code : null;
+  }
+
   const handleSignup = async () => {
     const res = await fetch(`${API_BASE}/signup`, {
       method: "POST",
@@ -892,6 +915,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         username: username.trim(),
         email: email.trim(),
         password,
+        ref_code: getStoredRefCode(),
       }),
     });
     const data = await res.json().catch(() => ({}));

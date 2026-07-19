@@ -1807,6 +1807,89 @@ def cms_download_application_file(application_id: int, kind: str, request: Reque
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(row["path"], filename=row["filename"] or os.path.basename(row["path"]))
 
+# ==================== Affiliate program ====================
+
+def _generate_referral_code(db, base_name: str) -> str:
+    """A short, memorable, unique code derived from the applicant's name,
+    with a random suffix appended only if the plain slug is already taken."""
+    slug = re.sub(r"[^a-z0-9]+", "", (base_name or "affiliate").lower())[:16] or "affiliate"
+    candidate = slug
+    while db.execute(text("SELECT 1 FROM affiliates WHERE referral_code = :c"), {"c": candidate}).scalar():
+        candidate = f"{slug}{secrets.token_hex(2)}"
+    return candidate
+
+@router.get("/cms/affiliates")
+def cms_list_affiliates(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT a.id, a.user_id, a.referral_code, a.commission_rate, a.status,
+               a.applied_name, a.applied_email, a.applied_platform, a.applied_audience, a.applied_message,
+               a.created_at, a.approved_at,
+               COALESCE((SELECT COUNT(*) FROM referral_clicks c WHERE c.affiliate_id = a.id), 0) AS click_count,
+               COALESCE((SELECT COUNT(*) FROM affiliate_referrals r WHERE r.affiliate_id = a.id), 0) AS referred_count,
+               COALESCE((SELECT COUNT(*) FROM affiliate_referrals r WHERE r.affiliate_id = a.id AND r.converted_at IS NOT NULL), 0) AS converted_count,
+               COALESCE((SELECT SUM(commission_amount) FROM affiliate_referrals r WHERE r.affiliate_id = a.id AND r.payout_status = 'unpaid'), 0) AS pending_commission
+        FROM affiliates a
+        ORDER BY (a.status = 'pending') DESC, a.created_at DESC
+    """)).mappings().all()
+    return {"affiliates": [dict(r) for r in rows]}
+
+@router.post("/cms/affiliates/{affiliate_id}/approve")
+def cms_approve_affiliate(affiliate_id: int, request: Request, db=Depends(get_db)):
+    """Approving links the application to an existing Haylingua account
+    (matched by the email they applied with) and mints a referral code —
+    without an account there's no user_id to attribute referrals to, so
+    approval is blocked until they've signed up with that email."""
+    require_cms(request, db)
+    aff = db.execute(text("SELECT id, applied_name, applied_email FROM affiliates WHERE id = :id"), {"id": affiliate_id}).mappings().first()
+    if aff is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    user = db.execute(text("SELECT id FROM users WHERE LOWER(email) = LOWER(:e)"), {"e": aff["applied_email"]}).mappings().first()
+    if user is None:
+        raise HTTPException(status_code=400, detail=f"No Haylingua account found for {aff['applied_email']} yet — ask them to sign up with that email first")
+    code = _generate_referral_code(db, aff["applied_name"])
+    db.execute(
+        text("UPDATE affiliates SET user_id = :uid, referral_code = :code, status = 'approved', approved_at = NOW() WHERE id = :id"),
+        {"uid": user["id"], "code": code, "id": affiliate_id},
+    )
+    return {"ok": True, "referral_code": code}
+
+@router.put("/cms/affiliates/{affiliate_id}")
+async def cms_update_affiliate(affiliate_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": affiliate_id}
+    if "commission_rate" in body:
+        set_parts.append("commission_rate = :rate")
+        params["rate"] = float(body["commission_rate"])
+    if "status" in body:
+        if body["status"] not in {"approved", "suspended", "rejected"}:
+            raise HTTPException(status_code=400, detail="invalid status")
+        set_parts.append("status = :status")
+        params["status"] = body["status"]
+    if not set_parts:
+        return {"ok": True}
+    db.execute(text(f"UPDATE affiliates SET {', '.join(set_parts)} WHERE id = :id"), params)
+    return {"ok": True}
+
+@router.get("/cms/affiliates/{affiliate_id}/referrals")
+def cms_list_affiliate_referrals(affiliate_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text("""
+        SELECT r.id, r.referred_at, r.converted_at, r.commission_amount, r.payout_status,
+               u.username, u.email
+        FROM affiliate_referrals r JOIN users u ON u.id = r.user_id
+        WHERE r.affiliate_id = :id
+        ORDER BY r.referred_at DESC
+    """), {"id": affiliate_id}).mappings().all()
+    return {"referrals": [dict(r) for r in rows]}
+
+@router.post("/cms/affiliate-referrals/{referral_id}/mark-paid")
+def cms_mark_referral_paid(referral_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("UPDATE affiliate_referrals SET payout_status = 'paid' WHERE id = :id"), {"id": referral_id})
+    return {"ok": True}
+
 # ==================== Community forum (moderation) ====================
 
 @router.get("/cms/forum/categories")

@@ -1,10 +1,13 @@
 // src/AffiliatesPage.jsx — affiliate/partner program: pitch + a real,
 // working application form (POST /affiliate-apply, Turnstile-protected,
-// emailed to support with reply-to set to the applicant). There's no
-// automated payout/tracking system yet, so applications are reviewed and
-// onboarded manually — the form is real, the program is application-based
-// for now. Public, unauthenticated marketing page.
+// emailed to support with reply-to set to the applicant). Applications are
+// reviewed and approved manually in the CMS (src/cms/CmsAffiliates.jsx),
+// which mints a referral link, tracks clicks/signups/conversions, and
+// computes commission automatically — see src/AffiliateDashboardPage.jsx
+// for the affiliate's own view of that data. Public, unauthenticated
+// marketing page.
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -235,6 +238,9 @@ export default function AffiliatesPage() {
           <p className="mx-auto mt-3 max-w-md text-sm font-semibold text-slate-500 dark:text-stone-400">
             We review every application ourselves — usually within a couple of days.
           </p>
+          <Link to="/affiliate-dashboard" className="mt-3 inline-block text-sm font-bold text-brand-600 hover:underline dark:text-brand-400">
+            Already approved? View your dashboard
+          </Link>
         </div>
 
         <div data-reveal className="mt-8 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-white/[0.07] dark:bg-[#18181b] sm:p-8">

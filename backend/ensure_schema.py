@@ -891,6 +891,52 @@ def ensure_schema() -> None:
             """,
         )
 
+        # ---------- Affiliate program: applications, referral tracking, commissions ----------
+        ensure_table(
+            "affiliates",
+            """
+            CREATE TABLE affiliates (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE SET NULL,
+                referral_code TEXT UNIQUE,
+                commission_rate NUMERIC(5,2) NOT NULL DEFAULT 20,
+                payout_email TEXT,
+                status TEXT NOT NULL DEFAULT 'pending',
+                applied_name TEXT NOT NULL,
+                applied_email TEXT NOT NULL,
+                applied_platform TEXT,
+                applied_audience TEXT,
+                applied_message TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                approved_at TIMESTAMPTZ
+            )
+            """,
+        )
+        ensure_table(
+            "referral_clicks",
+            """
+            CREATE TABLE referral_clicks (
+                id SERIAL PRIMARY KEY,
+                affiliate_id INTEGER NOT NULL REFERENCES affiliates(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        ensure_table(
+            "affiliate_referrals",
+            """
+            CREATE TABLE affiliate_referrals (
+                id SERIAL PRIMARY KEY,
+                affiliate_id INTEGER NOT NULL REFERENCES affiliates(id) ON DELETE CASCADE,
+                user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                referred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                converted_at TIMESTAMPTZ,
+                commission_amount NUMERIC(10,2),
+                payout_status TEXT NOT NULL DEFAULT 'unpaid'
+            )
+            """,
+        )
+
         # ---------- Community forum ----------
         ensure_table(
             "forum_categories",
