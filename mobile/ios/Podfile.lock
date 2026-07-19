@@ -2153,11 +2153,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNSound (0.11.2):
-    - React-Core
-    - RNSound/Core (= 0.11.2)
-  - RNSound/Core (0.11.2):
-    - React-Core
   - RNSVG (15.15.5):
     - hermes-engine
     - RCTRequired
@@ -2361,7 +2356,6 @@ DEPENDENCIES:
   - RNReactNativeHapticFeedback (from `../node_modules/react-native-haptic-feedback`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
-  - RNSound (from `../node_modules/react-native-sound`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -2534,8 +2528,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../node_modules/react-native-screens"
-  RNSound:
-    :path: "../node_modules/react-native-sound"
   RNSVG:
     :path: "../node_modules/react-native-svg"
   RNWorklets:
@@ -2627,7 +2619,6 @@ SPEC CHECKSUMS:
   RNReactNativeHapticFeedback: 16e5f7fd37e2acc5a33ea14f48bfd88ff43776ee
   RNReanimated: 230d297a3eebba7eb9fc7331afdcafb095373a4b
   RNScreens: 7118cd7715c226856125b5bece3c4d9abec90356
-  RNSound: 314cc5226453ef4a3314a196c65e8a65e5106a7b
   RNSVG: 6cae8d4082913be2eb43eaec2a456222c42195ed
   RNWorklets: f0734080219ea54d479c179da498c9b24611faed
   Yoga: fe50ab299e578f397fef753cf309c6703a4db29b
