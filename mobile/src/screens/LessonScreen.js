@@ -15,6 +15,10 @@ import SelectMissingWord from '../exercises/kinds/SelectMissingWord';
 import MinimalPairs from '../exercises/kinds/MinimalPairs';
 import TrueFalse from '../exercises/kinds/TrueFalse';
 import MatchPairs from '../exercises/kinds/MatchPairs';
+import AudioChoiceTts from '../exercises/kinds/AudioChoiceTts';
+import CharBuildWord from '../exercises/kinds/CharBuildWord';
+import WordBank from '../exercises/kinds/WordBank';
+import SentenceOrder from '../exercises/kinds/SentenceOrder';
 
 const SUPPORTED_KINDS = {
   char_intro: CharIntro,
@@ -24,6 +28,10 @@ const SUPPORTED_KINDS = {
   minimal_pairs: MinimalPairs,
   true_false: TrueFalse,
   match_pairs: MatchPairs,
+  audio_choice_tts: AudioChoiceTts,
+  char_build_word: CharBuildWord,
+  word_bank: WordBank,
+  sentence_order: SentenceOrder,
 };
 
 export default function LessonScreen({ route, navigation }) {
