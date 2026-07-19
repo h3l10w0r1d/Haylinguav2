@@ -216,5 +216,7 @@ backend/uploads/
 # Frontend source lib must be tracked (the Python "lib/" rule above otherwise ignores it)
 !src/lib/
 !src/lib/**
+!mobile/src/lib/
+!mobile/src/lib/**
 .env.local
 .verify-account.json

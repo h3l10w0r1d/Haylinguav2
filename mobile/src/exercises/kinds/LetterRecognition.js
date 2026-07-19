@@ -1,9 +1,5 @@
-// src/exercises/kinds/TranslateMcq.js — ports ExTranslateMcq from
-// src/ExerciseRenderer.jsx. Multiple-choice: pick the right translation.
-// FIX: real content stores choices in exercise.config.choices +
-// config.answerIndex, not exercise.options (which is always [] in
-// production data) — the original version of this file read .options
-// directly and would have rendered zero choices against real lessons.
+// src/exercises/kinds/LetterRecognition.js — ports ExLetterRecognition
+// (single-select path only — multi-select isn't in scope yet).
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
@@ -11,7 +7,7 @@ import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
 
-export default function TranslateMcq({ exercise, onSubmit, onAdvance }) {
+export default function LetterRecognition({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
   const choices = getChoices(exercise, cfg);
   const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
@@ -34,13 +30,7 @@ export default function TranslateMcq({ exercise, onSubmit, onAdvance }) {
   return (
     <View className="flex-1 justify-between">
       <View>
-        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Choose the correct translation'}</Text>
-
-        {!!cfg.sentence && (
-          <View className="mt-4 rounded-2xl bg-stone-100 p-4">
-            <Text className="text-lg font-semibold text-stone-900">{cfg.sentence}</Text>
-          </View>
-        )}
+        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Choose the correct answer'}</Text>
 
         <TouchableOpacity
           onPress={() => playExerciseAudio(exercise.id)}

@@ -1,7 +1,7 @@
-// src/screens/LessonScreen.js — a simplified lesson player (Phase 0):
-// supports exactly 2 exercise kinds (char_intro, translate_mcq — see plan).
-// Any other kind shows a "not supported yet" placeholder with a Skip button
-// so a real lesson containing mixed kinds doesn't hard-crash the demo.
+// src/screens/LessonScreen.js — a simplified lesson player. Supports the
+// exercise kinds ported so far; any other kind shows a "not supported yet"
+// placeholder with a Skip button so a real lesson containing mixed kinds
+// doesn't hard-crash the demo.
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,10 +10,20 @@ import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
 import CharIntro from '../exercises/kinds/CharIntro';
 import TranslateMcq from '../exercises/kinds/TranslateMcq';
+import LetterRecognition from '../exercises/kinds/LetterRecognition';
+import SelectMissingWord from '../exercises/kinds/SelectMissingWord';
+import MinimalPairs from '../exercises/kinds/MinimalPairs';
+import TrueFalse from '../exercises/kinds/TrueFalse';
+import MatchPairs from '../exercises/kinds/MatchPairs';
 
 const SUPPORTED_KINDS = {
   char_intro: CharIntro,
   translate_mcq: TranslateMcq,
+  letter_recognition: LetterRecognition,
+  select_missing_word: SelectMissingWord,
+  minimal_pairs: MinimalPairs,
+  true_false: TrueFalse,
+  match_pairs: MatchPairs,
 };
 
 export default function LessonScreen({ route, navigation }) {

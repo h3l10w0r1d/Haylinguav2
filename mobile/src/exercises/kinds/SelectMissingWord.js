@@ -1,18 +1,14 @@
-// src/exercises/kinds/TranslateMcq.js — ports ExTranslateMcq from
-// src/ExerciseRenderer.jsx. Multiple-choice: pick the right translation.
-// FIX: real content stores choices in exercise.config.choices +
-// config.answerIndex, not exercise.options (which is always [] in
-// production data) — the original version of this file read .options
-// directly and would have rendered zero choices against real lessons.
+// src/exercises/kinds/SelectMissingWord.js — ports ExSelectMissingWord.
+// Fill-in-the-blank: pick the choice that completes the sentence.
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Volume2 } from 'lucide-react-native';
-import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
 
-export default function TranslateMcq({ exercise, onSubmit, onAdvance }) {
+export default function SelectMissingWord({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
+  const before = cfg.before ?? exercise.sentence_before ?? '';
+  const after = cfg.after ?? exercise.sentence_after ?? '';
   const choices = getChoices(exercise, cfg);
   const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
   const [selected, setSelected] = useState(null);
@@ -34,21 +30,17 @@ export default function TranslateMcq({ exercise, onSubmit, onAdvance }) {
   return (
     <View className="flex-1 justify-between">
       <View>
-        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Choose the correct translation'}</Text>
+        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Complete the sentence'}</Text>
 
-        {!!cfg.sentence && (
-          <View className="mt-4 rounded-2xl bg-stone-100 p-4">
-            <Text className="text-lg font-semibold text-stone-900">{cfg.sentence}</Text>
+        <View className="mt-4 flex-row flex-wrap items-center rounded-2xl bg-stone-100 p-4">
+          {!!before && <Text className="text-lg font-semibold text-stone-900">{before} </Text>}
+          <View className={'rounded-lg border px-2.5 py-1 ' + (selected !== null ? 'border-brand-300 bg-brand-50' : 'border-stone-300 bg-white')}>
+            <Text className={'text-lg font-bold ' + (selected !== null ? 'text-brand-700' : 'text-stone-300')}>
+              {selected !== null ? choices[selected] ?? '…' : '…'}
+            </Text>
           </View>
-        )}
-
-        <TouchableOpacity
-          onPress={() => playExerciseAudio(exercise.id)}
-          className="mt-4 flex-row items-center gap-2 self-start rounded-xl bg-feather-50 px-4 py-2.5"
-        >
-          <Volume2 size={16} color="#1899D6" />
-          <Text className="text-sm font-bold text-feather-600">Play sound</Text>
-        </TouchableOpacity>
+          {!!after && <Text className="text-lg font-semibold text-stone-900"> {after}</Text>}
+        </View>
 
         <View className="mt-5">
           <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />
