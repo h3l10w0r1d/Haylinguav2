@@ -1,8 +1,5 @@
 // src/AboutPage.jsx — "About us": the Haylingua origin story, mission,
 // founders, and milestones. Public, unauthenticated marketing page.
-//
-// Founder photos: FOUNDERS[i].photo is still null — drop real image paths
-// in once available (e.g. import from ./assets or a /team/ public path).
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import gsap from "gsap";
@@ -15,6 +12,8 @@ import owl from "./assets/character-owl.png";
 import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 import teacher from "./assets/character-teacher.png";
+import armenPhoto from "./assets/team/armen-ghazaryan.jpg";
+import lilitPhoto from "./assets/team/lilit-hakobyan.jpg";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
@@ -25,13 +24,13 @@ const FOUNDERS = [
   {
     name: "Armen Ghazaryan",
     role: "Co-founder & Developer",
-    photo: null, // drop a real photo path here, e.g. "/team/armen.jpg"
+    photo: armenPhoto,
     bio: "An IB Diploma Programme graduate of Quantum College, Armen built the first version of Haylingua as a school project — and kept building once it was clear how badly diaspora Armenians needed it.",
   },
   {
     name: "Lilit Hakobyan",
     role: "Co-founder & Armenian Language Lead",
-    photo: null, // drop a real photo path here, e.g. "/team/lilit.jpg"
+    photo: lilitPhoto,
     bio: "An Armenian language teacher across the IB programme and several other institutions, Lilit is the one who set Haylingua in motion — and shapes how the app actually teaches the language.",
   },
 ];
