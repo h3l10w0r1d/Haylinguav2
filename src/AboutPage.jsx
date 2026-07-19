@@ -123,32 +123,6 @@ export default function AboutPage() {
           "-=0.5"
         );
 
-      // Pinned "portal" intro — the giant watermark letter behind the hero
-      // copy grows and fades while the copy itself dissolves upward, so
-      // scrolling off the hero reads as passing *through* the letter into
-      // the story below, instead of a plain scroll-past. Created here, in
-      // the same synchronous pass as every other trigger below it — GSAP
-      // batches same-tick trigger creation into one measurement pass, so
-      // this pin's spacer is accounted for when Values/Timeline/etc. below
-      // it compute their own positions. Creating it later (e.g. gated on
-      // the entrance animation finishing) left those positions stale by
-      // this pin's spacer height, causing the Timeline section to render
-      // on top of the Values section above it instead of below it.
-      if (heroRef.current) {
-        gsap.timeline({
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: "top top",
-            end: "+=70%",
-            scrub: 1,
-            pin: true,
-          },
-        })
-          .fromTo("[data-hero-letter-glyph]", { scale: 1, opacity: 1 }, { scale: 4.2, opacity: 0, ease: "none" }, 0)
-          .fromTo("[data-hero-item]", { opacity: 1, y: 0 }, { opacity: 0, y: -36, stagger: 0.04, ease: "none" }, 0)
-          .fromTo("[data-hero-art]", { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.82, ease: "none" }, 0);
-      }
-
       // Generic scroll reveal for every section marked data-reveal.
       gsap.utils.toArray("[data-reveal]").forEach((el) => {
         gsap.fromTo(
@@ -277,30 +251,61 @@ export default function AboutPage() {
       // smaller screens the plain vertical list above stays untouched and
       // is the only one rendered, so there's no scroll-jacked section a
       // touch-scroll visitor can get stuck in.
+      // Both of these pin the page (scroll-jack it), which is a well-known
+      // bad mobile UX — janky against touch-scroll inertia, and disorienting
+      // when it eats scroll distance beyond what the viewport shows. Desktop
+      // only. Both live under the SAME matchMedia call, in this order, so
+      // the hero pin's spacer (created first) is accounted for when the
+      // Timeline pin (created second, in the same synchronous pass) measures
+      // its own position — see the Timeline pin's own comment for why that
+      // ordering matters.
       const mm = gsap.matchMedia();
       mm.add("(min-width: 1024px)", () => {
+        // Pinned "portal" intro — the giant watermark letter behind the
+        // hero copy grows and fades while the copy itself dissolves upward,
+        // so scrolling off the hero reads as passing *through* the letter
+        // into the story below, instead of a plain scroll-past.
+        let heroTl = null;
+        if (heroRef.current) {
+          heroTl = gsap.timeline({
+            scrollTrigger: {
+              trigger: heroRef.current,
+              start: "top top",
+              end: "+=70%",
+              scrub: 1,
+              pin: true,
+            },
+          })
+            .fromTo("[data-hero-letter-glyph]", { scale: 1, opacity: 1 }, { scale: 4.2, opacity: 0, ease: "none" }, 0)
+            .fromTo("[data-hero-item]", { opacity: 1, y: 0 }, { opacity: 0, y: -36, stagger: 0.04, ease: "none" }, 0)
+            .fromTo("[data-hero-art]", { opacity: 1, scale: 1 }, { opacity: 0, scale: 0.82, ease: "none" }, 0);
+        }
+
+        // Timeline — pinned horizontal scroll-jack.
         const track = timelineTrackRef.current;
         const pinWrap = timelinePinRef.current;
-        if (!track || !pinWrap) return;
-
-        const getDistance = () => Math.max(0, track.scrollWidth - pinWrap.offsetWidth);
-
-        const xTween = gsap.to(track, {
-          x: () => -getDistance(),
-          ease: "none",
-          scrollTrigger: {
-            trigger: pinWrap,
-            start: "top top",
-            end: () => "+=" + getDistance(),
-            pin: true,
-            scrub: 1,
-            invalidateOnRefresh: true,
-          },
-        });
+        let xTween = null;
+        if (track && pinWrap) {
+          const getDistance = () => Math.max(0, track.scrollWidth - pinWrap.offsetWidth);
+          xTween = gsap.to(track, {
+            x: () => -getDistance(),
+            ease: "none",
+            scrollTrigger: {
+              trigger: pinWrap,
+              start: "top top",
+              end: () => "+=" + getDistance(),
+              pin: true,
+              scrub: 1,
+              invalidateOnRefresh: true,
+            },
+          });
+        }
 
         return () => {
-          xTween.scrollTrigger?.kill();
-          xTween.kill();
+          heroTl?.scrollTrigger?.kill();
+          heroTl?.kill();
+          xTween?.scrollTrigger?.kill();
+          xTween?.kill();
         };
       });
     }, rootRef);
@@ -330,7 +335,7 @@ export default function AboutPage() {
 
       <main>
         {/* ── Hero ── */}
-        <header ref={heroRef} className="relative flex min-h-screen flex-col overflow-hidden">
+        <header ref={heroRef} className="relative flex flex-col overflow-hidden lg:min-h-screen">
           <div data-parallax-slow className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
           <div data-parallax-slow className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
 
@@ -347,7 +352,7 @@ export default function AboutPage() {
             </span>
           </div>
 
-          <div className="relative mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-10 px-5 py-14 lg:grid-cols-2 lg:py-20">
+          <div className="relative mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-6 px-5 py-8 lg:grid-cols-2 lg:gap-10 lg:py-20">
             <div>
               <div data-hero-item className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/25">
                 <Sparkles className="h-3.5 w-3.5" /> Our story
@@ -375,7 +380,7 @@ export default function AboutPage() {
                 data-parallax
                 src={owl}
                 alt="Haylingua's mascot owl, holding an Armenian phrasebook"
-                className="relative h-64 w-auto object-contain drop-shadow-2xl sm:h-80"
+                className="relative h-36 w-auto object-contain drop-shadow-2xl sm:h-64 lg:h-80"
               />
               <StarMotif data-parallax-fast className="absolute -right-2 top-4 h-8 w-8 text-gold-400 dark:text-gold-400/80" />
               <StarMotif data-parallax-fast className="absolute -left-4 bottom-8 h-6 w-6 text-feather-400 dark:text-feather-400/80" />
