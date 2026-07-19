@@ -5,7 +5,9 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Users, Trophy, User } from 'lucide-react-native';
 import DashboardScreen from '../screens/DashboardScreen';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
+import FriendsScreen from '../screens/FriendsScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -25,9 +27,9 @@ export default function MainTabs() {
       })}
     >
       <Tab.Screen name="Learn" component={DashboardScreen} />
-      <Tab.Screen name="Friends" component={PlaceholderScreen} />
-      <Tab.Screen name="Leaderboard" component={PlaceholderScreen} />
-      <Tab.Screen name="Profile" component={PlaceholderScreen} />
+      <Tab.Screen name="Friends" component={FriendsScreen} />
+      <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

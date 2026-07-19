@@ -22,6 +22,7 @@ import AudioChoiceTts from '../exercises/kinds/AudioChoiceTts';
 import CharBuildWord from '../exercises/kinds/CharBuildWord';
 import WordBank from '../exercises/kinds/WordBank';
 import SentenceOrder from '../exercises/kinds/SentenceOrder';
+import Speak from '../exercises/kinds/Speak';
 
 const SUPPORTED_KINDS = {
   char_intro: CharIntro,
@@ -35,6 +36,7 @@ const SUPPORTED_KINDS = {
   char_build_word: CharBuildWord,
   word_bank: WordBank,
   sentence_order: SentenceOrder,
+  speak: Speak,
 };
 
 function UnsupportedKindFallback({ kind, onAdvance }) {
@@ -60,6 +62,7 @@ export default function LessonScreen({ route, navigation }) {
   const [error, setError] = useState('');
   const applyAttempt = useStatsStore((s) => s.applyAttempt);
   const refreshStats = useStatsStore((s) => s.refresh);
+  const chestEarnedRef = useRef(false);
 
   // A brief brightness flash on the progress bar each time an exercise
   // advances — mirrors the web's .progress-pulse.
@@ -96,6 +99,7 @@ export default function LessonScreen({ route, navigation }) {
           selected_indices: payload.selectedIndices,
         });
         applyAttempt(result);
+        if (result?.chest_earned) chestEarnedRef.current = true;
         return result;
       } catch {
         return null;
@@ -123,7 +127,12 @@ export default function LessonScreen({ route, navigation }) {
       const after = useStatsStore.getState();
       const xpEarned = Math.max(0, (after.totalXp ?? 0) - (xpBefore ?? 0));
       const milestoneHit = await checkStreakMilestone(after.streak ?? 0);
-      navigation.replace('LessonComplete', { xpEarned, streak: after.streak ?? 0, milestoneHit });
+      navigation.replace('LessonComplete', {
+        xpEarned,
+        streak: after.streak ?? 0,
+        milestoneHit,
+        chestEarned: chestEarnedRef.current,
+      });
     }
   }, [index, exercises.length, slug, navigation, refreshStats]);
 

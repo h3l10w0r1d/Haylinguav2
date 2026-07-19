@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ActivityIndicator, ScrollView, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { Heart, Flame, Zap, Gem, Play, ArrowRight } from 'lucide-react-native';
+import { Heart, Flame, Zap, Gem, Play, ArrowRight, Gift } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
@@ -21,6 +21,7 @@ import Animated, {
 import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
 import Pressable3D from '../components/Pressable3D';
+import ChestReveal from '../components/ChestReveal';
 
 const ACCENT = {
   cardinal: { tint: '#FFECEC', icon: '#FF4B4B' },
@@ -112,6 +113,7 @@ export default function DashboardScreen({ navigation }) {
   const [lessons, setLessons] = useState([]);
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [chestOpen, setChestOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoadingLessons(true);
@@ -210,6 +212,25 @@ export default function DashboardScreen({ navigation }) {
         </View>
       </HeroCard>
 
+      {/* Chest card — mirrors the web's Dashboard.jsx ChestCard: persistently
+          shown whenever the account has an unopened chest, not just right
+          after finishing a lesson (chests are earned on first-time lesson
+          completion but stay openable any time). */}
+      {stats.chests > 0 && (
+        <Pressable3D onPress={() => setChestOpen(true)} className="mb-4 flex-row items-center gap-4 rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
+          <View className="h-12 w-12 items-center justify-center rounded-xl bg-gold-50">
+            <Gift size={24} color="#E0A800" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-base font-extrabold text-stone-900">
+              {stats.chests > 1 ? `${stats.chests} chests to open!` : 'A chest is waiting!'}
+            </Text>
+            <Text className="text-xs font-semibold text-stone-400">Tap to open and claim your reward</Text>
+          </View>
+          <ArrowRight size={18} color="#a8a29e" />
+        </Pressable3D>
+      )}
+
       {/* Curriculum outline (read-only in Phase 0 — tapping the current lesson above is the way in) */}
       {lessons.length > 0 && (
         <View className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
@@ -225,6 +246,11 @@ export default function DashboardScreen({ navigation }) {
         </View>
       )}
     </ScrollView>
+    <ChestReveal
+      visible={chestOpen}
+      onOpened={(wallet) => useStatsStore.getState().applyWallet(wallet)}
+      onClose={() => setChestOpen(false)}
+    />
     </SafeAreaView>
   );
 }

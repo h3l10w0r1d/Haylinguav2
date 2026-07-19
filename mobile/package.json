@@ -21,6 +21,8 @@
     "react-native-haptic-feedback": "^3.0.0",
     "react-native-keychain": "^9.2.2",
     "react-native-linear-gradient": "^2.8.3",
+    "react-native-nitro-modules": "^0.36.1",
+    "react-native-nitro-sound": "^0.2.15",
     "react-native-reanimated": "^4.5.2",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.4.0",

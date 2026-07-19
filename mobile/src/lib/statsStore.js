@@ -15,6 +15,7 @@ export const useStatsStore = create((set, get) => ({
   heartsMax: null,
   isPremium: false,
   gems: null,
+  chests: 0,
   loaded: false,
 
   async refresh() {
@@ -39,8 +40,20 @@ export const useStatsStore = create((set, get) => ({
             isPremium: !!hearts.is_premium,
           }
         : {}),
-      ...(wallet ? { gems: Number(wallet.gems || 0) } : {}),
+      ...(wallet ? { gems: Number(wallet.gems || 0), chests: Number(wallet.chests || 0) } : {}),
       loaded: true,
+    });
+  },
+
+  // Called right after POST /me/chests/open — that response is itself a
+  // full wallet snapshot (gems/chests/xp_multiplier_active etc.), so patch
+  // directly instead of a redundant refetch.
+  applyWallet(wallet) {
+    if (!wallet) return;
+    set({
+      gems: Number(wallet.gems ?? get().gems ?? 0),
+      chests: Number(wallet.chests ?? get().chests ?? 0),
+      isPremium: wallet.is_premium != null ? !!wallet.is_premium : get().isPremium,
     });
   },
 
