@@ -530,7 +530,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
       );
     }
 
-    // speak: student records their voice; we transcribe (ElevenLabs Scribe) and compare.
+    // speak: student records their voice; we transcribe (hispeech.ai) and compare.
     if (kind === "speak") {
       const accepted = Array.isArray(cfg.acceptedAnswers) ? cfg.acceptedAnswers : [];
       return (

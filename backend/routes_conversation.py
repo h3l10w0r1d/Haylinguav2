@@ -9,7 +9,6 @@ Endpoints:
   GET  /conversation/video/{pred_id}  — poll SadTalker prediction status
 """
 
-import asyncio
 import base64
 import json
 import os
@@ -51,7 +50,16 @@ ELEVEN_STT_MODEL = os.getenv("ELEVEN_STT_MODEL", "scribe_v1")
 ARAM_VOICE_ID = os.getenv("ELEVEN_VOICE_ID", os.getenv("ELEVEN_MALE_VOICE", "TX3LPaxmHKxFdv7VOQHJ"))
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
+
+# hispeech.ai — primary STT provider (replaces Replicate Whisper). Its
+# "conversational" model transcribes exactly what's heard, which is what we
+# want for grading spoken exercise answers and AI Conversation turns — not a
+# cleaned-up/formalized transcript. ElevenLabs Scribe stays wired as a
+# fallback (see _transcribe_hispeech callers) since it's already paid for
+# and configured for TTS.
+HISPEECH_API_KEY = os.getenv("HISPEECH_API_KEY", "")
+HISPEECH_API_BASE = "https://api.hispeech.ai/api/v1"
+HISPEECH_STT_MODEL = "model-23012026"
 
 # Portrait image URL used as SadTalker source_image (must be publicly reachable).
 # In production: https://haylingua.am/characters/aram.png
@@ -235,67 +243,36 @@ def _api_base_url() -> str:
     return "http://localhost:8000"
 
 
-async def _transcribe_whisper(audio_file_url: str) -> str:
-    """
-    Transcribe audio using openai/whisper on Replicate.
-    Uses Prefer: wait for synchronous response (avoids polling in most cases).
-    Falls back to polling if the model is cold-starting.
-    """
+async def _transcribe_hispeech(audio_bytes: bytes, filename: str = "speech.webm") -> str:
+    """Transcribe via hispeech.ai's synchronous upload endpoint. Takes raw
+    audio bytes directly (no need to host the file at a public URL, unlike
+    Whisper). Returns "" on any failure so callers can fall through to
+    ElevenLabs Scribe."""
+    if not HISPEECH_API_KEY:
+        return ""
     try:
         async with httpx.AsyncClient(timeout=60) as c:
             resp = await c.post(
-                "https://api.replicate.com/v1/models/openai/whisper/predictions",
-                headers={
-                    "Authorization": f"Token {REPLICATE_API_TOKEN}",
-                    "Content-Type": "application/json",
-                    "Prefer": "wait",
-                },
-                json={
-                    "input": {
-                        "audio": audio_file_url,
-                        "language": "armenian",
-                        "transcription": "plain text",
-                        "translate": False,
-                        "temperature": 0,
-                    }
-                },
+                f"{HISPEECH_API_BASE}/transcriptions/upload",
+                headers={"x-auth-token": HISPEECH_API_KEY},
+                params={"stt_model": HISPEECH_STT_MODEL, "wait_for_result": "true"},
+                files={"file": (filename, audio_bytes, "audio/webm")},
             )
     except Exception as exc:
-        print(f"[whisper] request failed: {exc}")
+        print(f"[hispeech] request failed: {exc}")
         return ""
 
-    if resp.status_code not in (200, 201):
-        print(f"[whisper] HTTP {resp.status_code}: {resp.text[:200]}")
+    if resp.status_code != 200:
+        print(f"[hispeech] HTTP {resp.status_code}: {resp.text[:200]}")
         return ""
 
     data = resp.json()
-    if data.get("status") == "succeeded":
-        output = data.get("output", {})
-        return (output.get("transcription") if isinstance(output, dict) else str(output) or "").strip()
-
-    # Prefer: wait timed out — poll
-    pred_id = data.get("id")
-    if not pred_id:
+    if not data.get("success", True):
+        print(f"[hispeech] error: {data.get('error')}")
         return ""
+    return (data.get("transcription") or "").strip()
 
-    for _ in range(20):
-        await asyncio.sleep(1.5)
-        try:
-            async with httpx.AsyncClient(timeout=10) as c:
-                sr = await c.get(
-                    f"https://api.replicate.com/v1/predictions/{pred_id}",
-                    headers={"Authorization": f"Token {REPLICATE_API_TOKEN}"},
-                )
-            sd = sr.json()
-            if sd.get("status") == "succeeded":
-                output = sd.get("output", {})
-                return (output.get("transcription") if isinstance(output, dict) else str(output) or "").strip()
-            if sd.get("status") == "failed":
-                return ""
-        except Exception:
-            pass
 
-    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -343,19 +320,12 @@ async def conversation_turn(
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid base64 audio data.")
 
-        # Save audio to disk so Whisper can fetch it via URL
-        audio_dir = _conv_audio_dir()
-        audio_filename = f"{uuid.uuid4().hex}_stt.webm"
-        audio_file_path = os.path.join(audio_dir, audio_filename)
-        with open(audio_file_path, "wb") as f:
-            f.write(audio_bytes)
-        audio_file_url = f"{_api_base_url()}/static/conv-audio/{audio_filename}"
-
         transcription = ""
 
-        # Primary: Replicate Whisper (much better Armenian accuracy)
-        if REPLICATE_API_TOKEN:
-            transcription = await _transcribe_whisper(audio_file_url)
+        # Primary: hispeech.ai (conversational model — transcribes exactly
+        # what's heard, ideal for grading spoken Armenian)
+        if HISPEECH_API_KEY:
+            transcription = await _transcribe_hispeech(audio_bytes, "speech.webm")
 
         # Fallback: ElevenLabs Scribe
         if not transcription and ELEVEN_API_KEY:

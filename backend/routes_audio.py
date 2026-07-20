@@ -1,7 +1,6 @@
 #backend/routes_audio.oy
 import os
 import time
-import uuid
 from collections import defaultdict
 from typing import Optional, Literal
 
@@ -18,15 +17,13 @@ from database import get_db
 from routes import require_cms_admin
 # Learner auth for speech-to-text (per-user; each call costs an STT request).
 from auth import get_current_user
-# Replicate Whisper gives much better Armenian STT accuracy than ElevenLabs
-# Scribe (Scribe frequently misreads Armenian words as unrelated English
+# hispeech.ai gives much better Armenian STT accuracy than ElevenLabs Scribe
+# alone (Scribe frequently misreads Armenian words as unrelated English
 # words). Reuse the implementation already proven for AI Conversation rather
 # than duplicating it.
 from routes_conversation import (
-    _transcribe_whisper,
-    _conv_audio_dir,
-    _api_base_url,
-    REPLICATE_API_TOKEN,
+    _transcribe_hispeech,
+    HISPEECH_API_KEY,
 )
 
 router = APIRouter()
@@ -698,11 +695,11 @@ async def transcribe_speech(
     language_code: Optional[str] = Form(None),
     user=Depends(get_current_user),  # 🔒 logged-in learners only (STT costs money)
 ):
-    """Transcribe a learner's spoken answer via ElevenLabs Scribe."""
+    """Transcribe a learner's spoken answer — hispeech.ai primary, ElevenLabs Scribe fallback."""
     # GR-8: Rate-limit before any expensive work.
     _check_transcribe_rate(int(user["id"]))
 
-    if not ELEVEN_API_KEY:
+    if not HISPEECH_API_KEY and not ELEVEN_API_KEY:
         raise HTTPException(status_code=400, detail="Speech-to-text is not configured")
 
     data = await audio.read()
@@ -716,25 +713,12 @@ async def transcribe_speech(
     if lang not in _ALLOWED_LANG_CODES:
         lang = "hye"  # default to Eastern Armenian
 
-    # Primary: Replicate Whisper for Armenian (much better accuracy than
-    # ElevenLabs Scribe, which regularly mistranscribes Armenian words as
-    # unrelated English ones). Whisper needs a fetchable URL, so the audio is
-    # written to the same public static dir AI Conversation already uses.
-    if lang in ("hye", "hy") and REPLICATE_API_TOKEN:
-        audio_filename = f"{uuid.uuid4().hex}_ex.webm"
-        audio_file_path = os.path.join(_conv_audio_dir(), audio_filename)
-        try:
-            with open(audio_file_path, "wb") as f:
-                f.write(data)
-            audio_file_url = f"{_api_base_url()}/static/conv-audio/{audio_filename}"
-            transcription = await _transcribe_whisper(audio_file_url)
-        except Exception:
-            transcription = ""
-        finally:
-            try:
-                os.remove(audio_file_path)
-            except OSError:
-                pass
+    # Primary: hispeech.ai (much better Armenian accuracy than ElevenLabs
+    # Scribe alone, which regularly mistranscribes Armenian words as
+    # unrelated English ones). Takes raw bytes directly — no need to host
+    # the file at a public URL first.
+    if lang in ("hye", "hy") and HISPEECH_API_KEY:
+        transcription = await _transcribe_hispeech(data, audio.filename or "speech.webm")
         if transcription:
             return {"text": transcription, "language_code": "hye"}
 
