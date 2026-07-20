@@ -1487,6 +1487,19 @@ def cms_seed_alphabet(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/words")
+def cms_seed_words(request: Request, db=Depends(get_db)):
+    """Populate Phase 2 (Words + sentence patterns) — adds a sentence-pattern
+    lesson to each of the 8 existing vocabulary chapters. Idempotent."""
+    require_cms(request, db)
+    from seed_words import seed_words_phase
+    try:
+        res = seed_words_phase()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
