@@ -8,7 +8,7 @@
 // navigating. Everywhere else, the same links/buttons route to "/" — the
 // landing page is the only place with a login/signup modal.
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { ArrowRight, Sun, Moon, Menu, X } from "lucide-react";
 import { getTheme, toggleTheme } from "./lib/theme";
 
@@ -25,7 +25,12 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
   const closeMenu = () => setMenuOpen(false);
 
   const linkCls = "text-sm font-bold text-slate-500 hover:text-slate-800 dark:text-stone-400 dark:hover:text-white";
+  const activeLinkCls = "text-sm font-bold text-brand-600 dark:text-brand-400";
+  const navLinkCls = ({ isActive }) => (isActive ? activeLinkCls : linkCls);
+
   const mobileLinkCls = "rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-stone-200 dark:hover:bg-white/[0.04]";
+  const activeMobileLinkCls = "rounded-xl px-3 py-2.5 text-sm font-bold text-brand-600 bg-brand-50 dark:text-brand-400 dark:bg-brand-500/10";
+  const mobileNavLinkCls = ({ isActive }) => (isActive ? activeMobileLinkCls : mobileLinkCls);
 
   return (
     <nav className="sticky top-0 z-40 border-b border-slate-100 bg-white/85 backdrop-blur dark:border-white/[0.06] dark:bg-[#151517]/90">
@@ -36,10 +41,10 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
         </Link>
 
         <div className="hidden items-center gap-7 md:flex">
-          <Link to="/about" className={linkCls}>About us</Link>
-          <Link to="/careers" className={linkCls}>Careers</Link>
-          <Link to="/pricing" className={linkCls}>Pricing</Link>
-          <Link to="/contact" className={linkCls}>Contact</Link>
+          <NavLink to="/about" className={navLinkCls}>About us</NavLink>
+          <NavLink to="/careers" className={navLinkCls}>Careers</NavLink>
+          <NavLink to="/pricing" className={navLinkCls}>Pricing</NavLink>
+          <NavLink to="/contact" className={navLinkCls}>Contact</NavLink>
         </div>
 
         <div className="flex items-center gap-2">
@@ -79,10 +84,10 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
       {menuOpen && (
         <div className="border-t border-slate-100 bg-white px-5 pb-4 pt-2 dark:border-white/[0.06] dark:bg-[#18181b] md:hidden">
           <div className="flex flex-col gap-1">
-            <Link to="/about" onClick={closeMenu} className={mobileLinkCls}>About us</Link>
-            <Link to="/careers" onClick={closeMenu} className={mobileLinkCls}>Careers</Link>
-            <Link to="/pricing" onClick={closeMenu} className={mobileLinkCls}>Pricing</Link>
-            <Link to="/contact" onClick={closeMenu} className={mobileLinkCls}>Contact</Link>
+            <NavLink to="/about" onClick={closeMenu} className={mobileNavLinkCls}>About us</NavLink>
+            <NavLink to="/careers" onClick={closeMenu} className={mobileNavLinkCls}>Careers</NavLink>
+            <NavLink to="/pricing" onClick={closeMenu} className={mobileNavLinkCls}>Pricing</NavLink>
+            <NavLink to="/contact" onClick={closeMenu} className={mobileNavLinkCls}>Contact</NavLink>
             {inPage ? (
               <div className="mt-1 flex gap-2">
                 <button onClick={() => { closeMenu(); onLogin?.(); }} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-extrabold text-slate-700 dark:bg-white/[0.06] dark:text-stone-200">Log in</button>
