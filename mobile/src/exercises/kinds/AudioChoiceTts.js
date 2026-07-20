@@ -6,11 +6,12 @@
 // web's priority order in src/exercises/tts.jsx.
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { Volume2 } from 'lucide-react-native';
+import { Volume2, Headphones } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { getChoices, getSingleCorrectIndex, normalizeText } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 
 export default function AudioChoiceTts({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
@@ -49,6 +50,7 @@ export default function AudioChoiceTts({ exercise, onSubmit, onCheckStateChange 
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={Headphones} label="Listen & choose" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{promptText}</Text>
       <Text className="mt-1 text-sm font-semibold text-stone-500">Tap play, then choose the correct option.</Text>
 

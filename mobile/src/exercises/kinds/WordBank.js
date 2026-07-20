@@ -4,8 +4,10 @@
 // tap-to-build is the primary path and matches every other tap-based kind.
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
+import { Languages } from 'lucide-react-native';
 import { normalizeText } from '../choiceHelpers';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 import { haptics } from '../../lib/haptics';
 
 export default function WordBank({ exercise, onSubmit, onCheckStateChange }) {
@@ -63,6 +65,7 @@ export default function WordBank({ exercise, onSubmit, onCheckStateChange }) {
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={Languages} label="Translate" color="#E0A800" tint="#FFF8E1" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Translate this'}</Text>
 
       {!!source && (

@@ -2,7 +2,9 @@
 // no options/choices array involved at all — cfg.correct is the boolean.
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
+import { ListChecks, Check, X as XIcon } from 'lucide-react-native';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 import { haptics } from '../../lib/haptics';
 
 export default function TrueFalse({ exercise, onSubmit, onCheckStateChange }) {
@@ -43,6 +45,7 @@ export default function TrueFalse({ exercise, onSubmit, onCheckStateChange }) {
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={ListChecks} label="True or false" color="#FF4B4B" tint="#FFECEC" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'True or False?'}</Text>
 
       {!!statement && (
@@ -60,8 +63,9 @@ export default function TrueFalse({ exercise, onSubmit, onCheckStateChange }) {
           <Pressable3D
             disabled={!!graded}
             onPress={() => setSelected(0)}
-            className={'items-center rounded-2xl border-2 py-4 ' + optionStyle(false)}
+            className={'flex-row items-center justify-center gap-2 rounded-2xl border-2 py-4 ' + optionStyle(false)}
           >
+            <XIcon size={16} color="#57534e" />
             <Text className="text-base font-bold text-stone-800">False</Text>
           </Pressable3D>
         </View>
@@ -69,8 +73,9 @@ export default function TrueFalse({ exercise, onSubmit, onCheckStateChange }) {
           <Pressable3D
             disabled={!!graded}
             onPress={() => setSelected(1)}
-            className={'items-center rounded-2xl border-2 py-4 ' + optionStyle(true)}
+            className={'flex-row items-center justify-center gap-2 rounded-2xl border-2 py-4 ' + optionStyle(true)}
           >
+            <Check size={16} color="#57534e" />
             <Text className="text-base font-bold text-stone-800">True</Text>
           </Pressable3D>
         </View>

@@ -2,8 +2,10 @@
 // Fill-in-the-blank: pick the choice that completes the sentence.
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
+import { PenLine } from 'lucide-react-native';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 
 export default function SelectMissingWord({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
@@ -34,6 +36,7 @@ export default function SelectMissingWord({ exercise, onSubmit, onCheckStateChan
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={PenLine} label="Fill in the blank" color="#58CC02" tint="#EFFCE3" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Complete the sentence'}</Text>
 
       <View className="mt-4 flex-row flex-wrap items-center rounded-2xl bg-stone-100 p-4">

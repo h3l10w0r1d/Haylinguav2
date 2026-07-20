@@ -12,6 +12,7 @@ import { startRecording, stopRecording, cancelRecording, transcribe } from '../.
 import { isSpeechMatch } from '../../lib/similarity';
 import { haptics } from '../../lib/haptics';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 
 export default function Speak({ exercise, onSubmit, onAdvance, onCheckStateChange }) {
   const cfg = exercise.config || {};
@@ -110,6 +111,7 @@ export default function Speak({ exercise, onSubmit, onAdvance, onCheckStateChang
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={Mic} label="Speak" color="#FF7A1A" tint="#FFF5EC" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Say the phrase out loud'}</Text>
 
       {!!target && (

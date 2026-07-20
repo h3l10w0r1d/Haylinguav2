@@ -4,7 +4,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring } from 'react-native-reanimated';
+import { Blocks, RotateCcw } from 'lucide-react-native';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 import { haptics } from '../../lib/haptics';
 
 function Tile({ text, isUsed, disabled, onPress }) {
@@ -78,6 +80,7 @@ export default function CharBuildWord({ exercise, onSubmit, onCheckStateChange }
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={Blocks} label="Build the word" color="#FF7A1A" tint="#FFF5EC" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Build the word'}</Text>
       {!!targetWord && (
         <Text className="mt-1 text-sm font-semibold text-stone-500">
@@ -91,8 +94,9 @@ export default function CharBuildWord({ exercise, onSubmit, onCheckStateChange }
           onPress={reset}
           disabled={chosen.length === 0 || !!graded}
           pressDepth={2}
-          className="mt-3 self-start rounded-xl bg-white px-4 py-2"
+          className="mt-3 flex-row items-center gap-1.5 self-start rounded-xl bg-white px-4 py-2"
         >
+          <RotateCcw size={13} color="#57534e" />
           <Text className="text-sm font-bold text-stone-600">Reset</Text>
         </Pressable3D>
       </View>

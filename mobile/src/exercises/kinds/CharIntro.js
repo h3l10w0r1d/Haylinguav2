@@ -11,9 +11,10 @@
 // `autoAdvance: true` to skip its result panel the same way.
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Volume2 } from 'lucide-react-native';
+import { Volume2, BookOpen } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 
 export default function CharIntro({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
@@ -22,11 +23,12 @@ export default function CharIntro({ exercise, onSubmit, onAdvance }) {
   return (
     <View className="flex-1 justify-between">
       <View>
+        <ExerciseEyebrow icon={BookOpen} label="New letter" color="#E0A800" tint="#FFF8E1" />
         <Text className="text-sm font-bold uppercase tracking-wide text-stone-400">{prompt}</Text>
 
         <View className="mt-4 flex-row items-center justify-between rounded-2xl bg-white p-6" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-          <Text className="text-6xl font-black text-stone-900">{cfg.letter ?? ''}</Text>
-          <Text className="text-4xl font-extrabold text-stone-600">{cfg.lower ?? ''}</Text>
+          <Text className="text-6xl font-black text-stone-900 font-display">{cfg.letter ?? ''}</Text>
+          <Text className="text-4xl font-extrabold text-stone-600 font-display">{cfg.lower ?? ''}</Text>
         </View>
 
         <View className="mt-4 rounded-2xl bg-stone-100 p-4">

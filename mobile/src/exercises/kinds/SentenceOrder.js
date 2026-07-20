@@ -6,8 +6,10 @@
 // so this version omits per-token audio and keeps only the tap-to-build flow.
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text } from 'react-native';
+import { ListOrdered } from 'lucide-react-native';
 import { normalizeText } from '../choiceHelpers';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 import { haptics } from '../../lib/haptics';
 
 export default function SentenceOrder({ exercise, onSubmit, onCheckStateChange }) {
@@ -77,6 +79,7 @@ export default function SentenceOrder({ exercise, onSubmit, onCheckStateChange }
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={ListOrdered} label="Put in order" color="#58CC02" tint="#EFFCE3" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Put the sentence in order'}</Text>
 
       <View className="mt-4 min-h-[64px] rounded-2xl bg-stone-100 p-4">

@@ -2,11 +2,12 @@
 // (single-select path only — multi-select isn't in scope yet).
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
-import { Volume2 } from 'lucide-react-native';
+import { Volume2, Headphones } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 
 export default function LetterRecognition({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
@@ -36,6 +37,7 @@ export default function LetterRecognition({ exercise, onSubmit, onCheckStateChan
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={Headphones} label="Listen & choose" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Choose the correct answer'}</Text>
 
       <Pressable3D

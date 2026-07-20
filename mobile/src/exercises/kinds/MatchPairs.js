@@ -10,7 +10,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring } from 'react-native-reanimated';
 import { normalizeText } from '../choiceHelpers';
+import { Link2, CheckCircle2 } from 'lucide-react-native';
 import Pressable3D from '../../components/Pressable3D';
+import ExerciseEyebrow from '../ExerciseEyebrow';
 import { haptics } from '../../lib/haptics';
 
 function MatchTile({ text, isDone, active, disabled, onPress, wrongKey }) {
@@ -118,10 +120,14 @@ export default function MatchPairs({ exercise, onSubmit }) {
 
   return (
     <View className="flex-1">
+      <ExerciseEyebrow icon={Link2} label="Match the pairs" />
       <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Match the pairs'}</Text>
-      <Text className="mt-1 text-sm font-semibold text-stone-500">
-        Matched: {currentMatches} / {totalMatches}
-      </Text>
+      <View className="mt-1 flex-row items-center gap-1.5">
+        <CheckCircle2 size={13} color={currentMatches === totalMatches ? '#58CC02' : '#a8a29e'} />
+        <Text className="text-sm font-semibold text-stone-500">
+          Matched: {currentMatches} / {totalMatches}
+        </Text>
+      </View>
 
       <View className="mt-4 flex-row" style={{ gap: 12 }}>
         <View className="flex-1" style={{ gap: 8 }}>
