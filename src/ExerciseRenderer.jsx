@@ -1316,7 +1316,7 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
   );
 }
 
-// G) speak — record speech, transcribe via backend (ElevenLabs Scribe), compare
+// G) speak — record speech, transcribe via backend (hispeech.ai), compare
 function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Say the phrase out loud";
@@ -1338,6 +1338,10 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
     setTranscript("");
     setError("");
     setShowHint(false);
+    // Auto-start the mic for each new speak exercise instead of waiting for
+    // a tap — the learner can start talking the moment the prompt appears.
+    startRec();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise?.id]);
 
   async function startRec() {
@@ -1348,8 +1352,13 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      // Mono + noise suppression keeps the upload small and the transcript
+      // cleaner — speech doesn't need stereo or a high bitrate, and a
+      // smaller file both uploads and transcribes faster.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      });
+      const mr = new MediaRecorder(stream, { audioBitsPerSecond: 32000 });
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
       mr.onstop = async () => {
@@ -2272,14 +2281,21 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
   const mrRef = useRef(null);
   const chunksRef = useRef([]);
 
-  useEffect(() => { setRecording(false); setBusy(false); setTranscript(""); setError(""); setShowHint(false); }, [exercise?.id]);
+  useEffect(() => {
+    setRecording(false); setBusy(false); setTranscript(""); setError(""); setShowHint(false);
+    // Auto-start the mic for each new line instead of waiting for a tap.
+    startRec();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
 
   async function startRec() {
     setError(""); setTranscript("");
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { setError("Recording isn't supported here."); return; }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      });
+      const mr = new MediaRecorder(stream, { audioBitsPerSecond: 32000 });
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data?.size) chunksRef.current.push(e.data); };
       mr.onstop = async () => { stream.getTracks().forEach((t) => t.stop()); const blob = new Blob(chunksRef.current, { type: "audio/webm" }); if (blob.size) await transcribe(blob); };

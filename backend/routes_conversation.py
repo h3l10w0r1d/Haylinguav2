@@ -270,7 +270,10 @@ async def _transcribe_hispeech(audio_bytes: bytes, filename: str = "speech.webm"
     if not data.get("success", True):
         print(f"[hispeech] error: {data.get('error')}")
         return ""
-    return (data.get("transcription") or "").strip()
+    # hispeech.ai capitalizes sentence-initial letters; every accepted answer
+    # in the exercise data is stored lowercase, so normalize here once rather
+    # than in every caller/grader that compares against it.
+    return (data.get("transcription") or "").strip().lower()
 
 
 
