@@ -89,6 +89,19 @@ export default function HeaderLayout({ user, onLogout, children }) {
     return () => { cancelled = true; window.removeEventListener("hay_wallet", onWallet); };
   }, []);
 
+  // The "Affiliate" nav item should only show for people who've actually
+  // applied to the program — GET /affiliate/me 404s for everyone else.
+  const [isAffiliate, setIsAffiliate] = useState(false);
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    apiFetch("/affiliate/me", { token, method: "GET" })
+      .then((r) => { if (!cancelled) setIsAffiliate(r.ok); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   // SSE connection for real-time XP/streak/gems/hearts updates
   useEffect(() => {
     const token = getToken();
@@ -268,10 +281,12 @@ export default function HeaderLayout({ user, onLogout, children }) {
               <Store className="w-4 h-4" />
               <span>Shop</span>
             </NavLink>
-            <NavLink to="/affiliate-dashboard" className={navLinkClass}>
-              <Percent className="w-4 h-4" />
-              <span>Affiliate</span>
-            </NavLink>
+            {isAffiliate && (
+              <NavLink to="/affiliate-dashboard" className={navLinkClass}>
+                <Percent className="w-4 h-4" />
+                <span>Affiliate</span>
+              </NavLink>
+            )}
             <NavLink to="/profile" className={navLinkClass}>
               <User className="w-4 h-4" />
               <span>Profile</span>
