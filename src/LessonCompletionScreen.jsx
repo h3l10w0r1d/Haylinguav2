@@ -16,6 +16,7 @@ import {
   Trophy,
   Gift,
   Sparkles,
+  Clock,
 } from "lucide-react";
 import Illustration from "./lib/Illustration";
 import ChestOpening from "./lib/ChestOpening";
@@ -333,11 +334,19 @@ function StarsRow({ percent }) {
   );
 }
 
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round(Number(ms) || 0) / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.round(totalSeconds % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 function StatCard({ icon: Icon, value, label, tone = "brand" }) {
   const tones = {
     brand: "text-brand-500 bg-brand-50 dark:text-brand-400 dark:bg-brand-500/15",
     grass: "text-grass-600 bg-grass-50 dark:text-grass-400 dark:bg-grass-500/15",
     feather: "text-feather-600 bg-feather-50 dark:text-feather-400 dark:bg-feather-500/15",
+    pom: "text-pom-600 bg-pom-50 dark:text-pom-400 dark:bg-pom-500/15",
   };
   return (
     <div className="rounded-2xl bg-white px-4 py-4 text-center ring-1 ring-slate-200/80 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
@@ -373,6 +382,7 @@ export default function LessonCompletionScreen({
   onRetry,
   onDone,
   isSaving,
+  timeMs,
 }) {
   const perfect = Number(mistakes) === 0;
   const [detailsOpen, setDetailsOpen] = useState(!perfect);
@@ -433,10 +443,13 @@ export default function LessonCompletionScreen({
             </div>
           ) : null}
 
-          <div className="mt-8 grid grid-cols-3 gap-3">
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard icon={Zap} value={`+${sessionXpEarned ?? earnedXp}`} label="XP" tone="brand" />
             <StatCard icon={Target} value={`${accuracy}%`} label="Accuracy" tone="feather" />
             <StatCard icon={CheckCircle2} value={total ? `${correct}/${total}` : `${correct}`} label="Correct" tone="grass" />
+            {Number.isFinite(timeMs) ? (
+              <StatCard icon={Clock} value={formatDuration(timeMs)} label="Time" tone="pom" />
+            ) : null}
           </div>
 
           <div className="mt-6 rounded-2xl bg-brand-50 px-5 py-3 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:ring-brand-500/30">

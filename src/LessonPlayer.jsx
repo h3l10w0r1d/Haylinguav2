@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import ExerciseRenderer from "./ExerciseRenderer";
 import Phase2Exercise from "./Phase2Exercise";
 import LessonCompletionScreen from "./LessonCompletionScreen";
+import LessonReviewPanel from "./exercises/LessonReviewPanel";
 import ExerciseAnalyticsModal from "./ExerciseAnalyticsModal";
 import ExerciseShell from "./ExerciseShell";
 import { sfx } from "./lib/sfx";
@@ -186,6 +187,14 @@ export default function LessonPlayer() {
   const [phase2Actions, setPhase2Actions] = useState(null);
 
   const exerciseStartRef = useRef(Date.now());
+  const lessonStartRef = useRef(Date.now());
+
+  // Read-only "step back" review: exercises already completed this lesson,
+  // so a learner can scroll back through what they've done without any of
+  // it affecting grading/XP/hearts state.
+  const [history, setHistory] = useState([]);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const wrongIdsRef = useRef(new Set());
 
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState(null);
@@ -508,6 +517,25 @@ export default function LessonPlayer() {
       else sfx.wrong();
     }
 
+    // Record for the "review this lesson so far" panel — only once an
+    // exercise is actually passed (matches the progress bar advancing);
+    // wrong/skipped attempts just mark it so the review badge shows
+    // "got there eventually" instead of a clean pass.
+    if (isCorrect && currentExercise) {
+      setHistory((h) => [
+        ...h,
+        {
+          id: currentExercise.id,
+          prompt: currentExercise.prompt,
+          userAnswer: payload?.userAnswer ?? null,
+          xpEarned,
+          wasWrongFirst: wrongIdsRef.current.has(currentExercise.id),
+        },
+      ]);
+    } else if (currentExercise) {
+      wrongIdsRef.current.add(currentExercise.id);
+    }
+
     // Track mistakes so the lesson can't be "completed" by getting things wrong:
     // Duolingo-style, any non-correct answer (including a skip) re-shows the
     // exercise — you only advance once you answer correctly.
@@ -823,6 +851,8 @@ export default function LessonPlayer() {
       secondaryDisabled={null}
       onSecondary={null}
       hideFooter={showDoneFooter || isReadingSection || outOfHearts}
+      reviewCount={!showDoneFooter ? history.length : 0}
+      onReview={() => setReviewOpen(true)}
       result={
         resultOpen && resultData
           ? {
@@ -902,6 +932,7 @@ export default function LessonPlayer() {
             sessionXpEarned={lessonXpEarned}
             comboBonusXp={lessonComboBonus}
             mistakes={mistakes}
+            timeMs={Date.now() - lessonStartRef.current}
             analytics={analyticsData}
             analyticsLoading={analyticsLoading}
             analyticsError={analyticsError}
@@ -977,6 +1008,12 @@ export default function LessonPlayer() {
           error={exModalError}
           data={exModalData}
           onRetry={() => fetchExerciseAnalytics(exModalExerciseId)}
+        />
+
+        <LessonReviewPanel
+          open={reviewOpen}
+          history={history}
+          onClose={() => setReviewOpen(false)}
         />
     </ExerciseShell>
     </>
