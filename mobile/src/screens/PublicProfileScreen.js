@@ -7,7 +7,7 @@ import { View, Text, Image, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserPlus, UserCheck, UserMinus, Award, ChevronLeft } from 'lucide-react-native';
-import { api } from '../lib/api';
+import { api, resolveUrl } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
 import { haptics } from '../lib/haptics';
 
@@ -102,7 +102,7 @@ export default function PublicProfileScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         <View className="items-center pt-4">
           {profile.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} className="h-24 w-24 rounded-full bg-stone-200" />
+            <Image source={{ uri: resolveUrl(profile.avatar_url) }} className="h-24 w-24 rounded-full bg-stone-200" />
           ) : (
             <View className="h-24 w-24 items-center justify-center rounded-full bg-brand-100">
               <Text className="text-3xl font-extrabold text-brand-600">{(profile.name || profile.username || '?')[0]?.toUpperCase()}</Text>
