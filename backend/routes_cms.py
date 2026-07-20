@@ -1513,6 +1513,19 @@ def cms_seed_sentences(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/fluency")
+def cms_seed_fluency(request: Request, db=Depends(get_db)):
+    """Populate Phase 4 (Functional fluency) — past/future tense, reading
+    comprehension, and dialogue scenarios. Idempotent."""
+    require_cms(request, db)
+    from seed_fluency import seed_fluency_phase
+    try:
+        res = seed_fluency_phase()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
