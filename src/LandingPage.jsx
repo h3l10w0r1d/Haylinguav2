@@ -337,9 +337,11 @@ function LandingExerciseDemo({ onSignup }) {
   useEffect(() => clearAutoTimers, []);
 
   // Autoplay (and the sfx it triggers) only runs while the demo card is
-  // actually on screen — scrolling past it pauses the whole loop instead of
-  // it playing sound from off-screen. Re-entering the viewport resumes it.
+  // actually on screen AND the tab itself is the active/foreground one —
+  // scrolling past it, switching tabs, or backgrounding the window all pause
+  // the whole loop instead of it ticking away and playing sound unseen.
   const [inView, setInView] = useState(true);
+  const [tabVisible, setTabVisible] = useState(() => typeof document === "undefined" || !document.hidden);
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
@@ -351,11 +353,17 @@ function LandingExerciseDemo({ onSignup }) {
     return () => obs.disconnect();
   }, []);
   useEffect(() => {
-    if (!inView) {
+    const onVisibility = () => setTabVisible(!document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+  const canAutoplay = inView && tabVisible;
+  useEffect(() => {
+    if (!canAutoplay) {
       setCursorPos(null);
       clearAutoTimers();
     }
-  }, [inView]);
+  }, [canAutoplay]);
 
   const q = DEMO_QUESTIONS[qi];
   const isCorrect = checked && selected === q.correct;
@@ -436,32 +444,32 @@ function LandingExerciseDemo({ onSignup }) {
   // Continue. Each effect only fires when it's actually that step's turn, so it
   // stays in sync with the real state instead of a blind timer chain.
   useEffect(() => {
-    if (!autoActive || !inView || checked || selected != null) return;
+    if (!autoActive || !canAutoplay || checked || selected != null) return;
     moveCursorTo(optionRefs.current[q.correct], 1000, () => pick(q.correct));
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, inView, checked, selected, qi]);
+  }, [autoActive, canAutoplay, checked, selected, qi]);
 
   useEffect(() => {
-    if (!autoActive || !inView || checked || selected == null) return;
+    if (!autoActive || !canAutoplay || checked || selected == null) return;
     moveCursorTo(checkRef.current, 500, onCheck);
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, inView, checked, selected]);
+  }, [autoActive, canAutoplay, checked, selected]);
 
   useEffect(() => {
-    if (!autoActive || !inView || !checked) return;
+    if (!autoActive || !canAutoplay || !checked) return;
     moveCursorTo(continueRef.current, 1400, onContinue);
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, inView, checked, qi]);
+  }, [autoActive, canAutoplay, checked, qi]);
 
   useEffect(() => {
-    if (!autoActive || !inView || !done) return;
+    if (!autoActive || !canAutoplay || !done) return;
     scheduleAuto(practiceAgain, 2600);
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, inView, done]);
+  }, [autoActive, canAutoplay, done]);
 
   if (done) {
     return (

@@ -25,6 +25,10 @@ if (typeof document !== "undefined") {
 
 function getContext() {
   try {
+    // A background loop (e.g. the landing page's autoplay demo) can still
+    // call sfx functions on a timer while the tab is hidden — don't let that
+    // resume a context we just suspended for exactly that reason.
+    if (typeof document !== "undefined" && document.hidden) return null;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
     if (!_ctx) _ctx = new AC();
