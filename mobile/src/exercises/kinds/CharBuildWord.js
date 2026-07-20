@@ -78,7 +78,7 @@ export default function CharBuildWord({ exercise, onSubmit, onCheckStateChange }
 
   return (
     <View className="flex-1">
-      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Build the word'}</Text>
+      <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Build the word'}</Text>
       {!!targetWord && (
         <Text className="mt-1 text-sm font-semibold text-stone-500">
           Target: <Text className="font-bold text-stone-800">{targetWord}</Text>

@@ -3,6 +3,7 @@
  * @format
  */
 import './global.css';
+import './src/lib/defaultFont';
 import React from 'react';
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

@@ -37,7 +37,7 @@ export default function ExerciseResultBanner({ visible, correct, xpEarned = 0, o
             resizeMode="cover"
           />
           <View className="min-w-0 flex-1">
-            <Text className="text-lg font-extrabold" style={{ color: headingColor }}>
+            <Text className="text-lg font-extrabold font-display" style={{ color: headingColor }}>
               {correct ? 'Correct!' : 'Not quite'}
             </Text>
             {correct && xpEarned > 0 && (

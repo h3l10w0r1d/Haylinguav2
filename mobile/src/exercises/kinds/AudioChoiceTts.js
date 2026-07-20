@@ -49,7 +49,7 @@ export default function AudioChoiceTts({ exercise, onSubmit, onCheckStateChange 
 
   return (
     <View className="flex-1">
-      <Text className="text-lg font-extrabold text-stone-900">{promptText}</Text>
+      <Text className="text-lg font-extrabold text-stone-900 font-display">{promptText}</Text>
       <Text className="mt-1 text-sm font-semibold text-stone-500">Tap play, then choose the correct option.</Text>
 
       <Pressable3D

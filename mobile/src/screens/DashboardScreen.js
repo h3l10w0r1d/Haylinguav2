@@ -85,7 +85,7 @@ function KpiTile({ icon: Icon, accent, label, value, index, animateFlame }) {
           {animateFlame ? <FlameIcon color={accent.icon} size={18} /> : <Icon size={18} color={accent.icon} />}
         </View>
         <View>
-          <Text className="text-xl font-extrabold text-stone-900">{value}</Text>
+          <Text className="text-xl font-extrabold text-stone-900 font-display">{value}</Text>
           <Text className="text-[11px] font-semibold text-stone-400">{label}</Text>
         </View>
       </View>
@@ -197,7 +197,7 @@ export default function DashboardScreen({ navigation }) {
         />
         <View style={{ padding: 24 }}>
           <Text className="text-sm font-bold text-white/85">Բարև 👋</Text>
-          <Text className="mt-1.5 text-2xl font-extrabold text-white">
+          <Text className="mt-1.5 text-2xl font-extrabold text-white font-display">
             {loadingLessons ? 'Loading your journey…' : currentLesson ? "Ready for today's lesson?" : "You've reached the summit!"}
           </Text>
 

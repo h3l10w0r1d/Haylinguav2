@@ -149,7 +149,7 @@ export default function ProfileScreen({ navigation }) {
                 <Camera size={12} color="#fff" />
               </View>
             </Pressable3D>
-            <Text className="mt-2 text-lg font-extrabold text-stone-900">{displayName}</Text>
+            <Text className="mt-2 text-lg font-extrabold text-stone-900 font-display">{displayName}</Text>
             {!!profile?.username && <Text className="text-sm font-semibold text-stone-400">@{profile.username}</Text>}
             {!!profile?.bio && <Text className="mt-1 text-center text-sm font-medium text-stone-500">{profile.bio}</Text>}
             <View className="mt-2 flex-row items-center gap-2">
@@ -216,7 +216,7 @@ export default function ProfileScreen({ navigation }) {
 function StatTile({ label, value }) {
   return (
     <View className="flex-1 items-center rounded-2xl bg-white px-3 py-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-      <Text className="text-xl font-extrabold text-stone-900">{value}</Text>
+      <Text className="text-xl font-extrabold text-stone-900 font-display">{value}</Text>
       <Text className="mt-1 text-[11px] font-bold uppercase tracking-wide text-stone-400">{label}</Text>
     </View>
   );

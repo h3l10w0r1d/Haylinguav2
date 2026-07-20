@@ -36,7 +36,7 @@ export default function LetterRecognition({ exercise, onSubmit, onCheckStateChan
 
   return (
     <View className="flex-1">
-      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Choose the correct answer'}</Text>
+      <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Choose the correct answer'}</Text>
 
       <Pressable3D
         onPress={() => playExerciseAudio(exercise.id, { text: ttsText })}

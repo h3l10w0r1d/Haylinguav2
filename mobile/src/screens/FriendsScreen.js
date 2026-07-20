@@ -209,7 +209,7 @@ export default function FriendsScreen({ navigation }) {
   return (
     <SafeAreaView className="flex-1 bg-[#f5f4f1]" edges={['top']}>
       <View className="px-4 pb-2 pt-3">
-        <Text className="text-xl font-extrabold text-stone-900">Friends</Text>
+        <Text className="text-xl font-extrabold text-stone-900 font-display">Friends</Text>
 
         {/* Pressable3D's press animation lives on an outer wrapper View, so
             the flex-1 that splits this row evenly has to go on a plain View

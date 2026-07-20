@@ -77,7 +77,7 @@ export default function SentenceOrder({ exercise, onSubmit, onCheckStateChange }
 
   return (
     <View className="flex-1">
-      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Put the sentence in order'}</Text>
+      <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Put the sentence in order'}</Text>
 
       <View className="mt-4 min-h-[64px] rounded-2xl bg-stone-100 p-4">
         <View className="flex-row flex-wrap" style={{ gap: 8 }}>

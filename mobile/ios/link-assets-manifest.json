@@ -1,0 +1,21 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "src/assets/fonts/BalooTwo-ExtraBold.ttf",
+      "sha1": "c40cbdcc9963bf03010a4acc6982d1928d76ff94"
+    },
+    {
+      "path": "src/assets/fonts/Nunito-Bold.ttf",
+      "sha1": "daed65a74fcb7d71f12dbb8a338089a8f8a5ac58"
+    },
+    {
+      "path": "src/assets/fonts/Nunito-ExtraBold.ttf",
+      "sha1": "0735ed682691ad9d9b87f2e2350b1d52a7e5c3b7"
+    },
+    {
+      "path": "src/assets/fonts/Nunito-Regular.ttf",
+      "sha1": "8422e3b59960daa2ba6c1965749bf384a501ae36"
+    }
+  ]
+}

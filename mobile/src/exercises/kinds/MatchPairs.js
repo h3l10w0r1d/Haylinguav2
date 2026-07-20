@@ -118,7 +118,7 @@ export default function MatchPairs({ exercise, onSubmit }) {
 
   return (
     <View className="flex-1">
-      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Match the pairs'}</Text>
+      <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Match the pairs'}</Text>
       <Text className="mt-1 text-sm font-semibold text-stone-500">
         Matched: {currentMatches} / {totalMatches}
       </Text>

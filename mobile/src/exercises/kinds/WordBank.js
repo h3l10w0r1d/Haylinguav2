@@ -63,7 +63,7 @@ export default function WordBank({ exercise, onSubmit, onCheckStateChange }) {
 
   return (
     <View className="flex-1">
-      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Translate this'}</Text>
+      <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Translate this'}</Text>
 
       {!!source && (
         <View className="mt-4 rounded-2xl bg-stone-100 p-4">

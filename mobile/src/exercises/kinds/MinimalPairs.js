@@ -55,7 +55,7 @@ export default function MinimalPairs({ exercise, onSubmit, onCheckStateChange })
 
   return (
     <View className="flex-1">
-      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Which word did you hear?'}</Text>
+      <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Which word did you hear?'}</Text>
 
       <View className="mt-6 items-center">
         <Pressable3D

@@ -34,7 +34,7 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Haylingua uses your microphone for speaking exercises so you can practice pronunciation.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -60,5 +60,12 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Nunito-ExtraBold.ttf</string>
+		<string>Nunito-Regular.ttf</string>
+		<string>Nunito-Bold.ttf</string>
+		<string>BalooTwo-ExtraBold.ttf</string>
+	</array>
 </dict>
 </plist>

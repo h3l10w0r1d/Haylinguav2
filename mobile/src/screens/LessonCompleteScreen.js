@@ -85,7 +85,7 @@ export default function LessonCompleteScreen({ route, navigation }) {
               </View>
             </PopIn>
             <PopIn delay={100} style={{ marginTop: 20 }}>
-              <Text className="text-center text-2xl font-extrabold text-stone-900">{milestoneHit}-day streak!</Text>
+              <Text className="text-center text-2xl font-extrabold text-stone-900 font-display">{milestoneHit}-day streak!</Text>
             </PopIn>
             <PopIn delay={180} style={{ marginTop: 6 }}>
               <Text className="text-center text-base font-semibold text-stone-500">You're on fire. Keep it going.</Text>
@@ -99,7 +99,7 @@ export default function LessonCompleteScreen({ route, navigation }) {
               </View>
             </PopIn>
             <PopIn delay={100} style={{ marginTop: 20 }}>
-              <Text className="text-center text-2xl font-extrabold text-stone-900">Lesson complete!</Text>
+              <Text className="text-center text-2xl font-extrabold text-stone-900 font-display">Lesson complete!</Text>
             </PopIn>
           </>
         )}
@@ -107,11 +107,11 @@ export default function LessonCompleteScreen({ route, navigation }) {
         <PopIn delay={260} style={{ marginTop: 28, width: '100%' }}>
           <View className="flex-row justify-center gap-4">
             <View className="flex-1 items-center rounded-2xl bg-white px-4 py-5" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-              <Text className="text-2xl font-extrabold text-brand-600">+{xpDisplay}</Text>
+              <Text className="text-2xl font-extrabold text-brand-600 font-display">+{xpDisplay}</Text>
               <Text className="mt-1 text-xs font-bold uppercase tracking-wide text-stone-400">XP earned</Text>
             </View>
             <View className="flex-1 items-center rounded-2xl bg-white px-4 py-5" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-              <Text className="text-2xl font-extrabold text-stone-900">{streak}</Text>
+              <Text className="text-2xl font-extrabold text-stone-900 font-display">{streak}</Text>
               <Text className="mt-1 text-xs font-bold uppercase tracking-wide text-stone-400">Day streak</Text>
             </View>
           </View>

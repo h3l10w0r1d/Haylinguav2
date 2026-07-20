@@ -34,7 +34,7 @@ export default function SelectMissingWord({ exercise, onSubmit, onCheckStateChan
 
   return (
     <View className="flex-1">
-      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Complete the sentence'}</Text>
+      <Text className="text-lg font-extrabold text-stone-900 font-display">{exercise.prompt || 'Complete the sentence'}</Text>
 
       <View className="mt-4 flex-row flex-wrap items-center rounded-2xl bg-stone-100 p-4">
         {!!before && <Text className="text-lg font-semibold text-stone-900">{before} </Text>}

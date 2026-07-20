@@ -195,7 +195,7 @@ export default function LeaderboardScreen({ navigation }) {
             <Trophy size={16} color="#fff" />
           </View>
           <View>
-            <Text className="text-xl font-extrabold text-stone-900">{league?.tier_name ?? 'League'}</Text>
+            <Text className="text-xl font-extrabold text-stone-900 font-display">{league?.tier_name ?? 'League'}</Text>
             {league?.seconds_left != null && (
               <Text className="text-xs font-bold text-stone-400">{formatCountdown(league.seconds_left)}</Text>
             )}
