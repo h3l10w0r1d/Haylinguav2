@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Play, Loader2, Star, Volume2 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { newTrackedAudio } from "../lib/audioRegistry";
 
 const TEST_PHRASES = [
   "Բարև ձեզ, ինչպե՞ս եք: Ես Արամն եմ, ձեր հայերենի ուսուցիչը:",
@@ -110,7 +111,7 @@ export default function CmsVoiceLab() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       audioRef.current?.pause();
-      const audio = new Audio(url);
+      const audio = newTrackedAudio(url);
       audioRef.current = audio;
       audio.onended = () => { setPlaying(false); URL.revokeObjectURL(url); };
       audio.onerror = () => { setPlaying(false); URL.revokeObjectURL(url); };

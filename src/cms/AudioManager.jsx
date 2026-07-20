@@ -1,6 +1,7 @@
 // src/cms/AudioManager.jsx
 import { useState, useEffect, useRef } from "react";
 import { Mic, Square, Upload, Play, Pause, Trash2, Loader, Check, AlertCircle, X } from "lucide-react";
+import { newTrackedAudio } from "../lib/audioRegistry";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -289,7 +290,7 @@ export default function AudioManager({ exerciseId, exerciseText, targetKey = nul
 
     Object.values(audioPlayerRef.current).forEach((p) => p?.pause());
 
-    const player = new Audio(
+    const player = newTrackedAudio(
       `${API_BASE}${targetKey ? "/cms/audio/targets" : "/cms/audio"}/${audioId}/preview`
     );
     player.onended = () => setPlaying(null);

@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2 } from "lucide-react";
 import { Card } from "./exercises/ui";
 import { ttsFetch } from "./exercises/tts";
+import { newTrackedAudio } from "./lib/audioRegistry";
+import ArmenianKeyboard from "./exercises/ArmenianKeyboard";
 
 const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
@@ -172,7 +174,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
         exerciseId: exercise.id,
         targetKey,
       });
-      const a = new Audio(url);
+      const a = newTrackedAudio(url);
       a.play().catch(() => {});
     } catch (e) {
       console.error("Audio play failed", e);
@@ -256,7 +258,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
       return;
     }
     try {
-      audioRef.current = new Audio(audioUrl);
+      audioRef.current = newTrackedAudio(audioUrl);
     } catch {
       audioRef.current = null;
     }
@@ -448,6 +450,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
             autoComplete="off"
             spellCheck={false}
           />
+          <ArmenianKeyboard value={typed} onChange={setTyped} className="mt-3" />
         </div>
         {expectedAnswers.length ? (
           <div className="mt-3 text-xs text-slate-500 dark:text-stone-400">

@@ -16,7 +16,9 @@ import {
 import { ttsFetch } from "./exercises/tts";
 import { GlossaryText, useNewWords, normWord } from "./exercises/WordHint";
 import { writeHearts } from "./lib/hearts";
+import { newTrackedAudio } from "./lib/audioRegistry";
 import { FooterSlot } from "./exercises/FooterSlot";
+import ArmenianKeyboard from "./exercises/ArmenianKeyboard";
 
 // Renders a prompt heading with optional inline word-hint tooltips.
 // Glossary is stored in exercise.config.glossary: { "word": "definition" }
@@ -439,7 +441,7 @@ function ExLetterRecognition({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
         exerciseId: exercise?.id,
         targetKey,
       });
-      const a = new Audio(url);
+      const a = newTrackedAudio(url);
       a.play();
     } catch (e) {
       console.error("TTS failed", e);
@@ -648,6 +650,7 @@ function ExLetterTyping({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
 
       <div className="mt-4">
         <InlineInput value={inputValue} onChange={setInputValue} placeholder="Type here…" />
+        <ArmenianKeyboard value={inputValue} onChange={setInputValue} className="mt-3" />
       </div>
 
       <FooterSlot>
@@ -688,6 +691,7 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
 
       <div className="mt-4">
         <InlineInput value={inputValue} onChange={setInputValue} placeholder="Type the word…" />
+        <ArmenianKeyboard value={inputValue} onChange={setInputValue} className="mt-3" />
       </div>
 
       <FooterSlot>
@@ -744,6 +748,7 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
           onChange={setInputValue}
           placeholder="Type the missing word…"
         />
+        <ArmenianKeyboard value={inputValue} onChange={setInputValue} className="mt-3" />
       </div>
 
       <FooterSlot>
@@ -923,7 +928,7 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
         exerciseId: exercise?.id,
         targetKey,
       });
-      const a = new Audio(url);
+      const a = newTrackedAudio(url);
       a.play();
     } catch (e) {
       console.error("TTS failed", e);
@@ -1238,7 +1243,7 @@ function ExAudioChoiceTts({
         exerciseId: exercise?.id,
       });
       setAudioUrl(url);
-      const audio = new Audio(url);
+      const audio = newTrackedAudio(url);
       audioRef.current = audio;
       await audio.play();
     } catch {
@@ -1486,7 +1491,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
     if (!target) return;
     try {
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
-      new Audio(url).play();
+      newTrackedAudio(url).play();
     } catch (e) {
       console.error("TTS failed", e);
     }
@@ -1634,7 +1639,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
     try {
       setBusy(true);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
-      const a = new Audio(url);
+      const a = newTrackedAudio(url);
       a.playbackRate = rate;
       await a.play();
     } catch (e) {
@@ -1679,6 +1684,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
 
       <div className="mt-4">
         <InlineInput value={value} onChange={setValue} placeholder="Type what you heard…" />
+        <ArmenianKeyboard value={value} onChange={setValue} className="mt-3" />
       </div>
 
       <FooterSlot>
@@ -1913,7 +1919,7 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
     try {
       setBusy(true);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
-      const a = new Audio(url);
+      const a = newTrackedAudio(url);
       a.playbackRate = rate;
       await a.play();
     } catch (e) {
@@ -2134,7 +2140,7 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
     try {
       setBusy(true);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
-      const a = new Audio(url);
+      const a = newTrackedAudio(url);
       a.playbackRate = rate;
       await a.play();
     } catch (e) { console.error("TTS failed", e); } finally { setBusy(false); }
@@ -2416,7 +2422,7 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
   }
   async function playLine(text) {
     if (!text) return;
-    try { const url = await ttsFetch(apiBaseUrl || API_BASE, { text, exerciseId: exercise?.id }); new Audio(url).play(); } catch (e) { console.error(e); }
+    try { const url = await ttsFetch(apiBaseUrl || API_BASE, { text, exerciseId: exercise?.id }); newTrackedAudio(url).play(); } catch (e) { console.error(e); }
   }
 
   const canCheck = !!transcript.trim() && !busy && !recording;
@@ -2535,6 +2541,7 @@ function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
           rows={3}
           className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
         />
+        <ArmenianKeyboard value={value} onChange={setValue} className="mt-3" />
       </div>
       <FooterSlot>
         <PrimaryButton disabled={!canCheck} onClick={() => {

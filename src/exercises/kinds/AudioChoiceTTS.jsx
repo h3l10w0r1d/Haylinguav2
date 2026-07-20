@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, Title, Muted, PrimaryButton, SecondaryButton, ChoiceGrid, normalizeText } from "../ui";
 import { ttsFetch } from "../tts";
+import { newTrackedAudio } from "../../lib/audioRegistry";
 
 export default function AudioChoiceTTS({ exercise, cfg, apiBaseUrl, correct, wrong, onSkip, onAnswer }) {
   const prompt = exercise?.prompt || "Listen and choose";
@@ -82,7 +83,7 @@ export default function AudioChoiceTTS({ exercise, cfg, apiBaseUrl, correct, wro
         // Voice preference is resolved inside ttsFetch (onboarding/localStorage) unless overridden.
       });
       audioUrlRef.current = url;
-      const audio = new Audio(url);
+      const audio = newTrackedAudio(url);
       audioRef.current = audio;
       await audio.play();
     } catch {

@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, ChevronRight, Loader2, Mic, Pencil, Send, Target, Trophy, Volume2, VolumeX } from 'lucide-react';
+import { newTrackedAudio } from './lib/audioRegistry';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
 
@@ -205,7 +206,7 @@ export default function AIConversation() {
       return;
     }
     audioRef.current?.pause();
-    const audio = new Audio(url);
+    const audio = newTrackedAudio(url);
     audioRef.current = audio;
     setIsSpeaking(true);
     audio.play().catch(() => setIsSpeaking(false));

@@ -1,6 +1,7 @@
 // src/ExerciseShell.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Heart, Volume2, Sparkles, HelpCircle, Loader2 } from "lucide-react";
+import { X, Heart, Volume2, Sparkles, HelpCircle, Loader2, History } from "lucide-react";
+import { newTrackedAudio } from "./lib/audioRegistry";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -18,7 +19,7 @@ async function speakText(text) {
     if (!res.ok) return;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    const audio = newTrackedAudio(url);
     audio.play();
     audio.onended = () => URL.revokeObjectURL(url);
   } catch {}
@@ -205,6 +206,11 @@ export default function ExerciseShell({
   // so the shell's Check-button footer (and its FooterSlot portal target)
   // must not appear, or an empty bar would show underneath them.
   hideFooter = false,
+  // Read-only "step back" review of exercises already completed this lesson —
+  // reviewCount is how many there are; onReview opens the panel. Absent/0
+  // means nothing to review yet, so the button doesn't render.
+  reviewCount = 0,
+  onReview,
   children,
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
@@ -345,6 +351,18 @@ export default function ExerciseShell({
           >
             <X className="h-7 w-7" strokeWidth={3} />
           </button>
+
+          {reviewCount > 0 ? (
+            <button
+              type="button"
+              onClick={onReview}
+              aria-label="Review this lesson so far"
+              title="Review this lesson so far"
+              className="text-slate-400 transition hover:text-slate-600 active:scale-90 dark:text-stone-500 dark:hover:text-stone-300"
+            >
+              <History className="h-6 w-6" strokeWidth={2.5} />
+            </button>
+          ) : null}
 
           <div className={"h-4 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10 transition-shadow duration-300 " + (justAdvanced ? "shadow-[0_0_0_3px_rgba(88,204,2,0.35)]" : "")}>
             <div

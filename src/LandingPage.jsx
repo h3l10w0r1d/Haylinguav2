@@ -15,6 +15,7 @@ import grandma from "./assets/character-grandma.png";
 import student from "./assets/character-student.png";
 import { ttsFetch } from "./exercises/tts";
 import { sfx } from "./lib/sfx";
+import { newTrackedAudio } from "./lib/audioRegistry";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
@@ -251,7 +252,7 @@ function VoiceChip({ text, label, tone = "brand" }) {
       if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
       const url = await ttsFetch(API_BASE, { text });
       urlRef.current = url;
-      const audio = new Audio(url);
+      const audio = newTrackedAudio(url);
       audioRef.current = audio;
       audio.onended = () => setState("idle");
       audio.onerror = () => setState("idle");

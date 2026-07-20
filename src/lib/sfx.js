@@ -9,6 +9,20 @@
 
 let _ctx = null;
 
+// Web Audio keeps generating sound in a hidden/background tab by default —
+// suspend the shared context the instant the tab is hidden or closed so
+// nothing plays out unheard. getContext() resumes it again on the next
+// real sfx call, which only ever happens from a foreground user action.
+if (typeof document !== "undefined") {
+  const suspendIfHidden = () => {
+    if (_ctx && _ctx.state === "running") _ctx.suspend().catch(() => {});
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) suspendIfHidden();
+  });
+  window.addEventListener("pagehide", suspendIfHidden);
+}
+
 function getContext() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;

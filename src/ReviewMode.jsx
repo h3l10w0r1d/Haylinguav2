@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Volume2, ChevronLeft, CheckCircle } from "lucide-react";
+import { newTrackedAudio } from "./lib/audioRegistry";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -39,7 +40,7 @@ function AudioButton({ src }) {
   if (!src) return null;
   return (
     <button
-      onClick={() => new Audio(src).play().catch(() => {})}
+      onClick={() => newTrackedAudio(src).play().catch(() => {})}
       className="inline-flex items-center gap-1.5 rounded-xl bg-brand-100 px-3 py-1.5 text-sm font-semibold text-brand-700 hover:bg-brand-200 transition dark:bg-brand-500/20 dark:text-brand-400 dark:hover:bg-brand-500/30"
     >
       <Volume2 size={14} /> Play audio
