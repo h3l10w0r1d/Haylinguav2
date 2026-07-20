@@ -19,6 +19,7 @@ export default function ExerciseResultBanner({
   comboBonusXp = 0,
   exerciseId,
   userAnswer,
+  correctAnswer,
   onContinue,
 }) {
   const slide = useSharedValue(120);
@@ -55,6 +56,7 @@ export default function ExerciseResultBanner({
   const topBorder = correct ? '#58CC02' : '#FF4B4B';
   const headingColor = correct ? '#3A8A00' : '#C81E1E';
   const buttonBg = correct ? '#58CC02' : '#FF4B4B';
+  const buttonLip = correct ? '#3A8A00' : '#C81E1E';
 
   return (
     <Animated.View
@@ -66,14 +68,16 @@ export default function ExerciseResultBanner({
         </View>
       )}
       <SafeAreaView edges={['bottom']}>
-        <View className="flex-row items-center gap-4 px-4 pt-4 pb-2">
+        <View className="flex-row items-end gap-2 px-3 pt-2">
+          {/* Full-body mascot, uncropped (contain, no frame) — Duolingo shows
+              Duo's whole reaction pose here, not a cropped avatar square. */}
           <Animated.Image
             source={require('../assets/character-owl.png')}
-            style={[{ width: 56, height: 56, borderRadius: 16 }, mascotStyle]}
-            resizeMode="cover"
+            style={[{ width: 84, height: 84, marginBottom: -6 }, mascotStyle]}
+            resizeMode="contain"
           />
-          <View className="min-w-0 flex-1">
-            <Text className="text-lg font-extrabold font-display" style={{ color: headingColor }}>
+          <View className="min-w-0 flex-1 pb-3">
+            <Text className="text-xl font-extrabold font-display" style={{ color: headingColor }}>
               {correct ? 'Correct!' : 'Not quite'}
             </Text>
             {correct && xpEarned > 0 && (
@@ -85,12 +89,22 @@ export default function ExerciseResultBanner({
                 <Text className="text-xs font-extrabold text-brand-700">{`+${comboBonusXp} combo`}</Text>
               </View>
             )}
+            {!correct && !!correctAnswer && (
+              <View className="mt-1.5">
+                <Text className="text-[11px] font-bold uppercase tracking-wide text-cardinal-700/70">Correct answer</Text>
+                <Text className="text-base font-extrabold text-cardinal-800">{correctAnswer}</Text>
+              </View>
+            )}
             {!correct && <ExplainMistake exerciseId={exerciseId} userAnswer={userAnswer} />}
           </View>
         </View>
-        <View className="px-4 pb-4 pt-2">
-          <Pressable3D onPress={onContinue} className="items-center rounded-2xl py-4" style={{ backgroundColor: buttonBg }}>
-            <Text className="text-base font-extrabold text-white">Continue</Text>
+        <View className="px-4 pb-4 pt-3">
+          <Pressable3D
+            onPress={onContinue}
+            className="items-center rounded-2xl py-4"
+            style={{ backgroundColor: buttonBg, borderBottomWidth: 4, borderBottomColor: buttonLip }}
+          >
+            <Text className="text-base font-extrabold uppercase tracking-wide text-white">Continue</Text>
           </Pressable3D>
         </View>
       </SafeAreaView>

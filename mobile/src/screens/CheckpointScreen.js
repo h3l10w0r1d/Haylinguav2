@@ -12,6 +12,7 @@ import { useExerciseQueueSession } from '../lib/useExerciseQueueSession';
 import { SUPPORTED_KINDS, UnsupportedKindFallback } from '../exercises/kindRegistry';
 import HeartsBadge from '../components/HeartsBadge';
 import ExerciseResultBanner from '../components/ExerciseResultBanner';
+import CheckButton from '../components/CheckButton';
 import Pressable3D from '../components/Pressable3D';
 
 const PASS_THRESHOLD = 0.7;
@@ -126,17 +127,7 @@ export default function CheckpointScreen({ route, navigation }) {
         )}
       </View>
 
-      {!lastResult && checkState.run ? (
-        <View className="px-4 pb-4">
-          <Pressable3D
-            onPress={checkState.run}
-            disabled={!checkState.canCheck}
-            className={'items-center rounded-2xl py-4 ' + (checkState.canCheck ? 'bg-brand-500' : 'bg-stone-300')}
-          >
-            <Text className="text-base font-extrabold text-white">Check</Text>
-          </Pressable3D>
-        </View>
-      ) : null}
+      <CheckButton visible={!lastResult && !!checkState.run} canCheck={checkState.canCheck} onPress={checkState.run} />
 
       <ExerciseResultBanner
         visible={!!lastResult}
@@ -146,6 +137,7 @@ export default function CheckpointScreen({ route, navigation }) {
         comboBonusXp={lastResult?.combo_bonus_xp || 0}
         exerciseId={current?.id}
         userAnswer={lastAnswerText}
+        correctAnswer={lastResult?.correct_answer}
         onContinue={advance}
       />
     </SafeAreaView>

@@ -34,14 +34,17 @@ export default function TrueFalse({ exercise, onSubmit, onCheckStateChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, graded]);
 
-  function optionStyle(isTrue) {
+  function optionColors(isTrue) {
     const isSelected = selected === (isTrue ? 1 : 0);
-    if (!graded) return isSelected ? 'border-brand-500 bg-brand-50' : 'border-stone-200 bg-white';
+    if (!graded) return isSelected ? { border: '#FFC99E', bg: '#FFF5EC', lip: '#FF7A1A' } : { border: '#e7e5e4', bg: '#ffffff', lip: '#c7c2bd' };
     const isRightAnswer = isTrue === correctBool;
-    if (isRightAnswer) return 'border-grass-500 bg-grass-50';
-    if (isSelected) return 'border-cardinal-500 bg-cardinal-50';
-    return 'border-stone-200 bg-white';
+    if (isRightAnswer) return { border: '#A5E86B', bg: '#EFFCE3', lip: '#58CC02' };
+    if (isSelected) return { border: '#FF9B9B', bg: '#FFECEC', lip: '#FF4B4B' };
+    return { border: '#e7e5e4', bg: '#ffffff', lip: '#c7c2bd' };
   }
+
+  const falseColors = optionColors(false);
+  const trueColors = optionColors(true);
 
   return (
     <View className="flex-1">
@@ -63,7 +66,8 @@ export default function TrueFalse({ exercise, onSubmit, onCheckStateChange }) {
           <Pressable3D
             disabled={!!graded}
             onPress={() => setSelected(0)}
-            className={'flex-row items-center justify-center gap-2 rounded-2xl border-2 py-4 ' + optionStyle(false)}
+            className="flex-row items-center justify-center gap-2 rounded-2xl py-4"
+            style={{ borderWidth: 2, borderBottomWidth: 5, borderColor: falseColors.border, borderBottomColor: falseColors.lip, backgroundColor: falseColors.bg }}
           >
             <XIcon size={16} color="#57534e" />
             <Text className="text-base font-bold text-stone-800">False</Text>
@@ -73,7 +77,8 @@ export default function TrueFalse({ exercise, onSubmit, onCheckStateChange }) {
           <Pressable3D
             disabled={!!graded}
             onPress={() => setSelected(1)}
-            className={'flex-row items-center justify-center gap-2 rounded-2xl border-2 py-4 ' + optionStyle(true)}
+            className="flex-row items-center justify-center gap-2 rounded-2xl py-4"
+            style={{ borderWidth: 2, borderBottomWidth: 5, borderColor: trueColors.border, borderBottomColor: trueColors.lip, backgroundColor: trueColors.bg }}
           >
             <Check size={16} color="#57534e" />
             <Text className="text-base font-bold text-stone-800">True</Text>

@@ -20,7 +20,7 @@ function tileColors(isRight, isWrongPick, isSelected) {
   if (isRight) return { bg: '#EFFCE3', border: '#A5E86B', lip: '#58CC02' };
   if (isWrongPick) return { bg: '#FFECEC', border: '#FF9B9B', lip: '#FF4B4B' };
   if (isSelected) return { bg: '#FFF5EC', border: '#FFC99E', lip: '#FF7A1A' };
-  return { bg: '#ffffff', border: '#e7e5e4', lip: '#d6d3d1' };
+  return { bg: '#ffffff', border: '#e7e5e4', lip: '#c7c2bd' };
 }
 
 function ChoiceTile({ text, disabled, onPress, isRight, isWrongPick, isSelected }) {
@@ -55,16 +55,16 @@ function ChoiceTile({ text, disabled, onPress, isRight, isWrongPick, isSelected 
     <Animated.View style={animatedStyle}>
       <Pressable3D disabled={disabled} onPress={onPress} hapticOnPress={false}>
         <View
-          className="rounded-2xl px-4 py-3.5"
+          className="rounded-2xl px-5 py-4"
           style={{
             backgroundColor: colors.bg,
             borderWidth: 2,
             borderColor: colors.border,
-            borderBottomWidth: 4,
+            borderBottomWidth: 5,
             borderBottomColor: colors.lip,
           }}
         >
-          <Text className="text-base font-semibold text-stone-800">{text}</Text>
+          <Text className="text-lg font-bold text-stone-800">{text}</Text>
         </View>
       </Pressable3D>
     </Animated.View>

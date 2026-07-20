@@ -13,6 +13,7 @@ import { useStatsStore } from '../lib/statsStore';
 import { checkStreakMilestone } from '../lib/streakMilestones';
 import HeartsBadge from '../components/HeartsBadge';
 import ExerciseResultBanner from '../components/ExerciseResultBanner';
+import CheckButton from '../components/CheckButton';
 import Pressable3D from '../components/Pressable3D';
 import { SUPPORTED_KINDS, UnsupportedKindFallback } from '../exercises/kindRegistry';
 
@@ -213,17 +214,7 @@ export default function LessonScreen({ route, navigation }) {
       {/* Docked footer — fixed, owned by this screen (not each exercise
           kind) so it never scrolls with content. Hides once an attempt is
           graded, handing off to ExerciseResultBanner below. */}
-      {!lastResult && checkState.run ? (
-        <View className="px-4 pb-4">
-          <Pressable3D
-            onPress={checkState.run}
-            disabled={!checkState.canCheck}
-            className={'items-center rounded-2xl py-4 ' + (checkState.canCheck ? 'bg-brand-500' : 'bg-stone-300')}
-          >
-            <Text className="text-base font-extrabold text-white">Check</Text>
-          </Pressable3D>
-        </View>
-      ) : null}
+      <CheckButton visible={!lastResult && !!checkState.run} canCheck={checkState.canCheck} onPress={checkState.run} />
 
       <ExerciseResultBanner
         visible={!!lastResult}
@@ -233,6 +224,7 @@ export default function LessonScreen({ route, navigation }) {
         comboBonusXp={lastResult?.combo_bonus_xp || 0}
         exerciseId={current?.id}
         userAnswer={lastAnswerText}
+        correctAnswer={lastResult?.correct_answer}
         onContinue={advance}
       />
     </SafeAreaView>
