@@ -1500,6 +1500,19 @@ def cms_seed_words(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/sentences")
+def cms_seed_sentences(request: Request, db=Depends(get_db)):
+    """Populate Phase 3 (Sentences) — full present-tense conjugation,
+    negation, questions, and connectors, across 3 new chapters. Idempotent."""
+    require_cms(request, db)
+    from seed_sentences import seed_sentences_phase
+    try:
+        res = seed_sentences_phase()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
