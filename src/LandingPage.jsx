@@ -336,6 +336,27 @@ function LandingExerciseDemo({ onSignup }) {
   }
   useEffect(() => clearAutoTimers, []);
 
+  // Autoplay (and the sfx it triggers) only runs while the demo card is
+  // actually on screen — scrolling past it pauses the whole loop instead of
+  // it playing sound from off-screen. Re-entering the viewport resumes it.
+  const [inView, setInView] = useState(true);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { threshold: 0.4 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!inView) {
+      setCursorPos(null);
+      clearAutoTimers();
+    }
+  }, [inView]);
+
   const q = DEMO_QUESTIONS[qi];
   const isCorrect = checked && selected === q.correct;
   const isWrong = checked && selected !== q.correct;
@@ -415,32 +436,32 @@ function LandingExerciseDemo({ onSignup }) {
   // Continue. Each effect only fires when it's actually that step's turn, so it
   // stays in sync with the real state instead of a blind timer chain.
   useEffect(() => {
-    if (!autoActive || checked || selected != null) return;
+    if (!autoActive || !inView || checked || selected != null) return;
     moveCursorTo(optionRefs.current[q.correct], 1000, () => pick(q.correct));
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, checked, selected, qi]);
+  }, [autoActive, inView, checked, selected, qi]);
 
   useEffect(() => {
-    if (!autoActive || checked || selected == null) return;
+    if (!autoActive || !inView || checked || selected == null) return;
     moveCursorTo(checkRef.current, 500, onCheck);
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, checked, selected]);
+  }, [autoActive, inView, checked, selected]);
 
   useEffect(() => {
-    if (!autoActive || !checked) return;
+    if (!autoActive || !inView || !checked) return;
     moveCursorTo(continueRef.current, 1400, onContinue);
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, checked, qi]);
+  }, [autoActive, inView, checked, qi]);
 
   useEffect(() => {
-    if (!autoActive || !done) return;
+    if (!autoActive || !inView || !done) return;
     scheduleAuto(practiceAgain, 2600);
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, done]);
+  }, [autoActive, inView, done]);
 
   if (done) {
     return (
