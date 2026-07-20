@@ -69,7 +69,7 @@ export default function SentenceOrder({ exercise, onSubmit, onCheckStateChange }
     setGraded({ ok });
     if (ok) haptics.success();
     else haptics.error();
-    onSubmit({ answerText: pickedTexts.join(' ') });
+    onSubmit({ answerText: pickedTexts.join(' '), isCorrect: ok });
   }
 
   useEffect(() => {

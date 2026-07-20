@@ -24,7 +24,7 @@ export default function TrueFalse({ exercise, onSubmit, onCheckStateChange }) {
     setGraded({ correct: correctBool });
     if (pick === correctBool) haptics.success();
     else haptics.error();
-    onSubmit({ selectedIndices: [selected], answerText: pick ? 'true' : 'false' });
+    onSubmit({ selectedIndices: [selected], answerText: pick ? 'true' : 'false', isCorrect: pick === correctBool });
   }
 
   const canCheck = selected !== null && !graded;

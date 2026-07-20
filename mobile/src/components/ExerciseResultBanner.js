@@ -4,19 +4,50 @@
 // (src/ExerciseShell.jsx:376-450): mascot + heading + XP + Continue,
 // slides up from off-screen.
 import React, { useEffect } from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, withSequence, Easing } from 'react-native-reanimated';
+import { Sparkles } from 'lucide-react-native';
 import Pressable3D from './Pressable3D';
+import ExplainMistake from './ExplainMistake';
 
-export default function ExerciseResultBanner({ visible, correct, xpEarned = 0, onContinue }) {
+export default function ExerciseResultBanner({
+  visible,
+  correct,
+  xpEarned = 0,
+  combo = 0,
+  comboBonusXp = 0,
+  exerciseId,
+  userAnswer,
+  onContinue,
+}) {
   const slide = useSharedValue(120);
+  const mascot = useSharedValue(0);
 
   useEffect(() => {
     slide.value = withTiming(visible ? 0 : 120, { duration: 260, easing: Easing.out(Easing.cubic) });
   }, [visible]);
 
+  // Mascot reacts differently to correct vs. wrong — same owl image both
+  // ways (mirrors web's Illustration.jsx registry, which only swaps CSS
+  // animation class between mascot-cheer/mascot-sad, not the image itself):
+  // a cheerful bounce loop on correct, a subtle single head-tilt on wrong.
+  useEffect(() => {
+    if (!visible) return;
+    if (correct) {
+      mascot.value = withRepeat(withSequence(withTiming(1, { duration: 260 }), withTiming(0, { duration: 260 })), -1, false);
+    } else {
+      mascot.value = withSequence(withTiming(1, { duration: 220 }), withTiming(0, { duration: 220 }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, correct]);
+
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: slide.value }] }));
+  const mascotStyle = useAnimatedStyle(() =>
+    correct
+      ? { transform: [{ scale: 1 + mascot.value * 0.1 }, { translateY: -mascot.value * 4 }] }
+      : { transform: [{ rotate: `${-mascot.value * 8}deg` }, { translateY: mascot.value * 2 }] }
+  );
 
   if (!visible) return null;
 
@@ -29,11 +60,16 @@ export default function ExerciseResultBanner({ visible, correct, xpEarned = 0, o
     <Animated.View
       style={[{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: bg, borderTopWidth: 4, borderTopColor: topBorder }, style]}
     >
+      {correct && combo >= 3 && (
+        <View className="absolute right-4 top-[-14px] flex-row items-center gap-1 rounded-full bg-brand-500 px-2.5 py-1">
+          <Text className="text-xs font-extrabold text-white">{`\u{1F525} ${combo} in a row!`}</Text>
+        </View>
+      )}
       <SafeAreaView edges={['bottom']}>
         <View className="flex-row items-center gap-4 px-4 pt-4 pb-2">
-          <Image
+          <Animated.Image
             source={require('../assets/character-owl.png')}
-            style={{ width: 56, height: 56, borderRadius: 16 }}
+            style={[{ width: 56, height: 56, borderRadius: 16 }, mascotStyle]}
             resizeMode="cover"
           />
           <View className="min-w-0 flex-1">
@@ -43,6 +79,13 @@ export default function ExerciseResultBanner({ visible, correct, xpEarned = 0, o
             {correct && xpEarned > 0 && (
               <Text className="text-sm font-bold text-stone-600">{`+${xpEarned} XP earned`}</Text>
             )}
+            {correct && comboBonusXp > 0 && (
+              <View className="mt-1 flex-row items-center gap-1 self-start rounded-full bg-brand-100 px-2 py-0.5">
+                <Sparkles size={11} color="#7A4A00" />
+                <Text className="text-xs font-extrabold text-brand-700">{`+${comboBonusXp} combo`}</Text>
+              </View>
+            )}
+            {!correct && <ExplainMistake exerciseId={exerciseId} userAnswer={userAnswer} />}
           </View>
         </View>
         <View className="px-4 pb-4 pt-2">

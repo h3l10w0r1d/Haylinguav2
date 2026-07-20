@@ -109,7 +109,7 @@ export default function MatchPairs({ exercise, onSubmit }) {
       setMatchedPairs(nextPairs);
 
       if (nl.size === totalMatches) {
-        onSubmit({ answerText: JSON.stringify(nextPairs) });
+        onSubmit({ answerText: JSON.stringify(nextPairs), isCorrect: true });
       }
     } else {
       haptics.error();

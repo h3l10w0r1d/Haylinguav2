@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ActivityIndicator, ScrollView, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { Heart, Flame, Zap, Gem, Play, ArrowRight, Gift } from 'lucide-react-native';
+import { Heart, Flame, Zap, Gem, Play, ArrowRight, Gift, BookOpen, Dumbbell, Shield } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
@@ -116,6 +116,7 @@ export default function DashboardScreen({ navigation }) {
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [chestOpen, setChestOpen] = useState(false);
+  const [reviewStats, setReviewStats] = useState(null);
 
   const load = useCallback(async () => {
     setLoadingLessons(true);
@@ -129,11 +130,21 @@ export default function DashboardScreen({ navigation }) {
     }
   }, []);
 
+  const loadReviewStats = useCallback(async () => {
+    try {
+      const data = await api.get('/me/review/stats');
+      setReviewStats(data);
+    } catch {
+      setReviewStats(null);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       load();
+      loadReviewStats();
       stats.refresh();
-    }, [load])
+    }, [load, loadReviewStats])
   );
 
   const currentLesson = useMemo(() => lessons.find((l) => l.status === 'current') || null, [lessons]);
@@ -154,7 +165,7 @@ export default function DashboardScreen({ navigation }) {
       }
       group.lessons.push(l);
     }
-    return groups;
+    return groups.map((g) => ({ ...g, allComplete: g.lessons.length > 0 && g.lessons.every((l) => l.status === 'completed') }));
   }, [lessons]);
   const doneCount = lessons.filter((l) => l.status === 'completed').length;
   const isNewUser = !loadingLessons && doneCount === 0 && lessons.length > 0;
@@ -252,6 +263,32 @@ export default function DashboardScreen({ navigation }) {
         </Pressable3D>
       )}
 
+      {/* Review + Practice — Review only shown once at least one card is
+          due (GET /me/review/stats), Practice is always available since
+          /me/practice always has something to serve. */}
+      <View className="mb-4 flex-row" style={{ gap: 12 }}>
+        {reviewStats && reviewStats.total > 0 && (
+          <View className="flex-1">
+            <Pressable3D onPress={() => navigation.navigate('Review')} className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
+              <View className="h-10 w-10 items-center justify-center rounded-xl bg-feather-50">
+                <BookOpen size={20} color="#1CB0F6" />
+              </View>
+              <Text className="mt-2 text-sm font-extrabold text-stone-900">Review</Text>
+              <Text className="text-xs font-semibold text-stone-400">{reviewStats.due_today ?? reviewStats.total} due</Text>
+            </Pressable3D>
+          </View>
+        )}
+        <View className="flex-1">
+          <Pressable3D onPress={() => navigation.navigate('Practice')} className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
+            <View className="h-10 w-10 items-center justify-center rounded-xl bg-grass-50">
+              <Dumbbell size={20} color="#58CC02" />
+            </View>
+            <Text className="mt-2 text-sm font-extrabold text-stone-900">Practice</Text>
+            <Text className="text-xs font-semibold text-stone-400">Sharpen weak spots</Text>
+          </Pressable3D>
+        </View>
+      </View>
+
       {/* Skill path — one colored unit banner + zigzag node column per
           chapter, real Duolingo shape instead of a flat lesson list. */}
       {chapters.map((chapter, idx) => (
@@ -261,6 +298,27 @@ export default function DashboardScreen({ navigation }) {
             lessons={chapter.lessons}
             onPressLesson={(l) => navigation.navigate('Lesson', { slug: l.slug, title: l.title })}
           />
+          {chapter.allComplete && (
+            <Pressable3D
+              onPress={() =>
+                navigation.navigate('Checkpoint', {
+                  lessonIds: chapter.lessons.map((l) => l.id),
+                  chapterTitle: chapter.chapterTitle,
+                })
+              }
+              className="mb-4 flex-row items-center gap-4 rounded-2xl bg-white p-4"
+              style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}
+            >
+              <View className="h-12 w-12 items-center justify-center rounded-xl bg-brand-50">
+                <Shield size={24} color="#FF7A1A" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-extrabold text-stone-900">Take the {chapter.chapterTitle} checkpoint</Text>
+                <Text className="text-xs font-semibold text-stone-400">Test out and prove your skills</Text>
+              </View>
+              <ArrowRight size={18} color="#a8a29e" />
+            </Pressable3D>
+          )}
         </View>
       ))}
     </ScrollView>

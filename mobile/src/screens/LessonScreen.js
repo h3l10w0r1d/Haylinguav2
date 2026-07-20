@@ -14,48 +14,7 @@ import { checkStreakMilestone } from '../lib/streakMilestones';
 import HeartsBadge from '../components/HeartsBadge';
 import ExerciseResultBanner from '../components/ExerciseResultBanner';
 import Pressable3D from '../components/Pressable3D';
-import CharIntro from '../exercises/kinds/CharIntro';
-import TranslateMcq from '../exercises/kinds/TranslateMcq';
-import LetterRecognition from '../exercises/kinds/LetterRecognition';
-import SelectMissingWord from '../exercises/kinds/SelectMissingWord';
-import MinimalPairs from '../exercises/kinds/MinimalPairs';
-import TrueFalse from '../exercises/kinds/TrueFalse';
-import MatchPairs from '../exercises/kinds/MatchPairs';
-import AudioChoiceTts from '../exercises/kinds/AudioChoiceTts';
-import CharBuildWord from '../exercises/kinds/CharBuildWord';
-import WordBank from '../exercises/kinds/WordBank';
-import SentenceOrder from '../exercises/kinds/SentenceOrder';
-import Speak from '../exercises/kinds/Speak';
-
-const SUPPORTED_KINDS = {
-  char_intro: CharIntro,
-  translate_mcq: TranslateMcq,
-  letter_recognition: LetterRecognition,
-  select_missing_word: SelectMissingWord,
-  minimal_pairs: MinimalPairs,
-  true_false: TrueFalse,
-  match_pairs: MatchPairs,
-  audio_choice_tts: AudioChoiceTts,
-  char_build_word: CharBuildWord,
-  word_bank: WordBank,
-  sentence_order: SentenceOrder,
-  speak: Speak,
-};
-
-function UnsupportedKindFallback({ kind, onAdvance }) {
-  return (
-    <View className="flex-1 justify-between">
-      <View className="items-center justify-center pt-16">
-        <Text className="text-center text-base font-bold text-stone-600">
-          Exercise type "{kind}" isn't supported in this Phase 0 build yet.
-        </Text>
-      </View>
-      <Pressable3D onPress={onAdvance} className="items-center rounded-2xl bg-stone-800 py-4">
-        <Text className="text-base font-extrabold text-white">Skip</Text>
-      </Pressable3D>
-    </View>
-  );
-}
+import { SUPPORTED_KINDS, UnsupportedKindFallback } from '../exercises/kindRegistry';
 
 export default function LessonScreen({ route, navigation }) {
   const { slug } = route.params;
@@ -66,6 +25,13 @@ export default function LessonScreen({ route, navigation }) {
   const applyAttempt = useStatsStore((s) => s.applyAttempt);
   const refreshStats = useStatsStore((s) => s.refresh);
   const chestEarnedRef = useRef(false);
+
+  // Client-computed streak, mirrors web's LessonPlayer.jsx:503 — reset on any
+  // wrong answer, incremented only by the client's own local grading verdict
+  // (payload.isCorrect), sent to the server so it can award combo_bonus_xp.
+  const comboRef = useRef(0);
+  const [combo, setCombo] = useState(0);
+  const [lastAnswerText, setLastAnswerText] = useState('');
 
   // Docked footer state, reported up by whichever exercise kind is mounted
   // (see onCheckStateChange contract below) — the footer itself is owned by
@@ -110,11 +76,15 @@ export default function LessonScreen({ route, navigation }) {
   const submitAttempt = useCallback(
     async (payload) => {
       if (!current) return null;
+      comboRef.current = payload.isCorrect ? comboRef.current + 1 : 0;
+      setCombo(comboRef.current);
+      setLastAnswerText(payload.answerText ?? '');
       try {
         const result = await api.post(`/me/exercises/${current.id}/attempt`, {
           lesson_id: lesson.id,
           answer_text: payload.answerText,
           selected_indices: payload.selectedIndices,
+          combo: comboRef.current,
         });
         applyAttempt(result);
         if (result?.chest_earned) chestEarnedRef.current = true;
@@ -259,6 +229,10 @@ export default function LessonScreen({ route, navigation }) {
         visible={!!lastResult}
         correct={!!lastResult?.is_correct}
         xpEarned={lastResult?.earned_xp_delta || 0}
+        combo={combo}
+        comboBonusXp={lastResult?.combo_bonus_xp || 0}
+        exerciseId={current?.id}
+        userAnswer={lastAnswerText}
         onContinue={advance}
       />
     </SafeAreaView>

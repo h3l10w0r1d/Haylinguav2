@@ -40,7 +40,7 @@ export default function AudioChoiceTts({ exercise, onSubmit, onCheckStateChange 
     const picked = choices[selected] ?? '';
     const ci = correctIndex !== null ? correctIndex : choices.findIndex((c) => normalizeText(c) === normalizeText(answerText));
     setGraded({ correct: ci, picked: selected });
-    onSubmit({ selectedIndices: [selected], answerText: picked });
+    onSubmit({ selectedIndices: [selected], answerText: picked, isCorrect: selected === ci });
   }
 
   useEffect(() => {

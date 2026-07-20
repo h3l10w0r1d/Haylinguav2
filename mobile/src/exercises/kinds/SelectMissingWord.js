@@ -26,7 +26,7 @@ export default function SelectMissingWord({ exercise, onSubmit, onCheckStateChan
   function check() {
     const picked = choices[selected] ?? '';
     setGraded({ correct: correctIndex, picked: selected });
-    onSubmit({ selectedIndices: [selected], answerText: picked });
+    onSubmit({ selectedIndices: [selected], answerText: picked, isCorrect: selected === correctIndex });
   }
 
   useEffect(() => {

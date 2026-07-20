@@ -55,7 +55,7 @@ export default function WordBank({ exercise, onSubmit, onCheckStateChange }) {
     setGraded({ ok: isOk });
     if (isOk) haptics.success();
     else haptics.error();
-    onSubmit({ answerText: built });
+    onSubmit({ answerText: built, isCorrect: isOk });
   }
 
   useEffect(() => {

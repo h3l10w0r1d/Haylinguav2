@@ -96,7 +96,7 @@ export default function Speak({ exercise, onSubmit, onAdvance, onCheckStateChang
     setGraded({ ok });
     if (ok) haptics.success();
     else haptics.error();
-    onSubmit({ answerText: transcript });
+    onSubmit({ answerText: transcript, isCorrect: ok });
   }
 
   function skip() {

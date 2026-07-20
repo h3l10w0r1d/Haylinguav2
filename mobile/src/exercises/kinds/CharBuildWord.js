@@ -70,7 +70,7 @@ export default function CharBuildWord({ exercise, onSubmit, onCheckStateChange }
     setGraded({ ok });
     if (ok) haptics.success();
     else haptics.error();
-    onSubmit({ selectedIndices: chosen, answerText: built });
+    onSubmit({ selectedIndices: chosen, answerText: built, isCorrect: ok });
   }
 
   useEffect(() => {

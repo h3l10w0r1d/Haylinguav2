@@ -14,7 +14,7 @@
 import Sound from 'react-native-nitro-sound';
 import { API_BASE_URL } from './api';
 
-function playUrl(url) {
+function playUrl(url, speed) {
   return new Promise((resolve) => {
     let done = false;
 
@@ -37,16 +37,23 @@ function playUrl(url) {
 
     try {
       Sound.addPlaybackEndListener(() => finish(true));
-      Sound.startPlayer(url).catch(() => finish(false));
+      Sound.startPlayer(url)
+        .then(() => {
+          // Slow-replay is a real playback-rate change on the SAME audio,
+          // not a second fetch — setPlaybackSpeed is native-backed on iOS
+          // (react-native-nitro-sound ios/Sound.swift:640).
+          if (speed) Sound.setPlaybackSpeed(speed).catch(() => {});
+        })
+        .catch(() => finish(false));
     } catch {
       finish(false);
     }
   });
 }
 
-export async function playExerciseAudio(exerciseId, { voice = 'female', text } = {}) {
+export async function playExerciseAudio(exerciseId, { voice = 'female', text, speed } = {}) {
   const cmsUrl = `${API_BASE_URL}/audio/exercise/${exerciseId}?voice=${voice}`;
-  const ok = await playUrl(cmsUrl);
+  const ok = await playUrl(cmsUrl, speed);
   if (ok) return true;
 
   // startPlayer()'s naive fetch (Data(contentsOf:)) doesn't distinguish a
@@ -55,5 +62,5 @@ export async function playExerciseAudio(exerciseId, { voice = 'female', text } =
   // safe either way since it's a fresh, independent request.
   if (!text) return false;
   const ttsUrl = `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}`;
-  return playUrl(ttsUrl);
+  return playUrl(ttsUrl, speed);
 }

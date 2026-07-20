@@ -12,6 +12,9 @@ import MainTabs from './MainTabs';
 import LessonScreen from '../screens/LessonScreen';
 import LessonCompleteScreen from '../screens/LessonCompleteScreen';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
+import CheckpointScreen from '../screens/CheckpointScreen';
+import PracticeScreen from '../screens/PracticeScreen';
+import ReviewScreen from '../screens/ReviewScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -45,6 +48,9 @@ export default function RootNavigator() {
             <Stack.Screen name="Lesson" component={LessonScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="LessonComplete" component={LessonCompleteScreen} options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
             <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+            <Stack.Screen name="Checkpoint" component={CheckpointScreen} options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="Practice" component={PracticeScreen} options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="Review" component={ReviewScreen} options={{ presentation: 'fullScreenModal' }} />
           </>
         )}
       </Stack.Navigator>

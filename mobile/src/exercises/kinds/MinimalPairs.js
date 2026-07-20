@@ -46,7 +46,7 @@ export default function MinimalPairs({ exercise, onSubmit, onCheckStateChange })
   function check() {
     const picked = choices[selected] ?? '';
     setGraded({ correct: correctIndex, picked: selected });
-    onSubmit({ selectedIndices: [selected], answerText: picked });
+    onSubmit({ selectedIndices: [selected], answerText: picked, isCorrect: selected === correctIndex });
   }
 
   useEffect(() => {
