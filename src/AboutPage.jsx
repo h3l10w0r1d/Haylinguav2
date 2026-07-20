@@ -29,6 +29,7 @@ const FOUNDERS = [
     name: "Lilit Hakobyan",
     role: "Co-founder & Armenian Language Lead",
     photo: lilitPhoto,
+    photoPosition: "center 15%",
     bio: "An Armenian language teacher across the IB programme and several other institutions, Lilit is the one who set Haylingua in motion — and shapes how the app actually teaches the language.",
   },
 ];
@@ -593,7 +594,12 @@ export default function AboutPage() {
               >
                 <div className="mx-auto grid h-24 w-24 place-items-center overflow-hidden rounded-3xl bg-brand-50 ring-4 ring-white shadow-md dark:bg-brand-500/15 dark:ring-[#18181b]">
                   {f.photo ? (
-                    <img src={f.photo} alt={f.name} className="h-full w-full object-cover" />
+                    <img
+                      src={f.photo}
+                      alt={f.name}
+                      className="h-full w-full object-cover"
+                      style={f.photoPosition ? { objectPosition: f.photoPosition } : undefined}
+                    />
                   ) : (
                     <span className="font-display text-3xl font-extrabold text-brand-500">
                       {f.name[0] || "?"}
