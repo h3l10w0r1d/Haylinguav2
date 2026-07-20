@@ -37,6 +37,8 @@
 	<string></string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Haylingua uses your microphone for speaking exercises so you can practice pronunciation.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Haylingua needs access to your photos so you can set a custom avatar or profile banner.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
