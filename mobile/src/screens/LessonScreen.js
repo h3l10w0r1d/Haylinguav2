@@ -11,6 +11,9 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence } 
 import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
 import { checkStreakMilestone } from '../lib/streakMilestones';
+import HeartsBadge from '../components/HeartsBadge';
+import ExerciseResultBanner from '../components/ExerciseResultBanner';
+import Pressable3D from '../components/Pressable3D';
 import CharIntro from '../exercises/kinds/CharIntro';
 import TranslateMcq from '../exercises/kinds/TranslateMcq';
 import LetterRecognition from '../exercises/kinds/LetterRecognition';
@@ -64,6 +67,17 @@ export default function LessonScreen({ route, navigation }) {
   const refreshStats = useStatsStore((s) => s.refresh);
   const chestEarnedRef = useRef(false);
 
+  // Docked footer state, reported up by whichever exercise kind is mounted
+  // (see onCheckStateChange contract below) — the footer itself is owned by
+  // this screen now, not by each kind, so it stays fixed instead of
+  // scrolling with content.
+  const [checkState, setCheckState] = useState({ canCheck: false, run: null });
+  const handleCheckStateChange = useCallback((next) => setCheckState(next), []);
+
+  // The last graded attempt — while set, the docked footer hides and
+  // ExerciseResultBanner takes over the bottom of the screen instead.
+  const [lastResult, setLastResult] = useState(null);
+
   // A brief brightness flash on the progress bar each time an exercise
   // advances — mirrors the web's .progress-pulse.
   const progressFlash = useSharedValue(0);
@@ -100,6 +114,7 @@ export default function LessonScreen({ route, navigation }) {
         });
         applyAttempt(result);
         if (result?.chest_earned) chestEarnedRef.current = true;
+        if (result) setLastResult(result);
         return result;
       } catch {
         return null;
@@ -109,6 +124,8 @@ export default function LessonScreen({ route, navigation }) {
   );
 
   const advance = useCallback(async () => {
+    setLastResult(null);
+    setCheckState({ canCheck: false, run: null });
     if (index + 1 < exercises.length) {
       setIndex(index + 1);
       pulseProgress();
@@ -164,11 +181,12 @@ export default function LessonScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
           <X size={18} color="#57534e" />
         </TouchableOpacity>
-        <View className="h-2 flex-1 overflow-hidden rounded-full bg-stone-200">
+        <View className="h-3.5 flex-1 overflow-hidden rounded-full bg-stone-200">
           <View className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 4)}%` }}>
             <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff' }, progressFlashStyle]} />
           </View>
         </View>
+        <HeartsBadge />
       </View>
 
       <View className="flex-1 px-4 pb-4">
@@ -177,11 +195,39 @@ export default function LessonScreen({ route, navigation }) {
             <Text className="text-base font-bold text-stone-600">No exercises in this lesson.</Text>
           </View>
         ) : ExerciseComponent ? (
-          <ExerciseComponent key={current.id} exercise={current} onSubmit={submitAttempt} onAdvance={advance} />
+          <ExerciseComponent
+            key={current.id}
+            exercise={current}
+            onSubmit={submitAttempt}
+            onAdvance={advance}
+            onCheckStateChange={handleCheckStateChange}
+          />
         ) : (
           <UnsupportedKindFallback key={current.id} kind={current.kind} onAdvance={advance} />
         )}
       </View>
+
+      {/* Docked footer — fixed, owned by this screen (not each exercise
+          kind) so it never scrolls with content. Hides once an attempt is
+          graded, handing off to ExerciseResultBanner below. */}
+      {!lastResult && checkState.run ? (
+        <View className="px-4 pb-4">
+          <Pressable3D
+            onPress={checkState.run}
+            disabled={!checkState.canCheck}
+            className={'items-center rounded-2xl py-4 ' + (checkState.canCheck ? 'bg-brand-500' : 'bg-stone-300')}
+          >
+            <Text className="text-base font-extrabold text-white">Check</Text>
+          </Pressable3D>
+        </View>
+      ) : null}
+
+      <ExerciseResultBanner
+        visible={!!lastResult}
+        correct={!!lastResult?.is_correct}
+        xpEarned={lastResult?.earned_xp_delta || 0}
+        onContinue={advance}
+      />
     </SafeAreaView>
   );
 }

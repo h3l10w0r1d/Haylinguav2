@@ -22,6 +22,8 @@ import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
 import Pressable3D from '../components/Pressable3D';
 import ChestReveal from '../components/ChestReveal';
+import UnitBanner from '../components/UnitBanner';
+import LessonPath from '../components/LessonPath';
 
 const ACCENT = {
   cardinal: { tint: '#FFECEC', icon: '#FF4B4B' },
@@ -135,6 +137,25 @@ export default function DashboardScreen({ navigation }) {
   );
 
   const currentLesson = useMemo(() => lessons.find((l) => l.status === 'current') || null, [lessons]);
+
+  // Group into chapters, preserving the backend's own ordering (already
+  // sorted by chapter_position/level) — this is the "unit" grouping the
+  // skill path renders one banner + node column per.
+  const chapters = useMemo(() => {
+    const groups = [];
+    const byId = new Map();
+    for (const l of lessons) {
+      const key = l.chapter_id ?? `_${l.id}`;
+      let group = byId.get(key);
+      if (!group) {
+        group = { chapterId: l.chapter_id, chapterTitle: l.chapter_title || 'Lessons', lessons: [] };
+        byId.set(key, group);
+        groups.push(group);
+      }
+      group.lessons.push(l);
+    }
+    return groups;
+  }, [lessons]);
   const doneCount = lessons.filter((l) => l.status === 'completed').length;
   const isNewUser = !loadingLessons && doneCount === 0 && lessons.length > 0;
   const allComplete = !loadingLessons && lessons.length > 0 && !currentLesson && doneCount === lessons.length;
@@ -231,20 +252,17 @@ export default function DashboardScreen({ navigation }) {
         </Pressable3D>
       )}
 
-      {/* Curriculum outline (read-only in Phase 0 — tapping the current lesson above is the way in) */}
-      {lessons.length > 0 && (
-        <View className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-          <Text className="mb-2 text-xs font-extrabold uppercase tracking-wide text-stone-400">Your lessons</Text>
-          {lessons.map((l) => (
-            <View key={l.id} className="flex-row items-center justify-between border-b border-stone-100 py-2.5 last:border-b-0">
-              <Text className={'flex-1 text-sm font-semibold ' + (l.status === 'locked' ? 'text-stone-300' : 'text-stone-700')} numberOfLines={1}>
-                {l.title}
-              </Text>
-              <Text className="text-xs font-bold text-stone-400">{l.status}</Text>
-            </View>
-          ))}
+      {/* Skill path — one colored unit banner + zigzag node column per
+          chapter, real Duolingo shape instead of a flat lesson list. */}
+      {chapters.map((chapter, idx) => (
+        <View key={chapter.chapterId ?? idx}>
+          <UnitBanner title={chapter.chapterTitle} bannerIndex={idx} />
+          <LessonPath
+            lessons={chapter.lessons}
+            onPressLesson={(l) => navigation.navigate('Lesson', { slug: l.slug, title: l.title })}
+          />
         </View>
-      )}
+      ))}
     </ScrollView>
     <ChestReveal
       visible={chestOpen}

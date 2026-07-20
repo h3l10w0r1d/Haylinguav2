@@ -2,6 +2,13 @@
 // src/ExerciseRenderer.jsx. Always-correct info card: shows a letter +
 // transliteration + hint, "Continue" just advances (no grading — char_intro
 // is in the backend's _INFO_KINDS, server always marks it correct).
+//
+// Deliberately keeps its own inline Continue button instead of the shared
+// docked-footer/result-banner contract every other kind reports through
+// (onCheckStateChange) — there's nothing to grade here, so routing through
+// Check→ExerciseResultBanner would flash an unearned "Correct!" banner for
+// an info card. Mirrors the web's own ExCharIntro, which submits with
+// `autoAdvance: true` to skip its result panel the same way.
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Volume2 } from 'lucide-react-native';

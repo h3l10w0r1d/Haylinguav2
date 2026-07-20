@@ -4,9 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
-import Pressable3D from '../../components/Pressable3D';
 
-export default function SelectMissingWord({ exercise, onSubmit, onAdvance }) {
+export default function SelectMissingWord({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
   const before = cfg.before ?? exercise.sentence_before ?? '';
   const after = cfg.after ?? exercise.sentence_after ?? '';
@@ -28,33 +27,28 @@ export default function SelectMissingWord({ exercise, onSubmit, onAdvance }) {
     onSubmit({ selectedIndices: [selected], answerText: picked });
   }
 
+  useEffect(() => {
+    onCheckStateChange?.({ canCheck, run: graded ? null : check });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, graded]);
+
   return (
-    <View className="flex-1 justify-between">
-      <View>
-        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Complete the sentence'}</Text>
+    <View className="flex-1">
+      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Complete the sentence'}</Text>
 
-        <View className="mt-4 flex-row flex-wrap items-center rounded-2xl bg-stone-100 p-4">
-          {!!before && <Text className="text-lg font-semibold text-stone-900">{before} </Text>}
-          <View className={'rounded-lg border px-2.5 py-1 ' + (selected !== null ? 'border-brand-300 bg-brand-50' : 'border-stone-300 bg-white')}>
-            <Text className={'text-lg font-bold ' + (selected !== null ? 'text-brand-700' : 'text-stone-300')}>
-              {selected !== null ? choices[selected] ?? '…' : '…'}
-            </Text>
-          </View>
-          {!!after && <Text className="text-lg font-semibold text-stone-900"> {after}</Text>}
+      <View className="mt-4 flex-row flex-wrap items-center rounded-2xl bg-stone-100 p-4">
+        {!!before && <Text className="text-lg font-semibold text-stone-900">{before} </Text>}
+        <View className={'rounded-lg border px-2.5 py-1 ' + (selected !== null ? 'border-brand-300 bg-brand-50' : 'border-stone-300 bg-white')}>
+          <Text className={'text-lg font-bold ' + (selected !== null ? 'text-brand-700' : 'text-stone-300')}>
+            {selected !== null ? choices[selected] ?? '…' : '…'}
+          </Text>
         </View>
-
-        <View className="mt-5">
-          <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />
-        </View>
+        {!!after && <Text className="text-lg font-semibold text-stone-900"> {after}</Text>}
       </View>
 
-      <Pressable3D
-        onPress={graded ? onAdvance : check}
-        disabled={!canCheck && !graded}
-        className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
-      >
-        <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </Pressable3D>
+      <View className="mt-5">
+        <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />
+      </View>
     </View>
   );
 }

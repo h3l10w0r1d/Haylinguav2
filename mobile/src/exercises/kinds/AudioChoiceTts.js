@@ -10,9 +10,8 @@ import { Volume2 } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { getChoices, getSingleCorrectIndex, normalizeText } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
-import Pressable3D from '../../components/Pressable3D';
 
-export default function AudioChoiceTts({ exercise, onSubmit, onAdvance }) {
+export default function AudioChoiceTts({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
   const promptText = cfg.promptText ?? exercise.prompt ?? 'Listen and choose';
   const choices = getChoices(exercise, cfg);
@@ -42,33 +41,28 @@ export default function AudioChoiceTts({ exercise, onSubmit, onAdvance }) {
     onSubmit({ selectedIndices: [selected], answerText: picked });
   }
 
+  useEffect(() => {
+    onCheckStateChange?.({ canCheck, run: graded ? null : check });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, graded]);
+
   return (
-    <View className="flex-1 justify-between">
-      <View>
-        <Text className="text-lg font-extrabold text-stone-900">{promptText}</Text>
-        <Text className="mt-1 text-sm font-semibold text-stone-500">Tap play, then choose the correct option.</Text>
+    <View className="flex-1">
+      <Text className="text-lg font-extrabold text-stone-900">{promptText}</Text>
+      <Text className="mt-1 text-sm font-semibold text-stone-500">Tap play, then choose the correct option.</Text>
 
-        <TouchableOpacity
-          onPress={play}
-          disabled={playing}
-          className={'mt-4 flex-row items-center gap-2 self-start rounded-xl px-4 py-2.5 ' + (playing ? 'bg-stone-200' : 'bg-feather-50')}
-        >
-          {playing ? <ActivityIndicator size="small" color="#1899D6" /> : <Volume2 size={16} color="#1899D6" />}
-          <Text className="text-sm font-bold text-feather-600">{playing ? 'Playing…' : 'Play'}</Text>
-        </TouchableOpacity>
-
-        <View className="mt-5">
-          <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />
-        </View>
-      </View>
-
-      <Pressable3D
-        onPress={graded ? onAdvance : check}
-        disabled={!canCheck && !graded}
-        className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
+      <TouchableOpacity
+        onPress={play}
+        disabled={playing}
+        className={'mt-4 flex-row items-center gap-2 self-start rounded-xl px-4 py-2.5 ' + (playing ? 'bg-stone-200' : 'bg-feather-50')}
       >
-        <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </Pressable3D>
+        {playing ? <ActivityIndicator size="small" color="#1899D6" /> : <Volume2 size={16} color="#1899D6" />}
+        <Text className="text-sm font-bold text-feather-600">{playing ? 'Playing…' : 'Play'}</Text>
+      </TouchableOpacity>
+
+      <View className="mt-5">
+        <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />
+      </View>
     </View>
   );
 }

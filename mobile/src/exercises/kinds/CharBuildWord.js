@@ -27,7 +27,7 @@ function Tile({ text, isUsed, disabled, onPress }) {
   );
 }
 
-export default function CharBuildWord({ exercise, onSubmit, onAdvance }) {
+export default function CharBuildWord({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
   const tiles = cfg.tiles ?? [];
   const solution = cfg.solutionIndices ?? [];
@@ -71,47 +71,36 @@ export default function CharBuildWord({ exercise, onSubmit, onAdvance }) {
     onSubmit({ selectedIndices: chosen, answerText: built });
   }
 
+  useEffect(() => {
+    onCheckStateChange?.({ canCheck, run: graded ? null : check });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosen, graded]);
+
   return (
-    <View className="flex-1 justify-between">
-      <View>
-        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Build the word'}</Text>
-        {!!targetWord && (
-          <Text className="mt-1 text-sm font-semibold text-stone-500">
-            Target: <Text className="font-bold text-stone-800">{targetWord}</Text>
-          </Text>
-        )}
+    <View className="flex-1">
+      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Build the word'}</Text>
+      {!!targetWord && (
+        <Text className="mt-1 text-sm font-semibold text-stone-500">
+          Target: <Text className="font-bold text-stone-800">{targetWord}</Text>
+        </Text>
+      )}
 
-        <View className="mt-4 rounded-2xl bg-stone-100 p-4">
-          <Text className="min-h-[2.5rem] text-2xl font-extrabold text-stone-900">{built || '…'}</Text>
-          <TouchableOpacity
-            onPress={reset}
-            disabled={chosen.length === 0 || !!graded}
-            className="mt-3 self-start rounded-xl bg-white px-4 py-2"
-          >
-            <Text className="text-sm font-bold text-stone-600">Reset</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
-          {tiles.map((t, idx) => (
-            <Tile key={idx} text={t} isUsed={used.has(idx)} disabled={used.has(idx) || !!graded} onPress={() => pick(idx)} />
-          ))}
-        </View>
-
-        {graded && (
-          <Text className={'mt-4 text-sm font-bold ' + (graded.ok ? 'text-grass-600' : 'text-cardinal-600')}>
-            {graded.ok ? 'Correct!' : 'The order is off.'}
-          </Text>
-        )}
+      <View className="mt-4 rounded-2xl bg-stone-100 p-4">
+        <Text className="min-h-[2.5rem] text-2xl font-extrabold text-stone-900">{built || '…'}</Text>
+        <TouchableOpacity
+          onPress={reset}
+          disabled={chosen.length === 0 || !!graded}
+          className="mt-3 self-start rounded-xl bg-white px-4 py-2"
+        >
+          <Text className="text-sm font-bold text-stone-600">Reset</Text>
+        </TouchableOpacity>
       </View>
 
-      <Pressable3D
-        onPress={graded ? onAdvance : check}
-        disabled={!canCheck && !graded}
-        className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
-      >
-        <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </Pressable3D>
+      <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
+        {tiles.map((t, idx) => (
+          <Tile key={idx} text={t} isUsed={used.has(idx)} disabled={used.has(idx) || !!graded} onPress={() => pick(idx)} />
+        ))}
+      </View>
     </View>
   );
 }

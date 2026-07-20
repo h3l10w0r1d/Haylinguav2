@@ -53,7 +53,7 @@ function MatchTile({ text, isDone, active, disabled, onPress, wrongKey }) {
   );
 }
 
-export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
+export default function MatchPairs({ exercise, onSubmit }) {
   const cfg = exercise.config || {};
   const pairs = Array.isArray(cfg.pairs) ? cfg.pairs : [];
   const left = pairs.map((p) => p.left);
@@ -73,7 +73,6 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
   const [matchedLeft, setMatchedLeft] = useState(new Set());
   const [matchedRight, setMatchedRight] = useState(new Set());
   const [matchedPairs, setMatchedPairs] = useState([]);
-  const [done, setDone] = useState(false);
   const [wrongAttempt, setWrongAttempt] = useState({ lIdx: null, rIdx: null, key: 0 });
 
   useEffect(() => {
@@ -81,7 +80,6 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
     setMatchedLeft(new Set());
     setMatchedRight(new Set());
     setMatchedPairs([]);
-    setDone(false);
     setWrongAttempt({ lIdx: null, rIdx: null, key: 0 });
   }, [exercise.id]);
 
@@ -109,7 +107,6 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
       setMatchedPairs(nextPairs);
 
       if (nl.size === totalMatches) {
-        setDone(true);
         onSubmit({ answerText: JSON.stringify(nextPairs) });
       }
     } else {
@@ -120,47 +117,41 @@ export default function MatchPairs({ exercise, onSubmit, onAdvance }) {
   }
 
   return (
-    <View className="flex-1 justify-between">
-      <View className="flex-1">
-        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Match the pairs'}</Text>
-        <Text className="mt-1 text-sm font-semibold text-stone-500">
-          Matched: {currentMatches} / {totalMatches}
-        </Text>
+    <View className="flex-1">
+      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Match the pairs'}</Text>
+      <Text className="mt-1 text-sm font-semibold text-stone-500">
+        Matched: {currentMatches} / {totalMatches}
+      </Text>
 
-        <View className="mt-4 flex-row" style={{ gap: 12 }}>
-          <View className="flex-1" style={{ gap: 8 }}>
-            {left.map((t, idx) => (
-              <MatchTile
-                key={idx}
-                text={t}
-                isDone={matchedLeft.has(idx)}
-                active={selectedLeft === idx}
-                disabled={matchedLeft.has(idx)}
-                onPress={() => setSelectedLeft(idx)}
-                wrongKey={wrongAttempt.lIdx === idx ? wrongAttempt.key : 0}
-              />
-            ))}
-          </View>
+      <View className="mt-4 flex-row" style={{ gap: 12 }}>
+        <View className="flex-1" style={{ gap: 8 }}>
+          {left.map((t, idx) => (
+            <MatchTile
+              key={idx}
+              text={t}
+              isDone={matchedLeft.has(idx)}
+              active={selectedLeft === idx}
+              disabled={matchedLeft.has(idx)}
+              onPress={() => setSelectedLeft(idx)}
+              wrongKey={wrongAttempt.lIdx === idx ? wrongAttempt.key : 0}
+            />
+          ))}
+        </View>
 
-          <View className="flex-1" style={{ gap: 8 }}>
-            {shuffledRight.map((t, idx) => (
-              <MatchTile
-                key={idx}
-                text={t}
-                isDone={matchedRight.has(idx)}
-                active={false}
-                disabled={matchedRight.has(idx) || selectedLeft === null}
-                onPress={() => tryMatch(selectedLeft, idx)}
-                wrongKey={wrongAttempt.rIdx === idx ? wrongAttempt.key : 0}
-              />
-            ))}
-          </View>
+        <View className="flex-1" style={{ gap: 8 }}>
+          {shuffledRight.map((t, idx) => (
+            <MatchTile
+              key={idx}
+              text={t}
+              isDone={matchedRight.has(idx)}
+              active={false}
+              disabled={matchedRight.has(idx) || selectedLeft === null}
+              onPress={() => tryMatch(selectedLeft, idx)}
+              wrongKey={wrongAttempt.rIdx === idx ? wrongAttempt.key : 0}
+            />
+          ))}
         </View>
       </View>
-
-      <Pressable3D onPress={onAdvance} disabled={!done} className={'items-center rounded-2xl py-4 ' + (done ? 'bg-brand-500' : 'bg-stone-300')}>
-        <Text className="text-base font-extrabold text-white">Continue</Text>
-      </Pressable3D>
     </View>
   );
 }

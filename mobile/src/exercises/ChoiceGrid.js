@@ -12,6 +12,17 @@ import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, w
 import Pressable3D from '../components/Pressable3D';
 import { haptics } from '../lib/haptics';
 
+// Chunkier Duolingo-style "3D" tile: a flat top/side border plus a thicker,
+// darker-shade bottom lip (rather than a uniform border) so the tile reads
+// as physically raised, consistent with Pressable3D's press-depth affordance
+// elsewhere in the app.
+function tileColors(isRight, isWrongPick, isSelected) {
+  if (isRight) return { bg: '#EFFCE3', border: '#A5E86B', lip: '#58CC02' };
+  if (isWrongPick) return { bg: '#FFECEC', border: '#FF9B9B', lip: '#FF4B4B' };
+  if (isSelected) return { bg: '#FFF5EC', border: '#FFC99E', lip: '#FF7A1A' };
+  return { bg: '#ffffff', border: '#e7e5e4', lip: '#d6d3d1' };
+}
+
 function ChoiceTile({ text, disabled, onPress, isRight, isWrongPick, isSelected }) {
   const pop = useSharedValue(1);
   const shakeX = useSharedValue(0);
@@ -38,20 +49,20 @@ function ChoiceTile({ text, disabled, onPress, isRight, isWrongPick, isSelected 
     transform: [{ scale: pop.value }, { translateX: shakeX.value }],
   }));
 
+  const colors = tileColors(isRight, isWrongPick, isSelected);
+
   return (
     <Animated.View style={animatedStyle}>
       <Pressable3D disabled={disabled} onPress={onPress} hapticOnPress={false}>
         <View
-          className={
-            'rounded-2xl border-2 px-4 py-3.5 ' +
-            (isRight
-              ? 'border-grass-500 bg-grass-50'
-              : isWrongPick
-              ? 'border-cardinal-500 bg-cardinal-50'
-              : isSelected
-              ? 'border-brand-500 bg-brand-50'
-              : 'border-stone-200 bg-white')
-          }
+          className="rounded-2xl px-4 py-3.5"
+          style={{
+            backgroundColor: colors.bg,
+            borderWidth: 2,
+            borderColor: colors.border,
+            borderBottomWidth: 4,
+            borderBottomColor: colors.lip,
+          }}
         >
           <Text className="text-base font-semibold text-stone-800">{text}</Text>
         </View>

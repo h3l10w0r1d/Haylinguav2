@@ -8,7 +8,7 @@ import { normalizeText } from '../choiceHelpers';
 import Pressable3D from '../../components/Pressable3D';
 import { haptics } from '../../lib/haptics';
 
-export default function WordBank({ exercise, onSubmit, onAdvance }) {
+export default function WordBank({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
   const source = cfg.sentence ?? cfg.prompt ?? '';
   const tiles = Array.isArray(cfg.tiles) ? cfg.tiles : [];
@@ -56,53 +56,42 @@ export default function WordBank({ exercise, onSubmit, onAdvance }) {
     onSubmit({ answerText: built });
   }
 
+  useEffect(() => {
+    onCheckStateChange?.({ canCheck, run: graded ? null : check });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picked, graded]);
+
   return (
-    <View className="flex-1 justify-between">
-      <View>
-        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Translate this'}</Text>
+    <View className="flex-1">
+      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Translate this'}</Text>
 
-        {!!source && (
-          <View className="mt-4 rounded-2xl bg-stone-100 p-4">
-            <Text className="text-lg font-semibold text-stone-900">{source}</Text>
-          </View>
-        )}
-
-        <View className="mt-4 min-h-[56px] rounded-2xl border-b-2 border-dashed border-stone-300 bg-white p-3">
-          <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-            {picked.length === 0 ? (
-              <Text className="text-sm font-semibold text-stone-400">Tap words to build your answer…</Text>
-            ) : (
-              picked.map((p, i) => (
-                <Pressable3D key={p.key} onPress={() => remove(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-brand-500 bg-brand-50 px-3 py-2">
-                  <Text className="text-base font-bold text-brand-700">{p.t}</Text>
-                </Pressable3D>
-              ))
-            )}
-          </View>
+      {!!source && (
+        <View className="mt-4 rounded-2xl bg-stone-100 p-4">
+          <Text className="text-lg font-semibold text-stone-900">{source}</Text>
         </View>
+      )}
 
-        <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
-          {available.map((p, i) => (
-            <Pressable3D key={p.key} onPress={() => add(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-stone-200 bg-white px-3 py-2">
-              <Text className="text-base font-semibold text-stone-800">{p.t}</Text>
-            </Pressable3D>
-          ))}
+      <View className="mt-4 min-h-[56px] rounded-2xl border-b-2 border-dashed border-stone-300 bg-white p-3">
+        <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+          {picked.length === 0 ? (
+            <Text className="text-sm font-semibold text-stone-400">Tap words to build your answer…</Text>
+          ) : (
+            picked.map((p, i) => (
+              <Pressable3D key={p.key} onPress={() => remove(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-brand-500 bg-brand-50 px-3 py-2">
+                <Text className="text-base font-bold text-brand-700">{p.t}</Text>
+              </Pressable3D>
+            ))
+          )}
         </View>
-
-        {graded && (
-          <Text className={'mt-4 text-sm font-bold ' + (graded.ok ? 'text-grass-600' : 'text-cardinal-600')}>
-            {graded.ok ? 'Correct!' : 'Not quite — check the word order.'}
-          </Text>
-        )}
       </View>
 
-      <Pressable3D
-        onPress={graded ? onAdvance : check}
-        disabled={!canCheck && !graded}
-        className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
-      >
-        <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </Pressable3D>
+      <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
+        {available.map((p, i) => (
+          <Pressable3D key={p.key} onPress={() => add(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-stone-200 bg-white px-3 py-2">
+            <Text className="text-base font-semibold text-stone-800">{p.t}</Text>
+          </Pressable3D>
+        ))}
+      </View>
     </View>
   );
 }

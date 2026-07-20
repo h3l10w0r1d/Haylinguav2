@@ -10,10 +10,9 @@ import { Mic, Volume2 } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { startRecording, stopRecording, cancelRecording, transcribe } from '../../lib/transcribeAudio';
 import { isSpeechMatch } from '../../lib/similarity';
-import Pressable3D from '../../components/Pressable3D';
 import { haptics } from '../../lib/haptics';
 
-export default function Speak({ exercise, onSubmit, onAdvance }) {
+export default function Speak({ exercise, onSubmit, onAdvance, onCheckStateChange }) {
   const cfg = exercise.config || {};
   const target = String(exercise.expected_answer ?? cfg.answer ?? cfg.target ?? cfg.phrase ?? '').trim();
   const languageCode = cfg.language_code || cfg.lang || 'hye';
@@ -103,70 +102,59 @@ export default function Speak({ exercise, onSubmit, onAdvance }) {
     onAdvance();
   }
 
+  useEffect(() => {
+    onCheckStateChange?.({ canCheck, run: graded ? null : check });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcript, busy, recording, graded]);
+
   return (
-    <View className="flex-1 justify-between">
-      <View>
-        <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Say the phrase out loud'}</Text>
+    <View className="flex-1">
+      <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Say the phrase out loud'}</Text>
 
-        {!!target && (
-          <View className="mt-4 rounded-2xl bg-stone-100 p-4">
-            <Text className="text-lg font-semibold text-stone-900">{target}</Text>
-            {!!hint && <Text className="mt-1 text-sm font-medium text-stone-500">{hint}</Text>}
-          </View>
-        )}
-
-        <TouchableOpacity
-          onPress={() => playExerciseAudio(exercise.id, { text: target })}
-          className="mt-4 flex-row items-center gap-2 self-start rounded-xl bg-feather-50 px-4 py-2.5"
-        >
-          <Volume2 size={16} color="#1899D6" />
-          <Text className="text-sm font-bold text-feather-600">Play sound</Text>
-        </TouchableOpacity>
-
-        <View className="mt-8 items-center">
-          <Animated.View style={micStyle}>
-            <TouchableOpacity
-              onPress={onMicPress}
-              disabled={busy}
-              className={'h-20 w-20 items-center justify-center rounded-full ' + (recording ? 'bg-cardinal-500' : busy ? 'bg-stone-300' : 'bg-brand-500')}
-            >
-              {busy ? <ActivityIndicator color="#fff" /> : <Mic size={32} color="#fff" />}
-            </TouchableOpacity>
-          </Animated.View>
-          <Text className="mt-2 text-sm font-bold text-stone-500">
-            {recording ? 'Tap to stop' : busy ? 'Transcribing…' : 'Tap and speak'}
-          </Text>
+      {!!target && (
+        <View className="mt-4 rounded-2xl bg-stone-100 p-4">
+          <Text className="text-lg font-semibold text-stone-900">{target}</Text>
+          {!!hint && <Text className="mt-1 text-sm font-medium text-stone-500">{hint}</Text>}
         </View>
+      )}
 
-        {!!transcript && (
-          <View className="mt-6 rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-            <Text className="text-xs font-bold uppercase tracking-wide text-stone-400">We heard</Text>
-            <Text className="mt-1 text-base font-semibold text-stone-900">{transcript}</Text>
-          </View>
-        )}
+      <TouchableOpacity
+        onPress={() => playExerciseAudio(exercise.id, { text: target })}
+        className="mt-4 flex-row items-center gap-2 self-start rounded-xl bg-feather-50 px-4 py-2.5"
+      >
+        <Volume2 size={16} color="#1899D6" />
+        <Text className="text-sm font-bold text-feather-600">Play sound</Text>
+      </TouchableOpacity>
 
-        {!!error && <Text className="mt-4 text-sm font-bold text-cardinal-600">{error}</Text>}
-
-        {graded && (
-          <Text className={'mt-4 text-sm font-bold ' + (graded.ok ? 'text-grass-600' : 'text-cardinal-600')}>
-            {graded.ok ? 'Correct!' : 'Not quite — listen and try again.'}
-          </Text>
-        )}
-
-        {!graded && (
-          <TouchableOpacity onPress={skip} className="mt-4 self-center">
-            <Text className="text-sm font-bold text-stone-400 underline">Can't speak right now — skip</Text>
+      <View className="mt-8 items-center">
+        <Animated.View style={micStyle}>
+          <TouchableOpacity
+            onPress={onMicPress}
+            disabled={busy}
+            className={'h-20 w-20 items-center justify-center rounded-full ' + (recording ? 'bg-cardinal-500' : busy ? 'bg-stone-300' : 'bg-brand-500')}
+          >
+            {busy ? <ActivityIndicator color="#fff" /> : <Mic size={32} color="#fff" />}
           </TouchableOpacity>
-        )}
+        </Animated.View>
+        <Text className="mt-2 text-sm font-bold text-stone-500">
+          {recording ? 'Tap to stop' : busy ? 'Transcribing…' : 'Tap and speak'}
+        </Text>
       </View>
 
-      <Pressable3D
-        onPress={graded ? onAdvance : check}
-        disabled={!canCheck && !graded}
-        className={'items-center rounded-2xl py-4 ' + (canCheck || graded ? 'bg-brand-500' : 'bg-stone-300')}
-      >
-        <Text className="text-base font-extrabold text-white">{graded ? 'Continue' : 'Check'}</Text>
-      </Pressable3D>
+      {!!transcript && (
+        <View className="mt-6 rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
+          <Text className="text-xs font-bold uppercase tracking-wide text-stone-400">We heard</Text>
+          <Text className="mt-1 text-base font-semibold text-stone-900">{transcript}</Text>
+        </View>
+      )}
+
+      {!!error && <Text className="mt-4 text-sm font-bold text-cardinal-600">{error}</Text>}
+
+      {!graded && (
+        <TouchableOpacity onPress={skip} className="mt-4 self-center">
+          <Text className="text-sm font-bold text-stone-400 underline">Can't speak right now — skip</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
