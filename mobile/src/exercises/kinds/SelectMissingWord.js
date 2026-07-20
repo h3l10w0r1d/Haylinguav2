@@ -1,7 +1,7 @@
 // src/exercises/kinds/SelectMissingWord.js — ports ExSelectMissingWord.
 // Fill-in-the-blank: pick the choice that completes the sentence.
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
 

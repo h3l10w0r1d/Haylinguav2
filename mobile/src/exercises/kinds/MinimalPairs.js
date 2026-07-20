@@ -4,11 +4,12 @@
 // user's very first real lesson (snd-vowels-1), so it's the highest-value
 // addition in this pass.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
+import Pressable3D from '../../components/Pressable3D';
 
 export default function MinimalPairs({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
@@ -57,13 +58,14 @@ export default function MinimalPairs({ exercise, onSubmit, onCheckStateChange })
       <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Which word did you hear?'}</Text>
 
       <View className="mt-6 items-center">
-        <TouchableOpacity
+        <Pressable3D
           onPress={play}
           disabled={playing}
+          pressDepth={5}
           className={'h-20 w-20 items-center justify-center rounded-full ' + (playing ? 'bg-stone-300' : 'bg-brand-500')}
         >
           {playing ? <ActivityIndicator color="#fff" /> : <Volume2 size={32} color="#fff" />}
-        </TouchableOpacity>
+        </Pressable3D>
         <Text className="mt-2 text-sm font-bold text-stone-500">{playing ? 'Playing…' : 'Tap to listen again'}</Text>
       </View>
 

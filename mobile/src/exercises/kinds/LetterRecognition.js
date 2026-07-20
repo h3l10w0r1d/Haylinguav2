@@ -1,11 +1,12 @@
 // src/exercises/kinds/LetterRecognition.js — ports ExLetterRecognition
 // (single-select path only — multi-select isn't in scope yet).
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { getChoices, getSingleCorrectIndex } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
+import Pressable3D from '../../components/Pressable3D';
 
 export default function LetterRecognition({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
@@ -37,13 +38,14 @@ export default function LetterRecognition({ exercise, onSubmit, onCheckStateChan
     <View className="flex-1">
       <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Choose the correct answer'}</Text>
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={() => playExerciseAudio(exercise.id, { text: ttsText })}
+        pressDepth={2}
         className="mt-4 flex-row items-center gap-2 self-start rounded-xl bg-feather-50 px-4 py-2.5"
       >
         <Volume2 size={16} color="#1899D6" />
         <Text className="text-sm font-bold text-feather-600">Play sound</Text>
-      </TouchableOpacity>
+      </Pressable3D>
 
       <View className="mt-5">
         <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />

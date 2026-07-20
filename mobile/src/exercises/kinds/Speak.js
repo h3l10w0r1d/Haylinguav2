@@ -4,13 +4,14 @@
 // src/lib/similarity.js). Target/expected phrase comes from
 // exercise.expected_answer, matching the web exactly.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { Mic, Volume2 } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { startRecording, stopRecording, cancelRecording, transcribe } from '../../lib/transcribeAudio';
 import { isSpeechMatch } from '../../lib/similarity';
 import { haptics } from '../../lib/haptics';
+import Pressable3D from '../../components/Pressable3D';
 
 export default function Speak({ exercise, onSubmit, onAdvance, onCheckStateChange }) {
   const cfg = exercise.config || {};
@@ -118,23 +119,25 @@ export default function Speak({ exercise, onSubmit, onAdvance, onCheckStateChang
         </View>
       )}
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={() => playExerciseAudio(exercise.id, { text: target })}
+        pressDepth={2}
         className="mt-4 flex-row items-center gap-2 self-start rounded-xl bg-feather-50 px-4 py-2.5"
       >
         <Volume2 size={16} color="#1899D6" />
         <Text className="text-sm font-bold text-feather-600">Play sound</Text>
-      </TouchableOpacity>
+      </Pressable3D>
 
       <View className="mt-8 items-center">
         <Animated.View style={micStyle}>
-          <TouchableOpacity
+          <Pressable3D
             onPress={onMicPress}
             disabled={busy}
+            pressDepth={5}
             className={'h-20 w-20 items-center justify-center rounded-full ' + (recording ? 'bg-cardinal-500' : busy ? 'bg-stone-300' : 'bg-brand-500')}
           >
             {busy ? <ActivityIndicator color="#fff" /> : <Mic size={32} color="#fff" />}
-          </TouchableOpacity>
+          </Pressable3D>
         </Animated.View>
         <Text className="mt-2 text-sm font-bold text-stone-500">
           {recording ? 'Tap to stop' : busy ? 'Transcribing…' : 'Tap and speak'}
@@ -151,9 +154,9 @@ export default function Speak({ exercise, onSubmit, onAdvance, onCheckStateChang
       {!!error && <Text className="mt-4 text-sm font-bold text-cardinal-600">{error}</Text>}
 
       {!graded && (
-        <TouchableOpacity onPress={skip} className="mt-4 self-center">
+        <Pressable3D onPress={skip} className="mt-4 self-center">
           <Text className="text-sm font-bold text-stone-400 underline">Can't speak right now — skip</Text>
-        </TouchableOpacity>
+        </Pressable3D>
       )}
     </View>
   );

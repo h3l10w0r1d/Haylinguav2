@@ -2,7 +2,7 @@
 // tiles in order to build a word — no drag library needed (confirmed by
 // reading the web source: tiles are tapped, not dragged).
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring } from 'react-native-reanimated';
 import Pressable3D from '../../components/Pressable3D';
 import { haptics } from '../../lib/haptics';
@@ -87,13 +87,14 @@ export default function CharBuildWord({ exercise, onSubmit, onCheckStateChange }
 
       <View className="mt-4 rounded-2xl bg-stone-100 p-4">
         <Text className="min-h-[2.5rem] text-2xl font-extrabold text-stone-900">{built || '…'}</Text>
-        <TouchableOpacity
+        <Pressable3D
           onPress={reset}
           disabled={chosen.length === 0 || !!graded}
+          pressDepth={2}
           className="mt-3 self-start rounded-xl bg-white px-4 py-2"
         >
           <Text className="text-sm font-bold text-stone-600">Reset</Text>
-        </TouchableOpacity>
+        </Pressable3D>
       </View>
 
       <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>

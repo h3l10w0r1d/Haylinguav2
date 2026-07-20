@@ -7,7 +7,7 @@
 // coloring but simplifies the visual tiering to color-only, flagged as a
 // deliberate scope cut, not a silent omission.
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity } from 'react-native';
+import { Modal, View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring } from 'react-native-reanimated';
 import { Gift, Gem, Zap } from 'lucide-react-native';
 import Confetti from './Confetti';
@@ -81,7 +81,7 @@ export default function ChestReveal({ visible, onClose, onOpened }) {
         {phase === 'revealed' && <Confetti colors={theme.confetti} count={48} active />}
 
         {phase !== 'revealed' && phase !== 'error' && (
-          <TouchableOpacity onPress={open} activeOpacity={0.9}>
+          <Pressable3D onPress={open} pressDepth={6}>
             <Animated.View style={chestStyle}>
               <View className="h-32 w-32 items-center justify-center rounded-3xl" style={{ backgroundColor: theme.bg }}>
                 <Gift size={56} color="#fff" />
@@ -90,15 +90,15 @@ export default function ChestReveal({ visible, onClose, onOpened }) {
             <Text className="mt-4 text-center text-base font-bold text-white">
               {phase === 'opening' ? 'Opening…' : 'Tap to open'}
             </Text>
-          </TouchableOpacity>
+          </Pressable3D>
         )}
 
         {phase === 'error' && (
           <View className="items-center">
             <Text className="text-center text-base font-bold text-white">Couldn't open this chest. Try again.</Text>
-            <TouchableOpacity onPress={() => setPhase('idle')} className="mt-4 rounded-xl bg-white/20 px-5 py-3">
+            <Pressable3D onPress={() => setPhase('idle')} className="mt-4 rounded-xl bg-white/20 px-5 py-3">
               <Text className="font-bold text-white">Retry</Text>
-            </TouchableOpacity>
+            </Pressable3D>
           </View>
         )}
 

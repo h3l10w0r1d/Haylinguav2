@@ -3,9 +3,10 @@
 // (see plan) — if the backend demands either, we surface a plain error asking
 // the user to use the web app for now instead of half-building those flows.
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { api, ApiError } from '../../lib/api';
 import { useAuthStore } from '../../lib/authStore';
+import Pressable3D from '../../components/Pressable3D';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -81,19 +82,19 @@ export default function LoginScreen({ navigation }) {
 
         {!!error && <Text className="mb-2 text-sm font-semibold text-cardinal-600">{error}</Text>}
 
-        <TouchableOpacity
+        <Pressable3D
           onPress={submit}
           disabled={loading}
           className="mt-4 items-center rounded-2xl bg-brand-500 py-4"
         >
           {loading ? <ActivityIndicator color="#fff" /> : <Text className="text-base font-extrabold text-white">Log in</Text>}
-        </TouchableOpacity>
+        </Pressable3D>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Signup')} className="mt-5 items-center">
+        <Pressable3D onPress={() => navigation.navigate('Signup')} className="mt-5 items-center">
           <Text className="text-sm font-bold text-stone-500">
             Don&rsquo;t have an account? <Text className="text-brand-600">Sign up</Text>
           </Text>
-        </TouchableOpacity>
+        </Pressable3D>
       </View>
     </KeyboardAvoidingView>
   );

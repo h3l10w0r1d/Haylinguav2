@@ -5,11 +5,12 @@
 // react-native-nitro-sound's player can't send a POST body) — matching the
 // web's priority order in src/exercises/tts.jsx.
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import { getChoices, getSingleCorrectIndex, normalizeText } from '../choiceHelpers';
 import ChoiceGrid from '../ChoiceGrid';
+import Pressable3D from '../../components/Pressable3D';
 
 export default function AudioChoiceTts({ exercise, onSubmit, onCheckStateChange }) {
   const cfg = exercise.config || {};
@@ -51,14 +52,15 @@ export default function AudioChoiceTts({ exercise, onSubmit, onCheckStateChange 
       <Text className="text-lg font-extrabold text-stone-900">{promptText}</Text>
       <Text className="mt-1 text-sm font-semibold text-stone-500">Tap play, then choose the correct option.</Text>
 
-      <TouchableOpacity
+      <Pressable3D
         onPress={play}
         disabled={playing}
+        pressDepth={2}
         className={'mt-4 flex-row items-center gap-2 self-start rounded-xl px-4 py-2.5 ' + (playing ? 'bg-stone-200' : 'bg-feather-50')}
       >
         {playing ? <ActivityIndicator size="small" color="#1899D6" /> : <Volume2 size={16} color="#1899D6" />}
         <Text className="text-sm font-bold text-feather-600">{playing ? 'Playing…' : 'Play'}</Text>
-      </TouchableOpacity>
+      </Pressable3D>
 
       <View className="mt-5">
         <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />

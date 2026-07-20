@@ -3,7 +3,7 @@
 // placeholder with a Skip button so a real lesson containing mixed kinds
 // doesn't hard-crash the demo.
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { X } from 'lucide-react-native';
@@ -50,9 +50,9 @@ function UnsupportedKindFallback({ kind, onAdvance }) {
           Exercise type "{kind}" isn't supported in this Phase 0 build yet.
         </Text>
       </View>
-      <TouchableOpacity onPress={onAdvance} className="items-center rounded-2xl bg-stone-800 py-4">
+      <Pressable3D onPress={onAdvance} className="items-center rounded-2xl bg-stone-800 py-4">
         <Text className="text-base font-extrabold text-white">Skip</Text>
-      </TouchableOpacity>
+      </Pressable3D>
     </View>
   );
 }
@@ -77,6 +77,10 @@ export default function LessonScreen({ route, navigation }) {
   // The last graded attempt — while set, the docked footer hides and
   // ExerciseResultBanner takes over the bottom of the screen instead.
   const [lastResult, setLastResult] = useState(null);
+
+  // Duolingo's iconic "Wait, don't go!" dialog — the X no longer leaves
+  // instantly, it confirms first.
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // A brief brightness flash on the progress bar each time an exercise
   // advances — mirrors the web's .progress-pulse.
@@ -165,29 +169,58 @@ export default function LessonScreen({ route, navigation }) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-[#f5f4f1] px-6">
         <Text className="text-base font-semibold text-cardinal-600">{error || 'Lesson not found.'}</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} className="mt-4 rounded-xl bg-stone-800 px-5 py-3">
+        <Pressable3D onPress={() => navigation.goBack()} className="mt-4 rounded-xl bg-stone-800 px-5 py-3">
           <Text className="font-bold text-white">Go back</Text>
-        </TouchableOpacity>
+        </Pressable3D>
       </SafeAreaView>
     );
   }
 
   const ExerciseComponent = current ? SUPPORTED_KINDS[current.kind] : null;
-  const pct = exercises.length ? Math.round(((index + (ExerciseComponent ? 0 : 1)) / exercises.length) * 100) : 0;
 
   return (
     <SafeAreaView className="flex-1 bg-[#f5f4f1]" edges={['top', 'bottom']}>
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-2">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
+        <Pressable3D onPress={() => setShowExitConfirm(true)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
           <X size={18} color="#57534e" />
-        </TouchableOpacity>
-        <View className="h-3.5 flex-1 overflow-hidden rounded-full bg-stone-200">
-          <View className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(pct, 4)}%` }}>
-            <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff' }, progressFlashStyle]} />
-          </View>
+        </Pressable3D>
+        {/* Segmented progress bar — one thin pill per exercise, filled as you
+            pass it, mirrors Duolingo's per-question notches rather than a
+            single smooth fill. */}
+        <View className="h-3.5 flex-1 flex-row" style={{ gap: 4, position: 'relative' }}>
+          {exercises.map((ex, i) => (
+            <View key={ex.id ?? i} className={'h-full flex-1 overflow-hidden rounded-full ' + (i < index || (i === index && !ExerciseComponent) ? 'bg-brand-500' : 'bg-stone-200')} />
+          ))}
+          <Animated.View
+            pointerEvents="none"
+            style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderRadius: 999 }, progressFlashStyle]}
+          />
         </View>
         <HeartsBadge />
       </View>
+
+      <Modal visible={showExitConfirm} transparent animationType="fade" onRequestClose={() => setShowExitConfirm(false)}>
+        <View className="flex-1 items-center justify-center bg-black/50 px-8">
+          <View className="w-full rounded-3xl bg-white p-6">
+            <Text className="text-center text-lg font-extrabold text-stone-900">Wait, don't go!</Text>
+            <Text className="mt-2 text-center text-sm font-semibold text-stone-500">
+              Your progress on this exercise won't be saved if you leave now.
+            </Text>
+            <Pressable3D onPress={() => setShowExitConfirm(false)} className="mt-5 items-center rounded-2xl bg-brand-500 py-4">
+              <Text className="text-base font-extrabold text-white">Keep learning</Text>
+            </Pressable3D>
+            <Pressable3D
+              onPress={() => {
+                setShowExitConfirm(false);
+                navigation.goBack();
+              }}
+              className="mt-3 items-center rounded-2xl py-4"
+            >
+              <Text className="text-base font-extrabold text-stone-400">End session</Text>
+            </Pressable3D>
+          </View>
+        </View>
+      </Modal>
 
       <View className="flex-1 px-4 pb-4">
         {!current ? (

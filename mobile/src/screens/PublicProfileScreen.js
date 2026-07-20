@@ -3,7 +3,7 @@
 // actions (request/accept/remove) exactly like the web. Reached by tapping
 // a row in FriendsScreen or LeaderboardScreen.
 import React, { useCallback, useState } from 'react';
-import { View, Text, Image, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, Image, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserPlus, UserCheck, UserMinus, Award, ChevronLeft } from 'lucide-react-native';
@@ -95,9 +95,9 @@ export default function PublicProfileScreen({ route, navigation }) {
   return (
     <SafeAreaView className="flex-1 bg-[#f5f4f1]" edges={['top']}>
       <View className="px-4 pb-1 pt-2">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
+        <Pressable3D onPress={() => navigation.goBack()} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
           <ChevronLeft size={20} color="#57534e" />
-        </TouchableOpacity>
+        </Pressable3D>
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         <View className="items-center pt-4">

@@ -10,7 +10,7 @@
 // an info card. Mirrors the web's own ExCharIntro, which submits with
 // `autoAdvance: true` to skip its result panel the same way.
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
 import { playExerciseAudio } from '../../lib/playExerciseAudio';
 import Pressable3D from '../../components/Pressable3D';
@@ -38,13 +38,14 @@ export default function CharIntro({ exercise, onSubmit, onAdvance }) {
           {!!cfg.hint && <Text className="mt-2 text-sm font-medium text-stone-500">{cfg.hint}</Text>}
         </View>
 
-        <TouchableOpacity
+        <Pressable3D
           onPress={() => playExerciseAudio(exercise.id, { text: cfg.ttsText ?? cfg.letter ?? cfg.transliteration ?? '' })}
+          pressDepth={2}
           className="mt-4 flex-row items-center gap-2 self-start rounded-xl bg-feather-50 px-4 py-2.5"
         >
           <Volume2 size={16} color="#1899D6" />
           <Text className="text-sm font-bold text-feather-600">Play sound</Text>
-        </TouchableOpacity>
+        </Pressable3D>
       </View>
 
       <Pressable3D

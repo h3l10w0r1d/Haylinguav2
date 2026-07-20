@@ -5,9 +5,10 @@
 // in directly — fine for proving the pipeline, but note this is a real gap
 // before shipping (see plan's "explicitly deferred" list).
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { api, ApiError } from '../../lib/api';
 import { useAuthStore } from '../../lib/authStore';
+import Pressable3D from '../../components/Pressable3D';
 
 export default function SignupScreen({ navigation }) {
   const [username, setUsername] = useState('');
@@ -87,15 +88,15 @@ export default function SignupScreen({ navigation }) {
 
           {!!error && <Text className="mb-2 text-sm font-semibold text-cardinal-600">{error}</Text>}
 
-          <TouchableOpacity onPress={submit} disabled={loading} className="mt-4 items-center rounded-2xl bg-brand-500 py-4">
+          <Pressable3D onPress={submit} disabled={loading} className="mt-4 items-center rounded-2xl bg-brand-500 py-4">
             {loading ? <ActivityIndicator color="#fff" /> : <Text className="text-base font-extrabold text-white">Create account</Text>}
-          </TouchableOpacity>
+          </Pressable3D>
 
-          <TouchableOpacity onPress={() => navigation.navigate('Login')} className="mt-5 items-center">
+          <Pressable3D onPress={() => navigation.navigate('Login')} className="mt-5 items-center">
             <Text className="text-sm font-bold text-stone-500">
               Already have an account? <Text className="text-brand-600">Log in</Text>
             </Text>
-          </TouchableOpacity>
+          </Pressable3D>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
