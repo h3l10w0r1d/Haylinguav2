@@ -406,10 +406,25 @@ export default function ExerciseShell({
           of clipping when content is taller than the viewport (a known
           flexbox trap: `justify-content: center` on an overflowing
           container makes the far edge unreachable even with scroll). */}
+      {/* Large side-docked companion — Duolingo-style, in the empty gutter
+          beside the centered content column. Desktop/wide screens only;
+          there's no room for it once the viewport narrows to the content
+          column's own width, so the mobile layout uses the smaller inline
+          version below instead. */}
+      {!hideFooter ? (
+        <img
+          key={mascotFaceState}
+          src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
+          alt=""
+          aria-hidden="true"
+          className="animate-pop pointer-events-none fixed right-6 top-1/2 z-10 hidden h-72 w-72 -translate-y-1/2 object-contain min-[1180px]:block xl:right-16 xl:h-96 xl:w-96"
+        />
+      ) : null}
+
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         <div className="m-auto w-full">
           {!hideFooter ? (
-            <div className="mb-2 flex justify-center">
+            <div className="mb-2 flex justify-center min-[1180px]:hidden">
               <img
                 key={mascotFaceState}
                 src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
