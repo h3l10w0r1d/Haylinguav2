@@ -1,10 +1,11 @@
 // src/ForumThreadPage.jsx — a single forum thread: original post, replies,
 // and a reply box for logged-in users.
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ChevronLeft, Pin, Lock, Loader2, AlertTriangle, Send, Trash2 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
+import AuthModal from "./AuthModal";
 import { getToken, apiFetch } from "./api";
 
 function timeAgo(isoStr) {
@@ -48,8 +49,7 @@ function Post({ post, isRoot, canDelete, onDelete }) {
 
 export default function ForumThreadPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const token = getToken();
+  const [token, setToken] = useState(getToken);
 
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
@@ -57,6 +57,7 @@ export default function ForumThreadPage() {
   const [reply, setReply] = useState("");
   const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [authMode, setAuthMode] = useState(null); // null | "login" | "signup"
 
   async function load() {
     try {
@@ -71,11 +72,12 @@ export default function ForumThreadPage() {
     setData(null);
     setError(false);
     load();
-    if (token) {
-      apiFetch("/me/profile", { token }).then(setMe).catch(() => {});
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (token) apiFetch("/me/profile", { token }).then(setMe).catch(() => {});
+  }, [token]);
 
   async function submitReply(e) {
     e.preventDefault();
@@ -168,8 +170,8 @@ export default function ForumThreadPage() {
                   </div>
                 </form>
               ) : (
-                <button type="button" onClick={() => navigate("/", { state: { openAuth: "login" } })} className="btn3d btn3d-neutral w-full text-sm justify-center">
-                  Log in to reply
+                <button type="button" onClick={() => setAuthMode("signup")} className="btn3d btn3d-neutral w-full text-sm justify-center">
+                  Sign up to reply
                 </button>
               )}
             </div>
@@ -178,6 +180,15 @@ export default function ForumThreadPage() {
       </div>
 
       <SiteFooter />
+
+      {authMode && (
+        <AuthModal
+          mode={authMode}
+          onClose={() => setAuthMode(null)}
+          onSwitchMode={setAuthMode}
+          onAuthSuccess={() => setToken(getToken())}
+        />
+      )}
     </div>
   );
 }

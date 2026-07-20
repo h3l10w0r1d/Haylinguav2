@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Pin, Lock, MessageSquare, Plus, X, Loader2, AlertTriangle } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
+import AuthModal from "./AuthModal";
 import { getToken, apiFetch } from "./api";
 
 function timeAgo(isoStr) {
@@ -23,7 +24,7 @@ function timeAgo(isoStr) {
 export default function ForumCategoryPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const token = getToken();
+  const [token, setToken] = useState(getToken);
 
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
@@ -32,6 +33,7 @@ export default function ForumCategoryPage() {
   const [body, setBody] = useState("");
   const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [authMode, setAuthMode] = useState(null); // null | "login" | "signup"
 
   useEffect(() => {
     setData(null);
@@ -88,8 +90,8 @@ export default function ForumCategoryPage() {
                   {composerOpen ? <><X className="h-4 w-4" /> Cancel</> : <><Plus className="h-4 w-4" /> New thread</>}
                 </button>
               ) : (
-                <button type="button" onClick={() => navigate("/", { state: { openAuth: "login" } })} className="btn3d btn3d-neutral shrink-0 text-sm">
-                  Log in to post
+                <button type="button" onClick={() => setAuthMode("signup")} className="btn3d btn3d-neutral shrink-0 text-sm">
+                  Sign up to post
                 </button>
               )}
             </div>
@@ -159,6 +161,18 @@ export default function ForumCategoryPage() {
       </div>
 
       <SiteFooter />
+
+      {authMode && (
+        <AuthModal
+          mode={authMode}
+          onClose={() => setAuthMode(null)}
+          onSwitchMode={setAuthMode}
+          onAuthSuccess={() => {
+            setToken(getToken());
+            setComposerOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }
