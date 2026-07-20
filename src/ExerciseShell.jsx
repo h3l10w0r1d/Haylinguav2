@@ -304,6 +304,11 @@ export default function ExerciseShell({
   }, []);
 
   const variant = result?.variant;
+  // Persistent mascot on the exercise page itself: neutral while unanswered,
+  // then reacts once graded. `result` resets to null on the next exercise,
+  // so this naturally goes back to neutral without any extra reset logic.
+  const mascotFaceState =
+    variant === "correct" ? "positive" : variant === "skipped" ? "neutral" : variant === "wrong" ? "negative" : "neutral";
   const tone =
     variant === "correct"
       ? {
@@ -402,7 +407,20 @@ export default function ExerciseShell({
           flexbox trap: `justify-content: center` on an overflowing
           container makes the far edge unreachable even with scroll). */}
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
-        <div className="m-auto w-full">{children}</div>
+        <div className="m-auto w-full">
+          {!hideFooter ? (
+            <div className="mb-3 flex justify-center">
+              <img
+                key={mascotFaceState}
+                src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
+                alt=""
+                aria-hidden="true"
+                className="animate-pop h-20 w-20 rounded-2xl object-cover shadow-sm"
+              />
+            </div>
+          ) : null}
+          {children}
+        </div>
       </main>
 
       {/* Bottom action bar — in-flow so it's always visible on mobile.
@@ -452,32 +470,23 @@ export default function ExerciseShell({
             <CarpetBorder color={tone.carpet} />
             <div className="safe-b mx-auto max-w-2xl px-4 py-5">
               <div className="flex items-center gap-4">
-                {/* Mascot reacts — positive/negative/neutral face for correct/wrong/skipped */}
-                <div className="relative shrink-0">
-                  <img
-                    src={mascotFaceUrl(
-                      mascotCharacter,
-                      variant === "correct" ? "positive" : variant === "skipped" ? "neutral" : "negative"
-                    )}
-                    alt=""
-                    aria-hidden="true"
-                    className="block h-16 w-16 rounded-2xl object-cover shadow-sm"
-                  />
-                  <span
-                    className={
-                      "absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full ring-2 ring-white " +
-                      tone.medallion
-                    }
-                  >
-                    {variant === "correct" ? (
-                      <StarMotif className="h-4 w-4" />
-                    ) : variant === "skipped" ? (
-                      <span className="text-xs font-black">→</span>
-                    ) : (
-                      <span className="text-sm font-black">!</span>
-                    )}
-                  </span>
-                </div>
+                {/* The mascot itself lives on the main exercise page (above the
+                    content) and already reacted before this sheet slid up —
+                    just a compact status medallion here, no duplicate face. */}
+                <span
+                  className={
+                    "grid h-11 w-11 shrink-0 place-items-center rounded-full ring-2 ring-white shadow-sm " +
+                    tone.medallion
+                  }
+                >
+                  {variant === "correct" ? (
+                    <StarMotif className="h-5 w-5" />
+                  ) : variant === "skipped" ? (
+                    <span className="text-base font-black">→</span>
+                  ) : (
+                    <span className="text-lg font-black">!</span>
+                  )}
+                </span>
 
                 <div className="min-w-0 flex-1">
                   <div className={"font-display text-xl font-extrabold " + tone.title}>
