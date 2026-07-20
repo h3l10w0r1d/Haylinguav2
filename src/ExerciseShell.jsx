@@ -409,13 +409,13 @@ export default function ExerciseShell({
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         <div className="m-auto w-full">
           {!hideFooter ? (
-            <div className="mb-3 flex justify-center">
+            <div className="mb-2 flex justify-center">
               <img
                 key={mascotFaceState}
                 src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
                 alt=""
                 aria-hidden="true"
-                className="animate-pop h-20 w-20 rounded-2xl object-cover shadow-sm"
+                className="animate-pop h-40 w-40 object-contain sm:h-48 sm:w-48"
               />
             </div>
           ) : null}
