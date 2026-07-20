@@ -3028,6 +3028,25 @@ def affiliate_request_payout(authorization: Optional[str] = Header(default=None)
         raise HTTPException(status_code=400, detail="Nothing owed yet")
 
     db.execute(text("UPDATE affiliates SET payout_requested_at = NOW() WHERE id = :id"), {"id": affiliate["id"]})
+
+    applied_name = db.execute(text("SELECT applied_name FROM affiliates WHERE id = :id"), {"id": affiliate["id"]}).scalar() or "An affiliate"
+    to_email = (os.getenv("CONTACT_INBOX_EMAIL") or os.getenv("BREVO_SENDER_EMAIL") or os.getenv("EMAIL_FROM") or "info@haylingua.am").strip()
+    _send_email(
+        to_email=to_email,
+        subject=f"[Haylingua Affiliate] Payout requested — {applied_name}",
+        body=(
+            f"{applied_name} requested a payout of ֏{float(pending):,.0f}.\n"
+            f"Pay to: {affiliate['payout_email']}\n\n"
+            f"Review and mark paid in the CMS: /cms/affiliates"
+        ),
+        html_body=f"""
+        <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;">
+          <h2 style="color:#1c1917;">Payout requested</h2>
+          <p style="color:#57534e;"><strong>{applied_name}</strong> requested a payout of <strong>֏{float(pending):,.0f}</strong>.</p>
+          <p style="color:#57534e;">Pay to: {affiliate['payout_email']}</p>
+          <p style="color:#57534e;">Review and mark it paid in the CMS under Affiliates.</p>
+        </div>""",
+    )
     return {"ok": True}
 
 
@@ -6064,6 +6083,32 @@ def forum_list_categories(db: Connection = Depends(get_db)):
     return {"categories": [dict(r) for r in rows]}
 
 
+@router.get("/forum/search")
+def forum_search(q: str = "", db: Connection = Depends(get_db)):
+    """Public — matches thread titles and reply bodies. Simple ILIKE search;
+    the forum is small enough that this doesn't need full-text indexing."""
+    query = (q or "").strip()[:200]
+    if len(query) < 2:
+        return {"threads": [], "query": query}
+    pattern = f"%{query}%"
+    rows = db.execute(
+        text("""
+            SELECT DISTINCT t.id, t.title, t.reply_count, t.last_reply_at,
+                   c.name AS category_name, c.slug AS category_slug,
+                   COALESCE(u.display_name, u.username, split_part(u.email, '@', 1)) AS author_name
+            FROM forum_threads t
+            JOIN forum_categories c ON c.id = t.category_id
+            JOIN users u ON u.id = t.user_id
+            LEFT JOIN forum_posts p ON p.thread_id = t.id
+            WHERE c.is_active = TRUE AND (t.title ILIKE :pat OR p.body ILIKE :pat)
+            ORDER BY t.last_reply_at DESC
+            LIMIT 30
+        """),
+        {"pat": pattern},
+    ).mappings().all()
+    return {"threads": [dict(r) for r in rows], "query": query}
+
+
 @router.get("/forum/categories/{slug}/threads")
 def forum_list_threads(slug: str, page: int = 1, db: Connection = Depends(get_db)):
     category = db.execute(
@@ -6158,7 +6203,7 @@ async def forum_create_post(thread_id: int, request: Request, user: dict = Depen
     if not post_body:
         raise HTTPException(status_code=400, detail="body is required")
 
-    thread = db.execute(text("SELECT id, is_locked FROM forum_threads WHERE id = :id"), {"id": thread_id}).mappings().first()
+    thread = db.execute(text("SELECT id, title, user_id, is_locked FROM forum_threads WHERE id = :id"), {"id": thread_id}).mappings().first()
     if thread is None:
         raise HTTPException(status_code=404, detail="Thread not found")
     if thread["is_locked"]:
@@ -6172,6 +6217,34 @@ async def forum_create_post(thread_id: int, request: Request, user: dict = Depen
         text("UPDATE forum_threads SET reply_count = reply_count + 1, last_reply_at = NOW() WHERE id = :id"),
         {"id": thread_id},
     )
+
+    # Notify whoever started the thread — but not when they're replying to
+    # their own thread.
+    if int(thread["user_id"]) != int(user["id"]):
+        owner = db.execute(
+            text("SELECT email, COALESCE(display_name, username, split_part(email, '@', 1)) AS name FROM users WHERE id = :id"),
+            {"id": thread["user_id"]},
+        ).mappings().first()
+        replier_name = db.execute(
+            text("SELECT COALESCE(display_name, username, split_part(email, '@', 1)) FROM users WHERE id = :id"),
+            {"id": user["id"]},
+        ).scalar() or "Someone"
+        if owner and owner["email"]:
+            app_url = (os.getenv("FRONTEND_URL") or "https://haylingua.am").rstrip("/")
+            thread_url = f"{app_url}/community/thread/{thread_id}"
+            _send_email(
+                to_email=owner["email"],
+                subject=f"{replier_name} replied to your thread — {thread['title']}",
+                body=f"{replier_name} replied to \"{thread['title']}\":\n\n{post_body}\n\nView it: {thread_url}",
+                html_body=f"""
+                <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;">
+                  <h2 style="color:#1c1917;">New reply on your thread</h2>
+                  <p style="color:#57534e;"><strong>{replier_name}</strong> replied to <strong>{thread['title']}</strong>:</p>
+                  <div style="white-space:pre-wrap;background:#f5f5f4;border-radius:12px;padding:16px;color:#292524;">{post_body}</div>
+                  <p style="margin-top:16px;"><a href="{thread_url}">View the thread</a></p>
+                </div>""",
+            )
+
     return {"id": int(post_id)}
 
 

@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
-  Sparkles, MessagesSquare, ArrowRight, Hand, Lightbulb, Bug, Users, Loader2,
+  Sparkles, MessagesSquare, ArrowRight, Hand, Lightbulb, Bug, Users, Loader2, Search, X, MessageSquare,
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
@@ -34,12 +34,32 @@ export default function ForumPage() {
   const [categories, setCategories] = useState(null);
   const [error, setError] = useState(false);
 
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState(null);
+  const [searching, setSearching] = useState(false);
+
   useEffect(() => {
     fetch(`${API_BASE}/forum/categories`)
       .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => setCategories(Array.isArray(d?.categories) ? d.categories : []))
       .catch(() => setError(true));
   }, []);
+
+  // Debounced search — fires 300ms after typing stops, empty query clears
+  // back to the category list.
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setSearchResults(null); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      fetch(`${API_BASE}/forum/search?q=${encodeURIComponent(q)}`)
+        .then((r) => (r.ok ? r.json() : { threads: [] }))
+        .then((d) => setSearchResults(Array.isArray(d?.threads) ? d.threads : []))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -78,11 +98,54 @@ export default function ForumPage() {
           <p data-hero-item className="mx-auto mt-5 max-w-lg text-lg font-semibold text-slate-500 dark:text-stone-400">
             Ask questions, share progress, and get help from other learners and the team. Anyone can read — log in to post.
           </p>
+          <div data-hero-item className="relative mx-auto mt-7 max-w-md">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-stone-500" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search threads…"
+              className="w-full rounded-2xl bg-slate-50 py-3 pl-11 pr-10 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       <section className="mx-auto max-w-3xl px-5 pb-20">
-        {error ? (
+        {searchResults !== null ? (
+          <div>
+            <div className="mb-4 text-sm font-bold text-slate-400 dark:text-stone-500">
+              {searching ? "Searching…" : `${searchResults.length} result${searchResults.length === 1 ? "" : "s"} for "${query.trim()}"`}
+            </div>
+            {!searching && searchResults.length === 0 ? (
+              <div className="rounded-3xl bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:text-stone-400 dark:ring-white/[0.08]">
+                No threads match that search.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {searchResults.map((t) => (
+                  <Link
+                    key={t.id}
+                    to={`/community/thread/${t.id}`}
+                    className="flex items-center gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-[#18181b] dark:ring-white/[0.08]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-bold text-slate-800 dark:text-white">{t.title}</div>
+                      <div className="mt-0.5 text-xs font-semibold text-slate-400 dark:text-stone-500">{t.category_name} · by {t.author_name} · {timeAgo(t.last_reply_at)}</div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 text-sm font-extrabold text-slate-500 tabular-nums dark:text-stone-400">
+                      <MessageSquare className="h-4 w-4" /> {t.reply_count}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : error ? (
           <div className="rounded-3xl bg-cardinal-50 p-8 text-center text-sm font-semibold text-cardinal-700 ring-1 ring-cardinal-200 dark:bg-cardinal-500/10 dark:text-cardinal-300 dark:ring-cardinal-500/25">
             Couldn't load the community right now — try again shortly.
           </div>

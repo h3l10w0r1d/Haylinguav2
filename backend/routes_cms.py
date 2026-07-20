@@ -1890,6 +1890,25 @@ def cms_approve_affiliate(affiliate_id: int, request: Request, db=Depends(get_db
         text("UPDATE affiliates SET user_id = :uid, referral_code = :code, status = 'approved', approved_at = NOW() WHERE id = :id"),
         {"uid": user["id"], "code": code, "id": affiliate_id},
     )
+
+    app_url = (os.getenv("FRONTEND_URL") or "https://haylingua.am").rstrip("/")
+    referral_link = f"{app_url}/?ref={code}"
+    _send_email(
+        to_email=aff["applied_email"],
+        subject="You're in — your Haylingua affiliate link is live",
+        body=(
+            f"Hey {aff['applied_name']},\n\n"
+            f"Your affiliate application was approved. Your referral link:\n{referral_link}\n\n"
+            f"Track clicks, signups, and commission from your dashboard: {app_url}/affiliate-dashboard"
+        ),
+        html_body=f"""
+        <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;">
+          <h2 style="color:#1c1917;">You're in! 🎉</h2>
+          <p style="color:#57534e;">Your affiliate application was approved. Here's your referral link:</p>
+          <p style="background:#f5f5f4;border-radius:12px;padding:16px;color:#292524;word-break:break-all;">{referral_link}</p>
+          <p style="color:#57534e;">Track clicks, signups, and commission any time from your <a href="{app_url}/affiliate-dashboard">affiliate dashboard</a>.</p>
+        </div>""",
+    )
     return {"ok": True, "referral_code": code}
 
 @router.put("/cms/affiliates/{affiliate_id}")
@@ -1935,6 +1954,33 @@ def cms_mark_referral_paid(referral_id: int, request: Request, db=Depends(get_db
     ).scalar() or 0
     if remaining_unpaid == 0:
         db.execute(text("UPDATE affiliates SET payout_requested_at = NULL WHERE id = :id"), {"id": referral["affiliate_id"]})
+
+        # Notify the affiliate only once the whole outstanding balance has
+        # cleared, rather than once per referral — avoids spamming them when
+        # several payouts are settled in the same batch.
+        aff = db.execute(
+            text("""
+                SELECT a.applied_name, COALESCE(u.email, a.applied_email) AS email
+                FROM affiliates a LEFT JOIN users u ON u.id = a.user_id
+                WHERE a.id = :id
+            """),
+            {"id": referral["affiliate_id"]},
+        ).mappings().first()
+        total_paid = db.execute(
+            text("SELECT COALESCE(SUM(commission_amount), 0) FROM affiliate_referrals WHERE affiliate_id = :id AND payout_status = 'paid'"),
+            {"id": referral["affiliate_id"]},
+        ).scalar() or 0
+        if aff and aff["email"]:
+            _send_email(
+                to_email=aff["email"],
+                subject="Your Haylingua affiliate payout is on its way",
+                body=f"Hey {aff['applied_name']},\n\nYour outstanding affiliate commission (֏{float(total_paid):,.0f} total paid to date) has been marked as sent.",
+                html_body=f"""
+                <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;">
+                  <h2 style="color:#1c1917;">Payout sent 💸</h2>
+                  <p style="color:#57534e;">Your outstanding affiliate commission has been marked as sent. ֏{float(total_paid):,.0f} paid to date.</p>
+                </div>""",
+            )
     return {"ok": True}
 
 # ==================== Community forum (moderation) ====================
