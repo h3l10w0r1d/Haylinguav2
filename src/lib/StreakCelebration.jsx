@@ -70,12 +70,19 @@ export default function StreakCelebration({ streak }) {
         className="relative w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl ring-1 ring-slate-200"
         style={{ animation: "celebPop .45s cubic-bezier(.2,.8,.2,1)" }}
       >
-        <div className="mx-auto w-fit">
+        <div className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-600">
+          🎉 Streak milestone unlocked
+        </div>
+        <div className="mx-auto mt-4 w-fit">
           <StreakFlame size={120} lit />
         </div>
-        <div className="mt-2 font-display text-5xl font-extrabold tabular-nums text-brand-600">{show}</div>
-        <div className="font-display text-xl font-extrabold text-slate-800">day streak!</div>
-        <p className="mt-2 font-semibold text-slate-500">You're on fire — keep the flame burning! 🔥</p>
+        <div className="mt-3 flex items-baseline justify-center gap-2">
+          <span className="font-display text-5xl font-extrabold tabular-nums text-brand-600">{show}</span>
+          <span className="font-display text-xl font-extrabold text-slate-800">days in a row</span>
+        </div>
+        <p className="mt-2 font-semibold text-slate-500">
+          You've practiced {show} days straight without missing one. Come back tomorrow to keep it going!
+        </p>
         <button onClick={() => setShow(null)} className="btn3d btn3d-brand mt-6 w-full uppercase">
           Keep going
         </button>
