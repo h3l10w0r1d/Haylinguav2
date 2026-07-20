@@ -27,6 +27,7 @@ const ACCENT = {
   feather:  { chip: "bg-feather-50 dark:bg-feather-500/15",   icon: "text-feather-500 dark:text-feather-400" },
   cardinal: { chip: "bg-cardinal-50 dark:bg-cardinal-500/15", icon: "text-cardinal-500 dark:text-cardinal-400" },
   pom:      { chip: "bg-pom-50 dark:bg-pom-500/15",           icon: "text-pom-500 dark:text-pom-400" },
+  gold:     { chip: "bg-gold-100 dark:bg-gold-500/20",        icon: "text-gold-600 dark:text-gold-400" },
 };
 
 // Small section label used across every card header.
@@ -533,7 +534,7 @@ function DailyGoalCard({ todayXp }) {
 
 // Stat row — hearts / streak / XP / gems. Each a lifted card with a colored
 // tinted chip + big number. This is where the palette gets to sing.
-function KpiStrip({ token, streak, xp }) {
+function KpiStrip({ token, streak, xp, onPremiumChange }) {
   const [hearts, setHearts] = useState(null);
   const [gems, setGems] = useState(null);
 
@@ -542,7 +543,11 @@ function KpiStrip({ token, streak, xp }) {
     const loadHearts = () =>
       fetch(`${API_BASE_URL}/me/hearts`, { headers: h })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => d && setHearts(d))
+        .then((d) => {
+          if (!d) return;
+          setHearts(d);
+          onPremiumChange?.(!!d.is_premium);
+        })
         .catch(() => {});
     const loadWallet = () =>
       fetch(`${API_BASE_URL}/me/wallet`, { headers: h })
@@ -571,7 +576,7 @@ function KpiStrip({ token, streak, xp }) {
     : "–";
 
   const items = [
-    { icon: Heart, label: "Hearts", value: heartLabel, accent: ACCENT.cardinal },
+    { icon: hearts?.is_premium ? Crown : Heart, label: "Hearts", value: heartLabel, accent: hearts?.is_premium ? ACCENT.gold : ACCENT.cardinal },
     { icon: Flame, label: "Streak", value: streak, accent: ACCENT.brand },
     { icon: Zap, label: "XP", value: xp, accent: ACCENT.amber },
     { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, accent: ACCENT.feather },
@@ -595,7 +600,7 @@ function KpiStrip({ token, streak, xp }) {
 // The hero: a warm apricot→pomegranate gradient with the mascot, the greeting,
 // and the single next action on a white button. Identical in both themes — the
 // signature colorful anchor.
-function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, isNewUser, onStart, navigate }) {
+function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, isNewUser, onStart, navigate, isPremium }) {
   const pct = unitTotal ? Math.round((unitDone / unitTotal) * 100) : 0;
   const complete = !loading && !lesson;
   return (
@@ -613,8 +618,15 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
 
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-sm font-bold text-white/85">
-            Բարև{firstName ? `, ${firstName}` : ""} 👋
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-bold text-white/85">
+              Բարև{firstName ? `, ${firstName}` : ""} 👋
+            </div>
+            {isPremium && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gold-500 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-[0_2px_0_0_#B45309]">
+                <Crown className="h-3 w-3" /> Premium
+              </span>
+            )}
           </div>
           <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight drop-shadow-sm sm:text-[30px]">
             {loading ? "Loading your journey…" : lesson ? "Ready for today's lesson?" : "You've reached the summit!"}
@@ -834,6 +846,7 @@ export default function Dashboard({ user }) {
   const [stats, setStats] = useState({ total_xp: 0, lessons_completed: 0, streak: 0, today_xp: 0 });
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [error, setError] = useState("");
+  const [isPremium, setIsPremium] = useState(false);
 
   const token = useMemo(
     () => localStorage.getItem("hay_token") || localStorage.getItem("access_token") || "",
@@ -941,7 +954,7 @@ export default function Dashboard({ user }) {
       <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_336px] lg:items-start lg:gap-6">
         {/* ── Main: stats + hero + curriculum ── */}
         <main className="mx-auto w-full max-w-xl lg:mx-0 lg:justify-self-center">
-          <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} />
+          <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} onPremiumChange={setIsPremium} />
 
           <HeroCard
             firstName={firstName}
@@ -953,6 +966,7 @@ export default function Dashboard({ user }) {
             isNewUser={!loadingLessons && doneLessons === 0 && totalLessons > 0}
             onStart={handleStart}
             navigate={navigate}
+            isPremium={isPremium}
           />
 
           {error && (

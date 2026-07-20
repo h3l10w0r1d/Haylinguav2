@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Trophy, Flame, BookOpen, Users, Loader2, Lock, UserPlus, Check, Clock, Target, Zap, Crown, Star, Award, Medal, CalendarCheck } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import ActivityChart from "./lib/ActivityChart";
+import { CrownBadge } from "./lib/PremiumBadge";
 
 const ACH_ICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -338,19 +339,22 @@ export default function PublicUserPage({ token }) {
               <div className="px-5 pb-6 md:px-8">
                 {/* Avatar — pulled up to overlap the banner */}
                 <div className="-mt-12 mb-3 flex items-end justify-between">
-                  <div className="relative z-10 h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-brand-50 ring-4 ring-white shadow-md dark:bg-brand-500/15 dark:ring-[#18181b]">
-                    {avatarUrl && !avatarBroken ? (
-                      <img
-                        src={avatarUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        onError={() => setAvatarBroken(true)}
-                      />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
-                        {String(displayName || "H")[0]?.toUpperCase()}
-                      </div>
-                    )}
+                  <div className="relative shrink-0">
+                    <div className={"relative z-10 h-24 w-24 overflow-hidden rounded-3xl bg-brand-50 shadow-md dark:bg-brand-500/15 " + (data?.is_premium ? "ring-4 ring-gold-400" : "ring-4 ring-white dark:ring-[#18181b]")}>
+                      {avatarUrl && !avatarBroken ? (
+                        <img
+                          src={avatarUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={() => setAvatarBroken(true)}
+                        />
+                      ) : (
+                        <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+                          {String(displayName || "H")[0]?.toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    {data?.is_premium && <CrownBadge className="z-20" />}
                   </div>
                   {heroCta ? <div className="flex items-center gap-2">{heroCta}</div> : null}
                 </div>

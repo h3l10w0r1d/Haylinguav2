@@ -21,6 +21,7 @@ import {
   Copy,
   Share2,
   Award,
+  Crown,
 } from "lucide-react";
 
 import { StarMotif } from "./lib/motifs";
@@ -180,6 +181,7 @@ export default function ProfilePage() {
   // Public controls
   const [friendsPublic, setFriendsPublic] = useState(true);
   const [isHidden, setIsHidden] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
   // Theme / visuals
   const [themeBg, setThemeBg] = useState("#fff7ed");
@@ -310,6 +312,7 @@ export default function ProfilePage() {
             typeof data.friends_public === "boolean" ? data.friends_public : true
           );
           setIsHidden(typeof data.is_hidden === "boolean" ? data.is_hidden : false);
+          setIsPremium(!!data.is_premium);
 
           const theme = data.profile_theme || {};
           const themeIsEmpty = !data.profile_theme || Object.keys(data.profile_theme).length === 0;
@@ -982,7 +985,7 @@ export default function ProfilePage() {
           <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
               <div className="relative shrink-0">
-                <div className="h-24 w-24 overflow-hidden rounded-3xl bg-white ring-4 ring-white shadow-md dark:bg-[#18181b]">
+                <div className={"h-24 w-24 overflow-hidden rounded-3xl bg-white shadow-md dark:bg-[#18181b] " + (isPremium ? "ring-4 ring-gold-400" : "ring-4 ring-white")}>
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
                   ) : (
@@ -991,6 +994,11 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
+                {isPremium && (
+                  <span title="Premium" className="absolute -top-1 -left-1 grid h-7 w-7 place-items-center rounded-full bg-gold-500 text-white shadow-[0_2px_0_0_#B45309] ring-2 ring-white dark:ring-[#18181b]">
+                    <Crown className="h-3.5 w-3.5" />
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowAvatarPresets((v) => !v)}

@@ -17,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
+import { CrownBadge } from "./lib/PremiumBadge";
 import grandma from "./assets/character-grandma.png";
 
 const API_BASE =
@@ -842,20 +843,23 @@ function PersonCard({
       }}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-pom-500 font-display font-extrabold text-white">
-            {isHidden ? (
-              <EyeOff className="h-5 w-5" />
-            ) : avatarSrc ? (
-              <img
-                src={avatarSrc}
-                alt="Avatar"
-                className="h-full w-full object-cover"
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
-              />
-            ) : (
-              initial
-            )}
+        <div className="relative flex min-w-0 items-center gap-3">
+          <div className="relative shrink-0">
+            <div className={"grid h-12 w-12 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-pom-500 font-display font-extrabold text-white " + (person?.is_premium ? "ring-2 ring-gold-400" : "")}>
+              {isHidden ? (
+                <EyeOff className="h-5 w-5" />
+              ) : avatarSrc ? (
+                <img
+                  src={avatarSrc}
+                  alt="Avatar"
+                  className="h-full w-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              ) : (
+                initial
+              )}
+            </div>
+            {!isHidden && person?.is_premium && <CrownBadge size="h-4 w-4" iconSize="h-2.5 w-2.5" />}
           </div>
           <div className="min-w-0">
             <h3 className="truncate font-display text-base font-extrabold text-slate-800 dark:text-white">

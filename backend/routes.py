@@ -3908,6 +3908,7 @@ class MeOut(BaseModel):
     telegram_id: Optional[int] = None
     google_linked: bool = False
     facebook_linked: bool = False
+    is_premium: bool = False
 
     # Preferences
     voice_pref: str = "Random"
@@ -5282,7 +5283,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, facebook_id, COALESCE(best_streak, 0) AS best_streak FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, facebook_id, COALESCE(best_streak, 0) AS best_streak, COALESCE(is_premium, FALSE) AS is_premium FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -6667,7 +6668,7 @@ def me_league(
                 """
                 SELECT id AS user_id, username,
                        COALESCE(NULLIF(display_name, ''), username, split_part(email, '@', 1)) AS name,
-                       avatar_url, COALESCE(weekly_xp, 0) AS weekly_xp
+                       avatar_url, COALESCE(weekly_xp, 0) AS weekly_xp, COALESCE(is_premium, FALSE) AS is_premium
                 FROM users
                 WHERE league_tier = :t AND league_week = :wk AND league_cohort = :c
                   AND NOT COALESCE(is_hidden, FALSE)
@@ -6688,7 +6689,7 @@ def me_league(
             )
             SELECT u.id AS user_id, u.username,
                    COALESCE(NULLIF(u.display_name, ''), u.username, split_part(u.email, '@', 1)) AS name,
-                   u.avatar_url,
+                   u.avatar_url, COALESCE(u.is_premium, FALSE) AS is_premium,
                    CASE WHEN u.league_week = :wk THEN COALESCE(u.weekly_xp, 0) ELSE 0 END AS weekly_xp
             FROM users u JOIN fids ON fids.id = u.id
             WHERE NOT COALESCE(u.is_hidden, FALSE)
@@ -6967,7 +6968,7 @@ def me_profile_put(
             )
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, facebook_id FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, facebook_id, COALESCE(is_premium, FALSE) AS is_premium FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 

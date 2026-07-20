@@ -41,6 +41,7 @@ class FriendOut(BaseModel):
     level: int
     streak: int
     global_rank: int
+    is_premium: bool = False
 
 class FriendSuggestionOut(BaseModel):
     user_id: int
@@ -88,10 +89,11 @@ def friends_list(
                 u.username,
                 u.display_name,
                 u.avatar_url,
+                COALESCE(u.is_premium, FALSE) AS is_premium,
                 COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.bonus_xp
+              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.bonus_xp, u.is_premium
             ), ranked AS (
               SELECT
                 xp.*,
@@ -134,6 +136,7 @@ def friends_list(
                 level=level,
                 streak=streak,
                 global_rank=int(r.get("global_rank") or 0),
+                is_premium=bool(r.get("is_premium")),
             )
         )
 
@@ -849,6 +852,7 @@ class PublicUserOut(BaseModel):
     streak: int
     global_rank: int
     friends_count: int
+    is_premium: bool = False
     friendship: str = "none"  # none | friends | outgoing_pending | incoming_pending | self
     # When the viewer is authenticated and there is a pending friend request between
     # the viewer and this user, we include the request id so the FE can accept it.
@@ -876,11 +880,12 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
                 u.banner_url,
                 u.profile_theme,
                 u.joined_at,
+                COALESCE(u.is_premium, FALSE) AS is_premium,
                 COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
               WHERE u.id = :uid
-              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.banner_url, u.profile_theme, u.joined_at, u.bonus_xp
+              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.banner_url, u.profile_theme, u.joined_at, u.bonus_xp, u.is_premium
             ), ranked AS (
               SELECT
                 u2.id,
@@ -1085,6 +1090,7 @@ def get_public_user(
         streak=streak,
         global_rank=int(data.get("global_rank") or 0),
         friends_count=int(data.get("friends_count") or 0),
+        is_premium=bool(data.get("is_premium")),
         friendship=friendship,
         friend_request_id=friend_request_id,
         is_friend=is_friend,
@@ -1159,10 +1165,11 @@ def get_public_user_friends(
                 u.username,
                 u.display_name,
                 u.avatar_url,
+                COALESCE(u.is_premium, FALSE) AS is_premium,
                 COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.bonus_xp
+              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.bonus_xp, u.is_premium
             ), ranked AS (
               SELECT
                 xp.*,
@@ -1204,6 +1211,7 @@ def get_public_user_friends(
                 level=level,
                 streak=streak,
                 global_rank=int(r.get("global_rank") or 0),
+                is_premium=bool(r.get("is_premium")),
             )
         )
 

@@ -1,7 +1,8 @@
 // src/HeaderLayout.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent } from "lucide-react";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent, Crown } from "lucide-react";
+import { CrownBadge } from "./lib/PremiumBadge";
 import { getTheme, toggleTheme } from "./lib/theme";
 
 const API_BASE =
@@ -285,9 +286,14 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 type="button"
                 onClick={() => navigate("/premium")}
                 title={hearts?.is_premium ? "Premium — unlimited hearts" : "Get unlimited hearts"}
-                className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25"
+                className={
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition " +
+                  (hearts?.is_premium
+                    ? "bg-gold-100 text-gold-700 hover:bg-gold-100/80 dark:bg-gold-500/15 dark:text-gold-300 dark:hover:bg-gold-500/25"
+                    : "bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25")
+                }
               >
-                <Heart className={"w-4 h-4 " + (hearts?.is_premium ? "fill-rose-500" : "")} />
+                {hearts?.is_premium ? <Crown className="w-4 h-4 fill-gold-500" /> : <Heart className="w-4 h-4" />}
                 <span>{hearts ? (hearts.is_premium ? "∞" : `${hearts.current}/${hearts.max}`) : "–"}</span>
               </button>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">
@@ -323,14 +329,20 @@ export default function HeaderLayout({ user, onLogout, children }) {
               <>
                 <button
                   onClick={() => navigate("/profile")}
-                  className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm overflow-hidden"
+                  className={
+                    "relative w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm overflow-visible " +
+                    (hearts?.is_premium ? "ring-2 ring-gold-400" : "")
+                  }
                   title="Your profile"
                 >
-                  {avatarSrc ? (
-                    <img src={avatarSrc} alt="Your avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    initial
-                  )}
+                  <span className="block h-full w-full overflow-hidden rounded-full">
+                    {avatarSrc ? (
+                      <img src={avatarSrc} alt="Your avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      initial
+                    )}
+                  </span>
+                  {hearts?.is_premium && <CrownBadge size="h-4 w-4" iconSize="h-2.5 w-2.5" />}
                 </button>
 
                 <button

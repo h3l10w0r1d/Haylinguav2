@@ -87,6 +87,7 @@ function PlanCard({ plan, selected, onSelect }) {
 export default function Premium() {
   const navigate = useNavigate();
   const [isPremium, setIsPremium] = useState(false);
+  const [premiumInfo, setPremiumInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [card, setCard] = useState({ name: "", number: "", exp: "", cvc: "" });
@@ -114,7 +115,7 @@ export default function Premium() {
     if (!token) { setLoading(false); return; }
     fetch(`${API_BASE}/me/premium`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.is_premium) setIsPremium(true); })
+      .then((d) => { if (d?.is_premium) { setIsPremium(true); setPremiumInfo(d); } })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -143,6 +144,7 @@ export default function Premium() {
       const d = await r.json();
       writeHearts(d); // ∞ hearts everywhere
       setIsPremium(true);
+      setPremiumInfo({ is_premium: true, is_trial: false, premium_since: new Date().toISOString(), premium_until: null });
     } catch {
       alert("Something went wrong. Please try again.");
     } finally {
@@ -159,17 +161,36 @@ export default function Premium() {
   }
 
   if (isPremium) {
+    const isTrial = !!premiumInfo?.is_trial;
+    const trialDaysLeft = premiumInfo?.trial_days_left;
+    const sinceDate = premiumInfo?.premium_since
+      ? new Date(premiumInfo.premium_since).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
+      : null;
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
         <div className="mx-auto max-w-md px-4 py-16 text-center">
           <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gold-500 text-white shadow-[0_6px_0_0_#B45309]">
             <Crown className="h-10 w-10" />
           </div>
-          <h1 className="mt-5 font-display text-3xl font-extrabold text-slate-800 dark:text-white">You’re Premium! ✨</h1>
+          <h1 className="mt-5 font-display text-3xl font-extrabold text-slate-800 dark:text-white">You're Premium! ✨</h1>
           <p className="mt-2 font-semibold text-slate-500 dark:text-stone-400">
-            You now have <span className="font-extrabold text-brand-600 dark:text-brand-400">unlimited hearts</span>. Mistakes won’t stop you anymore.
+            You have <span className="font-extrabold text-brand-600 dark:text-brand-400">unlimited hearts</span>. Mistakes won't stop you anymore.
           </p>
-          <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand mt-7 uppercase">
+
+          {isTrial ? (
+            <div className="mx-auto mt-6 max-w-sm rounded-2xl bg-gold-50 px-4 py-3 text-sm font-bold text-gold-700 ring-1 ring-gold-200 dark:bg-gold-500/10 dark:text-gold-300 dark:ring-gold-500/25">
+              {typeof trialDaysLeft === "number"
+                ? `Trial — ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left`
+                : "You're on a free trial"}
+            </div>
+          ) : sinceDate ? (
+            <div className="mx-auto mt-6 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500 dark:bg-white/[0.06] dark:text-stone-400">
+              Member since {sinceDate}
+            </div>
+          ) : null}
+
+          <button onClick={() => navigate("/dashboard")} className="btn3d btn3d-brand mt-4 uppercase">
             Back to learning
           </button>
         </div>
