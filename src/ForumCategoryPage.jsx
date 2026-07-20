@@ -6,6 +6,7 @@ import { ChevronLeft, Pin, Lock, MessageSquare, Plus, X, Loader2, AlertTriangle 
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import AuthModal from "./AuthModal";
+import usePageMeta from "./lib/usePageMeta";
 import { getToken, apiFetch } from "./api";
 
 function timeAgo(isoStr) {
@@ -34,6 +35,11 @@ export default function ForumCategoryPage() {
   const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [authMode, setAuthMode] = useState(null); // null | "login" | "signup"
+
+  usePageMeta(
+    data?.category?.name ? `Community: ${data.category.name}` : "Community",
+    data?.category?.description || "Ask questions, share tips, and talk with other Armenian learners in the Haylingua community forum."
+  );
 
   useEffect(() => {
     setData(null);

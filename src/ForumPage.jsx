@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
+import usePageMeta from "./lib/usePageMeta";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -30,6 +31,8 @@ function timeAgo(isoStr) {
 }
 
 export default function ForumPage() {
+  usePageMeta("Community", "Ask questions, share tips, and talk with other Armenian learners in the Haylingua community forum.");
+
   const rootRef = useRef(null);
   const [categories, setCategories] = useState(null);
   const [error, setError] = useState(false);

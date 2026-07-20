@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
+import usePageMeta from "./lib/usePageMeta";
 import Turnstile from "./lib/Turnstile";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -49,6 +50,8 @@ function Field({ label, children }) {
 }
 
 export default function AffiliatesPage() {
+  usePageMeta("Affiliates", "Earn commission recommending Haylingua — join the affiliate program and start sharing your link.");
+
   const rootRef = useRef(null);
   const pinRef = useRef(null);
   const panel1Ref = useRef(null);

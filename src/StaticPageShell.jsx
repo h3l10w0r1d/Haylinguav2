@@ -3,6 +3,7 @@
 // typography-focused prose column + footer. Light/dark aware.
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
+import usePageMeta from "./lib/usePageMeta";
 
 // A restrained "prose" ruleset via plain classes (no @tailwindcss/typography
 // dependency) — just enough hierarchy for long-form legal copy to read well.
@@ -26,6 +27,8 @@ export function Prose({ children }) {
 }
 
 export default function StaticPageShell({ eyebrow, title, updated, intro, children }) {
+  usePageMeta(title, intro);
+
   return (
     <div className="min-h-screen bg-white text-slate-800 dark:bg-[#0d0d0f] dark:text-white">
       <SiteNav />

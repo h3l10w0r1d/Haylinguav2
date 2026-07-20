@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
+import usePageMeta from "./lib/usePageMeta";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -41,6 +42,8 @@ function Cell({ v }) {
 }
 
 export default function PricingPage() {
+  usePageMeta("Pricing", "Simple, transparent pricing for Haylingua Premium — see what's free and what you get with Premium.");
+
   const navigate = useNavigate();
   const rootRef = useRef(null);
   const [plans, setPlans] = useState([]);

@@ -6,6 +6,7 @@ import { ChevronLeft, Pin, Lock, Loader2, AlertTriangle, Send, Trash2 } from "lu
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import AuthModal from "./AuthModal";
+import usePageMeta from "./lib/usePageMeta";
 import { getToken, apiFetch } from "./api";
 
 function timeAgo(isoStr) {
@@ -58,6 +59,11 @@ export default function ForumThreadPage() {
   const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [authMode, setAuthMode] = useState(null); // null | "login" | "signup"
+
+  usePageMeta(
+    data?.thread?.title,
+    data?.posts?.[0]?.body?.slice(0, 155) || "Join the conversation in the Haylingua community forum."
+  );
 
   async function load() {
     try {

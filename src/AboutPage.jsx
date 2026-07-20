@@ -15,6 +15,7 @@ import lilitPhoto from "./assets/team/lilit-hakobyan.jpg";
 import { StarMotif, CarpetBorder } from "./lib/motifs";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
+import usePageMeta from "./lib/usePageMeta";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -78,6 +79,8 @@ const BY_THE_NUMBERS = [
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function AboutPage() {
+  usePageMeta("About us", "The story behind Haylingua — why we built it, our milestones, and the two-person team teaching Armenian to the diaspora.");
+
   const rootRef = useRef(null);
   const heroRef = useRef(null);
   const timelineLineRef = useRef(null);

@@ -11,6 +11,7 @@ import {
 import owl from "./assets/character-owl.png";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
+import usePageMeta from "./lib/usePageMeta";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -35,6 +36,8 @@ const GLIMPSES = [
 ];
 
 export default function CareersPage() {
+  usePageMeta("Careers", "Join the two-person team building Haylingua — open roles, and what it's actually like to work with us.");
+
   const rootRef = useRef(null);
   const pinRef = useRef(null);
   const trackRef = useRef(null);

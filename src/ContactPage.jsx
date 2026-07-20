@@ -6,6 +6,7 @@ import { Mail, Send, MapPin, Clock, CheckCircle2, Loader2, AlertTriangle } from 
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import Turnstile from "./lib/Turnstile";
+import usePageMeta from "./lib/usePageMeta";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -26,6 +27,8 @@ const inputCls =
   "dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500";
 
 export default function ContactPage() {
+  usePageMeta("Contact us", "Question about your account, a bug, or just want to say hello? Get in touch with the Haylingua team.");
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [topic, setTopic] = useState(TOPICS[0]);
