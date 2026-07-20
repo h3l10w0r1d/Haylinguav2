@@ -4,6 +4,9 @@
 //   npm run verify                 → full check against prod API
 //   API_BASE=http://localhost:8000 npm run verify
 //   SKIP_BUILD=1 npm run verify    → skip the vite build (faster)
+//   SKIP_SMOKE=1 npm run verify    → skip the live API smoke stage (CI: no
+//                                     network access to prod, and CI runs
+//                                     shouldn't exercise the live backend)
 //   TEST_EMAIL=… TEST_PASSWORD=…   → adds authenticated read-only smoke tests
 //
 // Stages:
@@ -193,6 +196,9 @@ const ROUTES = [
   ["POST", "/cms/seed/sounds", {}],
 ];
 
+if (process.env.SKIP_SMOKE) {
+  skip("API smoke", "SKIP_SMOKE=1");
+} else {
 const health = await req("GET", "/health");
 if (health.status === 0) {
   bad("API reachable", `cannot reach ${API_BASE} (${health.error})`);
@@ -269,6 +275,7 @@ if (health.status === 0) {
       }
     }
   }
+}
 }
 
 // ────────────────────────────────────────────────────────────────────────────
