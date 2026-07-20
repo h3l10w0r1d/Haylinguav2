@@ -27,9 +27,9 @@ async function speakText(text) {
 import { StarMotif, CarpetBorder } from "./lib/motifs";
 import { readHearts } from "./lib/hearts";
 import ReportProblem from "./ReportProblem";
-import Illustration from "./lib/Illustration";
 import { ExerciseFooterContext } from "./exercises/FooterSlot";
 import { diffAnswer, DIFFABLE_KINDS } from "./lib/textDiff";
+import { mascotFaceUrl } from "./lib/mascotFaces";
 
 /** Per-character diff between what the learner typed and the correct
  *  answer — shown instead of the bare correct-answer string whenever both
@@ -211,6 +211,9 @@ export default function ExerciseShell({
   // means nothing to review yet, so the button doesn't render.
   reviewCount = 0,
   onReview,
+  // Which of the two mascot characters (picked once per lesson session in
+  // LessonPlayer) shows its positive/neutral/negative face in the result panel.
+  mascotCharacter = "armen",
   children,
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
@@ -449,10 +452,15 @@ export default function ExerciseShell({
             <CarpetBorder color={tone.carpet} />
             <div className="safe-b mx-auto max-w-2xl px-4 py-5">
               <div className="flex items-center gap-4">
-                {/* Tatik reacts */}
+                {/* Mascot reacts — positive/negative/neutral face for correct/wrong/skipped */}
                 <div className="relative shrink-0">
-                  <Illustration
-                    name={variant === "correct" ? "mascot-cheer" : "mascot-sad"}
+                  <img
+                    src={mascotFaceUrl(
+                      mascotCharacter,
+                      variant === "correct" ? "positive" : variant === "skipped" ? "neutral" : "negative"
+                    )}
+                    alt=""
+                    aria-hidden="true"
                     className="block h-16 w-16 rounded-2xl object-cover shadow-sm"
                   />
                   <span

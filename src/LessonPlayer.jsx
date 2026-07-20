@@ -13,6 +13,7 @@ import { sfx } from "./lib/sfx";
 import { readHearts, writeHearts } from "./lib/hearts";
 import OutOfHearts from "./OutOfHearts";
 import { getPreloadedLesson } from "./lib/lessonPreload";
+import { pickMascotCharacter } from "./lib/mascotFaces";
 
 // 🔧 Make sure this matches your backend URL
 const API_BASE =
@@ -169,6 +170,9 @@ export default function LessonPlayer() {
   const [exerciseQueue, setExerciseQueue] = useState([]);
   const [originalTotal, setOriginalTotal] = useState(0);
   const [hasAnswered, setHasAnswered] = useState(false);
+  // Random per lesson session — picked once, stays the same character for
+  // every exercise-feedback face shown during this lesson.
+  const [mascotCharacter] = useState(pickMascotCharacter);
   const [comboStreak, setComboStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -853,6 +857,7 @@ export default function LessonPlayer() {
       hideFooter={showDoneFooter || isReadingSection || outOfHearts}
       reviewCount={!showDoneFooter ? history.length : 0}
       onReview={() => setReviewOpen(true)}
+      mascotCharacter={mascotCharacter}
       result={
         resultOpen && resultData
           ? {
