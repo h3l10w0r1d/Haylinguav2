@@ -29,7 +29,7 @@ const FOUNDERS = [
     name: "Lilit Hakobyan",
     role: "Co-founder & Armenian Language Lead",
     photo: lilitPhoto,
-    photoPosition: "center 15%",
+    photoPosition: "center 0%",
     bio: "An Armenian language teacher across the IB programme and several other institutions, Lilit is the one who set Haylingua in motion — and shapes how the app actually teaches the language.",
   },
 ];
