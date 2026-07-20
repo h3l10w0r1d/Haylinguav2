@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Mic } from "lucide-react";
 import {
   normalizeConfig,
   normalizeText,
@@ -1531,15 +1532,21 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
           onClick={recording ? stopRec : startRec}
           disabled={busy}
           className={
-            "grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " +
-            (recording ? "bg-cardinal-500 animate-pulse" : busy ? "bg-slate-300" : "bg-brand-500")
+            "relative grid h-20 w-20 place-items-center rounded-full text-white shadow-node transition active:translate-y-1 " +
+            (recording ? "bg-cardinal-500" : busy ? "bg-slate-300" : "bg-brand-500")
           }
           aria-label={recording ? "Stop recording" : "Start recording"}
         >
-          🎤
+          {recording && (
+            <>
+              <span className="absolute inset-0 rounded-full bg-cardinal-400 animate-ping opacity-75" />
+              <span className="absolute -inset-2 rounded-full ring-4 ring-cardinal-200" />
+            </>
+          )}
+          <Mic className="relative h-8 w-8" strokeWidth={2.5} />
         </button>
         <div className="mt-2 text-sm font-bold text-slate-500">
-          {recording ? "Tap to stop" : busy ? "Transcribing…" : "Tap and speak"}
+          {recording ? "Listening…" : busy ? "Transcribing…" : "Tap the mic to speak"}
         </div>
       </div>
 
@@ -2454,9 +2461,17 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
 
       <div className="mt-5 flex flex-col items-center">
         <button type="button" onClick={recording ? stopRec : startRec} disabled={busy}
-          className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (recording ? "bg-cardinal-500 animate-pulse" : busy ? "bg-slate-300" : "bg-brand-500")}
-          aria-label={recording ? "Stop" : "Record"}>🎤</button>
-        <div className="mt-2 text-sm font-bold text-slate-500">{recording ? "Tap to stop" : busy ? "Transcribing…" : "Tap and say it"}</div>
+          className={"relative grid h-20 w-20 place-items-center rounded-full text-white shadow-node transition active:translate-y-1 " + (recording ? "bg-cardinal-500" : busy ? "bg-slate-300" : "bg-brand-500")}
+          aria-label={recording ? "Stop" : "Record"}>
+          {recording && (
+            <>
+              <span className="absolute inset-0 rounded-full bg-cardinal-400 animate-ping opacity-75" />
+              <span className="absolute -inset-2 rounded-full ring-4 ring-cardinal-200" />
+            </>
+          )}
+          <Mic className="relative h-8 w-8" strokeWidth={2.5} />
+        </button>
+        <div className="mt-2 text-sm font-bold text-slate-500">{recording ? "Listening…" : busy ? "Transcribing…" : "Tap the mic to speak"}</div>
       </div>
 
       {transcript ? (
