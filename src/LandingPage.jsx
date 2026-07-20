@@ -545,55 +545,100 @@ const PATH_PREVIEW_LESSONS = [
   { title: "Colors", status: "locked" },
 ];
 
+// x = % across the card (viewBox is 0–100 wide, so these double as percentages),
+// y = px down the track. Zigzag pattern mirrors the real in-app lesson path.
+const PATH_NODE_POS = [
+  { x: 50, y: 44 },
+  { x: 80, y: 146 },
+  { x: 50, y: 248 },
+  { x: 20, y: 350 },
+  { x: 50, y: 452 },
+];
+const PATH_TRACK_HEIGHT = 452;
+
+function pathTrackD() {
+  let d = `M${PATH_NODE_POS[0].x},${PATH_NODE_POS[0].y}`;
+  for (let i = 1; i < PATH_NODE_POS.length; i++) {
+    const a = PATH_NODE_POS[i - 1];
+    const b = PATH_NODE_POS[i];
+    const midY = (a.y + b.y) / 2;
+    d += ` C${a.x},${midY} ${b.x},${midY} ${b.x},${b.y}`;
+  }
+  return d;
+}
+
 function PathPreview() {
   return (
-    <div className="relative rounded-3xl bg-white dark:bg-[#18181b] p-6 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08] sm:p-7">
+    <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-[#18181b] p-6 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08] sm:p-7">
       <div className="flex items-center justify-between">
         <div className="font-display text-sm font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">Your path</div>
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold text-brand-600">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold text-brand-600 dark:bg-brand-500/15">
           <Flame className="h-3.5 w-3.5 fill-brand-500 text-brand-500" /> 487-day streak
         </div>
       </div>
 
-      <div className="mt-6 space-y-1">
+      <div className="relative mt-8" style={{ height: PATH_TRACK_HEIGHT + 60 }}>
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox={`0 0 100 ${PATH_TRACK_HEIGHT}`}
+          preserveAspectRatio="none"
+        >
+          <path
+            d={pathTrackD()}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray="1 14"
+            vectorEffect="non-scaling-stroke"
+            className="text-slate-200 dark:text-white/10"
+          />
+        </svg>
+
         {PATH_PREVIEW_LESSONS.map((lesson, i) => {
-          const isLast = i === PATH_PREVIEW_LESSONS.length - 1;
           const isDone = lesson.status === "done";
           const isCurrent = lesson.status === "current";
+          const pos = PATH_NODE_POS[i];
           return (
-            <div key={lesson.title} className="relative flex items-start gap-4 pb-6">
-              {!isLast && (
-                <div
-                  className={
-                    "absolute left-[19px] top-10 h-full w-1 -translate-x-1/2 rounded-full " +
-                    (isDone ? "bg-grass-300" : "bg-slate-100 dark:bg-white/[0.06]")
-                  }
-                />
+            <div
+              key={lesson.title}
+              className="absolute flex flex-col items-center gap-2"
+              style={{ left: `${pos.x}%`, top: pos.y, transform: "translate(-50%, -50%)" }}
+            >
+              {isCurrent && (
+                <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-xl bg-brand-500 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-btn-brand">
+                  Start
+                  <span className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2 border-4 border-transparent border-t-brand-500" />
+                </span>
               )}
-              <div className="relative z-10 shrink-0">
+              <div className="relative">
                 {isCurrent && (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-brand-300 opacity-60" />
+                  <span className="absolute inset-0 animate-ping rounded-full bg-brand-400 opacity-50" />
                 )}
                 <div
                   className={
-                    "grid h-10 w-10 place-items-center rounded-full text-white " +
-                    (isDone ? "bg-grass-500" : isCurrent ? "bg-brand-500" : "bg-slate-200 dark:bg-white/10 text-slate-400 dark:text-stone-500")
+                    "relative grid h-16 w-16 place-items-center rounded-full text-white shadow-node transition active:translate-y-1 " +
+                    (isDone
+                      ? "bg-grass-500"
+                      : isCurrent
+                      ? "bg-brand-500"
+                      : "bg-slate-200 text-slate-400 dark:bg-white/10 dark:text-stone-500")
                   }
                 >
                   {isDone ? (
-                    <Check className="h-5 w-5" strokeWidth={3} />
+                    <Check className="h-7 w-7" strokeWidth={3} />
                   ) : isCurrent ? (
-                    <Play className="h-4 w-4 fill-white" />
+                    <Play className="h-6 w-6 fill-white" />
                   ) : (
-                    <Lock className="h-4 w-4" />
+                    <Lock className="h-6 w-6" />
                   )}
                 </div>
               </div>
-              <div className="min-w-0 flex-1 pt-1.5">
-                <div className={"font-display text-base font-extrabold " + (lesson.status === "locked" ? "text-slate-400 dark:text-stone-500" : "text-slate-800 dark:text-white")}>
+              <div className="text-center">
+                <div className={"font-display text-sm font-extrabold leading-tight " + (lesson.status === "locked" ? "text-slate-400 dark:text-stone-500" : "text-slate-800 dark:text-white")}>
                   {lesson.title}
                 </div>
-                <div className={"text-xs font-bold " + (isDone ? "text-grass-600" : isCurrent ? "text-brand-500" : "text-slate-300 dark:text-stone-600")}>
+                <div className={"text-[11px] font-bold " + (isDone ? "text-grass-600" : isCurrent ? "text-brand-500" : "text-slate-300 dark:text-stone-600")}>
                   {isDone ? "Completed" : isCurrent ? "You are here" : "Locked"}
                 </div>
               </div>
