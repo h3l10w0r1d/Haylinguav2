@@ -535,6 +535,7 @@ export default function LessonPlayer() {
         : (isCorrect ? null : deriveCorrectAnswer(currentExercise)),
       exerciseId: payload?.exerciseId ?? currentExercise?.id,
       userAnswer: payload?.userAnswer ?? null,
+      kind: currentExercise?.kind ?? null,
       combo: isCorrect ? newCombo : 0,
     });
 
@@ -832,6 +833,7 @@ export default function LessonPlayer() {
               correctAnswer: resultData.correctAnswer || null,
               exerciseId: resultData.exerciseId ?? null,
               userAnswer: resultData.userAnswer ?? null,
+              kind: resultData.kind ?? null,
               combo: resultData.combo || 0,
               subtext:
                 Number.isFinite(resultData.hearts)

@@ -28,6 +28,52 @@ import { readHearts } from "./lib/hearts";
 import ReportProblem from "./ReportProblem";
 import Illustration from "./lib/Illustration";
 import { ExerciseFooterContext } from "./exercises/FooterSlot";
+import { diffAnswer, DIFFABLE_KINDS } from "./lib/textDiff";
+
+/** Per-character diff between what the learner typed and the correct
+ *  answer — shown instead of the bare correct-answer string whenever both
+ *  are available for a free-text exercise kind. */
+function AnswerDiff({ typed, correct }) {
+  const { typed: typedSegs, correct: correctSegs } = useMemo(
+    () => diffAnswer(typed, correct),
+    [typed, correct]
+  );
+  const typedClass = (type) =>
+    type === "match"
+      ? "text-slate-800 dark:text-white"
+      : "text-cardinal-600 line-through decoration-2 dark:text-cardinal-400";
+  const correctClass = (type) =>
+    type === "missing"
+      ? "rounded bg-amber-100 px-0.5 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400"
+      : "text-slate-800 dark:text-white";
+
+  return (
+    <div className="font-display text-base font-extrabold">
+      {typedSegs.length ? (
+        <div className="mb-0.5 flex flex-wrap items-baseline gap-x-1">
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">
+            You wrote
+          </span>
+          <span>
+            {typedSegs.map((seg, i) => (
+              <span key={i} className={typedClass(seg.type)}>{seg.char}</span>
+            ))}
+          </span>
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-baseline gap-x-1">
+        <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">
+          Correct
+        </span>
+        <span>
+          {correctSegs.map((seg, i) => (
+            <span key={i} className={correctClass(seg.type)}>{seg.char}</span>
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 /** Live hearts badge — reads localStorage and the `hay_hearts` event so it
  *  stays in sync without prop drilling. Shows ∞ for premium users.
@@ -424,9 +470,17 @@ export default function ExerciseShell({
                             ) : null}
                           </div>
                           {result.typo && result.correctAnswer ? (
-                            <div className="mt-1 flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                              <span className="text-xs font-bold">Correct spelling:</span>
-                              <span className="font-display text-base font-extrabold text-slate-800 dark:text-white">{result.correctAnswer}</span>
+                            <div className="mt-1.5 flex items-start gap-2 text-amber-700 dark:text-amber-400">
+                              <div className="min-w-0 flex-1">
+                                {result.userAnswer && DIFFABLE_KINDS.has(result.kind) ? (
+                                  <AnswerDiff typed={result.userAnswer} correct={result.correctAnswer} />
+                                ) : (
+                                  <>
+                                    <span className="text-xs font-bold">Correct spelling:</span>{" "}
+                                    <span className="font-display text-base font-extrabold text-slate-800 dark:text-white">{result.correctAnswer}</span>
+                                  </>
+                                )}
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => speakText(result.correctAnswer)}
@@ -444,9 +498,15 @@ export default function ExerciseShell({
                       : (
                         <>
                           {result.correctAnswer ? (
-                            <div className="mb-1 flex items-center gap-2">
-                              <div className="font-display text-base font-extrabold text-cardinal-700 dark:text-cardinal-400">
-                                Correct: <span className="text-slate-800 dark:text-white">{result.correctAnswer}</span>
+                            <div className="mb-1 flex items-start gap-2">
+                              <div className="min-w-0 flex-1">
+                                {result.userAnswer && DIFFABLE_KINDS.has(result.kind) ? (
+                                  <AnswerDiff typed={result.userAnswer} correct={result.correctAnswer} />
+                                ) : (
+                                  <div className="font-display text-base font-extrabold text-cardinal-700 dark:text-cardinal-400">
+                                    Correct: <span className="text-slate-800 dark:text-white">{result.correctAnswer}</span>
+                                  </div>
+                                )}
                               </div>
                               <button
                                 type="button"
