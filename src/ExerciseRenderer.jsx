@@ -2485,7 +2485,10 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
       <FooterSlot>
         <PrimaryButton disabled={!canCheck} onClick={() => {
           // ER-10: remove substring match — require normalized exact equality only
-          const normalize = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+          // Normalize to NFD first (matches ExSpeak) so visually-identical Armenian
+          // text in different Unicode composition forms (STT output vs. stored
+          // target) doesn't fail a byte-level equality check.
+          const normalize = (s) => s.normalize("NFD").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
           const t = normalize(transcript); const g = normalize(target);
           const ok = !!g && t === g;
           ok ? correct({ answerText: transcript }) : wrong("Not quite — listen and try again.", { answerText: transcript });

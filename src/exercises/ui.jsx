@@ -17,6 +17,7 @@ export function normalizeConfig(config) {
 
 export function normalizeText(s) {
   return String(s ?? "")
+    .normalize("NFD")
     .trim()
     .replace(/\s+/g, " ")
     .toLowerCase();
