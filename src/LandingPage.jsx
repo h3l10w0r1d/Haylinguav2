@@ -294,6 +294,47 @@ function LandingExerciseDemo({ onSignup }) {
   const [done, setDone] = useState(false);       // finished all demo questions
   const comboRef = useRef(0);                    // correct-answer streak, for sfx pitch escalation
 
+  // Ambient autoplay: a ghost cursor plays the demo by itself until a visitor
+  // actually touches it — the very first real click hands control over for
+  // good (never resumes autoplay on the same visit).
+  const [autoActive, setAutoActive] = useState(true);
+  const [cursorPos, setCursorPos] = useState(null);
+  const [tapping, setTapping] = useState(false);
+  const cardRef = useRef(null);
+  const optionRefs = useRef([]);
+  const checkRef = useRef(null);
+  const continueRef = useRef(null);
+  const autoTimers = useRef([]);
+
+  function clearAutoTimers() {
+    autoTimers.current.forEach(clearTimeout);
+    autoTimers.current = [];
+  }
+  function scheduleAuto(fn, ms) {
+    const id = setTimeout(fn, ms);
+    autoTimers.current.push(id);
+    return id;
+  }
+  function stopAutoplay() {
+    setAutoActive(false);
+    setCursorPos(null);
+    clearAutoTimers();
+  }
+  function moveCursorTo(el, ms, onArrive) {
+    scheduleAuto(() => {
+      if (!el || !cardRef.current) return;
+      const c = cardRef.current.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      setCursorPos({ x: r.left + r.width / 2 - c.left, y: r.top + r.height / 2 - c.top });
+      scheduleAuto(() => {
+        setTapping(true);
+        scheduleAuto(() => setTapping(false), 220);
+        onArrive();
+      }, 550);
+    }, ms);
+  }
+  useEffect(() => clearAutoTimers, []);
+
   const q = DEMO_QUESTIONS[qi];
   const isCorrect = checked && selected === q.correct;
   const isWrong = checked && selected !== q.correct;
@@ -368,6 +409,38 @@ function LandingExerciseDemo({ onSignup }) {
 
   const typing = aiPhase === "reveal" && typed < feedbackText.length;
 
+  // Autoplay driver — three steps mirroring the state machine above: move the
+  // ghost cursor to the correct option and pick it, move to Check, then move to
+  // Continue. Each effect only fires when it's actually that step's turn, so it
+  // stays in sync with the real state instead of a blind timer chain.
+  useEffect(() => {
+    if (!autoActive || checked || selected != null) return;
+    moveCursorTo(optionRefs.current[q.correct], 1000, () => pick(q.correct));
+    return clearAutoTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoActive, checked, selected, qi]);
+
+  useEffect(() => {
+    if (!autoActive || checked || selected == null) return;
+    moveCursorTo(checkRef.current, 500, onCheck);
+    return clearAutoTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoActive, checked, selected]);
+
+  useEffect(() => {
+    if (!autoActive || !checked) return;
+    moveCursorTo(continueRef.current, 1400, onContinue);
+    return clearAutoTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoActive, checked, qi]);
+
+  useEffect(() => {
+    if (!autoActive || !done) return;
+    scheduleAuto(practiceAgain, 2600);
+    return clearAutoTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoActive, done]);
+
   if (done) {
     return (
       <div className="rounded-3xl bg-white dark:bg-[#18181b] p-6 text-center shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
@@ -388,10 +461,10 @@ function LandingExerciseDemo({ onSignup }) {
             </span>
           ))}
         </div>
-        <button type="button" onClick={onSignup} className="btn3d btn3d-brand mt-6 w-full text-base uppercase">
+        <button type="button" onClick={() => { stopAutoplay(); onSignup(); }} className="btn3d btn3d-brand mt-6 w-full text-base uppercase">
           Create free account <ArrowRight className="h-5 w-5" />
         </button>
-        <button type="button" onClick={practiceAgain} className="mt-3 text-sm font-bold text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300">
+        <button type="button" onClick={() => { stopAutoplay(); practiceAgain(); }} className="mt-3 text-sm font-bold text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300">
           Practice again
         </button>
       </div>
@@ -399,7 +472,15 @@ function LandingExerciseDemo({ onSignup }) {
   }
 
   return (
-    <div className="rounded-3xl bg-white dark:bg-[#18181b] p-5 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
+    <div ref={cardRef} className="relative rounded-3xl bg-white dark:bg-[#18181b] p-5 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
+      {autoActive && cursorPos && (
+        <div
+          className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 transition-[left,top] duration-500 ease-out"
+          style={{ left: cursorPos.x, top: cursorPos.y }}
+        >
+          <span className={"block h-8 w-8 rounded-full border-2 border-white bg-brand-500/80 shadow-lg transition-transform duration-150 " + (tapping ? "scale-75" : "scale-100")} />
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <span className="text-slate-300 dark:text-stone-600">✕</span>
         <div className="h-3.5 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
@@ -434,8 +515,9 @@ function LandingExerciseDemo({ onSignup }) {
           return (
             <button
               key={t}
+              ref={(el) => (optionRefs.current[i] = el)}
               type="button"
-              onClick={() => pick(i)}
+              onClick={() => { stopAutoplay(); pick(i); }}
               disabled={checked}
               className={"tile text-left " + tone}
             >
@@ -469,7 +551,7 @@ function LandingExerciseDemo({ onSignup }) {
                 <div className="font-display text-base font-extrabold text-grass-700 dark:text-grass-300">Ապրե՛ս! (Nice!)</div>
                 <div className="mt-2"><VoiceChip text={q.prompt} label={q.meaning} /></div>
               </div>
-              <button type="button" onClick={onContinue} className="btn3d btn3d-grass uppercase">Continue</button>
+              <button ref={continueRef} type="button" onClick={() => { stopAutoplay(); onContinue(); }} className="btn3d btn3d-grass uppercase">Continue</button>
             </div>
           </div>
         ) : (
@@ -482,7 +564,7 @@ function LandingExerciseDemo({ onSignup }) {
               </div>
               <button
                 type="button"
-                onClick={regenerate}
+                onClick={() => { stopAutoplay(); regenerate(); }}
                 className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-cardinal-600 hover:bg-cardinal-500/10 dark:text-cardinal-400 dark:hover:bg-cardinal-500/15"
                 title="See the explanation phrased another way"
               >
@@ -516,15 +598,16 @@ function LandingExerciseDemo({ onSignup }) {
             )}
 
             <div className="mt-3 flex justify-end">
-              <button type="button" onClick={onContinue} className="btn3d btn3d-cardinal uppercase">Continue</button>
+              <button type="button" onClick={() => { stopAutoplay(); onContinue(); }} className="btn3d btn3d-cardinal uppercase">Continue</button>
             </div>
           </div>
         )
       ) : (
         <div className="mt-5 flex justify-end">
           <button
+            ref={checkRef}
             type="button"
-            onClick={onCheck}
+            onClick={() => { stopAutoplay(); onCheck(); }}
             disabled={selected == null}
             className="btn3d btn3d-grass uppercase disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -533,6 +616,34 @@ function LandingExerciseDemo({ onSignup }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Faint connector line behind the "How it works" step cards, echoing the
+// lesson-path metaphor. Runs behind the cards (painted first, same stacking
+// context) so it only shows in the gaps, like the cards sit along the path.
+function StepsConnector() {
+  const [ref, visible] = useReveal(0.4);
+  return (
+    <svg
+      ref={ref}
+      className="pointer-events-none absolute inset-x-0 top-12 hidden h-1 w-full md:block"
+      viewBox="0 0 100 4"
+      preserveAspectRatio="none"
+    >
+      <path
+        d="M16.67,2 L50,2 L83.33,2"
+        fill="none"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="1.2 5"
+        pathLength="100"
+        strokeDashoffset={visible ? 0 : 100}
+        style={{ transition: "stroke-dashoffset 1.3s ease-out 200ms" }}
+        stroke="currentColor"
+        className="text-brand-300 dark:text-brand-500/40"
+      />
+    </svg>
   );
 }
 
@@ -568,8 +679,9 @@ function pathTrackD() {
 }
 
 function PathPreview() {
+  const [ref, visible] = useReveal(0.25);
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-[#18181b] p-6 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08] sm:p-7">
+    <div ref={ref} className="relative overflow-hidden rounded-3xl bg-white dark:bg-[#18181b] p-6 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08] sm:p-7">
       <div className="flex items-center justify-between">
         <div className="font-display text-sm font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">Your path</div>
         <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold text-brand-600 dark:bg-brand-500/15">
@@ -589,7 +701,10 @@ function PathPreview() {
             stroke="currentColor"
             strokeWidth="3"
             strokeLinecap="round"
-            strokeDasharray="1 14"
+            strokeDasharray="1.2 5"
+            pathLength="100"
+            strokeDashoffset={visible ? 0 : 100}
+            style={{ transition: "stroke-dashoffset 1.1s ease-out" }}
             vectorEffect="non-scaling-stroke"
             className="text-slate-200 dark:text-white/10"
           />
@@ -603,7 +718,16 @@ function PathPreview() {
             <div
               key={lesson.title}
               className="absolute flex flex-col items-center gap-2"
-              style={{ left: `${pos.x}%`, top: pos.y, transform: "translate(-50%, -50%)" }}
+              style={{
+                left: `${pos.x}%`,
+                top: pos.y,
+                opacity: visible ? 1 : 0,
+                transform: `translate(-50%, -50%) scale(${visible ? 1 : 0.4})`,
+                transitionProperty: "opacity, transform",
+                transitionDuration: "420ms",
+                transitionTimingFunction: "cubic-bezier(.34,1.56,.64,1)",
+                transitionDelay: `${450 + i * 160}ms`,
+              }}
             >
               {isCurrent && (
                 <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-xl bg-brand-500 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-btn-brand">
@@ -1394,7 +1518,8 @@ export default function LandingPage({ onLogin, onSignup }) {
         <Reveal>
           <SectionHeading eyebrow="How it works" title="Three steps to your first Armenian words" />
         </Reveal>
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
+        <div className="relative mt-10 grid gap-5 md:grid-cols-3">
+          <StepsConnector />
           {STEPS.map((s, i) => (
             <Reveal key={s.n} delay={i * 100}>
               <div className="relative rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm h-full">
