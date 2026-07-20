@@ -15,6 +15,7 @@ export default function MinimalPairs({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
   const choices = getChoices(exercise, cfg);
   const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
+  const ttsText = String(cfg.ttsText ?? cfg.text ?? (correctIndex != null ? choices[correctIndex] : '') ?? '').trim();
   const [selected, setSelected] = useState(null);
   const [graded, setGraded] = useState(null);
   const [playing, setPlaying] = useState(false);
@@ -35,7 +36,7 @@ export default function MinimalPairs({ exercise, onSubmit, onAdvance }) {
 
   async function play() {
     setPlaying(true);
-    await playExerciseAudio(exercise.id);
+    await playExerciseAudio(exercise.id, { text: ttsText });
     setPlaying(false);
   }
 

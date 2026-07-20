@@ -8293,6 +8293,33 @@ async def tts_speak(payload: TTSPayload):
     # calls pass their own voice_settings and should always hit the API live.
     cacheable = not payload.voice_settings and not payload.model_id
 
+    return await _tts_generate(text_value, voice_id, model_id, voice_settings, cacheable)
+
+
+# GET variant of the same endpoint, query-string only. Exists purely so
+# clients that can only issue GET-style fetches against a bare URI — the
+# mobile app's audio player (react-native-nitro-sound's startPlayer(uri) has
+# no way to send a POST body) — can use it as a fallback source when CMS-
+# recorded exercise audio (GET /audio/exercise/{id}) 404s. Deliberately
+# narrower than the POST route: no voice_settings override, since that's
+# only used by the CMS's internal voice-preview/comparison tool.
+@router.get("/tts", response_class=Response)
+async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | None = None):
+    if not ELEVEN_API_KEY:
+        raise HTTPException(status_code=500, detail="TTS not configured on server")
+
+    text_value = (text or "").strip()
+    if not text_value:
+        raise HTTPException(status_code=400, detail="Text is empty")
+
+    resolved_voice_id = voice_id or DEFAULT_VOICE_ID
+    resolved_model_id = model_id or ELEVEN_MODEL_ID
+    cacheable = not model_id
+
+    return await _tts_generate(text_value, resolved_voice_id, resolved_model_id, _DEFAULT_TTS_VOICE_SETTINGS, cacheable)
+
+
+async def _tts_generate(text_value: str, voice_id: str, model_id: str, voice_settings: dict, cacheable: bool) -> Response:
     cache_dir = _tts_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     key = _tts_cache_key(text_value, voice_id, model_id)

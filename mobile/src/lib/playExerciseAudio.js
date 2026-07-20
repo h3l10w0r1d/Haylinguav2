@@ -1,22 +1,21 @@
 // src/lib/playExerciseAudio.js — plays an exercise's server-generated audio
-// (GET /audio/exercise/{id}). Mirrors the priority order in the web's
-// src/exercises/tts.jsx, minus the legacy /tts POST fallback (deferred —
-// most content already has CMS-recorded audio).
+// (GET /audio/exercise/{id}), falling back to live ElevenLabs TTS
+// (GET /tts?text=...) when no CMS recording exists — mirrors the priority
+// order in the web's src/exercises/tts.jsx. Confirmed this session that
+// virtually no exercises currently have CMS-recorded audio (every one
+// checked 404s), so this fallback is load-bearing, not a nice-to-have.
 //
-// Uses react-native-nitro-sound (already installed for the speak exercise's
-// recording) rather than react-native-sound: react-native-sound is
-// unmaintained and was confirmed broken under this app's New Architecture
-// earlier this session — taps on "Play sound"/"Tap to listen again"
-// silently produced no audio (the library still resolved without erroring,
-// so the UI never surfaced anything wrong). Nitro Sound is JSI/New-
-// Architecture-native for both record and playback, so this switches the
-// whole app to one confirmed-working audio engine instead of two.
+// The backend's canonical /tts is POST-only (JSON body), but
+// react-native-nitro-sound's startPlayer(uri) only does GET-style fetches
+// against a bare URI — no way to attach a POST body. Rather than add a
+// fetch+write-local-file+play pipeline (a new native dependency just to
+// bridge this), the backend also exposes a GET /tts?text=... variant that
+// startPlayer() can hit directly, same as the CMS-audio URL.
 import Sound from 'react-native-nitro-sound';
 import { API_BASE_URL } from './api';
 
-export function playExerciseAudio(exerciseId, { voice = 'female' } = {}) {
+function playUrl(url) {
   return new Promise((resolve) => {
-    const url = `${API_BASE_URL}/audio/exercise/${exerciseId}?voice=${voice}`;
     let done = false;
 
     function finish(ok) {
@@ -43,4 +42,18 @@ export function playExerciseAudio(exerciseId, { voice = 'female' } = {}) {
       finish(false);
     }
   });
+}
+
+export async function playExerciseAudio(exerciseId, { voice = 'female', text } = {}) {
+  const cmsUrl = `${API_BASE_URL}/audio/exercise/${exerciseId}?voice=${voice}`;
+  const ok = await playUrl(cmsUrl);
+  if (ok) return true;
+
+  // startPlayer()'s naive fetch (Data(contentsOf:)) doesn't distinguish a
+  // 404 body from real audio bytes, so a failed CMS lookup and a genuine
+  // playback error both resolve here as `false` — falling back to TTS is
+  // safe either way since it's a fresh, independent request.
+  if (!text) return false;
+  const ttsUrl = `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}`;
+  return playUrl(ttsUrl);
 }

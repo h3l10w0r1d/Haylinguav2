@@ -1,11 +1,9 @@
 // src/exercises/kinds/AudioChoiceTts.js — ports ExAudioChoiceTts. "Listen and
 // choose" — the web version prefers CMS-recorded audio for the exercise
-// before falling back to on-the-fly ElevenLabs TTS (POST /tts). The mobile
-// player reuses the same recorded-audio path (GET /audio/exercise/{id}) via
-// playExerciseAudio — the on-the-fly /tts fallback needs a local file write
-// (react-native-sound can't play POST response bytes directly) and isn't
-// wired up yet; graceful degradation (no sound, exercise still answerable)
-// already exists in playExerciseAudio for content that lacks CMS audio.
+// before falling back to on-the-fly ElevenLabs TTS, now wired up via
+// playExerciseAudio's GET /tts?text=... fallback (GET-only since
+// react-native-nitro-sound's player can't send a POST body) — matching the
+// web's priority order in src/exercises/tts.jsx.
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
@@ -31,7 +29,7 @@ export default function AudioChoiceTts({ exercise, onSubmit, onAdvance }) {
 
   async function play() {
     setPlaying(true);
-    await playExerciseAudio(exercise.id);
+    await playExerciseAudio(exercise.id, { text: cfg.ttsText ?? answerText ?? '' });
     setPlaying(false);
   }
 

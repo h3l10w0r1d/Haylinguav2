@@ -32,7 +32,7 @@ export default function CharIntro({ exercise, onSubmit, onAdvance }) {
         </View>
 
         <TouchableOpacity
-          onPress={() => playExerciseAudio(exercise.id)}
+          onPress={() => playExerciseAudio(exercise.id, { text: cfg.ttsText ?? cfg.letter ?? cfg.transliteration ?? '' })}
           className="mt-4 flex-row items-center gap-2 self-start rounded-xl bg-feather-50 px-4 py-2.5"
         >
           <Volume2 size={16} color="#1899D6" />

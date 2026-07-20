@@ -12,6 +12,7 @@ export default function LetterRecognition({ exercise, onSubmit, onAdvance }) {
   const cfg = exercise.config || {};
   const choices = getChoices(exercise, cfg);
   const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
+  const ttsText = String(cfg.ttsText ?? exercise.expected_answer ?? cfg.answer ?? (correctIndex != null ? choices[correctIndex] : '') ?? '').trim();
   const [selected, setSelected] = useState(null);
   const [graded, setGraded] = useState(null);
 
@@ -34,7 +35,7 @@ export default function LetterRecognition({ exercise, onSubmit, onAdvance }) {
         <Text className="text-lg font-extrabold text-stone-900">{exercise.prompt || 'Choose the correct answer'}</Text>
 
         <TouchableOpacity
-          onPress={() => playExerciseAudio(exercise.id)}
+          onPress={() => playExerciseAudio(exercise.id, { text: ttsText })}
           className="mt-4 flex-row items-center gap-2 self-start rounded-xl bg-feather-50 px-4 py-2.5"
         >
           <Volume2 size={16} color="#1899D6" />
