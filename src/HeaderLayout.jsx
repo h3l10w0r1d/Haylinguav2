@@ -1,9 +1,10 @@
 // src/HeaderLayout.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent, Crown } from "lucide-react";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent, Crown, Volume2, VolumeX } from "lucide-react";
 import { CrownBadge } from "./lib/PremiumBadge";
 import { getTheme, toggleTheme } from "./lib/theme";
+import { isMuted, toggleMuted } from "./lib/muteAudio";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -62,6 +63,15 @@ export default function HeaderLayout({ user, onLogout, children }) {
     const onChange = (e) => e?.detail?.theme && setTheme(e.detail.theme);
     window.addEventListener("hay_theme_changed", onChange);
     return () => window.removeEventListener("hay_theme_changed", onChange);
+  }, []);
+
+  // Mute toggle — a safety net so a learner can always kill every sfx/TTS
+  // sound themselves, on top of the tab-visibility fixes.
+  const [muted, setMutedState] = useState(isMuted);
+  useEffect(() => {
+    const onChange = (e) => setMutedState(!!e?.detail?.muted);
+    window.addEventListener("hay_muted_changed", onChange);
+    return () => window.removeEventListener("hay_muted_changed", onChange);
   }, []);
 
   // Keep xp/streak in sync when user prop updates (login/refresh)
@@ -329,6 +339,17 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 <span>{gems == null ? "–" : gems}</span>
               </button>
             </div>
+
+            {/* Mute toggle */}
+            <button
+              type="button"
+              onClick={() => toggleMuted()}
+              title={muted ? "Unmute sound" : "Mute sound"}
+              aria-label="Toggle sound"
+              className="grid h-9 w-9 place-items-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 dark:text-stone-300 dark:hover:bg-white/[0.08] dark:hover:text-white"
+            >
+              {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
+            </button>
 
             {/* Light / dark toggle */}
             <button

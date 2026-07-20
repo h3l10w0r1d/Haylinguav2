@@ -7,6 +7,8 @@
 // at ~6 and then silently refuse to play — so feedback would die after a few
 // answers. A single context, resumed on demand, plays reliably forever.
 
+import { isMuted } from "./muteAudio";
+
 let _ctx = null;
 
 // Web Audio keeps generating sound in a hidden/background tab by default —
@@ -29,6 +31,7 @@ function getContext() {
     // call sfx functions on a timer while the tab is hidden — don't let that
     // resume a context we just suspended for exactly that reason.
     if (typeof document !== "undefined" && document.hidden) return null;
+    if (isMuted()) return null;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
     if (!_ctx) _ctx = new AC();

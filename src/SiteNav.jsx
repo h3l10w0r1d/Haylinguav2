@@ -9,17 +9,25 @@
 // landing page is the only place with a login/signup modal.
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { ArrowRight, Sun, Moon, Menu, X } from "lucide-react";
+import { ArrowRight, Sun, Moon, Menu, X, Volume2, VolumeX } from "lucide-react";
 import { getTheme, toggleTheme } from "./lib/theme";
+import { isMuted, toggleMuted } from "./lib/muteAudio";
 
 export default function SiteNav({ inPage = false, onLogin, onSignup }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState(getTheme);
+  const [muted, setMutedState] = useState(isMuted);
 
   useEffect(() => {
     const onChange = (e) => e?.detail?.theme && setTheme(e.detail.theme);
     window.addEventListener("hay_theme_changed", onChange);
     return () => window.removeEventListener("hay_theme_changed", onChange);
+  }, []);
+
+  useEffect(() => {
+    const onChange = (e) => setMutedState(!!e?.detail?.muted);
+    window.addEventListener("hay_muted_changed", onChange);
+    return () => window.removeEventListener("hay_muted_changed", onChange);
   }, []);
 
   const closeMenu = () => setMenuOpen(false);
@@ -48,6 +56,15 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => toggleMuted()}
+            title={muted ? "Unmute sound" : "Mute sound"}
+            aria-label="Toggle sound"
+            className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.08]"
+          >
+            {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
+          </button>
           <button
             type="button"
             onClick={() => toggleTheme()}
