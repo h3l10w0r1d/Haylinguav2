@@ -1526,6 +1526,20 @@ def cms_seed_fluency(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/demo")
+def cms_seed_demo(request: Request, db=Depends(get_db)):
+    """Teacher-facing demo lessons (not part of the learner curriculum):
+    one showcasing every exercise kind, one showcasing reading
+    comprehension. Idempotent."""
+    require_cms(request, db)
+    from seed_demo import seed_demo_lessons
+    try:
+        res = seed_demo_lessons()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
