@@ -99,6 +99,76 @@ function getToken() {
   );
 }
 
+// Shared by every "speak" exercise kind: watches the live mic stream and
+// calls onSilence() once the learner has spoken and then gone quiet for a
+// beat — so recording stops itself instead of requiring a tap. Also a hard
+// max-duration cap in case silence detection never fires (background noise,
+// a mic that never dips below threshold, etc.). Returns a cleanup function.
+function attachSilenceAutoStop(stream, onSilence, { speakThreshold = 0.045, silenceMs = 1100, maxMs = 15000 } = {}) {
+  let stopped = false;
+  let hasSpoken = false;
+  let silenceStartedAt = null;
+  let rafId = null;
+
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return () => {};
+
+  const ctx = new AudioCtx();
+  const source = ctx.createMediaStreamSource(stream);
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  const startedAt = Date.now();
+
+  function tick() {
+    if (stopped) return;
+    analyser.getByteTimeDomainData(data);
+    // RMS of the (centered) waveform — cheap, reliable-enough voice-activity signal.
+    let sumSquares = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = (data[i] - 128) / 128;
+      sumSquares += v * v;
+    }
+    const rms = Math.sqrt(sumSquares / data.length);
+
+    const now = Date.now();
+    if (rms >= speakThreshold) {
+      hasSpoken = true;
+      silenceStartedAt = null;
+    } else if (hasSpoken) {
+      if (silenceStartedAt === null) silenceStartedAt = now;
+      else if (now - silenceStartedAt >= silenceMs) {
+        finish();
+        return;
+      }
+    }
+
+    if (now - startedAt >= maxMs) {
+      finish();
+      return;
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function finish() {
+    if (stopped) return;
+    stopped = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    onSilence();
+  }
+
+  rafId = requestAnimationFrame(tick);
+
+  return () => {
+    stopped = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    try { source.disconnect(); } catch {}
+    try { ctx.close(); } catch {}
+  };
+}
+
 async function postAttempt({
   exerciseId,
   isCorrect,
@@ -1331,6 +1401,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   const [showHint, setShowHint] = useState(false);
   const mrRef = useRef(null);
   const chunksRef = useRef([]);
+  const silenceCleanupRef = useRef(null);
 
   useEffect(() => {
     setRecording(false);
@@ -1341,6 +1412,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
     // Auto-start the mic for each new speak exercise instead of waiting for
     // a tap — the learner can start talking the moment the prompt appears.
     startRec();
+    return () => { silenceCleanupRef.current?.(); silenceCleanupRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise?.id]);
 
@@ -1362,6 +1434,8 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
       mr.onstop = async () => {
+        silenceCleanupRef.current?.();
+        silenceCleanupRef.current = null;
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         if (blob.size) await transcribe(blob);
@@ -1369,12 +1443,17 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       mrRef.current = mr;
       mr.start();
       setRecording(true);
+      // Listens to the live stream and stops recording on its own once the
+      // learner has spoken and gone quiet, instead of requiring a tap.
+      silenceCleanupRef.current = attachSilenceAutoStop(stream, () => stopRec());
     } catch {
       setError("Microphone access was blocked.");
     }
   }
 
   function stopRec() {
+    silenceCleanupRef.current?.();
+    silenceCleanupRef.current = null;
     try { mrRef.current?.stop(); } catch {}
     setRecording(false);
   }
@@ -2280,11 +2359,13 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
   const [showHint, setShowHint] = useState(false);
   const mrRef = useRef(null);
   const chunksRef = useRef([]);
+  const silenceCleanupRef = useRef(null);
 
   useEffect(() => {
     setRecording(false); setBusy(false); setTranscript(""); setError(""); setShowHint(false);
     // Auto-start the mic for each new line instead of waiting for a tap.
     startRec();
+    return () => { silenceCleanupRef.current?.(); silenceCleanupRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise?.id]);
 
@@ -2298,11 +2379,23 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
       const mr = new MediaRecorder(stream, { audioBitsPerSecond: 32000 });
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data?.size) chunksRef.current.push(e.data); };
-      mr.onstop = async () => { stream.getTracks().forEach((t) => t.stop()); const blob = new Blob(chunksRef.current, { type: "audio/webm" }); if (blob.size) await transcribe(blob); };
+      mr.onstop = async () => {
+        silenceCleanupRef.current?.();
+        silenceCleanupRef.current = null;
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        if (blob.size) await transcribe(blob);
+      };
       mrRef.current = mr; mr.start(); setRecording(true);
+      silenceCleanupRef.current = attachSilenceAutoStop(stream, () => stopRec());
     } catch { setError("Microphone access was blocked."); }
   }
-  function stopRec() { try { mrRef.current?.stop(); } catch {} setRecording(false); }
+  function stopRec() {
+    silenceCleanupRef.current?.();
+    silenceCleanupRef.current = null;
+    try { mrRef.current?.stop(); } catch {}
+    setRecording(false);
+  }
   async function transcribe(blob) {
     setBusy(true); setError("");
     try {
