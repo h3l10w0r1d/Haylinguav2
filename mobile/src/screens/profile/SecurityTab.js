@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Modal, ActivityIndicator, Image, Share, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Mail, Lock, ShieldCheck, Send, Download, Trash2 } from 'lucide-react-native';
+import { Mail, Lock, ShieldCheck, Send, Download, Trash2, KeyRound, Link2, AlertTriangle } from 'lucide-react-native';
 import { api, ApiError } from '../../lib/api';
 import { useAuthStore } from '../../lib/authStore';
 import Pressable3D from '../../components/Pressable3D';
@@ -271,7 +271,10 @@ export default function SecurityTab({ profile }) {
 
   return (
     <View>
-      <Text className="mb-2 text-xs font-extrabold uppercase tracking-wide text-stone-400">Account</Text>
+      <View className="mb-2 flex-row items-center gap-2">
+        <KeyRound size={14} color="#a8a29e" />
+        <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Account</Text>
+      </View>
       <SectionButton icon={Mail} label="Change email" sub={profile?.email} onPress={() => setEmailModal(true)} />
       <SectionButton icon={Lock} label="Change password" onPress={() => setPwModal(true)} />
       <SectionButton
@@ -280,7 +283,10 @@ export default function SecurityTab({ profile }) {
         onPress={open2fa}
       />
 
-      <Text className="mb-2 mt-5 text-xs font-extrabold uppercase tracking-wide text-stone-400">Linked accounts</Text>
+      <View className="mb-2 mt-5 flex-row items-center gap-2">
+        <Link2 size={14} color="#a8a29e" />
+        <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Linked accounts</Text>
+      </View>
       {telegramId ? (
         <SectionButton icon={Send} label="Telegram linked" sub={`ID ${telegramId}`} onPress={unlinkTelegram} />
       ) : (
@@ -289,7 +295,10 @@ export default function SecurityTab({ profile }) {
       <SectionButton icon={Send} label="Google — not available in the app yet" disabled />
       <SectionButton icon={Send} label="Facebook — not available in the app yet" disabled />
 
-      <Text className="mb-2 mt-5 text-xs font-extrabold uppercase tracking-wide text-stone-400">Danger zone</Text>
+      <View className="mb-2 mt-5 flex-row items-center gap-2">
+        <AlertTriangle size={14} color="#FF4B4B" />
+        <Text className="text-xs font-extrabold uppercase tracking-wide text-cardinal-500">Danger zone</Text>
+      </View>
       <SectionButton icon={Download} label="Export my data" onPress={exportData} disabled={exporting} />
       <SectionButton icon={Trash2} label="Delete account" tone="danger" onPress={() => setDeleteModal(true)} />
 

@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, ActivityIndicator } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { Check } from 'lucide-react-native';
+import { Check, Palette, Image as ImageIcon, Sparkles } from 'lucide-react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { api, resolveUrl } from '../../lib/api';
 import Pressable3D from '../../components/Pressable3D';
@@ -128,7 +128,10 @@ export default function AppearanceTab({ profile, wallet, onThemeSaved, onBannerC
   return (
     <View>
       <View className="mb-2 flex-row items-center justify-between">
-        <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Profile theme</Text>
+        <View className="flex-row items-center gap-2">
+          <Palette size={14} color="#a8a29e" />
+          <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Profile theme</Text>
+        </View>
         {!!saveState && (
           <Text className="text-xs font-semibold text-stone-400">{saveState === 'saving' ? 'Saving…' : 'Auto-saved'}</Text>
         )}
@@ -154,7 +157,10 @@ export default function AppearanceTab({ profile, wallet, onThemeSaved, onBannerC
         })}
       </View>
 
-      <Text className="mb-2 mt-6 text-xs font-extrabold uppercase tracking-wide text-stone-400">Banner</Text>
+      <View className="mb-2 mt-6 flex-row items-center gap-2">
+        <ImageIcon size={14} color="#a8a29e" />
+        <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Banner</Text>
+      </View>
       <View className="flex-row flex-wrap" style={{ gap: 8 }}>
         {PRESET_BANNERS.map((url) => (
           <Pressable3D key={url} onPress={() => pickBannerPreset(url)} pressDepth={2}>
@@ -171,7 +177,10 @@ export default function AppearanceTab({ profile, wallet, onThemeSaved, onBannerC
         </Pressable3D>
       </View>
 
-      <Text className="mb-2 mt-6 text-xs font-extrabold uppercase tracking-wide text-stone-400">Avatar frame</Text>
+      <View className="mb-2 mt-6 flex-row items-center gap-2">
+        <Sparkles size={14} color="#a8a29e" />
+        <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Avatar frame</Text>
+      </View>
       <View className="flex-row flex-wrap" style={{ gap: 8 }}>
         <Pressable3D onPress={() => equipFrame(null)} disabled={!!equipping} pressDepth={2} className={'rounded-xl px-4 py-2.5 ' + (!wallet?.active_frame ? 'bg-brand-500' : 'bg-white')} style={wallet?.active_frame ? { shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 } : undefined}>
           {equipping === 'none' ? <ActivityIndicator size="small" color={!wallet?.active_frame ? '#fff' : '#FF7A1A'} /> : (

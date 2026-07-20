@@ -3,6 +3,7 @@
 // avatar/banner/theme autosave elsewhere and never touch this form.
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Switch, ActivityIndicator } from 'react-native';
+import { Users, EyeOff, Volume2, CheckCircle2 } from 'lucide-react-native';
 import { api, ApiError } from '../../lib/api';
 import Pressable3D from '../../components/Pressable3D';
 import { haptics } from '../../lib/haptics';
@@ -92,10 +93,13 @@ export default function EditTab({ profile, onSaved }) {
         />
       </Field>
 
-      <ToggleRow label="Show friends list publicly" value={friendsPublic} onChange={setFriendsPublic} />
-      <ToggleRow label="Hide my profile from search" value={isHidden} onChange={setIsHidden} />
+      <ToggleRow icon={Users} label="Show friends list publicly" value={friendsPublic} onChange={setFriendsPublic} />
+      <ToggleRow icon={EyeOff} label="Hide my profile from search" value={isHidden} onChange={setIsHidden} />
 
-      <Text className="mb-2 mt-4 text-xs font-extrabold uppercase tracking-wide text-stone-400">Exercise voice</Text>
+      <View className="mb-2 mt-4 flex-row items-center gap-2">
+        <Volume2 size={14} color="#a8a29e" />
+        <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Exercise voice</Text>
+      </View>
       <View className="flex-row" style={{ gap: 8 }}>
         {VOICE_OPTIONS.map((opt) => (
           <View key={opt.value} className="flex-1">
@@ -111,7 +115,12 @@ export default function EditTab({ profile, onSaved }) {
         ))}
       </View>
 
-      {!!message && <Text className="mt-4 text-sm font-semibold text-stone-500">{message}</Text>}
+      {!!message && (
+        <View className="mt-4 flex-row items-center gap-1.5">
+          {message === 'Saved!' && <CheckCircle2 size={14} color="#58CC02" />}
+          <Text className="text-sm font-semibold text-stone-500">{message}</Text>
+        </View>
+      )}
 
       <Pressable3D onPress={save} disabled={saving} className="mt-5 items-center rounded-2xl bg-brand-500 py-4">
         {saving ? <ActivityIndicator color="#fff" /> : <Text className="text-base font-extrabold text-white">Save changes</Text>}
@@ -131,9 +140,10 @@ function Field({ label, children }) {
   );
 }
 
-function ToggleRow({ label, value, onChange }) {
+function ToggleRow({ icon: Icon, label, value, onChange }) {
   return (
-    <View className="mb-3 flex-row items-center justify-between rounded-2xl bg-white px-4 py-3" style={shadow}>
+    <View className="mb-3 flex-row items-center gap-3 rounded-2xl bg-white px-4 py-3" style={shadow}>
+      <Icon size={16} color="#a8a29e" />
       <Text className="flex-1 text-sm font-semibold text-stone-700">{label}</Text>
       <Switch value={value} onValueChange={onChange} trackColor={{ true: '#FF7A1A', false: '#e7e5e4' }} thumbColor="#fff" />
     </View>

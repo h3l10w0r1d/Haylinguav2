@@ -14,7 +14,7 @@ import { View, Text, Image, ActivityIndicator, ScrollView, RefreshControl } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
-import { Camera, Globe, EyeOff } from 'lucide-react-native';
+import { Camera, Globe, EyeOff, Star, Zap, Flame, User, Pencil, Palette, ShieldCheck } from 'lucide-react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { api, resolveUrl } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
@@ -25,10 +25,10 @@ import AppearanceTab from './profile/AppearanceTab';
 import SecurityTab from './profile/SecurityTab';
 
 const TABS = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'edit', label: 'Edit' },
-  { key: 'appearance', label: 'Appearance' },
-  { key: 'security', label: 'Security' },
+  { key: 'overview', label: 'Overview', icon: User },
+  { key: 'edit', label: 'Edit', icon: Pencil },
+  { key: 'appearance', label: 'Appearance', icon: Palette },
+  { key: 'security', label: 'Security', icon: ShieldCheck },
 ];
 
 async function pickAndUpload(endpoint, onDone) {
@@ -171,9 +171,9 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Stat tiles */}
         <View className="mx-4 mt-3 flex-row gap-3">
-          <StatTile label="Level" value={Math.max(1, Math.floor((profile?.total_xp ?? 0) / 500) + 1)} />
-          <StatTile label="Total XP" value={profile?.total_xp ?? 0} />
-          <StatTile label="Streak" value={profile?.streak ?? 0} />
+          <StatTile icon={Star} tint="#FFF8E1" color="#E0A800" label="Level" value={Math.max(1, Math.floor((profile?.total_xp ?? 0) / 500) + 1)} />
+          <StatTile icon={Zap} tint="#E7F7FF" color="#1899D6" label="Total XP" value={profile?.total_xp ?? 0} />
+          <StatTile icon={Flame} tint="#FFF5EC" color="#FF7A1A" label="Streak" value={profile?.streak ?? 0} />
         </View>
 
         {/* Tab bar */}
@@ -184,8 +184,9 @@ export default function ProfileScreen({ navigation }) {
                 key={t.key}
                 onPress={() => setTab(t.key)}
                 pressDepth={2}
-                className={'items-center rounded-xl px-4 py-2 ' + (tab === t.key ? 'bg-white' : '')}
+                className={'flex-row items-center gap-1.5 rounded-xl px-4 py-2 ' + (tab === t.key ? 'bg-white' : '')}
               >
+                <t.icon size={14} color={tab === t.key ? '#FF7A1A' : '#a8a29e'} />
                 <Text className={'text-sm font-bold ' + (tab === t.key ? 'text-stone-900' : 'text-stone-500')}>{t.label}</Text>
               </Pressable3D>
             ))}
@@ -213,9 +214,12 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
-function StatTile({ label, value }) {
+function StatTile({ icon: Icon, tint, color, label, value }) {
   return (
     <View className="flex-1 items-center rounded-2xl bg-white px-3 py-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
+      <View className="mb-1.5 h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: tint }}>
+        <Icon size={16} color={color} />
+      </View>
       <Text className="text-xl font-extrabold text-stone-900 font-display">{value}</Text>
       <Text className="mt-1 text-[11px] font-bold uppercase tracking-wide text-stone-400">{label}</Text>
     </View>

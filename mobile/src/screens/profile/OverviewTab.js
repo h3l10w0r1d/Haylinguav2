@@ -3,7 +3,7 @@
 // props ProfileScreen already fetched.
 import React from 'react';
 import { View, Text, Share } from 'react-native';
-import { Award, Share2 } from 'lucide-react-native';
+import { Award, Share2, Calendar, BookOpen, Flame, Zap, Target, Activity, CheckCircle2 } from 'lucide-react-native';
 import Pressable3D from '../../components/Pressable3D';
 
 function HeatmapDay({ value }) {
@@ -20,9 +20,12 @@ function HeatmapDay({ value }) {
   );
 }
 
-function StatCell({ label, value }) {
+function StatCell({ icon: Icon, tint, color, label, value }) {
   return (
     <View className="w-[31%] items-center rounded-2xl bg-white py-3" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
+      <View className="mb-1 h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: tint }}>
+        <Icon size={13} color={color} />
+      </View>
       <Text className="text-lg font-extrabold text-stone-900">{value}</Text>
       <Text className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-400">{label}</Text>
     </View>
@@ -46,7 +49,10 @@ export default function OverviewTab({ profile, stats, achievements, activityDays
     <View>
       {/* 30-day heatmap */}
       <View className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-        <Text className="mb-3 text-xs font-extrabold uppercase tracking-wide text-stone-400">Last 30 days</Text>
+        <View className="mb-3 flex-row items-center gap-2">
+          <Calendar size={14} color="#a8a29e" />
+          <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Last 30 days</Text>
+        </View>
         <View className="flex-row flex-wrap" style={{ gap: 4 }}>
           {activityDays.map((d) => (
             <HeatmapDay key={d.date} value={d.value} />
@@ -59,12 +65,12 @@ export default function OverviewTab({ profile, stats, achievements, activityDays
 
       {/* Stats grid */}
       <View className="mt-4 flex-row flex-wrap justify-between" style={{ gap: 8 }}>
-        <StatCell label="Lessons" value={stats?.lessons_completed ?? '–'} />
-        <StatCell label="Best streak" value={profile?.best_streak ?? 0} />
-        <StatCell label="Lifetime XP" value={profile?.total_xp ?? 0} />
-        <StatCell label="Accuracy (14d)" value={learningSummary ? `${Math.round(learningSummary.accuracy)}%` : '–'} />
-        <StatCell label="Exercises (14d)" value={learningSummary?.attempts ?? '–'} />
-        <StatCell label="Correct (14d)" value={learningSummary?.correct ?? '–'} />
+        <StatCell icon={BookOpen} tint="#FFF5EC" color="#FF7A1A" label="Lessons" value={stats?.lessons_completed ?? '–'} />
+        <StatCell icon={Flame} tint="#FFF5EC" color="#FF7A1A" label="Best streak" value={profile?.best_streak ?? 0} />
+        <StatCell icon={Zap} tint="#E7F7FF" color="#1899D6" label="Lifetime XP" value={profile?.total_xp ?? 0} />
+        <StatCell icon={Target} tint="#EFFCE3" color="#58CC02" label="Accuracy (14d)" value={learningSummary ? `${Math.round(learningSummary.accuracy)}%` : '–'} />
+        <StatCell icon={Activity} tint="#FFF8E1" color="#E0A800" label="Exercises (14d)" value={learningSummary?.attempts ?? '–'} />
+        <StatCell icon={CheckCircle2} tint="#EFFCE3" color="#58CC02" label="Correct (14d)" value={learningSummary?.correct ?? '–'} />
       </View>
 
       {/* Achievements */}
@@ -78,6 +84,9 @@ export default function OverviewTab({ profile, stats, achievements, activityDays
         ) : (
           achievements.map((a) => (
             <View key={a.id} className="flex-row items-center gap-3 border-b border-stone-100 py-2.5 last:border-b-0">
+              <View className="h-8 w-8 items-center justify-center rounded-full bg-gold-50">
+                <Award size={14} color="#E0A800" />
+              </View>
               <View className="flex-1">
                 <Text className="text-sm font-bold text-stone-800">{a.title}</Text>
                 {!!a.desc && <Text className="text-xs font-medium text-stone-400">{a.desc}</Text>}
