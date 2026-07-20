@@ -11,6 +11,7 @@ import ExerciseShell from "./ExerciseShell";
 import { sfx } from "./lib/sfx";
 import { readHearts, writeHearts } from "./lib/hearts";
 import OutOfHearts from "./OutOfHearts";
+import { getPreloadedLesson } from "./lib/lessonPreload";
 
 // 🔧 Make sure this matches your backend URL
 const API_BASE =
@@ -364,21 +365,28 @@ export default function LessonPlayer() {
       console.log("[LessonPlayer] Loading lesson from:", url);
 
       try {
-        const res = await fetch(url, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+        // A preview link always needs a fresh fetch (draft content, short-lived
+        // token); otherwise reuse an in-flight/resolved preload from the
+        // Dashboard if one exists — it's the same request, just started earlier.
+        let data = previewToken ? null : await getPreloadedLesson(slug);
 
-        if (!res.ok) {
-          const text = await res.text();
-          console.error("[LessonPlayer] Failed to load lesson:", res.status, text);
-          setLoadError(
-            `Failed to load lesson (${res.status}). Check backend logs / URL / CORS.`
-          );
-          return;
+        if (!data) {
+          const res = await fetch(url, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            console.error("[LessonPlayer] Failed to load lesson:", res.status, text);
+            setLoadError(
+              `Failed to load lesson (${res.status}). Check backend logs / URL / CORS.`
+            );
+            return;
+          }
+
+          data = await res.json();
         }
-
-        const data = await res.json();
         console.log("[LessonPlayer] Lesson data:", data);
 
         const normalized = { ...data, lesson_type: data.lesson_type || "standard", config: data.config || {} };

@@ -9,6 +9,7 @@ import owl from "./assets/character-owl.png";
 import StreakFlame from "./lib/StreakFlame";
 import StreakCelebration from "./lib/StreakCelebration";
 import ChestOpening from "./lib/ChestOpening";
+import { preloadLesson } from "./lib/lessonPreload";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -750,6 +751,7 @@ function LessonRow({ lesson, onStart }) {
       type="button"
       disabled={locked}
       onClick={() => !locked && onStart(lesson)}
+      onMouseEnter={() => !locked && lesson.slug && preloadLesson(lesson.slug, API_BASE_URL)}
       title={locked ? "Finish the previous lesson to unlock" : lesson.title}
       className={
         "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition " +
@@ -962,6 +964,14 @@ export default function Dashboard({ user }) {
   const journeyPct = totalLessons ? Math.round((doneLessons / totalLessons) * 100) : 0;
 
   const currentLesson = useMemo(() => lessons.find((l) => l.status === "current") || null, [lessons]);
+
+  // Warm the lesson-JSON + TTS caches for the learner's next-up lesson as
+  // soon as we know which one it is, so opening it is instant instead of a
+  // spinner + silent audio on first "Listen" tap.
+  useEffect(() => {
+    if (currentLesson?.slug) preloadLesson(currentLesson.slug, API_BASE_URL);
+  }, [currentLesson?.slug]);
+
   const currentUnitKey = useMemo(() => {
     if (!currentLesson) return null;
     const key = currentLesson.id ?? currentLesson.slug;
