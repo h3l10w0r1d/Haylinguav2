@@ -1,16 +1,18 @@
-"""Weekly league rollover trigger — run by a scheduler (e.g. Render Cron Job).
+"""Weekly league rollover trigger — run by a scheduler.
 
 Calls POST /cron/leagues/rollover with the shared CRON_SECRET so promotions /
 relegations are applied at the week boundary.
 
-Render setup (dashboard → New → Cron Job):
-  - Schedule:   0 0 * * 1            # Mondays 00:00 UTC
-  - Build:      pip install httpx
-  - Command:    python backend/cron_leagues.py
-  - Env vars:   BACKEND_URL=https://haylinguav2.onrender.com
-                CRON_SECRET=<same value set on the backend web service>
+Actually scheduled via .github/workflows/league-rollover.yml (Mondays 00:05
+UTC) — that needs a CRON_SECRET repo secret set to the same value as the
+backend service's CRON_SECRET env var. This script is kept for local/manual
+use (e.g. testing, or triggering an out-of-band rollover) and isn't itself
+invoked by anything in CI.
 
-Or from any other scheduler:
+Manual use:
+  BACKEND_URL=https://haylinguav2.onrender.com CRON_SECRET=... python backend/cron_leagues.py
+
+Or directly:
   curl -fsS -X POST "$BACKEND_URL/cron/leagues/rollover" -H "X-Cron-Secret: $CRON_SECRET"
 """
 import os

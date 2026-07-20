@@ -1,0 +1,39 @@
+name: Weekly League Rollover
+
+# Promotes/demotes learners between league divisions at the end of each ISO
+# week. backend/routes_cms.py's POST /cron/leagues/rollover does the actual
+# work — this workflow is just the missing scheduler for it. The repo
+# previously only shipped backend/cron_leagues.py with instructions to wire
+# it up as a Render Cron Job by hand in the dashboard; that manual step was
+# never done, so nobody was ever actually promoted. Running it here instead
+# needs no external dashboard config — just the CRON_SECRET repo secret
+# below, matching the same CRON_SECRET already set on the backend service.
+on:
+  schedule:
+    # Mondays 00:05 UTC — just after the ISO week boundary used by
+    # backend/routes.py's _current_iso_week(), so the week that just ended
+    # is fully closed out before rollover runs.
+    - cron: "5 0 * * 1"
+  workflow_dispatch: {} # allows a manual run, e.g. to backfill a missed week
+
+jobs:
+  rollover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger league promotion/relegation
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set (Settings > Secrets and variables > Actions). It must match the CRON_SECRET env var on the Render backend service."
+            exit 1
+          fi
+          status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+            "https://haylinguav2.onrender.com/cron/leagues/rollover" \
+            -H "X-Cron-Secret: $CRON_SECRET")
+          echo "HTTP $status"
+          cat /tmp/resp.json
+          if [ "$status" -ge 300 ]; then
+            echo "::error::Rollover request failed with HTTP $status"
+            exit 1
+          fi

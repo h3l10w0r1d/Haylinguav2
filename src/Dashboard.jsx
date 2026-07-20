@@ -487,6 +487,8 @@ function DailyGoalCard({ todayXp }) {
     const saved = parseInt(localStorage.getItem("hay_daily_goal") || "20", 10);
     return DAILY_GOAL_OPTIONS.includes(saved) ? saved : 20;
   });
+  const [celebrating, setCelebrating] = useState(false);
+  const prevDone = React.useRef(null);
 
   function pickGoal(g) {
     setGoal(g);
@@ -497,11 +499,51 @@ function DailyGoalCard({ todayXp }) {
   const pct = Math.min(100, Math.round((xp / goal) * 100));
   const done = xp >= goal;
 
+  // Same "just finished" one-shot celebration as the daily quests card,
+  // then it collapses the same way — the two "you're done for today" cards
+  // should feel like one visual language, not two different patterns.
+  useEffect(() => {
+    const prev = prevDone.current;
+    prevDone.current = done;
+    if (prev === false && done) {
+      setCelebrating(true);
+      const t = setTimeout(() => setCelebrating(false), 1900);
+      return () => clearTimeout(t);
+    }
+  }, [done]);
+
+  if (done) {
+    if (celebrating) {
+      return (
+        <div className={"quests-celebrate flex flex-col items-center overflow-hidden p-6 text-center " + CARD}>
+          <div className="relative grid place-items-center">
+            <span className="quests-ring absolute h-14 w-14 rounded-full bg-grass-500/25" />
+            <span className="quests-ring quests-ring-2 absolute h-14 w-14 rounded-full bg-grass-500/25" />
+            <div className="quests-badge-pop relative grid h-14 w-14 place-items-center rounded-full bg-grass-500 text-white shadow-[0_6px_16px_-4px_rgba(88,204,2,0.6)]">
+              <Check className="h-8 w-8" />
+            </div>
+          </div>
+          <div className="mt-3 text-sm font-extrabold text-stone-900 dark:text-white">Daily goal complete!</div>
+          <div className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">{xp} XP today — nice work.</div>
+        </div>
+      );
+    }
+    return (
+      <div className={"quests-collapse flex items-center gap-3 overflow-hidden p-4 " + CARD}>
+        <Chip chip={ACCENT.grass} icon={Check} size="h-10 w-10" ic="h-5 w-5" />
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-extrabold text-stone-900 dark:text-white">Daily goal met</div>
+          <div className="text-xs text-stone-400 dark:text-stone-500">{goal} XP today</div>
+        </div>
+        <span className="shrink-0 text-xs font-bold tabular-nums text-grass-600 dark:text-grass-400">{xp}/{goal}</span>
+      </div>
+    );
+  }
+
   return (
     <div className={"p-5 " + CARD}>
       <div className="flex items-center justify-between">
         <Label>Daily goal</Label>
-        {done && <span className="rounded-full bg-grass-50 px-2 py-0.5 text-xs font-bold text-grass-600 dark:bg-grass-500/15 dark:text-grass-400">Done 🎉</span>}
       </div>
 
       <div className="mt-3 flex items-baseline gap-1.5">
@@ -511,7 +553,7 @@ function DailyGoalCard({ todayXp }) {
 
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-white/[0.07]">
         <div
-          className={"h-full rounded-full transition-all duration-500 " + (done ? "bg-gradient-to-r from-grass-400 to-grass-500" : "bg-gradient-to-r from-brand-400 to-brand-500")}
+          className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-500 transition-all duration-500"
           style={{ width: `${Math.max(pct, xp > 0 ? 6 : 0)}%` }}
         />
       </div>
@@ -520,9 +562,8 @@ function DailyGoalCard({ todayXp }) {
         {DAILY_GOAL_OPTIONS.map((g) => (
           <button
             key={g}
-            disabled={done}
-            onClick={() => !done && pickGoal(g)}
-            className={"flex-1 rounded-lg py-1.5 text-xs font-extrabold transition " + (done ? (goal === g ? "bg-grass-500 text-white cursor-default" : "bg-stone-100 text-stone-300 cursor-default dark:bg-white/[0.05] dark:text-stone-600") : goal === g ? "bg-brand-500 text-white shadow-[0_4px_10px_-4px_rgba(255,122,26,0.6)]" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-white/[0.07] dark:text-stone-300 dark:hover:bg-white/[0.12]")}
+            onClick={() => pickGoal(g)}
+            className={"flex-1 rounded-lg py-1.5 text-xs font-extrabold transition " + (goal === g ? "bg-brand-500 text-white shadow-[0_4px_10px_-4px_rgba(255,122,26,0.6)]" : "bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-white/[0.07] dark:text-stone-300 dark:hover:bg-white/[0.12]")}
           >
             {g}
           </button>
