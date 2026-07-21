@@ -2,7 +2,7 @@
 // A gradient hero anchors the page, cards lift on soft shadows (light) or a
 // hairline ring (dark), colored tinted chips carry energy, the mascot has life.
 // Theme is class-based (Tailwind darkMode: "class"); see src/lib/theme.js.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2 } from "lucide-react";
 import owl from "./assets/character-owl.png";
@@ -754,6 +754,38 @@ function pathNodeCenter(i) {
   return { x: PATH_HALF_W + PATH_OFFSETS[i % PATH_OFFSETS.length], y: PATH_ROW_H / 2 + i * PATH_ROW_H };
 }
 
+// A course can run hundreds of lessons across dozens of units — mounting
+// every unit's LearningPath (one absolutely-positioned node + button per
+// lesson, plus an SVG curve) all at once on load is what actually made the
+// dashboard slow/crash-prone, not the API payload (that's small — scalar
+// fields only). This mounts a unit's path only once it's about to scroll
+// into view, and never unmounts it again afterward (no re-virtualizing on
+// scroll-away — a few hundred already-mounted nodes is cheap; the expensive
+// part was mounting them all in the same initial frame).
+function useMountWhenNear(eager, rootMargin = "1000px 0px") {
+  const ref = useRef(null);
+  const [mounted, setMounted] = useState(eager);
+
+  useEffect(() => {
+    if (mounted || !ref.current) return;
+    const el = ref.current;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setMounted(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
+
+  return [ref, mounted];
+}
+
 function LearningPathNode({ lesson, index, onStart }) {
   const status = lesson.status || "locked";
   const done = status === "completed";
@@ -889,6 +921,14 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
     : isCurrent
     ? "bg-gradient-to-r from-brand-400 to-brand-500"
     : "bg-stone-200 dark:bg-white/10";
+
+  // The header/progress-bar above is cheap and always renders — only the
+  // path itself (one node per lesson) is deferred. Eager for the current
+  // unit and the first couple, so there's no placeholder flash on load for
+  // whatever's already above the fold.
+  const [pathRef, pathMounted] = useMountWhenNear(isCurrent || index < 2);
+  const placeholderHeight = PATH_ROW_H * total + PATH_ROW_H / 2;
+
   return (
     <section className={"mb-3 p-5 " + CARD}>
       <div className="flex items-baseline justify-between gap-3">
@@ -903,8 +943,14 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
         <div className={"h-full rounded-full transition-all " + bar} style={{ width: `${pct}%` }} />
       </div>
 
-      <div className="mt-4">
-        <LearningPath unit={unit} onStart={onStart} onCheckpoint={onCheckpoint} complete={complete} />
+      <div className="mt-4" ref={pathRef}>
+        {pathMounted ? (
+          <LearningPath unit={unit} onStart={onStart} onCheckpoint={onCheckpoint} complete={complete} />
+        ) : (
+          <div style={{ height: placeholderHeight }} className="flex items-center justify-center text-stone-300 dark:text-stone-700">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        )}
       </div>
     </section>
   );
