@@ -240,6 +240,16 @@ export default function ExerciseShell({
     prevPct.current = pct;
   }, [pct]);
 
+  // Preload the other two mascot states so switching (neutral -> positive/
+  // negative on answer) is instant instead of showing a blank frame while
+  // that state's image fetches for the first time.
+  useEffect(() => {
+    ["positive", "neutral", "negative"].forEach((state) => {
+      const img = new Image();
+      img.src = mascotFaceUrl(mascotCharacter, state);
+    });
+  }, [mascotCharacter]);
+
   // Rotate the result-sheet message each time a NEW result appears (not on
   // every re-render — `result` is a fresh object per answer, stable between).
   const [praiseIdx, setPraiseIdx] = useState(0);
@@ -411,6 +421,9 @@ export default function ExerciseShell({
           src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
           alt=""
           aria-hidden="true"
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           className="animate-pop pointer-events-none fixed left-6 top-[58%] z-[65] hidden h-[30rem] w-[30rem] -translate-y-1/2 object-contain drop-shadow-2xl min-[1180px]:block xl:left-16 xl:h-[38rem] xl:w-[38rem]"
         />
       ) : null}

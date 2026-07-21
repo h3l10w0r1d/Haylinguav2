@@ -4,14 +4,14 @@
 // session and stays consistent for its duration (not re-rolled per exercise).
 const FACES = {
   armen: {
-    positive: "/banners/faces/Armen_positive.png",
-    neutral: "/banners/faces/Armen_Neutral.png",
-    negative: "/banners/faces/Armen_negative.png",
+    positive: "/banners/faces/Armen_positive.webp",
+    neutral: "/banners/faces/Armen_Neutral.webp",
+    negative: "/banners/faces/Armen_negative.webp",
   },
   lilit: {
-    positive: "/banners/faces/Lilit_positive.png",
-    neutral: "/banners/faces/Lilit_neutral.png",
-    negative: "/banners/faces/Lilit_Negative.png",
+    positive: "/banners/faces/Lilit_positive.webp",
+    neutral: "/banners/faces/Lilit_neutral.webp",
+    negative: "/banners/faces/Lilit_Negative.webp",
   },
 };
 
