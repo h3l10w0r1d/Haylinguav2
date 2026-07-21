@@ -1540,6 +1540,33 @@ def cms_seed_demo(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/grammar")
+def cms_seed_grammar(request: Request, db=Depends(get_db)):
+    """Populate Phase 5 (Advanced grammar) — imperative mood, genitive-dative
+    and instrumental cases, past/future for two more regular verbs. Idempotent."""
+    require_cms(request, db)
+    from seed_grammar import seed_grammar_phase
+    try:
+        res = seed_grammar_phase()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/expand")
+def cms_seed_expand(request: Request, db=Depends(get_db)):
+    """Volume expansion — mechanically tops up the 8 core vocabulary lessons
+    with extra drills built from their own already-verified word lists.
+    Idempotent per lesson (skips any lesson with >= 10 exercises)."""
+    require_cms(request, db)
+    from seed_expand import seed_expand_vocab
+    try:
+        res = seed_expand_vocab()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
