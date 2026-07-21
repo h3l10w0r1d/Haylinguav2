@@ -469,29 +469,31 @@ export default function Phase2Exercise({ exercise, registerActions, submit, masc
 
   if (isSentenceOrder) {
     const picked = new Set(orderChosen);
-    const built = orderChosen.map((i) => sentenceTokens[i]).join(" ").trim();
     return (
       <Card>
         <div className="text-slate-800 text-xl font-extrabold leading-snug dark:text-white">{prompt}</div>
 
-        <div className="mt-4 p-3 rounded-2xl bg-white ring-1 ring-slate-200 min-h-[56px] dark:bg-[#18181b] dark:ring-white/[0.08]">
-          {built ? (
-            <div className="text-slate-800 font-semibold dark:text-white">{built}</div>
+        {/* Duolingo-style: picked words are tiles sitting on ruled lines;
+            tapping one puts it back (no separate Clear button needed). */}
+        <div className="wordbank-lines mt-4 flex min-h-[7rem] flex-wrap content-start gap-x-2 gap-y-2 px-1">
+          {orderChosen.length === 0 ? (
+            <div className="self-end pb-1 text-sm font-semibold text-slate-400 dark:text-stone-500">Tap words in order…</div>
           ) : (
-            <div className="text-slate-400 font-semibold dark:text-stone-500">Tap words in order…</div>
+            orderChosen.map((tokenIdx, i) => (
+              <button
+                key={`${tokenIdx}-${i}`}
+                type="button"
+                onClick={() => setOrderChosen((p) => p.filter((_, x) => x !== i))}
+                className="rounded-2xl bg-feather-50 px-4 py-3 text-base font-bold text-feather-700 ring-2 ring-feather-300 transition active:translate-y-0.5 dark:bg-feather-500/15 dark:text-feather-400 dark:ring-feather-500/30"
+                style={{ boxShadow: "0 3px 0 0 #4EC2FF" }}
+              >
+                {sentenceTokens[tokenIdx]}
+              </button>
+            ))
           )}
-          {orderChosen.length ? (
-            <button
-              type="button"
-              className="mt-2 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200"
-              onClick={() => setOrderChosen([])}
-            >
-              Clear
-            </button>
-          ) : null}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
           {sentenceTokens.map((w, idx) => {
             const isPicked = picked.has(idx);
             return (
@@ -501,11 +503,12 @@ export default function Phase2Exercise({ exercise, registerActions, submit, masc
                 disabled={isPicked}
                 onClick={() => setOrderChosen((p) => [...p, idx])}
                 className={
-                  "px-3 py-2 rounded-xl font-semibold ring-1 transition " +
+                  "rounded-2xl px-4 py-3 text-base font-bold ring-2 transition active:translate-y-0.5 " +
                   (isPicked
-                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed dark:bg-white/[0.06] dark:text-stone-500 dark:ring-white/[0.08]"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 active:scale-[0.99] dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.04]")
+                    ? "bg-slate-100 text-transparent ring-slate-100 cursor-not-allowed select-none dark:bg-white/[0.04] dark:ring-white/[0.06]"
+                    : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-stone-200 dark:ring-white/[0.08] dark:hover:bg-white/[0.04]")
                 }
+                style={!isPicked ? { boxShadow: "0 3px 0 0 #E2E8F0" } : undefined}
               >
                 {w}
               </button>
