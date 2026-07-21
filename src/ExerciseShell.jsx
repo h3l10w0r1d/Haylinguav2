@@ -414,7 +414,7 @@ export default function ExerciseShell({
           src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
           alt=""
           aria-hidden="true"
-          className="animate-pop pointer-events-none fixed left-6 top-[58%] z-10 hidden h-[26rem] w-[26rem] -translate-y-1/2 object-contain min-[1180px]:block xl:left-16 xl:h-[32rem] xl:w-[32rem]"
+          className="animate-pop pointer-events-none fixed left-6 top-[58%] z-[65] hidden h-[30rem] w-[30rem] -translate-y-1/2 object-contain drop-shadow-2xl min-[1180px]:block xl:left-16 xl:h-[38rem] xl:w-[38rem]"
         />
       ) : null}
 
