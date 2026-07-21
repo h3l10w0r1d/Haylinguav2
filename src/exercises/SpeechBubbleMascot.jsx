@@ -21,7 +21,7 @@ export default function SpeechBubbleMascot({
         src={mascotFaceUrl(character, "neutral")}
         alt=""
         aria-hidden="true"
-        className="h-14 w-14 shrink-0 object-contain sm:h-16 sm:w-16"
+        className="h-24 w-24 shrink-0 object-contain sm:h-28 sm:w-28"
       />
       <div className="relative min-w-0 flex-1 rounded-2xl rounded-bl-sm bg-slate-50 px-4 py-3 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/[0.08]">
         <div className="flex items-center gap-2.5">
