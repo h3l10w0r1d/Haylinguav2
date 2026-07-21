@@ -384,13 +384,6 @@ export default function ExerciseShell({
           <HeartsBadge />
           <ReportProblem exerciseId={exerciseId} lessonId={lessonId} />
         </div>
-        {title ? (
-          <div className="mx-auto max-w-2xl px-4 pb-1">
-            <div className="line-clamp-1 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">
-              {title}
-            </div>
-          </div>
-        ) : null}
       </header>
 
       {instruction ? (

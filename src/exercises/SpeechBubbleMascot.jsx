@@ -23,7 +23,14 @@ export default function SpeechBubbleMascot({
         aria-hidden="true"
         className="h-24 w-24 shrink-0 object-contain sm:h-28 sm:w-28"
       />
-      <div className="relative min-w-0 flex-1 rounded-2xl rounded-bl-sm bg-slate-50 px-4 py-3 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/[0.08]">
+      <div className="relative min-w-0 flex-1 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/[0.08]">
+        {/* Comic-style tail pointing at the mascot — a rotated square, half
+            tucked behind the bubble's own rounded corner so only the outer
+            point shows, like an iOS message bubble's tail. */}
+        <span
+          aria-hidden="true"
+          className="absolute -left-1.5 bottom-3 h-3.5 w-3.5 rotate-45 rounded-[3px] bg-slate-50 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/[0.08]"
+        />
         <div className="flex items-center gap-2.5">
           {onPlay ? (
             <button
