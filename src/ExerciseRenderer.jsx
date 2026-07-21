@@ -19,6 +19,7 @@ import { writeHearts } from "./lib/hearts";
 import { newTrackedAudio } from "./lib/audioRegistry";
 import { FooterSlot } from "./exercises/FooterSlot";
 import ArmenianKeyboard from "./exercises/ArmenianKeyboard";
+import SpeechBubbleMascot from "./exercises/SpeechBubbleMascot";
 
 // Renders a prompt heading with optional inline word-hint tooltips.
 // Glossary is stored in exercise.config.glossary: { "word": "definition" }
@@ -33,24 +34,6 @@ function PromptTitle({ text, glossary }) {
   );
 }
 
-// Small "play slowly" (turtle) button shown under the main audio button on
-// listening exercises. Plays the same clip at a reduced playback rate.
-function SlowAudioButton({ onClick, disabled, className = "mt-3" }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={
-        className +
-        " inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
-      }
-      aria-label="Play slowly"
-    >
-      🐢 Slow
-    </button>
-  );
-}
 
 /**
  * Variant A: component-per-kind.
@@ -715,7 +698,7 @@ function ExWordSpelling({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
 }
 
 // A) fill_blank
-function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
@@ -735,14 +718,19 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
     <Card>
       <PromptTitle text={prompt || "Fill in the blank"} glossary={cfg.glossary} />
 
-      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-        <div className="text-lg md:text-xl font-semibold text-slate-900">
-          {before}{" "}
-          <span className="px-2 py-1 rounded-lg bg-white ring-1 ring-slate-200">
-            {placeholder}
-          </span>{" "}
-          {after}
-        </div>
+      <div className="mt-4">
+        <SpeechBubbleMascot
+          character={mascotCharacter}
+          text={
+            <>
+              {before}{" "}
+              <span className="rounded-lg bg-white px-2 py-1 ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
+                {placeholder}
+              </span>{" "}
+              {after}
+            </>
+          }
+        />
       </div>
 
       <div className="mt-4">
@@ -772,7 +760,7 @@ function ExFillBlank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
 }
 
 // B) translate_mcq (now supports exercise.options DB-backed)
-function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit}) {
+function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
   const expected = exercise?.expected_answer;
@@ -793,10 +781,11 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
       <PromptTitle text={prompt || "Choose the correct translation"} glossary={cfg.glossary} />
 
       {sentence && (
-        <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-          <div className="text-lg md:text-xl font-semibold text-slate-900">
-            <GlossaryText text={sentence} glossary={cfg.glossary} />
-          </div>
+        <div className="mt-4">
+          <SpeechBubbleMascot
+            character={mascotCharacter}
+            text={<GlossaryText text={sentence} glossary={cfg.glossary} />}
+          />
         </div>
       )}
 
@@ -1201,6 +1190,7 @@ function ExAudioChoiceTts({
   onAnswer,
   apiBaseUrl,
   submit,
+  mascotCharacter = "armen",
 }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "";
@@ -1258,13 +1248,16 @@ function ExAudioChoiceTts({
 
   return (
     <Card>
-      <Title>{promptText}</Title>
-      <Muted className="mt-2">Tap play, then choose the correct option.</Muted>
+      <Title>Listen and choose</Title>
 
       <div className="mt-4">
-        <PrimaryButton onClick={play} disabled={busy || !ttsText}>
-          {busy ? "Loading audio…" : "🔊 Play"}
-        </PrimaryButton>
+        <SpeechBubbleMascot
+          character={mascotCharacter}
+          text={promptText}
+          onPlay={play}
+          busy={busy}
+          playDisabled={!ttsText}
+        />
         {!ttsText && <Muted className="mt-2">Missing config.ttsText</Muted>}
       </div>
 
@@ -1621,7 +1614,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
 }
 
 // H) listen_type — dictation: hear TTS audio, type what you heard
-function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Type what you hear";
   const target = String(exercise?.expected_answer ?? cfg.ttsText ?? cfg.text ?? cfg.answer ?? "").trim();
@@ -1666,20 +1659,15 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
     <Card>
       <Title>{prompt}</Title>
 
-      <div className="mt-3 flex items-center justify-center gap-3">
-        <button
-          type="button"
-          onClick={() => play(1)}
-          disabled={busy || !target}
-          className={
-            "grid h-16 w-16 shrink-0 place-items-center rounded-full text-2xl text-white shadow-node transition active:translate-y-1 " +
-            (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")
-          }
-          aria-label="Play audio"
-        >
-          🔊
-        </button>
-        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} className="" />
+      <div className="mt-3">
+        <SpeechBubbleMascot
+          character={mascotCharacter}
+          text="Listen carefully…"
+          onPlay={() => play(1)}
+          onSlow={() => play(0.6)}
+          busy={busy}
+          playDisabled={!target}
+        />
       </div>
 
       {hint ? <Muted className="mt-3">Hint: {hint}</Muted> : null}
@@ -1710,7 +1698,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
 }
 
 // I) word_bank — translate by tapping word tiles (with distractors)
-function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Translate this";
   const source = cfg.sentence ?? cfg.prompt ?? "";
@@ -1751,10 +1739,11 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
       <PromptTitle text={prompt} glossary={cfg.glossary} />
 
       {source ? (
-        <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-          <div className="text-lg md:text-xl font-semibold text-slate-900">
-            <GlossaryText text={source} glossary={cfg.glossary} newWords={newWords} />
-          </div>
+        <div className="mt-4">
+          <SpeechBubbleMascot
+            character={mascotCharacter}
+            text={<GlossaryText text={source} glossary={cfg.glossary} newWords={newWords} />}
+          />
         </div>
       ) : null}
 
@@ -1827,7 +1816,7 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
 }
 
 // J) select_missing_word — complete the sentence (cloze multiple choice)
-function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Complete the sentence";
   const before = cfg.before ?? exercise?.sentence_before ?? "";
@@ -1846,19 +1835,24 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
     <Card>
       <Title>{prompt}</Title>
 
-      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-        <div className="text-lg md:text-xl font-semibold text-slate-900">
-          {before}{" "}
-          <span
-            className={cx(
-              "rounded-lg px-2 py-1 ring-1",
-              sel !== null ? "bg-orange-50 text-orange-800 ring-orange-300" : "bg-white text-slate-400 ring-slate-200"
-            )}
-          >
-            {sel !== null ? (choices[sel] ?? "…") : "…"}
-          </span>{" "}
-          {after}
-        </div>
+      <div className="mt-4">
+        <SpeechBubbleMascot
+          character={mascotCharacter}
+          text={
+            <>
+              {before}{" "}
+              <span
+                className={cx(
+                  "rounded-lg px-2 py-1 ring-1",
+                  sel !== null ? "bg-orange-50 text-orange-800 ring-orange-300" : "bg-white text-slate-400 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]"
+                )}
+              >
+                {sel !== null ? (choices[sel] ?? "…") : "…"}
+              </span>{" "}
+              {after}
+            </>
+          }
+        />
       </div>
 
       <div className="mt-4">
@@ -1897,7 +1891,7 @@ function exImgUrl(u) {
 }
 
 // K) listen_word_bank — hear a sentence (TTS) and tap word tiles to rebuild it
-function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Tap what you hear";
   const target = String(cfg.ttsText ?? cfg.text ?? exercise?.expected_answer ?? "").trim();
@@ -1946,10 +1940,15 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
   return (
     <Card>
       <Title>{prompt}</Title>
-      <div className="mt-3 flex items-center justify-center gap-3">
-        <button type="button" onClick={() => play(1)} disabled={busy || !target} aria-label="Play audio"
-          className={"grid h-16 w-16 shrink-0 place-items-center rounded-full text-2xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
-        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} className="" />
+      <div className="mt-3">
+        <SpeechBubbleMascot
+          character={mascotCharacter}
+          text="Listen carefully…"
+          onPlay={() => play(1)}
+          onSlow={() => play(0.6)}
+          busy={busy}
+          playDisabled={!target}
+        />
       </div>
       <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
         {picked.length === 0 ? <Muted>Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>{p.t}</Pill>)}
@@ -2124,7 +2123,7 @@ function ExReadingComprehension({ exercise, cfg, onCorrect, onWrong, onSkip, onA
 }
 
 // P) minimal_pairs — "which word did you hear?"
-function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Which word did you hear?";
   const target = String(cfg.ttsText ?? cfg.text ?? "").trim();
@@ -2157,10 +2156,15 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
   return (
     <Card>
       <Title>{prompt}</Title>
-      <div className="mt-3 flex items-center justify-center gap-3">
-        <button type="button" onClick={() => play(1)} disabled={busy || !target} aria-label="Play audio"
-          className={"grid h-16 w-16 shrink-0 place-items-center rounded-full text-2xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
-        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} className="" />
+      <div className="mt-3">
+        <SpeechBubbleMascot
+          character={mascotCharacter}
+          text="Listen carefully…"
+          onPlay={() => play(1)}
+          onSlow={() => play(0.6)}
+          busy={busy}
+          playDisabled={!target}
+        />
       </div>
       <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} /></div>
       <FooterSlot>
@@ -2512,7 +2516,7 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
 }
 
 // V) write_translate — open-ended writing (graded vs accepted answers)
-function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Write your answer";
   const source = cfg.source ?? cfg.sentence ?? "";
@@ -2529,8 +2533,8 @@ function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
     <Card>
       <Title>{prompt}</Title>
       {source ? (
-        <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-          <div className="text-lg md:text-xl font-semibold text-slate-900">{source}</div>
+        <div className="mt-4">
+          <SpeechBubbleMascot character={mascotCharacter} text={source} />
         </div>
       ) : null}
       <div className="mt-4">
@@ -2567,6 +2571,7 @@ export default function ExerciseRenderer({
   apiBaseUrl,
   submit,
   combo = 0,
+  mascotCharacter = "armen",
 }) {
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
@@ -2746,7 +2751,7 @@ export default function ExerciseRenderer({
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
-        submit={handleAnswer}
+        submit={handleAnswer} mascotCharacter={mascotCharacter}
       />
     );
   }
@@ -2760,7 +2765,7 @@ export default function ExerciseRenderer({
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
-        submit={handleAnswer}
+        submit={handleAnswer} mascotCharacter={mascotCharacter}
       />
     );
   }
@@ -2816,7 +2821,7 @@ export default function ExerciseRenderer({
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
-        apiBaseUrl={apiBaseUrl} submit={handleAnswer} />
+        apiBaseUrl={apiBaseUrl} submit={handleAnswer} mascotCharacter={mascotCharacter} />
     );
   }
 
@@ -2859,7 +2864,7 @@ export default function ExerciseRenderer({
         onSkip={onSkip}
         onAnswer={onAnswer}
         apiBaseUrl={apiBaseUrl}
-        submit={handleAnswer}
+        submit={handleAnswer} mascotCharacter={mascotCharacter}
       />
     );
   }
@@ -2873,7 +2878,7 @@ export default function ExerciseRenderer({
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
-        submit={handleAnswer}
+        submit={handleAnswer} mascotCharacter={mascotCharacter}
       />
     );
   }
@@ -2887,13 +2892,13 @@ export default function ExerciseRenderer({
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
-        submit={handleAnswer}
+        submit={handleAnswer} mascotCharacter={mascotCharacter}
       />
     );
   }
 
   if (kind === "listen_word_bank") {
-    return <ExListenWordBank exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} />;
+    return <ExListenWordBank exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
   }
   if (kind === "dialogue_mcq") {
     return <ExDialogueMcq exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
@@ -2908,7 +2913,7 @@ export default function ExerciseRenderer({
     return <ExReadingComprehension exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
   }
   if (kind === "minimal_pairs") {
-    return <ExMinimalPairs exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} />;
+    return <ExMinimalPairs exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
   }
   if (kind === "flashcard") {
     return <ExFlashcard exercise={exercise} cfg={cfg} submit={handleAnswer} />;
@@ -2926,7 +2931,7 @@ export default function ExerciseRenderer({
     return <ExSpeakLine exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} />;
   }
   if (kind === "write_translate") {
-    return <ExWriteTranslate exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+    return <ExWriteTranslate exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
   }
 
   // Fallback for unknown exercise kinds

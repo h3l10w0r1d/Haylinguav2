@@ -919,6 +919,7 @@ export default function LessonPlayer() {
               exercise={currentExercise}
               registerActions={setPhase2Actions}
               submit={submitPhase2}
+              mascotCharacter={mascotCharacter}
             />
           ) : (
             <ExerciseRenderer
@@ -926,6 +927,7 @@ export default function LessonPlayer() {
               apiBaseUrl={API_BASE}
               onAnswer={handleStepAnswer}
               combo={comboStreak}
+              mascotCharacter={mascotCharacter}
             />
           )
         ) : null}

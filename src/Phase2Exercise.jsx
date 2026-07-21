@@ -5,6 +5,7 @@ import { Card } from "./exercises/ui";
 import { ttsFetch } from "./exercises/tts";
 import { newTrackedAudio } from "./lib/audioRegistry";
 import ArmenianKeyboard from "./exercises/ArmenianKeyboard";
+import SpeechBubbleMascot from "./exercises/SpeechBubbleMascot";
 
 const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
@@ -134,7 +135,7 @@ function eqLoose(a, b) {
   return normStr(a) === normStr(b);
 }
 
-export default function Phase2Exercise({ exercise, registerActions, submit }) {
+export default function Phase2Exercise({ exercise, registerActions, submit, mascotCharacter = "armen" }) {
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
 
@@ -428,14 +429,19 @@ export default function Phase2Exercise({ exercise, registerActions, submit }) {
       <Card>
         <div className="text-slate-800 text-xl font-extrabold leading-snug dark:text-white">{prompt}</div>
         {hasBlankContext ? (
-          <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
-            <div className="text-lg font-semibold text-slate-900 dark:text-white">
-              {blankBefore}{" "}
-              <span className="px-2 py-1 rounded-lg bg-white ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
-                {cfg?.placeholder ?? "___"}
-              </span>{" "}
-              {blankAfter}
-            </div>
+          <div className="mt-4">
+            <SpeechBubbleMascot
+              character={mascotCharacter}
+              text={
+                <>
+                  {blankBefore}{" "}
+                  <span className="rounded-lg bg-white px-2 py-1 ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
+                    {cfg?.placeholder ?? "___"}
+                  </span>{" "}
+                  {blankAfter}
+                </>
+              }
+            />
           </div>
         ) : null}
         <div className="mt-4">
