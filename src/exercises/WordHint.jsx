@@ -108,10 +108,14 @@ export function WordHint({ word, hint, isNew, children, alwaysUnderline = true }
         type="button"
         onClick={toggle}
         className={
-          "cursor-pointer underline-offset-2 hover:text-brand-600 dark:hover:text-brand-400 " +
+          // Duolingo-style: every tappable word carries a visible dashed
+          // underline (hover doesn't exist on mobile, so the affordance must
+          // always show). Brand color for authored glossary hints, muted for
+          // on-demand lookups.
+          "cursor-pointer underline decoration-dashed decoration-2 underline-offset-4 hover:text-brand-600 dark:hover:text-brand-400 " +
           (hint || alwaysUnderline
-            ? "underline decoration-dotted decoration-brand-400"
-            : "hover:underline hover:decoration-dotted")
+            ? "decoration-brand-400"
+            : "decoration-slate-300 dark:decoration-stone-600")
         }
       >
         {display}

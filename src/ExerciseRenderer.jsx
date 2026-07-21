@@ -1518,7 +1518,9 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
               >
                 🔊
               </button>
-              <div className="min-w-0 flex-1 text-xl font-extrabold text-slate-800 dark:text-white">{target}</div>
+              <div className="min-w-0 flex-1 text-xl font-extrabold text-slate-800 dark:text-white">
+                <GlossaryText text={target} glossary={cfg.glossary} />
+              </div>
               {hint ? (
                 <button
                   type="button"
@@ -2552,7 +2554,10 @@ function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
       <Title>{prompt}</Title>
       {source ? (
         <div className="mt-4">
-          <SpeechBubbleMascot character={mascotCharacter} text={source} />
+          <SpeechBubbleMascot
+            character={mascotCharacter}
+            text={<GlossaryText text={source} glossary={cfg.glossary} />}
+          />
         </div>
       ) : null}
       <div className="mt-4">
