@@ -347,7 +347,7 @@ export default function ExerciseShell({
 
   return (
     <ExerciseFooterContext.Provider value={footerNode}>
-    <div className="lesson-shell relative flex flex-col bg-white dark:bg-[#0d0d0f]">
+    <div className="lesson-shell relative flex flex-col overflow-hidden bg-white dark:bg-[#0d0d0f]">
       {/* Top bar */}
       <header className="shrink-0 bg-white dark:bg-[#18181b]">
         <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-4">
