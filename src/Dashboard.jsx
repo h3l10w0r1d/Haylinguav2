@@ -741,48 +741,139 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
 // One lesson as a full-width row: a colored status circle, the title, and a
 // plain-word state. The current lesson gets a warm tinted highlight so the
 // next step pops off the outline.
-function LessonRow({ lesson, onStart }) {
+// Duolingo-style winding path: nodes zigzag left/right down the unit,
+// connected by a smooth SVG curve drawn through their (deterministic —
+// no DOM measurement needed) centers. The checkpoint is the path's final
+// node, styled distinctly (amber/trophy) same as before.
+const PATH_NODE = 64; // node diameter, px
+const PATH_ROW_H = 92; // vertical spacing between node centers, px
+const PATH_OFFSETS = [0, 64, 96, 64, 0, -64, -96, -64]; // horizontal offset cycle, px
+const PATH_HALF_W = 96 + PATH_NODE / 2 + 8; // half the widest offset + node radius + margin
+
+function pathNodeCenter(i) {
+  return { x: PATH_HALF_W + PATH_OFFSETS[i % PATH_OFFSETS.length], y: PATH_ROW_H / 2 + i * PATH_ROW_H };
+}
+
+function LearningPathNode({ lesson, index, onStart }) {
   const status = lesson.status || "locked";
   const done = status === "completed";
   const current = status === "current";
   const locked = status === "locked";
+  const { x, y } = pathNodeCenter(index);
+
   return (
-    <button
-      type="button"
-      disabled={locked}
-      onClick={() => !locked && onStart(lesson)}
-      onMouseEnter={() => !locked && lesson.slug && preloadLesson(lesson.slug, API_BASE_URL)}
-      title={locked ? "Finish the previous lesson to unlock" : lesson.title}
-      className={
-        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition " +
-        (current
-          ? "bg-gradient-to-r from-brand-50 to-pom-50 ring-1 ring-brand-100 dark:from-brand-500/10 dark:to-pom-500/10 dark:ring-brand-500/25"
-          : done
-          ? "hover:bg-stone-50 dark:hover:bg-white/[0.04]"
-          : "cursor-default")
-      }
+    <div
+      className="absolute flex flex-col items-center"
+      style={{ left: x - PATH_NODE / 2, top: y - PATH_NODE / 2, width: PATH_NODE }}
     >
-      <span
+      {current ? (
+        <span className="absolute -top-9 whitespace-nowrap rounded-xl bg-white px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-600 shadow-md ring-1 ring-brand-100 dark:bg-[#232327] dark:text-brand-400 dark:ring-brand-500/25">
+          Start
+          <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-white dark:border-t-[#232327]" />
+        </span>
+      ) : null}
+      <button
+        type="button"
+        disabled={locked}
+        onClick={() => !locked && onStart(lesson)}
+        onMouseEnter={() => !locked && lesson.slug && preloadLesson(lesson.slug, API_BASE_URL)}
+        title={locked ? "Finish the previous lesson to unlock" : lesson.title}
+        style={{ width: PATH_NODE, height: PATH_NODE, boxShadow: locked ? undefined : "0 5px 0 0 rgba(0,0,0,0.15)" }}
         className={
-          "grid h-8 w-8 shrink-0 place-items-center rounded-full " +
-          (current ? "bg-brand-500 text-white shadow-[0_4px_10px_-3px_rgba(255,122,26,0.7)]" : done ? "bg-grass-500 text-white" : "bg-stone-100 text-stone-300 dark:bg-white/[0.07] dark:text-stone-600")
+          "relative grid shrink-0 place-items-center rounded-full transition active:translate-y-1 active:shadow-none " +
+          (current
+            ? "bg-brand-500 text-white"
+            : done
+            ? "bg-grass-500 text-white hover:brightness-105"
+            : "cursor-not-allowed bg-stone-200 text-stone-400 dark:bg-white/[0.06] dark:text-stone-600")
         }
       >
-        {done ? <Check className="h-4 w-4" strokeWidth={3} /> : current ? <Play className="h-3.5 w-3.5 fill-white" /> : <Lock className="h-3.5 w-3.5" />}
-      </span>
-      <span className={"min-w-0 flex-1 truncate text-sm font-semibold " + (current ? "text-stone-900 dark:text-white" : locked ? "text-stone-400 dark:text-stone-600" : "text-stone-700 dark:text-stone-200")}>
+        {current ? <span className="absolute inset-0 rounded-full bg-brand-400 opacity-60 animate-ping" /> : null}
+        {done ? (
+          <Check className="relative h-7 w-7" strokeWidth={3} />
+        ) : current ? (
+          <Play className="relative h-6 w-6 fill-white" />
+        ) : (
+          <Lock className="relative h-5 w-5" />
+        )}
+      </button>
+      <span
+        className={
+          "mt-1.5 max-w-[6.5rem] truncate text-center text-[11px] font-bold " +
+          (current ? "text-stone-900 dark:text-white" : locked ? "text-stone-300 dark:text-stone-600" : "text-stone-500 dark:text-stone-400")
+        }
+      >
         {lesson.title}
       </span>
-      {current ? (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-[0_4px_10px_-3px_rgba(255,122,26,0.7)]">
-          Continue <ArrowRight className="h-3 w-3" />
-        </span>
-      ) : done ? (
-        <span className="shrink-0 text-xs font-bold text-grass-600 dark:text-grass-400">Done</span>
-      ) : (
-        <span className="shrink-0 text-xs font-semibold text-stone-300 dark:text-stone-600">Locked</span>
-      )}
-    </button>
+    </div>
+  );
+}
+
+function LearningPathCheckpoint({ unit, complete, onCheckpoint, index }) {
+  const { x, y } = pathNodeCenter(index);
+  return (
+    <div className="absolute flex flex-col items-center" style={{ left: x - PATH_NODE / 2, top: y - PATH_NODE / 2, width: PATH_NODE }}>
+      <button
+        type="button"
+        disabled={!complete}
+        onClick={() => complete && onCheckpoint(unit)}
+        title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
+        style={{ width: PATH_NODE, height: PATH_NODE, boxShadow: complete ? "0 5px 0 0 rgba(0,0,0,0.15)" : undefined }}
+        className={
+          "grid shrink-0 place-items-center rounded-full transition active:translate-y-1 active:shadow-none " +
+          (complete
+            ? "bg-amber-500 text-white hover:brightness-105"
+            : "cursor-not-allowed bg-stone-200 text-stone-400 dark:bg-white/[0.06] dark:text-stone-600")
+        }
+      >
+        <ShieldCheck className="h-7 w-7" />
+      </button>
+      <span className={"mt-1.5 text-center text-[11px] font-bold " + (complete ? "text-amber-700 dark:text-amber-400" : "text-stone-300 dark:text-stone-600")}>
+        Checkpoint
+      </span>
+    </div>
+  );
+}
+
+function LearningPath({ unit, onStart, onCheckpoint, complete }) {
+  const nodeCount = unit.items.length + 1; // + checkpoint node
+  const width = PATH_HALF_W * 2;
+  const height = PATH_ROW_H * (nodeCount - 1) + PATH_ROW_H;
+
+  // Smooth curve through every node center, one cubic-bezier segment per
+  // consecutive pair — control points offset vertically so the line eases
+  // into each turn instead of kinking at it.
+  const d = useMemo(() => {
+    const pts = Array.from({ length: nodeCount }, (_, i) => pathNodeCenter(i));
+    let path = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const prev = pts[i - 1];
+      const cur = pts[i];
+      const midY = (prev.y + cur.y) / 2;
+      path += ` C ${prev.x} ${midY}, ${cur.x} ${midY}, ${cur.x} ${cur.y}`;
+    }
+    return path;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeCount]);
+
+  return (
+    <div className="relative mx-auto" style={{ width, height }}>
+      <svg width={width} height={height} className="absolute inset-0" aria-hidden="true">
+        <path d={d} fill="none" strokeWidth={10} strokeLinecap="round" className="stroke-stone-100 dark:stroke-white/[0.06]" />
+        <path
+          d={d}
+          fill="none"
+          strokeWidth={10}
+          strokeLinecap="round"
+          strokeDasharray="2 20"
+          className="stroke-stone-300 dark:stroke-white/[0.14]"
+        />
+      </svg>
+      {unit.items.map((lesson, i) => (
+        <LearningPathNode key={lesson.id ?? lesson.slug} lesson={lesson} index={i} onStart={onStart} />
+      ))}
+      <LearningPathCheckpoint unit={unit} complete={complete} onCheckpoint={onCheckpoint} index={unit.items.length} />
+    </div>
   );
 }
 
@@ -812,33 +903,8 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
         <div className={"h-full rounded-full transition-all " + bar} style={{ width: `${pct}%` }} />
       </div>
 
-      <div className="mt-2 space-y-0.5">
-        {unit.items.map((lesson) => (
-          <LessonRow key={lesson.id ?? lesson.slug} lesson={lesson} onStart={onStart} />
-        ))}
-
-        <button
-          type="button"
-          disabled={!complete}
-          onClick={() => complete && onCheckpoint(unit)}
-          title={complete ? `Test your ${unit.title} knowledge` : "Finish every lesson in this unit to unlock"}
-          className={
-            "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition " +
-            (complete ? "bg-amber-50 ring-1 ring-amber-100 hover:bg-amber-100 dark:bg-amber-500/10 dark:ring-amber-500/25 dark:hover:bg-amber-500/20" : "cursor-default")
-          }
-        >
-          <span className={"grid h-8 w-8 shrink-0 place-items-center rounded-full " + (complete ? "bg-amber-500 text-white shadow-[0_4px_10px_-3px_rgba(245,158,11,0.6)]" : "bg-stone-100 text-stone-300 dark:bg-white/[0.07] dark:text-stone-600")}>
-            <ShieldCheck className="h-4 w-4" />
-          </span>
-          <span className={"min-w-0 flex-1 text-sm font-semibold " + (complete ? "text-amber-700 dark:text-amber-300" : "text-stone-400 dark:text-stone-600")}>
-            Unit checkpoint
-          </span>
-          {complete ? (
-            <span className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-[0_4px_10px_-3px_rgba(245,158,11,0.6)]">Test now</span>
-          ) : (
-            <span className="shrink-0 text-xs font-semibold text-stone-300 dark:text-stone-600">Locked</span>
-          )}
-        </button>
+      <div className="mt-4">
+        <LearningPath unit={unit} onStart={onStart} onCheckpoint={onCheckpoint} complete={complete} />
       </div>
     </section>
   );
