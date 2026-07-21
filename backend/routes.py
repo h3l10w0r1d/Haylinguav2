@@ -6744,12 +6744,12 @@ def me_league(
                        avatar_url, COALESCE(weekly_xp, 0) AS weekly_xp, COALESCE(is_premium, FALSE) AS is_premium
                 FROM users
                 WHERE league_tier = :t AND league_week = :wk AND league_cohort = :c
-                  AND NOT COALESCE(is_hidden, FALSE)
+                  AND (NOT COALESCE(is_hidden, FALSE) OR id = :self_id)
                 ORDER BY weekly_xp DESC, id ASC
                 LIMIT :cap
                 """
             ),
-            {"t": tier, "wk": wk, "c": int(me["league_cohort"]), "cap": LEAGUE_COHORT_SIZE},
+            {"t": tier, "wk": wk, "c": int(me["league_cohort"]), "cap": LEAGUE_COHORT_SIZE, "self_id": user_id},
         ).mappings().all()
         division = [{**dict(r), "rank": i + 1, "is_self": int(r["user_id"]) == user_id} for i, r in enumerate(rows)]
 
@@ -6765,7 +6765,7 @@ def me_league(
                    u.avatar_url, COALESCE(u.is_premium, FALSE) AS is_premium,
                    CASE WHEN u.league_week = :wk THEN COALESCE(u.weekly_xp, 0) ELSE 0 END AS weekly_xp
             FROM users u JOIN fids ON fids.id = u.id
-            WHERE NOT COALESCE(u.is_hidden, FALSE)
+            WHERE (NOT COALESCE(u.is_hidden, FALSE) OR u.id = :u)
             ORDER BY weekly_xp DESC, u.id ASC
             """
         ),

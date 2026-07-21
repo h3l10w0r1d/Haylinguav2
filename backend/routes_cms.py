@@ -1581,28 +1581,6 @@ def cms_seed_expand2(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
-
-@router.get("/cms/debug/league-user")
-def cms_debug_league_user(request: Request, username: str = Query(...), db=Depends(get_db)):
-    """TEMP diagnostic — inspect a user's league/XP state to debug why they
-    aren't showing up on the leaderboard. Remove once investigation is done."""
-    require_cms(request, db)
-    row = db.execute(
-        text(
-            """
-            SELECT id, username, email, league_tier, league_week, league_cohort,
-                   COALESCE(weekly_xp, 0) AS weekly_xp, COALESCE(bonus_xp, 0) AS bonus_xp,
-                   COALESCE(is_hidden, FALSE) AS is_hidden,
-                   (SELECT COALESCE(SUM(xp_earned), 0) FROM lesson_progress WHERE user_id = users.id) AS total_lesson_xp
-            FROM users WHERE lower(username) = lower(:u)
-            """
-        ),
-        {"u": username},
-    ).mappings().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="not found")
-    return dict(row)
-
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
