@@ -1567,6 +1567,20 @@ def cms_seed_expand(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/expand2")
+def cms_seed_expand2(request: Request, db=Depends(get_db)):
+    """Volume expansion round 2 — tops up the 22 lessons that stayed thin
+    after Phases 2-5 (sentence patterns, Sentences/Grammar chapters,
+    Fluency II). Idempotent per lesson (skips at >= 9 exercises)."""
+    require_cms(request, db)
+    from seed_expand2 import seed_expand2
+    try:
+        res = seed_expand2()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
