@@ -20,6 +20,7 @@ import { newTrackedAudio } from "./lib/audioRegistry";
 import { FooterSlot } from "./exercises/FooterSlot";
 import ArmenianKeyboard from "./exercises/ArmenianKeyboard";
 import SpeechBubbleMascot from "./exercises/SpeechBubbleMascot";
+import { mascotFaceUrl } from "./lib/mascotFaces";
 
 // Renders a prompt heading with optional inline word-hint tooltips.
 // Glossary is stored in exercise.config.glossary: { "word": "definition" }
@@ -1389,7 +1390,7 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
 }
 
 // G) speak — record speech, transcribe via backend (hispeech.ai), compare
-function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Say the phrase out loud";
   const target = String(exercise?.expected_answer ?? cfg.answer ?? cfg.target ?? cfg.phrase ?? "").trim();
@@ -1499,49 +1500,66 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
     <Card>
       <Title>{prompt}</Title>
 
+      {/* Duolingo "Repeat after…" layout: speech bubble on top with a tail
+          pointing down at the character standing beneath it. */}
       {target ? (
-        <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-2xl font-extrabold text-slate-900">{target}</div>
-            <div className="flex shrink-0 gap-2">
+        <div className="mt-4 flex flex-col items-center">
+          <div className="relative w-full max-w-md rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/[0.08]">
+            <span
+              aria-hidden="true"
+              className="absolute -bottom-1.5 left-10 h-3.5 w-3.5 rotate-45 rounded-[3px] bg-slate-50 ring-1 ring-slate-200 dark:bg-white/[0.05] dark:ring-white/[0.08]"
+            />
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={playTarget}
+                aria-label="Listen"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-500 text-white transition hover:bg-brand-600 active:translate-y-0.5"
+              >
+                🔊
+              </button>
+              <div className="min-w-0 flex-1 text-xl font-extrabold text-slate-800 dark:text-white">{target}</div>
               {hint ? (
                 <button
                   type="button"
                   onClick={() => setShowHint((v) => !v)}
-                  className="btn3d btn3d-neutral text-sm"
                   aria-label="Show pronunciation hint"
+                  className="shrink-0 text-xs font-bold text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline dark:text-stone-500 dark:hover:text-stone-300"
                 >
-                  💬 {showHint ? "Hide" : "Hint"}
+                  {showHint ? "Hide hint" : "Hint"}
                 </button>
               ) : null}
-              <button type="button" onClick={playTarget} className="btn3d btn3d-neutral text-sm">
-                🔊 Listen
-              </button>
             </div>
+            {showHint && hint ? (
+              <div className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">
+                Sounds like: <span className="text-slate-700 dark:text-stone-200">{hint}</span>
+              </div>
+            ) : null}
           </div>
-          {showHint && hint ? (
-            <div className="mt-3 text-sm font-semibold text-slate-500">
-              Sounds like: <span className="text-slate-700">{hint}</span>
-            </div>
-          ) : null}
+          <img
+            src={mascotFaceUrl(mascotCharacter, "neutral")}
+            alt=""
+            aria-hidden="true"
+            className="mt-3 h-40 w-40 object-contain sm:h-48 sm:w-48"
+          />
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-col items-center">
+      <div className="mt-5 flex flex-col items-center">
         <button
           type="button"
           onClick={recording ? stopRec : startRec}
           disabled={busy}
           className={
-            "relative grid h-20 w-20 place-items-center rounded-full text-white shadow-node transition active:translate-y-1 " +
+            "relative grid h-20 w-20 place-items-center rounded-3xl text-white shadow-node transition active:translate-y-1 " +
             (recording ? "bg-cardinal-500" : busy ? "bg-slate-300" : "bg-brand-500")
           }
           aria-label={recording ? "Stop recording" : "Start recording"}
         >
           {recording && (
             <>
-              <span className="absolute inset-0 rounded-full bg-cardinal-400 animate-ping opacity-75" />
-              <span className="absolute -inset-2 rounded-full ring-4 ring-cardinal-200" />
+              <span className="absolute inset-0 rounded-3xl bg-cardinal-400 animate-ping opacity-75" />
+              <span className="absolute -inset-2 rounded-[1.75rem] ring-4 ring-cardinal-200" />
             </>
           )}
           <Mic className="relative h-8 w-8" strokeWidth={2.5} />
@@ -1753,9 +1771,9 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
         </div>
       ) : (
         <>
-          <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
+          <div className="wordbank-lines mt-4 flex min-h-[7rem] flex-wrap content-start gap-x-2 gap-y-2 px-1">
             {picked.length === 0 ? (
-              <Muted>Tap words to build your answer…</Muted>
+              <Muted className="self-end pb-1">Tap words to build your answer…</Muted>
             ) : (
               picked.map((p, i) => (
                 <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>
@@ -1765,7 +1783,7 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
             {available.map((p, i) => {
               const hint = cfg.glossary?.[p.t] || cfg.glossary?.[p.t?.toLowerCase()];
               const isNew = newWords.has(normWord(p.t));
@@ -1950,10 +1968,10 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
           playDisabled={!target}
         />
       </div>
-      <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
-        {picked.length === 0 ? <Muted>Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>{p.t}</Pill>)}
+      <div className="wordbank-lines mt-4 flex min-h-[7rem] flex-wrap content-start gap-x-2 gap-y-2 px-1">
+        {picked.length === 0 ? <Muted className="self-end pb-1">Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>{p.t}</Pill>)}
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">{available.map((p, i) => <Pill key={p.key} onClick={() => add(i)}>{p.t}</Pill>)}</div>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">{available.map((p, i) => <Pill key={p.key} onClick={() => add(i)}>{p.t}</Pill>)}</div>
       <FooterSlot>
         <PrimaryButton disabled={picked.length === 0} onClick={() => {
           const picks = picked.map((p) => p.t);
@@ -2361,7 +2379,7 @@ function ExConjugation({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
 }
 
 // U) speak_line — say your line in a conversation
-function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Say your line";
   const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
@@ -2471,12 +2489,12 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
 
       <div className="mt-5 flex flex-col items-center">
         <button type="button" onClick={recording ? stopRec : startRec} disabled={busy}
-          className={"relative grid h-20 w-20 place-items-center rounded-full text-white shadow-node transition active:translate-y-1 " + (recording ? "bg-cardinal-500" : busy ? "bg-slate-300" : "bg-brand-500")}
+          className={"relative grid h-20 w-20 place-items-center rounded-3xl text-white shadow-node transition active:translate-y-1 " + (recording ? "bg-cardinal-500" : busy ? "bg-slate-300" : "bg-brand-500")}
           aria-label={recording ? "Stop" : "Record"}>
           {recording && (
             <>
-              <span className="absolute inset-0 rounded-full bg-cardinal-400 animate-ping opacity-75" />
-              <span className="absolute -inset-2 rounded-full ring-4 ring-cardinal-200" />
+              <span className="absolute inset-0 rounded-3xl bg-cardinal-400 animate-ping opacity-75" />
+              <span className="absolute -inset-2 rounded-[1.75rem] ring-4 ring-cardinal-200" />
             </>
           )}
           <Mic className="relative h-8 w-8" strokeWidth={2.5} />
@@ -2850,6 +2868,7 @@ export default function ExerciseRenderer({
         onAnswer={onAnswer}
         apiBaseUrl={apiBaseUrl}
         submit={handleAnswer}
+        mascotCharacter={mascotCharacter}
       />
     );
   }
@@ -2928,7 +2947,7 @@ export default function ExerciseRenderer({
     return <ExConjugation exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
   }
   if (kind === "speak_line") {
-    return <ExSpeakLine exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} />;
+    return <ExSpeakLine exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
   }
   if (kind === "write_translate") {
     return <ExWriteTranslate exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
