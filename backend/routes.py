@@ -6734,6 +6734,17 @@ def me_league(
     tier = int(me.get("league_tier") or 0)
     joined = (me.get("league_week") == wk and me.get("league_cohort") is not None)
 
+    # Private-profile users still compete and take up their real rank on the
+    # board — is_hidden only masks *who* they are to everyone but themselves,
+    # it doesn't pull them off the leaderboard entirely.
+    def _mask_if_hidden(row: dict) -> dict:
+        r = dict(row)
+        if bool(r.pop("is_hidden", False)) and int(r["user_id"]) != user_id:
+            r["name"] = "Hidden learner"
+            r["username"] = None
+            r["avatar_url"] = None
+        return r
+
     division = []
     if joined:
         rows = db.execute(
@@ -6741,17 +6752,20 @@ def me_league(
                 """
                 SELECT id AS user_id, username,
                        COALESCE(NULLIF(display_name, ''), username, split_part(email, '@', 1)) AS name,
-                       avatar_url, COALESCE(weekly_xp, 0) AS weekly_xp, COALESCE(is_premium, FALSE) AS is_premium
+                       avatar_url, COALESCE(weekly_xp, 0) AS weekly_xp, COALESCE(is_premium, FALSE) AS is_premium,
+                       COALESCE(is_hidden, FALSE) AS is_hidden
                 FROM users
                 WHERE league_tier = :t AND league_week = :wk AND league_cohort = :c
-                  AND (NOT COALESCE(is_hidden, FALSE) OR id = :self_id)
                 ORDER BY weekly_xp DESC, id ASC
                 LIMIT :cap
                 """
             ),
-            {"t": tier, "wk": wk, "c": int(me["league_cohort"]), "cap": LEAGUE_COHORT_SIZE, "self_id": user_id},
+            {"t": tier, "wk": wk, "c": int(me["league_cohort"]), "cap": LEAGUE_COHORT_SIZE},
         ).mappings().all()
-        division = [{**dict(r), "rank": i + 1, "is_self": int(r["user_id"]) == user_id} for i, r in enumerate(rows)]
+        division = [
+            {**_mask_if_hidden(r), "rank": i + 1, "is_self": int(r["user_id"]) == user_id}
+            for i, r in enumerate(rows)
+        ]
 
     friends_rows = db.execute(
         text(
@@ -6763,15 +6777,18 @@ def me_league(
             SELECT u.id AS user_id, u.username,
                    COALESCE(NULLIF(u.display_name, ''), u.username, split_part(u.email, '@', 1)) AS name,
                    u.avatar_url, COALESCE(u.is_premium, FALSE) AS is_premium,
+                   COALESCE(u.is_hidden, FALSE) AS is_hidden,
                    CASE WHEN u.league_week = :wk THEN COALESCE(u.weekly_xp, 0) ELSE 0 END AS weekly_xp
             FROM users u JOIN fids ON fids.id = u.id
-            WHERE (NOT COALESCE(u.is_hidden, FALSE) OR u.id = :u)
             ORDER BY weekly_xp DESC, u.id ASC
             """
         ),
         {"u": user_id, "wk": wk},
     ).mappings().all()
-    friends = [{**dict(r), "rank": i + 1, "is_self": int(r["user_id"]) == user_id} for i, r in enumerate(friends_rows)]
+    friends = [
+        {**_mask_if_hidden(r), "rank": i + 1, "is_self": int(r["user_id"]) == user_id}
+        for i, r in enumerate(friends_rows)
+    ]
 
     return {
         "tier": tier,
