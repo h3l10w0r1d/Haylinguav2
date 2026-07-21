@@ -1,0 +1,853 @@
+{
+  "chapters": [
+    {
+      "id": 1,
+      "title": "Hello world",
+      "description": "Hello world",
+      "position": 5,
+      "is_published": false,
+      "lesson_count": 3
+    },
+    {
+      "id": 2,
+      "title": "Chapter 2",
+      "description": "",
+      "position": 6,
+      "is_published": false,
+      "lesson_count": 2
+    }
+  ],
+  "lessons": [
+    {
+      "lesson": {
+        "id": 58,
+        "slug": "alphabet-basics",
+        "title": "Alphabet: First Letters",
+        "description": "Meet your first Armenian letters — Ա, Բ, Գ, Դ. Learn to recognise and type them.",
+        "level": 1,
+        "xp": 65,
+        "xp_reward": 65,
+        "is_published": true,
+        "chapter_id": 1,
+        "lesson_type": "standard",
+        "config": {}
+      },
+      "exercises": [
+        {
+          "id": 424,
+          "lesson_id": 58,
+          "kind": "speak",
+          "type": "char_intro",
+          "prompt": "I am learning Armenian",
+          "expected_answer": "Ես սովորում եմ հայերեն",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 1,
+          "xp": 5,
+          "config": {
+            "back": "Thank you",
+            "hint": "Sounds like the 'a' in 'father'.",
+            "front": "Շնորհակալություն",
+            "lower": "b",
+            "letter": "B",
+            "source": "I am learning Armenian",
+            "examples": [
+              {
+                "en": "Summer",
+                "hy": "Ամառ"
+              },
+              {
+                "en": "Name",
+                "hy": "Անուն"
+              }
+            ],
+            "acceptedAnswers": [
+              "Ես սովորում եմ հայերեն",
+              "Սովորում եմ հայերեն",
+              "հայերեն սովորում"
+            ],
+            "transliteration": "b"
+          }
+        },
+        {
+          "id": 425,
+          "lesson_id": 58,
+          "kind": "letter_recognition",
+          "type": "multiple_choice",
+          "prompt": "Which of these is the letter Ա?",
+          "expected_answer": "Ա",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 2,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Բ",
+              "Ա",
+              "Գ",
+              "Դ"
+            ]
+          }
+        },
+        {
+          "id": 426,
+          "lesson_id": 58,
+          "kind": "char_intro",
+          "type": "char_intro",
+          "prompt": "Meet the letter Բ!",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 3,
+          "xp": 5,
+          "config": {
+            "hint": "Sounds like 'b' in 'boy'.",
+            "lower": "բ",
+            "letter": "Բ",
+            "examples": [
+              {
+                "en": "Word",
+                "hy": "Բառ"
+              },
+              {
+                "en": "Yard",
+                "hy": "Բակ"
+              }
+            ],
+            "transliteration": "b"
+          }
+        },
+        {
+          "id": 427,
+          "lesson_id": 58,
+          "kind": "letter_typing",
+          "type": "type_answer",
+          "prompt": "Type the Armenian letter for the sound 'B'.",
+          "expected_answer": "Բ",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 4,
+          "xp": 10,
+          "config": {
+            "keyboard_hint": "Looks like a shape with two bumps."
+          }
+        },
+        {
+          "id": 428,
+          "lesson_id": 58,
+          "kind": "char_intro",
+          "type": "char_intro",
+          "prompt": "Meet the letter Գ!",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 5,
+          "xp": 5,
+          "config": {
+            "hint": "Sounds like 'g' in 'garden'.",
+            "lower": "գ",
+            "letter": "Գ",
+            "examples": [
+              {
+                "en": "Book",
+                "hy": "Գիրք"
+              },
+              {
+                "en": "Color",
+                "hy": "Գույն"
+              }
+            ],
+            "transliteration": "g"
+          }
+        },
+        {
+          "id": 429,
+          "lesson_id": 58,
+          "kind": "char_intro",
+          "type": "char_intro",
+          "prompt": "Meet the letter Դ!",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 6,
+          "xp": 5,
+          "config": {
+            "hint": "Sounds like 'd' in 'dog'.",
+            "lower": "դ",
+            "letter": "Դ",
+            "examples": [
+              {
+                "en": "Door",
+                "hy": "Դուռ"
+              },
+              {
+                "en": "Medicine / Yellow",
+                "hy": "Դեղ"
+              }
+            ],
+            "transliteration": "d"
+          }
+        },
+        {
+          "id": 430,
+          "lesson_id": 58,
+          "kind": "match_pairs",
+          "type": "match_pairs",
+          "prompt": "Match each Armenian letter to its sound.",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 7,
+          "xp": 15,
+          "config": {
+            "pairs": [
+              {
+                "left": "Ա",
+                "right": "a"
+              },
+              {
+                "left": "Բ",
+                "right": "b"
+              },
+              {
+                "left": "Գ",
+                "right": "g"
+              },
+              {
+                "left": "Դ",
+                "right": "d"
+              }
+            ]
+          }
+        },
+        {
+          "id": 431,
+          "lesson_id": 58,
+          "kind": "true_false",
+          "type": "true_false",
+          "prompt": "The Armenian letter Բ makes the sound \"b\" (as in \"boy\").",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 8,
+          "xp": 10,
+          "config": {
+            "correct": true,
+            "statement": "Բ sounds like the English letter B."
+          }
+        }
+      ]
+    },
+    {
+      "lesson": {
+        "id": 59,
+        "slug": "alphabet-sounds",
+        "title": "Alphabet: Sounds & Recognition",
+        "description": "Practice recognising Ե, Զ, Է, Ը by sound. Listening and multi-choice exercises.",
+        "level": 1,
+        "xp": 65,
+        "xp_reward": 65,
+        "is_published": true,
+        "chapter_id": 1,
+        "lesson_type": "standard",
+        "config": {}
+      },
+      "exercises": [
+        {
+          "id": 432,
+          "lesson_id": 59,
+          "kind": "char_intro",
+          "type": "char_intro",
+          "prompt": "Meet the letter Ե!",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 1,
+          "xp": 5,
+          "config": {
+            "hint": "Like 'ye' in 'yet' at the start of a word, or 'e' in 'bed' otherwise.",
+            "lower": "ե",
+            "letter": "Ե",
+            "examples": [
+              {
+                "en": "Dream",
+                "hy": "Երազ"
+              },
+              {
+                "en": "Country / Earth",
+                "hy": "Երկիր"
+              }
+            ],
+            "transliteration": "ye / e"
+          }
+        },
+        {
+          "id": 433,
+          "lesson_id": 59,
+          "kind": "char_intro",
+          "type": "char_intro",
+          "prompt": "Meet the letter Զ!",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 2,
+          "xp": 5,
+          "config": {
+            "hint": "Like 'z' in 'zebra'.",
+            "lower": "զ",
+            "letter": "Զ",
+            "examples": [
+              {
+                "en": "Bell / Phone call",
+                "hy": "Զանգ"
+              },
+              {
+                "en": "Army",
+                "hy": "Զորք"
+              }
+            ],
+            "transliteration": "z"
+          }
+        },
+        {
+          "id": 435,
+          "lesson_id": 59,
+          "kind": "char_intro",
+          "type": "char_intro",
+          "prompt": "Meet the letter Ը!",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 3,
+          "xp": 5,
+          "config": {
+            "hint": "Like the 'u' in 'cup' — a neutral vowel sound.",
+            "lower": "ը",
+            "letter": "Ը",
+            "examples": [
+              {
+                "en": "Friend",
+                "hy": "Ընկեր"
+              },
+              {
+                "en": "Family",
+                "hy": "Ընտանիք"
+              }
+            ],
+            "transliteration": "uh"
+          }
+        },
+        {
+          "id": 434,
+          "lesson_id": 59,
+          "kind": "char_intro",
+          "type": "char_intro",
+          "prompt": "Meet the letter Է!",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 4,
+          "xp": 5,
+          "config": {
+            "hint": "Like 'e' in 'bed'.",
+            "lower": "է",
+            "letter": "Է",
+            "examples": [
+              {
+                "en": "Page",
+                "hy": "Էջ"
+              },
+              {
+                "en": "Energy",
+                "hy": "Էներգիա"
+              }
+            ],
+            "transliteration": "e"
+          }
+        },
+        {
+          "id": 436,
+          "lesson_id": 59,
+          "kind": "letter_recognition",
+          "type": "multiple_choice",
+          "prompt": "Which letter makes the \"z\" sound?",
+          "expected_answer": "Զ",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 5,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Ե",
+              "Է",
+              "Զ",
+              "Ը"
+            ]
+          }
+        },
+        {
+          "id": 437,
+          "lesson_id": 59,
+          "kind": "letter_recognition",
+          "type": "multiple_choice",
+          "prompt": "Which letter makes the \"uh\" (neutral vowel) sound?",
+          "expected_answer": "Ը",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 6,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Է",
+              "Ա",
+              "Ը",
+              "Ե"
+            ]
+          }
+        },
+        {
+          "id": 438,
+          "lesson_id": 59,
+          "kind": "multi_select",
+          "type": "multi_select",
+          "prompt": "Select ALL the vowel letters in this set.",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 7,
+          "xp": 15,
+          "config": {
+            "choices": [
+              "Ե",
+              "Զ",
+              "Է",
+              "Ը"
+            ],
+            "question": "Select ALL the vowel letters in this set.",
+            "correctIndices": [
+              0,
+              2,
+              3
+            ]
+          }
+        },
+        {
+          "id": 439,
+          "lesson_id": 59,
+          "kind": "true_false",
+          "type": "true_false",
+          "prompt": "Ը sounds like the \"oo\" in \"food\".",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 8,
+          "xp": 10,
+          "config": {
+            "correct": false,
+            "statement": "Ը sounds like the 'oo' in 'food'."
+          }
+        }
+      ]
+    },
+    {
+      "lesson": {
+        "id": 72,
+        "slug": "Test121",
+        "title": "Helloworld",
+        "description": "wewe",
+        "level": 1,
+        "xp": 40,
+        "xp_reward": 40,
+        "is_published": false,
+        "chapter_id": 1,
+        "lesson_type": "standard",
+        "config": {}
+      },
+      "exercises": [
+        {
+          "id": 506,
+          "lesson_id": 72,
+          "kind": "audio_choice_tts",
+          "type": "legacy",
+          "prompt": "",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 1,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Բարև",
+              "Շնորհակալություն",
+              "Նորամտություն"
+            ],
+            "ttsText": "Բարև ձեզ, ես Արմենն եմ",
+            "promptText": "Pick what you heard",
+            "answerIndex": 0
+          }
+        }
+      ]
+    },
+    {
+      "lesson": {
+        "id": 60,
+        "slug": "basic-words",
+        "title": "Basic Words",
+        "description": "Learn your first Armenian nouns: water, bread, house, sun, and more.",
+        "level": 2,
+        "xp": 80,
+        "xp_reward": 80,
+        "is_published": true,
+        "chapter_id": 2,
+        "lesson_type": "standard",
+        "config": {}
+      },
+      "exercises": [
+        {
+          "id": 440,
+          "lesson_id": 60,
+          "kind": "translate_mcq",
+          "type": "multiple_choice",
+          "prompt": "What does \"Ջուր\" mean?",
+          "expected_answer": "Water",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 1,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Fire",
+              "Water",
+              "Bread",
+              "House"
+            ],
+            "sentence": "Ջուր",
+            "answerIndex": 1
+          }
+        },
+        {
+          "id": 441,
+          "lesson_id": 60,
+          "kind": "translate_mcq",
+          "type": "multiple_choice",
+          "prompt": "What does \"Հաց\" mean?",
+          "expected_answer": "Bread",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 2,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Sun",
+              "Bread",
+              "Water",
+              "Moon"
+            ],
+            "sentence": "Հաց",
+            "answerIndex": 1
+          }
+        },
+        {
+          "id": 442,
+          "lesson_id": 60,
+          "kind": "translate_mcq",
+          "type": "multiple_choice",
+          "prompt": "What does \"Տուն\" mean?",
+          "expected_answer": "House",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 3,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Tree",
+              "Car",
+              "House",
+              "Cat"
+            ],
+            "sentence": "Տուն",
+            "answerIndex": 2
+          }
+        },
+        {
+          "id": 443,
+          "lesson_id": 60,
+          "kind": "word_spelling",
+          "type": "type_answer",
+          "prompt": "Type the Armenian word for \"Sun\".",
+          "expected_answer": "Արև",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 4,
+          "xp": 15,
+          "config": {
+            "hint": "It starts with Ա (a) and ends with the letter that looks like a backwards 3 — Ő."
+          }
+        },
+        {
+          "id": 444,
+          "lesson_id": 60,
+          "kind": "fill_blank",
+          "type": "fill_blank",
+          "prompt": "Complete the sentence: I am a student.",
+          "expected_answer": "ուսանող",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 5,
+          "xp": 10,
+          "config": {
+            "hint": "The missing word means 'student' — ուսանող.",
+            "after": "եմ",
+            "before": "Ես",
+            "placeholder": "___"
+          }
+        },
+        {
+          "id": 445,
+          "lesson_id": 60,
+          "kind": "match_pairs",
+          "type": "match_pairs",
+          "prompt": "Match the Armenian word to its English meaning.",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 6,
+          "xp": 15,
+          "config": {
+            "pairs": [
+              {
+                "left": "Ջուր",
+                "right": "Water"
+              },
+              {
+                "left": "Հաց",
+                "right": "Bread"
+              },
+              {
+                "left": "Տուն",
+                "right": "House"
+              },
+              {
+                "left": "Արև",
+                "right": "Sun"
+              }
+            ]
+          }
+        },
+        {
+          "id": 446,
+          "lesson_id": 60,
+          "kind": "true_false",
+          "type": "true_false",
+          "prompt": "\"Ջուր\" means \"Fire\" in Armenian.",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 7,
+          "xp": 10,
+          "config": {
+            "correct": false,
+            "statement": "'Ջուր' means 'Fire' in Armenian."
+          }
+        }
+      ]
+    },
+    {
+      "lesson": {
+        "id": 61,
+        "slug": "greetings",
+        "title": "Greetings & Phrases",
+        "description": "Say hello, goodbye, thank you, and more. Build your first real sentences.",
+        "level": 2,
+        "xp": 90,
+        "xp_reward": 80,
+        "is_published": true,
+        "chapter_id": 2,
+        "lesson_type": "standard",
+        "config": {}
+      },
+      "exercises": [
+        {
+          "id": 447,
+          "lesson_id": 61,
+          "kind": "translate_mcq",
+          "type": "multiple_choice",
+          "prompt": "What does \"Բարև\" mean?",
+          "expected_answer": "Hello",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 1,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Goodbye",
+              "Hello",
+              "Thank you",
+              "Sorry"
+            ],
+            "sentence": "Բարև",
+            "answerIndex": 1
+          }
+        },
+        {
+          "id": 448,
+          "lesson_id": 61,
+          "kind": "translate_mcq",
+          "type": "multiple_choice",
+          "prompt": "What does \"Ցտեսություն\" mean?",
+          "expected_answer": "Goodbye",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 2,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Hello",
+              "Please",
+              "Goodbye",
+              "Yes"
+            ],
+            "sentence": "Ցտեսություն",
+            "answerIndex": 2
+          }
+        },
+        {
+          "id": 449,
+          "lesson_id": 61,
+          "kind": "translate_mcq",
+          "type": "multiple_choice",
+          "prompt": "What does \"Շնորհակալություն\" mean?",
+          "expected_answer": "Thank you",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 3,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Sorry",
+              "Please",
+              "Yes",
+              "Thank you"
+            ],
+            "sentence": "Շնորհակալություն",
+            "answerIndex": 3
+          }
+        },
+        {
+          "id": 450,
+          "lesson_id": 61,
+          "kind": "word_spelling",
+          "type": "type_answer",
+          "prompt": "Type the Armenian word for \"Hello\".",
+          "expected_answer": "Բարև",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 4,
+          "xp": 10,
+          "config": {
+            "hint": "It starts with Բ (b). You hear it every day in Armenia!"
+          }
+        },
+        {
+          "id": 451,
+          "lesson_id": 61,
+          "kind": "sentence_order",
+          "type": "sentence_order",
+          "prompt": "Put the words in the correct order: \"Hello, I am Armen.\"",
+          "expected_answer": "Բարև ես Արmen եմ",
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 5,
+          "xp": 15,
+          "config": {
+            "tokens": [
+              "եմ",
+              "Արmen",
+              "Բարև,",
+              "ես"
+            ],
+            "solution": [
+              "Բարև,",
+              "ես",
+              "Արmen",
+              "եմ"
+            ]
+          }
+        },
+        {
+          "id": 452,
+          "lesson_id": 61,
+          "kind": "match_pairs",
+          "type": "match_pairs",
+          "prompt": "Match each phrase to its English meaning.",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 6,
+          "xp": 15,
+          "config": {
+            "pairs": [
+              {
+                "left": "Բարև",
+                "right": "Hello"
+              },
+              {
+                "left": "Ցտեսություն",
+                "right": "Goodbye"
+              },
+              {
+                "left": "Շնորհակալություն",
+                "right": "Thank you"
+              },
+              {
+                "left": "Կներեք",
+                "right": "Excuse me / Sorry"
+              }
+            ]
+          }
+        },
+        {
+          "id": 453,
+          "lesson_id": 61,
+          "kind": "true_false",
+          "type": "true_false",
+          "prompt": "\"Այո\" means \"No\" in Armenian.",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 7,
+          "xp": 10,
+          "config": {
+            "correct": false,
+            "statement": "'Այո' means 'No' in Armenian."
+          }
+        },
+        {
+          "id": 454,
+          "lesson_id": 61,
+          "kind": "multi_select",
+          "type": "multi_select",
+          "prompt": "Select ALL phrases that are greetings or farewells.",
+          "expected_answer": null,
+          "sentence_before": null,
+          "sentence_after": null,
+          "order": 8,
+          "xp": 10,
+          "config": {
+            "choices": [
+              "Բարև",
+              "Ջուր",
+              "Ցտեսություն",
+              "Հաց"
+            ],
+            "question": "Select ALL phrases that are greetings or farewells.",
+            "correctIndices": [
+              0,
+              2
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
