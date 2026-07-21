@@ -401,39 +401,25 @@ export default function ExerciseShell({
         </div>
       ) : null}
 
-      {/* Centers short exercise content vertically, same as `justify-center`
-          would — but `margin: auto` on the child degrades gracefully instead
-          of clipping when content is taller than the viewport (a known
-          flexbox trap: `justify-content: center` on an overflowing
-          container makes the far edge unreachable even with scroll). */}
-      {/* Large side-docked companion — Duolingo-style, in the empty gutter
-          beside the centered content column. Desktop/wide screens only;
-          there's no room for it once the viewport narrows to the content
-          column's own width, so the mobile layout uses the smaller inline
-          version below instead. */}
-      {!hideFooter ? (
-        <img
-          key={mascotFaceState}
-          src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
-          alt=""
-          aria-hidden="true"
-          className="animate-pop pointer-events-none fixed right-6 top-1/2 z-10 hidden h-72 w-72 -translate-y-1/2 object-contain min-[1180px]:block xl:right-16 xl:h-96 xl:w-96"
-        />
-      ) : null}
-
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
-        <div className="m-auto w-full">
-          {!hideFooter ? (
-            <div className="mb-2 flex justify-center min-[1180px]:hidden">
-              <img
-                key={mascotFaceState}
-                src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
-                alt=""
-                aria-hidden="true"
-                className="animate-pop h-40 w-40 object-contain sm:h-48 sm:w-48"
-              />
-            </div>
-          ) : null}
+      {/* Mascot is part of the composition, not a decorative accent: on wide
+          screens it sits life-size next to the exercise as a genuine
+          companion (flex row, both centered together as one unit); on
+          narrow screens it stacks above the content, still large. Centers
+          short exercise content vertically via `margin: auto` on the
+          content column rather than `justify-content: center`, which
+          degrades gracefully instead of clipping when content is taller
+          than the viewport. */}
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col overflow-y-auto px-4 py-6 min-[1180px]:flex-row min-[1180px]:items-center min-[1180px]:justify-center min-[1180px]:gap-8">
+        {!hideFooter ? (
+          <img
+            key={mascotFaceState}
+            src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
+            alt=""
+            aria-hidden="true"
+            className="animate-pop mx-auto h-48 w-48 shrink-0 object-contain sm:h-56 sm:w-56 min-[1180px]:mx-0 min-[1180px]:h-[26rem] min-[1180px]:w-[26rem]"
+          />
+        ) : null}
+        <div className="m-auto w-full max-w-2xl min-[1180px]:m-0">
           {children}
         </div>
       </main>
