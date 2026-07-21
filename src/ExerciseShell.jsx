@@ -214,6 +214,10 @@ export default function ExerciseShell({
   // Which of the two mascot characters (picked once per lesson session in
   // LessonPlayer) shows its positive/neutral/negative face in the result panel.
   mascotCharacter = "armen",
+  // True when the exercise body already renders its own mascot (a speech
+  // bubble avatar, or the standing character on speak exercises) — hides
+  // the shell's docked desktop mascot so the same face isn't shown twice.
+  hideMascot = false,
   children,
 }) {
   const pct = total > 0 ? Math.round((step / total) * 100) : 0;
@@ -415,7 +419,7 @@ export default function ExerciseShell({
           make room for it). Mobile still gets the compact status medallion
           in the result sheet; it just isn't a large persistent presence
           competing with the exercise for space. */}
-      {!hideFooter ? (
+      {!hideFooter && !hideMascot ? (
         <img
           key={mascotFaceState}
           src={mascotFaceUrl(mascotCharacter, mascotFaceState)}

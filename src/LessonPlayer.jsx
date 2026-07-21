@@ -237,6 +237,31 @@ export default function LessonPlayer() {
     !isReadingSection &&
     PHASE2_KINDS.has(String(currentExercise.kind || "").trim());
 
+  // Kinds whose own body already renders a mascot (speech bubble or the big
+  // standing character for speak exercises) — the shell's separate docked
+  // desktop mascot would otherwise show the same character twice at once.
+  const INLINE_MASCOT_KINDS = useMemo(
+    () =>
+      new Set([
+        "fill_blank",
+        "translate_mcq",
+        "audio_choice_tts",
+        "listen_type",
+        "word_bank",
+        "select_missing_word",
+        "listen_word_bank",
+        "minimal_pairs",
+        "write_translate",
+        "speak",
+        "speak_line",
+      ]),
+    []
+  );
+  const currentKind = String(currentExercise?.kind || "").trim();
+  const hideDockedMascot =
+    !!currentExercise &&
+    ((!isPhase2 && INLINE_MASCOT_KINDS.has(currentKind)) || (isPhase2 && currentKind === "fill_blank"));
+
   useEffect(() => {
     const token = getToken();
     if (!token) return;
@@ -858,6 +883,7 @@ export default function LessonPlayer() {
       reviewCount={!showDoneFooter ? history.length : 0}
       onReview={() => setReviewOpen(true)}
       mascotCharacter={mascotCharacter}
+      hideMascot={hideDockedMascot}
       result={
         resultOpen && resultData
           ? {
