@@ -35,13 +35,16 @@ function PromptTitle({ text, glossary }) {
 
 // Small "play slowly" (turtle) button shown under the main audio button on
 // listening exercises. Plays the same clip at a reduced playback rate.
-function SlowAudioButton({ onClick, disabled }) {
+function SlowAudioButton({ onClick, disabled, className = "mt-3" }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
+      className={
+        className +
+        " inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
+      }
       aria-label="Play slowly"
     >
       🐢 Slow
@@ -1663,21 +1666,20 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
     <Card>
       <Title>{prompt}</Title>
 
-      <div className="mt-5 flex flex-col items-center">
+      <div className="mt-3 flex items-center justify-center gap-3">
         <button
           type="button"
           onClick={() => play(1)}
           disabled={busy || !target}
           className={
-            "grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " +
+            "grid h-16 w-16 shrink-0 place-items-center rounded-full text-2xl text-white shadow-node transition active:translate-y-1 " +
             (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")
           }
           aria-label="Play audio"
         >
           🔊
         </button>
-        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} />
-        <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
+        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} className="" />
       </div>
 
       {hint ? <Muted className="mt-3">Hint: {hint}</Muted> : null}
@@ -1944,11 +1946,10 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
   return (
     <Card>
       <Title>{prompt}</Title>
-      <div className="mt-5 flex flex-col items-center">
+      <div className="mt-3 flex items-center justify-center gap-3">
         <button type="button" onClick={() => play(1)} disabled={busy || !target} aria-label="Play audio"
-          className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
-        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} />
-        <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
+          className={"grid h-16 w-16 shrink-0 place-items-center rounded-full text-2xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
+        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} className="" />
       </div>
       <div className="mt-4 flex min-h-[3.5rem] flex-wrap gap-2 rounded-xl border-b-2 border-dashed border-slate-300 bg-white p-3 ring-1 ring-slate-200">
         {picked.length === 0 ? <Muted>Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>{p.t}</Pill>)}
@@ -2156,11 +2157,10 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
   return (
     <Card>
       <Title>{prompt}</Title>
-      <div className="mt-5 flex flex-col items-center">
+      <div className="mt-3 flex items-center justify-center gap-3">
         <button type="button" onClick={() => play(1)} disabled={busy || !target} aria-label="Play audio"
-          className={"grid h-20 w-20 place-items-center rounded-full text-3xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
-        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} />
-        <div className="mt-2 text-sm font-bold text-slate-500">{busy ? "Loading…" : "Tap to listen again"}</div>
+          className={"grid h-16 w-16 shrink-0 place-items-center rounded-full text-2xl text-white shadow-node transition active:translate-y-1 " + (busy ? "bg-slate-300" : "bg-brand-500 hover:bg-brand-600")}>🔊</button>
+        <SlowAudioButton onClick={() => play(0.6)} disabled={busy || !target} className="" />
       </div>
       <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} /></div>
       <FooterSlot>

@@ -350,7 +350,7 @@ export default function ExerciseShell({
     <div className="lesson-shell relative flex flex-col overflow-hidden bg-white dark:bg-[#0d0d0f]">
       {/* Top bar */}
       <header className="shrink-0 bg-white dark:bg-[#18181b]">
-        <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-3 sm:py-4">
           <button
             type="button"
             onClick={onBack}
@@ -395,7 +395,7 @@ export default function ExerciseShell({
 
       {instruction ? (
         <div className="shrink-0 border-b border-slate-100 bg-white dark:border-white/[0.06] dark:bg-[#18181b]">
-          <div className="mx-auto max-w-2xl px-4 pb-2 pt-1">
+          <div className="mx-auto max-w-2xl px-4 pb-1.5 pt-0.5 sm:pb-2 sm:pt-1">
             <div className="text-xs font-extrabold uppercase tracking-widest text-slate-400 dark:text-stone-500">{instruction}</div>
           </div>
         </div>
@@ -406,8 +406,12 @@ export default function ExerciseShell({
           instead of being pushed off-center to make room. Positioned lower
           than dead-center (matches where the character reads naturally
           alongside the question text, not floating mid-header). Desktop
-          only; on narrow screens there's no gutter to dock it in, so it
-          stacks above the content instead (still large). */}
+          only (there's no gutter to dock it in on mobile, and every mobile
+          screenshot of feedback so far showed exercise content — the actual
+          thing the learner needs to see — getting pushed below the fold to
+          make room for it). Mobile still gets the compact status medallion
+          in the result sheet; it just isn't a large persistent presence
+          competing with the exercise for space. */}
       {!hideFooter ? (
         <img
           key={mascotFaceState}
@@ -424,20 +428,7 @@ export default function ExerciseShell({
           flexbox trap: `justify-content: center` on an overflowing
           container makes the far edge unreachable even with scroll). */}
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
-        <div className="m-auto w-full">
-          {!hideFooter ? (
-            <div className="mb-1 flex justify-center min-[1180px]:hidden">
-              <img
-                key={mascotFaceState}
-                src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
-                alt=""
-                aria-hidden="true"
-                className="animate-pop h-24 w-24 object-contain sm:h-28 sm:w-28"
-              />
-            </div>
-          ) : null}
-          {children}
-        </div>
+        <div className="m-auto w-full">{children}</div>
       </main>
 
       {/* Bottom action bar — in-flow so it's always visible on mobile.
