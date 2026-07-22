@@ -1637,6 +1637,20 @@ def cms_seed_vocab3(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/functional")
+def cms_seed_functional(request: Request, db=Depends(get_db)):
+    """Functional Conversations — café/shop/phone-call dialogue scenarios
+    built from vocab/grammar already live elsewhere (position 36).
+    Idempotent (skips if fs-cafe exists)."""
+    require_cms(request, db)
+    from seed_functional import seed_functional
+    try:
+        res = seed_functional()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
