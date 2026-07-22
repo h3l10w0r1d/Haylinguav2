@@ -574,6 +574,11 @@ export default function Phase2Exercise({ exercise, registerActions, submit, masc
       <div className="flex items-start gap-3">
         <div className="flex-1">
           <div className="text-slate-800 text-xl font-extrabold leading-snug dark:text-white">{prompt}</div>
+          {kind === "true_false" && cfg?.statement ? (
+            <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+              <div className="text-lg font-semibold text-slate-900 dark:text-white">{cfg.statement}</div>
+            </div>
+          ) : null}
           {kind === "char_mcq_sound" && audioRef.current ? (
             <div className="mt-3">
               <button
