@@ -1595,6 +1595,21 @@ def cms_seed_expand3(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/grammar2")
+def cms_seed_grammar2(request: Request, db=Depends(get_db)):
+    """Phase 6 grammar — definite article, possessive suffixes, ablative +
+    locative cases, full գնալ/ուտել conjugation paradigms, formal/informal
+    "you". Four new chapters (positions 25-28). Idempotent (skips if
+    gr-article-1 exists)."""
+    require_cms(request, db)
+    from seed_grammar2 import seed_grammar2
+    try:
+        res = seed_grammar2()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
