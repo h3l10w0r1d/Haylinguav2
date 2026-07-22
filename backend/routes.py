@@ -8376,16 +8376,21 @@ async def me_live_events(
     )
 
 
-# --------- ElevenLabs TTS ----------
+# --------- TTS (/tts) ----------
 
 """Legacy /tts endpoint.
 
 Reading mode and some older exercise kinds still call /tts directly.
 We keep it, but:
-  - default to Eleven Multilingual v2 (configurable via ELEVEN_EXERCISE_MODEL_ID)
+  - default to Azure AI Speech's native hy-AM voices once AZURE_SPEECH_KEY/
+    AZURE_SPEECH_REGION are configured; falls back to ElevenLabs otherwise
+    (see _tts_provider_configured)
+  - the CMS voice-preview/comparison tool can still request ElevenLabs
+    specifically by passing voice_id/model_id
   - cache generated MP3 on disk so repeated requests are instant
 
 ElevenLabs "Create speech" API: POST /v1/text-to-speech/{voice_id}
+Azure Speech "Convert text to speech" API: POST https://{region}.tts.speech.microsoft.com/cognitiveservices/v1
 """
 
 import hashlib
@@ -8405,6 +8410,82 @@ _tts_http = httpx.AsyncClient(
     limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
 )
 
+# Azure AI Speech — actual native Armenian neural voices (hy-AM-HaykNeural /
+# hy-AM-AnahitNeural), trained on Armenian rather than a foreign voice
+# approximated cross-lingually by a multilingual model (which is what every
+# ElevenLabs attempt above was doing, voice included — that's almost
+# certainly why they kept sounding wrong). Used as the exercise TTS provider
+# whenever it's configured; ElevenLabs stays as the fallback so nothing
+# breaks in an environment without an Azure key configured yet (e.g. local
+# dev), and the CMS voice-lab can still compare both.
+AZURE_SPEECH_KEY = os.getenv("AZURE_SPEECH_KEY", "")
+AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "")
+AZURE_VOICE_ID = os.getenv("AZURE_VOICE_ID", "hy-AM-HaykNeural")
+
+
+def _tts_provider_configured() -> str:
+    """Which provider today's default /tts calls should use."""
+    if AZURE_SPEECH_KEY and AZURE_SPEECH_REGION:
+        return "azure"
+    return "elevenlabs"
+
+
+# Azure's issued auth tokens last 10 minutes; cache one in memory and refresh
+# a little early rather than fetching a fresh token on every single TTS call.
+_azure_token_cache = {"token": None, "expires_at": 0.0}
+
+
+async def _get_azure_token() -> str:
+    now = time.time()
+    cached = _azure_token_cache["token"]
+    if cached and now < _azure_token_cache["expires_at"]:
+        return cached
+    url = f"https://{AZURE_SPEECH_REGION}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
+    headers = {"Ocp-Apim-Subscription-Key": AZURE_SPEECH_KEY, "Content-Length": "0"}
+    r = await _tts_http.post(url, headers=headers)
+    if r.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Azure Speech token error ({r.status_code})")
+    token = r.text
+    _azure_token_cache["token"] = token
+    _azure_token_cache["expires_at"] = now + 9 * 60
+    return token
+
+
+def _escape_ssml(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+async def _generate_azure_tts(text_value: str, voice_name: str) -> bytes:
+    if not AZURE_SPEECH_KEY or not AZURE_SPEECH_REGION:
+        raise HTTPException(status_code=500, detail="Azure Speech not configured on server")
+    token = await _get_azure_token()
+    url = f"https://{AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
+    ssml = (
+        "<speak version='1.0' xml:lang='hy-AM'>"
+        f"<voice xml:lang='hy-AM' name='{voice_name}'>{_escape_ssml(text_value)}</voice>"
+        "</speak>"
+    )
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "audio-48khz-96kbitrate-mono-mp3",
+        "User-Agent": "Haylingua",
+    }
+    r = await _tts_http.post(url, headers=headers, content=ssml.encode("utf-8"))
+    if r.status_code != 200:
+        err = (r.text or "").strip()
+        if len(err) > 600:
+            err = err[:600] + "…"
+        print("Azure Speech error:", r.status_code, err)
+        raise HTTPException(status_code=502, detail=f"Azure Speech error ({r.status_code})")
+    return r.content
+
 
 def _tts_cache_dir() -> Path:
     base = os.getenv("AUDIO_DIR", "") # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence. 
@@ -8416,12 +8497,14 @@ def _tts_cache_dir() -> Path:
 # Bump this when voice_settings (or anything else affecting the generated
 # audio) changes, so old cached files — generated with the previous, worse
 # defaults — become orphaned cache misses instead of being served forever.
-_TTS_CACHE_VERSION = "v3"
+_TTS_CACHE_VERSION = "v4"
 
 
-def _tts_cache_key(text_value: str, voice_id: str, model_id: str) -> str:
+def _tts_cache_key(text_value: str, provider: str, voice_id: str, model_id: str) -> str:
     h = hashlib.sha256()
     h.update(_TTS_CACHE_VERSION.encode("utf-8"))
+    h.update(b"\n")
+    h.update(provider.encode("utf-8"))
     h.update(b"\n")
     h.update(model_id.encode("utf-8"))
     h.update(b"\n")
@@ -8447,21 +8530,29 @@ _DEFAULT_TTS_VOICE_SETTINGS = {
 
 @router.post("/tts", response_class=Response)
 async def tts_speak(payload: TTSPayload):
-    if not ELEVEN_API_KEY:
-        raise HTTPException(status_code=500, detail="TTS not configured on server")
-
     text_value = (payload.text or "").strip()
     if not text_value:
         raise HTTPException(status_code=400, detail="Text is empty")
 
-    voice_id = payload.voice_id or DEFAULT_VOICE_ID
+    # An explicit voice_id/model_id means the CMS voice-preview/comparison
+    # tool is asking for ElevenLabs specifically — otherwise use whichever
+    # provider is configured as the default (Azure once its key is set).
+    if payload.voice_id or payload.model_id:
+        provider = "elevenlabs"
+    else:
+        provider = _tts_provider_configured()
+
+    if provider == "elevenlabs" and not ELEVEN_API_KEY:
+        raise HTTPException(status_code=500, detail="TTS not configured on server")
+
+    voice_id = payload.voice_id or (AZURE_VOICE_ID if provider == "azure" else DEFAULT_VOICE_ID)
     model_id = payload.model_id or ELEVEN_MODEL_ID
     voice_settings = payload.voice_settings or _DEFAULT_TTS_VOICE_SETTINGS
     # Only cache the standard (no custom settings) path — preview/comparison
     # calls pass their own voice_settings and should always hit the API live.
     cacheable = not payload.voice_settings and not payload.model_id
 
-    return await _tts_generate(text_value, voice_id, model_id, voice_settings, cacheable)
+    return await _tts_generate(text_value, provider, voice_id, model_id, voice_settings, cacheable)
 
 
 # GET variant of the same endpoint, query-string only. Exists purely so
@@ -8473,24 +8564,25 @@ async def tts_speak(payload: TTSPayload):
 # only used by the CMS's internal voice-preview/comparison tool.
 @router.get("/tts", response_class=Response)
 async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | None = None):
-    if not ELEVEN_API_KEY:
-        raise HTTPException(status_code=500, detail="TTS not configured on server")
-
     text_value = (text or "").strip()
     if not text_value:
         raise HTTPException(status_code=400, detail="Text is empty")
 
-    resolved_voice_id = voice_id or DEFAULT_VOICE_ID
+    provider = "elevenlabs" if (voice_id or model_id) else _tts_provider_configured()
+    if provider == "elevenlabs" and not ELEVEN_API_KEY:
+        raise HTTPException(status_code=500, detail="TTS not configured on server")
+
+    resolved_voice_id = voice_id or (AZURE_VOICE_ID if provider == "azure" else DEFAULT_VOICE_ID)
     resolved_model_id = model_id or ELEVEN_MODEL_ID
     cacheable = not model_id
 
-    return await _tts_generate(text_value, resolved_voice_id, resolved_model_id, _DEFAULT_TTS_VOICE_SETTINGS, cacheable)
+    return await _tts_generate(text_value, provider, resolved_voice_id, resolved_model_id, _DEFAULT_TTS_VOICE_SETTINGS, cacheable)
 
 
-async def _tts_generate(text_value: str, voice_id: str, model_id: str, voice_settings: dict, cacheable: bool) -> Response:
+async def _tts_generate(text_value: str, provider: str, voice_id: str, model_id: str, voice_settings: dict, cacheable: bool) -> Response:
     cache_dir = _tts_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    key = _tts_cache_key(text_value, voice_id, model_id)
+    key = _tts_cache_key(text_value, provider, voice_id, model_id)
     mp3_path = cache_dir / f"{key}.mp3"
 
     if cacheable and mp3_path.exists() and mp3_path.stat().st_size > 0:
@@ -8500,22 +8592,25 @@ async def _tts_generate(text_value: str, voice_id: str, model_id: str, voice_set
             headers={"Cache-Control": "public, max-age=31536000"},
         )
 
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-    params = {"output_format": "mp3_44100_128"}
-    headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
-    body = {"text": text_value, "model_id": model_id, "voice_settings": voice_settings}
+    if provider == "azure":
+        audio_bytes = await _generate_azure_tts(text_value, voice_id)
+    else:
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        params = {"output_format": "mp3_44100_128"}
+        headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
+        body = {"text": text_value, "model_id": model_id, "voice_settings": voice_settings}
 
-    try:
-        r = await _tts_http.post(url, params=params, headers=headers, json=body)
-        if r.status_code != 200:
-            err = (r.text or "").strip()
-            if len(err) > 600:
-                err = err[:600] + "…"
-            print("ElevenLabs error:", r.status_code, err)
-            raise HTTPException(status_code=502, detail=f"ElevenLabs error ({r.status_code})")
-        audio_bytes = r.content
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"TTS request failed: {e}") from e
+        try:
+            r = await _tts_http.post(url, params=params, headers=headers, json=body)
+            if r.status_code != 200:
+                err = (r.text or "").strip()
+                if len(err) > 600:
+                    err = err[:600] + "…"
+                print("ElevenLabs error:", r.status_code, err)
+                raise HTTPException(status_code=502, detail=f"ElevenLabs error ({r.status_code})")
+            audio_bytes = r.content
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=502, detail=f"TTS request failed: {e}") from e
 
     if cacheable:
         try:
