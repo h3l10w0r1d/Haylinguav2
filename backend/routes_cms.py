@@ -1668,6 +1668,22 @@ def cms_seed_enrich_sounds(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/rework-vowels")
+def cms_seed_rework_vowels(request: Request, db=Depends(get_db)):
+    """Reworks snd-vowels-1's exercise TYPES, not just copy: adds the 2
+    missing speak drills (water/meat had none) and 3 true_false meaning
+    checks, then reorders everything into interleaved listen->speak pairs
+    instead of running the same kind 2-3 times in a row. Idempotent (skips
+    if a "jur" speak exercise already exists)."""
+    require_cms(request, db)
+    from seed_rework_vowels import seed_rework_vowels
+    try:
+        res = seed_rework_vowels()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/functional")
 def cms_seed_functional(request: Request, db=Depends(get_db)):
     """Functional Conversations — café/shop/phone-call dialogue scenarios
