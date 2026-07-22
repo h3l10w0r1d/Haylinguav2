@@ -310,15 +310,15 @@ function ExCharIntro({ exercise, cfg, submit }) {
       <Title>{prompt || "New letter"}</Title>
 
       <div className="mt-4 flex items-center justify-between gap-4">
-        <div className="text-5xl md:text-6xl font-black text-slate-900">{letter}</div>
-        <div className="text-3xl md:text-4xl font-extrabold text-slate-700">{lower}</div>
+        <div className="text-5xl md:text-6xl font-black text-slate-900 dark:text-white">{letter}</div>
+        <div className="text-3xl md:text-4xl font-extrabold text-slate-700 dark:text-stone-200">{lower}</div>
       </div>
 
-      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
+      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
         {transliteration && (
           <Muted>
             Sounds like:{" "}
-            <span className="font-semibold text-slate-800">{transliteration}</span>
+            <span className="font-semibold text-slate-800 dark:text-stone-200">{transliteration}</span>
           </Muted>
         )}
         {hint && <Muted className="mt-2">{hint}</Muted>}
@@ -357,7 +357,7 @@ function ExCharMcqSound({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
     <Card>
       <Title>{prompt || "Pick the correct sound"}</Title>
       <Muted className="mt-2">
-        Letter: <span className="font-semibold text-slate-800">{cfg.letter ?? ""}</span>
+        Letter: <span className="font-semibold text-slate-800 dark:text-white">{cfg.letter ?? ""}</span>
       </Muted>
 
       <div className="mt-4">
@@ -561,12 +561,12 @@ function ExCharBuildWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
       <Title>{prompt || "Build the word"}</Title>
       {targetWord && (
         <Muted className="mt-2">
-          Target: <span className="font-semibold text-slate-800">{targetWord}</span>
+          Target: <span className="font-semibold text-slate-800 dark:text-stone-200">{targetWord}</span>
         </Muted>
       )}
 
-      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-        <div className="text-2xl font-extrabold text-slate-900 min-h-[2.5rem]">
+      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+        <div className="text-2xl font-extrabold text-slate-900 dark:text-white min-h-[2.5rem]">
           {built || "…"}
         </div>
         <div className="mt-3 flex gap-2">
@@ -848,8 +848,8 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
       <Title>{prompt || "True or False"}</Title>
 
       {statement && (
-        <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4">
-          <div className="text-lg md:text-xl font-semibold text-slate-900">{statement}</div>
+        <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+          <div className="text-lg md:text-xl font-semibold text-slate-900 dark:text-white">{statement}</div>
         </div>
       )}
 
@@ -859,8 +859,8 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
           className={cx(
             "rounded-xl px-4 py-3 font-semibold ring-1 transition",
             selectedIndex === 0
-              ? "bg-orange-50 ring-orange-300 text-orange-800"
-              : "bg-white ring-slate-200 hover:bg-slate-50"
+              ? "bg-orange-50 ring-orange-300 text-orange-800 dark:bg-orange-500/10 dark:text-orange-300"
+              : "bg-white ring-slate-200 hover:bg-slate-50 dark:bg-white/[0.03] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.06]"
           )}
         >
           False
@@ -870,8 +870,8 @@ function ExTrueFalse({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , sub
           className={cx(
             "rounded-xl px-4 py-3 font-semibold ring-1 transition",
             selectedIndex === 1
-              ? "bg-orange-50 ring-orange-300 text-orange-800"
-              : "bg-white ring-slate-200 hover:bg-slate-50"
+              ? "bg-orange-50 ring-orange-300 text-orange-800 dark:bg-orange-500/10 dark:text-orange-300"
+              : "bg-white ring-slate-200 hover:bg-slate-50 dark:bg-white/[0.03] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.06]"
           )}
         >
           True
@@ -951,7 +951,7 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
     <Card>
       <PromptTitle text={prompt || "Put the sentence in order"} glossary={cfg.glossary} />
 
-      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 min-h-[4.5rem]">
+      <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 min-h-[4.5rem] dark:bg-white/[0.04] dark:ring-white/[0.08]">
         <div className="flex flex-wrap gap-2">
           {picked.length === 0 ? (
             <Muted>Tap words below to build the sentence…</Muted>
@@ -961,7 +961,7 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
                 <span className="mr-2">{item.t}</span>
                 <button
                   type="button"
-                  className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/60 hover:bg-white"
+                  className="ml-1 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/60 hover:bg-white dark:bg-white/10 dark:hover:bg-white/20"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -981,7 +981,7 @@ function ExSentenceOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer ,
       <div className="mt-3">
         <button
           type="button"
-          className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-2 text-sm hover:bg-slate-100"
+          className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-2 text-sm hover:bg-slate-100 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.08]"
           onClick={() => {
             const sentence = picked.map((it) => it.t).join(" ").trim();
             const fallback = Array.isArray(solution) ? solution.join(" ") : rawTokens.join(" ");
@@ -1119,7 +1119,7 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , su
       <Title>{prompt || "Match the pairs"}</Title>
       <Muted className="mt-2">
         Matched:{" "}
-        <span className="font-semibold text-slate-800">{currentMatches}</span> /{" "}
+        <span className="font-semibold text-slate-800 dark:text-white">{currentMatches}</span> /{" "}
         {totalMatches}
       </Muted>
 
@@ -1136,10 +1136,10 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , su
                 className={cx(
                   "w-full rounded-xl px-4 py-3 font-semibold text-left ring-1 transition",
                   done
-                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed"
+                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed dark:bg-white/[0.03] dark:text-stone-600 dark:ring-white/[0.06]"
                     : active
-                    ? "bg-orange-50 text-orange-800 ring-orange-300"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-orange-50 text-orange-800 ring-orange-300 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-400/40"
+                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 dark:bg-white/[0.03] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.06]"
                 )}
               >
                 {t}
@@ -1162,10 +1162,10 @@ function ExMatchPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , su
                 className={cx(
                   "w-full rounded-xl px-4 py-3 font-semibold text-left ring-1 transition",
                   done
-                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed"
+                    ? "bg-slate-100 text-slate-400 ring-slate-200 cursor-not-allowed dark:bg-white/[0.03] dark:text-stone-600 dark:ring-white/[0.06]"
                     : selectedLeft === null
-                    ? "bg-white text-slate-300 ring-slate-200 cursor-not-allowed"
-                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-white text-slate-300 ring-slate-200 cursor-not-allowed dark:bg-white/[0.03] dark:text-stone-600 dark:ring-white/[0.08]"
+                    : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50 dark:bg-white/[0.03] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.06]"
                 )}
               >
                 {t}
@@ -1358,8 +1358,8 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
               className={cx(
                 "rounded-xl px-4 py-3 text-left font-semibold transition ring-1",
                 active
-                  ? "bg-orange-50 ring-orange-300 text-orange-800"
-                  : "bg-white ring-slate-200 hover:bg-slate-50"
+                  ? "bg-orange-50 ring-orange-300 text-orange-800 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-400/40"
+                  : "bg-white ring-slate-200 hover:bg-slate-50 dark:bg-white/[0.03] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.06]"
               )}
             >
               {active ? "✅ " : ""}
@@ -1588,9 +1588,9 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       </div>
 
       {transcript ? (
-        <div className="mt-5 rounded-2xl bg-feather-50 p-4 ring-1 ring-feather-100">
-          <div className="text-xs font-bold uppercase tracking-wide text-feather-600">We heard</div>
-          <div className="mt-1 text-lg font-extrabold text-slate-800">{transcript}</div>
+        <div className="mt-5 rounded-2xl bg-feather-50 p-4 ring-1 ring-feather-100 dark:bg-feather-500/10 dark:ring-feather-500/25">
+          <div className="text-xs font-bold uppercase tracking-wide text-feather-600 dark:text-feather-300">We heard</div>
+          <div className="mt-1 text-lg font-extrabold text-slate-800 dark:text-white">{transcript}</div>
         </div>
       ) : null}
 
@@ -2022,12 +2022,12 @@ function ExDialogueMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
           const mine = l?.from === "you" || l?.from === "me";
           return (
             <div key={i} className={"flex " + (mine ? "justify-end" : "justify-start")}>
-              <div className={"max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold " + (mine ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-800")}>{l?.text}</div>
+              <div className={"max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold " + (mine ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-800 dark:bg-white/[0.06] dark:text-white")}>{l?.text}</div>
             </div>
           );
         })}
         <div className="flex justify-end">
-          <div className="max-w-[80%] rounded-2xl border-2 border-dashed border-brand-300 bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-700">
+          <div className="max-w-[80%] rounded-2xl border-2 border-dashed border-brand-300 bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-300">
             {sel !== null ? (choices[sel] ?? "…") : "…"}
           </div>
         </div>
@@ -2067,13 +2067,13 @@ function ExDialogueOrder({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, 
   return (
     <Card>
       <Title>{prompt}</Title>
-      <div className="mt-4 min-h-[3rem] space-y-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+      <div className="mt-4 min-h-[3rem] space-y-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
         {picked.length === 0 ? <Muted>Tap the lines in the right order…</Muted> : picked.map((p, i) => (
-          <button key={p.key} type="button" onClick={() => remove(i)} className="tile-pop block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-brand-200">{i + 1}. {p.t}</button>
+          <button key={p.key} type="button" onClick={() => remove(i)} className="tile-pop block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-brand-200 dark:bg-white/[0.03] dark:text-white dark:ring-brand-500/40">{i + 1}. {p.t}</button>
         ))}
       </div>
       <div className="mt-4 space-y-2">{available.map((p, i) => (
-        <button key={p.key} type="button" onClick={() => add(i)} className="block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-50">{p.t}</button>
+        <button key={p.key} type="button" onClick={() => add(i)} className="block w-full rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-white/[0.03] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.06]">{p.t}</button>
       ))}</div>
       <FooterSlot>
         <PrimaryButton disabled={picked.length === 0} onClick={() => {
@@ -2109,10 +2109,10 @@ function ExImageSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
           return (
             <button key={i} type="button" onClick={() => setSel(i)}
               className={"overflow-hidden rounded-2xl ring-2 transition " + (active ? "ring-brand-400" : "ring-slate-200 hover:ring-brand-300")}>
-              <div className="aspect-square w-full bg-slate-50">
-                {it?.image ? <img src={exImgUrl(it.image)} alt={it?.label || ""} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-xs font-semibold text-slate-300">no image</div>}
+              <div className="aspect-square w-full bg-slate-50 dark:bg-white/[0.04]">
+                {it?.image ? <img src={exImgUrl(it.image)} alt={it?.label || ""} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-xs font-semibold text-slate-300 dark:text-stone-600">no image</div>}
               </div>
-              {it?.label ? <div className={"px-2 py-1.5 text-center text-sm font-bold " + (active ? "bg-brand-50 text-brand-700" : "text-slate-700")}>{it.label}</div> : null}
+              {it?.label ? <div className={"px-2 py-1.5 text-center text-sm font-bold " + (active ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300" : "text-slate-700 dark:text-stone-200")}>{it.label}</div> : null}
             </button>
           );
         })}
@@ -2143,8 +2143,8 @@ function ExReadingComprehension({ exercise, cfg, onCorrect, onWrong, onSkip, onA
   return (
     <Card>
       <Title>{prompt}</Title>
-      {passage ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-base leading-relaxed text-slate-800 ring-1 ring-slate-200">{passage}</div> : null}
-      {question ? <div className="mt-4 font-display text-lg font-extrabold text-slate-800">{question}</div> : null}
+      {passage ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-base leading-relaxed text-slate-800 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08]">{passage}</div> : null}
+      {question ? <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">{question}</div> : null}
       <div className="mt-3"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} graded={graded} /></div>
       <FooterSlot>
         <PrimaryButton disabled={sel === null || !!graded} onClick={() => {
@@ -2229,11 +2229,11 @@ function ExFlashcard({ exercise, cfg, submit }) {
       <button
         type="button"
         onClick={() => setFlipped((f) => !f)}
-        className="mt-5 grid min-h-[10rem] w-full place-items-center rounded-3xl bg-gradient-to-br from-brand-50 to-white px-6 py-8 text-center ring-2 ring-brand-100 transition active:scale-[0.99]"
+        className="mt-5 grid min-h-[10rem] w-full place-items-center rounded-3xl bg-gradient-to-br from-brand-50 to-white px-6 py-8 text-center ring-2 ring-brand-100 transition active:scale-[0.99] dark:from-brand-500/10 dark:to-white/[0.03] dark:ring-brand-500/30"
       >
-        <div className="font-display text-3xl font-extrabold text-slate-800">{flipped ? back : front}</div>
-        <div className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">{flipped ? "answer" : "tap to flip"}</div>
-        {flipped && hint ? <div className="mt-2 text-sm font-semibold text-slate-500">{hint}</div> : null}
+        <div className="font-display text-3xl font-extrabold text-slate-800 dark:text-white">{flipped ? back : front}</div>
+        <div className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">{flipped ? "answer" : "tap to flip"}</div>
+        {flipped && hint ? <div className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{hint}</div> : null}
       </button>
       <FooterSlot>
         <PrimaryButton onClick={() => submit?.({ isCorrect: true, autoAdvance: true, xpEarned: 0 })}>Continue</PrimaryButton>
@@ -2263,7 +2263,7 @@ function ExCategorize({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, sub
       <Title>{prompt}</Title>
 
       {/* unassigned chips */}
-      <div className="mt-4 flex min-h-[3rem] flex-wrap gap-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+      <div className="mt-4 flex min-h-[3rem] flex-wrap gap-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
         {unassignedIndices.length === 0 ? <Muted>All sorted — tap Check.</Muted> : unassignedIndices.map((i) => (
           <Pill key={i} onClick={() => {
             setAssign((a) => ({ ...a, __activeIdx: i }));
@@ -2283,13 +2283,13 @@ function ExCategorize({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, sub
                 if (activeIdx === null) return;
                 setAssign((a) => { const n = { ...a, [String(activeIdx)]: b }; delete n.__activeIdx; return n; });
               }}
-              className="rounded-2xl bg-white p-3 text-left ring-2 ring-slate-200 transition hover:ring-brand-300"
+              className="rounded-2xl bg-white p-3 text-left ring-2 ring-slate-200 transition hover:ring-brand-300 dark:bg-white/[0.03] dark:ring-white/[0.08] dark:hover:ring-brand-500/40"
             >
-              <div className="font-display text-sm font-extrabold text-slate-800">{b}</div>
+              <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">{b}</div>
               <div className="mt-2 flex min-h-[2rem] flex-wrap gap-1.5">
-                {inBucketIndices.length === 0 ? <span className="text-xs font-semibold text-slate-300">tap a word, then this group</span> : inBucketIndices.map((i) => (
+                {inBucketIndices.length === 0 ? <span className="text-xs font-semibold text-slate-300 dark:text-stone-600">tap a word, then this group</span> : inBucketIndices.map((i) => (
                   <span key={i} onClick={(e) => { e.stopPropagation(); setAssign((a) => { const n = { ...a }; delete n[String(i)]; return n; }); }}
-                    className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 ring-1 ring-brand-200">{items[i].text} ✕</span>
+                    className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 ring-1 ring-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30">{items[i].text} ✕</span>
                 ))}
               </div>
             </button>
@@ -2337,7 +2337,7 @@ function ExHighlightGrammar({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswe
             <button key={i} type="button" onClick={() => toggle(i)}
               className={cx(
                 "rounded-2xl px-4 py-2.5 text-lg font-bold ring-2 transition",
-                isCorrect ? "bg-grass-50 text-grass-700 ring-grass-400" : isWrong ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-400" : on ? "bg-feather-50 text-feather-700 ring-feather-400" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
+                isCorrect ? "bg-grass-50 text-grass-700 ring-grass-400 dark:bg-grass-500/15 dark:text-grass-300 dark:ring-grass-500/40" : isWrong ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-400 dark:bg-cardinal-500/15 dark:text-cardinal-300 dark:ring-cardinal-500/40" : on ? "bg-feather-50 text-feather-700 ring-feather-400 dark:bg-feather-500/15 dark:text-feather-300 dark:ring-feather-500/40" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-white/[0.03] dark:text-white dark:ring-white/[0.08] dark:hover:bg-white/[0.06]"
               )}>{t}</button>
           );
         })}
@@ -2371,16 +2371,16 @@ function ExConjugation({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
   return (
     <Card>
       <Title>{prompt}</Title>
-      {verb ? <Muted className="mt-2">Verb: <span className="font-extrabold text-slate-800">{verb}</span></Muted> : null}
+      {verb ? <Muted className="mt-2">Verb: <span className="font-extrabold text-slate-800 dark:text-white">{verb}</span></Muted> : null}
       <div className="mt-4 space-y-2">
         {cells.map((c, i) => (
           <div key={i} className="flex items-center gap-3">
-            <div className="w-28 shrink-0 text-sm font-extrabold text-slate-600">{c.label}</div>
+            <div className="w-28 shrink-0 text-sm font-extrabold text-slate-600 dark:text-stone-300">{c.label}</div>
             <input
               value={vals[i] ?? ""}
               onChange={(e) => setVals((arr) => arr.map((v, x) => (x === i ? e.target.value : v)))}
               placeholder="…"
-              className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 font-bold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:outline-none focus:ring-brand-400"
+              className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 font-bold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:outline-none focus:ring-brand-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
             />
           </div>
         ))}
@@ -2490,18 +2490,18 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
           const mine = l?.from === "you" || l?.from === "me";
           return (
             <div key={i} className={"flex " + (mine ? "justify-end" : "justify-start")}>
-              <div className={"max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold " + (mine ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-800")}>{l?.text}</div>
+              <div className={"max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold " + (mine ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-800 dark:bg-white/[0.06] dark:text-white")}>{l?.text}</div>
             </div>
           );
         })}
       </div>
 
       {target ? (
-        <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+        <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Your line</div>
-              <div className="text-xl font-extrabold text-slate-900">{target}</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">Your line</div>
+              <div className="text-xl font-extrabold text-slate-900 dark:text-white">{target}</div>
             </div>
             <div className="flex shrink-0 gap-2">
               {hint ? (
@@ -2513,8 +2513,8 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
             </div>
           </div>
           {showHint && hint ? (
-            <div className="mt-3 text-sm font-semibold text-slate-500">
-              Sounds like: <span className="text-slate-700">{hint}</span>
+            <div className="mt-3 text-sm font-semibold text-slate-500 dark:text-stone-400">
+              Sounds like: <span className="text-slate-700 dark:text-stone-200">{hint}</span>
             </div>
           ) : null}
         </div>
@@ -2536,9 +2536,9 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
       </div>
 
       {transcript ? (
-        <div className="mt-5 rounded-2xl bg-feather-50 p-4 ring-1 ring-feather-100">
-          <div className="text-xs font-bold uppercase tracking-wide text-feather-600">We heard</div>
-          <div className="mt-1 text-lg font-extrabold text-slate-800">{transcript}</div>
+        <div className="mt-5 rounded-2xl bg-feather-50 p-4 ring-1 ring-feather-100 dark:bg-feather-500/10 dark:ring-feather-500/25">
+          <div className="text-xs font-bold uppercase tracking-wide text-feather-600 dark:text-feather-300">We heard</div>
+          <div className="mt-1 text-lg font-extrabold text-slate-800 dark:text-white">{transcript}</div>
         </div>
       ) : null}
       {error ? <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div> : null}
@@ -2597,7 +2597,7 @@ function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
           onChange={(e) => setValue(e.target.value)}
           placeholder="Write your translation…"
           rows={3}
-          className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400"
+          className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-lg font-bold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:font-semibold placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
         />
         <ArmenianKeyboard value={value} onChange={setValue} className="mt-3" />
       </div>
