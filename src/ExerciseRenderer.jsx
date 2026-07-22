@@ -304,15 +304,71 @@ function ExCharIntro({ exercise, cfg, submit }) {
   const lower = cfg.lower ?? "";
   const transliteration = cfg.transliteration ?? "";
   const hint = cfg.hint ?? "";
+  const exampleWord = cfg.exampleWord ?? "";
+  const exampleMeaning = cfg.exampleMeaning ?? "";
+  const exampleEmoji = cfg.exampleEmoji ?? "";
+
+  const [playing, setPlaying] = useState(false);
+  const didAutoplayRef = useRef(false);
+
+  async function playLetter() {
+    if (!letter) return;
+    setPlaying(true);
+    try {
+      const url = await ttsFetch(API_BASE, {
+        text: exampleWord || letter,
+        exerciseId: exercise?.id,
+        targetKey: "letter",
+      });
+      const a = newTrackedAudio(url);
+      a.onended = () => setPlaying(false);
+      a.play();
+    } catch (e) {
+      console.error("TTS failed", e);
+      setPlaying(false);
+    }
+  }
+
+  useEffect(() => {
+    didAutoplayRef.current = false;
+  }, [exercise?.id]);
+
+  useEffect(() => {
+    if (didAutoplayRef.current || !letter) return;
+    didAutoplayRef.current = true;
+    playLetter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id, letter]);
 
   return (
     <Card>
       <Title>{prompt || "New letter"}</Title>
 
-      <div className="mt-4 flex items-center justify-between gap-4">
-        <div className="text-5xl md:text-6xl font-black text-slate-900 dark:text-white">{letter}</div>
-        <div className="text-3xl md:text-4xl font-extrabold text-slate-700 dark:text-stone-200">{lower}</div>
-      </div>
+      <button
+        type="button"
+        onClick={playLetter}
+        className="animate-pop mt-4 flex w-full items-center justify-between gap-4 rounded-2xl bg-gradient-to-br from-brand-50 to-white px-6 py-6 ring-2 ring-brand-100 transition active:scale-[0.99] dark:from-brand-500/10 dark:to-white/[0.03] dark:ring-brand-500/30"
+        aria-label="Hear the letter"
+      >
+        <div className="flex items-baseline gap-4">
+          <div className="text-6xl md:text-7xl font-black text-slate-900 dark:text-white">{letter}</div>
+          <div className="text-3xl md:text-4xl font-extrabold text-slate-700 dark:text-stone-200">{lower}</div>
+        </div>
+        <div className={cx(
+          "grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-500 text-white shadow-node transition",
+          playing && "animate-pulse"
+        )}>
+          🔊
+        </div>
+      </button>
+
+      {exampleWord && (
+        <div className="mt-3 flex items-center gap-2 text-lg">
+          <span className="text-2xl">{exampleEmoji}</span>
+          <span className="font-extrabold text-slate-800 dark:text-white">{exampleWord}</span>
+          {exampleMeaning && <span className="text-slate-500 dark:text-stone-400">— {exampleMeaning}</span>}
+        </div>
+      )}
 
       <div className="mt-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-4 dark:bg-white/[0.04] dark:ring-white/[0.08]">
         {transliteration && (

@@ -1638,6 +1638,20 @@ def cms_seed_vocab3(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/enrich-alphabet")
+def cms_seed_enrich_alphabet(request: Request, db=Depends(get_db)):
+    """Adds an example word + emoji to each char_intro in the first 4
+    alphabet lessons (a new customer's very first exercises). UPDATE-based,
+    not insert-only — idempotent per exercise (skips ones already enriched)."""
+    require_cms(request, db)
+    from seed_enrich_alphabet import seed_enrich_alphabet
+    try:
+        res = seed_enrich_alphabet()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/functional")
 def cms_seed_functional(request: Request, db=Depends(get_db)):
     """Functional Conversations — café/shop/phone-call dialogue scenarios
