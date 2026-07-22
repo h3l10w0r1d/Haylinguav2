@@ -1624,6 +1624,19 @@ def cms_seed_vocab2(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/vocab3")
+def cms_seed_vocab3(request: Request, db=Depends(get_db)):
+    """Vocabulary Phase 3 — Jobs, Emotions, Shopping & Money, Dates/Months/
+    Seasons (positions 33-35). Idempotent (skips if hl-jobs exists)."""
+    require_cms(request, db)
+    from seed_vocab3 import seed_vocab3
+    try:
+        res = seed_vocab3()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
