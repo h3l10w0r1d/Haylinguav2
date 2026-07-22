@@ -2215,17 +2215,24 @@ function ExReadingComprehension({ exercise, cfg, onCorrect, onWrong, onSkip, onA
 }
 
 // P) minimal_pairs — "which word did you hear?"
+const _MINIMAL_PAIRS_BUBBLES = [
+  "Listen carefully…", "Tune your ear!", "What do you hear?", "New sound incoming!", "Here it comes…",
+];
+
 function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Which word did you hear?";
   const target = String(cfg.ttsText ?? cfg.text ?? "").trim();
   const choices = getChoices(exercise, cfg);
   const correctIndex = getSingleCorrectIndex(exercise, cfg, choices);
+  const emoji = cfg.emoji ?? "";
+  const meaning = cfg.meaning ?? "";
   const [sel, setSel] = useState(null);
   const [graded, setGraded] = useState(null);
   const [busy, setBusy] = useState(false);
   const didAutoplay = useRef(false);
   useEffect(() => { setSel(null); setGraded(null); didAutoplay.current = false; }, [exercise?.id]);
+  const bubbleText = _MINIMAL_PAIRS_BUBBLES[Number(exercise?.id ?? 0) % _MINIMAL_PAIRS_BUBBLES.length];
 
   async function play(rate = 1) {
     if (!target) return;
@@ -2251,7 +2258,7 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
       <div className="mt-3">
         <SpeechBubbleMascot
           character={mascotCharacter}
-          text="Listen carefully…"
+          text={bubbleText}
           onPlay={() => play(1)}
           onSlow={() => play(0.6)}
           busy={busy}
@@ -2259,6 +2266,14 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
         />
       </div>
       <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} /></div>
+      {graded && emoji ? (
+        <div className="animate-pop mt-4 flex items-center gap-2 rounded-xl bg-feather-50 px-4 py-3 ring-1 ring-feather-100 dark:bg-feather-500/10 dark:ring-feather-500/25">
+          <span className="text-2xl">{emoji}</span>
+          <span className="text-sm font-semibold text-feather-700 dark:text-feather-300">
+            You just heard the word for “{meaning}”!
+          </span>
+        </div>
+      ) : null}
       <FooterSlot>
         <PrimaryButton disabled={sel === null || !!graded} onClick={() => {
           const pick = choices[sel] ?? "";
