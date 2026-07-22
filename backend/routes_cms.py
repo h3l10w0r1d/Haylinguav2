@@ -1610,6 +1610,20 @@ def cms_seed_grammar2(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+
+@router.post("/cms/seed/vocab2")
+def cms_seed_vocab2(request: Request, db=Depends(get_db)):
+    """Vocabulary Phase 2 — four new everyday topic chapters (Home &
+    Objects, Body & Health, Clothing, Weather), positions 29-32. Idempotent
+    (skips if hl-home exists)."""
+    require_cms(request, db)
+    from seed_vocab2 import seed_vocab2
+    try:
+        res = seed_vocab2()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 # ==================== Email diagnostics ====================
 
 @router.get("/cms/email/status")
