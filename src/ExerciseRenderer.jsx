@@ -1405,6 +1405,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   const mrRef = useRef(null);
   const chunksRef = useRef([]);
   const silenceCleanupRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     setRecording(false);
@@ -1415,7 +1416,20 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
     // Auto-start the mic for each new speak exercise instead of waiting for
     // a tap — the learner can start talking the moment the prompt appears.
     startRec();
-    return () => { silenceCleanupRef.current?.(); silenceCleanupRef.current = null; };
+    return () => {
+      silenceCleanupRef.current?.();
+      silenceCleanupRef.current = null;
+      // Drop the onstop handler so leaving mid-recording doesn't fire a
+      // transcribe request for an unmounted exercise, then release the mic
+      // immediately — otherwise the recorder can outlive this component and
+      // the browser's mic indicator stays lit after the learner has left.
+      if (mrRef.current) {
+        mrRef.current.onstop = null;
+        try { mrRef.current.stop(); } catch {}
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise?.id]);
 
@@ -1433,6 +1447,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
+      streamRef.current = stream;
       const mr = new MediaRecorder(stream, { audioBitsPerSecond: 32000 });
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
@@ -1440,6 +1455,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
         silenceCleanupRef.current?.();
         silenceCleanupRef.current = null;
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         if (blob.size) await transcribe(blob);
       };
@@ -2397,12 +2413,25 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
   const mrRef = useRef(null);
   const chunksRef = useRef([]);
   const silenceCleanupRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     setRecording(false); setBusy(false); setTranscript(""); setError(""); setShowHint(false);
     // Auto-start the mic for each new line instead of waiting for a tap.
     startRec();
-    return () => { silenceCleanupRef.current?.(); silenceCleanupRef.current = null; };
+    return () => {
+      silenceCleanupRef.current?.();
+      silenceCleanupRef.current = null;
+      // See ExSpeak's cleanup for why: drop onstop so an unmount mid-
+      // recording doesn't transcribe into nowhere, then release the mic
+      // immediately so it doesn't stay lit after the learner leaves.
+      if (mrRef.current) {
+        mrRef.current.onstop = null;
+        try { mrRef.current.stop(); } catch {}
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise?.id]);
 
@@ -2413,6 +2442,7 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
+      streamRef.current = stream;
       const mr = new MediaRecorder(stream, { audioBitsPerSecond: 32000 });
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data?.size) chunksRef.current.push(e.data); };
@@ -2420,6 +2450,7 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
         silenceCleanupRef.current?.();
         silenceCleanupRef.current = null;
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         if (blob.size) await transcribe(blob);
       };
