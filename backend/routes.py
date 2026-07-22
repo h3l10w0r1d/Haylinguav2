@@ -8382,7 +8382,7 @@ async def me_live_events(
 
 Reading mode and some older exercise kinds still call /tts directly.
 We keep it, but:
-  - default to Eleven v3 model (configurable via ELEVEN_MODEL_ID)
+  - default to Eleven Multilingual v2 (configurable via ELEVEN_EXERCISE_MODEL_ID)
   - cache generated MP3 on disk so repeated requests are instant
 
 ElevenLabs "Create speech" API: POST /v1/text-to-speech/{voice_id}
@@ -8392,11 +8392,14 @@ import hashlib
 from pathlib import Path
 
 
-# Same default as routes_conversation.py's Aram voice — eleven_turbo_v2_5 is
-# optimized for low latency at the cost of naturalness; eleven_v3 sounds far
-# less robotic for Armenian, and using two different models for exercise
-# pronunciation vs. conversation made the "AI voice" feel inconsistent.
-ELEVEN_MODEL_ID = os.getenv("ELEVEN_MODEL_ID", "eleven_v3")
+# Deliberately its own env var (not ELEVEN_MODEL_ID, which routes_conversation.py
+# reads for Aram) — the two features want different models and shouldn't move
+# together if one gets overridden on Render. v3 is tuned for expressive,
+# tag-driven long-form dialogue and is noticeably inconsistent (odd pacing/
+# inflection) on the short isolated words/phrases a pronunciation drill plays —
+# exactly this endpoint's job. Multilingual v2 is ElevenLabs' more stable
+# "just say it clearly" model, which is what a learner needs to hear here.
+ELEVEN_MODEL_ID = os.getenv("ELEVEN_EXERCISE_MODEL_ID", "eleven_multilingual_v2")
 _tts_http = httpx.AsyncClient(
     timeout=httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0),
     limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
@@ -8413,7 +8416,7 @@ def _tts_cache_dir() -> Path:
 # Bump this when voice_settings (or anything else affecting the generated
 # audio) changes, so old cached files — generated with the previous, worse
 # defaults — become orphaned cache misses instead of being served forever.
-_TTS_CACHE_VERSION = "v2"
+_TTS_CACHE_VERSION = "v3"
 
 
 def _tts_cache_key(text_value: str, voice_id: str, model_id: str) -> str:
@@ -8428,15 +8431,16 @@ def _tts_cache_key(text_value: str, voice_id: str, model_id: str) -> str:
     return h.hexdigest()
 
 
-# Same tuning as Aram's conversation voice (routes_conversation.py) — kept in
-# sync manually since the two files can't share a constant without risking a
-# circular import. style=0.0 (the previous bare-defaults behavior before this
-# was added at all) reads as flat/robotic; a modest style weight adds natural
-# inflection without destabilizing the voice.
+# Deliberately different from Aram's conversation voice (routes_conversation.py)
+# now — that tuning favors expressiveness, which is right for dialogue but
+# works against a pronunciation drill: a learner needs to hear the correct
+# sound consistently, not an emotionally-inflected read that varies clip to
+# clip. Higher stability + no style weight trades some naturalness for exactly
+# that consistency/clarity.
 _DEFAULT_TTS_VOICE_SETTINGS = {
-    "stability": 0.45,
+    "stability": 0.7,
     "similarity_boost": 0.8,
-    "style": 0.25,
+    "style": 0.0,
     "use_speaker_boost": True,
 }
 
