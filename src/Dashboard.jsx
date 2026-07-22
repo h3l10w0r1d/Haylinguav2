@@ -817,7 +817,7 @@ function LearningPathNode({ lesson, index, onStart }) {
             ? "bg-brand-500 text-white"
             : done
             ? "bg-grass-500 text-white hover:brightness-105"
-            : "cursor-not-allowed bg-stone-200 text-stone-400 dark:bg-white/[0.06] dark:text-stone-600")
+            : "cursor-not-allowed bg-stone-200 text-stone-400 dark:bg-white/[0.12] dark:text-stone-400")
         }
       >
         {current ? <span className="absolute inset-0 rounded-full bg-brand-400 opacity-60 animate-ping" /> : null}
@@ -832,7 +832,7 @@ function LearningPathNode({ lesson, index, onStart }) {
       <span
         className={
           "mt-1.5 max-w-[6.5rem] truncate text-center text-[11px] font-bold " +
-          (current ? "text-stone-900 dark:text-white" : locked ? "text-stone-300 dark:text-stone-600" : "text-stone-500 dark:text-stone-400")
+          (current ? "text-stone-900 dark:text-white" : locked ? "text-stone-400 dark:text-stone-500" : "text-stone-500 dark:text-stone-400")
         }
       >
         {lesson.title}
@@ -855,12 +855,12 @@ function LearningPathCheckpoint({ unit, complete, onCheckpoint, index }) {
           "grid shrink-0 place-items-center rounded-full transition active:translate-y-1 active:shadow-none " +
           (complete
             ? "bg-amber-500 text-white hover:brightness-105"
-            : "cursor-not-allowed bg-stone-200 text-stone-400 dark:bg-white/[0.06] dark:text-stone-600")
+            : "cursor-not-allowed bg-stone-200 text-stone-400 dark:bg-white/[0.12] dark:text-stone-400")
         }
       >
         <ShieldCheck className="h-7 w-7" />
       </button>
-      <span className={"mt-1.5 text-center text-[11px] font-bold " + (complete ? "text-amber-700 dark:text-amber-400" : "text-stone-300 dark:text-stone-600")}>
+      <span className={"mt-1.5 text-center text-[11px] font-bold " + (complete ? "text-amber-700 dark:text-amber-400" : "text-stone-400 dark:text-stone-500")}>
         Checkpoint
       </span>
     </div>
