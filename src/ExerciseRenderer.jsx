@@ -21,6 +21,7 @@ import { FooterSlot } from "./exercises/FooterSlot";
 import ArmenianKeyboard from "./exercises/ArmenianKeyboard";
 import SpeechBubbleMascot from "./exercises/SpeechBubbleMascot";
 import { mascotFaceUrl } from "./lib/mascotFaces";
+import { translitArmenian } from "./lib/translit";
 
 // Renders a prompt heading with optional inline word-hint tooltips.
 // Glossary is stored in exercise.config.glossary: { "word": "definition" }
@@ -1671,7 +1672,9 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       {transcript ? (
         <div className="mt-3 rounded-2xl bg-feather-50 px-4 py-2.5 ring-1 ring-feather-100 sm:mt-5 sm:py-4 dark:bg-feather-500/10 dark:ring-feather-500/25">
           <div className="text-xs font-bold uppercase tracking-wide text-feather-600 dark:text-feather-300">We heard</div>
-          <div className="mt-0.5 text-lg font-extrabold text-slate-800 dark:text-white">{transcript}</div>
+          <div className="mt-0.5 text-lg font-extrabold text-slate-800 dark:text-white">
+            {hideScript ? translitArmenian(transcript) : transcript}
+          </div>
         </div>
       ) : null}
 
@@ -2657,7 +2660,9 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
       {transcript ? (
         <div className="mt-3 rounded-2xl bg-feather-50 px-4 py-2.5 ring-1 ring-feather-100 sm:mt-5 sm:py-4 dark:bg-feather-500/10 dark:ring-feather-500/25">
           <div className="text-xs font-bold uppercase tracking-wide text-feather-600 dark:text-feather-300">We heard</div>
-          <div className="mt-0.5 text-lg font-extrabold text-slate-800 dark:text-white">{transcript}</div>
+          <div className="mt-0.5 text-lg font-extrabold text-slate-800 dark:text-white">
+            {hideScript ? translitArmenian(transcript) : transcript}
+          </div>
         </div>
       ) : null}
       {error ? <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div> : null}
