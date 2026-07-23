@@ -6,6 +6,7 @@ import { ttsFetch } from "./exercises/tts";
 import { newTrackedAudio } from "./lib/audioRegistry";
 import ArmenianKeyboard from "./exercises/ArmenianKeyboard";
 import SpeechBubbleMascot from "./exercises/SpeechBubbleMascot";
+import { GlossaryText } from "./exercises/WordHint";
 
 const DEFAULT_API_BASE = "https://haylinguav2.onrender.com";
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").trim() || DEFAULT_API_BASE;
@@ -438,11 +439,11 @@ export default function Phase2Exercise({ exercise, registerActions, submit, masc
               character={mascotCharacter}
               text={
                 <>
-                  {blankBefore}{" "}
+                  <GlossaryText text={blankBefore} glossary={cfg?.glossary} />{" "}
                   <span className="rounded-lg bg-white px-2 py-1 ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
                     {cfg?.placeholder ?? "___"}
                   </span>{" "}
-                  {blankAfter}
+                  <GlossaryText text={blankAfter} glossary={cfg?.glossary} />
                 </>
               }
             />
