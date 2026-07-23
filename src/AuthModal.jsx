@@ -69,6 +69,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode, onAuthSuccess }
         username: username.trim() || email.split("@")[0],
         email,
         password,
+        turnstile_token: captchaToken,
       }),
     });
     if (!res.ok) {
@@ -106,6 +107,10 @@ export default function AuthModal({ mode, onClose, onSwitchMode, onAuthSuccess }
       }
       setError(err?.message || "Something went wrong");
     } finally {
+      if ((isLogin && needsCaptcha) || !isLogin) {
+        setCaptchaToken(null);
+        setCaptchaKey((k) => k + 1);
+      }
       setLoading(false);
     }
   }
@@ -165,7 +170,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode, onAuthSuccess }
             </div>
           )}
 
-          {isLogin && needsCaptcha && (
+          {((isLogin && needsCaptcha) || !isLogin) && (
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
               <div className="mb-2 text-sm font-bold text-slate-700 dark:text-stone-200">Security check</div>
               <Turnstile key={captchaKey} onVerify={(t) => { setCaptchaToken(t); if (t) setError(""); }} />
@@ -178,7 +183,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode, onAuthSuccess }
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn3d btn3d-brand w-full justify-center text-sm disabled:opacity-60">
+          <button type="submit" disabled={loading || (!isLogin && !captchaToken)} className="btn3d btn3d-brand w-full justify-center text-sm disabled:opacity-60">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isLogin ? (needs2FA ? "Verify & log in" : "Log in") : "Create account"}
           </button>
         </form>

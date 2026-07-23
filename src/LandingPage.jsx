@@ -1089,7 +1089,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         setError(err?.message || "Something went wrong");
       }
     } finally {
-      if (mode === "login" && needsCaptcha) {
+      if ((mode === "login" && needsCaptcha) || mode === "signup") {
         setCaptchaToken(null);
         setCaptchaKey((k) => k + 1);
       }
@@ -1115,6 +1115,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         email: email.trim(),
         password,
         ref_code: getStoredRefCode(),
+        turnstile_token: captchaToken,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -1344,7 +1345,7 @@ export default function LandingPage({ onLogin, onSignup }) {
               <Field label="2FA code" value={otp} onChange={setOtp} placeholder="6-digit code or recovery" autoComplete="one-time-code" />
             )}
 
-            {mode === "login" && needsCaptcha && (
+            {((mode === "login" && needsCaptcha) || mode === "signup") && (
               <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] p-3 ring-1 ring-slate-200 dark:ring-white/[0.08]">
                 <div className="mb-2 text-xs font-bold text-slate-600 dark:text-stone-300">Security check</div>
                 <Turnstile key={captchaKey} onVerify={(t) => { setCaptchaToken(t); if (t) setError(""); }} />
@@ -1353,7 +1354,7 @@ export default function LandingPage({ onLogin, onSignup }) {
 
             {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
 
-            <button type="submit" disabled={loading} className="btn3d btn3d-brand w-full uppercase">
+            <button type="submit" disabled={loading || (mode === "signup" && !captchaToken)} className="btn3d btn3d-brand w-full uppercase">
               {loading ? "Please wait…" : mode === "login" ? (needs2FA ? "Verify & log in" : "Log in") : "Create account"}
               {!loading && <ArrowRight className="h-4 w-4" />}
             </button>

@@ -845,6 +845,10 @@ class UserCreate(BaseModel):
     # Affiliate attribution — the referral code from localStorage if the
     # visitor arrived via an affiliate link within the last 30 days.
     ref_code: str | None = None
+    # Cloudflare Turnstile token — always required (unlike login's adaptive
+    # captcha-after-failures gate, signup has no "first free attempt" to key
+    # off of, so every signup must pass the challenge).
+    turnstile_token: str | None = None
 
     @field_validator("password")
     @classmethod
@@ -1815,7 +1819,12 @@ class SignupPayload(BaseModel):
     password: str
 
 @router.post("/signup")
-def signup(user: UserCreate, db: Connection = Depends(get_db)):
+def signup(user: UserCreate, request: Request, db: Connection = Depends(get_db)):
+    # 0) CAPTCHA — always required (see UserCreate.turnstile_token comment).
+    ip = _client_ip(request)
+    if not _verify_turnstile((user.turnstile_token or "").strip(), ip):
+        raise HTTPException(status_code=400, detail="Security check failed — please try again")
+
     # 1) clean inputs
     name = (user.name or "").strip() or None
     username = (user.username or "").strip()
