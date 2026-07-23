@@ -65,7 +65,7 @@ export default function ListenType({ exercise, onSubmit, onCheckStateChange }) {
           onPress={() => play(1.0)}
           disabled={playing}
           pressDepth={5}
-          className={'h-20 w-20 items-center justify-center rounded-full ' + (playing ? 'bg-stone-300' : 'bg-brand-500')}
+          className={'h-20 w-20 items-center justify-center rounded-3xl ' + (playing ? 'bg-stone-300' : 'bg-brand-500')}
         >
           {playing ? <ActivityIndicator color="#fff" /> : <Volume2 size={32} color="#fff" />}
         </Pressable3D>
@@ -73,7 +73,7 @@ export default function ListenType({ exercise, onSubmit, onCheckStateChange }) {
           onPress={() => play(0.6)}
           disabled={playing}
           pressDepth={3}
-          className="h-14 w-14 items-center justify-center rounded-full bg-stone-200"
+          className="h-14 w-14 items-center justify-center rounded-2xl bg-stone-200"
         >
           <Turtle size={22} color="#57534e" />
         </Pressable3D>

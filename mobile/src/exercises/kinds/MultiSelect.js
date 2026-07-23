@@ -2,8 +2,10 @@
 // (src/ExerciseRenderer.jsx:1359-1447). "Select all that apply" — ChoiceGrid
 // is single-select only (by its own header comment), so this owns a small
 // dedicated multi-select tile list rather than overloading the shared
-// component every other MCQ kind depends on. Tiles reuse the same chunky
-// "3D lip" look as ChoiceGrid's ChoiceTile for visual consistency.
+// component every other MCQ kind depends on. Same thin-uniform-border look
+// as ChoiceGrid's ChoiceTile (the chunky "3D lip" is reserved for primary
+// CTA buttons, matching the actual Duolingo Figma UI kit) — selected uses
+// feather-blue, same reasoning as ChoiceGrid.
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import { ListChecks, Check } from 'lucide-react-native';
@@ -14,10 +16,10 @@ import ExerciseEyebrow from '../ExerciseEyebrow';
 import { haptics } from '../../lib/haptics';
 
 function tileColors(isRight, isWrongPick, isSelected) {
-  if (isRight) return { bg: '#EFFCE3', border: '#A5E86B', lip: '#58CC02' };
-  if (isWrongPick) return { bg: '#FFECEC', border: '#FF9B9B', lip: '#FF4B4B' };
-  if (isSelected) return { bg: '#FFF5EC', border: '#FFC99E', lip: '#FF7A1A' };
-  return { bg: '#ffffff', border: '#e7e5e4', lip: '#c7c2bd' };
+  if (isRight) return { bg: '#EFFCE3', border: '#58CC02' };
+  if (isWrongPick) return { bg: '#FFECEC', border: '#FF4B4B' };
+  if (isSelected) return { bg: '#E7F7FF', border: '#1CB0F6' };
+  return { bg: '#ffffff', border: '#e7e5e4' };
 }
 
 function MultiTile({ text, disabled, onPress, isRight, isWrongPick, isSelected }) {
@@ -51,11 +53,11 @@ function MultiTile({ text, disabled, onPress, isRight, isWrongPick, isSelected }
       <Pressable3D disabled={disabled} onPress={onPress} hapticOnPress={false}>
         <View
           className="flex-row items-center gap-2 rounded-2xl px-5 py-4"
-          style={{ backgroundColor: colors.bg, borderWidth: 2, borderColor: colors.border, borderBottomWidth: 5, borderBottomColor: colors.lip }}
+          style={{ backgroundColor: colors.bg, borderWidth: 1.5, borderColor: colors.border }}
         >
           <View
             className="h-5 w-5 items-center justify-center rounded-md"
-            style={{ borderWidth: 2, borderColor: isSelected || isRight ? colors.lip : '#d6d3d1', backgroundColor: isSelected || isRight ? colors.lip : 'transparent' }}
+            style={{ borderWidth: 2, borderColor: isSelected || isRight ? colors.border : '#d6d3d1', backgroundColor: isSelected || isRight ? colors.border : 'transparent' }}
           >
             {(isSelected || isRight) && <Check size={13} color="#fff" strokeWidth={3} />}
           </View>

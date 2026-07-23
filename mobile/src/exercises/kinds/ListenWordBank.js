@@ -91,7 +91,7 @@ export default function ListenWordBank({ exercise, onSubmit, onCheckStateChange 
           onPress={() => play(1)}
           disabled={playing || !!graded}
           pressDepth={5}
-          className={'h-16 w-16 items-center justify-center rounded-full ' + (playing ? 'bg-stone-300' : 'bg-brand-500')}
+          className={'h-16 w-16 items-center justify-center rounded-2xl ' + (playing ? 'bg-stone-300' : 'bg-brand-500')}
         >
           {playing ? <ActivityIndicator color="#fff" /> : <Headphones size={26} color="#fff" />}
         </Pressable3D>
@@ -99,7 +99,7 @@ export default function ListenWordBank({ exercise, onSubmit, onCheckStateChange 
           onPress={() => play(0.6)}
           disabled={playing || !!graded}
           pressDepth={3}
-          className="h-12 w-12 items-center justify-center rounded-full bg-stone-200"
+          className="h-12 w-12 items-center justify-center rounded-xl bg-stone-200"
         >
           <Turtle size={20} color="#57534e" />
         </Pressable3D>
@@ -111,7 +111,7 @@ export default function ListenWordBank({ exercise, onSubmit, onCheckStateChange 
             <Text className="text-sm font-semibold text-stone-400">Tap the words you heard…</Text>
           ) : (
             picked.map((p, i) => (
-              <Pressable3D key={p.key} onPress={() => remove(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-brand-500 bg-brand-50 px-3 py-2">
+              <Pressable3D key={p.key} onPress={() => remove(i)} hapticOnPress={false} pressDepth={2} className="rounded-full border border-brand-500 bg-brand-50 px-3 py-2">
                 <Text className="text-base font-bold text-brand-700">{p.t}</Text>
               </Pressable3D>
             ))
@@ -121,7 +121,7 @@ export default function ListenWordBank({ exercise, onSubmit, onCheckStateChange 
 
       <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
         {available.map((p, i) => (
-          <Pressable3D key={p.key} onPress={() => add(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-stone-200 bg-white px-3 py-2">
+          <Pressable3D key={p.key} onPress={() => add(i)} hapticOnPress={false} pressDepth={2} className="rounded-full border border-stone-300 bg-white px-3 py-2">
             <Text className="text-base font-semibold text-stone-800">{p.t}</Text>
           </Pressable3D>
         ))}

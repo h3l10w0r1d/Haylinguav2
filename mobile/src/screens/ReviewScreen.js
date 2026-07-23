@@ -12,11 +12,14 @@ import { api } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
 import { haptics } from '../lib/haptics';
 
+// Brand tokens, not generic Tailwind defaults — cardinal/gold/grass/feather
+// match the same "wrong/caution/correct/info" palette every exercise kind
+// already uses (ChoiceGrid, ExerciseResultBanner), not arbitrary hex.
 const QUALITY = [
-  { value: 1, label: 'Again', text: 'Forgot it', bg: '#EF4444' },
-  { value: 3, label: 'Hard', text: 'Struggled', bg: '#F59E0B' },
-  { value: 4, label: 'Good', text: 'Got it', bg: '#10B981' },
-  { value: 5, label: 'Easy', text: 'Perfect', bg: '#3B82F6' },
+  { value: 1, label: 'Again', text: 'Forgot it', bg: '#FF4B4B' },
+  { value: 3, label: 'Hard', text: 'Struggled', bg: '#FFC800' },
+  { value: 4, label: 'Good', text: 'Got it', bg: '#58CC02' },
+  { value: 5, label: 'Easy', text: 'Perfect', bg: '#1CB0F6' },
 ];
 
 function parseConfig(raw) {
@@ -172,7 +175,7 @@ export default function ReviewScreen({ navigation }) {
           You reviewed <Text className="font-extrabold text-stone-700">{reviewed}</Text> {reviewed === 1 ? 'card' : 'cards'}.
         </Text>
         <Text className="mt-1 text-center text-sm text-stone-400">Cards will return based on how well you knew them.</Text>
-        <Pressable3D onPress={() => navigation.goBack()} className="mt-7 items-center self-stretch rounded-2xl bg-brand-500 py-4">
+        <Pressable3D onPress={() => navigation.goBack()} className="mt-7 items-center self-stretch rounded-full bg-brand-500 py-4">
           <Text className="text-base font-extrabold text-white">Back to dashboard</Text>
         </Pressable3D>
       </SafeAreaView>
@@ -200,7 +203,7 @@ export default function ReviewScreen({ navigation }) {
 
         <View className="mt-6">
           {!revealed ? (
-            <Pressable3D onPress={() => setRevealed(true)} className="items-center rounded-2xl bg-brand-500 py-4">
+            <Pressable3D onPress={() => setRevealed(true)} className="items-center rounded-full bg-brand-500 py-4">
               <Text className="text-base font-extrabold text-white">Reveal answer</Text>
             </Pressable3D>
           ) : (
@@ -210,7 +213,7 @@ export default function ReviewScreen({ navigation }) {
                   <Pressable3D
                     onPress={() => handleQuality(q.value)}
                     disabled={submitting}
-                    className="items-center rounded-2xl py-3"
+                    className="items-center rounded-full py-3"
                     style={{ backgroundColor: q.bg }}
                   >
                     <Text className="text-sm font-extrabold text-white">{q.label}</Text>

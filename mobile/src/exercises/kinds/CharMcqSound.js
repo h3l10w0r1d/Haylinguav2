@@ -68,18 +68,20 @@ export default function CharMcqSound({ exercise, onSubmit, onCheckStateChange })
         </Text>
       )}
 
-      <Pressable3D
-        onPress={play}
-        disabled={playing}
-        pressDepth={2}
-        className={'mt-4 flex-row items-center gap-2 self-start rounded-xl px-4 py-2.5 ' + (playing ? 'bg-stone-200' : 'bg-feather-50')}
-      >
-        {playing ? <ActivityIndicator size="small" color="#1899D6" /> : <Volume2 size={16} color="#1899D6" />}
-        <Text className="text-sm font-bold text-feather-600">{playing ? 'Playing…' : 'Play sound'}</Text>
-      </Pressable3D>
+      <View className="mt-6 items-center">
+        <Pressable3D
+          onPress={play}
+          disabled={playing}
+          pressDepth={5}
+          className={'h-20 w-20 items-center justify-center rounded-3xl ' + (playing ? 'bg-stone-300' : 'bg-brand-500')}
+        >
+          {playing ? <ActivityIndicator color="#fff" /> : <Volume2 size={32} color="#fff" />}
+        </Pressable3D>
+        <Text className="mt-2 text-sm font-bold text-stone-500">{playing ? 'Playing…' : 'Tap to listen again'}</Text>
+      </View>
 
-      <View className="mt-5">
-        <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />
+      <View className="mt-6">
+        <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} columns={2} square />
       </View>
     </View>
   );

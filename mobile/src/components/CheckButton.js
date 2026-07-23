@@ -1,7 +1,8 @@
 // src/components/CheckButton.js — the docked "Check" footer button shared by
-// LessonScreen/CheckpointScreen/PracticeScreen. Gets the same chunky
-// bottom-lip "3D" treatment as ChoiceGrid's tiles and ExerciseResultBanner's
-// Continue button, rather than sitting flat while everything else is raised.
+// LessonScreen/CheckpointScreen/PracticeScreen. Pill-shaped (rounded-full)
+// with a chunky bottom-lip "3D" edge that follows the same curve — matches
+// Duolingo's actual CHECK/CONTINUE button shape (see the Figma UI kit),
+// not a rounded-rectangle.
 import React from 'react';
 import { View, Text } from 'react-native';
 import Pressable3D from './Pressable3D';
@@ -13,7 +14,7 @@ export default function CheckButton({ visible, canCheck, onPress }) {
       <Pressable3D
         onPress={onPress}
         disabled={!canCheck}
-        className="items-center rounded-2xl py-4"
+        className="items-center rounded-full py-4"
         style={{
           backgroundColor: canCheck ? '#FF7A1A' : '#E5E5E5',
           borderBottomWidth: 4,

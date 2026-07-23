@@ -60,7 +60,7 @@ export default function PracticeScreen({ navigation }) {
         </View>
         <Text className="mt-5 text-center text-2xl font-extrabold text-stone-900 font-display">All caught up!</Text>
         <Text className="mt-2 text-center text-base font-semibold text-stone-500">Nothing to practice right now — come back later.</Text>
-        <Pressable3D onPress={() => navigation.goBack()} className="mt-8 items-center self-stretch rounded-2xl bg-brand-500 py-4">
+        <Pressable3D onPress={() => navigation.goBack()} className="mt-8 items-center self-stretch rounded-full bg-brand-500 py-4">
           <Text className="text-base font-extrabold text-white">Back</Text>
         </Pressable3D>
       </SafeAreaView>
@@ -87,7 +87,7 @@ export default function PracticeScreen({ navigation }) {
           </View>
         </View>
         <View className="px-6 pb-6">
-          <Pressable3D onPress={() => navigation.goBack()} className="items-center rounded-2xl bg-brand-500 py-4">
+          <Pressable3D onPress={() => navigation.goBack()} className="items-center rounded-full bg-brand-500 py-4">
             <Text className="text-base font-extrabold text-white">Continue</Text>
           </Pressable3D>
         </View>
@@ -103,10 +103,10 @@ export default function PracticeScreen({ navigation }) {
         <Pressable3D onPress={() => navigation.goBack()} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
           <X size={18} color="#57534e" />
         </Pressable3D>
-        <View className="h-3.5 flex-1 flex-row" style={{ gap: 4 }}>
-          {Array.from({ length: total }).map((_, i) => (
-            <View key={i} className={'h-full flex-1 overflow-hidden rounded-full ' + (i < index ? 'bg-brand-500' : 'bg-stone-200')} />
-          ))}
+        {/* Single continuous progress bar — matches Duolingo's actual lesson
+            header exactly (one smooth fill, not per-question notches). */}
+        <View className="h-3.5 flex-1 overflow-hidden rounded-full bg-stone-200">
+          <View className="h-full rounded-full bg-brand-500" style={{ width: `${total ? (index / total) * 100 : 0}%` }} />
         </View>
         <HeartsBadge />
       </View>

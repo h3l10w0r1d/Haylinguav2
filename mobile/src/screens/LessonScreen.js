@@ -155,13 +155,13 @@ export default function LessonScreen({ route, navigation }) {
         <Pressable3D onPress={() => setShowExitConfirm(true)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
           <X size={18} color="#57534e" />
         </Pressable3D>
-        {/* Segmented progress bar — one thin pill per exercise, filled as you
-            pass it, mirrors Duolingo's per-question notches rather than a
-            single smooth fill. */}
-        <View className="h-3.5 flex-1 flex-row" style={{ gap: 4, position: 'relative' }}>
-          {exercises.map((ex, i) => (
-            <View key={ex.id ?? i} className={'h-full flex-1 overflow-hidden rounded-full ' + (i < index || (i === index && !ExerciseComponent) ? 'bg-brand-500' : 'bg-stone-200')} />
-          ))}
+        {/* Single continuous progress bar — matches Duolingo's actual lesson
+            header exactly (one smooth fill, not per-question notches). */}
+        <View className="h-3.5 flex-1 overflow-hidden rounded-full bg-stone-200" style={{ position: 'relative' }}>
+          <View
+            className="h-full rounded-full bg-brand-500"
+            style={{ width: `${exercises.length ? ((index + (ExerciseComponent ? 0 : 1)) / exercises.length) * 100 : 0}%` }}
+          />
           <Animated.View
             pointerEvents="none"
             style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderRadius: 999 }, progressFlashStyle]}
@@ -177,7 +177,7 @@ export default function LessonScreen({ route, navigation }) {
             <Text className="mt-2 text-center text-sm font-semibold text-stone-500">
               Your progress on this exercise won't be saved if you leave now.
             </Text>
-            <Pressable3D onPress={() => setShowExitConfirm(false)} className="mt-5 items-center rounded-2xl bg-brand-500 py-4">
+            <Pressable3D onPress={() => setShowExitConfirm(false)} className="mt-5 items-center rounded-full bg-brand-500 py-4">
               <Text className="text-base font-extrabold text-white">Keep learning</Text>
             </Pressable3D>
             <Pressable3D

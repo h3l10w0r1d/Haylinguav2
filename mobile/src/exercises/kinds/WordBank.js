@@ -80,7 +80,7 @@ export default function WordBank({ exercise, onSubmit, onCheckStateChange }) {
             <Text className="text-sm font-semibold text-stone-400">Tap words to build your answer…</Text>
           ) : (
             picked.map((p, i) => (
-              <Pressable3D key={p.key} onPress={() => remove(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-brand-500 bg-brand-50 px-3 py-2">
+              <Pressable3D key={p.key} onPress={() => remove(i)} hapticOnPress={false} pressDepth={2} className="rounded-full border border-brand-500 bg-brand-50 px-3 py-2">
                 <Text className="text-base font-bold text-brand-700">{p.t}</Text>
               </Pressable3D>
             ))
@@ -90,7 +90,7 @@ export default function WordBank({ exercise, onSubmit, onCheckStateChange }) {
 
       <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
         {available.map((p, i) => (
-          <Pressable3D key={p.key} onPress={() => add(i)} hapticOnPress={false} pressDepth={2} className="rounded-xl border-2 border-stone-200 bg-white px-3 py-2">
+          <Pressable3D key={p.key} onPress={() => add(i)} hapticOnPress={false} pressDepth={2} className="rounded-full border border-stone-300 bg-white px-3 py-2">
             <Text className="text-base font-semibold text-stone-800">{p.t}</Text>
           </Pressable3D>
         ))}

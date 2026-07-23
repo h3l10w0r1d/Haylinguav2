@@ -101,7 +101,7 @@ export default function ExerciseResultBanner({
         <View className="px-4 pb-4 pt-3">
           <Pressable3D
             onPress={onContinue}
-            className="items-center rounded-2xl py-4"
+            className="items-center rounded-full py-4"
             style={{ backgroundColor: buttonBg, borderBottomWidth: 4, borderBottomColor: buttonLip }}
           >
             <Text className="text-base font-extrabold uppercase tracking-wide text-white">Continue</Text>

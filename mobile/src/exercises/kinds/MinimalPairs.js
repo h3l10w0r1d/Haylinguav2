@@ -64,7 +64,7 @@ export default function MinimalPairs({ exercise, onSubmit, onCheckStateChange })
           onPress={play}
           disabled={playing}
           pressDepth={5}
-          className={'h-20 w-20 items-center justify-center rounded-full ' + (playing ? 'bg-stone-300' : 'bg-brand-500')}
+          className={'h-20 w-20 items-center justify-center rounded-3xl ' + (playing ? 'bg-stone-300' : 'bg-brand-500')}
         >
           {playing ? <ActivityIndicator color="#fff" /> : <Volume2 size={32} color="#fff" />}
         </Pressable3D>
@@ -72,7 +72,7 @@ export default function MinimalPairs({ exercise, onSubmit, onCheckStateChange })
       </View>
 
       <View className="mt-6">
-        <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} />
+        <ChoiceGrid choices={choices} selected={selected} onSelect={setSelected} graded={graded} columns={2} square />
       </View>
     </View>
   );
