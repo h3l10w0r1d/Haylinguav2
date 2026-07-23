@@ -1684,6 +1684,34 @@ def cms_seed_rework_vowels(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/essentials")
+def cms_seed_essentials(request: Request, db=Depends(get_db)):
+    """Essential missing grammar: ունել (to have), ուզել (to want), and noun
+    plurals (-եր/-ներ). Two chapters (positions 37-38). Idempotent (skips if
+    gr-have exists)."""
+    require_cms(request, db)
+    from seed_essentials import seed_essentials
+    try:
+        res = seed_essentials()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/imagewords")
+def cms_seed_imagewords(request: Request, db=Depends(get_db)):
+    """Adds Duolingo-style picture (emoji) word-select exercises to the
+    image-able vocabulary lessons. Idempotent per lesson (skips lessons that
+    already have an image_select)."""
+    require_cms(request, db)
+    from seed_imagewords import seed_imagewords
+    try:
+        res = seed_imagewords()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/hide-prealphabet-script")
 def cms_seed_hide_prealphabet_script(request: Request, db=Depends(get_db)):
     """Marks every speak exercise in the 10 pre-alphabet "Sounds:" lessons

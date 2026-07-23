@@ -2187,7 +2187,8 @@ function ExImageSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
         ? items.findIndex((o) => o?.is_correct)
         : (exercise?.options?.findIndex((o) => o?.is_correct) ?? -1));
   const [sel, setSel] = useState(null);
-  useEffect(() => setSel(null), [exercise?.id]);
+  const [graded, setGraded] = useState(false);
+  useEffect(() => { setSel(null); setGraded(false); }, [exercise?.id]);
 
   return (
     <Card>
@@ -2195,21 +2196,37 @@ function ExImageSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
       <div className="mt-4 grid grid-cols-2 gap-3">
         {items.map((it, i) => {
           const active = sel === i;
+          const isCorrect = graded && i === correctIndex;
+          const isWrongPick = graded && active && i !== correctIndex;
+          const ring = isCorrect
+            ? "ring-grass-500"
+            : isWrongPick
+            ? "ring-cardinal-500"
+            : active
+            ? "ring-brand-400"
+            : "ring-slate-200 hover:ring-brand-300 dark:ring-white/[0.08]";
           return (
-            <button key={i} type="button" onClick={() => setSel(i)}
-              className={"overflow-hidden rounded-2xl ring-2 transition " + (active ? "ring-brand-400" : "ring-slate-200 hover:ring-brand-300")}>
-              <div className="aspect-square w-full bg-slate-50 dark:bg-white/[0.04]">
-                {it?.image ? <img src={exImgUrl(it.image)} alt={it?.label || ""} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-xs font-semibold text-slate-300 dark:text-stone-600">no image</div>}
+            <button key={i} type="button" disabled={graded} onClick={() => setSel(i)}
+              className={"overflow-hidden rounded-2xl ring-2 transition " + ring + (graded ? " pointer-events-none" : "")}>
+              <div className="grid aspect-square w-full place-items-center bg-slate-50 dark:bg-white/[0.04]">
+                {it?.emoji
+                  ? <span className="text-6xl leading-none sm:text-7xl">{it.emoji}</span>
+                  : it?.image
+                  ? <img src={exImgUrl(it.image)} alt={it?.label || ""} className="h-full w-full object-cover" />
+                  : <span className="text-xs font-semibold text-slate-300 dark:text-stone-600">no image</span>}
               </div>
-              {it?.label ? <div className={"px-2 py-1.5 text-center text-sm font-bold " + (active ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300" : "text-slate-700 dark:text-stone-200")}>{it.label}</div> : null}
+              {/* Labels are hidden for picture-select (they'd give the answer);
+                  only shown when a choice deliberately carries a caption. */}
+              {it?.label && !it?.emoji ? <div className={"px-2 py-1.5 text-center text-sm font-bold " + (active ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300" : "text-slate-700 dark:text-stone-200")}>{it.label}</div> : null}
             </button>
           );
         })}
       </div>
       <FooterSlot>
-        <PrimaryButton disabled={sel === null} onClick={() => {
+        <PrimaryButton disabled={sel === null || graded} onClick={() => {
           const it = items[sel] || {};
-          const extra = { selectedIndices: [sel], answerText: it.label || "" };
+          const extra = { selectedIndices: [sel], answerText: it.label || it.emoji || "" };
+          setGraded(true);
           (correctIndex >= 0 && sel === correctIndex) ? correct(extra) : wrong("Not quite. Try again.", extra);
         }}>Check</PrimaryButton>
       </FooterSlot>
