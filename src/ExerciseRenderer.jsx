@@ -1564,6 +1564,11 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       const fd = new FormData();
       fd.append("audio", blob, "speech.webm");
       if (lang) fd.append("language_code", lang);
+      // Lets the backend route short (1-2 word) utterances to Azure and
+      // full sentences to hispeech.ai — A/B tested against real Armenian
+      // recordings in the CMS's STT Lab, neither provider wins both.
+      const targetWordCount = target.trim().split(/\s+/).filter(Boolean).length;
+      if (targetWordCount > 0) fd.append("word_count", String(targetWordCount));
       const res = await fetch(`${API_BASE}/me/exercises/transcribe`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -2583,6 +2588,10 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
     try {
       const token = getToken();
       const fd = new FormData(); fd.append("audio", blob, "speech.webm"); if (lang) fd.append("language_code", lang);
+      // Lets the backend route short (1-2 word) utterances to Azure and
+      // full sentences to hispeech.ai — A/B tested in the CMS's STT Lab.
+      const targetWordCount = target.trim().split(/\s+/).filter(Boolean).length;
+      if (targetWordCount > 0) fd.append("word_count", String(targetWordCount));
       const res = await fetch(`${API_BASE}/me/exercises/transcribe`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd });
       if (!res.ok) { setError("Couldn’t understand that — try again."); return; }
       const data = await res.json().catch(() => null);

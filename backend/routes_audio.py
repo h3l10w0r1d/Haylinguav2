@@ -26,6 +26,9 @@ from routes_conversation import (
     _transcribe_azure_stt,
     HISPEECH_API_KEY,
 )
+from routes import AZURE_SPEECH_KEY, AZURE_SPEECH_REGION
+
+AZURE_SPEECH_CONFIGURED = bool(AZURE_SPEECH_KEY and AZURE_SPEECH_REGION)
 
 router = APIRouter()
 
@@ -690,43 +693,13 @@ def _check_transcribe_rate(user_id: int) -> None:
     _transcribe_calls[user_id].append(now)
 
 
-@router.post("/me/exercises/transcribe")
-async def transcribe_speech(
-    audio: UploadFile = File(...),
-    language_code: Optional[str] = Form(None),
-    user=Depends(get_current_user),  # 🔒 logged-in learners only (STT costs money)
-):
-    """Transcribe a learner's spoken answer — hispeech.ai primary, ElevenLabs Scribe fallback."""
-    # GR-8: Rate-limit before any expensive work.
-    _check_transcribe_rate(int(user["id"]))
-
-    if not HISPEECH_API_KEY and not ELEVEN_API_KEY:
-        raise HTTPException(status_code=400, detail="Speech-to-text is not configured")
-
-    data = await audio.read()
-    if not data:
-        raise HTTPException(status_code=400, detail="Empty audio")
-    if len(data) > MAX_AUDIO_SIZE:
-        raise HTTPException(status_code=400, detail=f"Audio too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
-
-    # GR-8: Validate and sanitize language_code against the allowlist.
-    lang = (language_code or "hye").strip().lower()[:10]
-    if lang not in _ALLOWED_LANG_CODES:
-        lang = "hye"  # default to Eastern Armenian
-
-    # Primary: hispeech.ai (much better Armenian accuracy than ElevenLabs
-    # Scribe alone, which regularly mistranscribes Armenian words as
-    # unrelated English ones). Takes raw bytes directly — no need to host
-    # the file at a public URL first.
-    if lang in ("hye", "hy") and HISPEECH_API_KEY:
-        transcription = await _transcribe_hispeech(data, audio.filename or "speech.webm")
-        if transcription:
-            return {"text": transcription, "language_code": "hye"}
-
+async def _transcribe_elevenlabs_fallback(data: bytes, filename: str, content_type: str, lang: str) -> dict:
+    """Last-resort fallback shared by both the short-utterance and
+    full-sentence paths below."""
     if not ELEVEN_API_KEY:
         raise HTTPException(status_code=400, detail="Speech-to-text is not configured")
 
-    files = {"file": (audio.filename or "speech.webm", data, audio.content_type or "audio/webm")}
+    files = {"file": (filename, data, content_type or "audio/webm")}
     form = {"model_id": ELEVEN_STT_MODEL, "language_code": lang}
 
     try:
@@ -745,6 +718,69 @@ async def transcribe_speech(
 
     j = resp.json() if resp.content else {}
     return {"text": (j.get("text") or "").strip(), "language_code": j.get("language_code")}
+
+
+# A/B tested in the CMS's STT Lab (/cms/stt-lab) on real Armenian recordings:
+# Azure clearly wins on short one-to-two-word utterances, hispeech.ai clearly
+# wins on full sentences. Neither provider is uniformly better — so instead
+# of picking one, route by expected utterance length. The frontend already
+# knows the reference/expected answer for a speaking exercise (see `target`
+# in ExerciseRenderer.jsx), so it sends its word count as a hint; anything
+# without that hint keeps the previous default behavior (hispeech primary).
+SHORT_UTTERANCE_MAX_WORDS = 2
+
+
+@router.post("/me/exercises/transcribe")
+async def transcribe_speech(
+    audio: UploadFile = File(...),
+    language_code: Optional[str] = Form(None),
+    word_count: Optional[int] = Form(None),
+    user=Depends(get_current_user),  # 🔒 logged-in learners only (STT costs money)
+):
+    """Transcribe a learner's spoken answer. Short (1-2 word) utterances go
+    to Azure first; longer/unknown-length ones go to hispeech.ai first —
+    both fall back through the other providers on failure."""
+    # GR-8: Rate-limit before any expensive work.
+    _check_transcribe_rate(int(user["id"]))
+
+    if not HISPEECH_API_KEY and not ELEVEN_API_KEY and not AZURE_SPEECH_CONFIGURED:
+        raise HTTPException(status_code=400, detail="Speech-to-text is not configured")
+
+    data = await audio.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty audio")
+    if len(data) > MAX_AUDIO_SIZE:
+        raise HTTPException(status_code=400, detail=f"Audio too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
+
+    # GR-8: Validate and sanitize language_code against the allowlist.
+    lang = (language_code or "hye").strip().lower()[:10]
+    if lang not in _ALLOWED_LANG_CODES:
+        lang = "hye"  # default to Eastern Armenian
+
+    filename = audio.filename or "speech.webm"
+    is_short_utterance = lang in ("hye", "hy") and word_count is not None and word_count <= SHORT_UTTERANCE_MAX_WORDS
+
+    if is_short_utterance:
+        try:
+            transcription = await _transcribe_azure_stt(data)
+            if transcription and not transcription.startswith("["):
+                return {"text": transcription, "language_code": "hye"}
+        except Exception as e:
+            print(f"[stt] Azure failed on short utterance, falling back: {e}")
+
+    # Primary for everything else (and Azure's fallback above): hispeech.ai —
+    # much better Armenian sentence accuracy than ElevenLabs Scribe alone,
+    # which regularly mistranscribes Armenian words as unrelated English
+    # ones. Takes raw bytes directly — no need to host the file at a public
+    # URL first.
+    if lang in ("hye", "hy") and HISPEECH_API_KEY:
+        transcription = await _transcribe_hispeech(data, filename)
+        if transcription:
+            return {"text": transcription, "language_code": "hye"}
+
+    # Last resort — Azure and/or hispeech either weren't configured, weren't
+    # applicable (non-Armenian), or returned nothing.
+    return await _transcribe_elevenlabs_fallback(data, filename, audio.content_type, lang)
 
 
 async def _transcribe_elevenlabs_scribe(data: bytes, filename: str) -> str:

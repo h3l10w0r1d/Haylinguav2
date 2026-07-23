@@ -1,6 +1,8 @@
 // src/cms/CmsSttLab.jsx — A/B compare STT providers (hispeech.ai, Azure,
-// ElevenLabs Scribe) on the same Armenian recording, before changing which
-// one is the live default in routes_audio.py.
+// ElevenLabs Scribe) on the same Armenian recording. The live endpoint
+// (routes_audio.py's transcribe_speech) already routes by utterance length
+// based on an A/B session here: Azure for 1-2 word answers, hispeech.ai for
+// full sentences, ElevenLabs Scribe as the last-resort fallback for both.
 import { useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Mic, Square, Loader2 } from "lucide-react";
@@ -10,9 +12,9 @@ import CmsLayout from "./CmsLayout";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
 const PROVIDERS = [
-  { key: "hispeech", label: "hispeech.ai", hint: "Armenian-specific — current primary" },
-  { key: "azure", label: "Azure AI Speech", hint: "native hy-AM — same resource as TTS" },
-  { key: "elevenlabs", label: "ElevenLabs Scribe", hint: "current fallback" },
+  { key: "hispeech", label: "hispeech.ai", hint: "live default for full sentences" },
+  { key: "azure", label: "Azure AI Speech", hint: "live default for 1-2 word answers" },
+  { key: "elevenlabs", label: "ElevenLabs Scribe", hint: "last-resort fallback for both" },
 ];
 
 export default function CmsSttLab() {
@@ -94,9 +96,10 @@ export default function CmsSttLab() {
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="rounded-2xl bg-brand-50 p-4 text-sm font-semibold text-brand-800 ring-1 ring-brand-200">
           Record a single word or a full sentence in Armenian, and see what hispeech.ai, Azure AI
-          Speech, and ElevenLabs Scribe each transcribe it as. Try both short single words and full
-          sentences — accuracy on isolated words often behaves very differently from continuous
-          speech. Once you've picked a winner, tell Claude which provider to make the live default.
+          Speech, and ElevenLabs Scribe each transcribe it as. The live app already routes by
+          length (Azure for 1-2 word answers, hispeech.ai for sentences) based on an earlier
+          session here — keep using this to sanity-check that split, or to re-tune the word-count
+          cutoff (SHORT_UTTERANCE_MAX_WORDS in routes_audio.py) if it stops holding up.
         </div>
 
         {error ? (
