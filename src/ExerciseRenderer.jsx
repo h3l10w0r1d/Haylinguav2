@@ -1475,10 +1475,26 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
     setTranscript("");
     setError("");
     setShowHint(false);
-    // Auto-start the mic for each new speak exercise instead of waiting for
-    // a tap — the learner can start talking the moment the prompt appears.
-    startRec();
+    let cancelled = false;
+    // Auto-play the target word/phrase first, then start the mic once
+    // playback finishes — the learner hears it before being asked to
+    // repeat it, instead of having to tap 🔊 themselves. Sequenced (not
+    // parallel) so the mic isn't actively recording while the TTS audio
+    // is playing out loud, which risks it picking itself up.
+    (async () => {
+      const audio = await playTarget();
+      if (cancelled) return;
+      if (audio) {
+        await new Promise((resolve) => {
+          audio.onended = resolve;
+          audio.onerror = resolve;
+          setTimeout(resolve, 4000); // fallback if playback is blocked/stalls
+        });
+      }
+      if (!cancelled) startRec();
+    })();
     return () => {
+      cancelled = true;
       silenceCleanupRef.current?.();
       silenceCleanupRef.current = null;
       // Drop the onstop handler so leaving mid-recording doesn't fire a
@@ -1563,12 +1579,15 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   }
 
   async function playTarget() {
-    if (!target) return;
+    if (!target) return null;
     try {
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
-      newTrackedAudio(url).play();
+      const a = newTrackedAudio(url);
+      a.play();
+      return a;
     } catch (e) {
       console.error("TTS failed", e);
+      return null;
     }
   }
 
@@ -2495,9 +2514,23 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
 
   useEffect(() => {
     setRecording(false); setBusy(false); setTranscript(""); setError(""); setShowHint(false);
-    // Auto-start the mic for each new line instead of waiting for a tap.
-    startRec();
+    let cancelled = false;
+    // Auto-play the line first, then start the mic once playback finishes
+    // — see ExSpeak's effect for why this is sequenced, not parallel.
+    (async () => {
+      const audio = await playLine(target);
+      if (cancelled) return;
+      if (audio) {
+        await new Promise((resolve) => {
+          audio.onended = resolve;
+          audio.onerror = resolve;
+          setTimeout(resolve, 4000);
+        });
+      }
+      if (!cancelled) startRec();
+    })();
     return () => {
+      cancelled = true;
       silenceCleanupRef.current?.();
       silenceCleanupRef.current = null;
       // See ExSpeak's cleanup for why: drop onstop so an unmount mid-
@@ -2554,8 +2587,16 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
     } catch { setError("Network error. Try again."); } finally { setBusy(false); }
   }
   async function playLine(text) {
-    if (!text) return;
-    try { const url = await ttsFetch(apiBaseUrl || API_BASE, { text, exerciseId: exercise?.id }); newTrackedAudio(url).play(); } catch (e) { console.error(e); }
+    if (!text) return null;
+    try {
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text, exerciseId: exercise?.id });
+      const a = newTrackedAudio(url);
+      a.play();
+      return a;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
   }
 
   const canCheck = !!transcript.trim() && !busy && !recording;
