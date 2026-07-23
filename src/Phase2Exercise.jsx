@@ -161,7 +161,11 @@ export default function Phase2Exercise({ exercise, registerActions, submit, masc
     () => getCorrectTextCandidates(exercise, cfg),
     [exercise, cfg]
   );
-  const isMulti = kind === "letter_recognition" || kind === "multi_select";
+  // letter_recognition is single-answer ("Which one is the letter X?") — it
+  // was wrongly bucketed as multi-select, which showed a "Select all that
+  // apply" hint and required a set-match on a one-answer question. Only
+  // multi_select is genuinely pick-all.
+  const isMulti = kind === "multi_select";
 
   const [selected, setSelected] = useState(isMulti ? [] : null);
 
