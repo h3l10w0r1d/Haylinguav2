@@ -8425,6 +8425,12 @@ AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "")
 # Render config — new deploys should set the two below instead.
 AZURE_MALE_VOICE_ID = os.getenv("AZURE_MALE_VOICE_ID", os.getenv("AZURE_VOICE_ID", "hy-AM-HaykNeural"))
 AZURE_FEMALE_VOICE_ID = os.getenv("AZURE_FEMALE_VOICE_ID", "hy-AM-AnahitNeural")
+# hy-AM voices don't support Azure's mstts:express-as styles (that's limited
+# to a handful of major-language voices), so "sounds flat/slow" is fixed with
+# plain SSML prosody instead — a faster rate and a touch of pitch lift reads
+# as noticeably more energetic without distorting pronunciation.
+AZURE_TTS_RATE = os.getenv("AZURE_TTS_RATE", "+12%")
+AZURE_TTS_PITCH = os.getenv("AZURE_TTS_PITCH", "+3%")
 
 
 def _tts_provider_configured() -> str:
@@ -8483,7 +8489,9 @@ async def _generate_azure_tts(text_value: str, voice_name: str) -> bytes:
     url = f"https://{AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
     ssml = (
         "<speak version='1.0' xml:lang='hy-AM'>"
-        f"<voice xml:lang='hy-AM' name='{voice_name}'>{_escape_ssml(text_value)}</voice>"
+        f"<voice xml:lang='hy-AM' name='{voice_name}'>"
+        f"<prosody rate='{AZURE_TTS_RATE}' pitch='{AZURE_TTS_PITCH}'>{_escape_ssml(text_value)}</prosody>"
+        "</voice>"
         "</speak>"
     )
     headers = {
@@ -8512,7 +8520,7 @@ def _tts_cache_dir() -> Path:
 # Bump this when voice_settings (or anything else affecting the generated
 # audio) changes, so old cached files — generated with the previous, worse
 # defaults — become orphaned cache misses instead of being served forever.
-_TTS_CACHE_VERSION = "v4"
+_TTS_CACHE_VERSION = "v5"
 
 
 def _tts_cache_key(text_value: str, provider: str, voice_id: str, model_id: str) -> str:
