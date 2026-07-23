@@ -1698,6 +1698,20 @@ def cms_seed_essentials(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/earlybuild")
+def cms_seed_earlybuild(request: Request, db=Depends(get_db)):
+    """Adds early 'build the sentence' word_bank exercises («Սա X է») to the
+    earliest concrete-noun vocab lessons, so learners assemble a real
+    sentence within their first few lessons. Idempotent per lesson."""
+    require_cms(request, db)
+    from seed_earlybuild import seed_earlybuild
+    try:
+        res = seed_earlybuild()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/imagewords")
 def cms_seed_imagewords(request: Request, db=Depends(get_db)):
     """Adds Duolingo-style picture (emoji) word-select exercises to the
