@@ -13,6 +13,7 @@ import base64
 import json
 import os
 import re
+import subprocess
 import uuid
 from typing import Optional
 
@@ -274,6 +275,53 @@ async def _transcribe_hispeech(audio_bytes: bytes, filename: str = "speech.webm"
     # in the exercise data is stored lowercase, so normalize here once rather
     # than in every caller/grader that compares against it.
     return (data.get("transcription") or "").strip().lower()
+
+
+def _webm_to_wav(audio_bytes: bytes) -> bytes:
+    """Transcode browser-recorded WebM/Opus to 16kHz mono PCM WAV. Azure's
+    short-audio STT REST API only accepts WAV/PCM or OGG/Opus — WebM/Opus
+    (what MediaRecorder produces in every browser we support) is a different
+    container around the same codec, and gets rejected outright without a
+    real decode+re-encode first. Requires ffmpeg on PATH (see Dockerfile)."""
+    proc = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", "pipe:0",
+         "-ar", "16000", "-ac", "1", "-f", "wav", "pipe:1"],
+        input=audio_bytes, capture_output=True, timeout=15,
+    )
+    if proc.returncode != 0 or not proc.stdout:
+        raise RuntimeError(f"ffmpeg transcode failed: {proc.stderr[:300]!r}")
+    return proc.stdout
+
+
+async def _transcribe_azure_stt(audio_bytes: bytes) -> str:
+    """Transcribe via Azure AI Speech's short-audio REST API — the same
+    Speech resource already used for TTS (see routes.py), so no separate
+    account/keys needed. Raises on failure rather than swallowing errors,
+    since this is currently only used by the CMS's A/B comparison tool,
+    where a visible error is more useful than a silent empty result."""
+    from routes import _get_azure_token, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION
+
+    if not AZURE_SPEECH_KEY or not AZURE_SPEECH_REGION:
+        raise RuntimeError("Azure Speech not configured on server")
+
+    wav_bytes = _webm_to_wav(audio_bytes)
+    token = await _get_azure_token()
+    url = f"https://{AZURE_SPEECH_REGION}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1"
+    params = {"language": "hy-AM", "format": "simple"}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000",
+        "Accept": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        r = await client.post(url, params=params, headers=headers, content=wav_bytes)
+    if r.status_code != 200:
+        raise RuntimeError(f"Azure STT error ({r.status_code}): {(r.text or '')[:300]}")
+    data = r.json()
+    status = data.get("RecognitionStatus")
+    if status != "Success":
+        return f"[{status}]"
+    return (data.get("DisplayText") or "").strip()
 
 
 

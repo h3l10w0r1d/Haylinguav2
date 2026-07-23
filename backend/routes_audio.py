@@ -23,6 +23,7 @@ from auth import get_current_user
 # than duplicating it.
 from routes_conversation import (
     _transcribe_hispeech,
+    _transcribe_azure_stt,
     HISPEECH_API_KEY,
 )
 
@@ -744,3 +745,58 @@ async def transcribe_speech(
 
     j = resp.json() if resp.content else {}
     return {"text": (j.get("text") or "").strip(), "language_code": j.get("language_code")}
+
+
+async def _transcribe_elevenlabs_scribe(data: bytes, filename: str) -> str:
+    """Standalone ElevenLabs Scribe call for the CMS comparison tool below —
+    kept separate from transcribe_speech's inline version so this endpoint
+    can't regress the live learner-facing transcribe flow."""
+    if not ELEVEN_API_KEY:
+        raise RuntimeError("ElevenLabs not configured on server")
+    resp = await _http.post(
+        f"{ELEVEN_API_URL}/speech-to-text",
+        headers={"xi-api-key": ELEVEN_API_KEY},
+        data={"model_id": ELEVEN_STT_MODEL, "language_code": "hye"},
+        files={"file": (filename, data, "audio/webm")},
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"ElevenLabs Scribe error ({resp.status_code}): {(resp.text or '')[:300]}")
+    j = resp.json() if resp.content else {}
+    return (j.get("text") or "").strip()
+
+
+# ── CMS: A/B compare STT providers on the same recording ──────────────────────
+@router.post("/cms/stt/compare", dependencies=CMS_AUTH)
+async def cms_stt_compare(audio: UploadFile = File(...)):
+    """Run the same clip through every configured STT provider so an admin
+    can judge accuracy side by side before changing the live default. Each
+    provider is independently try/excepted — one failing (e.g. Azure not yet
+    configured) shouldn't hide the others' results."""
+    data = await audio.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty audio")
+
+    results = {}
+
+    if HISPEECH_API_KEY:
+        try:
+            results["hispeech"] = await _transcribe_hispeech(data, audio.filename or "speech.webm")
+        except Exception as e:
+            results["hispeech"] = f"[error: {e}]"
+    else:
+        results["hispeech"] = "[not configured]"
+
+    try:
+        results["azure"] = await _transcribe_azure_stt(data)
+    except Exception as e:
+        results["azure"] = f"[error: {e}]"
+
+    if ELEVEN_API_KEY:
+        try:
+            results["elevenlabs"] = await _transcribe_elevenlabs_scribe(data, audio.filename or "speech.webm")
+        except Exception as e:
+            results["elevenlabs"] = f"[error: {e}]"
+    else:
+        results["elevenlabs"] = "[not configured]"
+
+    return results

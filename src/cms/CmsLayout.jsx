@@ -1,7 +1,7 @@
 // src/cms/CmsLayout.jsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { BookOpen, Layers, LifeBuoy, Users, LogOut, ChevronRight, Trophy, Store, BarChart2, Settings, Shield, Mic2, Crown, Briefcase, MessagesSquare, Percent } from "lucide-react";
+import { BookOpen, Layers, LifeBuoy, Users, LogOut, ChevronRight, Trophy, Store, BarChart2, Settings, Shield, Mic2, Mic, Crown, Briefcase, MessagesSquare, Percent } from "lucide-react";
 import { getCmsToken } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -17,6 +17,7 @@ const NAV = [
   { key: "forum", label: "Community", icon: MessagesSquare, to: "/cms/forum" },
   { key: "analytics", label: "Analytics", icon: BarChart2, to: "/cms/analytics" },
   { key: "voice-lab", label: "Voice Lab", icon: Mic2, to: "/cms/voice-lab" },
+  { key: "stt-lab", label: "STT Lab", icon: Mic, to: "/cms/stt-lab" },
   { key: "learners", label: "Learners", icon: LifeBuoy, to: "/cms/support" },
   { key: "team", label: "Team", icon: Users, to: "/cms/team" },
 ];

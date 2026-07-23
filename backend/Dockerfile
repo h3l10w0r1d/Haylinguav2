@@ -8,8 +8,11 @@ FROM python:3.12-slim AS base
 # no compiler toolchain is needed at runtime. libpq5 is still required at
 # runtime for psycopg2-binary's bundled libpq to link against on some slim
 # images; installing it explicitly avoids relying on an implicit transitive dep.
+# ffmpeg: Azure Speech-to-Text's REST API only accepts WAV/PCM or OGG/Opus —
+# browser recordings come in as WebM/Opus (a different container, same
+# codec), which Azure rejects outright. Used to transcode before forwarding.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq5 \
+    && apt-get install -y --no-install-recommends libpq5 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
