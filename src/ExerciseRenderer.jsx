@@ -1452,6 +1452,12 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   const target = String(exercise?.expected_answer ?? cfg.answer ?? cfg.target ?? cfg.phrase ?? "").trim();
   const lang = cfg.language_code || cfg.lang || "hye";
   const hint = String(cfg.transliteration || cfg.romanization || "").trim();
+  // Lessons before the alphabet is taught (the "Sounds:" chapters) mark
+  // their exercises hideScript so the bubble headline is the romanized
+  // hint, not the raw Armenian script — showing untaught letters as the
+  // thing to read would contradict those lessons' own "you haven't
+  // learned the letters yet" framing.
+  const hideScript = !!cfg.hideScript;
 
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1591,9 +1597,9 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
                 🔊
               </button>
               <div className="min-w-0 flex-1 text-xl font-extrabold text-slate-800 dark:text-white">
-                <GlossaryText text={target} glossary={cfg.glossary} />
+                {hideScript && hint ? hint : <GlossaryText text={target} glossary={cfg.glossary} />}
               </div>
-              {hint ? (
+              {hint && !hideScript ? (
                 <button
                   type="button"
                   onClick={() => setShowHint((v) => !v)}
@@ -1604,7 +1610,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
                 </button>
               ) : null}
             </div>
-            {showHint && hint ? (
+            {showHint && hint && !hideScript ? (
               <div className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">
                 Sounds like: <span className="text-slate-700 dark:text-stone-200">{hint}</span>
               </div>
@@ -2475,6 +2481,7 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
   const target = String(exercise?.expected_answer ?? cfg.target ?? cfg.answer ?? "").trim();
   const lang = cfg.language_code || cfg.lang || "hye";
   const hint = String(cfg.transliteration || cfg.romanization || "").trim();
+  const hideScript = !!cfg.hideScript; // see ExSpeak — pre-alphabet lessons only
 
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -2572,10 +2579,10 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-stone-500">Your line</div>
-              <div className="text-xl font-extrabold text-slate-900 dark:text-white">{target}</div>
+              <div className="text-xl font-extrabold text-slate-900 dark:text-white">{hideScript && hint ? hint : target}</div>
             </div>
             <div className="flex shrink-0 gap-2">
-              {hint ? (
+              {hint && !hideScript ? (
                 <button type="button" onClick={() => setShowHint((v) => !v)} className="btn3d btn3d-neutral text-sm" aria-label="Show pronunciation hint">
                   💬 {showHint ? "Hide" : "Hint"}
                 </button>
@@ -2583,7 +2590,7 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
               <button type="button" onClick={() => playLine(target)} className="btn3d btn3d-neutral text-sm">🔊 Listen</button>
             </div>
           </div>
-          {showHint && hint ? (
+          {showHint && hint && !hideScript ? (
             <div className="mt-3 text-sm font-semibold text-slate-500 dark:text-stone-400">
               Sounds like: <span className="text-slate-700 dark:text-stone-200">{hint}</span>
             </div>

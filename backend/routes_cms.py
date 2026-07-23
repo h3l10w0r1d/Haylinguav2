@@ -1684,6 +1684,21 @@ def cms_seed_rework_vowels(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/hide-prealphabet-script")
+def cms_seed_hide_prealphabet_script(request: Request, db=Depends(get_db)):
+    """Marks every speak exercise in the 10 pre-alphabet "Sounds:" lessons
+    with cfg.hideScript = true, so ExSpeak/ExSpeakLine show the romanized
+    transliteration instead of untaught Armenian script as the thing to
+    read aloud. Idempotent (skips exercises that already have the key)."""
+    require_cms(request, db)
+    from seed_hide_prealphabet_script import seed_hide_prealphabet_script
+    try:
+        res = seed_hide_prealphabet_script()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/functional")
 def cms_seed_functional(request: Request, db=Depends(get_db)):
     """Functional Conversations — café/shop/phone-call dialogue scenarios
