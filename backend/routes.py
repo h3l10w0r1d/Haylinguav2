@@ -1375,6 +1375,7 @@ class TTSPayload(BaseModel):
     voice_id: str | None = None
     model_id: str | None = None
     voice_settings: dict | None = None  # optional override, used by the CMS voice-preview tool
+    voice: str | None = None  # "male" | "female" — the learner's onboarding/profile voice preference
 
 
 
@@ -8420,7 +8421,10 @@ _tts_http = httpx.AsyncClient(
 # dev), and the CMS voice-lab can still compare both.
 AZURE_SPEECH_KEY = os.getenv("AZURE_SPEECH_KEY", "")
 AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "")
-AZURE_VOICE_ID = os.getenv("AZURE_VOICE_ID", "hy-AM-HaykNeural")
+# AZURE_VOICE_ID kept as the male fallback for back-compat with any existing
+# Render config — new deploys should set the two below instead.
+AZURE_MALE_VOICE_ID = os.getenv("AZURE_MALE_VOICE_ID", os.getenv("AZURE_VOICE_ID", "hy-AM-HaykNeural"))
+AZURE_FEMALE_VOICE_ID = os.getenv("AZURE_FEMALE_VOICE_ID", "hy-AM-AnahitNeural")
 
 
 def _tts_provider_configured() -> str:
@@ -8428,6 +8432,17 @@ def _tts_provider_configured() -> str:
     if AZURE_SPEECH_KEY and AZURE_SPEECH_REGION:
         return "azure"
     return "elevenlabs"
+
+
+def _azure_voice_for(gender: str | None) -> str:
+    """Map the learner's onboarding/profile voice preference to an Azure
+    voice. "Random" is resolved client-side (same as the CMS pre-recorded
+    audio path already does) — an unrecognized/missing value here just
+    falls back to the male voice rather than erroring."""
+    g = (gender or "").strip().lower()
+    if g == "female":
+        return AZURE_FEMALE_VOICE_ID
+    return AZURE_MALE_VOICE_ID
 
 
 # Azure's issued auth tokens last 10 minutes; cache one in memory and refresh
@@ -8545,7 +8560,7 @@ async def tts_speak(payload: TTSPayload):
     if provider == "elevenlabs" and not ELEVEN_API_KEY:
         raise HTTPException(status_code=500, detail="TTS not configured on server")
 
-    voice_id = payload.voice_id or (AZURE_VOICE_ID if provider == "azure" else DEFAULT_VOICE_ID)
+    voice_id = payload.voice_id or (_azure_voice_for(payload.voice) if provider == "azure" else DEFAULT_VOICE_ID)
     model_id = payload.model_id or ELEVEN_MODEL_ID
     voice_settings = payload.voice_settings or _DEFAULT_TTS_VOICE_SETTINGS
     # Only cache the standard (no custom settings) path — preview/comparison
@@ -8563,7 +8578,7 @@ async def tts_speak(payload: TTSPayload):
 # narrower than the POST route: no voice_settings override, since that's
 # only used by the CMS's internal voice-preview/comparison tool.
 @router.get("/tts", response_class=Response)
-async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | None = None):
+async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | None = None, voice: str | None = None):
     text_value = (text or "").strip()
     if not text_value:
         raise HTTPException(status_code=400, detail="Text is empty")
@@ -8572,7 +8587,7 @@ async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | 
     if provider == "elevenlabs" and not ELEVEN_API_KEY:
         raise HTTPException(status_code=500, detail="TTS not configured on server")
 
-    resolved_voice_id = voice_id or (AZURE_VOICE_ID if provider == "azure" else DEFAULT_VOICE_ID)
+    resolved_voice_id = voice_id or (_azure_voice_for(voice) if provider == "azure" else DEFAULT_VOICE_ID)
     resolved_model_id = model_id or ELEVEN_MODEL_ID
     cacheable = not model_id
 

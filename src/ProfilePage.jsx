@@ -574,6 +574,7 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
+        try { localStorage.setItem("hay_voice_pref", computedVoicePref || "Random"); } catch {}
         if (avatarUrlToSave) {
           // Update preview immediately using resolved URL (fixes broken preview after refresh).
           if (avatarObjectUrlRef.current) {

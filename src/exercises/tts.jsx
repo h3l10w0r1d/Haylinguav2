@@ -70,15 +70,15 @@ async function tryFetchTargetAudio(base, exerciseId, targetKey, voice) {
   return bufferToObjectUrl(buffer, ct);
 }
 
-async function fetchLegacyTts(base, text) {
-  const cacheKey = `tts:${text}`;
+async function fetchLegacyTts(base, text, voice) {
+  const cacheKey = `tts:${voice || ""}:${text}`;
   if (_dataCache.has(cacheKey)) {
     return bufferToObjectUrl(_dataCache.get(cacheKey).buf, _dataCache.get(cacheKey).ct);
   }
   const res = await fetch(`${base}/tts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, voice: voice || undefined }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const ct = res.headers.get("content-type") || "audio/mpeg";
@@ -98,19 +98,23 @@ async function fetchLegacyTts(base, text) {
 export async function ttsFetch(apiBaseUrl, input) {
   const base = getBase(apiBaseUrl);
 
-  // Backward-compatible: ttsFetch(baseUrl, "text")
+  // Backward-compatible: ttsFetch(baseUrl, "text") — still honor the
+  // learner's stored voice preference rather than always defaulting.
   if (typeof input === "string") {
-    return fetchLegacyTts(base, input);
+    const pref = localStorage.getItem("hay_voice_pref") ?? "";
+    const [firstChoice] = voiceCandidates(pref);
+    return fetchLegacyTts(base, input, firstChoice);
   }
 
   const text = input?.text ?? "";
   const exerciseId = input?.exerciseId;
   const targetKey = input?.targetKey;
   const voicePref = input?.voice ?? localStorage.getItem("hay_voice_pref") ?? "";
+  const candidates = voiceCandidates(voicePref);
 
   // 1) Prefer stored CMS audio if exerciseId provided
   if (exerciseId) {
-    for (const v of voiceCandidates(voicePref)) {
+    for (const v of candidates) {
       if (targetKey) {
         const tu = await tryFetchTargetAudio(base, exerciseId, targetKey, v);
         if (tu) return tu;
@@ -120,7 +124,8 @@ export async function ttsFetch(apiBaseUrl, input) {
     }
   }
 
-  // 2) Fallback: legacy /tts
+  // 2) Fallback: legacy /tts — same resolved voice (first candidate; for
+  // "random" prefs that's already a per-call coin flip from voiceCandidates)
   if (!text) throw new Error("Missing text");
-  return fetchLegacyTts(base, text);
+  return fetchLegacyTts(base, text, candidates[0]);
 }
