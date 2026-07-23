@@ -36,4 +36,41 @@ export function getSingleCorrectIndex(exercise, cfg, choices) {
   return null;
 }
 
+// For multi-select: read correct indices from DB options OR cfg. Ports
+// getCorrectIndices from src/ExerciseRenderer.jsx.
+export function getCorrectIndices(exercise, cfg, choices) {
+  const opts = Array.isArray(exercise?.options) ? exercise.options : [];
+  if (opts.length) {
+    const idxs = [];
+    opts.forEach((o, i) => {
+      if (o?.is_correct) idxs.push(i);
+    });
+    return idxs;
+  }
+
+  if (Array.isArray(cfg.correctIndices)) return cfg.correctIndices.map((n) => Number(n));
+
+  if (Array.isArray(cfg.correctAnswers)) {
+    return cfg.correctAnswers
+      .map((ans) => choices.findIndex((c) => normalizeText(c) === normalizeText(ans)))
+      .filter((i) => i >= 0);
+  }
+
+  const expected = exercise?.expected_answer;
+  if (typeof expected === 'string' && expected.trim().startsWith('[')) {
+    try {
+      const arr = JSON.parse(expected);
+      if (Array.isArray(arr)) {
+        return arr
+          .map((ans) => choices.findIndex((c) => normalizeText(c) === normalizeText(ans)))
+          .filter((i) => i >= 0);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return [];
+}
+
 export { normalizeText };

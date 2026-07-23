@@ -18,6 +18,21 @@ import SentenceOrder from './kinds/SentenceOrder';
 import Speak from './kinds/Speak';
 import ListenType from './kinds/ListenType';
 import WriteTranslate from './kinds/WriteTranslate';
+import CharMcqSound from './kinds/CharMcqSound';
+import LetterTyping from './kinds/LetterTyping';
+import WordSpelling from './kinds/WordSpelling';
+import FillBlank from './kinds/FillBlank';
+import MultiSelect from './kinds/MultiSelect';
+import ListenWordBank from './kinds/ListenWordBank';
+import DialogueMcq from './kinds/DialogueMcq';
+import DialogueOrder from './kinds/DialogueOrder';
+import ImageSelect from './kinds/ImageSelect';
+import ReadingComprehension from './kinds/ReadingComprehension';
+import Flashcard from './kinds/Flashcard';
+import Categorize from './kinds/Categorize';
+import HighlightGrammar from './kinds/HighlightGrammar';
+import Conjugation from './kinds/Conjugation';
+import SpeakLine from './kinds/SpeakLine';
 import Pressable3D from '../components/Pressable3D';
 
 export const SUPPORTED_KINDS = {
@@ -35,6 +50,21 @@ export const SUPPORTED_KINDS = {
   speak: Speak,
   listen_type: ListenType,
   write_translate: WriteTranslate,
+  char_mcq_sound: CharMcqSound,
+  letter_typing: LetterTyping,
+  word_spelling: WordSpelling,
+  fill_blank: FillBlank,
+  multi_select: MultiSelect,
+  listen_word_bank: ListenWordBank,
+  dialogue_mcq: DialogueMcq,
+  dialogue_order: DialogueOrder,
+  image_select: ImageSelect,
+  reading_comprehension: ReadingComprehension,
+  flashcard: Flashcard,
+  categorize: Categorize,
+  highlight_grammar: HighlightGrammar,
+  conjugation: Conjugation,
+  speak_line: SpeakLine,
 };
 
 export function UnsupportedKindFallback({ kind, onAdvance }) {
