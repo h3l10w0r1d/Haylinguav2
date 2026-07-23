@@ -1639,18 +1639,18 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
             src={mascotFaceUrl(mascotCharacter, "neutral")}
             alt=""
             aria-hidden="true"
-            className="mt-3 h-40 w-40 object-contain sm:h-48 sm:w-48"
+            className="mt-2 h-28 w-28 object-contain sm:mt-3 sm:h-44 sm:w-44"
           />
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-col items-center">
+      <div className="mt-3 flex flex-col items-center sm:mt-5">
         <button
           type="button"
           onClick={recording ? stopRec : startRec}
           disabled={busy}
           className={
-            "relative grid h-20 w-20 place-items-center rounded-3xl text-white shadow-node transition active:translate-y-1 " +
+            "relative grid h-16 w-16 place-items-center rounded-3xl text-white shadow-node transition active:translate-y-1 sm:h-20 sm:w-20 " +
             (recording ? "bg-cardinal-500" : busy ? "bg-slate-300" : "bg-brand-500")
           }
           aria-label={recording ? "Stop recording" : "Start recording"}
@@ -1661,7 +1661,7 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
               <span className="absolute -inset-2 rounded-[1.75rem] ring-4 ring-cardinal-200" />
             </>
           )}
-          <Mic className="relative h-8 w-8" strokeWidth={2.5} />
+          <Mic className="relative h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.5} />
         </button>
         <div className="mt-2 text-sm font-bold text-slate-500">
           {recording ? "Listening…" : busy ? "Transcribing…" : "Tap the mic to speak"}
@@ -1669,9 +1669,9 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       </div>
 
       {transcript ? (
-        <div className="mt-5 rounded-2xl bg-feather-50 p-4 ring-1 ring-feather-100 dark:bg-feather-500/10 dark:ring-feather-500/25">
+        <div className="mt-3 rounded-2xl bg-feather-50 px-4 py-2.5 ring-1 ring-feather-100 sm:mt-5 sm:py-4 dark:bg-feather-500/10 dark:ring-feather-500/25">
           <div className="text-xs font-bold uppercase tracking-wide text-feather-600 dark:text-feather-300">We heard</div>
-          <div className="mt-1 text-lg font-extrabold text-slate-800 dark:text-white">{transcript}</div>
+          <div className="mt-0.5 text-lg font-extrabold text-slate-800 dark:text-white">{transcript}</div>
         </div>
       ) : null}
 
@@ -2639,9 +2639,9 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-col items-center">
+      <div className="mt-3 flex flex-col items-center sm:mt-5">
         <button type="button" onClick={recording ? stopRec : startRec} disabled={busy}
-          className={"relative grid h-20 w-20 place-items-center rounded-3xl text-white shadow-node transition active:translate-y-1 " + (recording ? "bg-cardinal-500" : busy ? "bg-slate-300" : "bg-brand-500")}
+          className={"relative grid h-16 w-16 place-items-center rounded-3xl text-white shadow-node transition active:translate-y-1 sm:h-20 sm:w-20 " + (recording ? "bg-cardinal-500" : busy ? "bg-slate-300" : "bg-brand-500")}
           aria-label={recording ? "Stop" : "Record"}>
           {recording && (
             <>
@@ -2649,15 +2649,15 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
               <span className="absolute -inset-2 rounded-[1.75rem] ring-4 ring-cardinal-200" />
             </>
           )}
-          <Mic className="relative h-8 w-8" strokeWidth={2.5} />
+          <Mic className="relative h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.5} />
         </button>
         <div className="mt-2 text-sm font-bold text-slate-500">{recording ? "Listening…" : busy ? "Transcribing…" : "Tap the mic to speak"}</div>
       </div>
 
       {transcript ? (
-        <div className="mt-5 rounded-2xl bg-feather-50 p-4 ring-1 ring-feather-100 dark:bg-feather-500/10 dark:ring-feather-500/25">
+        <div className="mt-3 rounded-2xl bg-feather-50 px-4 py-2.5 ring-1 ring-feather-100 sm:mt-5 sm:py-4 dark:bg-feather-500/10 dark:ring-feather-500/25">
           <div className="text-xs font-bold uppercase tracking-wide text-feather-600 dark:text-feather-300">We heard</div>
-          <div className="mt-1 text-lg font-extrabold text-slate-800 dark:text-white">{transcript}</div>
+          <div className="mt-0.5 text-lg font-extrabold text-slate-800 dark:text-white">{transcript}</div>
         </div>
       ) : null}
       {error ? <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div> : null}
