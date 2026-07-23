@@ -4621,7 +4621,12 @@ def explain_mistake(
                 "Content-Type": "application/json",
             },
             json={
-                "model": "gpt-4o",
+                # gpt-4o-mini: this is a templated 2-sentence explanation of an
+                # already-known mismatch, not open-ended generation — mini is
+                # ~16x cheaper and plenty for it, and results are cached globally
+                # per (exercise_id, answer_norm) anyway so this only runs once
+                # per distinct wrong answer.
+                "model": "gpt-4o-mini",
                 "max_tokens": 120,
                 "temperature": 0.4,
                 "messages": [
@@ -4719,7 +4724,9 @@ def me_word_hint(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {_EXPLAIN_OPENAI_KEY}", "Content-Type": "application/json"},
             json={
-                "model": "gpt-4o",
+                # gpt-4o-mini: a 1-4 word dictionary gloss, cached forever per
+                # word afterward — full gpt-4o quality isn't needed here.
+                "model": "gpt-4o-mini",
                 "max_tokens": 40,
                 "temperature": 0.2,
                 "messages": [
