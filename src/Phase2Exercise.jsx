@@ -599,7 +599,17 @@ export default function Phase2Exercise({ exercise, registerActions, submit, masc
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Column count is kind-aware: true_false is a 2-up True|False row;
+          short letter tiles stay a grid; single-answer text MCQs (e.g.
+          translate_mcq) are a Duolingo-style single-column vertical list. */}
+      <div className={
+        "mt-5 grid gap-3 " +
+        (kind === "true_false" || kind === "letter_recognition" || kind === "char_mcq_sound"
+          ? "grid-cols-2"
+          : isMulti
+          ? "grid-cols-1 sm:grid-cols-2"
+          : "grid-cols-1")
+      }>
         {mcqChoices.map((c, idx) => {
           const active = isMulti
             ? Array.isArray(selected) && selected.includes(idx)
@@ -626,22 +636,19 @@ export default function Phase2Exercise({ exercise, registerActions, submit, masc
                   }
                 }
               }}
-              className={"tile text-lg " + (active ? "tile-selected" : "")}
+              className={"tile tile-choice text-lg " + (active ? "tile-selected" : "")}
             >
-              <div className="flex items-center gap-3">
-                <div
-                  className={
-                    "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-extrabold ring-2 " +
-                    (active ? "bg-feather-500 text-white ring-feather-500" : "bg-white text-slate-400 ring-slate-200 dark:bg-[#18181b] dark:text-stone-500 dark:ring-white/[0.08]")
-                  }
-                >
-                  {idx + 1}
-                </div>
-                <div className="leading-snug">{c}</div>
-              </div>
-              {isMulti && active ? (
-                <div className="mt-2 text-xs font-bold text-feather-700 dark:text-feather-400">Selected</div>
-              ) : null}
+              {/* Keyboard-shortcut number: desktop-only, absolutely
+                  positioned so the label stays centered on mobile. */}
+              <span
+                className={
+                  "absolute left-3 top-1/2 hidden h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-xs font-extrabold ring-2 sm:grid " +
+                  (active ? "bg-feather-500 text-white ring-feather-500" : "bg-white text-slate-400 ring-slate-200 dark:bg-[#18181b] dark:text-stone-500 dark:ring-white/[0.08]")
+                }
+              >
+                {idx + 1}
+              </span>
+              <span className="block text-center leading-snug">{c}</span>
             </button>
           );
         })}
@@ -652,7 +659,7 @@ export default function Phase2Exercise({ exercise, registerActions, submit, masc
           Select all that apply.
         </div>
       ) : (
-        <div className="mt-4 text-xs text-slate-500 dark:text-stone-400">
+        <div className="mt-4 hidden text-xs text-slate-500 sm:block dark:text-stone-400">
           Tip: press 1–9 to choose, Enter to check.
         </div>
       )}

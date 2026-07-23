@@ -64,6 +64,13 @@
     box-shadow: 0 3px 0 0 #E2E8F0;
   }
   .dark .tile { box-shadow: 0 3px 0 0 rgba(255,255,255,0.08); }
+  /* Duolingo-style MCQ tile: clean centered text, roomy tap target. The
+     select/keyboard badge is absolutely positioned so it never shifts the
+     centered label. */
+  .tile-choice {
+    @apply flex items-center justify-center text-center;
+    min-height: 3.75rem;
+  }
   .tile-selected {
     @apply bg-feather-50 text-feather-700 ring-feather-400 dark:bg-feather-500/15 dark:text-feather-300;
     box-shadow: 0 3px 0 0 #4EC2FF;

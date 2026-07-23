@@ -85,12 +85,15 @@ export function SecondaryButton({ children, onClick, disabled, className, type =
  *    tiles turn green (✓), an incorrectly-picked tile turns red (✕).
  */
 export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = false, graded = null }) {
+  // Short-option grids (audio "what do you hear", letters) stay a real
+  // multi-column grid on mobile too — matching Duolingo's 2×2 card layout —
+  // rather than collapsing to a single stacked column.
   const colClass =
     columns === 1
       ? "grid-cols-1"
       : columns === 3
-      ? "grid-cols-1 sm:grid-cols-3"
-      : "grid-cols-1 sm:grid-cols-2";
+      ? "grid-cols-3"
+      : "grid-cols-2";
 
   const selectedSet = React.useMemo(() => {
     if (!multi) return null;
@@ -145,27 +148,33 @@ export function ChoiceGrid({ choices, selected, onSelect, columns = 2, multi = f
         const isWrongPick = graded && !isCorrect && pickedSet?.has(idx);
 
         const tileState = isCorrect ? "tile-correct" : isWrongPick ? "tile-wrong" : isSelected ? "tile-selected" : "";
+        // Corner badge: the ✓/✕ reveal always shows once graded (clear
+        // feedback on mobile too); the plain number is a keyboard-shortcut
+        // affordance, so it's desktop-only — Duolingo's mobile tiles are
+        // clean centered text with no numbers.
+        const showGradeBadge = isCorrect || isWrongPick;
         const badgeState = isCorrect
           ? "bg-grass-500 text-white ring-grass-500"
           : isWrongPick
           ? "bg-cardinal-500 text-white ring-cardinal-500"
-          : isSelected
-          ? "bg-feather-500 text-white ring-feather-500"
           : "text-slate-400 ring-slate-200 dark:text-stone-500 dark:ring-white/[0.08]";
-        const badge = isCorrect ? "✓" : isWrongPick ? "✕" : idx + 1;
 
         return (
           <button
             key={idx}
             onClick={() => handleClick(idx)}
-            className={cx("tile text-lg", tileState, graded && "pointer-events-none")}
+            className={cx("tile tile-choice text-lg", tileState, graded && "pointer-events-none")}
           >
-            <span className="flex items-center gap-3">
-              <span className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-extrabold ring-2", badgeState)}>
-                {badge}
+            {showGradeBadge ? (
+              <span className={cx("absolute left-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-xs font-extrabold ring-2", badgeState)}>
+                {isCorrect ? "✓" : "✕"}
               </span>
-              <span>{c}</span>
-            </span>
+            ) : (
+              <span className={cx("absolute left-3 top-1/2 hidden h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-xs font-extrabold ring-2 sm:grid", badgeState)}>
+                {idx + 1}
+              </span>
+            )}
+            <span className="block text-center">{c}</span>
           </button>
         );
       })}

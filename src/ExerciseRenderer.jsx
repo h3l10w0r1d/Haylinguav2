@@ -851,7 +851,7 @@ function ExTranslateMcq({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , 
           choices={choices}
           selected={selectedIndex}
           onSelect={setSelectedIndex}
-          columns={2}
+          columns={1}
           graded={graded}
         />
       </div>
@@ -1973,7 +1973,7 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
       </div>
 
       <div className="mt-4">
-        <ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} />
+        <ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} graded={graded} />
       </div>
 
       <FooterSlot>
