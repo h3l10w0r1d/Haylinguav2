@@ -1698,6 +1698,19 @@ def cms_seed_essentials(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/wordintro")
+def cms_seed_wordintro(request: Request, db=Depends(get_db)):
+    """Prepends 'meet the word' flashcard intros (picture + audio + meaning)
+    to the start of the image-able vocab lessons. Idempotent per lesson."""
+    require_cms(request, db)
+    from seed_wordintro import seed_wordintro
+    try:
+        res = seed_wordintro()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/earlybuild")
 def cms_seed_earlybuild(request: Request, db=Depends(get_db)):
     """Adds early 'build the sentence' word_bank exercises («Սա X է») to the

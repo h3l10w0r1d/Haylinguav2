@@ -2340,9 +2340,60 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
 function ExFlashcard({ exercise, cfg, submit }) {
   const front = cfg.front ?? exercise?.prompt ?? "";
   const back = cfg.back ?? cfg.translation ?? "";
-  const hint = cfg.hint ?? "";
+  const hint = cfg.hint ?? cfg.transliteration ?? "";
+  const emoji = cfg.emoji ?? "";
+  // A "meet the word" intro card (picture + audio + word + meaning, no flip)
+  // whenever the card carries audio or a picture; otherwise the classic
+  // tap-to-flip memory card.
+  const audioText = cfg.audioText ?? "";
+  const isIntro = !!audioText || !!emoji;
+
   const [flipped, setFlipped] = useState(false);
-  useEffect(() => setFlipped(false), [exercise?.id]);
+  const [busy, setBusy] = useState(false);
+  const didAutoplay = useRef(false);
+  useEffect(() => { setFlipped(false); didAutoplay.current = false; }, [exercise?.id]);
+
+  async function play() {
+    const text = audioText || front;
+    if (!text) return;
+    try {
+      setBusy(true);
+      const url = await ttsFetch(API_BASE, { text, exerciseId: exercise?.id, targetKey: "word" });
+      newTrackedAudio(url).play();
+    } catch (e) { console.error("TTS failed", e); } finally { setBusy(false); }
+  }
+
+  useEffect(() => {
+    if (!isIntro || didAutoplay.current || !exercise?.id) return;
+    didAutoplay.current = true;
+    play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
+
+  if (isIntro) {
+    return (
+      <Card>
+        <Title>New word</Title>
+        <button
+          type="button"
+          onClick={play}
+          aria-label="Hear the word"
+          className="animate-pop mt-5 grid min-h-[13rem] w-full place-items-center gap-2 rounded-3xl bg-gradient-to-br from-brand-50 to-white px-6 py-8 text-center ring-2 ring-brand-100 transition active:scale-[0.99] dark:from-brand-500/10 dark:to-white/[0.03] dark:ring-brand-500/30"
+        >
+          {emoji ? <span className="text-7xl leading-none sm:text-8xl">{emoji}</span> : null}
+          <span className="flex items-center gap-2">
+            <span className={"grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-500 text-white " + (busy ? "animate-pulse" : "")}>🔊</span>
+            <span className="font-display text-3xl font-extrabold text-slate-800 dark:text-white">{front}</span>
+          </span>
+          {hint ? <span className="text-sm font-semibold text-slate-500 dark:text-stone-400">{hint}</span> : null}
+          {back ? <span className="text-lg font-bold text-brand-600 dark:text-brand-400">{back}</span> : null}
+        </button>
+        <FooterSlot>
+          <PrimaryButton onClick={() => submit?.({ isCorrect: true, autoAdvance: true, xpEarned: 0 })}>Continue</PrimaryButton>
+        </FooterSlot>
+      </Card>
+    );
+  }
 
   return (
     <Card>
