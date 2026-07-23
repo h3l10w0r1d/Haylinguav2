@@ -962,6 +962,7 @@ export default function LessonPlayer() {
         {showDoneFooter ? (
           <LessonCompletionScreen
             lesson={lesson}
+            mascotCharacter={mascotCharacter}
             sessionXpEarned={lessonXpEarned}
             comboBonusXp={lessonComboBonus}
             mistakes={mistakes}

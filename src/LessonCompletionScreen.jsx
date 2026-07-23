@@ -12,8 +12,8 @@ import {
   Gift,
   Clock,
 } from "lucide-react";
-import Illustration from "./lib/Illustration";
 import ChestOpening from "./lib/ChestOpening";
+import { mascotFaceUrl } from "./lib/mascotFaces";
 import { sfx } from "./lib/sfx";
 
 const RS_API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -173,6 +173,7 @@ async function shareLesson({ lessonTitle, xp, accuracy }) {
 
 export default function LessonCompletionScreen({
   lesson,
+  mascotCharacter = "armen",
   sessionXpEarned,
   comboBonusXp = 0,
   mistakes = 0,
@@ -243,27 +244,36 @@ export default function LessonCompletionScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-white dark:bg-[#0f0f10]">
-      {percent >= 70 ? <Confetti /> : null}
+  // Passed = above the completion threshold. The mascot shares the moment:
+  // its happy (positive) face on a pass, its sad (negative) face otherwise.
+  const passed = percent >= 70;
 
-      {/* Hero — centered, fits the screen; only opens to scroll if the learner
-          taps "View details". */}
-      <div className="relative flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-6 text-center">
-        <Illustration
-          name="mascot-cheer"
-          alt="Tatik celebrating"
-          className="h-24 w-24 rounded-3xl object-cover"
+  return (
+    <div className="fixed inset-0 z-[70] flex flex-col bg-white dark:bg-[#0f0f10] sm:static sm:z-auto sm:mx-auto sm:my-6 sm:block sm:max-w-lg sm:overflow-hidden sm:rounded-3xl sm:shadow-md sm:ring-1 sm:ring-slate-200 dark:sm:ring-white/[0.08]">
+      {passed ? <Confetti /> : null}
+
+      {/* Hero — centered, fits the screen on mobile; a natural-height card on
+          desktop. Only opens to scroll if the learner taps "View details". */}
+      <div className="relative flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-6 text-center sm:flex-none sm:overflow-visible sm:pt-10">
+        {/* The lesson's own character shares the win (or commiserates) — big,
+            so the feeling lands. */}
+        <img
+          src={mascotFaceUrl(mascotCharacter, passed ? "positive" : "negative")}
+          alt=""
+          aria-hidden="true"
+          className="animate-pop h-40 w-40 object-contain drop-shadow-xl sm:h-48 sm:w-48"
         />
 
         <div>
           <h2 className="font-display text-3xl font-extrabold tracking-tight text-gold-500 sm:text-4xl dark:text-gold-400">
-            {perfect ? "Perfect Lesson!" : "Lesson Complete!"}
+            {perfect ? "Perfect Lesson!" : passed ? "Lesson Complete!" : "Almost there!"}
           </h2>
           <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">
             {perfect
               ? "Կեցցե՛ս! Flawless — not a single mistake. 🎉"
-              : `${mistakes} mistake${Number(mistakes) === 1 ? "" : "s"} — tap Retry to master it.`}
+              : passed
+              ? `${mistakes} mistake${Number(mistakes) === 1 ? "" : "s"} — tap Retry to master it.`
+              : "You need 70% to complete this — tap Retry and you've got it."}
           </p>
         </div>
 
@@ -336,8 +346,9 @@ export default function LessonCompletionScreen({
         ) : null}
       </div>
 
-      {/* Fixed bottom bar — always reachable, never scrolled past. */}
-      <div className="safe-b relative shrink-0 border-t-2 border-slate-100 bg-white px-4 py-4 dark:border-white/[0.06] dark:bg-[#0f0f10]">
+      {/* Bottom bar — fixed & always reachable on mobile; part of the card on
+          desktop (no top border, no fill). */}
+      <div className="safe-b relative shrink-0 border-t-2 border-slate-100 bg-white px-4 py-4 dark:border-white/[0.06] dark:bg-[#0f0f10] sm:border-t-0 sm:bg-transparent sm:pb-8 sm:dark:bg-transparent">
         <div className="mx-auto flex max-w-md flex-col gap-2">
           <button
             type="button"
