@@ -1698,6 +1698,19 @@ def cms_seed_essentials(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/vowelintro")
+def cms_seed_vowelintro(request: Request, db=Depends(get_db)):
+    """Prepends picture+audio 'meet the word' intros (romanized front, no
+    script) to snd-vowels-1, the very first lesson. Idempotent."""
+    require_cms(request, db)
+    from seed_vowelintro import seed_vowelintro
+    try:
+        res = seed_vowelintro()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/wordintro")
 def cms_seed_wordintro(request: Request, db=Depends(get_db)):
     """Prepends 'meet the word' flashcard intros (picture + audio + meaning)
