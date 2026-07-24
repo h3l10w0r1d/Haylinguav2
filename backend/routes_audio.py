@@ -176,6 +176,40 @@ def get_exercise_audio_list(exercise_id: int, db: Connection = Depends(get_db)):
     return {"audio_recordings": [dict(r) for r in rows]}
 
 
+@router.get("/cms/letters", dependencies=CMS_AUTH)
+def cms_list_letters(db: Connection = Depends(get_db)):
+    """Every char_intro (single-letter) exercise across all lessons, with
+    recorded-audio status for the 'letter' target — powers the Letter Audio
+    admin page so fixing a letter's pronunciation is a flat list instead of
+    hunting through each lesson's editor one at a time. Zero schema changes:
+    reuses exercise_audio_targets keyed by target_key='letter', which the
+    learner-facing playback pipeline (src/exercises/tts.jsx ttsFetch) already
+    checks before falling back to live TTS."""
+    rows = db.execute(
+        text(
+            """
+            SELECT
+              e.id AS exercise_id,
+              e.lesson_id,
+              l.title AS lesson_title,
+              e.config->>'letter' AS letter,
+              e.config->>'lower' AS lower,
+              e.config->>'transliteration' AS transliteration,
+              bool_or(t.voice_type = 'male') AS has_male,
+              bool_or(t.voice_type = 'female') AS has_female
+            FROM exercises e
+            JOIN lessons l ON l.id = e.lesson_id
+            LEFT JOIN exercise_audio_targets t
+              ON t.exercise_id = e.id AND t.target_key = 'letter'
+            WHERE e.kind = 'char_intro'
+            GROUP BY e.id, e.lesson_id, l.title, e.config
+            ORDER BY l.id ASC, e."order" ASC, e.id ASC
+            """
+        )
+    ).mappings().all()
+    return {"letters": [dict(r) for r in rows]}
+
+
 # ------------------------------
 # Target audio (Duolingo-like)
 # ------------------------------

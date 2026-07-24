@@ -2,18 +2,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Mic, Square, Upload, Play, Pause, Trash2, Loader, Check, AlertCircle, X } from "lucide-react";
 import { newTrackedAudio } from "../lib/audioRegistry";
+import { getCmsToken } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
-
-function getCmsToken() {
-  // adjust if you store it elsewhere
-  return localStorage.getItem("cms_token") || localStorage.getItem("CMS_TOKEN") || "";
-}
 
 function cmsHeaders(extra = {}) {
   const t = getCmsToken();
   return {
-    ...(t ? { "X-CMS-Token": t } : {}),
+    ...(t ? { Authorization: `Bearer ${t}` } : {}),
     ...extra,
   };
 }
