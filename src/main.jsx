@@ -67,3 +67,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </AppErrorBoundary>
   </React.StrictMode>,
 );
+
+// build marker: force redeploy for meet-the-word card (c8594e4)
