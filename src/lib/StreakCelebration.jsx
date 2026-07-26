@@ -1,6 +1,7 @@
 // src/lib/StreakCelebration.jsx — full-screen flame + confetti on a streak milestone.
 import React, { useEffect, useMemo, useState } from "react";
 import StreakFlame from "./StreakFlame";
+import { track } from "./analytics";
 
 const MILESTONES = [3, 7, 14, 30, 50, 100, 150, 365];
 const COLORS = ["#FF7A1A", "#FFB347", "#FFE08A", "#22B07D", "#1CB0F6", "#E11D48", "#9B5DE5"];
@@ -19,6 +20,7 @@ export default function StreakCelebration({ streak }) {
     } catch {}
     if (reached > celebrated) {
       setShow(reached);
+      track("streak_milestone_reached", { streak: reached });
       try {
         localStorage.setItem("hay_streak_celebrated", String(reached));
       } catch {}

@@ -14,6 +14,7 @@ import HeaderLayout from './HeaderLayout';
 import LoadingScreen from './lib/LoadingScreen';
 import ErrorBoundary from './lib/ErrorBoundary';
 import NotifyPrompt from './lib/NotifyPrompt';
+import { track } from './lib/analytics';
 
 // Code-split heavy routes so the initial bundle stays small.
 const Dashboard = lazy(() => import('./Dashboard'));
@@ -237,6 +238,7 @@ function AppShell() {
     if (!tokenValue) throw new Error('No token in /login response');
 
     handleAuthSuccess(tokenValue, data.email ?? email, '', data.email_verified || false);
+    track('login_completed');
     await refreshProfile(tokenValue);
   };
 
@@ -273,6 +275,7 @@ function AppShell() {
       }
 
       handleAuthSuccess(tokenValue, email, _name, false);
+      track('signup_completed', { source: 'landing_modal' });
     } catch (err) {
       console.error('Signup error', err);
       alert('Could not reach the server. Please try again.');

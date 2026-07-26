@@ -18,6 +18,7 @@ import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import Turnstile from "./lib/Turnstile";
+import { track } from "./lib/analytics";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -159,6 +160,7 @@ export default function AffiliatesPage() {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.detail || "Something went wrong — please try again.");
       setStatus("sent");
+      track("affiliate_application_submitted");
     } catch (err) {
       setStatus("error");
       setErrorMsg(err.message || "Something went wrong — please try again.");

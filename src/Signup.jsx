@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./landing.css";
+import { track } from "./lib/analytics";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -71,6 +72,7 @@ export default function Signup() {
       localStorage.setItem("hay_token", accessToken);
       localStorage.setItem("access_token", accessToken);
       localStorage.setItem("user_email", email.trim());
+      track("signup_completed", { source: "signup_page" });
 
       // Store user object
       const baseName = (username.trim() || email.split('@')[0]);

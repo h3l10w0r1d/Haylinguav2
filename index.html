@@ -86,12 +86,23 @@
 <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<script
-  defer
-  src="https://analytics.haylingua.am/script.js"
-  data-website-id="805c891c-79e8-474e-8414-668887e66554">
+<!-- Umami: only load on the real production domain — without this, every
+     local dev session and preview build counts as real traffic in the
+     dashboard, and session-replay would record test data nobody wants
+     stored. -->
+<script>
+  (function () {
+    if (!/(^|\.)haylingua\.am$/.test(location.hostname)) return;
+    var ids = "805c891c-79e8-474e-8414-668887e66554";
+    ["script.js", "recorder.js"].forEach(function (src) {
+      var s = document.createElement("script");
+      s.defer = true;
+      s.src = "https://analytics.haylingua.am/" + src;
+      s.setAttribute("data-website-id", ids);
+      document.head.appendChild(s);
+    });
+  })();
 </script>
-<script defer src="https://analytics.haylingua.am/recorder.js" data-website-id="805c891c-79e8-474e-8414-668887e66554"></script>
 
     <!-- Structured data: SoftwareApplication -->
     <script type="application/ld+json">

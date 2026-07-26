@@ -13,6 +13,7 @@ import { sfx } from "./lib/sfx";
 import { readHearts, writeHearts } from "./lib/hearts";
 import OutOfHearts from "./OutOfHearts";
 import { getPreloadedLesson } from "./lib/lessonPreload";
+import { track } from "./lib/analytics";
 import { pickMascotCharacter } from "./lib/mascotFaces";
 
 // 🔧 Make sure this matches your backend URL
@@ -781,6 +782,7 @@ export default function LessonPlayer() {
       window.dispatchEvent(new CustomEvent("hay_xp_changed", {
         detail: { xp: stats?.total_xp, streak: stats?.streak },
       }));
+      track("lesson_completed", { lesson_slug: slug, streak: stats?.streak });
 
       navigate("/dashboard", { replace: true });
     } catch (err) {

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Crown, Heart, Check, Infinity as InfinityIcon, ShieldCheck, Loader2, Lock, Star } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { writeHearts } from "./lib/hearts";
+import { track } from "./lib/analytics";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function getToken() {
@@ -144,6 +145,7 @@ export default function Premium() {
       const d = await r.json();
       writeHearts(d); // ∞ hearts everywhere
       setIsPremium(true);
+      track("premium_purchase_completed", { plan_id: selectedPlan?.id ?? null });
       setPremiumInfo({ is_premium: true, is_trial: false, premium_since: new Date().toISOString(), premium_until: null });
     } catch {
       alert("Something went wrong. Please try again.");
