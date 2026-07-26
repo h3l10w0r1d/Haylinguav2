@@ -202,7 +202,7 @@ def cms_list_letters(db: Connection = Depends(get_db)):
             LEFT JOIN exercise_audio_targets t
               ON t.exercise_id = e.id AND t.target_key = 'letter'
             WHERE e.kind = 'char_intro'
-            GROUP BY e.id, e.lesson_id, l.title, e.config
+            GROUP BY e.id, e.lesson_id, l.id, l.title, e.config
             ORDER BY l.id ASC, e."order" ASC, e.id ASC
             """
         )
