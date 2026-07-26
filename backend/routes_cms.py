@@ -52,6 +52,7 @@ from routes import (
     CMS_BOOTSTRAP_SECRET,
     # Streak / hearts / league
     _compute_streak_days,
+    _compute_streak,
     _hearts_state,
     _award_weekly_xp,
     LEAGUE_TIERS,
@@ -161,6 +162,7 @@ def support_user_detail(
                    u.email_verified, (COALESCE(u.is_premium, FALSE) AND (u.premium_until IS NULL OR u.premium_until > NOW())) AS is_premium, u.premium_since,
                    u.joined_at, u.last_active_at,
                    COALESCE(u.current_streak, 0) AS current_streak,
+                   COALESCE(u.best_streak, 0) AS best_streak,
                    COALESCE(u.streak_freezes, 0) AS streak_freezes,
                    u.totp_enabled, u.is_hidden, u.friends_public,
                    COALESCE(u.gems, 0) AS gems,
@@ -365,6 +367,7 @@ def support_user_detail(
         "accuracy_pct": accuracy,
         "friends_count": int(friends_count),
         "current_streak": int(streak),
+        "best_streak": int(u["best_streak"] or 0),
         "days_since_active": days_since_active,
         "churn_risk": churn_level,
         "churn_reason": churn_reason,
@@ -476,6 +479,96 @@ def support_refill_hearts(
         {"u": uid, "mx": DEFAULT_HEARTS_MAX},
     )
     return {"ok": True, **_hearts_state(db, uid)}
+
+@router.post("/cms/support/users/{uid}/restore-last-streak")
+def support_restore_last_streak(
+    uid: int,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    """Un-break the learner's most recent streak gap durably — NOT a raw
+    'set current_streak = X', because current_streak is recomputed from
+    user_exercise_attempts and overwritten every time the learner practices
+    (see routes.py:_compute_streak_days), so a plain override would silently
+    revert on their next visit. Instead, reuse the existing freeze-bridging
+    algorithm (_compute_streak) to find exactly which gap day(s) are
+    currently breaking the chain, and mark just those as frozen — the same
+    mechanism a real streak freeze uses — so the restoration sticks.
+
+    Deliberately does NOT touch streak_freezes: this is a support override,
+    not spending a freeze the learner owns."""
+    rows = db.execute(
+        text(
+            """
+            SELECT DISTINCT DATE(created_at) AS d FROM user_exercise_attempts
+            WHERE user_id = :u AND created_at >= NOW() - INTERVAL '400 days'
+            """
+        ),
+        {"u": uid},
+    ).mappings().all()
+    active = {r["d"] for r in rows if r.get("d") is not None}
+
+    urow = db.execute(
+        text("SELECT COALESCE(streak_frozen_days, '[]'::jsonb) AS fd FROM users WHERE id = :u"),
+        {"u": uid},
+    ).mappings().first()
+    if not urow:
+        raise HTTPException(status_code=404, detail="User not found")
+    frozen_raw = urow["fd"] or []
+    if isinstance(frozen_raw, str):
+        try:
+            frozen_raw = json.loads(frozen_raw)
+        except Exception:
+            frozen_raw = []
+    frozen = set()
+    for s in frozen_raw or []:
+        try:
+            frozen.add(datetime.strptime(str(s), "%Y-%m-%d").date())
+        except Exception:
+            pass
+
+    today = datetime.utcnow().date()
+    # Simulated freeze budget just to discover which gap day(s) are breaking
+    # the chain right now — large enough for any realistic support case
+    # without ever being applied to the learner's real streak_freezes count.
+    _, newly = _compute_streak(active, today, freezes=30, frozen_dates=frozen)
+    if not newly:
+        return {"ok": True, "restored": False, "current_streak": _compute_streak_days(db, uid)}
+
+    merged = sorted({*(d.isoformat() for d in frozen), *(d.isoformat() for d in newly)})
+    db.execute(
+        text("UPDATE users SET streak_frozen_days = :fd::jsonb WHERE id = :u"),
+        {"fd": json.dumps(merged), "u": uid},
+    )
+    return {
+        "ok": True,
+        "restored": True,
+        "days_bridged": len(newly),
+        "current_streak": _compute_streak_days(db, uid),
+    }
+
+@router.post("/cms/support/users/{uid}/restore-max-streak")
+def support_restore_max_streak(
+    uid: int,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    """One-time cosmetic reset to the learner's all-time best — unlike
+    restore-last-streak, there's no single gap day to freeze that would
+    durably recreate an old high from months ago, so this is a goodwill
+    gesture: it WILL be silently overwritten back to the real computed
+    streak the next time the learner practices (see restore-last-streak's
+    docstring for why current_streak can't just be set and left alone)."""
+    row = db.execute(
+        text(
+            "UPDATE users SET current_streak = COALESCE(best_streak, 0) "
+            "WHERE id = :u RETURNING current_streak"
+        ),
+        {"u": uid},
+    ).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True, "current_streak": int(row["current_streak"])}
 
 @router.post("/cms/support/users/{uid}/verify-email")
 def support_verify_email(

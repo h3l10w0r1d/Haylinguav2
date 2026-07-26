@@ -258,6 +258,22 @@ function UserDetail({ detail: d, busy, act, onBack }) {
             className="btn3d btn3d-cardinal flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold disabled:opacity-60">
             {busy === "hearts" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4" />} Refill hearts
           </button>
+          <button
+            disabled={busy === "restore-last-streak"}
+            title="Freezes the exact gap day(s) breaking their streak right now, so it's durable — not just a display change."
+            onClick={() => act("restore-last-streak", `/cms/support/users/${d.id}/restore-last-streak`)}
+            className="btn3d btn3d-brand flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold disabled:opacity-60">
+            {busy === "restore-last-streak" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flame className="h-4 w-4" />} Restore last streak
+          </button>
+          {d.best_streak > d.current_streak && (
+            <button
+              disabled={busy === "restore-max-streak"}
+              title="One-time cosmetic reset to their all-time best — may revert to the real computed streak next time they practice."
+              onClick={() => act("restore-max-streak", `/cms/support/users/${d.id}/restore-max-streak`)}
+              className="btn3d btn3d-neutral flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold disabled:opacity-60">
+              {busy === "restore-max-streak" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flame className="h-4 w-4" />} Restore max streak ({d.best_streak})
+            </button>
+          )}
           {!d.email_verified && (
             <button disabled={busy === "verify"} onClick={() => act("verify", `/cms/support/users/${d.id}/verify-email`)}
               className="btn3d btn3d-grass flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold disabled:opacity-60">
