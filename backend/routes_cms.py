@@ -25,7 +25,7 @@ import secrets
 import traceback
 from datetime import datetime, timedelta
 import datetime as dt
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import httpx
 import pyotp
@@ -53,6 +53,7 @@ from routes import (
     # Streak / hearts / league
     _compute_streak_days,
     _hearts_state,
+    _award_weekly_xp,
     LEAGUE_TIERS,
     LEAGUE_PROMOTE_TOP,
     LEAGUE_DEMOTE_BOTTOM,
@@ -71,6 +72,7 @@ from routes import (
     _render_cms_invite_html,
     _render_streak_reminder_html,
     _render_test_email_html,
+    _render_bonus_email_html,
     # Voice Lab / TTS (shared client + defaults)
     DEFAULT_VOICE_ID,
     ELEVEN_API_KEY,
@@ -466,22 +468,104 @@ def support_verify_email(
     )
     return {"ok": True}
 
-@router.post("/cms/support/users/{uid}/grant-gems")
-def support_grant_gems(
+# kind -> (users column to credit, human label used in notifications/emails).
+# The column is picked from this fixed map, never from raw request input, so
+# splicing it into the UPDATE below can't be an injection vector even though
+# Pydantic's Literal type already rejects any other `kind` before we get here.
+_BONUS_COLUMNS = {
+    "gems": ("gems", "gems"),
+    "xp": ("bonus_xp", "XP"),
+    "chests": ("chests", "chests"),
+    "streak_freeze": ("streak_freezes", "streak freezes"),
+}
+
+
+class GrantBonusIn(BaseModel):
+    kind: Literal["gems", "xp", "chests", "streak_freeze"]
+    amount: int
+    notify_email: bool = False
+    notify_inapp: bool = False
+    message: Optional[str] = None
+
+
+@router.post("/cms/support/users/{uid}/grant-bonus")
+def support_grant_bonus(
     uid: int,
-    body: dict,
+    payload: GrantBonusIn,
     _: dict = Depends(require_cms_admin),
     db: Connection = Depends(get_db),
 ):
-    amount = int(body.get("amount") or 0)
-    if amount <= 0:
+    """One admin action for every bonus type (gems/XP/chests/streak freezes),
+    with an optional email + in-app notification so the learner actually
+    finds out — replaces the old gems-only grant-gems endpoint."""
+    if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="amount must be a positive integer")
+
+    column, label = _BONUS_COLUMNS[payload.kind]
     db.execute(
-        text("UPDATE users SET gems = COALESCE(gems, 0) + :a WHERE id = :u"),
-        {"a": amount, "u": uid},
+        text(f"UPDATE users SET {column} = COALESCE({column}, 0) + :a WHERE id = :u"),
+        {"a": payload.amount, "u": uid},
     )
-    row = db.execute(text("SELECT COALESCE(gems, 0) AS gems FROM users WHERE id = :u"), {"u": uid}).mappings().first()
-    return {"ok": True, "gems": int(row["gems"]) if row else 0}
+    if payload.kind == "xp":
+        _award_weekly_xp(db, uid, payload.amount)
+
+    user_row = db.execute(
+        text(
+            f"SELECT email, COALESCE(first_name, display_name, name) AS name, "
+            f"COALESCE({column}, 0) AS new_value FROM users WHERE id = :u"
+        ),
+        {"u": uid},
+    ).mappings().first()
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    message = (payload.message or "").strip() or None
+    name = user_row["name"] or "there"
+
+    if payload.notify_inapp:
+        title = "You received a bonus! 🎁"
+        body = f"+{payload.amount} {label}" + (f' — "{message}"' if message else "")
+        db.execute(
+            text("INSERT INTO user_notifications (user_id, title, body) VALUES (:u, :t, :b)"),
+            {"u": uid, "t": title, "b": body},
+        )
+
+    email_sent = False
+    if payload.notify_email and user_row["email"]:
+        app_url = (os.getenv("APP_URL") or os.getenv("FRONTEND_URL") or "https://haylingua.am").rstrip("/")
+        email_sent = _send_email(
+            to_email=user_row["email"],
+            subject="🎁 You got a bonus on Haylingua!",
+            body=(
+                f"Hi {name}, you just received +{payload.amount} {label} on Haylingua!"
+                + (f'\n\n"{message}"' if message else "")
+            ),
+            html_body=_render_bonus_email_html(name, label, payload.amount, message, app_url),
+        )
+
+    return {
+        "ok": True,
+        "kind": payload.kind,
+        "new_value": int(user_row["new_value"]),
+        "email_sent": email_sent,
+    }
+
+
+@router.get("/cms/support/users/{uid}/notifications")
+def support_list_notifications(
+    uid: int,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    """So an admin can confirm a granted bonus's notification actually landed."""
+    rows = db.execute(
+        text(
+            "SELECT id, title, body, created_at, read_at FROM user_notifications "
+            "WHERE user_id = :u ORDER BY created_at DESC LIMIT 50"
+        ),
+        {"u": uid},
+    ).mappings().all()
+    return {"notifications": [dict(r) for r in rows]}
 
 @router.get("/cms/support/reports")
 def support_list_reports(

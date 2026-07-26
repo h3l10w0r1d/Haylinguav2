@@ -502,6 +502,46 @@ def _render_streak_reminder_html(name: str, streak: int, app_url: str) -> str:
     return _email_shell(preheader, cards)
 
 
+def _render_bonus_email_html(name: str, kind_label: str, amount: int, message: Optional[str], app_url: str) -> str:
+    """CMS-triggered 'you got a bonus' email (backend/routes_cms.py's
+    grant-bonus endpoint) — a gift card, not a nag, so it's deliberately
+    celebratory rather than reusing the streak-reminder's urgency framing."""
+    safe_name = (name or "").strip() or "there"
+    preheader = f"🎁 You just received {amount} {kind_label} on Haylingua!"
+
+    note_html = (
+        f'<p style="margin:14px 0 0;font-size:14px;line-height:22px;color:#555;font-style:italic;">"{message}"</p>'
+        if (message or "").strip()
+        else ""
+    )
+
+    cards = f"""
+  <!-- GIFT CARD -->
+  <div style="max-width:650px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:24px 32px;text-align:center;">
+      <div style="font-size:48px;line-height:1;margin-bottom:8px;">🎁</div>
+      <h2 style="margin:0;font-size:24px;font-weight:800;color:#000;">You've got a gift!</h2>
+      <p style="margin:10px 0 0;font-size:15px;line-height:24px;color:#555;">
+        Hey {safe_name}, the Haylingua team just sent you <strong>+{amount} {kind_label}</strong>.
+      </p>
+      {note_html}
+    </div>
+  </div>
+
+  <!-- CTA CARD -->
+  <div style="max-width:650px;margin:16px auto 0;background:#fff;border-radius:16px;border:1px solid #e5e5e5;overflow:hidden;">
+    <div style="padding:28px 32px;text-align:center;">
+      <a href="{app_url}/dashboard"
+         style="display:inline-block;background:#FF7A1A;color:#fff;font-size:15px;font-weight:800;
+                text-decoration:none;padding:14px 32px;border-radius:10px;border-bottom:3px solid #D95F00;">
+        Open Haylingua →
+      </a>
+    </div>
+  </div>"""
+
+    return _email_shell(preheader, cards)
+
+
 def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None, reply_to_email: Optional[str] = None, reply_to_name: Optional[str] = None) -> bool:
     """Send email via SMTP if configured; otherwise log to server console.
 
@@ -5564,6 +5604,42 @@ def me_wallet(authorization: Optional[str] = Header(default=None), db: Connectio
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     return _wallet(db, user_id)
+
+
+@router.get("/me/notifications")
+def me_notifications(authorization: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
+    """Unread-first list of in-app notifications (currently just CMS-granted
+    bonuses) — polled on app load to show as a dismissible banner."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    rows = db.execute(
+        text(
+            "SELECT id, title, body, created_at, read_at FROM user_notifications "
+            "WHERE user_id = :u ORDER BY (read_at IS NULL) DESC, created_at DESC LIMIT 20"
+        ),
+        {"u": user_id},
+    ).mappings().all()
+    return {"notifications": [dict(r) for r in rows]}
+
+
+@router.post("/me/notifications/{notification_id}/read")
+def me_notification_mark_read(
+    notification_id: int,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    db.execute(
+        text(
+            "UPDATE user_notifications SET read_at = NOW() "
+            "WHERE id = :nid AND user_id = :u AND read_at IS NULL"
+        ),
+        {"nid": notification_id, "u": user_id},
+    )
+    return {"ok": True}
 
 
 class EmailRemindersIn(BaseModel):

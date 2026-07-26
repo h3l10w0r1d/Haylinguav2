@@ -1,7 +1,7 @@
 // src/HeaderLayout.jsx
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent, Crown, Volume2, VolumeX } from "lucide-react";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent, Crown, Volume2, VolumeX, Gift, X } from "lucide-react";
 import { CrownBadge } from "./lib/PremiumBadge";
 import { getTheme, toggleTheme } from "./lib/theme";
 import { isMuted, toggleMuted } from "./lib/muteAudio";
@@ -98,6 +98,24 @@ export default function HeaderLayout({ user, onLogout, children }) {
     window.addEventListener("hay_wallet", onWallet);
     return () => { cancelled = true; window.removeEventListener("hay_wallet", onWallet); };
   }, []);
+
+  // CMS-granted bonuses (gems/XP/chests/streak freezes) show as a dismissible
+  // banner here — polled once on load rather than per-route, since this
+  // layout wraps every authenticated page.
+  const [notifications, setNotifications] = useState([]);
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    apiFetch("/me/notifications", { token, method: "GET" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setNotifications((d?.notifications || []).filter((n) => !n.read_at)))
+      .catch(() => {});
+  }, []);
+  function dismissNotification(id) {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    const token = getToken();
+    if (token) apiFetch(`/me/notifications/${id}/read`, { token, method: "POST" }).catch(() => {});
+  }
 
   // The "Affiliate" nav item should only show for people who've actually
   // applied to the program — GET /affiliate/me 404s for everyone else.
@@ -458,6 +476,28 @@ export default function HeaderLayout({ user, onLogout, children }) {
       {/* Main content under header, above mobile nav. Keyed by route so each
           page fades/slides in on navigation. */}
       <main className="pt-16 pb-14 md:pb-0">
+        {notifications.length > 0 && (
+          <div className="mx-auto max-w-2xl space-y-2 px-4 pt-4">
+            {notifications.map((n) => (
+              <div
+                key={n.id}
+                className="flex items-start gap-3 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-200 dark:bg-brand-500/10 dark:ring-brand-500/25"
+              >
+                <Gift className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">{n.title}</div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-600 dark:text-stone-300">{n.body}</div>
+                </div>
+                <button
+                  onClick={() => dismissNotification(n.id)}
+                  className="shrink-0 text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div key={location.pathname} className="page-in">
           {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
           {children ?? <Outlet />}

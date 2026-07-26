@@ -609,6 +609,21 @@ def ensure_schema() -> None:
         # self-hosted health-log table from the earlier custom implementation.
         conn.execute(text("DROP TABLE IF EXISTS service_health_log"))
 
+        # ---------- In-app notifications (e.g. CMS-granted bonuses) ----------
+        ensure_table(
+            "user_notifications",
+            """
+            CREATE TABLE user_notifications (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                body TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                read_at TIMESTAMPTZ
+            )
+            """,
+        )
+
         # ---------- Core tables that predate ensure_schema.py's coverage ----------
         # These were never captured in any committed migration (created directly
         # on production at some point). ensure_table() is a no-op wherever the
