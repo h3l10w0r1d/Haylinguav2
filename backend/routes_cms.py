@@ -322,6 +322,17 @@ def support_user_detail(
         {"u": uid},
     ).mappings().all()
 
+    # CMS-granted bonus notifications (so an admin can confirm one landed)
+    notifications = db.execute(
+        text(
+            """
+            SELECT id, title, body, created_at, read_at
+            FROM user_notifications WHERE user_id = :u ORDER BY created_at DESC LIMIT 50
+            """
+        ),
+        {"u": uid},
+    ).mappings().all()
+
     # Account timeline — key events in chronological order
     timeline = []
     def _tl(dt, label, icon, color):
@@ -370,6 +381,16 @@ def support_user_detail(
                 "created_at": str(n["created_at"]),
             }
             for n in notes
+        ],
+        "notifications": [
+            {
+                "id": n["id"],
+                "title": n["title"],
+                "body": n["body"],
+                "created_at": str(n["created_at"]),
+                "read_at": str(n["read_at"]) if n["read_at"] else None,
+            }
+            for n in notifications
         ],
         "timeline": timeline,
         "lesson_history": [
@@ -550,22 +571,6 @@ def support_grant_bonus(
         "email_sent": email_sent,
     }
 
-
-@router.get("/cms/support/users/{uid}/notifications")
-def support_list_notifications(
-    uid: int,
-    _: dict = Depends(require_cms_admin),
-    db: Connection = Depends(get_db),
-):
-    """So an admin can confirm a granted bonus's notification actually landed."""
-    rows = db.execute(
-        text(
-            "SELECT id, title, body, created_at, read_at FROM user_notifications "
-            "WHERE user_id = :u ORDER BY created_at DESC LIMIT 50"
-        ),
-        {"u": uid},
-    ).mappings().all()
-    return {"notifications": [dict(r) for r in rows]}
 
 @router.get("/cms/support/reports")
 def support_list_reports(

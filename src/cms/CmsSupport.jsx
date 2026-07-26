@@ -157,6 +157,7 @@ const DETAIL_TABS = [
   { id: "achievements", label: "Achievements" },
   { id: "timeline", label: "Timeline" },
   { id: "notes", label: "Notes" },
+  { id: "bonuses", label: "Bonuses" },
   { id: "profile", label: "Profile" },
 ];
 
@@ -353,6 +354,7 @@ function UserDetail({ detail: d, busy, act, onBack }) {
         {activeTab === "achievements" && <AchievementsTab d={d} />}
         {activeTab === "timeline" && <TimelineTab d={d} />}
         {activeTab === "notes" && <NotesTab d={d} token={token} />}
+        {activeTab === "bonuses" && <BonusesTab d={d} />}
         {activeTab === "profile" && <ProfileTab d={d} />}
       </div>
     </div>
@@ -604,6 +606,35 @@ function NotesTab({ d, token }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Bonuses tab — read-only history of CMS-granted bonuses, so an admin can
+// confirm a notification actually landed (and whether the learner saw it). ──
+function BonusesTab({ d }) {
+  const notifications = d.notifications || [];
+  if (!notifications.length) {
+    return (
+      <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200 text-sm font-semibold text-slate-400">
+        No bonuses granted yet — use "Grant a bonus" in the sidebar.
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      {notifications.map((n) => (
+        <div key={n.id} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-extrabold text-slate-800">{n.title}</div>
+              <p className="mt-1 whitespace-pre-wrap text-sm font-semibold text-slate-600">{n.body}</p>
+              <div className="mt-2 text-xs font-semibold text-slate-400">{fmtDate(n.created_at)}</div>
+            </div>
+            <Badge color={n.read_at ? "grass" : "slate"}>{n.read_at ? "Seen" : "Unseen"}</Badge>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
