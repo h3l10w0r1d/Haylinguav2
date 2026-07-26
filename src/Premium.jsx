@@ -148,6 +148,7 @@ export default function Premium() {
       track("premium_purchase_completed", { plan_id: selectedPlan?.id ?? null });
       setPremiumInfo({ is_premium: true, is_trial: false, premium_since: new Date().toISOString(), premium_until: null });
     } catch {
+      track("checkout_failed", { plan_id: selectedPlan?.id ?? null });
       alert("Something went wrong. Please try again.");
     } finally {
       setPaying(false);

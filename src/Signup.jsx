@@ -56,6 +56,7 @@ export default function Signup() {
           const msg = data?.detail || data?.message || "Signup failed";
           setSignupError(typeof msg === "string" ? msg : JSON.stringify(msg));
         }
+        track("signup_failed", { source: "signup_page", reason: "server_rejected", status: res.status });
         setSignupLoading(false);
         return;
       }
@@ -63,6 +64,7 @@ export default function Signup() {
       const accessToken = data?.access_token;
       if (!accessToken) {
         setSignupError("Signup succeeded but server returned no token.");
+        track("signup_failed", { source: "signup_page", reason: "no_token" });
         setSignupLoading(false);
         return;
       }
@@ -102,6 +104,7 @@ export default function Signup() {
     } catch (err) {
       console.error(err);
       setSignupError("Network error. Please try again.");
+      track("signup_failed", { source: "signup_page", reason: "network_error" });
     } finally {
       setSignupLoading(false);
     }

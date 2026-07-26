@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, ChevronDown, Search, Sun, Moon, Coffee, BellOff, Volume2, Shuffle, User, Users } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
+import { track } from "./lib/analytics";
 
 const API_BASE = "https://haylinguav2.onrender.com";
 
@@ -302,7 +303,12 @@ export default function Onboarding({ token, onCompleted }) {
     return "";
   };
 
-  const next = () => { const msg = canNext(); if (msg) { setError(msg); return; } setStep((s) => Math.min(totalSteps, s + 1)); };
+  const next = () => {
+    const msg = canNext();
+    if (msg) { setError(msg); return; }
+    track("onboarding_step_completed", { step, step_name: STEP_META[step - 1]?.label });
+    setStep((s) => Math.min(totalSteps, s + 1));
+  };
   const back = () => { setError(""); setStep((s) => Math.max(1, s - 1)); };
 
   const submit = async () => {
@@ -329,12 +335,17 @@ export default function Onboarding({ token, onCompleted }) {
       if (!res.ok) {
         const detail = data?.detail || "Could not save onboarding";
         setError(typeof detail === "string" ? detail : JSON.stringify(detail));
+        track("onboarding_failed", { reason: "server_rejected", status: res.status });
         setSaving(false); return;
       }
       try { localStorage.setItem("hay_voice_pref", computedVoicePref || "Random"); } catch {}
+      track("onboarding_completed", { daily_goal_min: Number(dailyGoalMin), knowledge_level: knowledgeLevel });
       onCompleted?.(data);
       navigate("/dashboard", { replace: true });
-    } catch { setError("Network error. Please try again."); }
+    } catch {
+      setError("Network error. Please try again.");
+      track("onboarding_failed", { reason: "network_error" });
+    }
     finally { setSaving(false); }
   };
 

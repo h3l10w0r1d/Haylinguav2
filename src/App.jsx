@@ -224,18 +224,23 @@ function AppShell() {
         e.locked = true;
         e.lockedUntil = dataErr?.detail?.locked_until || null;
         e.retryAfterSeconds = dataErr?.detail?.retry_after_seconds ?? null;
+        track('login_failed', { reason: 'locked' });
         throw e;
       }
       const msg =
         (typeof dataErr?.detail === 'string' && dataErr.detail) ||
         dataErr?.detail?.message ||
         'Invalid email, password, or 2FA code';
+      track('login_failed', { reason: 'invalid_credentials' });
       throw new Error(msg);
     }
 
     const data = await res.json().catch(() => ({}));
     const tokenValue = data.access_token;
-    if (!tokenValue) throw new Error('No token in /login response');
+    if (!tokenValue) {
+      track('login_failed', { reason: 'no_token' });
+      throw new Error('No token in /login response');
+    }
 
     handleAuthSuccess(tokenValue, data.email ?? email, '', data.email_verified || false);
     track('login_completed');
@@ -261,6 +266,7 @@ function AppShell() {
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         console.error('Signup failed', res.status, text);
+        track('signup_failed', { source: 'landing_modal', reason: 'server_rejected', status: res.status });
         alert('Signup failed. Maybe this email is already registered.');
         return;
       }
@@ -270,6 +276,7 @@ function AppShell() {
 
       if (!tokenValue) {
         console.error('No token in /signup response', data);
+        track('signup_failed', { source: 'landing_modal', reason: 'no_token' });
         alert('Signup succeeded but server returned no token.');
         return;
       }
@@ -278,6 +285,7 @@ function AppShell() {
       track('signup_completed', { source: 'landing_modal' });
     } catch (err) {
       console.error('Signup error', err);
+      track('signup_failed', { source: 'landing_modal', reason: 'network_error' });
       alert('Could not reach the server. Please try again.');
     }
   };

@@ -1,10 +1,11 @@
 // src/HeaderLayout.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent, Crown, Volume2, VolumeX, Gift, X } from "lucide-react";
 import { CrownBadge } from "./lib/PremiumBadge";
 import { getTheme, toggleTheme } from "./lib/theme";
 import { isMuted, toggleMuted } from "./lib/muteAudio";
+import { identify } from "./lib/analytics";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -55,6 +56,18 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
   const [xp, setXp] = useState(() => Number(user?.xp ?? 0) || 0);
   const [streak, setStreak] = useState(() => Number(user?.streak ?? 0) || 0);
+
+  // Tag the analytics session with is_premium once we actually know it, so
+  // the dashboard can be segmented by user type instead of only aggregate
+  // totals. Only re-identifies when the value actually changes (not on
+  // every hearts poll tick with the same value).
+  const identifiedPremiumRef = useRef(null);
+  useEffect(() => {
+    if (hearts?.is_premium == null) return;
+    if (identifiedPremiumRef.current === hearts.is_premium) return;
+    identifiedPremiumRef.current = hearts.is_premium;
+    identify({ is_premium: hearts.is_premium });
+  }, [hearts?.is_premium]);
 
   // Light/dark theme — the class is already on <html> (index.html inline
   // script); this just tracks it so the toggle icon reflects current state.

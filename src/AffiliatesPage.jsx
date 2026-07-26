@@ -164,6 +164,7 @@ export default function AffiliatesPage() {
     } catch (err) {
       setStatus("error");
       setErrorMsg(err.message || "Something went wrong — please try again.");
+      track("affiliate_application_failed");
     }
   }
 
