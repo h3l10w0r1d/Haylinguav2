@@ -138,19 +138,37 @@ def support_user_detail(
     u = db.execute(
         text(
             """
-            SELECT id, email, username, display_name, first_name, last_name,
-                   bio, avatar_url, country, timezone,
-                   email_verified, (COALESCE(is_premium, FALSE) AND (premium_until IS NULL OR premium_until > NOW())) AS is_premium, premium_since,
-                   joined_at, last_active_at,
-                   COALESCE(current_streak, 0) AS current_streak,
-                   COALESCE(streak_freezes, 0) AS streak_freezes,
-                   totp_enabled, is_hidden, friends_public,
-                   COALESCE(gems, 0) AS gems,
-                   COALESCE(chests, 0) AS chests,
-                   COALESCE(weekly_xp, 0) AS weekly_xp,
-                   COALESCE(league_tier, 0) AS league_tier,
-                   COALESCE(bonus_xp, 0) AS bonus_xp
-            FROM users WHERE id = :u
+            SELECT u.id, u.email, u.username,
+                   -- display_name is only set via a profile-settings edit; the
+                   -- name a learner picks during onboarding ("What's your
+                   -- name?") is saved into users.name instead, so fall back to
+                   -- that rather than showing blank for onboarded-only users.
+                   COALESCE(u.display_name, u.name) AS display_name,
+                   -- "First name" in the CMS is really "the name they chose to go
+                   -- by" — that can land in any of first_name/display_name/name
+                   -- depending on which flow set it (profile settings vs.
+                   -- onboarding), so show whichever is actually populated instead
+                   -- of only the literal first_name column.
+                   COALESCE(u.first_name, u.display_name, u.name) AS first_name,
+                   u.last_name,
+                   u.bio, u.avatar_url,
+                   -- users.country is never written to; onboarding's required
+                   -- country picker saves into user_onboarding.country instead.
+                   COALESCE(u.country, ob.country) AS country,
+                   u.timezone,
+                   u.email_verified, (COALESCE(u.is_premium, FALSE) AND (u.premium_until IS NULL OR u.premium_until > NOW())) AS is_premium, u.premium_since,
+                   u.joined_at, u.last_active_at,
+                   COALESCE(u.current_streak, 0) AS current_streak,
+                   COALESCE(u.streak_freezes, 0) AS streak_freezes,
+                   u.totp_enabled, u.is_hidden, u.friends_public,
+                   COALESCE(u.gems, 0) AS gems,
+                   COALESCE(u.chests, 0) AS chests,
+                   COALESCE(u.weekly_xp, 0) AS weekly_xp,
+                   COALESCE(u.league_tier, 0) AS league_tier,
+                   COALESCE(u.bonus_xp, 0) AS bonus_xp
+            FROM users u
+            LEFT JOIN user_onboarding ob ON ob.user_id = u.id
+            WHERE u.id = :u
             """
         ),
         {"u": uid},
