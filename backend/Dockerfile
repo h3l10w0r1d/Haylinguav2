@@ -11,8 +11,11 @@ FROM python:3.12-slim AS base
 # ffmpeg: Azure Speech-to-Text's REST API only accepts WAV/PCM or OGG/Opus —
 # browser recordings come in as WebM/Opus (a different container, same
 # codec), which Azure rejects outright. Used to transcode before forwarding.
+# libcairo2: cairosvg (mobile's server-side avatar SVG->PNG rasterization,
+# since React Native has no <canvas>) shells out to the system Cairo lib via
+# cairocffi rather than bundling it — pip alone can't satisfy this.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq5 ffmpeg \
+    && apt-get install -y --no-install-recommends libpq5 ffmpeg libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -8322,6 +8322,94 @@ def me_avatar_upload(
     return {"avatar_url": avatar_url}
 
 
+class AvatarFromSvgIn(BaseModel):
+    svg: str
+
+
+@router.post("/me/avatar/from-svg")
+def me_avatar_from_svg(
+    payload: AvatarFromSvgIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Rasterize a client-generated avatar SVG (the DiceBear avataaars
+    builder — web rasterizes via <canvas> before uploading through
+    /me/avatar; mobile has no Canvas, so it POSTs the raw SVG here instead
+    and the same rasterize-then-store step happens server-side). Same
+    storage/response shape as /me/avatar so both clients treat the result
+    identically.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
+
+    svg = (payload.svg or "").strip()
+    if not svg:
+        raise HTTPException(status_code=400, detail="Empty SVG")
+    if len(svg) > 40_000:
+        raise HTTPException(status_code=400, detail="SVG too large")
+    if "<svg" not in svg[:200]:
+        raise HTTPException(status_code=400, detail="Not an SVG document")
+
+    import cairosvg
+
+    try:
+        # unsafe=False (the default) is load-bearing: it blocks cairosvg
+        # from resolving external resource references (e.g. a crafted
+        # <image xlink:href="http://...">), which would otherwise turn
+        # this into an SSRF primitive against an authenticated endpoint
+        # that accepts arbitrary attacker-supplied SVG text.
+        png_bytes = cairosvg.svg2png(
+            bytestring=svg.encode("utf-8"),
+            output_width=320,
+            output_height=320,
+            unsafe=False,
+        )
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not render SVG")
+
+    def _pick_uploads_dir() -> str:
+        candidates = []
+        env = os.getenv("UPLOADS_DIR")
+        if env:
+            candidates.append(env)
+        candidates.append("/var/data/uploads")
+        candidates.append("uploads")
+        for p in candidates:
+            try:
+                os.makedirs(p, exist_ok=True)
+            except PermissionError:
+                continue
+            except OSError:
+                continue
+            if os.access(p, os.W_OK):
+                return p
+        return "uploads"
+
+    uploads_dir = _pick_uploads_dir()
+    avatar_dir = os.path.join(uploads_dir, "avatars")
+    try:
+        os.makedirs(avatar_dir, exist_ok=True)
+    except PermissionError:
+        avatar_dir = os.path.join("uploads", "avatars")
+        os.makedirs(avatar_dir, exist_ok=True)
+
+    filename = f"u{int(user_id)}_{uuid.uuid4().hex}.png"
+    path = os.path.join(avatar_dir, filename)
+    with open(path, "wb") as f:
+        f.write(png_bytes)
+
+    avatar_url = f"/static/avatars/{filename}"
+    db.execute(
+        text("UPDATE users SET avatar_url = :url WHERE id = :id"),
+        {"url": avatar_url, "id": int(user_id)},
+    )
+
+    return {"avatar_url": avatar_url}
+
+
 @router.post("/me/banner")
 def me_banner_upload(
     file: UploadFile = File(...),
