@@ -1,7 +1,7 @@
 // src/HeaderLayout.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Home, Users, Trophy, User, LogOut, Heart, Flame, Zap, Gem, Store, Sun, Moon, Percent, Crown, Volume2, VolumeX, Gift, X } from "lucide-react";
+import { Home, Users, Trophy, User, LogOut, Heart, Flame, Gem, Store, Sun, Moon, Percent, Crown, Volume2, VolumeX, Gift, X } from "lucide-react";
 import { CrownBadge } from "./lib/PremiumBadge";
 import { getTheme, toggleTheme } from "./lib/theme";
 import { isMuted, toggleMuted } from "./lib/muteAudio";
@@ -86,6 +86,27 @@ export default function HeaderLayout({ user, onLogout, children }) {
     window.addEventListener("hay_muted_changed", onChange);
     return () => window.removeEventListener("hay_muted_changed", onChange);
   }, []);
+
+  // Account dropdown — clicking the avatar opens a menu (Profile, mute,
+  // theme, log out) instead of every one of those living as its own
+  // always-visible header button. Closes on an outside click or Escape.
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef(null);
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onPointerDown = (e) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) setAccountMenuOpen(false);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setAccountMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [accountMenuOpen]);
 
   // Keep xp/streak in sync when user prop updates (login/refresh)
   useEffect(() => { if (user?.xp != null) setXp(Number(user.xp) || 0); }, [user?.xp]);
@@ -334,9 +355,11 @@ export default function HeaderLayout({ user, onLogout, children }) {
             </NavLink>
           </nav>
 
-          {/* Right side: avatar + logout */}
+          {/* Right side: quick stats + account menu */}
           <div className="flex shrink-0 items-center gap-2 lg:gap-3">
-            {/* Quick stats */}
+            {/* Quick stats — trimmed to what actually changes moment-to-
+                moment (premium/hearts, streak, gems); XP has its own home on
+                the Dashboard and doesn't need a permanent header slot too. */}
             <div className="hidden md:flex items-center gap-1.5">
               <button
                 type="button"
@@ -356,10 +379,6 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 <Flame className={"w-4 h-4 fill-orange-500 text-orange-500" + (streak > 0 ? " flame-flicker" : "")} />
                 <span>{streak}</span>
               </div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-yellow-700 dark:bg-amber-500/15 dark:text-amber-300">
-                <Zap className="w-4 h-4" />
-                <span>{xp}</span>
-              </div>
               <button
                 type="button"
                 onClick={() => navigate("/shop")}
@@ -371,36 +390,17 @@ export default function HeaderLayout({ user, onLogout, children }) {
               </button>
             </div>
 
-            {/* Mute toggle */}
-            <button
-              type="button"
-              onClick={() => toggleMuted()}
-              title={muted ? "Unmute sound" : "Mute sound"}
-              aria-label="Toggle sound"
-              className="grid h-9 w-9 place-items-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 dark:text-stone-300 dark:hover:bg-white/[0.08] dark:hover:text-white"
-            >
-              {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
-            </button>
-
-            {/* Light / dark toggle */}
-            <button
-              type="button"
-              onClick={() => toggleTheme()}
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              aria-label="Toggle theme"
-              className="grid h-9 w-9 place-items-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 dark:text-stone-300 dark:hover:bg-white/[0.08] dark:hover:text-white"
-            >
-              {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-            </button>
             {user ? (
-              <>
+              <div className="relative" ref={accountMenuRef}>
                 <button
-                  onClick={() => navigate("/profile")}
+                  onClick={() => setAccountMenuOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={accountMenuOpen}
                   className={
                     "relative w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm overflow-visible " +
                     (hearts?.is_premium ? "ring-2 ring-gold-400" : "")
                   }
-                  title="Your profile"
+                  title="Account menu"
                 >
                   <span className="block h-full w-full overflow-hidden rounded-full">
                     {avatarSrc ? (
@@ -412,15 +412,65 @@ export default function HeaderLayout({ user, onLogout, children }) {
                   {hearts?.is_premium && <CrownBadge size="h-4 w-4" iconSize="h-2.5 w-2.5" />}
                 </button>
 
-                <button
-                  onClick={() => onLogout?.()}
-                  title="Log out"
-                  className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 p-2 md:px-2.5 md:py-1.5 rounded-full transition-colors dark:text-stone-400 dark:hover:bg-red-500/15 dark:hover:text-red-300"
-                >
-                  <LogOut className="w-4 h-4 md:w-3 md:h-3" />
-                  <span className="hidden md:inline">Log out</span>
-                </button>
-              </>
+                {accountMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-30 mt-2 w-52 overflow-hidden rounded-2xl bg-white py-1.5 shadow-lg ring-1 ring-black/5 dark:bg-[#1f1f23] dark:ring-white/10"
+                  >
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        navigate("/profile");
+                      }}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:text-stone-200 dark:hover:bg-white/[0.06]"
+                    >
+                      <User className="h-4 w-4 text-gray-400 dark:text-stone-400" />
+                      Profile
+                    </button>
+
+                    <button
+                      role="menuitem"
+                      onClick={() => toggleMuted()}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:text-stone-200 dark:hover:bg-white/[0.06]"
+                    >
+                      {muted ? (
+                        <VolumeX className="h-4 w-4 text-gray-400 dark:text-stone-400" />
+                      ) : (
+                        <Volume2 className="h-4 w-4 text-gray-400 dark:text-stone-400" />
+                      )}
+                      {muted ? "Unmute sound" : "Mute sound"}
+                    </button>
+
+                    <button
+                      role="menuitem"
+                      onClick={() => toggleTheme()}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:text-stone-200 dark:hover:bg-white/[0.06]"
+                    >
+                      {theme === "dark" ? (
+                        <Sun className="h-4 w-4 text-gray-400 dark:text-stone-400" />
+                      ) : (
+                        <Moon className="h-4 w-4 text-gray-400 dark:text-stone-400" />
+                      )}
+                      {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                    </button>
+
+                    <div className="my-1 h-px bg-gray-100 dark:bg-white/[0.06]" />
+
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        onLogout?.();
+                      }}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/15 dark:text-red-300"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <button
                 onClick={() => navigate("/login")}
