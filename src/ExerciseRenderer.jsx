@@ -2768,6 +2768,120 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
   );
 }
 
+// V-1) trace_letter — handwrite an Armenian letter over a faint guide. Grades by
+// pixel overlap against the glyph rendered in the app font, so it needs NO
+// authored stroke-path data — every one of the 39 letters works from just the
+// character. The single biggest week-one barrier for a non-Latin script.
+const _TRACE_FONT = 'bold {S}px "Baloo 2","Noto Sans Armenian",ui-sans-serif,system-ui,sans-serif';
+function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit, apiBaseUrl }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const letter = String(cfg.letter ?? cfg.char ?? exercise?.prompt ?? "").trim();
+  const romanization = cfg.romanization ?? cfg.roman ?? "";
+  const audioText = cfg.audioText ?? letter;
+  const SIZE = 300;
+  const glyphFont = _TRACE_FONT.replace("{S}", String(Math.round(SIZE * 0.72)));
+
+  const drawRef = useRef(null);
+  const ghostRef = useRef(null);
+  const audioRef = useRef(null);
+  const drawing = useRef(false);
+  const [dirty, setDirty] = useState(false);
+
+  const dpr = () => Math.min(window.devicePixelRatio || 1, 2);
+
+  useEffect(() => {
+    const r = dpr();
+    [drawRef, ghostRef].forEach((ref) => {
+      const c = ref.current; if (!c) return;
+      c.width = SIZE * r; c.height = SIZE * r;
+      const ctx = c.getContext("2d"); ctx.setTransform(r, 0, 0, r, 0, 0);
+    });
+    const paintGhost = () => {
+      const g = ghostRef.current?.getContext("2d"); if (!g) return;
+      g.clearRect(0, 0, SIZE, SIZE);
+      g.fillStyle = "rgba(120,120,120,0.20)";
+      g.textAlign = "center"; g.textBaseline = "middle"; g.font = glyphFont;
+      g.fillText(letter, SIZE / 2, SIZE / 2 + SIZE * 0.02);
+    };
+    drawRef.current?.getContext("2d").clearRect(0, 0, SIZE, SIZE);
+    setDirty(false);
+    paintGhost();
+    // repaint once webfonts settle so the guide matches the grading mask
+    if (document.fonts?.ready) document.fonts.ready.then(paintGhost);
+  }, [exercise?.id, letter]); // eslint-disable-line
+
+  const at = (e) => {
+    const rect = drawRef.current.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  };
+  const stroke = (x, y, down) => {
+    const ctx = drawRef.current.getContext("2d");
+    if (down) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineWidth = 26; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#e07b39"; }
+    ctx.lineTo(x, y); ctx.stroke();
+  };
+  const onDown = (e) => { e.preventDefault(); drawing.current = true; const { x, y } = at(e); stroke(x, y, true); stroke(x + 0.01, y + 0.01, false); setDirty(true); };
+  const onMove = (e) => { if (!drawing.current) return; e.preventDefault(); const { x, y } = at(e); stroke(x, y, false); };
+  const onUp = () => { drawing.current = false; };
+  const clear = () => { drawRef.current.getContext("2d").clearRect(0, 0, SIZE, SIZE); setDirty(false); };
+
+  async function play() {
+    try {
+      const res = await fetch(`${apiBaseUrl || ""}/tts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: audioText }) });
+      if (!res.ok) return;
+      const url = URL.createObjectURL(await res.blob());
+      if (audioRef.current) { audioRef.current.src = url; audioRef.current.play().catch(() => {}); }
+    } catch {}
+  }
+
+  function grade() {
+    const r = dpr(); const W = SIZE * r, H = SIZE * r;
+    const m = document.createElement("canvas"); m.width = W; m.height = H;
+    const mc = m.getContext("2d"); mc.setTransform(r, 0, 0, r, 0, 0);
+    mc.fillStyle = "#000"; mc.textAlign = "center"; mc.textBaseline = "middle"; mc.font = glyphFont;
+    mc.fillText(letter, SIZE / 2, SIZE / 2 + SIZE * 0.02);
+    const mData = mc.getImageData(0, 0, W, H).data;
+    const dData = drawRef.current.getContext("2d").getImageData(0, 0, W, H).data;
+    let maskN = 0, drawN = 0, covered = 0;
+    for (let i = 3; i < mData.length; i += 4) {
+      const mm = mData[i] > 60, dd = dData[i] > 30;
+      if (mm) maskN++;
+      if (dd) drawN++;
+      if (mm && dd) covered++;
+    }
+    if (maskN === 0) { correct({ answerText: `trace:${letter}` }); return; } // font missing — don't punish
+    const coverage = covered / maskN;
+    const drawnRatio = drawN / maskN;
+    const ok = coverage >= 0.55 && drawnRatio <= 2.6;
+    ok
+      ? correct({ answerText: `trace:${letter}` })
+      : wrong(coverage < 0.55 ? "Trace over the whole letter." : "Stay on the letter — don't scribble.", { answerText: `trace:${letter}` });
+  }
+
+  return (
+    <Card>
+      <Title>Trace the letter</Title>
+      <div className="mt-1 flex items-center justify-center gap-3">
+        <span className="font-display text-3xl font-black text-slate-800 dark:text-white">{letter}</span>
+        {romanization ? <span className="font-bold text-slate-400 dark:text-stone-500">/{romanization}/</span> : null}
+        <button type="button" onClick={play} className="grid h-9 w-9 place-items-center rounded-full bg-feather-50 text-feather-600 ring-1 ring-feather-200 transition active:scale-95 dark:bg-feather-500/15 dark:text-feather-400 dark:ring-feather-500/20" aria-label="Play sound">🔊</button>
+      </div>
+      <div className="relative mx-auto mt-4" style={{ width: SIZE, height: SIZE, maxWidth: "100%" }}>
+        <canvas ref={ghostRef} style={{ position: "absolute", inset: 0, width: SIZE, height: SIZE }} className="rounded-3xl bg-slate-50 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]" />
+        <canvas ref={drawRef} style={{ position: "absolute", inset: 0, width: SIZE, height: SIZE, touchAction: "none", cursor: "crosshair" }}
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} />
+      </div>
+      <div className="mt-2 text-center">
+        <button type="button" onClick={clear} className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300">Clear</button>
+      </div>
+      <audio ref={audioRef} className="hidden" />
+      <FooterSlot>
+        <PrimaryButton disabled={!dirty} onClick={grade}>Check</PrimaryButton>
+      </FooterSlot>
+    </Card>
+  );
+}
+
 // V0) inflect — produce the inflected form of a base word (case / tense /
 // person / definiteness). The core morphology drill: shows a base word and a
 // grammatical target, learner types the transformed form. Grades against the
@@ -3265,6 +3379,10 @@ export default function ExerciseRenderer({
   if (kind === "speak_line") {
     return <ExSpeakLine exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
   }
+  if (kind === "trace_letter") {
+    return <ExTraceLetter exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} apiBaseUrl={apiBaseUrl} />;
+  }
+
   if (kind === "inflect") {
     return <ExInflect exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
   }

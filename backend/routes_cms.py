@@ -22,6 +22,8 @@ import json
 import os
 import re
 import secrets
+import threading
+import time
 import traceback
 from datetime import datetime, timedelta
 import datetime as dt
@@ -46,6 +48,9 @@ from routes import (
     _cms_jwt_encode,
     _cms_jwt_decode,
     _sha256_hex,
+    _client_ip,
+    _check_rate_limit,
+    _totp_verify_no_replay,
     CMS_INVITE_TTL_HOURS,
     CMS_INVITE_BASE_URL,
     CMS_BOOTSTRAP_EMAIL,
@@ -1469,22 +1474,77 @@ def cms_invite_accept(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
     temp = _cms_jwt_encode({"sub": str(cms_user_id), "scope": "cms", "typ": "cms_temp", "role": "admin"}, minutes=15)
     return {"requires_2fa_setup": True, "temp_token": temp}
 
+
+# CMS admin login lockout — the learner-facing /login has a 3-stage
+# fail->CAPTCHA->lockout guard (see routes.py), but the CMS login screen has
+# no CAPTCHA widget to escalate into, so this is a simpler straight-to-
+# lockout policy instead: unlike learner accounts, a CMS admin is the most
+# privileged identity in the whole system, so it shouldn't be reachable at
+# the global 300-req/min blanket rate limit alone.
+_CMS_LOGIN_LOCK = threading.Lock()
+_CMS_LOGIN_FAILS: dict = {}    # key -> list[timestamps]
+_CMS_LOGIN_LOCKOUT: dict = {}  # key -> until_ts
+
+CMS_LOGIN_FAIL_WINDOW_SECONDS = 5 * 60
+CMS_LOGIN_FAIL_THRESHOLD = 5
+CMS_LOGIN_LOCKOUT_SECONDS = 30 * 60
+
+
+def _cms_login_keys(email: str, ip: str) -> tuple[str, str]:
+    # Namespaced separately from learner /login's `acct:` keys (routes.py's
+    # _key_for) so a shared email between a learner account and a CMS admin
+    # account can't cross-contaminate either one's failure count.
+    return (f"cms_acct:{(email or '').strip().lower()}", f"ip:{ip}")
+
+
+def _cms_login_check_locked(keys, now: float) -> None:
+    for k in keys:
+        until = _CMS_LOGIN_LOCKOUT.get(k, 0)
+        if until and until > now:
+            wait_min = int((until - now) // 60) + 1
+            raise HTTPException(status_code=429, detail=f"Too many failed attempts. Try again in {wait_min} minute(s).")
+
+
+def _cms_login_record_failure(keys, now: float) -> None:
+    for k in keys:
+        lst = _CMS_LOGIN_FAILS.setdefault(k, [])
+        lst[:] = [t for t in lst if now - t < CMS_LOGIN_FAIL_WINDOW_SECONDS]
+        lst.append(now)
+        if len(lst) >= CMS_LOGIN_FAIL_THRESHOLD:
+            _CMS_LOGIN_LOCKOUT[k] = now + CMS_LOGIN_LOCKOUT_SECONDS
+
+
+def _cms_login_clear(keys) -> None:
+    for k in keys:
+        _CMS_LOGIN_FAILS.pop(k, None)
+        _CMS_LOGIN_LOCKOUT.pop(k, None)
+
+
 @router.post("/cms/auth/login")
-def cms_login(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
+def cms_login(request: Request, payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
     email = (payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password required")
 
+    ip = _client_ip(request)
+    now = time.time()
+    keys = _cms_login_keys(email, ip)
+    with _CMS_LOGIN_LOCK:
+        _cms_login_check_locked(keys, now)
+
     user = db.execute(
         text("SELECT id, password_hash, status, totp_enabled FROM cms_users WHERE lower(email)=:e"),
         {"e": email},
     ).mappings().first()
-    if not user or user["status"] != "active":
+    valid = bool(user) and user["status"] == "active" and user["password_hash"] and verify_password(password, user["password_hash"])
+    if not valid:
+        with _CMS_LOGIN_LOCK:
+            _cms_login_record_failure(keys, now)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not user["password_hash"] or not verify_password(password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    with _CMS_LOGIN_LOCK:
+        _cms_login_clear(keys)
 
     if not user["totp_enabled"]:
         # strict: must setup 2FA
@@ -1495,7 +1555,11 @@ def cms_login(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
     return {"needs_2fa": True, "temp_token": temp}
 
 @router.post("/cms/auth/2fa")
-def cms_login_2fa(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
+def cms_login_2fa(request: Request, payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
+    # A TOTP code's own 6-digit search space (~1M) makes brute force
+    # impractical regardless, but a per-IP cap costs nothing and closes off
+    # a scripted guessing loop targeting one still-valid temp_token.
+    _check_rate_limit("cms_2fa", _client_ip(request), limit=20, window_seconds=60)
     temp_token = (payload.get("temp_token") or "").strip()
     code = (payload.get("code") or "").strip().replace(" ", "")
     if not temp_token or not code:
@@ -1506,7 +1570,7 @@ def cms_login_2fa(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
     cms_user_id = int(p.get("sub"))
 
     user = db.execute(
-        text("SELECT id, totp_secret, totp_enabled, status FROM cms_users WHERE id=:id"),
+        text("SELECT id, totp_secret, totp_enabled, status, totp_last_used_step FROM cms_users WHERE id=:id"),
         {"id": cms_user_id},
     ).mappings().first()
     if not user or user["status"] != "active":
@@ -1515,11 +1579,14 @@ def cms_login_2fa(payload: Dict[str, Any] = Body(...), db=Depends(get_db)):
     if not user["totp_enabled"] or not user["totp_secret"]:
         raise HTTPException(status_code=403, detail="2FA not enabled")
 
-    totp = pyotp.TOTP(user["totp_secret"])
-    if not totp.verify(code, valid_window=1):
+    matched_step = _totp_verify_no_replay(user["totp_secret"], code, user["totp_last_used_step"])
+    if matched_step is None:
         raise HTTPException(status_code=401, detail="Invalid 2FA code")
 
-    db.execute(text("UPDATE cms_users SET last_login_at=NOW() WHERE id=:id"), {"id": cms_user_id})
+    db.execute(
+        text("UPDATE cms_users SET last_login_at=NOW(), totp_last_used_step=:s WHERE id=:id"),
+        {"id": cms_user_id, "s": matched_step},
+    )
     access = _cms_jwt_encode({"sub": str(cms_user_id), "scope": "cms", "typ": "cms", "role": "admin"}, minutes=60*24*30)
     return {"access_token": access}
 
@@ -2090,6 +2157,21 @@ def cms_seed_wordforms(request: Request, db=Depends(get_db)):
     from seed_wordforms import seed_wordforms
     try:
         res = seed_wordforms()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/handwriting")
+def cms_seed_handwriting(request: Request, db=Depends(get_db)):
+    """Handwriting — first lessons on the new `trace_letter` exercise (draw a
+    letter over a guide, graded by glyph overlap): the vowels and first
+    consonants. Lessons tagged cefr=A0. 'Handwriting' chapter at position 8.
+    Idempotent (skips if hw-vowels exists)."""
+    require_cms(request, db)
+    from seed_handwriting import seed_handwriting
+    try:
+        res = seed_handwriting()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}

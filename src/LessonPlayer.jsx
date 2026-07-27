@@ -940,6 +940,7 @@ export default function LessonPlayer() {
     speak_line: "Speak this line aloud",
     write_translate: "Write the translation",
     inflect: "Type the correct form",
+    trace_letter: "Trace the letter",
     highlight_grammar: "Identify the grammar element",
     letter_typing: "Type the character",
     word_spelling: "Spell the word",
