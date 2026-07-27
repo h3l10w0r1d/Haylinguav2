@@ -1452,6 +1452,61 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
 }
 
 // G) speak — record speech, transcribe via backend (hispeech.ai), compare
+// ----- Per-word pronunciation feedback (shared by speak / speak_line) -----
+// Aligns what the learner said against the target and marks each target word
+// matched/missed, so "we heard …" becomes actionable: nail the green ones,
+// re-try the red ones.
+function _spNorm(s) {
+  return String(s || "").normalize("NFD").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+}
+function _spSim(a, b) {
+  if (!a && !b) return 1;
+  if (!a || !b) return 0;
+  const m = a.length, n = b.length;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] : 1 + Math.min(prev[j], cur[j - 1], prev[j - 1]);
+    }
+    prev = cur;
+  }
+  return 1 - prev[n] / Math.max(m, n);
+}
+function alignSpokenWords(target, transcript) {
+  const origTokens = String(target || "").trim().split(/\s+/).filter(Boolean);
+  const avail = _spNorm(transcript).split(" ").filter(Boolean);
+  return origTokens.map((tok) => {
+    const w = _spNorm(tok);
+    let best = 0, bi = -1;
+    avail.forEach((s, i) => { if (s == null) return; const sim = _spSim(w, s); if (sim > best) { best = sim; bi = i; } });
+    const matched = w.length > 0 && best >= 0.72;
+    if (matched && bi >= 0) avail[bi] = null; // consume so a word can't match twice
+    return { token: tok, matched };
+  });
+}
+function SpokenWordFeedback({ target, transcript, hideScript }) {
+  const words = useMemo(() => alignSpokenWords(target, transcript), [target, transcript]);
+  if (!target || !transcript || !words.length) return null;
+  const hit = words.filter((w) => w.matched).length;
+  return (
+    <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-stone-400">
+        Your pronunciation · {hit}/{words.length} words
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-lg font-extrabold leading-relaxed">
+        {words.map(({ token, matched }, i) => (
+          <span key={i} className={matched
+            ? "text-grass-600 dark:text-grass-400"
+            : "text-cardinal-500 underline decoration-wavy decoration-cardinal-300 dark:text-cardinal-400"}>
+            {hideScript ? translitArmenian(token) : token}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Say the phrase out loud";
@@ -1686,6 +1741,10 @@ function ExSpeak({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
             {hideScript ? translitArmenian(transcript) : transcript}
           </div>
         </div>
+      ) : null}
+
+      {transcript && target ? (
+        <SpokenWordFeedback target={target} transcript={transcript} hideScript={hideScript} />
       ) : null}
 
       {error ? (
@@ -2858,6 +2917,10 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
             {hideScript ? translitArmenian(transcript) : transcript}
           </div>
         </div>
+      ) : null}
+
+      {transcript && target ? (
+        <SpokenWordFeedback target={target} transcript={transcript} hideScript={hideScript} />
       ) : null}
       {error ? <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div> : null}
 
