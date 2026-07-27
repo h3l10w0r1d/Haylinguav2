@@ -56,15 +56,20 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => toggleMuted()}
-            title={muted ? "Unmute sound" : "Mute sound"}
-            aria-label="Toggle sound"
-            className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.08]"
-          >
-            {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
-          </button>
+          {/* Mute only matters where sound actually plays — the landing
+              page's hero demo (sfx + VoiceChip TTS). About/Careers/Pricing/
+              Contact have no audio, so the icon was pure clutter there. */}
+          {inPage && (
+            <button
+              type="button"
+              onClick={() => toggleMuted()}
+              title={muted ? "Unmute sound" : "Mute sound"}
+              aria-label="Toggle sound"
+              className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.08]"
+            >
+              {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => toggleTheme()}
