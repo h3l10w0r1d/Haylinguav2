@@ -2192,6 +2192,20 @@ def cms_seed_activate(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/listen-image")
+def cms_seed_listen_image(request: Request, db=Depends(get_db)):
+    """Listen & Choose — the new listen_image exercise (hear a word, tap the
+    matching picture). One lesson added to the Mixed Practice chapter, emoji
+    tiles, cefr=A1. Idempotent (skips if mix-listen-image exists)."""
+    require_cms(request, db)
+    from seed_listen_image import seed_listen_image
+    try:
+        res = seed_listen_image()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
