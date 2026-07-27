@@ -5,7 +5,7 @@
 // through the exact same /me/avatar pipeline as a normal photo, so every
 // screen that already renders `avatar_url` (header, leaderboard, friends,
 // public profile, CMS) needs zero changes to show it.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createAvatar } from "@dicebear/core";
 import { avataaars } from "@dicebear/collection";
 import { X, Shuffle, Check, Loader2 } from "lucide-react";
@@ -163,12 +163,73 @@ function OptionThumb({ traits, field, value, active, onClick }) {
   );
 }
 
+// Idle motion for the live preview — no third-party animation lib, no API
+// calls: just CSS keyframes plus a randomized timer that swaps in a
+// second, closed-eyes render of the exact same traits (DiceBear runs
+// entirely client-side already, so "animating" it is just choosing which
+// locally-generated frame to show). Once "Use this avatar" rasterizes to a
+// flat PNG for the upload pipeline, the character is static again — this
+// only brings it to life while building.
+const PREVIEW_STYLE = `
+@keyframes hay-avatar-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(-1deg); }
+}
+@keyframes hay-avatar-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(3deg); }
+  75% { transform: rotate(-3deg); }
+}
+.hay-avatar-preview { animation: hay-avatar-bob 3.2s ease-in-out infinite; }
+.hay-avatar-preview:hover { animation: hay-avatar-wiggle 0.5s ease-in-out; }
+@media (prefers-reduced-motion: reduce) {
+  .hay-avatar-preview, .hay-avatar-preview:hover { animation: none; }
+}
+`;
+
+// Eyes that read naturally as "open" and can believably blink shut. Traits
+// already fixed to something eyes-closed-adjacent (closed/cry/xDizzy) skip
+// blinking rather than doing nothing or looking wrong.
+const BLINKABLE_EYES = new Set(["default", "happy", "side", "squint", "wink", "winkWacky", "surprised"]);
+
+function useBlink(traits, active) {
+  const [blinking, setBlinking] = useState(false);
+
+  useEffect(() => {
+    if (!active || !BLINKABLE_EYES.has(traits.eyes)) {
+      setBlinking(false);
+      return;
+    }
+    let closeTimer;
+    let openTimer;
+    function scheduleBlink() {
+      const delay = 2200 + Math.random() * 3200;
+      closeTimer = setTimeout(() => {
+        setBlinking(true);
+        openTimer = setTimeout(() => {
+          setBlinking(false);
+          scheduleBlink();
+        }, 130);
+      }, delay);
+    }
+    scheduleBlink();
+    return () => {
+      clearTimeout(closeTimer);
+      clearTimeout(openTimer);
+    };
+  }, [traits.eyes, active]);
+
+  return blinking;
+}
+
 export default function AvatarBuilder({ open, onClose, onSave }) {
   const [traits, setTraits] = useState(DEFAULT_TRAITS);
   const [tab, setTab] = useState("hair");
   const [saving, setSaving] = useState(false);
 
   const previewUri = useMemo(() => buildSvg(traits, 320), [traits]);
+  const blinkUri = useMemo(() => buildSvg({ ...traits, eyes: "closed" }, 320), [traits]);
+  const blinking = useBlink(traits, open);
 
   if (!open) return null;
 
@@ -206,11 +267,12 @@ export default function AvatarBuilder({ open, onClose, onSave }) {
           </button>
         </div>
 
+        <style>{PREVIEW_STYLE}</style>
         <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
           {/* Live preview */}
           <div className="flex shrink-0 flex-col items-center gap-3 border-b border-slate-100 p-5 dark:border-white/[0.08] sm:w-52 sm:border-b-0 sm:border-r">
-            <div className="h-32 w-32 overflow-hidden rounded-3xl ring-4 ring-slate-100 dark:ring-white/10">
-              <img src={previewUri} alt="Avatar preview" className="h-full w-full object-cover" />
+            <div className="hay-avatar-preview h-32 w-32 overflow-hidden rounded-3xl ring-4 ring-slate-100 dark:ring-white/10">
+              <img src={blinking ? blinkUri : previewUri} alt="Avatar preview" className="h-full w-full object-cover" />
             </div>
             <button type="button" onClick={randomize} className="btn3d btn3d-neutral w-full text-xs">
               <Shuffle className="h-3.5 w-3.5" /> Surprise me
