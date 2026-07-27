@@ -1,31 +1,75 @@
-// src/lib/lucideIcons.js — renders any of lucide's ~1,544 icons by kebab-case
-// name (e.g. "shirt", "map-pin") from a static JSON manifest (src/assets/
-// lucide-icons.json — the exact same file the web app's CMS icon picker
-// uses, see src/lib/lucideIcons.jsx there for how/why it's generated) rather
-// than importing lucide-react-native's icon components directly. A native
-// app bundle isn't repeatedly downloaded per page view the way a web SPA's
-// JS is, so the ~300KB manifest bundled locally is a non-issue here (no lazy
-// fetch needed, unlike the web version).
+// src/lib/lucideIcons.js — renders any of the ~10,273 icons in the shared
+// manifest by name (e.g. "shirt", "tabler:shirt", "bi:bag", "ri:t-shirt")
+// from the same public/icons/lucide-icons.json the web app's CMS icon
+// picker uses (see src/lib/lucideIcons.jsx there for how/why it's built),
+// fetched lazily from the deployed web app and cached in memory — NOT
+// bundled locally. At ~3.9MB (10x larger than the original lucide-only
+// version), statically importing this as a local asset would meaningfully
+// bloat every install of the app for a picker mobile doesn't even have a
+// wired-up entry point for yet (see UnitBanner.js's icon prop, currently
+// unused pending a concurrent DashboardScreen.js refactor landing); a
+// cached fetch costs nothing until a screen actually renders an icon.
 import React from 'react';
 import Svg, { Circle, Ellipse, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
-import iconManifest from '../assets/lucide-icons.json';
 
+const MANIFEST_URL = 'https://haylingua.am/icons/lucide-icons.json';
 const TAG_COMPONENTS = { circle: Circle, ellipse: Ellipse, line: Line, path: Path, polygon: Polygon, polyline: Polyline, rect: Rect };
 
-export const ICON_NAMES = Object.keys(iconManifest).sort();
+let manifestPromise = null;
+let manifestData = null;
 
-export function getIconNodes(name) {
-  return (name && iconManifest[name]) || null;
+function loadManifest() {
+  if (manifestData) return Promise.resolve(manifestData);
+  if (!manifestPromise) {
+    manifestPromise = fetch(MANIFEST_URL)
+      .then((r) => r.json())
+      .then((data) => {
+        manifestData = data;
+        return data;
+      })
+      .catch(() => {
+        manifestPromise = null; // allow a retry on the next call
+        return {};
+      });
+  }
+  return manifestPromise;
+}
+
+function svgPropsFor(entry, size, color) {
+  const base = { width: size, height: size, viewBox: entry.v };
+  if (entry.m === 'fill') return { ...base, fill: color };
+  return { ...base, fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
 }
 
 // `size`/`color` mirror lucide-react-native's own icon component props so
-// this drops in wherever a lucide-react-native icon would've gone.
-export function LucideGlyph({ name, size = 24, color = 'currentColor', style }) {
-  const nodes = getIconNodes(name);
-  if (!nodes) return null;
+// this drops in wherever a lucide-react-native icon would've gone. Renders
+// nothing until the (cached-after-first-fetch) manifest resolves and the
+// name is found in it.
+export function LucideGlyph({ name, size = 24, color = '#000', style }) {
+  const [entry, setEntry] = React.useState(name && manifestData ? manifestData[name] : undefined);
+
+  React.useEffect(() => {
+    if (!name) {
+      setEntry(undefined);
+      return;
+    }
+    if (manifestData) {
+      setEntry(manifestData[name]);
+      return;
+    }
+    let cancelled = false;
+    loadManifest().then((data) => {
+      if (!cancelled) setEntry(data[name]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [name]);
+
+  if (!entry) return null;
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={style}>
-      {nodes.map(([tag, attrs], i) => {
+    <Svg {...svgPropsFor(entry, size, color)} style={style}>
+      {entry.n.map(([tag, attrs], i) => {
         const Tag = TAG_COMPONENTS[tag];
         if (!Tag) return null;
         return <Tag key={i} {...attrs} />;

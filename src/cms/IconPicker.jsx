@@ -1,9 +1,10 @@
 // src/cms/IconPicker.jsx — modal icon picker for the chapter builder (and
-// anywhere else that wants "pick one of lucide's ~1,500 icons"). Search-first:
-// rendering all of them on open is real DOM weight, so the default view
-// caps at a manageable slice and search narrows the full list instead. Icon
-// data comes from public/icons/lucide-icons.json (see lucideIcons.jsx) — a
-// plain static asset, not a JS import, so it never touches the app bundle.
+// anywhere else that wants "pick one of ~10,000+ icons", combining lucide,
+// Tabler, Bootstrap Icons, and Remix Icon). Search-first: rendering all of
+// them on open is real DOM weight, so the default view caps at a manageable
+// slice and search narrows the full list instead. Icon data comes from
+// public/icons/lucide-icons.json (see lucideIcons.jsx) — a plain static
+// asset, not a JS import, so it never touches the app bundle.
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useIconNames, LucideGlyph } from "../lib/lucideIcons";
