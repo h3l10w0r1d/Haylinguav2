@@ -1,25 +1,30 @@
 // src/BannerBuilder.jsx — a procedural profile-banner generator, the
 // banner equivalent of AvatarBuilder.jsx. Combines a 2-color gradient with
 // an optional pattern overlay (soft blobs via the open-source `blobs`
-// library, waves, dots, or diagonal stripes) — colors × pattern × seed adds
-// up to far more than 10k distinct banners, all generated client-side with
-// no image library or hosting needed. Saving rasterizes to a PNG and hands
-// it to the caller, which uploads through the existing POST /me/banner
-// pipeline exactly like an uploaded photo.
+// library, waves, dots, or diagonal stripes) — palette × pattern × seed
+// adds up to far more than 10k distinct banners, all generated client-side
+// with no image library or hosting needed. Saving rasterizes to a PNG and
+// hands it to the caller, which uploads through the existing POST
+// /me/banner pipeline exactly like an uploaded photo.
+//
+// Color pairs come from uiGradients (github.com/Ghosh/uiGradients, MIT) —
+// ~190 hand-picked two-color combinations. Two independently-random single
+// hues frequently clash (e.g. red+green reads muddy); a curated pair always
+// looks intentional.
 import { useMemo, useState } from "react";
 import { svgPath } from "blobs/v2";
 import { X, Shuffle, Check, Loader2 } from "lucide-react";
+import uiGradientsData from "./lib/uiGradients.json";
 
 const BANNER_W = 1200;
 const BANNER_H = 300;
 
-const COLORS = [
-  "f97316", "fb923c", "f59e0b", "eab308", // warm / brand
-  "22c55e", "10b981", "14b8a6", // greens
-  "0ea5e9", "3b82f6", "6366f1", "8b5cf6", // blues/purples
-  "ec4899", "f43f5e", "ef4444", // pinks/reds
-  "1e293b", "0f172a", "64748b", // neutrals
-];
+const GRADIENT_PAIRS = Object.entries(uiGradientsData).map(([key, v]) => ({
+  key,
+  label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  color1: v.start.replace("#", ""),
+  color2: v.end.replace("#", ""),
+}));
 
 const PATTERNS = [
   { key: "none", label: "Plain" },
@@ -29,9 +34,11 @@ const PATTERNS = [
   { key: "stripes", label: "Stripes" },
 ];
 
+const DEFAULT_PAIR = GRADIENT_PAIRS.find((p) => p.key === "bora_bora") || GRADIENT_PAIRS[0];
+
 const DEFAULT_CONFIG = {
-  color1: COLORS[0],
-  color2: COLORS[1],
+  color1: DEFAULT_PAIR.color1,
+  color2: DEFAULT_PAIR.color2,
   angle: 120,
   pattern: "blobs",
   seed: "haylingua-banner",
@@ -42,12 +49,10 @@ function pick(arr) {
 }
 
 function randomConfig() {
-  const c1 = pick(COLORS);
-  let c2 = pick(COLORS);
-  if (c2 === c1) c2 = pick(COLORS);
+  const p = pick(GRADIENT_PAIRS);
   return {
-    color1: c1,
-    color2: c2,
+    color1: p.color1,
+    color2: p.color2,
     angle: pick([45, 90, 120, 135, 160]),
     pattern: pick(PATTERNS.map((p) => p.key)),
     seed: Math.random().toString(36).slice(2),
@@ -164,13 +169,17 @@ export async function generateRandomBannerFile() {
   return rasterizeBannerToPngFile(randomConfig());
 }
 
-function ColorDot({ hex, active, onClick }) {
+function PaletteSwatch({ pair, active, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={"h-8 w-8 shrink-0 rounded-full ring-2 transition " + (active ? "ring-brand-500 ring-offset-2 dark:ring-offset-[#151517]" : "ring-slate-200 hover:ring-brand-300 dark:ring-white/10")}
-      style={{ backgroundColor: "#" + hex }}
+      title={pair.label}
+      className={
+        "h-11 w-11 shrink-0 rounded-2xl ring-2 transition " +
+        (active ? "ring-brand-500 ring-offset-2 dark:ring-offset-[#151517]" : "ring-slate-200 hover:ring-brand-300 dark:ring-white/10")
+      }
+      style={{ background: `linear-gradient(135deg, #${pair.color1}, #${pair.color2})` }}
     />
   );
 }
@@ -229,17 +238,17 @@ export default function BannerBuilder({ open, onClose, onSave }) {
             <Shuffle className="h-3.5 w-3.5" /> Surprise me
           </button>
 
-          <div className="mb-2 mt-4 text-xs font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">Color 1</div>
-          <div className="flex flex-wrap gap-2">
-            {COLORS.map((hex) => (
-              <ColorDot key={"c1-" + hex} hex={hex} active={config.color1 === hex} onClick={() => set("color1", hex)} />
-            ))}
+          <div className="mb-2 mt-4 text-xs font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">
+            Palette <span className="font-semibold normal-case text-slate-400 dark:text-stone-500">— hand-picked pairs from uiGradients</span>
           </div>
-
-          <div className="mb-2 mt-4 text-xs font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">Color 2</div>
-          <div className="flex flex-wrap gap-2">
-            {COLORS.map((hex) => (
-              <ColorDot key={"c2-" + hex} hex={hex} active={config.color2 === hex} onClick={() => set("color2", hex)} />
+          <div className="grid max-h-48 grid-cols-6 gap-2 overflow-y-auto sm:grid-cols-8">
+            {GRADIENT_PAIRS.map((pair) => (
+              <PaletteSwatch
+                key={pair.key}
+                pair={pair}
+                active={config.color1 === pair.color1 && config.color2 === pair.color2}
+                onClick={() => setConfig((c) => ({ ...c, color1: pair.color1, color2: pair.color2 }))}
+              />
             ))}
           </div>
 
