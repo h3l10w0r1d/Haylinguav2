@@ -2220,6 +2220,20 @@ def cms_seed_stories(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/radio")
+def cms_seed_radio(request: Request, db=Depends(get_db)):
+    """Radio — DuoRadio-style long-form listening (`radio` exercise: audio-first
+    segments + comprehension). One 'Radio' lesson of 5 short shows, cefr=A2,
+    chapter position 65. Idempotent (skips if radio-a2 exists)."""
+    require_cms(request, db)
+    from seed_radio import seed_radio
+    try:
+        res = seed_radio()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/situations")
 def cms_seed_situations(request: Request, db=Depends(get_db)):
     """A2 · Everyday Situations — at the doctor, at the shop, making plans.

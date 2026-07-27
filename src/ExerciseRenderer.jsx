@@ -3263,6 +3263,97 @@ function ExStory({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   );
 }
 
+// X) radio — DuoRadio-style long-form listening: a short narrated piece split
+// into segments, each played as audio (no text shown) then checked with a
+// comprehension question; the text + translation are revealed only after you
+// answer. Audio-first listening + comprehension. Config:
+// { title?, segments:[{ text, translation?, question, choices, answerIndex }] }
+function ExRadio({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const title = cfg.title || exercise?.prompt || "Listen to the show";
+  const segments = Array.isArray(cfg.segments) ? cfg.segments : [];
+  const M = segments.length;
+
+  const [idx, setIdx] = useState(0);
+  const [sel, setSel] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const scoreRef = useRef(0);
+  const seg = segments[idx] || {};
+  const answerIndex = Number.isFinite(seg.answerIndex) ? Number(seg.answerIndex) : 0;
+
+  useEffect(() => { setIdx(0); setSel(null); setRevealed(false); scoreRef.current = 0; }, [exercise?.id]);
+
+  async function play(rate = 1) {
+    const text = seg?.text; if (!text) return;
+    try {
+      setBusy(true);
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text, exerciseId: exercise?.id });
+      const a = newTrackedAudio(url); a.playbackRate = rate; await a.play();
+    } catch (e) { console.error("TTS failed", e); }
+    finally { setBusy(false); }
+  }
+
+  // Auto-play each segment as it becomes current.
+  useEffect(() => { setSel(null); setRevealed(false); if (seg?.text) play(); /* eslint-disable-next-line */ }, [idx, exercise?.id]);
+
+  const graded = revealed ? { correct: answerIndex, picked: sel } : null;
+
+  function onPrimary() {
+    if (!revealed) {
+      if (sel === answerIndex) scoreRef.current += 1;
+      setRevealed(true);
+      return;
+    }
+    if (idx + 1 >= M) {
+      const need = Math.ceil(M * 0.6);
+      const pass = scoreRef.current >= need;
+      const payload = { answerText: `radio ${scoreRef.current}/${M}` };
+      pass ? correct(payload) : wrong(`You got ${scoreRef.current}/${M} — listen again.`, payload);
+    } else {
+      setIdx((i) => i + 1);
+    }
+  }
+
+  return (
+    <Card>
+      <div className="flex items-baseline justify-between gap-3">
+        <Title>{title}</Title>
+        <span className="shrink-0 text-xs font-extrabold uppercase tracking-wide text-feather-500 dark:text-feather-400">Part {idx + 1} / {M}</span>
+      </div>
+
+      <div className="mt-3">
+        <SpeechBubbleMascot
+          character="armen"
+          text={revealed
+            ? <span><GlossaryText text={seg?.text || ""} glossary={cfg.glossary} />{seg?.translation ? <span className="mt-0.5 block text-sm font-semibold text-slate-400 dark:text-stone-500">{seg.translation}</span> : null}</span>
+            : "🎧 Listen…"}
+          onPlay={() => play(1)}
+          onSlow={() => play(0.6)}
+          busy={busy}
+          playDisabled={!seg?.text}
+        />
+      </div>
+
+      {seg?.question ? (
+        <div className="mt-5">
+          <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">{seg.question}</div>
+          <div className="mt-3">
+            <ChoiceGrid choices={Array.isArray(seg.choices) ? seg.choices : []} selected={sel}
+              onSelect={(i) => { if (!revealed) setSel(i); }} columns={1} graded={graded} />
+          </div>
+        </div>
+      ) : null}
+
+      <FooterSlot>
+        <PrimaryButton disabled={!revealed && sel === null} onClick={onPrimary}>
+          {!revealed ? "Check" : (idx + 1 >= M ? "Finish" : "Next part")}
+        </PrimaryButton>
+      </FooterSlot>
+    </Card>
+  );
+}
+
 /* -------------------------
    Main Renderer (no hooks)
 -------------------------- */
@@ -3633,6 +3724,9 @@ export default function ExerciseRenderer({
   }
   if (kind === "story") {
     return <ExStory exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} apiBaseUrl={apiBaseUrl} />;
+  }
+  if (kind === "radio") {
+    return <ExRadio exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} apiBaseUrl={apiBaseUrl} />;
   }
   if (kind === "minimal_pairs") {
     return <ExMinimalPairs exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
