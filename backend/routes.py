@@ -9,6 +9,7 @@ import uuid
 from typing import List, Dict, Any, Optional
 
 import httpx
+import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query, UploadFile, File
 import asyncio
 from fastapi.responses import Response, JSONResponse, StreamingResponse
@@ -256,6 +257,33 @@ def _verify_turnstile(token: str, ip: str) -> bool:
         return bool(data.get('success'))
     except Exception:
         return False
+
+
+def _totp_verify_no_replay(secret: str, code: str, last_used_step) -> Optional[int]:
+    """Verify a TOTP code with the usual ±1-step clock-drift tolerance, but
+    reject a step that's already been accepted before — a plain
+    `totp.verify(code, valid_window=1)` lets the same still-valid code be
+    replayed any number of times within its ~90s effective window (e.g. if
+    shoulder-surfed or captured off a compromised proxy). Returns the
+    matched time-step index to persist as the new `totp_last_used_step` on
+    success, or None if the code is wrong or its step was already used."""
+    if not secret or not code:
+        return None
+    try:
+        totp = pyotp.TOTP(secret)
+        interval = totp.interval
+        now = time.time()
+        last_step = int(last_used_step) if last_used_step is not None else None
+        for offset in (0, -1, 1):
+            t = now + offset * interval
+            step = int(t // interval)
+            if last_step is not None and step <= last_step:
+                continue
+            if totp.at(t) == code:
+                return step
+    except Exception:
+        return None
+    return None
 
 # ---------------- Email verification (6-digit code) ----------------
 # Important: this project uses INTEGER user ids (users.id).
@@ -2163,7 +2191,7 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
         key = identifier.lower()
         row = db.execute(
             text("""
-                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes, totp_recovery_hashes
+                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes, totp_recovery_hashes, totp_last_used_step
                 FROM users
                 WHERE email = :email
             """),
@@ -2173,7 +2201,7 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
         key = identifier
         row = db.execute(
             text("""
-                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes, totp_recovery_hashes
+                SELECT id, email, password_hash, COALESCE(totp_enabled, FALSE) AS totp_enabled, totp_secret, recovery_codes, totp_recovery_hashes, totp_last_used_step
                 FROM users
                 WHERE LOWER(username) = LOWER(:u)
             """),
@@ -2209,6 +2237,7 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
         raise HTTPException(status_code=400, detail="Invalid email/username or password")
 
     # If 2FA enabled, require OTP
+    matched_totp_step = None
     if bool(row.get('totp_enabled')):
         otp = (payload.otp or '').strip()
         if not otp:
@@ -2218,12 +2247,8 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
         # Verify TOTP OR recovery code
         otp_ok = False
         if secret:
-            try:
-                import pyotp
-                totp = pyotp.TOTP(secret)
-                otp_ok = bool(totp.verify(otp, valid_window=1))
-            except Exception:
-                otp_ok = False
+            matched_totp_step = _totp_verify_no_replay(secret, otp, row.get('totp_last_used_step'))
+            otp_ok = matched_totp_step is not None
 
         # Recovery code fallback.
         # 🔒 Recovery codes are stored as SHA-256 hashes in `totp_recovery_hashes`
@@ -2271,6 +2296,8 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
         _clear_login_failures(keys)
 
     db.execute(text("UPDATE users SET last_active_at = NOW() WHERE id = :u"), {"u": row["id"]})
+    if matched_totp_step is not None:
+        db.execute(text("UPDATE users SET totp_last_used_step = :s WHERE id = :u"), {"s": matched_totp_step, "u": row["id"]})
     _brevo_sync_user(db, row["id"], event="login")
 
     tv = int(db.execute(text("SELECT COALESCE(token_version, 0) FROM users WHERE id = :u"), {"u": row["id"]}).scalar() or 0)
@@ -6416,6 +6443,22 @@ _APPLICATION_FILE_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
 }
 
+# Magic-byte signatures per extension — the client-supplied Content-Type
+# header above is just multipart metadata the uploader controls, so on its
+# own it doesn't stop someone uploading e.g. a renamed executable as
+# "cv.pdf". Checking the actual bytes closes that off before the file ever
+# reaches a CMS staffer via the download endpoint.
+_APPLICATION_FILE_SIGNATURES = {
+    ".pdf": (b"%PDF-",),
+    ".doc": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),  # legacy OLE compound file
+    ".docx": (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"),  # OOXML is a zip
+}
+
+
+def _content_matches_signature(content: bytes, ext: str) -> bool:
+    sigs = _APPLICATION_FILE_SIGNATURES.get(ext) or ()
+    return any(content.startswith(sig) for sig in sigs)
+
 
 async def _save_application_file(upload_file, prefix: str):
     ext = _APPLICATION_FILE_TYPES.get((upload_file.content_type or "").lower())
@@ -6426,6 +6469,8 @@ async def _save_application_file(upload_file, prefix: str):
         raise HTTPException(status_code=400, detail="Empty file")
     if len(content) > 8 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 8MB)")
+    if not _content_matches_signature(content, ext):
+        raise HTTPException(status_code=400, detail="File content doesn't match a valid PDF, DOC, or DOCX file")
     filename = f"{prefix}_{uuid.uuid4().hex}{ext}"
     path = os.path.join(_applications_upload_dir(), filename)
     with open(path, "wb") as f:

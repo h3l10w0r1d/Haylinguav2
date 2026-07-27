@@ -91,6 +91,26 @@ FEMALE_VOICE_ID = os.getenv("ELEVEN_FEMALE_VOICE", "EXAVITQu4vr4xnSDxMaL")
 
 MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10MB
 
+
+def _audio_content_matches_format(content: bytes, fmt: str) -> bool:
+    """Magic-byte check for uploaded/recorded audio — the format map above
+    resolves from the client-supplied Content-Type header (and silently
+    defaults to mp3/webm for anything unrecognized), so on its own nothing
+    here actually verifies the bytes are real audio at all. Admin-only
+    (CMS_AUTH), so impact is bounded either way, but this closes the gap
+    cheaply for defense in depth."""
+    if fmt == "mp3":
+        if content[:3] == b"ID3":
+            return True
+        return len(content) >= 2 and content[0] == 0xFF and (content[1] & 0xE0) == 0xE0
+    if fmt == "wav":
+        return content[:4] == b"RIFF" and content[8:12] == b"WAVE"
+    if fmt == "ogg":
+        return content[:4] == b"OggS"
+    if fmt == "webm":
+        return content[:4] == b"\x1a\x45\xdf\xa3"
+    return False
+
 # Persistent HTTP client — reuses TCP connections across requests so each TTS/STT
 # call skips the handshake overhead. Limits are generous but not unbounded.
 _http = httpx.AsyncClient(
@@ -161,7 +181,7 @@ async def generate_elevenlabs_tts(text: str, voice_id: str) -> bytes:
     return response.content
 
 
-@router.get("/cms/exercises/{exercise_id}/audio")
+@router.get("/cms/exercises/{exercise_id}/audio", dependencies=CMS_AUTH)
 def get_exercise_audio_list(exercise_id: int, db: Connection = Depends(get_db)):
     rows = db.execute(
         text("""
@@ -215,7 +235,7 @@ def cms_list_letters(db: Connection = Depends(get_db)):
 # ------------------------------
 
 
-@router.get("/cms/audio/targets/{exercise_id}")
+@router.get("/cms/audio/targets/{exercise_id}", dependencies=CMS_AUTH)
 def cms_list_audio_targets(
     exercise_id: int,
     target_key: Optional[str] = None,
@@ -343,10 +363,12 @@ async def upload_custom_audio(
     if len(audio_data) > MAX_AUDIO_SIZE:
         raise HTTPException(400, f"File too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
     
-    format_map = {'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 
+    format_map = {'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav',
                   'audio/ogg': 'ogg', 'audio/webm': 'webm'}
     audio_format = format_map.get(audio_file.content_type, 'mp3')
-    
+    if not _audio_content_matches_format(audio_data, audio_format):
+        raise HTTPException(400, "File content doesn't match a valid audio format")
+
     result = db.execute(
         text("""
             INSERT INTO exercise_audio (
@@ -385,7 +407,9 @@ async def save_browser_recording(
 
     format_map = {'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/wav': 'wav'}
     audio_format = format_map.get(audio_file.content_type, 'webm')
-    
+    if not _audio_content_matches_format(audio_data, audio_format):
+        raise HTTPException(400, "File content doesn't match a valid audio format")
+
     result = db.execute(
         text("""
             INSERT INTO exercise_audio (
@@ -435,6 +459,8 @@ async def upload_target_audio(
         'audio/ogg': 'ogg', 'audio/webm': 'webm'
     }
     audio_format = format_map.get(audio_file.content_type, 'mp3')
+    if not _audio_content_matches_format(audio_data, audio_format):
+        raise HTTPException(400, "File content doesn't match a valid audio format")
 
     result = db.execute(
         text(
@@ -491,6 +517,8 @@ async def save_target_recording(
     if len(audio_data) > MAX_AUDIO_SIZE:
         raise HTTPException(400, f"File too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
     audio_format = format_map.get(audio_file.content_type, 'webm')
+    if not _audio_content_matches_format(audio_data, audio_format):
+        raise HTTPException(400, "File content doesn't match a valid audio format")
     # Reuse upload logic by creating a fake UploadFile isn't worth it; upsert directly.
     target_key = (target_key or "").strip()
     voice_type = (voice_type or "").strip().lower()
@@ -541,7 +569,7 @@ def delete_target_audio(audio_id: int, db: Connection = Depends(get_db)):
     return {"success": True}
 
 
-@router.get("/cms/audio/targets/{audio_id}/preview")
+@router.get("/cms/audio/targets/{audio_id}/preview", dependencies=CMS_AUTH)
 def preview_target_audio(audio_id: int, db: Connection = Depends(get_db)):
     row = db.execute(
         text("SELECT audio_data, audio_format FROM exercise_audio_targets WHERE id = :id"),
@@ -554,7 +582,7 @@ def preview_target_audio(audio_id: int, db: Connection = Depends(get_db)):
     return Response(content=bytes(row["audio_data"]), media_type=content_type)
 
 
-@router.get("/cms/audio/{audio_id}/preview")
+@router.get("/cms/audio/{audio_id}/preview", dependencies=CMS_AUTH)
 def preview_audio(audio_id: int, db: Connection = Depends(get_db)):
     row = db.execute(
         text("SELECT audio_data, audio_format FROM exercise_audio WHERE id = :id"),

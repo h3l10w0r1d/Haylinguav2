@@ -77,6 +77,12 @@ def ensure_schema() -> None:
         add_col_if_missing("users", "totp_enabled BOOLEAN NOT NULL DEFAULT FALSE")
         add_col_if_missing("users", "totp_secret TEXT")
         add_col_if_missing("users", "totp_confirmed_at TIMESTAMPTZ")
+        # Blocks TOTP replay: a code's own 30s validity window means the same
+        # code could otherwise be submitted more than once while still valid
+        # (e.g. shoulder-surfed or intercepted). Stores the time-step index
+        # that was last accepted; a login attempt matching a step <= this is
+        # rejected even if the code itself would still verify.
+        add_col_if_missing("users", "totp_last_used_step BIGINT")
         add_col_if_missing("users", "recovery_codes JSONB NOT NULL DEFAULT '[]'::jsonb")
         add_col_if_missing("users", "hearts_current INTEGER")
         add_col_if_missing("users", "hearts_max INTEGER")
@@ -630,6 +636,8 @@ def ensure_schema() -> None:
         # ---------- CMS users: display name + timezone ----------
         add_col_if_missing("cms_users", "display_name TEXT")
         add_col_if_missing("cms_users", "timezone TEXT")
+        # TOTP replay guard — see users.totp_last_used_step for why.
+        add_col_if_missing("cms_users", "totp_last_used_step BIGINT")
 
         # ---------- Admin notes on learners ----------
         ensure_table(
