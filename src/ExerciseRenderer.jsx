@@ -1369,6 +1369,9 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
   const maxSelect = Number.isFinite(cfg.maxSelect)
     ? Number(cfg.maxSelect)
     : choices.length;
+  // Only show an explicit count when the config actually constrains it; the
+  // common "select all that apply" case shouldn't reveal how many are correct.
+  const hasExplicitLimit = Number.isFinite(cfg.minSelect) || Number.isFinite(cfg.maxSelect);
 
   const [selectedSet, setSelectedSet] = useState(() => new Set());
 
@@ -1402,8 +1405,9 @@ function ExMultiSelect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer , s
     <Card>
       <Title>{prompt}</Title>
       <Muted className="mt-2">
-        Select {minSelect}
-        {maxSelect < choices.length ? `–${maxSelect}` : ""} option(s).
+        {hasExplicitLimit
+          ? `Select ${minSelect}${maxSelect < choices.length ? `–${maxSelect}` : ""} option(s).`
+          : "Select all that apply."}
       </Muted>
 
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1814,6 +1818,99 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
             });
             if (ok) correct({ answerText: value });
             else wrong("Not quite — listen again and try.", { answerText: value });
+          }}
+        >
+          Check
+        </PrimaryButton>
+      </FooterSlot>
+    </Card>
+  );
+}
+
+// I-b) listen_image — hear a word (TTS) and pick the matching picture. Pure
+// listening→meaning, no text shown; pairs the Azure hy-AM voice with the
+// emoji/photo tiles. Config: { ttsText, choices:[{emoji|image,label}], answerIndex }.
+function ExListenImage({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit, mascotCharacter = "armen" }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Which one do you hear?";
+  const target = String(exercise?.expected_answer ?? cfg.ttsText ?? cfg.text ?? "").trim();
+  const items = Array.isArray(cfg.choices) ? cfg.choices : [];
+  const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : 0;
+
+  const [sel, setSel] = useState(null);
+  const [graded, setGraded] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const didAutoplay = useRef(false);
+
+  useEffect(() => { setSel(null); setGraded(null); didAutoplay.current = false; }, [exercise?.id]);
+
+  async function play(rate = 1) {
+    if (!target) return;
+    try {
+      setBusy(true);
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
+      const a = newTrackedAudio(url); a.playbackRate = rate; await a.play();
+    } catch (e) { console.error("TTS failed", e); }
+    finally { setBusy(false); }
+  }
+
+  useEffect(() => {
+    if (!exercise?.id || !target || didAutoplay.current) return;
+    if (cfg?.autoplay === false) return;
+    didAutoplay.current = true; play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+      <div className="mt-3">
+        <SpeechBubbleMascot
+          character={mascotCharacter}
+          text="Tap 🔊 and choose the picture…"
+          onPlay={() => play(1)}
+          onSlow={() => play(0.6)}
+          busy={busy}
+          playDisabled={!target}
+        />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {items.map((it, idx) => {
+          const active = sel === idx;
+          const isRight = graded && idx === correctIndex;
+          const isWrong = graded && active && idx !== correctIndex;
+          return (
+            <button
+              key={idx}
+              type="button"
+              disabled={!!graded}
+              onClick={() => setSel(idx)}
+              className={cx(
+                "overflow-hidden rounded-2xl ring-2 transition",
+                isRight ? "ring-grass-400" : isWrong ? "ring-cardinal-400" : active ? "ring-brand-400" : "ring-slate-200 dark:ring-white/[0.08]"
+              )}
+            >
+              <div className="grid aspect-square w-full place-items-center bg-slate-50 dark:bg-white/[0.04]">
+                {it?.emoji
+                  ? <span className="text-6xl leading-none sm:text-7xl">{it.emoji}</span>
+                  : it?.image
+                  ? <img src={exImgUrl(it.image)} alt={it?.label || ""} className="h-full w-full object-cover" />
+                  : <span className="text-xs font-semibold text-slate-300 dark:text-stone-600">no image</span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <FooterSlot>
+        <PrimaryButton
+          disabled={sel === null || !!graded}
+          onClick={() => {
+            setGraded({ correct: correctIndex, picked: sel });
+            const it = items[sel] || {};
+            const extra = { selectedIndices: [sel], answerText: it.label || it.emoji || "" };
+            sel === correctIndex ? correct(extra) : wrong("Not quite — listen again.", extra);
           }}
         >
           Check
@@ -3302,6 +3399,10 @@ export default function ExerciseRenderer({
         mascotCharacter={mascotCharacter}
       />
     );
+  }
+
+  if (kind === "listen_image") {
+    return <ExListenImage exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} apiBaseUrl={apiBaseUrl} mascotCharacter={mascotCharacter} />;
   }
 
   if (kind === "listen_type") {
