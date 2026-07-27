@@ -172,16 +172,16 @@ function OptionThumb({ traits, field, value, active, onClick }) {
 // only brings it to life while building.
 const PREVIEW_STYLE = `
 @keyframes hay-avatar-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-3px) rotate(-1deg); }
+  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+  50% { transform: translateY(-10px) rotate(-2.5deg) scale(1.03); }
 }
 @keyframes hay-avatar-wiggle {
   0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(3deg); }
-  75% { transform: rotate(-3deg); }
+  25% { transform: rotate(8deg); }
+  75% { transform: rotate(-8deg); }
 }
-.hay-avatar-preview { animation: hay-avatar-bob 3.2s ease-in-out infinite; }
-.hay-avatar-preview:hover { animation: hay-avatar-wiggle 0.5s ease-in-out; }
+.hay-avatar-preview { animation: hay-avatar-bob 2s ease-in-out infinite; transform-origin: bottom center; }
+.hay-avatar-preview:hover { animation: hay-avatar-wiggle 0.4s ease-in-out; }
 @media (prefers-reduced-motion: reduce) {
   .hay-avatar-preview, .hay-avatar-preview:hover { animation: none; }
 }
