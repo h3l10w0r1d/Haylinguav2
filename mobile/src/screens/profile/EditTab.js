@@ -145,7 +145,15 @@ function ToggleRow({ icon: Icon, label, value, onChange }) {
     <View className="mb-3 flex-row items-center gap-3 rounded-2xl bg-white px-4 py-3" style={shadow}>
       <Icon size={16} color="#a8a29e" />
       <Text className="flex-1 text-sm font-semibold text-stone-700">{label}</Text>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: '#FF7A1A', false: '#e7e5e4' }} thumbColor="#fff" />
+      <Switch
+        value={value}
+        onValueChange={(v) => {
+          haptics.impact();
+          onChange(v);
+        }}
+        trackColor={{ true: '#FF7A1A', false: '#e7e5e4' }}
+        thumbColor="#fff"
+      />
     </View>
   );
 }

@@ -457,7 +457,6 @@ export default function OnboardingScreen({ navigation }) {
 
                 <Pressable3D
                   onPress={() => setMarketingOptIn((v) => !v)}
-                  hapticOnPress={false}
                   className="flex-row items-start gap-3 rounded-2xl p-4"
                   style={{ backgroundColor: marketingOptIn ? '#FFF5EC' : '#ffffff', borderWidth: 2, borderColor: marketingOptIn ? '#FFC99E' : '#e7e5e4' }}
                 >
@@ -472,7 +471,6 @@ export default function OnboardingScreen({ navigation }) {
 
                 <Pressable3D
                   onPress={() => setAcceptedTerms((v) => !v)}
-                  hapticOnPress={false}
                   className="flex-row items-start gap-3 rounded-2xl p-4"
                   style={{ backgroundColor: acceptedTerms ? '#FFF5EC' : '#ffffff', borderWidth: 2, borderColor: acceptedTerms ? '#FFC99E' : '#e7e5e4' }}
                 >
