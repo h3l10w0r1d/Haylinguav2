@@ -226,6 +226,13 @@ def _clear_login_failures(keys):
         _LOGIN_LOCKOUT.pop(k, None)
 
 
+# Persistent, pooled client for Cloudflare's siteverify call — called from
+# several sync routes (login/signup/contact/careers) that each run on
+# Starlette's shared threadpool, so every avoided TCP+TLS handshake shortens
+# how long a single request pins a worker there.
+_turnstile_http = httpx.Client(timeout=5.0)
+
+
 def _verify_turnstile(token: str, ip: str) -> bool:
     secret = (os.getenv('TURNSTILE_SECRET_KEY') or '').strip() # Envoirnmenal variable retrieval, Done for security purpouses, and github phishing defence.
     if not secret:
@@ -241,11 +248,9 @@ def _verify_turnstile(token: str, ip: str) -> bool:
     if not token:
         return False
     try:
-        import httpx
-        resp = httpx.post(
+        resp = _turnstile_http.post(
             'https://challenges.cloudflare.com/turnstile/v0/siteverify',
             data={'secret': secret, 'response': token, 'remoteip': ip},
-            timeout=5,
         )
         data = resp.json() if resp is not None else {}
         return bool(data.get('success'))
