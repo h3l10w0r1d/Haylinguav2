@@ -3,13 +3,13 @@
 // Duolingo doesn't draw one — the zigzag offsets alone read as a path).
 // Chest milestone nodes are interleaved every 2-3 lessons (alternating, not
 // a flat modulo — Duolingo's own cadence isn't perfectly uniform either),
-// and the current lesson gets a radial progress ring + a speech-bubble
-// mascot card with star-rating pips, matching Duolingo's actual home screen.
-import React, { useEffect } from 'react';
-import { View, Text, Image } from 'react-native';
+// and the current lesson gets a radial progress ring, matching Duolingo's
+// actual home screen. (No mascot bubble next to the current node — pulled,
+// not ready yet.)
+import React from 'react';
+import { View, Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { Check, Lock, Star } from 'lucide-react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
+import { Check, Lock } from 'lucide-react-native';
 import Pressable3D from './Pressable3D';
 import ChestIcon from './ChestIcon';
 
@@ -29,38 +29,6 @@ const PATH_WIDTH = 220; // must comfortably fit NODE_SIZE + max |offset|
 
 function offsetFor(i) {
   return OFFSETS[i % OFFSETS.length];
-}
-
-function MascotBounce({ style }) {
-  const bounce = useSharedValue(0);
-  useEffect(() => {
-    bounce.value = withRepeat(withSequence(withTiming(1, { duration: 550, easing: Easing.inOut(Easing.quad) }), withTiming(0, { duration: 550, easing: Easing.inOut(Easing.quad) })), -1, false);
-  }, []);
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -bounce.value * 4 }],
-  }));
-  return (
-    <Animated.View style={[style, animStyle]} pointerEvents="none">
-      <Image source={require('../assets/character-owl.png')} style={{ width: 40, height: 40, resizeMode: 'contain' }} />
-    </Animated.View>
-  );
-}
-
-// Speech-bubble card next to the current node: mascot + a row of 3 star
-// pips previewing the perfect/good/pass score bands for that lesson.
-function MascotBubble({ style }) {
-  return (
-    <View style={[{ width: 92, alignItems: 'center' }, style]} pointerEvents="none">
-      <View className="rounded-2xl bg-white px-3 py-2.5" style={{ shadowColor: '#1c1917', shadowOpacity: 0.1, shadowRadius: 6, elevation: 2 }}>
-        <MascotBounce />
-        <View className="mt-1.5 flex-row items-center justify-center" style={{ gap: 2 }}>
-          {[0, 1, 2].map((i) => (
-            <Star key={i} size={11} color="#d6d3d1" fill="#d6d3d1" />
-          ))}
-        </View>
-      </View>
-    </View>
-  );
 }
 
 function ProgressRing({ pct }) {
@@ -119,7 +87,6 @@ function Node({ lesson, x, y, onPress }) {
             {completed ? <Check size={28} color="#fff" strokeWidth={3} /> : locked ? <Lock size={22} color="#a8a29e" /> : <View className="h-3.5 w-3.5 rounded-full bg-white" />}
           </View>
         </Pressable3D>
-        {current && <MascotBubble style={{ position: 'absolute', left: NODE_SIZE + 12, top: -8 }} />}
       </View>
       <Text className="mt-1.5 max-w-[92px] text-center text-[11px] font-bold text-stone-500" numberOfLines={2}>
         {lesson.title}
