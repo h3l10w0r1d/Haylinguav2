@@ -14,7 +14,7 @@ import {
   InlineInput,
 } from "./exercises/ui";
 import { ttsFetch } from "./exercises/tts";
-import { GlossaryText, useNewWords, normWord } from "./exercises/WordHint";
+import { GlossaryText, useNewWords, normWord, hasArmenian } from "./exercises/WordHint";
 import { writeHearts } from "./lib/hearts";
 import { newTrackedAudio } from "./lib/audioRegistry";
 import { FooterSlot } from "./exercises/FooterSlot";
@@ -1921,18 +1921,32 @@ function ExListenImage({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, ap
 }
 
 // I) word_bank — translate by tapping word tiles (with distractors)
-function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit, mascotCharacter = "armen" }) {
+function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit, apiBaseUrl, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const prompt = exercise?.prompt || "Translate this";
   const source = cfg.sentence ?? cfg.prompt ?? "";
   const tiles = Array.isArray(cfg.tiles) ? cfg.tiles : [];
   const solution = Array.isArray(cfg.solution) ? cfg.solution : [];
+  // Voice the source only when it's the Armenian sentence being translated —
+  // no point reading an English prompt aloud (config can force it off).
+  const canHear = cfg.audio !== false && hasArmenian(source);
 
   const [picked, setPicked] = useState([]); // [{ t, key }]
   const [available, setAvailable] = useState([]);
   const [useKeyboard, setUseKeyboard] = useState(false);
   const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
   const newWords = useNewWords(solution);
+
+  async function play(rate = 1) {
+    if (!canHear) return;
+    try {
+      setBusy(true);
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text: source, exerciseId: exercise?.id });
+      const a = newTrackedAudio(url); a.playbackRate = rate; await a.play();
+    } catch (e) { console.error("TTS failed", e); }
+    finally { setBusy(false); }
+  }
 
   useEffect(() => {
     setPicked([]);
@@ -1966,6 +1980,10 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
           <SpeechBubbleMascot
             character={mascotCharacter}
             text={<GlossaryText text={source} glossary={cfg.glossary} newWords={newWords} />}
+            onPlay={canHear ? () => play(1) : undefined}
+            onSlow={canHear ? () => play(0.6) : undefined}
+            busy={busy}
+            playDisabled={!canHear}
           />
         </div>
       ) : null}
@@ -3429,7 +3447,7 @@ export default function ExerciseRenderer({
         onWrong={onWrong}
         onSkip={onSkip}
         onAnswer={onAnswer}
-        submit={handleAnswer} mascotCharacter={mascotCharacter}
+        submit={handleAnswer} apiBaseUrl={apiBaseUrl} mascotCharacter={mascotCharacter}
       />
     );
   }
