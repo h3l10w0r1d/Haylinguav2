@@ -5,6 +5,13 @@
 // not the generic gift-box icon that was there before. Lid+body path data
 // is copied verbatim from the web version so both platforms show the same
 // chest.
+//
+// Sized by passing width/height straight to <Svg> (which auto-scales its
+// viewBox content, same as resizing an <img>) rather than a CSS
+// `transform: scale()` on a fixed-size wrapper — transform only affects
+// paint, not the child's layout box, so the old approach kept a full
+// 240x200 box reserved regardless of the requested `size`, overflowing
+// into neighboring path nodes.
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Rect, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -20,9 +27,16 @@ const THEME = {
   trim: ['#9C9CA6', '#5C5C66'],
 };
 
-function ChestLid() {
+// Original artwork's native proportions (px), used only to compute the
+// aspect ratio — actual rendered size always comes from the `size` prop.
+const LID_W = 240;
+const LID_H = 80;
+const BODY_W = 240;
+const BODY_H = 102;
+
+function ChestLid({ width, height }) {
   return (
-    <Svg width={240} height={80} viewBox="0 30 240 80">
+    <Svg width={width} height={height} viewBox="0 30 240 80">
       <Defs>
         <LinearGradient id="lid-main" x1="120" y1="34" x2="120" y2="110" gradientUnits="userSpaceOnUse">
           <Stop offset="0" stopColor={THEME.lid[0]} />
@@ -44,9 +58,9 @@ function ChestLid() {
   );
 }
 
-function ChestBody() {
+function ChestBody({ width, height }) {
   return (
-    <Svg width={240} height={102} viewBox="0 98 240 102">
+    <Svg width={width} height={height} viewBox="0 98 240 102">
       <Defs>
         <LinearGradient id="body-main" x1="120" y1="100" x2="120" y2="196" gradientUnits="userSpaceOnUse">
           <Stop offset="0" stopColor={THEME.body[0]} />
@@ -70,17 +84,18 @@ function ChestBody() {
 }
 
 export default function ChestIcon({ size = 64, unlocked = true }) {
-  const scale = size / 240;
-  const height = size * (182 / 240);
+  const lidWidth = size;
+  const lidHeight = size * (LID_H / LID_W);
+  const bodyWidth = size;
+  const bodyHeight = size * (BODY_H / BODY_W);
+
   return (
-    <View style={{ width: size, height, opacity: unlocked ? 1 : 0.45 }}>
-      <View style={{ transform: [{ scale }], transformOrigin: 'top left', width: 240, height: 200 }}>
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 80 }}>
-          <ChestLid />
-        </View>
-        <View style={{ position: 'absolute', top: 80, left: 0, right: 0 }}>
-          <ChestBody />
-        </View>
+    <View style={{ width: size, height: lidHeight + bodyHeight, opacity: unlocked ? 1 : 0.45 }}>
+      <View style={{ position: 'absolute', top: 0, left: 0 }}>
+        <ChestLid width={lidWidth} height={lidHeight} />
+      </View>
+      <View style={{ position: 'absolute', top: lidHeight, left: 0 }}>
+        <ChestBody width={bodyWidth} height={bodyHeight} />
       </View>
     </View>
   );

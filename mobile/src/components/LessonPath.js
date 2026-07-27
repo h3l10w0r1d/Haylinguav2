@@ -14,7 +14,11 @@ import Pressable3D from './Pressable3D';
 import ChestIcon from './ChestIcon';
 
 const NODE_SIZE = 64;
-const V_GAP = 92;
+// 64px node + ~6px label margin + up to 2 lines of an 11px title can reach
+// ~100px before the next row starts — 92 was tight enough to let a 2-line
+// title overlap whatever followed it (confirmed with real 2-line Armenian
+// titles); 112 gives that safe clearance.
+const V_GAP = 112;
 const RING_SIZE = NODE_SIZE + 16;
 // Alternating 2-then-3 cadence between chest milestones, not a flat modulo.
 const CHEST_CADENCE = [2, 3];
