@@ -2080,6 +2080,71 @@ def cms_seed_reading_a2(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+# ---- Repetitive-mistake exercises (auto-disabled) --------------------------
+
+@router.get("/cms/exercises/repetitive-mistakes")
+def cms_repetitive_mistakes(request: Request, db: Connection = Depends(get_db)):
+    """Exercises the system auto-hid because too many learners missed them on
+    the first try. Each carries the stats snapshot taken at disable time so an
+    editor can judge and restore it."""
+    require_cms(request, db)
+    rows = db.execute(
+        text("""
+            SELECT e.id, e.kind, e.prompt, e.auto_disabled_at, e.auto_disabled_stats,
+                   l.id AS lesson_id, l.slug AS lesson_slug, l.title AS lesson_title,
+                   c.title AS chapter_title
+            FROM exercises e
+            LEFT JOIN lessons l ON l.id = e.lesson_id
+            LEFT JOIN chapters c ON c.id = l.chapter_id
+            WHERE e.auto_disabled = TRUE
+            ORDER BY e.auto_disabled_at DESC NULLS LAST, e.id DESC
+        """)
+    ).mappings().all()
+
+    def _stats(v):
+        if isinstance(v, dict):
+            return v
+        try:
+            return json.loads(v) if v else None
+        except Exception:
+            return None
+
+    items = [{
+        "id": r["id"],
+        "kind": r["kind"],
+        "prompt": r["prompt"],
+        "disabled_at": r["auto_disabled_at"].isoformat() if r["auto_disabled_at"] else None,
+        "stats": _stats(r["auto_disabled_stats"]),
+        "lesson_id": r["lesson_id"],
+        "lesson_slug": r["lesson_slug"],
+        "lesson_title": r["lesson_title"],
+        "chapter_title": r["chapter_title"],
+    } for r in rows]
+    return {"count": len(items), "items": items}
+
+
+@router.post("/cms/exercises/{exercise_id}/restore")
+def cms_restore_exercise(exercise_id: int, request: Request, db: Connection = Depends(get_db)):
+    """Bring an auto-hidden exercise back into its lesson. It's marked immune so
+    the auto-disabler won't flag it again (an editor has judged it fine)."""
+    require_cms(request, db)
+    res = db.execute(
+        text("""
+            UPDATE exercises
+            SET auto_disabled = FALSE,
+                auto_disabled_at = NULL,
+                auto_disabled_stats = NULL,
+                auto_disable_immune = TRUE
+            WHERE id = :ex
+            RETURNING id
+        """),
+        {"ex": exercise_id},
+    ).first()
+    if not res:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+    return {"ok": True, "id": exercise_id, "restored": True}
+
+
 @router.post("/cms/seed/grammar3")
 def cms_seed_grammar3(request: Request, db=Depends(get_db)):
     """Common Verbs II (present tense of speak/live/read/write/see/do/say)

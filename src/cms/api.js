@@ -240,9 +240,16 @@ export function createCmsApi(accessToken) {
   const disable2FA = (code) =>
     req("/cms/account/2fa/disable", { method: "POST", body: JSON.stringify({ code }) });
 
+  // Repetitive-mistake exercises (auto-disabled)
+  const listRepetitiveMistakes = () => req("/cms/exercises/repetitive-mistakes");
+  const restoreExercise = (exerciseId) =>
+    req(`/cms/exercises/${exerciseId}/restore`, { method: "POST" });
+
   return {
     getAccount,
     updateAccount,
+    listRepetitiveMistakes,
+    restoreExercise,
     changePassword,
     changeEmail,
     disable2FA,

@@ -56,6 +56,7 @@ const CmsCareers = lazy(() => import('./cms/CmsCareers'));
 const CmsAffiliates = lazy(() => import('./cms/CmsAffiliates'));
 const CmsForum = lazy(() => import('./cms/CmsForum'));
 const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
+const CmsMistakes = lazy(() => import('./cms/CmsMistakes'));
 const CmsVoiceLab = lazy(() => import('./cms/CmsVoiceLab'));
 const CmsSttLab = lazy(() => import('./cms/CmsSttLab'));
 const CmsLetterAudio = lazy(() => import('./cms/CmsLetterAudio'));
@@ -651,6 +652,7 @@ function AppShell() {
       <Route path="/cms/affiliates" element={<CmsAffiliates />} />
       <Route path="/cms/forum" element={<CmsForum />} />
       <Route path="/cms/analytics" element={<CmsAnalytics />} />
+      <Route path="/cms/mistakes" element={<CmsMistakes />} />
       <Route path="/cms/voice-lab" element={<CmsVoiceLab />} />
       <Route path="/cms/stt-lab" element={<CmsSttLab />} />
       <Route path="/cms/letter-audio" element={<CmsLetterAudio />} />

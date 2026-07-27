@@ -45,6 +45,17 @@ def ensure_schema() -> None:
         add_col_if_missing("exercises", "xp INTEGER NOT NULL DEFAULT 0")
         fill_nulls("exercises", "xp", "0")
 
+        # ---------- auto-disable for "repetitive mistake" exercises ----------
+        # When too many learners miss an exercise on their first try it's soft-
+        # hidden (auto_disabled) rather than deleted, so the CMS can review it
+        # and restore it. auto_disabled_stats snapshots the learners/wrong-rate
+        # at disable time; auto_disable_immune is set when an admin restores it
+        # so the engine won't immediately flag it again.
+        add_col_if_missing("exercises", "auto_disabled BOOLEAN NOT NULL DEFAULT FALSE")
+        add_col_if_missing("exercises", "auto_disabled_at TIMESTAMP NULL")
+        add_col_if_missing("exercises", "auto_disabled_stats JSONB NULL")
+        add_col_if_missing("exercises", "auto_disable_immune BOOLEAN NOT NULL DEFAULT FALSE")
+
         # ---------- users (existing columns) ----------
         # Optional display name captured at signup — see SignupIn.name in
         # routes.py ("Stored in users.name"). Never had a migration anywhere.

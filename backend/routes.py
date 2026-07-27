@@ -3328,6 +3328,7 @@ def get_lesson(slug: str, preview: Optional[str] = None, db: Connection = Depend
                 config
             FROM exercises
             WHERE lesson_id = :lesson_id
+              AND NOT COALESCE(auto_disabled, FALSE)
             ORDER BY "order" ASC, id ASC
         """),
         {"lesson_id": lesson_row["id"]},
@@ -3666,6 +3667,73 @@ def me_lessons_progress(
 
     return out
 
+
+# ---- Auto-disable of "repetitive mistake" exercises ------------------------
+# If enough distinct learners get an exercise wrong on their FIRST try, it's
+# almost certainly broken (bad answer key, ambiguous wording, missing context)
+# rather than just hard. We soft-hide it so it stops hurting learners, and the
+# CMS can review + restore it. Thresholds are deliberately easy to tune.
+_AUTODISABLE_MIN_LEARNERS = 10   # need at least this many first-try data points
+_AUTODISABLE_WRONG_RATE = 0.50   # …and at least this share wrong on first try
+
+
+def _maybe_auto_disable_exercise(db: Connection, exercise_id: int) -> None:
+    """Recompute one exercise's first-try miss rate and soft-hide it if it has
+    crossed the threshold. Cheap (two scoped aggregates); called only after a
+    wrong attempt. Never touches an already-disabled or admin-restored row."""
+    try:
+        row = db.execute(
+            text("SELECT auto_disabled, auto_disable_immune FROM exercises WHERE id = :ex"),
+            {"ex": exercise_id},
+        ).mappings().first()
+        if not row or row["auto_disabled"] or row["auto_disable_immune"]:
+            return
+
+        # One row per learner — their earliest attempt on this exercise.
+        stats = db.execute(
+            text("""
+                WITH firsts AS (
+                    SELECT DISTINCT ON (user_id) user_id, is_correct
+                    FROM user_exercise_attempts
+                    WHERE exercise_id = :ex
+                    ORDER BY user_id, id ASC
+                )
+                SELECT COUNT(*) AS learners,
+                       COALESCE(SUM(CASE WHEN is_correct THEN 0 ELSE 1 END), 0) AS wrong
+                FROM firsts
+            """),
+            {"ex": exercise_id},
+        ).mappings().first()
+
+        learners = int(stats["learners"] or 0)
+        wrong = int(stats["wrong"] or 0)
+        if learners < _AUTODISABLE_MIN_LEARNERS:
+            return
+        rate = wrong / learners
+        if rate < _AUTODISABLE_WRONG_RATE:
+            return
+
+        snapshot = {
+            "learners": learners,
+            "wrong": wrong,
+            "wrong_rate": round(rate, 3),
+            "threshold": {"min_learners": _AUTODISABLE_MIN_LEARNERS, "wrong_rate": _AUTODISABLE_WRONG_RATE},
+        }
+        db.execute(
+            text("""
+                UPDATE exercises
+                SET auto_disabled = TRUE,
+                    auto_disabled_at = NOW(),
+                    auto_disabled_stats = CAST(:stats AS jsonb)
+                WHERE id = :ex AND NOT auto_disabled AND NOT auto_disable_immune
+            """),
+            {"ex": exercise_id, "stats": json.dumps(snapshot)},
+        )
+    except Exception:
+        # Never let the auto-disabler break an attempt from being recorded.
+        pass
+
+
 @router.post("/me/exercises/{exercise_id}/attempt", response_model=AttemptOut)
 def record_exercise_attempt(
     exercise_id: int,
@@ -3823,6 +3891,10 @@ def record_exercise_attempt(
     )
     _update_review_queue(db, user_id, lesson_id, exercise_id, bool(is_correct))
     _upsert_sr_card(db, user_id, exercise_id, lesson_id)
+    # A wrong attempt is a new data point that could push this exercise over the
+    # "too many people miss it" line — re-evaluate it (no-op once disabled).
+    if not is_correct:
+        _maybe_auto_disable_exercise(db, exercise_id)
     acc = _get_accuracy(db, user_id, lesson_id)
 
     # Snapshot XP + completion state before recompute (delta + first-time reward).
@@ -4407,6 +4479,7 @@ def me_assessment(
             SELECT DISTINCT e.id AS eid FROM exercises e
             JOIN user_exercise_attempts a ON a.exercise_id = e.id AND a.user_id = :u
             WHERE e.lesson_id = ANY(:ids)
+              AND NOT COALESCE(e.auto_disabled, FALSE)
         """),
         {"u": user_id, "ids": ids},
     ).mappings().all()
@@ -4417,6 +4490,7 @@ def me_assessment(
             text("""
                 SELECT id FROM exercises
                 WHERE lesson_id = ANY(:ids)
+                  AND NOT COALESCE(auto_disabled, FALSE)
                   AND (cardinality(CAST(:tried AS integer[])) = 0 OR id <> ALL(CAST(:tried AS integer[])))
             """),
             {"ids": ids, "tried": ex_ids if ex_ids else []},
