@@ -1062,4 +1062,20 @@ def ensure_schema() -> None:
             )
         """)
 
+        # Device push tokens (raw APNs) — one row per (user, token) so the same
+        # user can have several installs (phone + a second device) and a
+        # reinstalled app re-registers under a fresh token without orphaning
+        # the old row forever (last_seen_at lets a cleanup job prune stale ones).
+        ensure_table("device_push_tokens", """
+            CREATE TABLE device_push_tokens (
+                id            SERIAL PRIMARY KEY,
+                user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token         TEXT NOT NULL,
+                platform      TEXT NOT NULL DEFAULT 'ios',
+                created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (token)
+            )
+        """)
+
     print("[ensure_schema] done")

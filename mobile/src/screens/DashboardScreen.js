@@ -3,7 +3,7 @@
 // language (apricot->pomegranate gradient, tinted stat chips), wired to the
 // real backend: GET /me/lessons/progress + the shared statsStore.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator, ScrollView, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { Heart, Flame, Zap, Gem, Play, ArrowRight, Gift, BookOpen, Dumbbell, Shield } from 'lucide-react-native';
@@ -24,6 +24,7 @@ import Pressable3D from '../components/Pressable3D';
 import ChestReveal from '../components/ChestReveal';
 import UnitBanner from '../components/UnitBanner';
 import LessonPath from '../components/LessonPath';
+import { initPushNotifications } from '../lib/pushNotifications';
 
 const ACCENT = {
   cardinal: { tint: '#FFECEC', icon: '#FF4B4B' },
@@ -117,6 +118,15 @@ export default function DashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [chestOpen, setChestOpen] = useState(false);
   const [reviewStats, setReviewStats] = useState(null);
+  const [levels, setLevels] = useState([]);
+
+  // Ask for notification permission + register the device token once the
+  // learner has actually reached the home screen (not on every focus —
+  // initPushNotifications is itself idempotent, but there's no reason to
+  // re-run the effect body on every tab switch).
+  useEffect(() => {
+    initPushNotifications();
+  }, []);
 
   const load = useCallback(async () => {
     setLoadingLessons(true);
@@ -139,13 +149,25 @@ export default function DashboardScreen({ navigation }) {
     }
   }, []);
 
+  const loadLevels = useCallback(async () => {
+    try {
+      const data = await api.get('/me/levels');
+      setLevels(Array.isArray(data?.levels) ? data.levels : []);
+    } catch {
+      setLevels([]);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       load();
       loadReviewStats();
+      loadLevels();
       stats.refresh();
-    }, [load, loadReviewStats])
+    }, [load, loadReviewStats, loadLevels])
   );
+
+  const readyLevel = useMemo(() => levels.find((l) => l.assessment_ready), [levels]);
 
   const currentLesson = useMemo(() => lessons.find((l) => l.status === 'current') || null, [lessons]);
 
@@ -179,133 +201,173 @@ export default function DashboardScreen({ navigation }) {
 
   const heartLabel = stats.isPremium ? '∞' : stats.heartsCurrent ?? '–';
 
+  // A course can run hundreds of lessons across dozens of chapters — mounting
+  // every chapter's LessonPath (one absolutely-positioned node per lesson,
+  // plus an SVG curve) all at once was what made the dashboard slow/crash-
+  // prone on long courses, not the API payload (that's small, scalar-only).
+  // FlatList's own windowing is RN's equivalent of the web fix's
+  // IntersectionObserver-based lazy mount: only a handful of chapters near
+  // the viewport are ever mounted, with the rest recycled as the user
+  // scrolls, instead of every chapter rendering in the initial frame.
+  const renderChapter = useCallback(
+    ({ item: chapter, index: idx }) => (
+      <View>
+        <UnitBanner title={chapter.chapterTitle} bannerIndex={idx} />
+        <LessonPath
+          lessons={chapter.lessons}
+          onPressLesson={(l) => navigation.navigate('Lesson', { slug: l.slug, title: l.title })}
+        />
+        {chapter.allComplete && (
+          <Pressable3D
+            onPress={() =>
+              navigation.navigate('Checkpoint', {
+                lessonIds: chapter.lessons.map((l) => l.id),
+                chapterTitle: chapter.chapterTitle,
+              })
+            }
+            className="mb-4 flex-row items-center gap-4 rounded-2xl bg-white p-4"
+            style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}
+          >
+            <View className="h-12 w-12 items-center justify-center rounded-xl bg-brand-50">
+              <Shield size={24} color="#FF7A1A" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-base font-extrabold text-stone-900">Take the {chapter.chapterTitle} checkpoint</Text>
+              <Text className="text-xs font-semibold text-stone-400">Test out and prove your skills</Text>
+            </View>
+            <ArrowRight size={18} color="#a8a29e" />
+          </Pressable3D>
+        )}
+      </View>
+    ),
+    [navigation]
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-[#f5f4f1]" edges={['top']}>
-    <ScrollView
+    <FlatList
+      data={chapters}
+      keyExtractor={(chapter, idx) => String(chapter.chapterId ?? idx)}
+      renderItem={renderChapter}
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      {/* KPI strip */}
-      <View className="mb-4 flex-row flex-wrap justify-between gap-y-2.5">
-        <KpiTile icon={Heart} accent={ACCENT.cardinal} label="Hearts" value={heartLabel} index={0} />
-        <KpiTile icon={Flame} accent={ACCENT.brand} label="Streak" value={stats.streak} index={1} animateFlame />
-        <KpiTile icon={Zap} accent={ACCENT.gold} label="XP" value={stats.totalXp} index={2} />
-        <KpiTile icon={Gem} accent={ACCENT.feather} label="Gems" value={stats.gems ?? '–'} index={3} />
-      </View>
+      initialNumToRender={3}
+      maxToRenderPerBatch={2}
+      windowSize={5}
+      removeClippedSubviews
+      ListHeaderComponent={
+        <>
+          {/* KPI strip */}
+          <View className="mb-4 flex-row flex-wrap justify-between gap-y-2.5">
+            <KpiTile icon={Heart} accent={ACCENT.cardinal} label="Hearts" value={heartLabel} index={0} />
+            <KpiTile icon={Flame} accent={ACCENT.brand} label="Streak" value={stats.streak} index={1} animateFlame />
+            <KpiTile icon={Zap} accent={ACCENT.gold} label="XP" value={stats.totalXp} index={2} />
+            <KpiTile icon={Gem} accent={ACCENT.feather} label="Gems" value={stats.gems ?? '–'} index={3} />
+          </View>
 
-      {/* Hero — the gradient is a pure absolute-fill background; the padded
-          content View is what actually determines this box's height. Keeping
-          the gradient decoupled from content sizing avoids a real layout bug
-          where the outer box's auto-computed height came up short by exactly
-          one padding unit, clipping the CTA button off (confirmed via onLayout
-          measurements: content needed ~214px, box only got ~190px). */}
-      <HeroCard style={{ borderRadius: 24, marginBottom: 16, overflow: 'hidden' }}>
-        <LinearGradient
-          colors={allComplete ? ['#7CE246', '#58CC02', '#1CB0F6'] : ['#FF9342', '#FF7A1A', '#E11D48']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={{ padding: 24 }}>
-          <Text className="text-sm font-bold text-white/85">Բարև 👋</Text>
-          <Text className="mt-1.5 text-2xl font-extrabold text-white font-display">
-            {loadingLessons ? 'Loading your journey…' : currentLesson ? "Ready for today's lesson?" : "You've reached the summit!"}
-          </Text>
+          {/* Hero — the gradient is a pure absolute-fill background; the padded
+              content View is what actually determines this box's height. Keeping
+              the gradient decoupled from content sizing avoids a real layout bug
+              where the outer box's auto-computed height came up short by exactly
+              one padding unit, clipping the CTA button off (confirmed via onLayout
+              measurements: content needed ~214px, box only got ~190px). */}
+          <HeroCard style={{ borderRadius: 24, marginBottom: 16, overflow: 'hidden' }}>
+            <LinearGradient
+              colors={allComplete ? ['#7CE246', '#58CC02', '#1CB0F6'] : ['#FF9342', '#FF7A1A', '#E11D48']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={{ padding: 24 }}>
+              <Text className="text-sm font-bold text-white/85">Բարև 👋</Text>
+              <Text className="mt-1.5 text-2xl font-extrabold text-white font-display">
+                {loadingLessons ? 'Loading your journey…' : currentLesson ? "Ready for today's lesson?" : "You've reached the summit!"}
+              </Text>
 
-          {loadingLessons ? (
-            <View className="mt-6 h-[72px] items-center justify-center rounded-2xl bg-white/20">
-              <ActivityIndicator color="#fff" />
+              {loadingLessons ? (
+                <View className="mt-6 h-[72px] items-center justify-center rounded-2xl bg-white/20">
+                  <ActivityIndicator color="#fff" />
+                </View>
+              ) : currentLesson ? (
+                <Pressable3D
+                  onPress={() => navigation.navigate('Lesson', { slug: currentLesson.slug, title: currentLesson.title })}
+                  className="mt-6 flex-row items-center gap-4 rounded-2xl bg-white px-5 py-4"
+                >
+                  <View className="h-12 w-12 items-center justify-center rounded-xl bg-brand-500">
+                    <Play size={20} color="#fff" fill="#fff" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-[11px] font-extrabold uppercase tracking-wide text-brand-600">
+                      {currentLesson.completion_pct > 0 ? 'Continue lesson' : 'Start lesson'}
+                    </Text>
+                    <Text className="text-lg font-extrabold text-stone-900" numberOfLines={1}>{currentLesson.title}</Text>
+                  </View>
+                  <ArrowRight size={20} color="#FF7A1A" />
+                </Pressable3D>
+              ) : (
+                <View className="mt-6 rounded-2xl bg-white/15 px-5 py-4">
+                  <Text className="text-sm font-bold text-white">No lessons available yet.</Text>
+                </View>
+              )}
+
+              {isNewUser && (
+                <Pressable3D onPress={() => navigation.navigate('Placement')} hapticOnPress={false} className="mt-4 self-start">
+                  <Text className="text-sm font-bold text-white/90 underline">Not a beginner? Take the placement test</Text>
+                </Pressable3D>
+              )}
             </View>
-          ) : currentLesson ? (
-            <Pressable3D
-              onPress={() => navigation.navigate('Lesson', { slug: currentLesson.slug, title: currentLesson.title })}
-              className="mt-6 flex-row items-center gap-4 rounded-2xl bg-white px-5 py-4"
-            >
-              <View className="h-12 w-12 items-center justify-center rounded-xl bg-brand-500">
-                <Play size={20} color="#fff" fill="#fff" />
+          </HeroCard>
+
+          {/* Chest card — mirrors the web's Dashboard.jsx ChestCard: persistently
+              shown whenever the account has an unopened chest, not just right
+              after finishing a lesson (chests are earned on first-time lesson
+              completion but stay openable any time). */}
+          {stats.chests > 0 && (
+            <Pressable3D onPress={() => setChestOpen(true)} className="mb-4 flex-row items-center gap-4 rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
+              <View className="h-12 w-12 items-center justify-center rounded-xl bg-gold-50">
+                <Gift size={24} color="#E0A800" />
               </View>
               <View className="flex-1">
-                <Text className="text-[11px] font-extrabold uppercase tracking-wide text-brand-600">
-                  {currentLesson.completion_pct > 0 ? 'Continue lesson' : 'Start lesson'}
+                <Text className="text-base font-extrabold text-stone-900">
+                  {stats.chests > 1 ? `${stats.chests} chests to open!` : 'A chest is waiting!'}
                 </Text>
-                <Text className="text-lg font-extrabold text-stone-900" numberOfLines={1}>{currentLesson.title}</Text>
+                <Text className="text-xs font-semibold text-stone-400">Tap to open and claim your reward</Text>
               </View>
-              <ArrowRight size={20} color="#FF7A1A" />
+              <ArrowRight size={18} color="#a8a29e" />
             </Pressable3D>
-          ) : (
-            <View className="mt-6 rounded-2xl bg-white/15 px-5 py-4">
-              <Text className="text-sm font-bold text-white">No lessons available yet.</Text>
-            </View>
           )}
 
-          {isNewUser && (
-            <Text className="mt-4 text-sm font-bold text-white/90">Not a beginner? Take the placement test (coming soon)</Text>
-          )}
-        </View>
-      </HeroCard>
-
-      {/* Chest card — mirrors the web's Dashboard.jsx ChestCard: persistently
-          shown whenever the account has an unopened chest, not just right
-          after finishing a lesson (chests are earned on first-time lesson
-          completion but stay openable any time). */}
-      {stats.chests > 0 && (
-        <Pressable3D onPress={() => setChestOpen(true)} className="mb-4 flex-row items-center gap-4 rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-          <View className="h-12 w-12 items-center justify-center rounded-xl bg-gold-50">
-            <Gift size={24} color="#E0A800" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-base font-extrabold text-stone-900">
-              {stats.chests > 1 ? `${stats.chests} chests to open!` : 'A chest is waiting!'}
-            </Text>
-            <Text className="text-xs font-semibold text-stone-400">Tap to open and claim your reward</Text>
-          </View>
-          <ArrowRight size={18} color="#a8a29e" />
-        </Pressable3D>
-      )}
-
-      {/* Review + Practice — Review only shown once at least one card is
-          due (GET /me/review/stats), Practice is always available since
-          /me/practice always has something to serve. */}
-      <View className="mb-4 flex-row" style={{ gap: 12 }}>
-        {reviewStats && reviewStats.total > 0 && (
-          <View className="flex-1">
-            <Pressable3D onPress={() => navigation.navigate('Review')} className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-              <View className="h-10 w-10 items-center justify-center rounded-xl bg-feather-50">
-                <BookOpen size={20} color="#1CB0F6" />
+          {/* Review + Practice — Review only shown once at least one card is
+              due (GET /me/review/stats), Practice is always available since
+              /me/practice always has something to serve. */}
+          <View className="mb-4 flex-row" style={{ gap: 12 }}>
+            {reviewStats && reviewStats.total > 0 && (
+              <View className="flex-1">
+                <Pressable3D onPress={() => navigation.navigate('Review')} className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
+                  <View className="h-10 w-10 items-center justify-center rounded-xl bg-feather-50">
+                    <BookOpen size={20} color="#1CB0F6" />
+                  </View>
+                  <Text className="mt-2 text-sm font-extrabold text-stone-900">Review</Text>
+                  <Text className="text-xs font-semibold text-stone-400">{reviewStats.due_today ?? reviewStats.total} due</Text>
+                </Pressable3D>
               </View>
-              <Text className="mt-2 text-sm font-extrabold text-stone-900">Review</Text>
-              <Text className="text-xs font-semibold text-stone-400">{reviewStats.due_today ?? reviewStats.total} due</Text>
-            </Pressable3D>
-          </View>
-        )}
-        <View className="flex-1">
-          <Pressable3D onPress={() => navigation.navigate('Practice')} className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-            <View className="h-10 w-10 items-center justify-center rounded-xl bg-grass-50">
-              <Dumbbell size={20} color="#58CC02" />
+            )}
+            <View className="flex-1">
+              <Pressable3D onPress={() => navigation.navigate('Practice')} className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
+                <View className="h-10 w-10 items-center justify-center rounded-xl bg-grass-50">
+                  <Dumbbell size={20} color="#58CC02" />
+                </View>
+                <Text className="mt-2 text-sm font-extrabold text-stone-900">Practice</Text>
+                <Text className="text-xs font-semibold text-stone-400">Sharpen weak spots</Text>
+              </Pressable3D>
             </View>
-            <Text className="mt-2 text-sm font-extrabold text-stone-900">Practice</Text>
-            <Text className="text-xs font-semibold text-stone-400">Sharpen weak spots</Text>
-          </Pressable3D>
-        </View>
-      </View>
+          </View>
 
-      {/* Skill path — one colored unit banner + zigzag node column per
-          chapter, real Duolingo shape instead of a flat lesson list. */}
-      {chapters.map((chapter, idx) => (
-        <View key={chapter.chapterId ?? idx}>
-          <UnitBanner title={chapter.chapterTitle} bannerIndex={idx} />
-          <LessonPath
-            lessons={chapter.lessons}
-            onPressLesson={(l) => navigation.navigate('Lesson', { slug: l.slug, title: l.title })}
-          />
-          {chapter.allComplete && (
+          {/* Level-up test — shown once a CEFR level's lessons are all done
+              and its assessment hasn't been passed yet (GET /me/levels). */}
+          {!!readyLevel && (
             <Pressable3D
-              onPress={() =>
-                navigation.navigate('Checkpoint', {
-                  lessonIds: chapter.lessons.map((l) => l.id),
-                  chapterTitle: chapter.chapterTitle,
-                })
-              }
+              onPress={() => navigation.navigate('Assessment', { level: readyLevel.level })}
               className="mb-4 flex-row items-center gap-4 rounded-2xl bg-white p-4"
               style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}
             >
@@ -313,15 +375,15 @@ export default function DashboardScreen({ navigation }) {
                 <Shield size={24} color="#FF7A1A" />
               </View>
               <View className="flex-1">
-                <Text className="text-base font-extrabold text-stone-900">Take the {chapter.chapterTitle} checkpoint</Text>
-                <Text className="text-xs font-semibold text-stone-400">Test out and prove your skills</Text>
+                <Text className="text-base font-extrabold text-stone-900">{`Take the ${readyLevel.name} (${readyLevel.level}) test`}</Text>
+                <Text className="text-xs font-semibold text-stone-400">Pass to unlock the next level</Text>
               </View>
               <ArrowRight size={18} color="#a8a29e" />
             </Pressable3D>
           )}
-        </View>
-      ))}
-    </ScrollView>
+        </>
+      }
+    />
     <ChestReveal
       visible={chestOpen}
       onOpened={(wallet) => useStatsStore.getState().applyWallet(wallet)}

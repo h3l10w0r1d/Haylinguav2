@@ -892,6 +892,55 @@ def cron_send_reminders(
 
     return {"ok": True, "eligible": len(rows), "sent": sent}
 
+@router.post("/cron/send-push-reminders")
+def cron_send_push_reminders(
+    x_cron_secret: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Push streak reminders to registered mobile devices — the same
+    at-risk-user shape as /cron/send-reminders (Telegram) and
+    /cron/send-streak-emails, just a third channel. Authenticated with the
+    shared CRON_SECRET. Schedule daily around 19:00 UTC."""
+    secret = (os.getenv("CRON_SECRET") or "").strip()
+    if not secret or not x_cron_secret or not hmac.compare_digest(x_cron_secret.strip(), secret):
+        raise HTTPException(status_code=403, detail="Invalid cron secret")
+
+    from apns import send_push
+
+    REMINDER_MESSAGES = [
+        "Your Armenian streak is waiting! Do a quick lesson today and keep the flame alive.",
+        "Don't break your streak! Just 5 minutes of Armenian practice keeps you on track.",
+        "Your streak is counting on you! Open Haylingua and do today's lesson.",
+        "One lesson a day keeps the streak alive! Come back to Haylingua today.",
+        "Small steps every day. Your Armenian is getting better — don't stop now!",
+    ]
+
+    rows = db.execute(
+        text("""
+            SELECT DISTINCT ON (dpt.token) dpt.token, u.current_streak
+            FROM device_push_tokens dpt
+            JOIN users u ON u.id = dpt.user_id
+            WHERE u.current_streak > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM lesson_progress lp
+                  WHERE lp.user_id = u.id
+                    AND lp.completed_at >= CURRENT_DATE
+              )
+            LIMIT 500
+        """)
+    ).mappings().all()
+
+    sent = 0
+    for i, row in enumerate(rows):
+        streak = int(row.get("current_streak") or 0)
+        body = REMINDER_MESSAGES[i % len(REMINDER_MESSAGES)]
+        if streak > 1:
+            body += f" ({streak}-day streak)"
+        if send_push(row["token"], "Haylingua", body, badge=1):
+            sent += 1
+
+    return {"ok": True, "eligible": len(rows), "sent": sent}
+
 @router.post("/cron/send-streak-emails")
 def cron_send_streak_emails(
     x_cron_secret: Optional[str] = Header(default=None),

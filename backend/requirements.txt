@@ -9,6 +9,7 @@ python-dotenv
 email-validator
 PyJWT
 httpx
+h2
 python-multipart
 qrcode[pil]==7.4.2
 pillow==11.1.0

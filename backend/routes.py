@@ -8242,6 +8242,42 @@ def me_banner_upload(
     return {"banner_url": banner_url}
 
 
+class PushTokenIn(BaseModel):
+    token: str
+    platform: str = "ios"
+
+
+@router.post("/me/push-token")
+def me_push_token(
+    payload: PushTokenIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Register (or refresh) this device's APNs token for streak-reminder
+    pushes. Upserts on the token itself — a reinstall or a second device
+    just adds/updates its own row rather than colliding with others."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    token = (payload.token or "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing token")
+
+    db.execute(
+        text("""
+            INSERT INTO device_push_tokens (user_id, token, platform, last_seen_at)
+            VALUES (:u, :t, :p, NOW())
+            ON CONFLICT (token) DO UPDATE
+              SET user_id = EXCLUDED.user_id,
+                  platform = EXCLUDED.platform,
+                  last_seen_at = NOW()
+        """),
+        {"u": int(user_id), "t": token, "p": (payload.platform or "ios").strip()[:20]},
+    )
+    return {"ok": True}
+
+
 @router.get("/me/onboarding", response_model=OnboardingOut)
 def me_onboarding_get(
     authorization: Optional[str] = Header(default=None),

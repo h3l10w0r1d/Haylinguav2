@@ -5,6 +5,7 @@
 // that changes these, and every subscriber re-renders.
 import { create } from 'zustand';
 import { api } from './api';
+import { writeWidgetStats } from './widgetBridge';
 
 export const useStatsStore = create((set, get) => ({
   totalXp: 0,
@@ -43,6 +44,8 @@ export const useStatsStore = create((set, get) => ({
       ...(wallet ? { gems: Number(wallet.gems || 0), chests: Number(wallet.chests || 0) } : {}),
       loaded: true,
     });
+    const s = get();
+    writeWidgetStats({ streak: s.streak, totalXp: s.totalXp, heartsCurrent: s.heartsCurrent, isPremium: s.isPremium });
   },
 
   // Called right after POST /me/chests/open — that response is itself a
@@ -66,5 +69,7 @@ export const useStatsStore = create((set, get) => ({
     if (attempt.is_premium != null) patch.isPremium = attempt.is_premium;
     if (attempt.earned_xp_delta) patch.totalXp = get().totalXp + attempt.earned_xp_delta;
     set(patch);
+    const s = get();
+    writeWidgetStats({ streak: s.streak, totalXp: s.totalXp, heartsCurrent: s.heartsCurrent, isPremium: s.isPremium });
   },
 }));
