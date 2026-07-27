@@ -2,7 +2,7 @@
 // gradient "continue lesson" hero (src/Dashboard.jsx) to RN. Same visual
 // language (apricot->pomegranate gradient, tinted stat chips), wired to the
 // real backend: GET /me/lessons/progress + the shared statsStore.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ActivityIndicator, FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -177,6 +177,29 @@ export default function DashboardScreen({ navigation }) {
   const isNewUser = !loadingLessons && doneCount === 0 && lessons.length > 0;
   const allComplete = !loadingLessons && lessons.length > 0 && !currentLesson && doneCount === lessons.length;
 
+  // Duolingo opens straight to wherever you left off, not the top of the
+  // whole path — jump the FlatList to the chapter containing the current
+  // lesson once, right after the first load (not on every pull-to-refresh).
+  const listRef = useRef(null);
+  const hasAutoScrolledRef = useRef(false);
+  const currentChapterIndex = useMemo(
+    () => chapters.findIndex((c) => c.lessons.some((l) => l.status === 'current')),
+    [chapters]
+  );
+
+  useEffect(() => {
+    if (loadingLessons || hasAutoScrolledRef.current || currentChapterIndex <= 0) return;
+    hasAutoScrolledRef.current = true;
+    // Variable chapter heights mean scrollToIndex can't jump precisely on
+    // the first try (no exact getItemLayout) — this is RN's standard
+    // fallback: estimate an offset, then correct once nearby cells are
+    // measured.
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index: currentChapterIndex, animated: false, viewPosition: 0 });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [loadingLessons, currentChapterIndex]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([load(), stats.refresh()]);
@@ -240,6 +263,7 @@ export default function DashboardScreen({ navigation }) {
       <StatPip icon={Heart} color="#FF4B4B" value={heartLabel} />
     </View>
     <FlatList
+      ref={listRef}
       data={chapters}
       keyExtractor={(chapter, idx) => String(chapter.chapterId ?? idx)}
       renderItem={renderChapter}
@@ -249,6 +273,17 @@ export default function DashboardScreen({ navigation }) {
       maxToRenderPerBatch={2}
       windowSize={5}
       removeClippedSubviews
+      // Chapters have variable height (path length + interleaved chests),
+      // so there's no exact getItemLayout — this is RN's documented
+      // fallback for scrollToIndex on variable-height lists: estimate an
+      // offset from the average measured cell, then retry once nearby
+      // cells are actually measured.
+      onScrollToIndexFailed={(info) => {
+        listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+        setTimeout(() => {
+          listRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0 });
+        }, 100);
+      }}
       ListHeaderComponent={
         <>
           {/* Hero — the gradient is a pure absolute-fill background; the padded
