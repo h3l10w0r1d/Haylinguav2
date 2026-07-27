@@ -46,6 +46,49 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function randomTraits() {
+  return {
+    top: pick(TOP_OPTIONS),
+    hairColor: pick(HAIR_COLORS),
+    skinColor: pick(SKIN_COLORS),
+    eyes: pick(EYES_OPTIONS),
+    eyebrows: pick(EYEBROW_OPTIONS),
+    mouth: pick(MOUTH_OPTIONS),
+    facialHair: Math.random() < 0.3 ? pick(FACIAL_HAIR_OPTIONS.slice(1)) : "none",
+    clothing: pick(CLOTHING_OPTIONS),
+    clothesColor: pick(CLOTHES_COLORS),
+    accessories: Math.random() < 0.35 ? pick(ACCESSORY_OPTIONS.slice(1)) : "none",
+    backgroundColor: pick(BG_COLORS),
+  };
+}
+
+// Rasterizes any SVG data URI to a same-size PNG File — used both here and
+// by callers that need a one-shot generated image (e.g. a random default
+// avatar on first profile visit) without opening the builder modal.
+export function rasterizeToPngFile(svgDataUri, size, filename) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, size, size);
+      canvas.toBlob((b) => {
+        if (!b) return reject(new Error("toBlob failed"));
+        resolve(new File([b], filename, { type: "image/png" }));
+      }, "image/png");
+    };
+    img.onerror = reject;
+    img.src = svgDataUri;
+  });
+}
+
+export async function generateRandomAvatarFile() {
+  const uri = buildSvg(randomTraits(), 320);
+  return rasterizeToPngFile(uri, 320, "avatar.png");
+}
+
 function buildSvg(traits, size = 200) {
   const avatar = createAvatar(avataaars, {
     seed: "haylingua",
@@ -134,43 +177,17 @@ export default function AvatarBuilder({ open, onClose, onSave }) {
   }
 
   function randomize() {
-    setTraits({
-      top: pick(TOP_OPTIONS),
-      hairColor: pick(HAIR_COLORS),
-      skinColor: pick(SKIN_COLORS),
-      eyes: pick(EYES_OPTIONS),
-      eyebrows: pick(EYEBROW_OPTIONS),
-      mouth: pick(MOUTH_OPTIONS),
-      facialHair: Math.random() < 0.3 ? pick(FACIAL_HAIR_OPTIONS.slice(1)) : "none",
-      clothing: pick(CLOTHING_OPTIONS),
-      clothesColor: pick(CLOTHES_COLORS),
-      accessories: Math.random() < 0.35 ? pick(ACCESSORY_OPTIONS.slice(1)) : "none",
-      backgroundColor: pick(BG_COLORS),
-    });
+    setTraits(randomTraits());
   }
 
   async function handleUse() {
     setSaving(true);
     try {
-      const finalUri = buildSvg(traits, 320);
-      const img = new Image();
-      const blob = await new Promise((resolve, reject) => {
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 320;
-          canvas.height = 320;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, 320, 320);
-          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");
-        };
-        img.onerror = reject;
-        img.src = finalUri;
-      });
-      const file = new File([blob], "avatar.png", { type: "image/png" });
+      const file = await rasterizeToPngFile(buildSvg(traits, 320), 320, "avatar.png");
       onSave(file);
     } catch {
-      // If rasterizing ever fails, just close — the existing upload/preset
-      // pickers remain available as a fallback.
+      // If rasterizing ever fails, just close — the existing upload picker
+      // remains available as a fallback.
     } finally {
       setSaving(false);
     }

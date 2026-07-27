@@ -28,15 +28,8 @@ import {
 import { StarMotif } from "./lib/motifs";
 import ActivityChart from "./lib/ActivityChart";
 import AccountDangerZone from "./AccountDangerZone";
-import AvatarBuilder from "./AvatarBuilder";
-import av1 from "./assets/avatars/av1.png";
-import av2 from "./assets/avatars/av2.png";
-import av3 from "./assets/avatars/av3.png";
-import av4 from "./assets/avatars/av4.png";
-import av5 from "./assets/avatars/av5.png";
-import av6 from "./assets/avatars/av6.png";
-
-const PRESET_AVATARS = [av1, av2, av3, av4, av5, av6];
+import AvatarBuilder, { generateRandomAvatarFile } from "./AvatarBuilder";
+import BannerBuilder from "./BannerBuilder";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -190,6 +183,7 @@ export default function ProfilePage() {
   const [themeGradient, setThemeGradient] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
   const [showBannerPicker, setShowBannerPicker] = useState(false);
+  const [showBannerBuilder, setShowBannerBuilder] = useState(false);
   const [bannerBusy, setBannerBusy] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(""); // local preview only
   const [avatarPresetUrl, setAvatarPresetUrl] = useState("");
@@ -340,19 +334,22 @@ export default function ProfilePage() {
 
           // First-ever visit to this page: banner, avatar, AND theme are all
           // still untouched. Rather than leaving the header blank, randomly
-          // assign one of each from the free preset catalogs — gated on ALL
-          // THREE being empty (not just one) so a returning user who already
-          // picked, say, a banner but never got to the avatar doesn't get a
-          // surprise random avatar on their next visit; that'd only be "first
-          // time" for the field they hadn't touched yet, not for the page.
+          // assign one of each — gated on ALL THREE being empty (not just
+          // one) so a returning user who already picked, say, a banner but
+          // never got to the avatar doesn't get a surprise random avatar on
+          // their next visit; that'd only be "first time" for the field
+          // they hadn't touched yet, not for the page.
           if (!b && !au && themeIsEmpty) {
             const randomTheme = PRESET_THEMES[Math.floor(Math.random() * PRESET_THEMES.length)];
             const randomBanner = PRESET_BANNERS[Math.floor(Math.random() * PRESET_BANNERS.length)];
-            const randomAvatar = PRESET_AVATARS[Math.floor(Math.random() * PRESET_AVATARS.length)];
             setThemeBg(randomTheme.bg);
             setThemeGradient(randomTheme.gradient || "");
             handleSelectPresetBanner(randomBanner, { silent: true });
-            handlePresetAvatarPick(randomAvatar, { silent: true });
+            // Presets were removed for avatars — generate a random Duo-style
+            // cartoon avatar instead (same builder used by "Build an avatar").
+            generateRandomAvatarFile()
+              .then((file) => handleAvatarBuilderSave(file, { silent: true }))
+              .catch(() => {});
           }
 
           // Voice preference
@@ -610,40 +607,49 @@ export default function ProfilePage() {
     }
   }
 
-  async function handleUploadBanner() {
+  async function uploadBannerFile(file, opts = {}) {
+    try {
+      setBannerBusy(true);
+      if (!opts.silent) setMessage("");
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await apiFetch("/me/banner", {
+        token,
+        method: "POST",
+        body: fd,
+      });
+      const data = await safeJsonParse(res);
+      if (!res.ok) {
+        if (!opts.silent) setMessage(data?.detail || "Banner upload failed.");
+        return;
+      }
+      const url = data?.banner_url || "";
+      bannerTouchedRef.current = true;
+      setBannerUrl(url);
+      setShowBannerPicker(false);
+      setShowBannerBuilder(false);
+      if (!opts.silent) setMessage(opts.successMessage || "Banner uploaded.");
+    } catch {
+      if (!opts.silent) setMessage("Banner upload failed.");
+    } finally {
+      setBannerBusy(false);
+    }
+  }
+
+  function handleUploadBanner() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/png,image/jpeg,image/webp";
-    input.onchange = async () => {
+    input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      try {
-        setBannerBusy(true);
-        setMessage("");
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await apiFetch("/me/banner", {
-          token,
-          method: "POST",
-          body: fd,
-        });
-        const data = await safeJsonParse(res);
-        if (!res.ok) {
-          setMessage(data?.detail || "Banner upload failed.");
-          return;
-        }
-        const url = data?.banner_url || "";
-        bannerTouchedRef.current = true;
-        setBannerUrl(url);
-        setShowBannerPicker(false);
-        setMessage("Banner uploaded.");
-      } catch {
-        setMessage("Banner upload failed.");
-      } finally {
-        setBannerBusy(false);
-      }
+      uploadBannerFile(file);
     };
     input.click();
+  }
+
+  function handleBannerBuilderSave(file) {
+    uploadBannerFile(file, { successMessage: "Banner created." });
   }
 
   function handleRemoveBanner() {
@@ -675,36 +681,7 @@ export default function ProfilePage() {
     input.click();
   }
 
-  async function handlePresetAvatarPick(url, opts = {}) {
-    if (!opts.silent) setShowAvatarPresets(false);
-    if (avatarObjectUrlRef.current) {
-      try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
-      avatarObjectUrlRef.current = null;
-    }
-    setAvatarPreview(url);
-    avatarTouchedRef.current = true;
-
-    // Prefer storing presets in a stable way: upload the chosen preset to BE and save returned /static/avatars/*.
-    // This avoids Vite-hashed asset URLs changing across deployments.
-    try {
-      const r = await fetch(url);
-      const blob = await r.blob();
-      const mime = blob?.type || "image/png";
-      const ext = mime.includes("/") ? mime.split("/")[1] : "png";
-      const file = new File([blob], `preset-avatar.${ext}`, { type: mime });
-
-      setAvatarPresetUrl("");
-      setAvatarFile(file);
-      if (!opts.silent) setMessage("Avatar selected.");
-    } catch {
-      // Fallback: keep the local preset URL (works in dev, but is less stable).
-      setAvatarFile(null);
-      setAvatarPresetUrl(url);
-      if (!opts.silent) setMessage("Avatar selected.");
-    }
-  }
-
-  function handleAvatarBuilderSave(file) {
+  function handleAvatarBuilderSave(file, opts = {}) {
     setShowAvatarPresets(false);
     setShowAvatarBuilder(false);
     setAvatarPresetUrl("");
@@ -716,7 +693,7 @@ export default function ProfilePage() {
     }
     avatarObjectUrlRef.current = url;
     setAvatarPreview(url);
-    setMessage("Avatar created.");
+    if (!opts.silent) setMessage("Avatar created.");
   }
 
   // Auto-persist avatar to backend when user picks a file/preset.
@@ -1059,21 +1036,6 @@ export default function ProfilePage() {
                 <button type="button" onClick={() => setShowAvatarBuilder(true)} className="btn3d btn3d-neutral text-xs">
                   <Wand2 className="h-4 w-4" /> Build an avatar
                 </button>
-                <span className="px-1 text-xs font-bold text-slate-400 dark:text-stone-500">or pick a preset</span>
-                {PRESET_AVATARS.map((url, idx) => {
-                  const active = avatarPreview === url || avatarPresetUrl === url;
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handlePresetAvatarPick(url)}
-                      className={"h-10 w-10 overflow-hidden rounded-full ring-2 transition " + (active ? "ring-brand-400" : "ring-white hover:ring-brand-300")}
-                      title={`Avatar ${idx + 1}`}
-                    >
-                      <img src={url} alt={`Avatar ${idx + 1}`} className="h-full w-full object-cover" />
-                    </button>
-                  );
-                })}
               </div>
             </div>
           )}
@@ -1158,6 +1120,15 @@ export default function ProfilePage() {
                   >
                     <ImageIcon className="w-4 h-4" />
                     {bannerBusy ? "Uploading…" : "Upload banner"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={bannerBusy}
+                    onClick={() => setShowBannerBuilder(true)}
+                    className="btn3d btn3d-neutral text-sm"
+                  >
+                    <Wand2 className="w-4 h-4" /> Build a banner
                   </button>
 
                   <button
@@ -2209,6 +2180,12 @@ export default function ProfilePage() {
         open={showAvatarBuilder}
         onClose={() => setShowAvatarBuilder(false)}
         onSave={handleAvatarBuilderSave}
+      />
+
+      <BannerBuilder
+        open={showBannerBuilder}
+        onClose={() => setShowBannerBuilder(false)}
+        onSave={handleBannerBuilderSave}
       />
 
       {!!message && (
