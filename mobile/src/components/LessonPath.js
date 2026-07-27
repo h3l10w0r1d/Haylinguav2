@@ -131,10 +131,16 @@ function Node({ lesson, x, y, onPress }) {
 // Purely decorative milestone marker — brown/open if the lesson just before
 // it is already completed, gray/locked otherwise. Not pressable: chests are
 // opened from the Dashboard's persistent chest card, not from the path.
+// Uses the same RING_SIZE wrapper box (with the same recentering margin) as
+// Node's circle, so the chest's center lines up with every lesson circle's
+// center — ChestIcon's shape is shorter than it is wide, so without this it
+// visually sits noticeably higher than the row it's supposed to share.
 function ChestNode({ x, y, unlocked }) {
   return (
-    <View style={{ position: 'absolute', left: x, top: y, width: NODE_SIZE, alignItems: 'center', justifyContent: 'center' }}>
-      <ChestIcon size={NODE_SIZE} unlocked={unlocked} />
+    <View style={{ position: 'absolute', left: x, top: y, width: NODE_SIZE, alignItems: 'center' }}>
+      <View style={{ width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center', marginLeft: -(RING_SIZE - NODE_SIZE) / 2 }}>
+        <ChestIcon size={NODE_SIZE} unlocked={unlocked} />
+      </View>
     </View>
   );
 }
