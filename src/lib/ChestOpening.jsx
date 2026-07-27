@@ -143,6 +143,38 @@ function ChestBodySvg({ theme, rarity, cracks = 0, glowing }) {
   );
 }
 
+// ── Static chest icon — the same lid+body shape as the full opening
+// animation, scaled down and unanimated, for use as a small roadmap
+// milestone marker (Dashboard.jsx's LearningPathChest). `unlocked` dims it
+// to a flat gray when the milestone hasn't been reached yet, matching the
+// existing lit/unlit convention used elsewhere on the path.
+export function ChestIcon({ size = 64, rarity = "wooden", unlocked = true }) {
+  const theme = RARITY_THEMES[rarity] || RARITY_THEMES.wooden;
+  const scale = size / 240;
+  return (
+    <div
+      style={{
+        width: size,
+        height: size * (182 / 240),
+        position: "relative",
+        opacity: unlocked ? 1 : 0.55,
+        filter: unlocked ? "none" : "grayscale(1)",
+      }}
+    >
+      <div style={{ position: "absolute", top: 0, left: 0, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+        <div style={{ position: "relative", width: 240, height: 200 }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 80, zIndex: 3 }}>
+            <ChestLidSvg theme={theme} rarity={rarity} />
+          </div>
+          <div style={{ position: "absolute", top: 80, left: 0, right: 0, zIndex: 2 }}>
+            <ChestBodySvg theme={theme} rarity={rarity} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 4-pointed sparkle decoration ─────────────────────────────────────────────
 function Sparkle({ style, size = 14, color = "rgba(255,255,255,0.82)", delay = 0 }) {
   return (

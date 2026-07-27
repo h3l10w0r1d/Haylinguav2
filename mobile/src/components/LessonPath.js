@@ -11,6 +11,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { Check, Lock, Star } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 import Pressable3D from './Pressable3D';
+import ChestIcon from './ChestIcon';
 
 const NODE_SIZE = 64;
 const V_GAP = 92;
@@ -128,21 +129,8 @@ function Node({ lesson, x, y, onPress }) {
 // opened from the Dashboard's persistent chest card, not from the path.
 function ChestNode({ x, y, unlocked }) {
   return (
-    <View style={{ position: 'absolute', left: x, top: y, width: NODE_SIZE, alignItems: 'center' }}>
-      <View
-        style={{
-          width: NODE_SIZE,
-          height: NODE_SIZE,
-          borderRadius: NODE_SIZE / 2,
-          backgroundColor: unlocked ? '#FFF3E0' : '#f0efed',
-          borderWidth: 2,
-          borderColor: unlocked ? '#F0C27B' : '#d6d3d1',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text style={{ fontSize: 26, opacity: unlocked ? 1 : 0.45 }}>🎁</Text>
-      </View>
+    <View style={{ position: 'absolute', left: x, top: y, width: NODE_SIZE, alignItems: 'center', justifyContent: 'center' }}>
+      <ChestIcon size={NODE_SIZE} unlocked={unlocked} />
     </View>
   );
 }

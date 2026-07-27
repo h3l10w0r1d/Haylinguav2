@@ -8,7 +8,7 @@ import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Ta
 import owl from "./assets/character-owl.png";
 import StreakFlame from "./lib/StreakFlame";
 import StreakCelebration from "./lib/StreakCelebration";
-import ChestOpening from "./lib/ChestOpening";
+import ChestOpening, { ChestIcon } from "./lib/ChestOpening";
 import { preloadLesson } from "./lib/lessonPreload";
 import { LucideGlyph } from "./lib/lucideIcons";
 
@@ -878,17 +878,7 @@ function LearningPathChest({ index, unlocked }) {
   const { x, y } = pathNodeCenter(index);
   return (
     <div className="absolute flex flex-col items-center" style={{ left: x - PATH_NODE / 2, top: y - PATH_NODE / 2, width: PATH_NODE }}>
-      <div
-        style={{ width: PATH_NODE, height: PATH_NODE }}
-        className={
-          "grid shrink-0 place-items-center rounded-full ring-2 " +
-          (unlocked
-            ? "bg-amber-50 ring-amber-300 dark:bg-amber-500/15 dark:ring-amber-500/40"
-            : "bg-stone-100 ring-stone-200 dark:bg-white/[0.06] dark:ring-white/10")
-        }
-      >
-        <Gift className={"h-6 w-6 " + (unlocked ? "text-amber-500" : "text-stone-300 dark:text-stone-600")} />
-      </div>
+      <ChestIcon size={PATH_NODE} unlocked={unlocked} />
     </div>
   );
 }
