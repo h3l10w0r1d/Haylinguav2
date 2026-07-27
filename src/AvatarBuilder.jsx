@@ -163,63 +163,54 @@ function OptionThumb({ traits, field, value, active, onClick }) {
   );
 }
 
-// Idle motion for the live preview — no third-party animation lib, no API
-// calls: just CSS keyframes plus a randomized timer that swaps in a
-// second, closed-eyes render of the exact same traits (DiceBear runs
-// entirely client-side already, so "animating" it is just choosing which
-// locally-generated frame to show). Once "Use this avatar" rasterizes to a
-// flat PNG for the upload pipeline, the character is static again — this
-// only brings it to life while building.
-const PREVIEW_STYLE = `
-@keyframes hay-avatar-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-3px) rotate(-1deg); }
-}
-@keyframes hay-avatar-wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(3deg); }
-  75% { transform: rotate(-3deg); }
-}
-.hay-avatar-preview { animation: hay-avatar-bob 3.2s ease-in-out infinite; }
-.hay-avatar-preview:hover { animation: hay-avatar-wiggle 0.5s ease-in-out; }
-@media (prefers-reduced-motion: reduce) {
-  .hay-avatar-preview, .hay-avatar-preview:hover { animation: none; }
-}
-`;
+// Idle life for the live preview — no third-party animation lib, no API
+// calls, and no moving/bouncing the whole character (that read as a
+// distracting wobble, not a living portrait). Just two independent timers
+// that occasionally swap in a second DiceBear render of the exact same
+// traits with the eyes closed or the mouth open, the same way a still
+// photo "blinks" in a cinemagraph. DiceBear already renders fully
+// client-side, so this is only ever choosing which locally-generated frame
+// to show. Once "Use this avatar" rasterizes to a flat PNG for the upload
+// pipeline, the character is static again — this only brings it to life
+// while building.
 
-// Eyes that read naturally as "open" and can believably blink shut. Traits
-// already fixed to something eyes-closed-adjacent (closed/cry/xDizzy) skip
-// blinking rather than doing nothing or looking wrong.
+// Eyes/mouths that read naturally as "neutral open" and can believably
+// flicker to a blink/talk frame. Traits already fixed to something
+// emotionally loaded (cry, sad, vomit, etc.) skip the effect rather than
+// doing nothing or looking wrong.
 const BLINKABLE_EYES = new Set(["default", "happy", "side", "squint", "wink", "winkWacky", "surprised"]);
+const TALKABLE_MOUTHS = new Set(["default", "smile", "twinkle", "serious"]);
 
-function useBlink(traits, active) {
-  const [blinking, setBlinking] = useState(false);
+// Shared timer: randomly toggles a boolean on/off for `holdMs`, at random
+// intervals in [minDelay, maxDelay], only while `enabled`.
+function useFlicker(enabled, minDelay, maxDelay, holdMs) {
+  const [active, setActive] = useState(false);
 
   useEffect(() => {
-    if (!active || !BLINKABLE_EYES.has(traits.eyes)) {
-      setBlinking(false);
+    if (!enabled) {
+      setActive(false);
       return;
     }
-    let closeTimer;
-    let openTimer;
-    function scheduleBlink() {
-      const delay = 2200 + Math.random() * 3200;
-      closeTimer = setTimeout(() => {
-        setBlinking(true);
-        openTimer = setTimeout(() => {
-          setBlinking(false);
-          scheduleBlink();
-        }, 130);
+    let offTimer;
+    let onTimer;
+    function schedule() {
+      const delay = minDelay + Math.random() * (maxDelay - minDelay);
+      offTimer = setTimeout(() => {
+        setActive(true);
+        onTimer = setTimeout(() => {
+          setActive(false);
+          schedule();
+        }, holdMs);
       }, delay);
     }
-    scheduleBlink();
+    schedule();
     return () => {
-      clearTimeout(closeTimer);
-      clearTimeout(openTimer);
+      clearTimeout(offTimer);
+      clearTimeout(onTimer);
     };
-  }, [traits.eyes, active]);
+  }, [enabled, minDelay, maxDelay, holdMs]);
 
-  return blinking;
+  return active;
 }
 
 export default function AvatarBuilder({ open, onClose, onSave }) {
@@ -227,9 +218,20 @@ export default function AvatarBuilder({ open, onClose, onSave }) {
   const [tab, setTab] = useState("hair");
   const [saving, setSaving] = useState(false);
 
-  const previewUri = useMemo(() => buildSvg(traits, 320), [traits]);
-  const blinkUri = useMemo(() => buildSvg({ ...traits, eyes: "closed" }, 320), [traits]);
-  const blinking = useBlink(traits, open);
+  const blinking = useFlicker(open && BLINKABLE_EYES.has(traits.eyes), 2200, 5400, 130);
+  const talking = useFlicker(open && TALKABLE_MOUTHS.has(traits.mouth), 3000, 6500, 220);
+  const displayUri = useMemo(
+    () =>
+      buildSvg(
+        {
+          ...traits,
+          eyes: blinking ? "closed" : traits.eyes,
+          mouth: talking ? "screamOpen" : traits.mouth,
+        },
+        320
+      ),
+    [traits, blinking, talking]
+  );
 
   if (!open) return null;
 
@@ -267,12 +269,11 @@ export default function AvatarBuilder({ open, onClose, onSave }) {
           </button>
         </div>
 
-        <style>{PREVIEW_STYLE}</style>
         <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
           {/* Live preview */}
           <div className="flex shrink-0 flex-col items-center gap-3 border-b border-slate-100 p-5 dark:border-white/[0.08] sm:w-52 sm:border-b-0 sm:border-r">
-            <div className="hay-avatar-preview h-32 w-32 overflow-hidden rounded-3xl ring-4 ring-slate-100 dark:ring-white/10">
-              <img src={blinking ? blinkUri : previewUri} alt="Avatar preview" className="h-full w-full object-cover" />
+            <div className="h-32 w-32 overflow-hidden rounded-3xl ring-4 ring-slate-100 dark:ring-white/10">
+              <img src={displayUri} alt="Avatar preview" className="h-full w-full object-cover" />
             </div>
             <button type="button" onClick={randomize} className="btn3d btn3d-neutral w-full text-xs">
               <Shuffle className="h-3.5 w-3.5" /> Surprise me
