@@ -1898,6 +1898,20 @@ def cms_seed_essentials(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/grammar3")
+def cms_seed_grammar3(request: Request, db=Depends(get_db)):
+    """Common Verbs II (present tense of speak/live/read/write/see/do/say)
+    plus postpositions and the modal կարող եմ. Two chapters (positions
+    43-44). Idempotent (skips if gr-verbs-speak exists)."""
+    require_cms(request, db)
+    from seed_grammar3 import seed_grammar3
+    try:
+        res = seed_grammar3()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/a1")
 def cms_seed_a1(request: Request, db=Depends(get_db)):
     """Completes A1: numbers 20-100, time & age, գիտենալ/սիրել verbs, and
