@@ -1901,6 +1901,20 @@ def cms_seed_essentials(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/cefr-tag")
+def cms_seed_cefr_tag(request: Request, db=Depends(get_db)):
+    """Tags every lesson with a CEFR level in config (A0 for Sounds+Alphabet,
+    A1 for the rest; A2 already tagged). Basis for the level system.
+    Idempotent (only fills lessons without a cefr tag)."""
+    require_cms(request, db)
+    from seed_cefr_tag import seed_cefr_tag
+    try:
+        res = seed_cefr_tag()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/a2-1")
 def cms_seed_a2_1(request: Request, db=Depends(get_db)):
     """A2 roadmap round 1: irregular past tense (see/come/do/say), the

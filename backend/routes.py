@@ -3538,6 +3538,8 @@ class LessonProgressOut(BaseModel):
     exercises_completed: int
     completion_pct: float
     status: str  # completed | current | locked
+    cefr: str | None = None            # A0 | A1 | A2 … (CEFR level of the lesson)
+    level_locked: bool = False         # locked because its CEFR level isn't unlocked yet
     chapter_id: int | None = None
     chapter_title: str | None = None
     chapter_position: int | None = None
@@ -3580,7 +3582,8 @@ def me_lessons_progress(
               c.title AS chapter_title,
               c.position AS chapter_position,
               c.icon AS chapter_icon,
-              c.icon_color AS chapter_icon_color
+              c.icon_color AS chapter_icon_color,
+              COALESCE(l.config->>'cefr', 'A1') AS cefr
             FROM lessons l
             LEFT JOIN ex ON ex.lesson_id = l.id
             LEFT JOIN chapters c ON c.id = l.chapter_id
@@ -3597,6 +3600,10 @@ def me_lessons_progress(
 
     out: list[LessonProgressOut] = []
 
+    # Which CEFR levels this learner has unlocked (A0/A1 open; later levels
+    # need the previous level's assessment passed).
+    passed = _passed_levels(db, int(user_id))
+
     # Compute status: first is unlocked; next unlocks when previous is completed (>=70%).
     prev_completed = True  # allow first
     current_set = False
@@ -3605,6 +3612,8 @@ def me_lessons_progress(
         exercises_completed = int(r["exercises_completed"] or 0)
         xp_total = int(r["xp_total"] or 0)
         xp_earned = int(r["xp_earned"] or 0)
+        cefr = r.get("cefr") or "A1"
+        level_unlocked = _level_unlocked(cefr, passed)
 
         pct = 0.0
         if exercises_total > 0:
@@ -3624,8 +3633,13 @@ def me_lessons_progress(
                 else:
                     status = "locked"  # keep later ones locked until you finish the current
 
-        # Unlock chaining uses "completed" only
+        # Unlock chaining uses "completed" only — but a lesson in a level that
+        # isn't unlocked yet is hard-locked regardless of its own progress, and
+        # can't count as the "current" lesson.
         prev_completed = is_completed
+        level_locked = not level_unlocked
+        if level_locked and status != "completed":
+            status = "locked"
 
         out.append(
             LessonProgressOut(
@@ -3640,6 +3654,8 @@ def me_lessons_progress(
                 exercises_completed=exercises_completed,
                 completion_pct=float(pct),
                 status=status,
+                cefr=cefr,
+                level_locked=level_locked,
                 chapter_id=(int(r["chapter_id"]) if r.get("chapter_id") is not None else None),
                 chapter_title=r.get("chapter_title"),
                 chapter_position=(int(r["chapter_position"]) if r.get("chapter_position") is not None else None),
@@ -4244,6 +4260,258 @@ def me_checkpoint(
     ]
 
     return {"exercises": exercises_out}
+
+
+# ==================== CEFR levels & assessment gate ====================
+# A learner works through a level's lessons, then takes a mixed assessment;
+# passing it (>= _ASSESS_PASS) unlocks the next level's roadmap.
+
+_CEFR_ORDER = ["A0", "A1", "A2", "B1", "B2"]
+_CEFR_NAMES = {"A0": "Foundations", "A1": "Beginner", "A2": "Elementary",
+               "B1": "Intermediate", "B2": "Upper-Intermediate"}
+_ASSESS_PASS = 80          # % correct required to clear a level
+_ASSESS_COUNT = 20         # questions in a level assessment
+# A0 and A1 are open from the start; every later level needs the previous
+# level's assessment passed.
+_OPEN_BY_DEFAULT = {"A0", "A1"}
+
+
+def _level_lesson_ids(db, level: str) -> list[int]:
+    rows = db.execute(
+        text("""
+            SELECT id FROM lessons
+            WHERE COALESCE(is_published, TRUE) = TRUE
+              AND lesson_type <> 'assessment'
+              AND COALESCE(config->>'cefr', 'A1') = :lvl
+            ORDER BY level ASC, id ASC
+        """),
+        {"lvl": level},
+    ).mappings().all()
+    return [int(r["id"]) for r in rows]
+
+
+def _passed_levels(db, user_id: int) -> set[str]:
+    rows = db.execute(
+        text("SELECT level FROM user_level_progress WHERE user_id = :u AND status = 'passed'"),
+        {"u": user_id},
+    ).mappings().all()
+    return {r["level"] for r in rows}
+
+
+def _level_unlocked(level: str, passed: set[str]) -> bool:
+    if level in _OPEN_BY_DEFAULT:
+        return True
+    idx = _CEFR_ORDER.index(level) if level in _CEFR_ORDER else 99
+    if idx <= 0:
+        return True
+    prev = _CEFR_ORDER[idx - 1]
+    return prev in passed
+
+
+@router.get("/me/levels")
+def me_levels(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Per-CEFR-level status for the roadmap: how much is done, whether the
+    assessment is ready, whether it's been passed, and whether the level is
+    unlocked."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    # Per-level lesson totals + how many this user has completed (>=70% or marked).
+    agg = db.execute(
+        text("""
+            WITH ll AS (
+              SELECT l.id,
+                     COALESCE(l.config->>'cefr', 'A1') AS lvl,
+                     (SELECT COUNT(*) FROM exercises e WHERE e.lesson_id = l.id) AS ex_total,
+                     COALESCE(ulp.exercises_completed, 0) AS ex_done,
+                     ulp.completed_at
+              FROM lessons l
+              LEFT JOIN user_lesson_progress ulp
+                ON ulp.lesson_id = l.id AND ulp.user_id = :u
+              WHERE COALESCE(l.is_published, TRUE) = TRUE
+                AND l.lesson_type <> 'assessment'
+            )
+            SELECT lvl,
+                   COUNT(*) AS total,
+                   COUNT(*) FILTER (
+                     WHERE completed_at IS NOT NULL
+                        OR (ex_total > 0 AND ex_done::float / ex_total >= 0.70)
+                   ) AS done
+            FROM ll
+            GROUP BY lvl
+        """),
+        {"u": user_id},
+    ).mappings().all()
+    counts = {r["lvl"]: (int(r["total"]), int(r["done"])) for r in agg}
+
+    prog_rows = db.execute(
+        text("SELECT level, status, best_score, passed_at FROM user_level_progress WHERE user_id = :u"),
+        {"u": user_id},
+    ).mappings().all()
+    prog = {r["level"]: r for r in prog_rows}
+    passed = {lvl for lvl, p in prog.items() if p["status"] == "passed"}
+
+    levels = []
+    highest_passed = None
+    for lvl in _CEFR_ORDER:
+        total, done = counts.get(lvl, (0, 0))
+        if total == 0 and lvl not in passed:
+            continue  # no content for this level yet
+        p = prog.get(lvl)
+        is_passed = lvl in passed
+        if is_passed:
+            highest_passed = lvl
+        levels.append({
+            "level": lvl,
+            "name": _CEFR_NAMES.get(lvl, lvl),
+            "lessons_total": total,
+            "lessons_completed": done,
+            "all_lessons_done": total > 0 and done >= total,
+            "assessment_ready": total > 0 and done >= total and not is_passed,
+            "assessment_passed": is_passed,
+            "best_score": int(p["best_score"]) if p else 0,
+            "unlocked": _level_unlocked(lvl, passed),
+            "pass_mark": _ASSESS_PASS,
+        })
+
+    return {"current_cefr": highest_passed, "levels": levels}
+
+
+@router.get("/me/assessment/{level}")
+def me_assessment(
+    level: str,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """A mixed assessment test for a CEFR level — a shuffled sample drawn from
+    across that level's lessons (favouring content the learner has seen)."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    _require_verified(db, int(user_id))
+
+    level = level.upper()
+    if level not in _CEFR_ORDER:
+        raise HTTPException(status_code=400, detail="Unknown level")
+
+    ids = _level_lesson_ids(db, level)
+    if not ids:
+        raise HTTPException(status_code=404, detail="No lessons for this level")
+
+    tried = db.execute(
+        text("""
+            SELECT DISTINCT e.id AS eid FROM exercises e
+            JOIN user_exercise_attempts a ON a.exercise_id = e.id AND a.user_id = :u
+            WHERE e.lesson_id = ANY(:ids)
+        """),
+        {"u": user_id, "ids": ids},
+    ).mappings().all()
+    ex_ids = [int(r["eid"]) for r in tried]
+
+    if len(ex_ids) < _ASSESS_COUNT:
+        extra = db.execute(
+            text("""
+                SELECT id FROM exercises
+                WHERE lesson_id = ANY(:ids)
+                  AND (cardinality(CAST(:tried AS integer[])) = 0 OR id <> ALL(CAST(:tried AS integer[])))
+            """),
+            {"ids": ids, "tried": ex_ids if ex_ids else []},
+        ).mappings().all()
+        ex_ids += [int(r["id"]) for r in extra]
+
+    if not ex_ids:
+        raise HTTPException(status_code=404, detail="No exercises for this level")
+
+    random.shuffle(ex_ids)
+    ex_ids = ex_ids[:_ASSESS_COUNT]
+
+    ex_rows = db.execute(
+        text("""SELECT id, lesson_id, kind, prompt, expected_answer, sentence_before, sentence_after, "order", config
+                FROM exercises WHERE id = ANY(:ids)"""),
+        {"ids": ex_ids},
+    ).mappings().all()
+    ex_map = {int(r["id"]): dict(r) for r in ex_rows}
+
+    opt_rows = db.execute(
+        text("""SELECT id, exercise_id, text, is_correct, side, match_key
+                FROM exercise_options WHERE exercise_id = ANY(:ids) ORDER BY exercise_id ASC, id ASC"""),
+        {"ids": ex_ids},
+    ).mappings().all()
+    options_by_ex: dict[int, list[dict]] = {eid: [] for eid in ex_ids}
+    for o in opt_rows:
+        eid = int(o["exercise_id"])
+        if eid in options_by_ex:
+            options_by_ex[eid].append(dict(o))
+
+    exercises_out = [{**ex_map[eid], "options": options_by_ex.get(eid, [])} for eid in ex_ids if eid in ex_map]
+    return {"level": level, "pass_mark": _ASSESS_PASS, "count": len(exercises_out), "exercises": exercises_out}
+
+
+class AssessmentSubmit(BaseModel):
+    correct: int
+    total: int
+
+
+@router.post("/me/assessment/{level}/submit")
+def me_assessment_submit(
+    level: str,
+    payload: AssessmentSubmit,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Record a level assessment attempt. Passing (>= pass mark) marks the
+    level passed and unlocks the next one."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    level = level.upper()
+    if level not in _CEFR_ORDER:
+        raise HTTPException(status_code=400, detail="Unknown level")
+
+    total = max(1, int(payload.total))
+    correct = max(0, min(int(payload.correct), total))
+    score = round(correct * 100 / total)
+    passed_now = score >= _ASSESS_PASS
+
+    prev = db.execute(
+        text("SELECT status, best_score FROM user_level_progress WHERE user_id = :u AND level = :l"),
+        {"u": user_id, "l": level},
+    ).mappings().first()
+    already_passed = bool(prev and prev["status"] == "passed")
+    best = max(int(prev["best_score"]) if prev else 0, score)
+    status = "passed" if (passed_now or already_passed) else "attempted"
+
+    db.execute(
+        text("""
+            INSERT INTO user_level_progress (user_id, level, status, best_score, passed_at, updated_at)
+            VALUES (:u, :l, :st, :bs, CASE WHEN :st = 'passed' THEN NOW() ELSE NULL END, NOW())
+            ON CONFLICT (user_id, level) DO UPDATE
+              SET status = CASE WHEN user_level_progress.status = 'passed' THEN 'passed' ELSE EXCLUDED.status END,
+                  best_score = GREATEST(user_level_progress.best_score, EXCLUDED.best_score),
+                  passed_at = COALESCE(user_level_progress.passed_at, EXCLUDED.passed_at),
+                  updated_at = NOW()
+        """),
+        {"u": user_id, "l": level, "st": status, "bs": best},
+    )
+
+    idx = _CEFR_ORDER.index(level)
+    next_level = _CEFR_ORDER[idx + 1] if idx + 1 < len(_CEFR_ORDER) else None
+
+    return {
+        "level": level,
+        "score": score,
+        "best_score": best,
+        "passed": status == "passed",
+        "pass_mark": _ASSESS_PASS,
+        "newly_passed": passed_now and not already_passed,
+        "next_level": next_level,
+        "next_unlocked": status == "passed" and next_level is not None,
+    }
 
 
 @router.get("/me/review/stats")

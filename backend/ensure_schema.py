@@ -1026,4 +1026,19 @@ def ensure_schema() -> None:
             )
         print("[ensure_schema] upserted forum_categories")
 
+        # CEFR level progression: one row per (user, level) tracking whether
+        # the learner has cleared that level's assessment. Drives the A1->A2
+        # gate and the level badge.
+        ensure_table("user_level_progress", """
+            CREATE TABLE user_level_progress (
+                user_id     INTEGER NOT NULL,
+                level       TEXT NOT NULL,
+                status      TEXT NOT NULL DEFAULT 'in_progress',
+                best_score  INTEGER NOT NULL DEFAULT 0,
+                passed_at   TIMESTAMP NULL,
+                updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (user_id, level)
+            )
+        """)
+
     print("[ensure_schema] done")
