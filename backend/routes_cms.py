@@ -2206,6 +2206,22 @@ def cms_seed_listen_image(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/situations")
+def cms_seed_situations(request: Request, db=Depends(get_db)):
+    """A2 · Everyday Situations — at the doctor, at the shop, making plans.
+    Established kinds only. Lessons tagged cefr=A2, chapter at position 62.
+    Idempotent (skips if a2-situ-doctor exists). NOTE: this content was also
+    authored live via the CMS bulk-import API while a deploy was blocked, so on
+    a fresh backend this endpoint simply records/reproduces it."""
+    require_cms(request, db)
+    from seed_situations import seed_situations
+    try:
+        res = seed_situations()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
