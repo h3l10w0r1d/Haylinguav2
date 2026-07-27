@@ -2294,6 +2294,22 @@ def cms_seed_free(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/vocab")
+def cms_seed_vocab(request: Request, db=Depends(get_db)):
+    """A2 vocabulary at scale — a verified base-word bank across ~42 everyday
+    domains expanded into ~1,900 exercises (match, translate both ways,
+    listen-and-type, pick-the-image, true/false). Established kinds only.
+    Idempotent (skips if voc-animals-1 exists). Also authored live via the CMS
+    bulk-import API; this generator is the reproducible record."""
+    require_cms(request, db)
+    from seed_vocab import seed_vocab
+    try:
+        res = seed_vocab()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
