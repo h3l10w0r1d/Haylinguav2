@@ -942,6 +942,7 @@ export default function LessonPlayer() {
     inflect: "Type the correct form",
     trace_letter: "Trace the letter",
     listen_image: "Listen and pick the picture",
+    story: "Read the story, then answer",
     highlight_grammar: "Identify the grammar element",
     letter_typing: "Type the character",
     word_spelling: "Spell the word",

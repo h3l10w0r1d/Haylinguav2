@@ -3176,6 +3176,93 @@ function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
   );
 }
 
+// W) story — a short narrated dialogue (chat bubbles, audio + tappable words
+// per line) followed by a comprehension question. A "Stories-lite": context and
+// listening/reading together, graded on understanding. Config:
+// { title?, lines:[{speaker, text, translation}], question, choices, answerIndex }
+function ExStory({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseUrl, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const title = cfg.title || exercise?.prompt || "Read the story";
+  const lines = Array.isArray(cfg.lines) ? cfg.lines : [];
+  const question = cfg.question || "";
+  const choices = Array.isArray(cfg.choices) ? cfg.choices : [];
+  const correctIndex = Number.isFinite(cfg.answerIndex) ? Number(cfg.answerIndex) : 0;
+
+  // First distinct speaker sits on the left, the next on the right (chat style).
+  const speakers = [];
+  lines.forEach((l) => { const s = l?.speaker || ""; if (!speakers.includes(s)) speakers.push(s); });
+
+  const [sel, setSel] = useState(null);
+  const [graded, setGraded] = useState(null);
+  const [busyIdx, setBusyIdx] = useState(-1);
+  useEffect(() => { setSel(null); setGraded(null); }, [exercise?.id]);
+
+  async function playLine(i) {
+    const text = lines[i]?.text; if (!text) return;
+    try {
+      setBusyIdx(i);
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text, exerciseId: exercise?.id });
+      const a = newTrackedAudio(url); await a.play();
+    } catch (e) { console.error("TTS failed", e); }
+    finally { setBusyIdx(-1); }
+  }
+
+  return (
+    <Card>
+      <Title>{title}</Title>
+
+      <div className="mt-4 space-y-3">
+        {lines.map((l, i) => {
+          const right = speakers.indexOf(l?.speaker || "") === 1;
+          return (
+            <div key={i} className={cx("flex", right ? "justify-end" : "justify-start")}>
+              <div className={cx("max-w-[85%] rounded-2xl px-4 py-3 ring-1",
+                right ? "bg-brand-50 ring-brand-100 dark:bg-brand-500/10 dark:ring-brand-500/25"
+                      : "bg-slate-50 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]")}>
+                {l?.speaker ? (
+                  <div className="mb-0.5 flex items-center gap-2">
+                    <span className="text-xs font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">{l.speaker}</span>
+                    <button type="button" onClick={() => playLine(i)} disabled={busyIdx === i}
+                      className="grid h-6 w-6 place-items-center rounded-full text-feather-500 hover:bg-feather-50 disabled:opacity-50 dark:hover:bg-feather-500/15" aria-label="Play line">🔊</button>
+                  </div>
+                ) : null}
+                <div className="text-base font-bold text-slate-800 dark:text-white">
+                  <GlossaryText text={l?.text || ""} glossary={cfg.glossary} />
+                </div>
+                {l?.translation ? (
+                  <div className="mt-0.5 text-sm font-semibold text-slate-400 dark:text-stone-500">{l.translation}</div>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {question ? (
+        <div className="mt-6">
+          <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">{question}</div>
+          <div className="mt-3">
+            <ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={1} graded={graded} />
+          </div>
+        </div>
+      ) : null}
+
+      <FooterSlot>
+        <PrimaryButton
+          disabled={sel === null || !!graded}
+          onClick={() => {
+            setGraded({ correct: correctIndex, picked: sel });
+            const extra = { selectedIndices: [sel], answerText: choices[sel] ?? "" };
+            sel === correctIndex ? correct(extra) : wrong("Re-read the story and try again.", extra);
+          }}
+        >
+          Check
+        </PrimaryButton>
+      </FooterSlot>
+    </Card>
+  );
+}
+
 /* -------------------------
    Main Renderer (no hooks)
 -------------------------- */
@@ -3543,6 +3630,9 @@ export default function ExerciseRenderer({
   }
   if (kind === "reading_comprehension") {
     return <ExReadingComprehension exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+  if (kind === "story") {
+    return <ExStory exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} apiBaseUrl={apiBaseUrl} />;
   }
   if (kind === "minimal_pairs") {
     return <ExMinimalPairs exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
