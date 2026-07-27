@@ -29,6 +29,11 @@ except ImportError:
     pass
 
 from auth import get_current_user
+# Shared rate-limit helper (see routes.py) — this endpoint isn't cached like
+# explain-mistake/word-hint (every turn is genuinely unique dialogue), so a
+# backstop here matters more: no cache means every request is a real GPT
+# call plus STT/TTS, not just a cache-miss tax.
+from routes import _check_rate_limit
 
 router = APIRouter()
 
@@ -349,6 +354,7 @@ async def conversation_turn(
     # ------------------------------------------------------------------ #
     # 0. Validate
     # ------------------------------------------------------------------ #
+    _check_rate_limit("conversation_turn", int(user["id"]), limit=20, window_seconds=60)
     if not OPENAI_API_KEY:
         raise HTTPException(
             status_code=503,

@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from middleware.rate_limit import RateLimitMiddleware
 
-from routes import router as api_router
+from routes import router as api_router, _prune_stale_tts_cache
 from routes_cms import router as cms_router  # CMS ("Content Studio") admin routes
 from routes_social import router as social_router  # Friends, leaderboard, public profiles
 from routes_audio import router as audio_router  # NEW: Audio management
@@ -58,6 +58,10 @@ async def lifespan(app: FastAPI):
             seed_curriculum()
         except Exception as e:
             print(f"[seed_curriculum] failed: {e}")
+    try:
+        _prune_stale_tts_cache()
+    except Exception as e:  # disk cleanup must never block startup
+        print(f"[tts_cache] prune skipped: {e}")
     yield
 
 

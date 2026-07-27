@@ -3,6 +3,7 @@ import os
 import json
 import re
 import unicodedata
+from collections import defaultdict
 from datetime import datetime, timedelta
 import uuid
 from typing import List, Dict, Any, Optional
@@ -99,6 +100,28 @@ def _client_ip(request: Request) -> str:
     if not ip:
         ip = (getattr(request.client, 'host', None) or '').strip()
     return ip or 'unknown'
+
+
+# Generic per-(bucket, key) sliding-window rate limit, shared by any
+# endpoint that needs a cheap backstop against a client bug or an impatient
+# learner mashing a button — same in-memory pattern as routes_audio.py's
+# transcribe-specific limiter, generalized so new call sites don't each
+# hand-roll their own defaultdict. In-memory (not per-worker-shared) is fine
+# here: the goal is bounding worst-case cost, not perfect fairness.
+_rate_limit_calls: dict = defaultdict(list)
+
+
+def _check_rate_limit(bucket: str, key: Any, limit: int, window_seconds: int) -> None:
+    """Raise 429 if this (bucket, key) has exceeded limit calls in the last
+    window_seconds. Call once per request, right before the expensive work."""
+    now = time.time()
+    k = (bucket, key)
+    calls = [t for t in _rate_limit_calls[k] if now - t < window_seconds]
+    if len(calls) >= limit:
+        _rate_limit_calls[k] = calls
+        raise HTTPException(status_code=429, detail="Too many requests. Please wait a moment.")
+    calls.append(now)
+    _rate_limit_calls[k] = calls
 
 
 def _key_for(identifier: str, ip: str) -> tuple[str, str]:
@@ -4932,6 +4955,7 @@ def explain_mistake(
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
+    _check_rate_limit("explain", user_id, limit=20, window_seconds=60)
     if not _EXPLAIN_OPENAI_KEY:
         raise HTTPException(status_code=503, detail="Explanations are unavailable right now.")
 
@@ -5103,6 +5127,9 @@ def me_word_hint(
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
+    # Higher than /explain's limit: tap-to-translate is meant to be tapped
+    # rapidly while reading, most hits are cache reads, not GPT calls.
+    _check_rate_limit("word_hint", user_id, limit=60, window_seconds=60)
 
     norm = _norm_word(word)
     if not norm:
@@ -8999,6 +9026,34 @@ def _tts_cache_dir() -> Path:
 # audio) changes, so old cached files — generated with the previous, worse
 # defaults — become orphaned cache misses instead of being served forever.
 _TTS_CACHE_VERSION = "v5"
+
+
+def _prune_stale_tts_cache(max_age_days: int = 90) -> None:
+    """Delete cache files untouched for max_age_days.
+
+    Cache filenames are a hash of (version, provider, model, voice, text) —
+    bumping _TTS_CACHE_VERSION (as happens whenever defaults change) makes
+    every prior version's files permanently unreachable, since no future
+    request can ever produce their hash again, but nothing ever deleted
+    them. Age-based pruning cleans those up without needing to know which
+    version a given file belongs to: an orphaned file's mtime only gets
+    older, while a still-current file gets a fresh mtime the next time it's
+    regenerated after (rarely) aging out — a negligible one-time re-fetch
+    cost for how infrequently that would actually happen."""
+    cache_dir = _tts_cache_dir()
+    if not cache_dir.is_dir():
+        return
+    cutoff = time.time() - max_age_days * 86400
+    deleted = 0
+    for f in cache_dir.iterdir():
+        try:
+            if f.is_file() and f.stat().st_mtime < cutoff:
+                f.unlink()
+                deleted += 1
+        except OSError:
+            continue
+    if deleted:
+        print(f"[tts_cache] pruned {deleted} file(s) older than {max_age_days}d")
 
 
 def _tts_cache_key(text_value: str, provider: str, voice_id: str, model_id: str) -> str:
