@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
-import { UserPlus, Check, X as XIcon, Users as UsersIcon, Trophy, Star, Flame } from 'lucide-react-native';
+import { UserPlus, Check, X as XIcon, Users as UsersIcon, Trophy, Star, Flame, Crown } from 'lucide-react-native';
 import { api, ApiError, resolveUrl } from '../lib/api';
 import { getFriendshipState } from '../lib/friendState';
 import Pressable3D from '../components/Pressable3D';
@@ -22,35 +22,72 @@ import { haptics } from '../lib/haptics';
 
 const DISMISSED_SENT_KEY = 'hay_friends_dismissed_sent_v1';
 
+// "3h ago" / "2d ago" / "Just now" — reads better in a scanned list than a
+// bare locale date string, and matches the terse register the rest of the
+// app's timestamps use (streak counters, activity feeds).
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+// Small gold badge overlay for premium accounts, mirroring web's CrownBadge —
+// a friend/suggestion who's paid for the app deserves to look like it.
+function CrownBadge() {
+  return (
+    <View
+      className="absolute items-center justify-center rounded-full bg-gold-400"
+      style={{ bottom: -3, right: -3, width: 18, height: 18, borderWidth: 2, borderColor: '#fff' }}
+    >
+      <Crown size={9} color="#fff" fill="#fff" />
+    </View>
+  );
+}
+
 // Squircle + gradient-fallback avatar, matching the web PersonCard's look
 // (rounded-2xl, brand->pom gradient behind the initial) instead of a flat
 // gray circle — the same fallback everyone without a photo shares looks
 // considered rather than like a missing-image placeholder.
-function Avatar({ name, avatarUrl, size = 40 }) {
+function Avatar({ name, avatarUrl, size = 40, isPremium = false }) {
   const resolved = resolveUrl(avatarUrl);
   const shape = { width: size, height: size, borderRadius: size * 0.32 };
-  if (resolved) {
-    return (
-      <View style={[shape, { overflow: 'hidden', backgroundColor: '#f5f5f4' }]}>
-        <Image source={{ uri: resolved }} style={shape} />
-      </View>
-    );
-  }
   return (
-    <LinearGradient
-      colors={['#FF9342', '#E11D48']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[shape, { alignItems: 'center', justifyContent: 'center' }]}
-    >
-      <Text className="font-extrabold text-white" style={{ fontSize: size * 0.4 }}>{(name || '?')[0]?.toUpperCase()}</Text>
-    </LinearGradient>
+    <View style={{ width: size, height: size }}>
+      {resolved ? (
+        <View style={[shape, { overflow: 'hidden', backgroundColor: '#f5f5f4' }, isPremium && { borderWidth: 2, borderColor: '#E0A800' }]}>
+          <Image source={{ uri: resolved }} style={shape} />
+        </View>
+      ) : (
+        <LinearGradient
+          colors={['#FF9342', '#E11D48']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[shape, { alignItems: 'center', justifyContent: 'center' }, isPremium && { borderWidth: 2, borderColor: '#E0A800' }]}
+        >
+          <Text className="font-extrabold text-white" style={{ fontSize: size * 0.4 }}>{(name || '?')[0]?.toUpperCase()}</Text>
+        </LinearGradient>
+      )}
+      {isPremium && <CrownBadge />}
+    </View>
   );
 }
 
 function Row({ children, onPress, style }) {
   return (
-    <Pressable3D onPress={onPress} disabled={!onPress} pressDepth={2} className="mb-2 flex-row items-center gap-3 rounded-2xl bg-white px-4 py-3" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1, ...style }}>
+    <Pressable3D
+      onPress={onPress}
+      disabled={!onPress}
+      pressDepth={2}
+      className="mb-2.5 flex-row items-center gap-3 rounded-2xl bg-white px-4 py-3"
+      style={{ borderWidth: 1, borderColor: '#f0efec', shadowColor: '#1c1917', shadowOpacity: 0.04, shadowRadius: 6, elevation: 1, ...style }}
+    >
       {children}
     </Pressable3D>
   );
@@ -293,13 +330,12 @@ export default function FriendsScreen({ navigation }) {
               </View>
             ) : (
               friends.map((f) => (
-                <Row key={f.user_id} onPress={() => navigation.navigate('PublicProfile', { username: f.username })}>
-                  <Avatar name={f.name || f.username} avatarUrl={f.avatar_url} />
-                  <View className="flex-1">
+                <Row key={f.user_id} onPress={() => navigation.navigate('PublicProfile', { username: f.username })} style={{ alignItems: 'flex-start' }}>
+                  <Avatar name={f.name || f.username} avatarUrl={f.avatar_url} size={48} isPremium={f.is_premium} />
+                  <View className="min-w-0 flex-1">
                     <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{f.name || f.username}</Text>
-                    <Text className="text-xs font-semibold text-stone-400">Level {f.level ?? '–'} · {f.streak ?? 0} day streak</Text>
+                    <StatChips level={f.level} xp={f.xp} streak={f.streak} />
                   </View>
-                  <Text className="text-sm font-extrabold text-stone-900">{f.xp} XP</Text>
                   <Pressable3D onPress={() => confirmRemove(f)} pressDepth={2} className="h-8 w-8 items-center justify-center rounded-full bg-stone-100">
                     <XIcon size={14} color="#a8a29e" />
                   </Pressable3D>
@@ -317,8 +353,11 @@ export default function FriendsScreen({ navigation }) {
             ) : (
               incoming.map((r) => (
                 <Row key={r.id}>
-                  <Avatar name={r.requester_name || r.requester_email} avatarUrl={r.avatar_url} />
-                  <Text className="flex-1 text-sm font-bold text-stone-800" numberOfLines={1}>{r.requester_name || r.requester_email}</Text>
+                  <Avatar name={r.requester_name || r.requester_email} avatarUrl={r.avatar_url} size={48} isPremium={r.is_premium} />
+                  <View className="min-w-0 flex-1">
+                    <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.requester_name || r.requester_email}</Text>
+                    <Text className="text-xs font-semibold text-stone-400">Wants to be friends · {timeAgo(r.created_at)}</Text>
+                  </View>
                   <Pressable3D onPress={() => accept(r.id)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-grass-500">
                     <Check size={16} color="#fff" />
                   </Pressable3D>
@@ -335,8 +374,11 @@ export default function FriendsScreen({ navigation }) {
             ) : (
               visibleSent.map((r) => (
                 <Row key={r.id}>
-                  <Avatar name={r.addressee_name || r.addressee_email} avatarUrl={r.addressee_avatar_url} />
-                  <Text className="flex-1 text-sm font-bold text-stone-800" numberOfLines={1}>{r.addressee_name || r.addressee_email}</Text>
+                  <Avatar name={r.addressee_name || r.addressee_email} avatarUrl={r.addressee_avatar_url} size={48} isPremium={r.addressee_is_premium} />
+                  <View className="min-w-0 flex-1">
+                    <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.addressee_name || r.addressee_email}</Text>
+                    <Text className="text-xs font-semibold text-stone-400">Requested · {timeAgo(r.created_at)}</Text>
+                  </View>
                   <Pressable3D onPress={() => dismissSent(r.id)} pressDepth={2} className="rounded-full bg-stone-100 px-3 py-1.5">
                     <Text className="text-xs font-bold text-stone-500">Cancel</Text>
                   </Pressable3D>
@@ -358,7 +400,7 @@ export default function FriendsScreen({ navigation }) {
               const { state } = getFriendshipState(p.user_id, { friends, incoming, sent: visibleSent });
               return (
                 <Row key={p.user_id} onPress={() => p.username && navigation.navigate('PublicProfile', { username: p.username })} style={{ alignItems: 'flex-start' }}>
-                  <Avatar name={p.name || p.username} avatarUrl={p.avatar_url} size={48} />
+                  <Avatar name={p.name || p.username} avatarUrl={p.avatar_url} size={48} isPremium={p.is_premium} />
                   <View className="min-w-0 flex-1">
                     <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{p.name || p.username}</Text>
                     <StatChips level={p.level} xp={p.xp} streak={p.streak} />
@@ -404,16 +446,17 @@ export default function FriendsScreen({ navigation }) {
           ) : (
             activity.map((a, i) => (
               <Row key={`${a.friend_id}-${a.completed_at}-${i}`} onPress={() => a.username && navigation.navigate('PublicProfile', { username: a.username })}>
-                <Avatar name={a.name} avatarUrl={a.avatar_url} />
-                <View className="flex-1">
+                <Avatar name={a.name} avatarUrl={a.avatar_url} size={48} isPremium={a.is_premium} />
+                <View className="min-w-0 flex-1">
                   <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>
                     {a.name} finished "{a.lesson_title}"
                   </Text>
-                  <Text className="text-xs font-semibold text-stone-400">
-                    {a.completed_at ? new Date(a.completed_at).toLocaleDateString() : ''}
-                  </Text>
+                  <Text className="text-xs font-semibold text-stone-400">{timeAgo(a.completed_at)}</Text>
                 </View>
-                <Text className="text-sm font-extrabold text-gold-600">+{a.xp_earned} XP</Text>
+                <View className="flex-row items-center gap-1 rounded-lg bg-gold-50 px-2.5 py-1.5">
+                  <Star size={12} color="#E0A800" />
+                  <Text className="text-xs font-extrabold text-gold-700">+{a.xp_earned}</Text>
+                </View>
               </Row>
             ))
           )
