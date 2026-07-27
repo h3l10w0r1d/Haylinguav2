@@ -733,9 +733,27 @@ def _run_league_rollover(db: Connection) -> Dict[str, Any]:
                 continue  # inactive users don't promote
             if idx < LEAGUE_PROMOTE_TOP and tier < maxt:
                 db.execute(text("UPDATE users SET league_tier = :nt WHERE id = :i"), {"nt": tier + 1, "i": r["id"]})
+                db.execute(
+                    text(
+                        """
+                        INSERT INTO league_promotions (user_id, league_week, from_tier, to_tier, direction, weekly_xp)
+                        VALUES (:u, :wk, :ft, :tt, 'promoted', :xp)
+                        """
+                    ),
+                    {"u": r["id"], "wk": wk, "ft": tier, "tt": tier + 1, "xp": int(r["weekly_xp"])},
+                )
                 promoted += 1
             elif idx >= n - LEAGUE_DEMOTE_BOTTOM and tier > 0:
                 db.execute(text("UPDATE users SET league_tier = :nt WHERE id = :i"), {"nt": tier - 1, "i": r["id"]})
+                db.execute(
+                    text(
+                        """
+                        INSERT INTO league_promotions (user_id, league_week, from_tier, to_tier, direction, weekly_xp)
+                        VALUES (:u, :wk, :ft, :tt, 'demoted', :xp)
+                        """
+                    ),
+                    {"u": r["id"], "wk": wk, "ft": tier, "tt": tier - 1, "xp": int(r["weekly_xp"])},
+                )
                 demoted += 1
 
     db.execute(text("UPDATE users SET weekly_xp = 0, league_cohort = NULL, league_week = NULL WHERE league_cohort IS NOT NULL"))
@@ -748,6 +766,58 @@ def leagues_rollover(
 ):
     """Manual weekly promotion/relegation (CMS admin)."""
     return _run_league_rollover(db)
+
+@router.get("/cms/support/leagues/promotions")
+def leagues_promotions(
+    direction: Optional[Literal["promoted", "demoted"]] = None,
+    from_tier: Optional[int] = None,
+    to_tier: Optional[int] = None,
+    league_week: Optional[str] = None,
+    limit: int = 100,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    """History of every promotion/demotion the weekly rollover has made —
+    answers "who moved from Bronze to Silver this week" directly instead of
+    needing to infer it from users.league_tier, which only holds the
+    current value."""
+    clauses = []
+    params: Dict[str, Any] = {"limit": max(1, min(limit, 500))}
+    if direction:
+        clauses.append("p.direction = :direction")
+        params["direction"] = direction
+    if from_tier is not None:
+        clauses.append("p.from_tier = :from_tier")
+        params["from_tier"] = from_tier
+    if to_tier is not None:
+        clauses.append("p.to_tier = :to_tier")
+        params["to_tier"] = to_tier
+    if league_week:
+        clauses.append("p.league_week = :league_week")
+        params["league_week"] = league_week
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    rows = db.execute(
+        text(
+            f"""
+            SELECT p.id, p.user_id, u.email, u.username, p.league_week,
+                   p.from_tier, p.to_tier, p.direction, p.weekly_xp, p.created_at
+            FROM league_promotions p
+            JOIN users u ON u.id = p.user_id
+            {where}
+            ORDER BY p.created_at DESC
+            LIMIT :limit
+            """
+        ),
+        params,
+    ).mappings().all()
+    tiers = LEAGUE_TIERS
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["from_tier_name"] = tiers[d["from_tier"]] if 0 <= d["from_tier"] < len(tiers) else None
+        d["to_tier_name"] = tiers[d["to_tier"]] if 0 <= d["to_tier"] < len(tiers) else None
+        out.append(d)
+    return {"promotions": out}
 
 @router.post("/cron/leagues/rollover")
 def leagues_rollover_cron(

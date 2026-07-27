@@ -145,6 +145,27 @@ def ensure_schema() -> None:
         fill_nulls("users", "league_tier", "0")
         fill_nulls("users", "weekly_xp", "0")
 
+        # league_tier only ever stores the CURRENT tier — the weekly rollover
+        # overwrites it in place with no record of what it changed from, so
+        # "who moved from Bronze to Silver this week" was previously
+        # unanswerable after the fact. This table is the audit trail:
+        # one row per promotion/demotion, written by _run_league_rollover.
+        ensure_table(
+            "league_promotions",
+            """
+            CREATE TABLE league_promotions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                league_week TEXT NOT NULL,
+                from_tier INTEGER NOT NULL,
+                to_tier INTEGER NOT NULL,
+                direction TEXT NOT NULL,
+                weekly_xp INTEGER NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+
         # ---------- StreakManager ----------
         add_col_if_missing("users", "current_streak INTEGER NOT NULL DEFAULT 0")
         add_col_if_missing("users", "best_streak INTEGER NOT NULL DEFAULT 0")
