@@ -1876,6 +1876,7 @@ function ExWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submi
       {useKeyboard ? (
         <div className="mt-4">
           <InlineInput value={typed} onChange={setTyped} placeholder="Type your answer…" />
+          <ArmenianKeyboard value={typed} onChange={setTyped} className="mt-3" />
         </div>
       ) : (
         <>

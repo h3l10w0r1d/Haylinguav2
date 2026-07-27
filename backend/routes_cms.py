@@ -2177,6 +2177,21 @@ def cms_seed_handwriting(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/activate")
+def cms_seed_activate(request: Request, db=Depends(get_db)):
+    """Mixed Practice — activates five formats the engine renders but no lesson
+    used: multi_select, categorize, highlight_grammar, fill_blank,
+    listen_word_bank. Lessons tagged cefr=A1, 'Mixed Practice' chapter at
+    position 45. Idempotent (skips if mix-select exists)."""
+    require_cms(request, db)
+    from seed_activate import seed_activate
+    try:
+        res = seed_activate()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
