@@ -1901,6 +1901,20 @@ def cms_seed_essentials(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/a2-1")
+def cms_seed_a2_1(request: Request, db=Depends(get_db)):
+    """A2 roadmap round 1: irregular past tense (see/come/do/say), the
+    perfect, and comparatives. Lessons tagged cefr=A2 in config. Two
+    chapters (positions 52-53). Idempotent (skips if a2-past-1 exists)."""
+    require_cms(request, db)
+    from seed_a2_1 import seed_a2_1
+    try:
+        res = seed_a2_1()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/grammar3")
 def cms_seed_grammar3(request: Request, db=Depends(get_db)):
     """Common Verbs II (present tense of speak/live/read/write/see/do/say)
