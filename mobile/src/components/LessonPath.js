@@ -1,16 +1,20 @@
 // src/components/LessonPath.js — a winding column of circular lesson nodes,
-// Duolingo's actual skill-tree shape, connected by a dotted react-native-svg
-// path. Renders one chapter's worth of lessons at a time (the Dashboard
-// stacks a UnitBanner + LessonPath per chapter).
+// Duolingo's actual skill-tree shape. No connecting line between nodes (real
+// Duolingo doesn't draw one — the zigzag offsets alone read as a path).
+// Chest milestone nodes are interleaved every 5 lessons, and the current
+// lesson gets a radial progress ring + a speech-bubble mascot card with
+// star-rating pips, matching Duolingo's actual home screen.
 import React, { useEffect } from 'react';
 import { View, Text, Image } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { Check, Lock } from 'lucide-react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { Check, Lock, Star } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 import Pressable3D from './Pressable3D';
 
 const NODE_SIZE = 64;
 const V_GAP = 92;
+const RING_SIZE = NODE_SIZE + 16;
+const CHEST_EVERY = 5;
 // Short repeating zigzag pattern (px offset from center), same silhouette
 // Duolingo's path uses without needing a literal sine curve.
 const OFFSETS = [0, 56, 84, 56, 0, -56, -84, -56];
@@ -20,35 +24,61 @@ function offsetFor(i) {
   return OFFSETS[i % OFFSETS.length];
 }
 
-function PulseRing({ color }) {
-  const pulse = useSharedValue(0);
-  useEffect(() => {
-    pulse.value = withRepeat(withSequence(withTiming(1, { duration: 900, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 0 })), -1, false);
-  }, []);
-  const style = useAnimatedStyle(() => ({
-    opacity: 1 - pulse.value,
-    transform: [{ scale: 1 + pulse.value * 0.45 }],
-  }));
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[{ position: 'absolute', width: NODE_SIZE, height: NODE_SIZE, borderRadius: NODE_SIZE / 2, backgroundColor: color }, style]}
-    />
-  );
-}
-
 function MascotBounce({ style }) {
   const bounce = useSharedValue(0);
   useEffect(() => {
     bounce.value = withRepeat(withSequence(withTiming(1, { duration: 550, easing: Easing.inOut(Easing.quad) }), withTiming(0, { duration: 550, easing: Easing.inOut(Easing.quad) })), -1, false);
   }, []);
   const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -bounce.value * 8 }, { rotate: `${(bounce.value - 0.5) * 8}deg` }],
+    transform: [{ translateY: -bounce.value * 4 }],
   }));
   return (
     <Animated.View style={[style, animStyle]} pointerEvents="none">
-      <Image source={require('../assets/character-owl.png')} style={{ width: 56, height: 56, resizeMode: 'contain' }} />
+      <Image source={require('../assets/character-owl.png')} style={{ width: 40, height: 40, resizeMode: 'contain' }} />
     </Animated.View>
+  );
+}
+
+// Speech-bubble card next to the current node: mascot + a row of 3 star
+// pips previewing the perfect/good/pass score bands for that lesson.
+function MascotBubble({ style }) {
+  return (
+    <View style={[{ width: 92, alignItems: 'center' }, style]} pointerEvents="none">
+      <View className="rounded-2xl bg-white px-3 py-2.5" style={{ shadowColor: '#1c1917', shadowOpacity: 0.1, shadowRadius: 6, elevation: 2 }}>
+        <MascotBounce />
+        <View className="mt-1.5 flex-row items-center justify-center" style={{ gap: 2 }}>
+          {[0, 1, 2].map((i) => (
+            <Star key={i} size={11} color="#d6d3d1" fill="#d6d3d1" />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ProgressRing({ pct }) {
+  const r = RING_SIZE / 2 - 3;
+  const circumference = 2 * Math.PI * r;
+  const filled = Math.max(0, Math.min(1, pct / 100));
+  return (
+    <Svg width={RING_SIZE} height={RING_SIZE} style={{ position: 'absolute' }} pointerEvents="none">
+      <Circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={r} stroke="#e7e5e4" strokeWidth={3} fill="none" />
+      {filled > 0 && (
+        <Circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={r}
+          stroke="#58CC02"
+          strokeWidth={3}
+          fill="none"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={circumference * (1 - filled)}
+          strokeLinecap="round"
+          rotation="-90"
+          origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+        />
+      )}
+    </Svg>
   );
 }
 
@@ -57,19 +87,15 @@ function Node({ lesson, x, y, onPress }) {
   const locked = status === 'locked';
   const completed = status === 'completed';
   const current = status === 'current';
+  const pct = Number(lesson.completion_pct || 0);
 
   const bg = completed ? '#58CC02' : current ? '#FF7A1A' : '#e7e5e4';
   const border = completed ? '#46A302' : current ? '#E85F00' : '#d6d3d1';
 
   return (
     <View style={{ position: 'absolute', left: x, top: y, width: NODE_SIZE, alignItems: 'center' }}>
-      {current && (
-        <View className="mb-1.5 rounded-full bg-white px-3 py-1" style={{ shadowColor: '#1c1917', shadowOpacity: 0.15, shadowRadius: 6, elevation: 2 }}>
-          <Text className="text-[11px] font-extrabold uppercase tracking-wide text-brand-600">Start</Text>
-        </View>
-      )}
-      <View style={{ width: NODE_SIZE, height: NODE_SIZE, alignItems: 'center', justifyContent: 'center' }}>
-        {current && <PulseRing color="#FF7A1A55" />}
+      <View style={{ width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center', marginLeft: -(RING_SIZE - NODE_SIZE) / 2 }}>
+        {current && <ProgressRing pct={pct} />}
         <Pressable3D onPress={locked ? undefined : onPress} disabled={locked} pressDepth={5}>
           <View
             style={{
@@ -86,7 +112,7 @@ function Node({ lesson, x, y, onPress }) {
             {completed ? <Check size={28} color="#fff" strokeWidth={3} /> : locked ? <Lock size={22} color="#a8a29e" /> : <View className="h-3.5 w-3.5 rounded-full bg-white" />}
           </View>
         </Pressable3D>
-        {current && <MascotBounce style={{ position: 'absolute', left: NODE_SIZE + 6, top: -6 }} />}
+        {current && <MascotBubble style={{ position: 'absolute', left: NODE_SIZE + 12, top: -8 }} />}
       </View>
       <Text className="mt-1.5 max-w-[92px] text-center text-[11px] font-bold text-stone-500" numberOfLines={2}>
         {lesson.title}
@@ -95,35 +121,58 @@ function Node({ lesson, x, y, onPress }) {
   );
 }
 
+// Purely decorative milestone marker — brown/open if the lesson just before
+// it is already completed, gray/locked otherwise. Not pressable: chests are
+// opened from the Dashboard's persistent chest card, not from the path.
+function ChestNode({ x, y, unlocked }) {
+  return (
+    <View style={{ position: 'absolute', left: x, top: y, width: NODE_SIZE, alignItems: 'center' }}>
+      <View
+        style={{
+          width: NODE_SIZE,
+          height: NODE_SIZE,
+          borderRadius: NODE_SIZE / 2,
+          backgroundColor: unlocked ? '#FFF3E0' : '#f0efed',
+          borderWidth: 2,
+          borderColor: unlocked ? '#F0C27B' : '#d6d3d1',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={{ fontSize: 26, opacity: unlocked ? 1 : 0.45 }}>🎁</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function LessonPath({ lessons, onPressLesson }) {
   if (!lessons.length) return null;
 
   const centerX = PATH_WIDTH / 2 - NODE_SIZE / 2;
-  const positions = lessons.map((lesson, i) => ({ lesson, x: centerX + offsetFor(i), y: i * V_GAP }));
-  const height = (lessons.length - 1) * V_GAP + NODE_SIZE + 56;
 
-  const segments = [];
-  for (let i = 0; i < positions.length - 1; i++) {
-    const a = positions[i];
-    const b = positions[i + 1];
-    const ax = a.x + NODE_SIZE / 2;
-    const ay = a.y + NODE_SIZE / 2;
-    const bx = b.x + NODE_SIZE / 2;
-    const by = b.y + NODE_SIZE / 2;
-    segments.push(`M ${ax} ${ay} L ${bx} ${by}`);
-  }
+  // Interleave a decorative chest every CHEST_EVERY lessons, using the
+  // zigzag's own next offset slot so it sits naturally in the winding path.
+  const items = [];
+  lessons.forEach((lesson, i) => {
+    items.push({ type: 'lesson', lesson });
+    if ((i + 1) % CHEST_EVERY === 0 && i < lessons.length - 1) {
+      items.push({ type: 'chest', unlocked: lesson.status === 'completed' });
+    }
+  });
+
+  const positions = items.map((item, i) => ({ item, x: centerX + offsetFor(i), y: i * V_GAP }));
+  const height = (positions.length - 1) * V_GAP + NODE_SIZE + 56;
 
   return (
     <View style={{ width: '100%', alignItems: 'center', marginBottom: 8 }}>
       <View style={{ width: PATH_WIDTH, height }}>
-        {segments.length > 0 && (
-          <Svg width={PATH_WIDTH} height={height} style={{ position: 'absolute', top: 0, left: 0 }}>
-            <Path d={segments.join(' ')} stroke="#d6d3d1" strokeWidth={4} strokeDasharray="2,14" strokeLinecap="round" fill="none" />
-          </Svg>
+        {positions.map(({ item, x, y }, i) =>
+          item.type === 'chest' ? (
+            <ChestNode key={`chest-${i}`} x={x} y={y} unlocked={item.unlocked} />
+          ) : (
+            <Node key={item.lesson.id} lesson={item.lesson} x={x} y={y} onPress={() => onPressLesson(item.lesson)} />
+          )
         )}
-        {positions.map(({ lesson, x, y }) => (
-          <Node key={lesson.id} lesson={lesson} x={x} y={y} onPress={() => onPressLesson(lesson)} />
-        ))}
       </View>
     </View>
   );

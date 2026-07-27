@@ -26,13 +26,6 @@ import UnitBanner from '../components/UnitBanner';
 import LessonPath from '../components/LessonPath';
 import { initPushNotifications } from '../lib/pushNotifications';
 
-const ACCENT = {
-  cardinal: { tint: '#FFECEC', icon: '#FF4B4B' },
-  brand: { tint: '#FFF5EC', icon: '#FF7A1A' },
-  gold: { tint: '#FFF8E1', icon: '#E0A800' },
-  feather: { tint: '#E7F7FF', icon: '#1CB0F6' },
-};
-
 // A subtle continuous scale/rotate wobble mirroring the web header's still-
 // live .flame-flicker + .flame-glow combo on the streak icon.
 function FlameIcon({ color, size }) {
@@ -64,32 +57,23 @@ function FlameIcon({ color, size }) {
   );
 }
 
-function KpiTile({ icon: Icon, accent, label, value, index, animateFlame }) {
+// Slim inline "icon + bold number" pair, no card chrome — mirrors Duolingo's
+// actual top bar (a single row sitting directly on the background), which
+// this dashboard previously rendered instead as a 2x2 grid of white cards.
+function StatPip({ icon: Icon, color, value, animateFlame }) {
   const enter = useSharedValue(0);
-
   useEffect(() => {
-    enter.value = withDelay(index * 70, withSpring(1, { damping: 12, stiffness: 140 }));
+    enter.value = withSpring(1, { damping: 12, stiffness: 140 });
   }, []);
-
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: enter.value,
-    transform: [{ scale: 0.85 + enter.value * 0.15 }, { translateY: (1 - enter.value) * 10 }],
+    transform: [{ scale: 0.85 + enter.value * 0.15 }],
   }));
 
   return (
-    <Animated.View style={[animatedStyle, { width: '47%' }]}>
-      <View
-        className="flex-row items-center gap-2.5 rounded-2xl bg-white px-3.5 py-3"
-        style={{ shadowColor: '#1c1917', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}
-      >
-        <View className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: accent.tint }}>
-          {animateFlame ? <FlameIcon color={accent.icon} size={18} /> : <Icon size={18} color={accent.icon} />}
-        </View>
-        <View>
-          <Text className="text-xl font-extrabold text-stone-900 font-display">{value}</Text>
-          <Text className="text-[11px] font-semibold text-stone-400">{label}</Text>
-        </View>
-      </View>
+    <Animated.View style={animatedStyle} className="flex-row items-center gap-1.5">
+      {animateFlame ? <FlameIcon color={color} size={20} /> : <Icon size={20} color={color} fill={color} />}
+      <Text className="text-base font-extrabold text-stone-800 font-display">{value}</Text>
     </Animated.View>
   );
 }
@@ -257,12 +241,13 @@ export default function DashboardScreen({ navigation }) {
       removeClippedSubviews
       ListHeaderComponent={
         <>
-          {/* KPI strip */}
-          <View className="mb-4 flex-row flex-wrap justify-between gap-y-2.5">
-            <KpiTile icon={Heart} accent={ACCENT.cardinal} label="Hearts" value={heartLabel} index={0} />
-            <KpiTile icon={Flame} accent={ACCENT.brand} label="Streak" value={stats.streak} index={1} animateFlame />
-            <KpiTile icon={Zap} accent={ACCENT.gold} label="XP" value={stats.totalXp} index={2} />
-            <KpiTile icon={Gem} accent={ACCENT.feather} label="Gems" value={stats.gems ?? '–'} index={3} />
+          {/* Top stat row — slim inline pips directly on the background,
+              Duolingo's actual top-bar style, not a card grid. */}
+          <View className="mb-5 flex-row items-center justify-between px-1">
+            <StatPip icon={Flame} color="#FF7A1A" value={stats.streak} animateFlame />
+            <StatPip icon={Gem} color="#1CB0F6" value={stats.gems ?? '–'} />
+            <StatPip icon={Zap} color="#E0A800" value={stats.totalXp} />
+            <StatPip icon={Heart} color="#FF4B4B" value={heartLabel} />
           </View>
 
           {/* Hero — the gradient is a pure absolute-fill background; the padded
