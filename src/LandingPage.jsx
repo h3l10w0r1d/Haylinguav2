@@ -36,7 +36,7 @@ const ARMENIAN_WORDS = [
 const FEATURES = [
   { icon: Languages, title: "Alphabet from scratch", text: "Master all 39 Armenian letters with bite-sized intro, recognition, and typing drills.", tone: "brand" },
   { icon: Headphones, title: "Listen & speak", text: "Real text-to-speech audio on every prompt so you learn how Armenian actually sounds.", tone: "feather" },
-  { icon: Repeat2, title: "Smart review", text: "Spaced repetition brings back what you're about to forget — right when you need it.", tone: "grass" },
+  { icon: Repeat2, title: "Mistake review", text: "Every wrong answer gets tracked, so you can circle back and re-master exactly what tripped you up.", tone: "grass" },
   { icon: Flame, title: "Streaks & XP", text: "Earn XP, keep your daily streak alive, and build a habit that sticks.", tone: "brand" },
   { icon: Heart, title: "Hearts", text: "Lose a heart on a wrong answer — a gentle nudge to slow down and get it right.", tone: "cardinal" },
   { icon: Trophy, title: "Leaderboard & friends", text: "Add friends and climb the leaderboard. A little competition goes a long way.", tone: "gold" },
@@ -1523,7 +1523,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           {[
             { icon: Sparkles, label: "AI tutor", sub: "Explains every mistake" },
             { icon: Volume2, label: "Real audio", sub: "Hear every word" },
-            { icon: Repeat2, label: "Smart review", sub: "Spaced repetition" },
+            { icon: Repeat2, label: "Mistake review", sub: "Re-master what you missed" },
             { icon: Trophy, label: "Leagues", sub: "Climb the leaderboard" },
           ].map((v) => (
             <div key={v.label} className="flex items-center gap-3">

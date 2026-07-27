@@ -67,7 +67,9 @@ const PracticeMode = lazy(() => import('./PracticeMode'));
 const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
 const PlacementTest = lazy(() => import('./PlacementTest'));
 const AIConversation = lazy(() => import('./AIConversation'));
-const ReviewMode      = lazy(() => import('./ReviewMode'));
+// Spaced-repetition review feature — disabled (not deleted) per product
+// decision; re-enable by uncommenting this import + the /review route below.
+// const ReviewMode      = lazy(() => import('./ReviewMode'));
 const VocabularyPage  = lazy(() => import('./VocabularyPage'));
 const ProgressPage    = lazy(() => import('./ProgressPage'));
 
@@ -656,7 +658,7 @@ function AppShell() {
       <Route path="/cms" element={<CmsGate />} />
       <Route path="/cms/*" element={<CmsGate />} />
 
-      <Route path="/review"      element={<ReviewMode />} />
+      {/* <Route path="/review"      element={<ReviewMode />} /> */}
       <Route path="/vocabulary"  element={<VocabularyPage />} />
       <Route path="/progress"    element={<ProgressPage />} />
       <Route path="/auth/google/callback" element={<AuthCallback provider="google" />} />

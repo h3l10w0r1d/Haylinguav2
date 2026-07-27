@@ -29,7 +29,7 @@ function formatPrice(price, currency) {
 const MATRIX = [
   { icon: Heart, label: "Hearts", free: "5, regenerate over time", premium: "Unlimited" },
   { icon: Zap, label: "Lessons & exercises", free: "Full curriculum", premium: "Full curriculum" },
-  { icon: Repeat2, label: "Smart review (spaced repetition)", free: true, premium: true },
+  { icon: Repeat2, label: "Mistake review", free: true, premium: true },
   { icon: Trophy, label: "Streaks, XP, leaderboard", free: true, premium: true },
   { icon: ShieldCheck, label: "Mistakes don't stop your lesson", free: false, premium: true },
   { icon: Sparkles, label: "Support future development", free: false, premium: true },

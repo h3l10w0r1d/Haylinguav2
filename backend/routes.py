@@ -4514,7 +4514,9 @@ def me_assessment_submit(
     }
 
 
-@router.get("/me/review/stats")
+# Spaced-repetition review feature — disabled (not deleted) per product
+# decision; re-enable by uncommenting these three @router decorators.
+# @router.get("/me/review/stats")
 def me_review_stats(
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
@@ -4548,7 +4550,7 @@ def me_review_stats(
         "next_due_at": row["next_due_at"].isoformat() if row.get("next_due_at") else None,
     }
 
-@router.get("/me/review")
+# @router.get("/me/review")
 def me_review_due(
     limit: int = 20,
     authorization: Optional[str] = Header(default=None),
@@ -4620,7 +4622,7 @@ def me_review_due(
     cards_out = [ex_map[eid] for eid in ex_ids if eid in ex_map]
     return {"cards": cards_out}
 
-@router.post("/me/review/submit")
+# @router.post("/me/review/submit")
 def me_review_submit(
     payload: Dict[str, Any] = Body(...),
     authorization: Optional[str] = Header(default=None),

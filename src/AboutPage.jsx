@@ -58,7 +58,7 @@ const VALUES = [
   {
     icon: Flame,
     title: "Built to actually stick",
-    text: "Streaks, hearts, instant feedback, spaced repetition — the same habit-forming mechanics that make other language apps work, tuned specifically for how Armenian sounds and reads.",
+    text: "Streaks, hearts, instant feedback, mistake review — the same habit-forming mechanics that make other language apps work, tuned specifically for how Armenian sounds and reads.",
   },
   {
     icon: Users,

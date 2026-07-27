@@ -397,6 +397,11 @@ const API_BASE_URL =
 
 const DAILY_GOAL_OPTIONS = [10, 20, 30, 50];
 
+// Spaced-repetition review card — disabled (not deleted) per product
+// decision; re-enable by uncommenting this whole function + its render call
+// in the sidebar below, and the /review route + three backend endpoints
+// (/me/review/stats, /me/review, /me/review/submit) in routes.py.
+/*
 function ReviewCard({ token }) {
   const navigate = useNavigate();
   const [stats, setStats] = React.useState(null);
@@ -449,6 +454,7 @@ function ReviewCard({ token }) {
     </div>
   );
 }
+*/
 
 function MistakesCard({ token, navigate }) {
   const [count, setCount] = React.useState(0);
@@ -1271,7 +1277,10 @@ export default function Dashboard({ user }) {
         <aside className="space-y-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:pb-6">
           <DailyGoalCard todayXp={stats.today_xp} />
           <DailyQuestsCard token={token} />
-          <ReviewCard token={token} />
+          {/* Spaced-repetition review card — disabled (not deleted) per
+              product decision; re-enable by uncommenting this line + the
+              ReviewCard function definition above. */}
+          {/* <ReviewCard token={token} /> */}
           <MistakesCard token={token} navigate={navigate} />
           <StreakCard token={token} streak={stats.streak} />
           <ChestCard token={token} />
