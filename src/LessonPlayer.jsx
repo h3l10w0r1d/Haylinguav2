@@ -943,6 +943,7 @@ export default function LessonPlayer() {
     trace_letter: "Trace the letter",
     listen_image: "Listen and pick the picture",
     story: "Read the story, then answer",
+    radio: "Listen and answer",
     highlight_grammar: "Identify the grammar element",
     letter_typing: "Type the character",
     word_spelling: "Spell the word",
