@@ -80,22 +80,6 @@ function safeJsonParse(res) {
   return res.json().catch(() => null);
 }
 
-function isSafeGradient(v) {
-  const s = String(v || "").trim();
-  return (
-    s.startsWith("linear-gradient(") ||
-    s.startsWith("radial-gradient(") ||
-    s.startsWith("conic-gradient(")
-  );
-}
-
-function resolveProfileBackground({ themeBg, themeGradient }) {
-  const bg = String(themeBg || "").trim() || "#fff7ed";
-  const g = String(themeGradient || "").trim();
-  if (g && isSafeGradient(g)) return g;
-  return bg;
-}
-
 // Normalize backend-provided media URLs.
 // BE typically returns paths like "/static/..."; those must be absolute for the FE domain.
 function resolveUrl(u) {
@@ -117,21 +101,6 @@ function resolveUrl(u) {
 
 // Preset banners shipped with the frontend (public/banners/*)
 const PRESET_BANNERS = Array.from({ length: 8 }).map((_, i) => `/banners/banner-${i + 1}.png`);
-
-// Curated profile themes — users pick one instead of typing raw RGB values.
-// `bg` is the solid fallback; `gradient` (when present) is what actually shows.
-const PRESET_THEMES = [
-  { id: "cream", label: "Cream", bg: "#FFF7ED" },
-  { id: "apricot", label: "Apricot", bg: "#E85F00", gradient: "linear-gradient(135deg,#FFB066,#E85F00)" },
-  { id: "pomegranate", label: "Pomegranate", bg: "#E11D48", gradient: "linear-gradient(135deg,#FF7A1A,#E11D48)" },
-  { id: "gold", label: "Golden hour", bg: "#F59E0B", gradient: "linear-gradient(135deg,#FCD34D,#F59E0B)" },
-  { id: "mint", label: "Mint", bg: "#10B981", gradient: "linear-gradient(135deg,#34D399,#059669)" },
-  { id: "sky", label: "Sky", bg: "#0EA5E9", gradient: "linear-gradient(135deg,#38BDF8,#0284C7)" },
-  { id: "lavender", label: "Lavender", bg: "#8B5CF6", gradient: "linear-gradient(135deg,#C4B5FD,#7C3AED)" },
-  { id: "rose", label: "Rose", bg: "#F43F5E", gradient: "linear-gradient(135deg,#FDA4AF,#E11D48)" },
-  { id: "teal", label: "Teal", bg: "#0D9488", gradient: "linear-gradient(135deg,#5EEAD4,#0D9488)" },
-  { id: "midnight", label: "Midnight", bg: "#1E293B", gradient: "linear-gradient(135deg,#475569,#0F172A)" },
-];
 
 function StatTile({ icon: Icon, label, value, tone }) {
   return (
@@ -178,9 +147,6 @@ export default function ProfilePage() {
   const [isHidden, setIsHidden] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
 
-  // Theme / visuals
-  const [themeBg, setThemeBg] = useState("#fff7ed");
-  const [themeGradient, setThemeGradient] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
   const [showBannerPicker, setShowBannerPicker] = useState(false);
   const [showBannerBuilder, setShowBannerBuilder] = useState(false);
@@ -271,11 +237,6 @@ export default function ProfilePage() {
     return `/u/${encodeURIComponent(u)}`;
   }, [username]);
 
-  const headerBackground = useMemo(
-    () => resolveProfileBackground({ themeBg, themeGradient }),
-    [themeBg, themeGradient]
-  );
-
   const computedVoicePref = voiceRandom || (voiceMale && voiceFemale)
     ? "Random"
     : voiceMale
@@ -311,12 +272,7 @@ export default function ProfilePage() {
           setIsHidden(typeof data.is_hidden === "boolean" ? data.is_hidden : false);
           setIsPremium(!!data.is_premium);
 
-          const theme = data.profile_theme || {};
-          const themeIsEmpty = !data.profile_theme || Object.keys(data.profile_theme).length === 0;
-          setThemeBg(theme.background || "#fff7ed");
-          setThemeGradient(theme.gradient || "");
-
-          const b = data.banner_url || theme.banner || "";
+          const b = data.banner_url || "";
           setBannerUrl(b || "");
           bannerTouchedRef.current = Boolean(b);
 
@@ -332,18 +288,15 @@ export default function ProfilePage() {
           setAvatarFile(null);
           avatarTouchedRef.current = Boolean(au);
 
-          // First-ever visit to this page: banner, avatar, AND theme are all
-          // still untouched. Rather than leaving the header blank, randomly
-          // assign one of each — gated on ALL THREE being empty (not just
-          // one) so a returning user who already picked, say, a banner but
-          // never got to the avatar doesn't get a surprise random avatar on
-          // their next visit; that'd only be "first time" for the field
-          // they hadn't touched yet, not for the page.
-          if (!b && !au && themeIsEmpty) {
-            const randomTheme = PRESET_THEMES[Math.floor(Math.random() * PRESET_THEMES.length)];
+          // First-ever visit to this page: banner AND avatar are both still
+          // untouched. Rather than leaving the header blank, randomly assign
+          // one of each — gated on BOTH being empty (not just one) so a
+          // returning user who already picked, say, a banner but never got
+          // to the avatar doesn't get a surprise random avatar on their next
+          // visit; that'd only be "first time" for the field they hadn't
+          // touched yet, not for the page.
+          if (!b && !au) {
             const randomBanner = PRESET_BANNERS[Math.floor(Math.random() * PRESET_BANNERS.length)];
-            setThemeBg(randomTheme.bg);
-            setThemeGradient(randomTheme.gradient || "");
             handleSelectPresetBanner(randomBanner, { silent: true });
             // Presets were removed for avatars — generate a random Duo-style
             // cartoon avatar instead (same builder used by "Build an avatar").
@@ -482,10 +435,6 @@ export default function ProfilePage() {
           is_hidden: !!isHidden,
           // Don't persist a random/default banner unless user explicitly changed it.
           ...(bannerTouchedRef.current ? { banner_url: bannerUrl || null } : {}),
-          profile_theme: {
-            background: themeBg || "#fff7ed",
-            gradient: themeGradient || "",
-          },
         };
 
         const res = await apiFetch("/me/profile", {
@@ -511,8 +460,6 @@ export default function ProfilePage() {
   }, [
     loading,
     token,
-    themeBg,
-    themeGradient,
     bannerUrl,
     friendsPublic,
     isHidden,
@@ -561,10 +508,6 @@ export default function ProfilePage() {
         ...(avatarTouchedRef.current && avatarUrlToSave
           ? { avatar_url: avatarUrlToSave, avatar: avatarUrlToSave }
           : {}),
-        profile_theme: {
-          background: themeBg || "#fff7ed",
-          gradient: themeGradient || "",
-        },
       };
 
       const res = await apiFetch("/me/profile", {
@@ -940,7 +883,7 @@ export default function ProfilePage() {
       <div className="rounded-3xl overflow-hidden shadow-sm ring-1 ring-slate-200 bg-white dark:ring-white/[0.08] dark:bg-[#18181b]">
         {/* Banner */}
         <div
-          className="relative h-40 md:h-48"
+          className={"relative h-40 md:h-48 " + (bannerUrl ? "" : "bg-gradient-to-br from-brand-400 to-brand-600")}
           style={
             bannerUrl
               ? {
@@ -948,12 +891,9 @@ export default function ProfilePage() {
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }
-              : { background: headerBackground }
+              : undefined
           }
         >
-          {bannerUrl ? (
-            <div className="absolute inset-0 opacity-30" style={{ background: headerBackground }} />
-          ) : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
 
           <div className="absolute right-3 top-3 flex items-center gap-2">
@@ -1652,61 +1592,6 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* ===== Appearance tab ===== */}
-      {tab === "appearance" && (
-<section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
-  <div className="flex items-center justify-between gap-3 mb-1">
-    <h2 className="font-display text-lg font-extrabold text-slate-800 dark:text-white">Profile theme</h2>
-    <div className="text-xs font-bold text-slate-500 flex items-center gap-2 dark:text-stone-400">
-      <Palette className="w-4 h-4 text-brand-500" />
-      {bgSaving ? "Saving…" : "Auto-saved"}
-    </div>
-  </div>
-  <p className="text-sm font-semibold text-slate-500 mb-4 dark:text-stone-400">
-    Pick a colour theme for your profile header. Changes save automatically.
-  </p>
-
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-    {PRESET_THEMES.map((t) => {
-      const value = t.gradient || t.bg;
-      const active = t.gradient ? themeGradient === t.gradient : (!themeGradient && themeBg === t.bg);
-      return (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => {
-            setThemeBg(t.bg);
-            setThemeGradient(t.gradient || "");
-          }}
-          title={t.label}
-          className={
-            "group relative h-20 overflow-hidden rounded-2xl ring-2 transition " +
-            (active ? "ring-brand-500 ring-offset-2" : "ring-slate-200 hover:ring-brand-300 dark:ring-white/[0.08]")
-          }
-          style={{ background: value }}
-        >
-          {active && (
-            <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-brand-600 shadow">
-              <Check className="h-4 w-4" strokeWidth={3} />
-            </span>
-          )}
-          <span className="absolute inset-x-0 bottom-0 bg-black/25 px-2 py-1 text-left text-[11px] font-extrabold text-white">
-            {t.label}
-          </span>
-        </button>
-      );
-    })}
-  </div>
-
-  <div className="mt-5 rounded-2xl ring-1 ring-slate-200 overflow-hidden dark:ring-white/[0.08]">
-    <div className="px-4 py-2.5 text-xs font-extrabold text-slate-700 bg-slate-50 border-b border-slate-200 dark:text-stone-200 dark:bg-white/[0.04] dark:border-white/[0.08]">
-      Live preview
-    </div>
-    <div className="h-24" style={{ background: headerBackground }} />
-  </div>
-</section>
       )}
 
       {/* ===== Avatar frames ===== */}
