@@ -1898,6 +1898,33 @@ def cms_seed_essentials(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/a1")
+def cms_seed_a1(request: Request, db=Depends(get_db)):
+    """Completes A1: numbers 20-100, time & age, գիտենալ/սիրել verbs, and
+    nationalities — plus real listening dictation. Four chapters (positions
+    39-42). Idempotent (skips if num-tens exists)."""
+    require_cms(request, db)
+    from seed_a1 import seed_a1
+    try:
+        res = seed_a1()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/dictation")
+def cms_seed_dictation(request: Request, db=Depends(get_db)):
+    """Adds a listen_type dictation exercise to each core vocab lesson.
+    Idempotent per lesson."""
+    require_cms(request, db)
+    from seed_dictation import seed_dictation
+    try:
+        res = seed_dictation()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/vowelintro")
 def cms_seed_vowelintro(request: Request, db=Depends(get_db)):
     """Prepends picture+audio 'meet the word' intros (romanized front, no
