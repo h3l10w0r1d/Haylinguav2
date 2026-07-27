@@ -7,7 +7,7 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  X, Eye, EyeOff, Play, RotateCw, Loader2,
+  X, Eye, EyeOff, Play, RotateCw, Loader2, Apple, PlayCircle, Bell,
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
@@ -1642,6 +1642,87 @@ export default function LandingPage({ onLogin, onSignup }) {
               </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Mobile app teaser */}
+      <section className="bg-slate-50 dark:bg-white/[0.04]">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-2 md:gap-8">
+          <Reveal className="order-2 md:order-1">
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+              <Bell className="h-3.5 w-3.5" /> Coming soon
+            </div>
+            <h2 className="mt-4 text-balance font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
+              Haylingua is coming to mobile.
+            </h2>
+            <p className="mt-4 max-w-md text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">
+              Same bite-sized lessons, streaks, and native Armenian audio —
+              built for your pocket so you can practice on the bus, in line,
+              or anywhere the moment strikes. iOS and Android, launching soon.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="flex cursor-not-allowed items-center gap-2.5 rounded-2xl bg-slate-800 px-4 py-2.5 text-white opacity-60 dark:bg-white/10">
+                <Apple className="h-6 w-6 shrink-0" />
+                <div className="text-left leading-none">
+                  <div className="text-[10px] font-semibold">Coming soon on the</div>
+                  <div className="text-sm font-extrabold">App Store</div>
+                </div>
+              </div>
+              <div className="flex cursor-not-allowed items-center gap-2.5 rounded-2xl bg-slate-800 px-4 py-2.5 text-white opacity-60 dark:bg-white/10">
+                <PlayCircle className="h-6 w-6 shrink-0" />
+                <div className="text-left leading-none">
+                  <div className="text-[10px] font-semibold">Coming soon on</div>
+                  <div className="text-sm font-extrabold">Google Play</div>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+
+          <Reveal delay={120} className="order-1 flex justify-center md:order-2">
+            <div className="relative h-[420px] w-[210px] rounded-[2.25rem] border-[6px] border-slate-800 bg-slate-800 shadow-2xl dark:border-white/20">
+              <div className="absolute left-1/2 top-0 h-5 w-24 -translate-x-1/2 rounded-b-xl bg-slate-800 dark:bg-white/20" />
+              <div className="h-full w-full overflow-hidden rounded-[1.7rem] bg-white dark:bg-[#151517]">
+                <div className="flex items-center justify-between px-4 pb-2 pt-6">
+                  <div className="flex items-center gap-1.5 rounded-full bg-brand-50 px-2 py-1 dark:bg-brand-500/15">
+                    <Flame className="h-3.5 w-3.5 text-brand-500" />
+                    <span className="text-[11px] font-extrabold text-brand-600 dark:text-brand-400">7</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-full bg-rose-50 px-2 py-1 dark:bg-rose-500/15">
+                    <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" />
+                    <span className="text-[11px] font-extrabold text-rose-600 dark:text-rose-400">5</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-1 dark:bg-amber-500/15">
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                    <span className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400">120</span>
+                  </div>
+                </div>
+                <div className="px-4">
+                  <div className="rounded-2xl bg-slate-50 p-3 text-center dark:bg-white/[0.06]">
+                    <div className="font-display text-lg font-extrabold text-brand-600 dark:text-brand-400">Բարև</div>
+                    <div className="mt-0.5 text-[11px] font-bold text-slate-400 dark:text-stone-500">ba·rev · Hello</div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {["Hello", "Goodbye", "Thank you"].map((w, i) => (
+                      <div
+                        key={w}
+                        className={
+                          "rounded-xl border-2 px-3 py-2.5 text-[12px] font-extrabold " +
+                          (i === 0
+                            ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
+                            : "border-slate-100 text-slate-600 dark:border-white/10 dark:text-stone-300")
+                        }
+                      >
+                        {w}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-grass-500 px-4 py-3 text-center text-xs font-extrabold text-white shadow-btn-brand">
+                  Check
+                </div>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
