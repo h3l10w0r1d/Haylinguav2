@@ -77,6 +77,27 @@ function buildReadingExercises(lesson) {
   return out.length ? out : all;
 }
 
+// Small pill shown atop an exercise that's come back around, so the learner
+// knows why: they used a hint (do it once more unaided) or they missed it.
+function ReshownBanner({ flag }) {
+  const hint = flag === "hint_used";
+  return (
+    <div className="mx-auto mb-3 w-full max-w-2xl">
+      <div
+        className={
+          "flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-extrabold ring-1 " +
+          (hint
+            ? "bg-feather-50 text-feather-700 ring-feather-200 dark:bg-feather-500/10 dark:text-feather-300 dark:ring-feather-500/20"
+            : "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20")
+        }
+      >
+        <span aria-hidden className="text-base">{hint ? "💡" : "↩️"}</span>
+        {hint ? "Hint used — try this one without help" : "Previous mistake — let's try again"}
+      </div>
+    </div>
+  );
+}
+
 function ReadingSectionCard({ section, userLevel, onNext }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
@@ -201,6 +222,26 @@ export default function LessonPlayer() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const wrongIdsRef = useRef(new Set());
 
+  // Per-exercise loop bookkeeping for the hint / mistake re-show rules:
+  //  - hintLoops: times we re-showed because the learner answered correctly
+  //    but leaned on a hint (max 1 — a second hinted-correct just passes).
+  //  - mistakeLoops: times we re-showed for a wrong answer (max 2 — after that
+  //    it's marked wrong and we move on). A wrong answer always counts as a
+  //    mistake loop, even if a hint was tapped.
+  const loopStateRef = useRef(new Map());
+  // exId -> "hint_used" | "previous_mistake": the banner shown atop a re-shown
+  // exercise so the learner knows why they're seeing it again.
+  const [exerciseFlags, setExerciseFlags] = useState({});
+  // Whether the learner opened a word-hint during the CURRENT attempt. Reset
+  // every time a fresh exercise view mounts (the exerciseKey effect).
+  const hintUsedRef = useRef(false);
+
+  useEffect(() => {
+    const onHint = () => { hintUsedRef.current = true; };
+    window.addEventListener("hay_word_hint", onHint);
+    return () => window.removeEventListener("hay_word_hint", onHint);
+  }, []);
+
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -286,6 +327,7 @@ export default function LessonPlayer() {
     exerciseStartRef.current = Date.now();
     setPhase2Actions(null);
     setHasAnswered(false);
+    hintUsedRef.current = false; // fresh attempt — hint usage starts clean
   }, [exerciseKey]);
 
   async function submitPhase2(payload) {
@@ -566,15 +608,46 @@ export default function LessonPlayer() {
       wrongIdsRef.current.add(currentExercise.id);
     }
 
-    // Track mistakes so the lesson can't be "completed" by getting things wrong:
-    // Duolingo-style, any non-correct answer (including a skip) re-shows the
-    // exercise — you only advance once you answer correctly.
     setHasAnswered(true);
     setComboStreak(newCombo);
 
-    if (!isCorrect) {
-      setMistakes((m) => m + 1);
+    // ----- Hint / mistake re-show decision -----
+    // outcome: "next" | "finish" | "requeue"; flag tags a requeued exercise's
+    // banner. Rules:
+    //  • Correct + no hint  → pass.
+    //  • Correct + hint     → re-show once ("hint used"); a second hinted-correct
+    //                         just passes (don't loop forever).
+    //  • Wrong (hint or not)→ re-show up to twice ("previous mistake"); after
+    //                         that, mark it wrong and move on.
+    const exId = currentExercise?.id;
+    const st = exId != null
+      ? { ...(loopStateRef.current.get(exId) || { hintLoops: 0, mistakeLoops: 0 }) }
+      : { hintLoops: 0, mistakeLoops: 0 };
+    const usedHint = hintUsedRef.current === true;
+    let outcome;
+    let flag = null;
+    let countsMistake = false;
+
+    if (isCorrect) {
+      if (usedHint && st.hintLoops === 0) {
+        st.hintLoops = 1;
+        outcome = "requeue";
+        flag = "hint_used";
+      } else {
+        outcome = isLast ? "finish" : "next";
+      }
+    } else {
+      countsMistake = true;
+      if (st.mistakeLoops < 2) {
+        st.mistakeLoops += 1;
+        outcome = "requeue";
+        flag = "previous_mistake";
+      } else {
+        outcome = isLast ? "finish" : "next"; // loops exhausted — pass as wrong
+      }
     }
+    if (exId != null) loopStateRef.current.set(exId, st);
+    if (countsMistake) setMistakes((m) => m + 1);
 
     // Phase 2.5: unified result sheet. A skip is shown as "not quite" (it does
     // not pass the exercise).
@@ -597,14 +670,9 @@ export default function LessonPlayer() {
       combo: isCorrect ? newCombo : 0,
     });
 
-    if (!isCorrect) {
-      pendingNextRef.current = { type: "requeue" };
-      setPendingNext({ type: "requeue" });
-    } else {
-      const pn = isLast ? { type: "finish" } : { type: "next" };
-      pendingNextRef.current = pn;
-      setPendingNext(pn);
-    }
+    const pn = { type: outcome, flag, exId };
+    pendingNextRef.current = pn;
+    setPendingNext(pn);
     setResultOpen(true);
   };
 
@@ -616,15 +684,32 @@ export default function LessonPlayer() {
     setPendingNext(null);
 
     if (!pn) return;
+
+    // Clear a re-shown exercise's banner once it's finally passed and leaving.
+    const clearFlag = (id) => {
+      if (id == null) return;
+      setExerciseFlags((f) => {
+        if (!(id in f)) return f;
+        const next = { ...f };
+        delete next[id];
+        return next;
+      });
+    };
+
     if (pn.type === "next") {
+      clearFlag(pn.exId);
       setExerciseQueue((q) => q.slice(1));
       setExerciseKey((k) => k + 1);
       setRenderNonce((n) => n + 1);
       return;
     }
     if (pn.type === "requeue") {
-      // Wrong answer: push the missed exercise at least 2 positions into the
-      // remaining queue (or to the end) so it doesn't immediately come back.
+      // Re-show later: tag it so the next appearance carries a "hint used" /
+      // "previous mistake" banner, and push it at least 2 positions back (or to
+      // the end) so it doesn't immediately come again.
+      if (pn.exId != null && pn.flag) {
+        setExerciseFlags((f) => ({ ...f, [pn.exId]: pn.flag }));
+      }
       setExerciseQueue((q) => {
         const rest = q.slice(1);
         const gap = Math.min(2, rest.length);
@@ -636,7 +721,8 @@ export default function LessonPlayer() {
       setRenderNonce((n) => n + 1);
       return;
     }
-    // finish — correct answer on the last remaining exercise
+    // finish — passed the last remaining exercise
+    clearFlag(pn.exId);
     setExerciseQueue((q) => q.slice(1));
     setExerciseKey((k) => k + 1);
     setHasFinishedAll(true);
@@ -924,6 +1010,12 @@ export default function LessonPlayer() {
             onBack={() => navigate("/dashboard")}
             onRefilled={(state) => writeHearts(state)}
           />
+        ) : null}
+
+        {/* Re-show banner — why this exercise is coming back around */}
+        {!showDoneFooter && !outOfHearts && currentExercise && !isReadingSection
+          && exerciseFlags[currentExercise.id] ? (
+          <ReshownBanner flag={exerciseFlags[currentExercise.id]} />
         ) : null}
 
         {/* Current exercise */}

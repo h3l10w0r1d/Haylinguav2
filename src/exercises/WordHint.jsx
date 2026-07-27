@@ -19,6 +19,13 @@ export function normWord(w) {
     .toLowerCase();
 }
 
+// A word is worth making tappable for a translation hint only if it's actually
+// Armenian — the /me/word-hint lookup glosses Armenian words, so English prompt
+// words ("How", "say") should stay plain text rather than become dead taps.
+export function hasArmenian(w) {
+  return /\p{Script=Armenian}/u.test(String(w || ""));
+}
+
 const _hintCache = new Map(); // norm -> hint string (session cache)
 
 async function fetchWordHint(word) {
@@ -94,11 +101,18 @@ export function WordHint({ word, hint, isNew, children, alwaysUnderline = true }
     e.stopPropagation();
     const next = !open;
     setOpen(next);
-    if (next && !lazyHint && !loading) {
-      setLoading(true);
-      const h = await fetchWordHint(word);
-      setLazyHint(h || "No definition found");
-      setLoading(false);
+    if (next) {
+      // Signal that the learner leaned on a hint this attempt. LessonPlayer
+      // listens for this to re-show the exercise once (the "hint used" loop).
+      try {
+        window.dispatchEvent(new CustomEvent("hay_word_hint", { detail: { word } }));
+      } catch {}
+      if (!lazyHint && !loading) {
+        setLoading(true);
+        const h = await fetchWordHint(word);
+        setLazyHint(h || "No definition found");
+        setLoading(false);
+      }
     }
   }
 
@@ -149,6 +163,11 @@ export function GlossaryText({ text, glossary, newWords }) {
         const bare = tok.replace(/[,;:!?."»«']+$/u, "").replace(/^[«"']+/u, "");
         if (!bare) return <React.Fragment key={i}>{tok}</React.Fragment>;
         const staticHint = glossary?.[bare] || glossary?.[bare.toLowerCase()];
+        // Only Armenian words (or ones with an authored hint) are tappable —
+        // English scaffolding in a prompt stays plain text.
+        if (!staticHint && !hasArmenian(bare)) {
+          return <React.Fragment key={i}>{tok}</React.Fragment>;
+        }
         const prefix = tok.slice(0, tok.indexOf(bare));
         const suffix = tok.slice(tok.indexOf(bare) + bare.length);
         const isNew = newWords ? newWords.has(normWord(bare)) : false;

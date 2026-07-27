@@ -23,15 +23,16 @@ import SpeechBubbleMascot from "./exercises/SpeechBubbleMascot";
 import { mascotFaceUrl } from "./lib/mascotFaces";
 import { translitArmenian } from "./lib/translit";
 
-// Renders a prompt heading with optional inline word-hint tooltips.
-// Glossary is stored in exercise.config.glossary: { "word": "definition" }
+// Renders a prompt heading with inline word-hint tooltips. Every Armenian word
+// is tappable for an on-demand translation even with no authored glossary;
+// authored `glossary` entries (exercise.config.glossary: { word: definition })
+// just show instantly instead of hitting the lookup. English scaffolding in
+// the prompt stays plain text (GlossaryText only makes Armenian words tappable).
 function PromptTitle({ text, glossary }) {
   if (!text) return null;
   return (
     <Title>
-      {glossary && Object.keys(glossary).length > 0
-        ? <GlossaryText text={text} glossary={glossary} />
-        : text}
+      <GlossaryText text={text} glossary={glossary} />
     </Title>
   );
 }
@@ -1965,7 +1966,7 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
           character={mascotCharacter}
           text={
             <>
-              {before}{" "}
+              <GlossaryText text={before} glossary={cfg.glossary} />{" "}
               <span
                 className={cx(
                   "rounded-lg px-2 py-1 ring-1",
@@ -1974,7 +1975,7 @@ function ExSelectMissingWord({ exercise, cfg, onCorrect, onWrong, onSkip, onAnsw
               >
                 {sel !== null ? (choices[sel] ?? "…") : "…"}
               </span>{" "}
-              {after}
+              <GlossaryText text={after} glossary={cfg.glossary} />
             </>
           }
         />
