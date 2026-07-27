@@ -7,7 +7,7 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  X, Eye, EyeOff, Play, RotateCw, Loader2, Apple, PlayCircle, Bell,
+  X, Eye, EyeOff, Play, RotateCw, Loader2, Apple, Bell,
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
@@ -116,6 +116,21 @@ function Reveal({ children, delay = 0, className = "" }) {
     >
       {children}
     </div>
+  );
+}
+
+// The Google Play "Play" triangle logo — the four brand-colored triangles
+// all meet at one interior point, matching the real mark's construction.
+function GooglePlayGlyph({ className }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
+      <g stroke="#000" strokeWidth="1.5" strokeLinejoin="round">
+        <polygon points="8,8 75,34 35,50" fill="#00C3FF" />
+        <polygon points="35,50 75,34 92,50" fill="#FFCE00" />
+        <polygon points="35,50 92,50 75,66" fill="#00E28A" />
+        <polygon points="35,50 75,66 8,92" fill="#FF3B5F" />
+      </g>
+    </svg>
   );
 }
 
@@ -1669,7 +1684,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                 </div>
               </div>
               <div className="flex cursor-not-allowed items-center gap-2.5 rounded-2xl bg-slate-800 px-4 py-2.5 text-white opacity-60 dark:bg-white/10">
-                <PlayCircle className="h-6 w-6 shrink-0" />
+                <GooglePlayGlyph className="h-6 w-6 shrink-0" />
                 <div className="text-left leading-none">
                   <div className="text-[10px] font-semibold">Coming soon on</div>
                   <div className="text-sm font-extrabold">Google Play</div>
