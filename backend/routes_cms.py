@@ -1999,6 +1999,22 @@ def cms_seed_a2_1(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/a2-2")
+def cms_seed_a2_2(request: Request, db=Depends(get_db)):
+    """A2 roadmap round 2: the future tense (կ-), the definite direct object
+    (person -ին vs thing -ը), conditionals & connectors (եթե/որովհետև/բայց/երբ),
+    and getting-around vocab (café, directions). Lessons tagged cefr=A2 in
+    config. Four chapters (positions 54-57). Idempotent (skips if
+    a2-future-1 exists)."""
+    require_cms(request, db)
+    from seed_a2_2 import seed_a2_2
+    try:
+        res = seed_a2_2()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/grammar3")
 def cms_seed_grammar3(request: Request, db=Depends(get_db)):
     """Common Verbs II (present tense of speak/live/read/write/see/do/say)
