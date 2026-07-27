@@ -412,6 +412,15 @@ def ensure_schema() -> None:
             """,
         )
         add_col_if_missing("lessons", "chapter_id INTEGER")
+        # Icon shown on the learner roadmap's unit header (e.g. a T-shirt icon
+        # for a "Clothes" chapter) — icon is a lucide-react/lucide-react-native
+        # component name (e.g. "Shirt"), icon_color one of the app's existing
+        # accent tone keys (brand/grass/amber/feather/cardinal/pom/gold) so it
+        # reuses the same Chip/ACCENT styling every other icon badge uses.
+        add_col_if_missing("chapters", "icon TEXT")
+        add_col_if_missing("chapters", "icon_color TEXT")
+        set_default("chapters", "icon_color", "'brand'")
+        fill_nulls("chapters", "icon_color", "'brand'")
         # xp / xp_reward used to only be added by seed_alphabet_lessons(), which
         # only runs when SEED_ON_STARTUP=true — unset in CI, so a fresh database
         # (CI's Postgres service container, or any deploy without that flag)

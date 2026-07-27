@@ -1484,6 +1484,7 @@ def cms_list_chapters(request: Request, db=Depends(get_db)):
     require_cms(request, db)
     rows = db.execute(text("""
         SELECT c.id, c.title, c.description, c.position, c.is_published,
+               c.icon, c.icon_color,
                COALESCE(n.cnt, 0)::int AS lesson_count
         FROM chapters c
         LEFT JOIN (SELECT chapter_id, COUNT(*) AS cnt FROM lessons GROUP BY chapter_id) n
@@ -1506,12 +1507,14 @@ async def cms_create_chapter(request: Request, db=Depends(get_db)):
     pos = body.get("position")
     if pos is None:
         pos = db.execute(text("SELECT COALESCE(MAX(position), 0) + 1 FROM chapters")).scalar() or 1
+    icon = (body.get("icon") or "").strip() or None
+    icon_color = (body.get("icon_color") or "").strip() or "brand"
     new_id = db.execute(
         text("""
-            INSERT INTO chapters (title, description, position, is_published)
-            VALUES (:t, :d, :p, :pub) RETURNING id
+            INSERT INTO chapters (title, description, position, is_published, icon, icon_color)
+            VALUES (:t, :d, :p, :pub, :icon, :icon_color) RETURNING id
         """),
-        {"t": title, "d": description, "p": int(pos), "pub": is_published},
+        {"t": title, "d": description, "p": int(pos), "pub": is_published, "icon": icon, "icon_color": icon_color},
     ).scalar_one()
     return {"id": int(new_id)}
 
@@ -1521,7 +1524,7 @@ async def cms_update_chapter(chapter_id: int, request: Request, db=Depends(get_d
     body = await request.json()
     set_parts = []
     params = {"id": chapter_id}
-    for f in ["title", "description", "position", "is_published"]:
+    for f in ["title", "description", "position", "is_published", "icon", "icon_color"]:
         if f in body:
             set_parts.append(f"{f} = :{f}")
             params[f] = body[f]

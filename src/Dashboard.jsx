@@ -10,6 +10,7 @@ import StreakFlame from "./lib/StreakFlame";
 import StreakCelebration from "./lib/StreakCelebration";
 import ChestOpening from "./lib/ChestOpening";
 import { preloadLesson } from "./lib/lessonPreload";
+import { LucideGlyph } from "./lib/lucideIcons";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -931,10 +932,18 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
 
   return (
     <section className={"mb-3 p-5 " + CARD}>
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="min-w-0">
-          <span className="text-xs font-extrabold uppercase tracking-wide text-stone-400 dark:text-stone-500">Unit {index + 1}</span>
-          <h3 className="truncate text-base font-extrabold text-stone-900 dark:text-white">{unit.title}</h3>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Chip
+            chip={ACCENT[unit.iconColor] || ACCENT.brand}
+            icon={(p) => <LucideGlyph name={unit.icon} className={p.className} fallback={<BookOpen className={p.className} />} />}
+            size="h-10 w-10"
+            ic="h-5 w-5"
+          />
+          <div className="min-w-0">
+            <span className="text-xs font-extrabold uppercase tracking-wide text-stone-400 dark:text-stone-500">Unit {index + 1}</span>
+            <h3 className="truncate text-base font-extrabold text-stone-900 dark:text-white">{unit.title}</h3>
+          </div>
         </div>
         <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-xs font-bold tabular-nums text-stone-500 dark:bg-white/[0.07] dark:text-stone-300">{done}/{total}</span>
       </div>
@@ -1063,6 +1072,8 @@ export default function Dashboard({ user }) {
           key,
           title: hasChapter ? l.chapter_title || "Chapter" : `Chapter ${Number(l.level ?? l.unit ?? 1)}`,
           position: hasChapter ? Number(l.chapter_position ?? 9999) : Number(l.level ?? l.unit ?? 1),
+          icon: hasChapter ? l.chapter_icon || null : null,
+          iconColor: hasChapter ? l.chapter_icon_color || "brand" : "brand",
           items: [],
         });
       }
@@ -1117,7 +1128,13 @@ export default function Dashboard({ user }) {
       <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_336px] lg:items-start lg:gap-6">
         {/* ── Main: stats + hero + curriculum ── */}
         <main className="mx-auto w-full max-w-xl lg:mx-0 lg:justify-self-center">
-          <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} onPremiumChange={setIsPremium} />
+          {/* Sticky so streak/hearts/XP/gems stay visible while scrolling the
+              roadmap below — top-20 matches the site nav height (same offset
+              the sidebar's own sticky uses). The hero card underneath is
+              deliberately NOT part of this — it stays inline and scrolls away. */}
+          <div className="sticky top-20 z-30 -mt-2 bg-[#f5f4f1]/95 pb-3 pt-2 backdrop-blur dark:bg-[#0d0d0f]/95">
+            <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} onPremiumChange={setIsPremium} />
+          </div>
 
           <HeroCard
             firstName={firstName}

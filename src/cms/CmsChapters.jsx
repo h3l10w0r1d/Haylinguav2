@@ -2,12 +2,41 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff, Sparkles, Ear } from "lucide-react";
+import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff, Sparkles, Ear, ImagePlus } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import IconPicker from "./IconPicker";
+import { LucideGlyph } from "../lib/lucideIcons";
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
 }
+
+function ChapterIconGlyph({ name, className, fallback = null }) {
+  if (!name) return fallback;
+  return <LucideGlyph name={name} className={className} fallback={fallback} />;
+}
+
+// Same 7 accent tones the learner-facing Dashboard's Chip/ACCENT already
+// uses — picking one here just sets which of those existing tints the
+// chapter's icon renders in, nothing new to keep in sync elsewhere.
+const ICON_TONES = [
+  { key: "brand", swatch: "bg-brand-500" },
+  { key: "grass", swatch: "bg-grass-500" },
+  { key: "amber", swatch: "bg-amber-500" },
+  { key: "feather", swatch: "bg-feather-500" },
+  { key: "cardinal", swatch: "bg-cardinal-500" },
+  { key: "pom", swatch: "bg-pom-500" },
+  { key: "gold", swatch: "bg-gold-500" },
+];
+const TONE_CHIP = {
+  brand: "bg-brand-50 text-brand-600",
+  grass: "bg-grass-50 text-grass-600",
+  amber: "bg-amber-50 text-amber-600",
+  feather: "bg-feather-50 text-feather-600",
+  cardinal: "bg-cardinal-50 text-cardinal-600",
+  pom: "bg-pom-50 text-pom-600",
+  gold: "bg-gold-100 text-gold-700",
+};
 
 export default function CmsChapters() {
   const token = getCmsToken();
@@ -20,8 +49,9 @@ export default function CmsChapters() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
-  const [draft, setDraft] = useState({ title: "", description: "" });
-  const [edits, setEdits] = useState({}); // id -> {title, description}
+  const [draft, setDraft] = useState({ title: "", description: "", icon: "", icon_color: "brand" });
+  const [edits, setEdits] = useState({}); // id -> {title, description, icon, icon_color}
+  const [pickerFor, setPickerFor] = useState(null); // "new" | chapter id | null
 
   function showToast(msg, kind = "ok") {
     setToast({ msg, kind });
@@ -33,7 +63,7 @@ export default function CmsChapters() {
     const list = Array.isArray(data) ? data : [];
     setChapters(list);
     const e = {};
-    list.forEach((c) => (e[c.id] = { title: c.title || "", description: c.description || "" }));
+    list.forEach((c) => (e[c.id] = { title: c.title || "", description: c.description || "", icon: c.icon || "", icon_color: c.icon_color || "brand" }));
     setEdits(e);
   }
 
@@ -58,8 +88,8 @@ export default function CmsChapters() {
     if (!title) return;
     setBusy(true);
     try {
-      await api.createChapter({ title, description: draft.description.trim() });
-      setDraft({ title: "", description: "" });
+      await api.createChapter({ title, description: draft.description.trim(), icon: draft.icon || null, icon_color: draft.icon_color || "brand" });
+      setDraft({ title: "", description: "", icon: "", icon_color: "brand" });
       await refresh();
       showToast("Chapter created");
     } catch (err) {
@@ -73,7 +103,12 @@ export default function CmsChapters() {
     const e = edits[c.id] || {};
     setBusy(true);
     try {
-      await api.updateChapter(c.id, { title: (e.title || "").trim(), description: (e.description || "").trim() });
+      await api.updateChapter(c.id, {
+        title: (e.title || "").trim(),
+        description: (e.description || "").trim(),
+        icon: e.icon || null,
+        icon_color: e.icon_color || "brand",
+      });
       await refresh();
       showToast("Saved");
     } catch (err) {
@@ -193,6 +228,34 @@ export default function CmsChapters() {
         {/* Create */}
         <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-5">
           <div className="font-display text-base font-bold text-slate-900 mb-3">New chapter</div>
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPickerFor("new")}
+              className={cx(
+                "grid h-11 w-11 shrink-0 place-items-center rounded-2xl ring-1 ring-slate-200 transition hover:ring-slate-300",
+                TONE_CHIP[draft.icon_color] || TONE_CHIP.brand
+              )}
+              title="Choose icon"
+            >
+              <ChapterIconGlyph name={draft.icon} className="h-5 w-5" fallback={<ImagePlus className="h-5 w-5 text-slate-400" />} />
+            </button>
+            <div className="flex items-center gap-1.5">
+              {ICON_TONES.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setDraft({ ...draft, icon_color: t.key })}
+                  className={cx(
+                    "h-5 w-5 rounded-full ring-2 ring-offset-1 transition",
+                    t.swatch,
+                    draft.icon_color === t.key ? "ring-slate-400" : "ring-transparent"
+                  )}
+                  title={t.key}
+                />
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_auto] gap-3 items-start">
             <input
               value={draft.title}
@@ -228,7 +291,7 @@ export default function CmsChapters() {
         ) : (
           <div className="space-y-3">
             {chapters.map((c, idx) => {
-              const e = edits[c.id] || { title: "", description: "" };
+              const e = edits[c.id] || { title: "", description: "", icon: "", icon_color: "brand" };
               return (
                 <div key={c.id} className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-4">
                   <div className="flex items-start gap-3">
@@ -254,8 +317,37 @@ export default function CmsChapters() {
                       </button>
                     </div>
 
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-700 ring-1 ring-brand-200 font-display font-extrabold text-sm">
-                      {idx + 1}
+                    <div className="shrink-0 space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPickerFor(c.id)}
+                        className={cx(
+                          "relative grid h-11 w-11 place-items-center rounded-2xl ring-1 ring-slate-200 transition hover:ring-slate-300",
+                          TONE_CHIP[e.icon_color] || TONE_CHIP.brand
+                        )}
+                        title="Choose icon"
+                      >
+                        <ChapterIconGlyph
+                          name={e.icon}
+                          className="h-5 w-5"
+                          fallback={<span className="font-display text-sm font-extrabold">{idx + 1}</span>}
+                        />
+                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        {ICON_TONES.map((t) => (
+                          <button
+                            key={t.key}
+                            type="button"
+                            onClick={() => setEdits({ ...edits, [c.id]: { ...e, icon_color: t.key } })}
+                            className={cx(
+                              "h-3 w-3 rounded-full ring-1 ring-offset-1 transition",
+                              t.swatch,
+                              e.icon_color === t.key ? "ring-slate-400" : "ring-transparent"
+                            )}
+                            title={t.key}
+                          />
+                        ))}
+                      </div>
                     </div>
 
                     <div className="min-w-0 flex-1 space-y-2">
@@ -334,6 +426,19 @@ export default function CmsChapters() {
           </div>
         </div>
       )}
+
+      <IconPicker
+        open={pickerFor !== null}
+        onClose={() => setPickerFor(null)}
+        currentIcon={pickerFor === "new" ? draft.icon : edits[pickerFor]?.icon}
+        onSelect={(name) => {
+          if (pickerFor === "new") {
+            setDraft((d) => ({ ...d, icon: name }));
+          } else if (pickerFor !== null) {
+            setEdits((prev) => ({ ...prev, [pickerFor]: { ...(prev[pickerFor] || {}), icon: name } }));
+          }
+        }}
+      />
     </CmsLayout>
   );
 }

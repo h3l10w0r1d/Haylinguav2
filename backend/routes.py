@@ -3541,6 +3541,8 @@ class LessonProgressOut(BaseModel):
     chapter_id: int | None = None
     chapter_title: str | None = None
     chapter_position: int | None = None
+    chapter_icon: str | None = None
+    chapter_icon_color: str | None = None
 
 
 @router.get("/me/lessons/progress", response_model=list[LessonProgressOut])
@@ -3576,7 +3578,9 @@ def me_lessons_progress(
               ulp.completed_at,
               l.chapter_id,
               c.title AS chapter_title,
-              c.position AS chapter_position
+              c.position AS chapter_position,
+              c.icon AS chapter_icon,
+              c.icon_color AS chapter_icon_color
             FROM lessons l
             LEFT JOIN ex ON ex.lesson_id = l.id
             LEFT JOIN chapters c ON c.id = l.chapter_id
@@ -3639,6 +3643,8 @@ def me_lessons_progress(
                 chapter_id=(int(r["chapter_id"]) if r.get("chapter_id") is not None else None),
                 chapter_title=r.get("chapter_title"),
                 chapter_position=(int(r["chapter_position"]) if r.get("chapter_position") is not None else None),
+                chapter_icon=r.get("chapter_icon"),
+                chapter_icon_color=r.get("chapter_icon_color"),
             )
         )
 
