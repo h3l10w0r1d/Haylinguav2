@@ -13,7 +13,8 @@ import { View, Text, TextInput, ActivityIndicator, ScrollView, RefreshControl, A
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserPlus, Check, X as XIcon, Users as UsersIcon } from 'lucide-react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { UserPlus, Check, X as XIcon, Users as UsersIcon, Trophy, Star, Flame } from 'lucide-react-native';
 import { api, ApiError, resolveUrl } from '../lib/api';
 import { getFriendshipState } from '../lib/friendState';
 import Pressable3D from '../components/Pressable3D';
@@ -21,9 +22,13 @@ import { haptics } from '../lib/haptics';
 
 const DISMISSED_SENT_KEY = 'hay_friends_dismissed_sent_v1';
 
+// Squircle + gradient-fallback avatar, matching the web PersonCard's look
+// (rounded-2xl, brand->pom gradient behind the initial) instead of a flat
+// gray circle — the same fallback everyone without a photo shares looks
+// considered rather than like a missing-image placeholder.
 function Avatar({ name, avatarUrl, size = 40 }) {
   const resolved = resolveUrl(avatarUrl);
-  const shape = { width: size, height: size, borderRadius: size / 2 };
+  const shape = { width: size, height: size, borderRadius: size * 0.32 };
   if (resolved) {
     return (
       <View style={[shape, { overflow: 'hidden', backgroundColor: '#f5f5f4' }]}>
@@ -32,9 +37,14 @@ function Avatar({ name, avatarUrl, size = 40 }) {
     );
   }
   return (
-    <View style={shape} className="items-center justify-center bg-stone-100">
-      <Text className="font-extrabold text-stone-500" style={{ fontSize: size * 0.4 }}>{(name || '?')[0]?.toUpperCase()}</Text>
-    </View>
+    <LinearGradient
+      colors={['#FF9342', '#E11D48']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[shape, { alignItems: 'center', justifyContent: 'center' }]}
+    >
+      <Text className="font-extrabold text-white" style={{ fontSize: size * 0.4 }}>{(name || '?')[0]?.toUpperCase()}</Text>
+    </LinearGradient>
   );
 }
 
@@ -46,13 +56,34 @@ function Row({ children, onPress, style }) {
   );
 }
 
+// Stat chips (level/XP/streak), matching web's PersonCard — gives a
+// suggestion real substance instead of just a name and a guess-why reason.
+function StatChips({ level, xp, streak }) {
+  return (
+    <View className="mt-2 flex-row flex-wrap" style={{ gap: 6 }}>
+      <View className="flex-row items-center gap-1 rounded-lg bg-brand-50 px-2 py-1">
+        <Trophy size={11} color="#FF7A1A" />
+        <Text className="text-[10px] font-bold text-stone-600">Lv {Math.max(1, Number(level) || 1)}</Text>
+      </View>
+      <View className="flex-row items-center gap-1 rounded-lg bg-gold-50 px-2 py-1">
+        <Star size={11} color="#E0A800" />
+        <Text className="text-[10px] font-bold text-stone-600">{Number(xp) || 0} XP</Text>
+      </View>
+      <View className="flex-row items-center gap-1 rounded-lg bg-cardinal-50 px-2 py-1">
+        <Flame size={11} color="#FF4B4B" />
+        <Text className="text-[10px] font-bold text-stone-600">{Math.max(1, Number(streak) || 1)}d streak</Text>
+      </View>
+    </View>
+  );
+}
+
 function ReasonChips({ reasons }) {
   if (!reasons?.length) return null;
   return (
-    <View className="mt-1 flex-row flex-wrap" style={{ gap: 4 }}>
+    <View className="mt-1.5 flex-row flex-wrap" style={{ gap: 4 }}>
       {reasons.slice(0, 2).map((r, i) => (
-        <View key={i} className="rounded-full bg-feather-50 px-2 py-0.5">
-          <Text className="text-[10px] font-bold text-feather-600">{r}</Text>
+        <View key={i} className="rounded-lg bg-stone-100 px-2 py-1">
+          <Text className="text-[10px] font-bold text-stone-500">{r}</Text>
         </View>
       ))}
     </View>
@@ -326,27 +357,34 @@ export default function FriendsScreen({ navigation }) {
             discover.map((p) => {
               const { state } = getFriendshipState(p.user_id, { friends, incoming, sent: visibleSent });
               return (
-                <Row key={p.user_id} onPress={() => p.username && navigation.navigate('PublicProfile', { username: p.username })}>
-                  <Avatar name={p.name || p.username} avatarUrl={p.avatar_url} />
-                  <View className="flex-1">
+                <Row key={p.user_id} onPress={() => p.username && navigation.navigate('PublicProfile', { username: p.username })} style={{ alignItems: 'flex-start' }}>
+                  <Avatar name={p.name || p.username} avatarUrl={p.avatar_url} size={48} />
+                  <View className="min-w-0 flex-1">
                     <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{p.name || p.username}</Text>
+                    <StatChips level={p.level} xp={p.xp} streak={p.streak} />
                     <ReasonChips reasons={p.reasons} />
                   </View>
                   {state === 'friends' ? (
-                    <View className="rounded-full bg-grass-50 px-3 py-1.5">
+                    <View className="rounded-xl bg-grass-50 px-3 py-1.5">
                       <Text className="text-xs font-bold text-grass-600">Friends</Text>
                     </View>
                   ) : state === 'outgoing_pending' ? (
-                    <View className="rounded-full bg-stone-100 px-3 py-1.5">
+                    <View className="rounded-xl bg-stone-100 px-3 py-1.5">
                       <Text className="text-xs font-bold text-stone-500">Requested</Text>
                     </View>
                   ) : state === 'incoming_pending' ? (
-                    <View className="rounded-full bg-feather-50 px-3 py-1.5">
+                    <View className="rounded-xl bg-feather-50 px-3 py-1.5">
                       <Text className="text-xs font-bold text-feather-600">Respond</Text>
                     </View>
                   ) : (
-                    <Pressable3D onPress={() => sendRequest(p.email || p.username)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-brand-500">
-                      <UserPlus size={16} color="#fff" />
+                    <Pressable3D
+                      onPress={() => sendRequest(p.email || p.username)}
+                      pressDepth={2}
+                      className="flex-row items-center gap-1 rounded-xl bg-brand-500 px-3 py-1.5"
+                      style={{ borderBottomWidth: 2, borderBottomColor: '#E85F00' }}
+                    >
+                      <UserPlus size={13} color="#fff" />
+                      <Text className="text-xs font-extrabold text-white">Add</Text>
                     </Pressable3D>
                   )}
                 </Row>
