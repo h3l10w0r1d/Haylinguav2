@@ -2222,6 +2222,21 @@ def cms_seed_situations(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/town")
+def cms_seed_town(request: Request, db=Depends(get_db)):
+    """A2 · Around Town — getting around (transport + instrumental), the
+    weather, describing people. Established kinds only, cefr=A2, chapter at
+    position 63. Idempotent (skips if a2-town-transport exists). Also authored
+    live via the CMS bulk-import API; this is the reproducible record."""
+    require_cms(request, db)
+    from seed_town import seed_town
+    try:
+        res = seed_town()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
