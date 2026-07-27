@@ -258,7 +258,9 @@ export default function DashboardScreen({ navigation }) {
         with everything else). */}
     <View className="flex-row items-center justify-between border-b border-stone-200/80 bg-[#f5f4f1] px-5 py-3">
       <StatPip icon={Flame} color="#FF7A1A" value={stats.streak} animateFlame />
-      <StatPip icon={Gem} color="#1CB0F6" value={stats.gems ?? '–'} />
+      <Pressable3D onPress={() => navigation.navigate('Shop')} hapticOnPress={false} pressDepth={2}>
+        <StatPip icon={Gem} color="#1CB0F6" value={stats.gems ?? '–'} />
+      </Pressable3D>
       <StatPip icon={Zap} color="#E0A800" value={stats.totalXp} />
       <StatPip icon={Heart} color="#FF4B4B" value={heartLabel} />
     </View>
