@@ -2015,6 +2015,22 @@ def cms_seed_a2_2(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/reading-a2")
+def cms_seed_reading_a2(request: Request, db=Depends(get_db)):
+    """A2 reading: three short connected passages (present daily routine, a
+    past café story, future weekend plans), each with comprehension questions,
+    true/false, and a glossary match. Uses the reading_comprehension kind.
+    Lessons tagged cefr=A2. One chapter (position 58). Idempotent (skips if
+    a2-read-1 exists)."""
+    require_cms(request, db)
+    from seed_reading_a2 import seed_reading_a2
+    try:
+        res = seed_reading_a2()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/grammar3")
 def cms_seed_grammar3(request: Request, db=Depends(get_db)):
     """Common Verbs II (present tense of speak/live/read/write/see/do/say)
