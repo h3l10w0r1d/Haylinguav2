@@ -2206,6 +2206,20 @@ def cms_seed_listen_image(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/stories")
+def cms_seed_stories(request: Request, db=Depends(get_db)):
+    """Stories — the new `story` exercise (narrated dialogue + comprehension).
+    One 'Stories' lesson of 5 short dialogues, cefr=A2, chapter position 63.
+    Idempotent (skips if story-a2 exists)."""
+    require_cms(request, db)
+    from seed_stories import seed_stories
+    try:
+        res = seed_stories()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/situations")
 def cms_seed_situations(request: Request, db=Depends(get_db)):
     """A2 · Everyday Situations — at the doctor, at the shop, making plans.
