@@ -941,6 +941,7 @@ export default function LessonPlayer() {
     write_translate: "Write the translation",
     inflect: "Type the correct form",
     trace_letter: "Trace the letter",
+    listen_image: "Listen and pick the picture",
     highlight_grammar: "Identify the grammar element",
     letter_typing: "Type the character",
     word_spelling: "Spell the word",
