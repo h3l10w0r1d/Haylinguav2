@@ -286,7 +286,7 @@ export default function FriendsScreen({ navigation }) {
             ) : (
               incoming.map((r) => (
                 <Row key={r.id}>
-                  <Avatar name={r.requester_name || r.requester_email} />
+                  <Avatar name={r.requester_name || r.requester_email} avatarUrl={r.avatar_url} />
                   <Text className="flex-1 text-sm font-bold text-stone-800" numberOfLines={1}>{r.requester_name || r.requester_email}</Text>
                   <Pressable3D onPress={() => accept(r.id)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-grass-500">
                     <Check size={16} color="#fff" />
@@ -304,7 +304,7 @@ export default function FriendsScreen({ navigation }) {
             ) : (
               visibleSent.map((r) => (
                 <Row key={r.id}>
-                  <Avatar name={r.addressee_name || r.addressee_email} />
+                  <Avatar name={r.addressee_name || r.addressee_email} avatarUrl={r.addressee_avatar_url} />
                   <Text className="flex-1 text-sm font-bold text-stone-800" numberOfLines={1}>{r.addressee_name || r.addressee_email}</Text>
                   <Pressable3D onPress={() => dismissSent(r.id)} pressDepth={2} className="rounded-full bg-stone-100 px-3 py-1.5">
                     <Text className="text-xs font-bold text-stone-500">Cancel</Text>

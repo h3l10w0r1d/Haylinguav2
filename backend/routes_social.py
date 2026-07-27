@@ -61,6 +61,7 @@ class FriendRequestOut(BaseModel):
     requester_id: int
     requester_email: str
     requester_name: str | None = None
+    avatar_url: str | None = None
     created_at: datetime
 
 class FriendRequestCreateIn(BaseModel):
@@ -395,6 +396,7 @@ def friends_requests_outgoing(
               fr.requester_id,
               u.email AS requester_email,
               u.name AS requester_name,
+              u.avatar_url AS avatar_url,
               fr.created_at
             FROM friend_requests fr
             JOIN users u ON u.id = fr.addressee_id
@@ -413,6 +415,7 @@ def friends_requests_outgoing(
             requester_id=user_id,
             requester_email=r["requester_email"],
             requester_name=r["requester_name"],
+            avatar_url=r["avatar_url"],
             created_at=r["created_at"],
         )
         for r in rows
@@ -436,6 +439,7 @@ def friends_requests_incoming(
               fr.requester_id,
               u.email AS requester_email,
               u.name AS requester_name,
+              u.avatar_url AS avatar_url,
               fr.created_at
             FROM friend_requests fr
             JOIN users u ON u.id = fr.requester_id
@@ -465,6 +469,7 @@ def friends_requests_sent(
               fr.addressee_id,
               u.email AS addressee_email,
               u.name AS addressee_name,
+              u.avatar_url AS addressee_avatar_url,
               fr.created_at
             FROM friend_requests fr
             JOIN users u ON u.id = fr.addressee_id
@@ -482,6 +487,7 @@ def friends_requests_sent(
             "addressee_id": int(r["addressee_id"]),
             "addressee_email": r["addressee_email"],
             "addressee_name": r["addressee_name"],
+            "addressee_avatar_url": r["addressee_avatar_url"],
             "created_at": r["created_at"],
         }
         for r in rows

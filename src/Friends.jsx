@@ -159,6 +159,7 @@ export default function Friends() {
                 id: x.id,
                 email: x.addressee_email || x.email || "",
                 name: x.addressee_name || x.name || null,
+                avatar_url: x.addressee_avatar_url || x.avatar_url || null,
                 created_at: x.created_at || null,
               }))
             : [];
@@ -213,6 +214,7 @@ export default function Friends() {
               id: x.id,
               email: x.addressee_email || x.email || "",
               name: x.addressee_name || x.name || null,
+              avatar_url: x.addressee_avatar_url || x.avatar_url || null,
               created_at: x.created_at || null,
             }))
           : [];
@@ -251,7 +253,7 @@ export default function Friends() {
       name:
         r.requester_name || r.requester_username || (r.requester_email ? r.requester_email.split("@")[0] : "User"),
       email: r.requester_email || "",
-      avatar_url: null,
+      avatar_url: r.avatar_url || null,
       level: 1,
       xp: 0,
       streak: 1,
@@ -267,7 +269,7 @@ export default function Friends() {
         id: x.email, // stable key if no id
         name: x.name || x.email.split("@")[0],
         email: x.email,
-        avatar_url: null,
+        avatar_url: x.avatar_url || null,
         // Sent requests don't have stats; keep neutral values.
         level: 1,
         xp: 0,
