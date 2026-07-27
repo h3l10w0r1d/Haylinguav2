@@ -2280,6 +2280,20 @@ def cms_seed_life(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/free")
+def cms_seed_free(request: Request, db=Depends(get_db)):
+    """A2 · Free Time — hobbies, feelings, invitations. Established kinds only,
+    cefr=A2, chapter at position 65. Idempotent (skips if a2-free-hobbies
+    exists). Also authored live via the CMS bulk-import API."""
+    require_cms(request, db)
+    from seed_free import seed_free
+    try:
+        res = seed_free()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
