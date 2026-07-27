@@ -974,6 +974,57 @@ function CurriculumSummit({ pct }) {
   );
 }
 
+const LEVEL_META = {
+  A0: { name: "Foundations",  tint: "text-stone-500 dark:text-stone-300",  chip: "bg-stone-100 text-stone-600 dark:bg-white/[0.06] dark:text-stone-300", bar: "bg-stone-400" },
+  A1: { name: "Beginner",     tint: "text-brand-600 dark:text-brand-400",  chip: "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-400",  bar: "bg-brand-500" },
+  A2: { name: "Elementary",   tint: "text-feather-600 dark:text-feather-400", chip: "bg-feather-50 text-feather-700 dark:bg-feather-500/15 dark:text-feather-400", bar: "bg-feather-500" },
+  B1: { name: "Intermediate", tint: "text-grass-600 dark:text-grass-400",  chip: "bg-grass-50 text-grass-700 dark:bg-grass-500/15 dark:text-grass-400",   bar: "bg-grass-500" },
+};
+
+// Header that opens each CEFR level's stretch of the roadmap: its name, how
+// far through it the learner is, a lock when the level isn't unlocked yet,
+// and — once every lesson is done — the button to take the level test.
+function LevelBand({ cefr, info, onAssess }) {
+  const meta = LEVEL_META[cefr] || LEVEL_META.A1;
+  const total = info?.lessons_total ?? 0;
+  const done = info?.lessons_completed ?? 0;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const locked = info ? info.unlocked === false : false;
+  const passed = !!info?.assessment_passed;
+  const ready = !!info?.assessment_ready;
+  return (
+    <div className={"mt-10 first:mt-2" + (locked ? " opacity-70" : "")}>
+      <div className="flex items-center gap-3">
+        <span className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl font-display text-base font-extrabold " + meta.chip}>{cefr}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={"font-display text-xl font-extrabold " + meta.tint}>{meta.name}</span>
+            {passed ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-grass-50 px-2 py-0.5 text-[11px] font-extrabold text-grass-700 dark:bg-grass-500/15 dark:text-grass-400"><Check className="h-3 w-3" />Passed</span>
+            ) : null}
+            {locked ? <Lock className="h-4 w-4 text-stone-400" /> : null}
+          </div>
+          {locked ? (
+            <div className="mt-0.5 text-xs font-semibold text-stone-400 dark:text-stone-500">Pass the previous level's test to unlock</div>
+          ) : (
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-200 dark:bg-white/10">
+                <div className={"h-2 rounded-full transition-all " + meta.bar} style={{ width: `${Math.max(pct, 2)}%` }} />
+              </div>
+              <span className="shrink-0 text-[11px] font-bold text-stone-400 dark:text-stone-500">{done}/{total}</span>
+            </div>
+          )}
+        </div>
+      </div>
+      {ready && onAssess ? (
+        <button onClick={() => onAssess(cefr)} className="btn3d btn3d-brand mt-3 w-full uppercase">
+          <ShieldCheck className="h-5 w-5" /> Take the {cefr} test
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 // Quick access — colored tinted chips in one card.
 function QuickLinks({ navigate }) {
   const tiles = [
@@ -1011,6 +1062,7 @@ export default function Dashboard({ user }) {
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [error, setError] = useState("");
   const [isPremium, setIsPremium] = useState(false);
+  const [levelInfo, setLevelInfo] = useState({ current_cefr: null, byLevel: {} });
 
   const token = useMemo(
     () => localStorage.getItem("hay_token") || localStorage.getItem("access_token") || "",
@@ -1060,6 +1112,25 @@ export default function Dashboard({ user }) {
     })();
   }, [token]);
 
+  // CEFR level status (which levels are unlocked / passed / assessment-ready).
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/me/levels`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data && Array.isArray(data.levels)) {
+          const byLevel = {};
+          data.levels.forEach((l) => { byLevel[l.level] = l; });
+          setLevelInfo({ current_cefr: data.current_cefr || null, byLevel });
+        }
+      } catch {
+        /* levels are additive UI — failure shouldn't kill the page */
+      }
+    })();
+  }, [token]);
+
   const handleStart = (lesson) => lesson?.slug && navigate(`/lesson/${lesson.slug}`);
 
   const units = useMemo(() => {
@@ -1079,7 +1150,10 @@ export default function Dashboard({ user }) {
       }
       groups.get(key).items.push(l);
     });
-    return [...groups.values()].sort((a, b) => a.position - b.position);
+    const list = [...groups.values()].sort((a, b) => a.position - b.position);
+    // Tag each unit with the CEFR level of its lessons (they share one).
+    list.forEach((u) => { u.cefr = u.items[0]?.cefr || "A1"; });
+    return list;
   }, [lessons]);
 
   const totalLessons = lessons.length;
@@ -1166,16 +1240,24 @@ export default function Dashboard({ user }) {
             </div>
           ) : (
             <>
-              {units.map((unit, ui) => (
-                <CurriculumUnit
-                  key={unit.key}
-                  unit={unit}
-                  index={ui}
-                  isCurrent={unit.key === currentUnitKey}
-                  onStart={handleStart}
-                  onCheckpoint={openCheckpoint}
-                />
-              ))}
+              {units.map((unit, ui) => {
+                const prevCefr = ui > 0 ? units[ui - 1].cefr : null;
+                const showBand = unit.cefr !== prevCefr;
+                return (
+                  <React.Fragment key={unit.key}>
+                    {showBand ? (
+                      <LevelBand cefr={unit.cefr} info={levelInfo.byLevel[unit.cefr]} />
+                    ) : null}
+                    <CurriculumUnit
+                      unit={unit}
+                      index={ui}
+                      isCurrent={unit.key === currentUnitKey}
+                      onStart={handleStart}
+                      onCheckpoint={openCheckpoint}
+                    />
+                  </React.Fragment>
+                );
+              })}
               <CurriculumSummit pct={journeyPct} />
             </>
           )}
