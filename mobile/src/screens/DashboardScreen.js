@@ -229,6 +229,16 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView className="flex-1 bg-[#f5f4f1]" edges={['top']}>
+    {/* Static header — Duolingo's top stat bar never scrolls away with the
+        page content, it's pinned above the path. Lives outside the
+        FlatList (was previously inside ListHeaderComponent, which scrolls
+        with everything else). */}
+    <View className="flex-row items-center justify-between border-b border-stone-200/80 bg-[#f5f4f1] px-5 py-3">
+      <StatPip icon={Flame} color="#FF7A1A" value={stats.streak} animateFlame />
+      <StatPip icon={Gem} color="#1CB0F6" value={stats.gems ?? '–'} />
+      <StatPip icon={Zap} color="#E0A800" value={stats.totalXp} />
+      <StatPip icon={Heart} color="#FF4B4B" value={heartLabel} />
+    </View>
     <FlatList
       data={chapters}
       keyExtractor={(chapter, idx) => String(chapter.chapterId ?? idx)}
@@ -241,15 +251,6 @@ export default function DashboardScreen({ navigation }) {
       removeClippedSubviews
       ListHeaderComponent={
         <>
-          {/* Top stat row — slim inline pips directly on the background,
-              Duolingo's actual top-bar style, not a card grid. */}
-          <View className="mb-5 flex-row items-center justify-between px-1">
-            <StatPip icon={Flame} color="#FF7A1A" value={stats.streak} animateFlame />
-            <StatPip icon={Gem} color="#1CB0F6" value={stats.gems ?? '–'} />
-            <StatPip icon={Zap} color="#E0A800" value={stats.totalXp} />
-            <StatPip icon={Heart} color="#FF4B4B" value={heartLabel} />
-          </View>
-
           {/* Hero — the gradient is a pure absolute-fill background; the padded
               content View is what actually determines this box's height. Keeping
               the gradient decoupled from content sizing avoids a real layout bug
