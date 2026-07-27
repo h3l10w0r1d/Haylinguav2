@@ -1246,7 +1246,11 @@ export default function Dashboard({ user }) {
                 return (
                   <React.Fragment key={unit.key}>
                     {showBand ? (
-                      <LevelBand cefr={unit.cefr} info={levelInfo.byLevel[unit.cefr]} />
+                      <LevelBand
+                        cefr={unit.cefr}
+                        info={levelInfo.byLevel[unit.cefr]}
+                        onAssess={(lvl) => navigate(`/assessment/${lvl}`)}
+                      />
                     ) : null}
                     <CurriculumUnit
                       unit={unit}

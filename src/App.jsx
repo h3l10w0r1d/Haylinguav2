@@ -19,6 +19,7 @@ import { track } from './lib/analytics';
 // Code-split heavy routes so the initial bundle stays small.
 const Dashboard = lazy(() => import('./Dashboard'));
 const LessonPlayer = lazy(() => import('./LessonPlayer'));
+const AssessmentPlayer = lazy(() => import('./AssessmentPlayer'));
 const Premium = lazy(() => import('./Premium'));
 const Achievements = lazy(() => import('./Achievements'));
 const Shop = lazy(() => import('./Shop'));
@@ -610,6 +611,22 @@ function AppShell() {
             <RequireVerified>
               <RequireOnboarded>
                 <LessonPlayer />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* Level checkpoint test — full-screen, same guards as a lesson */}
+      <Route
+        path="/assessment/:level"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <AssessmentPlayer />
               </RequireOnboarded>
             </RequireVerified>
           ) : (

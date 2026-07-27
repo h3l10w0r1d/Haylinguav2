@@ -2827,6 +2827,11 @@ export default function ExerciseRenderer({
   submit,
   combo = 0,
   mascotCharacter = "armen",
+  // When false, grading stays entirely client-side: no attempt is POSTed, so
+  // no hearts are spent and no SRS state is written. Used by the level
+  // assessment, where re-answering already-learned material must not cost the
+  // learner hearts or disturb their review schedule.
+  persist = true,
 }) {
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
@@ -2850,14 +2855,16 @@ export default function ExerciseRenderer({
     const selectedIndices =
       payload?.selectedIndices ?? payload?.selected_indices ?? null;
 
-    const attempt = await postAttempt({
-      exerciseId: exercise.id,
-      isCorrect,
-      answerText,
-      selectedIndices,
-      msSpent: timeSpentMs,
-      combo,
-    });
+    const attempt = persist
+      ? await postAttempt({
+          exerciseId: exercise.id,
+          isCorrect,
+          answerText,
+          selectedIndices,
+          msSpent: timeSpentMs,
+          combo,
+        })
+      : null;
 
     // Server is authoritative: a forgiven typo comes back is_correct:true even
     // though the client graded it wrong. Trust the server verdict when present.
@@ -2867,16 +2874,18 @@ export default function ExerciseRenderer({
         : isCorrect;
     const isTypo = attempt?.typo === true;
 
-    await postExerciseLog({
-      exerciseId: exercise.id,
-      event: "answered",
-      payload: {
-        lesson_id: exercise.lesson_id,
-        kind: exercise.kind,
-        is_correct: isCorrect,
-        time_ms: timeSpentMs,
-      },
-    });
+    if (persist) {
+      await postExerciseLog({
+        exerciseId: exercise.id,
+        event: "answered",
+        payload: {
+          lesson_id: exercise.lesson_id,
+          kind: exercise.kind,
+          is_correct: isCorrect,
+          time_ms: timeSpentMs,
+        },
+      });
+    }
 
     // Trust server delta when we got a response (delta may legitimately be 0
     // for exercises already answered correctly before — no XP farming).
