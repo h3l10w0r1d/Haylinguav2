@@ -7,7 +7,7 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  X, Eye, EyeOff, Play, RotateCw, Loader2, Apple, Bell,
+  X, Eye, EyeOff, Play, RotateCw, Loader2, Bell,
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
@@ -119,17 +119,40 @@ function Reveal({ children, delay = 0, className = "" }) {
   );
 }
 
-// The Google Play "Play" triangle logo — the four brand-colored triangles
-// all meet at one interior point, matching the real mark's construction.
+// The Google Play "Play" triangle logo — four brand-colored wedges fanning
+// from one interior point, with the outer silhouette staying a true
+// notched triangle (Pu/Pl sit exactly on the L1–R / L2–R edges so the
+// outline doesn't bow out into a pinwheel).
 function GooglePlayGlyph({ className }) {
   return (
     <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
-      <g stroke="#000" strokeWidth="1.5" strokeLinejoin="round">
-        <polygon points="8,8 75,34 35,50" fill="#00C3FF" />
-        <polygon points="35,50 75,34 92,50" fill="#FFCE00" />
-        <polygon points="35,50 92,50 75,66" fill="#00E28A" />
-        <polygon points="35,50 75,66 8,92" fill="#FF3B5F" />
+      <g stroke="#000" strokeWidth="1.2" strokeLinejoin="round">
+        <polygon points="10,8 69,38.2 32,50" fill="#00C3FF" />
+        <polygon points="69,38.2 92,50 32,50" fill="#FFCE00" />
+        <polygon points="92,50 69,61.8 32,50" fill="#00E28A" />
+        <polygon points="69,61.8 10,92 32,50" fill="#FF3B5F" />
       </g>
+    </svg>
+  );
+}
+
+// A real Apple-mark silhouette (bite + leaf), built from overlapping
+// circles fused by shared fill and a masked-out bite — not a generic
+// outline apple.
+function AppleGlyph({ className }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
+      <mask id="appleBiteMask">
+        <rect width="100" height="100" fill="#fff" />
+        <circle cx="78" cy="42" r="16" fill="#000" />
+      </mask>
+      <g mask="url(#appleBiteMask)" fill="currentColor">
+        <circle cx="35" cy="35" r="20" />
+        <circle cx="60" cy="33" r="17" />
+        <circle cx="48" cy="60" r="30" />
+      </g>
+      <rect x="46" y="2" width="7" height="15" rx="3.5" fill="currentColor" transform="rotate(14 49.5 9.5)" />
+      <ellipse cx="59" cy="9" rx="11" ry="5.5" fill="currentColor" transform="rotate(-28 59 9)" />
     </svg>
   );
 }
@@ -1677,7 +1700,7 @@ export default function LandingPage({ onLogin, onSignup }) {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <div className="flex cursor-not-allowed items-center gap-2.5 rounded-2xl bg-slate-800 px-4 py-2.5 text-white opacity-60 dark:bg-white/10">
-                <Apple className="h-6 w-6 shrink-0" />
+                <AppleGlyph className="h-6 w-6 shrink-0" />
                 <div className="text-left leading-none">
                   <div className="text-[10px] font-semibold">Coming soon on the</div>
                   <div className="text-sm font-extrabold">App Store</div>
