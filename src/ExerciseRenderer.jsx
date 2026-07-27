@@ -2768,6 +2768,75 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
   );
 }
 
+// V0) inflect — produce the inflected form of a base word (case / tense /
+// person / definiteness). The core morphology drill: shows a base word and a
+// grammatical target, learner types the transformed form. Grades against the
+// expected form + accepted variants; on a miss it reveals the correct form so
+// the drill teaches, not just tests.
+function ExInflect({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit }) {
+  const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
+  const prompt = exercise?.prompt || "Change the word to the form shown";
+  const base = cfg.base ?? cfg.word ?? "";
+  const baseGloss = cfg.baseGloss ?? cfg.gloss ?? "";
+  const target = cfg.target ?? cfg.form ?? cfg.instruction ?? "";
+  const targetGloss = cfg.targetGloss ?? "";
+  const accepted = [
+    String(exercise?.expected_answer ?? "").trim(),
+    String(cfg.answer ?? "").trim(),
+    ...(Array.isArray(cfg.acceptedAnswers) ? cfg.acceptedAnswers : []),
+    ...(Array.isArray(cfg.answers) ? cfg.answers : []),
+  ].filter(Boolean);
+  const correctForm = accepted[0] || "";
+
+  const [value, setValue] = useState("");
+  useEffect(() => setValue(""), [exercise?.id]);
+  const canCheck = normalizeText(value).length > 0;
+
+  const check = () => {
+    const t = normalizeText(value);
+    const ok = accepted.some((a) => normalizeText(a) === t);
+    ok
+      ? correct({ answerText: value })
+      : wrong(correctForm ? `The correct form is «${correctForm}».` : "Not quite.", { answerText: value });
+  };
+
+  return (
+    <Card>
+      <Title>{prompt}</Title>
+
+      {/* base → target transform header */}
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-center">
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+          <div className="font-display text-2xl font-extrabold text-slate-800 dark:text-white">{base}</div>
+          {baseGloss ? <div className="mt-0.5 text-xs font-semibold text-slate-400 dark:text-stone-500">{baseGloss}</div> : null}
+        </div>
+        <span className="text-2xl font-black text-brand-400">→</span>
+        <div className="rounded-2xl border-2 border-dashed border-brand-300 px-4 py-3 dark:border-brand-500/40">
+          <div className="text-sm font-extrabold uppercase tracking-wide text-brand-600 dark:text-brand-400">{target || "?"}</div>
+          {targetGloss ? <div className="mt-0.5 text-xs font-semibold text-slate-400 dark:text-stone-500">{targetGloss}</div> : null}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && canCheck) check(); }}
+          placeholder="Type the form…"
+          autoComplete="off" autoCorrect="off" spellCheck={false}
+          className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-center text-xl font-extrabold text-slate-800 ring-2 ring-slate-200 transition focus:bg-white focus:outline-none focus:ring-brand-400 placeholder:text-base placeholder:font-semibold placeholder:text-slate-400 dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500"
+        />
+        <ArmenianKeyboard value={value} onChange={setValue} className="mt-3" />
+      </div>
+
+      <FooterSlot>
+        <PrimaryButton disabled={!canCheck} onClick={check}>Check</PrimaryButton>
+      </FooterSlot>
+    </Card>
+  );
+}
+
 // V) write_translate — open-ended writing (graded vs accepted answers)
 function ExWriteTranslate({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit, mascotCharacter = "armen" }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
@@ -3196,6 +3265,10 @@ export default function ExerciseRenderer({
   if (kind === "speak_line") {
     return <ExSpeakLine exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} apiBaseUrl={apiBaseUrl} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
   }
+  if (kind === "inflect") {
+    return <ExInflect exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} />;
+  }
+
   if (kind === "write_translate") {
     return <ExWriteTranslate exercise={exercise} cfg={cfg} onCorrect={onCorrect} onWrong={onWrong} onSkip={onSkip} onAnswer={onAnswer} submit={handleAnswer} mascotCharacter={mascotCharacter} />;
   }

@@ -2080,6 +2080,21 @@ def cms_seed_reading_a2(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/wordforms")
+def cms_seed_wordforms(request: Request, db=Depends(get_db)):
+    """Word Forms — first lessons on the new `inflect` exercise (produce the
+    inflected form): the definite article, verb present/past/future, and the
+    dative. Lessons tagged cefr=A2. One chapter (position 59). Idempotent
+    (skips if a2-form-article exists)."""
+    require_cms(request, db)
+    from seed_wordforms import seed_wordforms
+    try:
+        res = seed_wordforms()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
