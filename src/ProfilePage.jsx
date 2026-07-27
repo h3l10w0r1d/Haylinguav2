@@ -22,11 +22,13 @@ import {
   Share2,
   Award,
   Crown,
+  Wand2,
 } from "lucide-react";
 
 import { StarMotif } from "./lib/motifs";
 import ActivityChart from "./lib/ActivityChart";
 import AccountDangerZone from "./AccountDangerZone";
+import AvatarBuilder from "./AvatarBuilder";
 import av1 from "./assets/avatars/av1.png";
 import av2 from "./assets/avatars/av2.png";
 import av3 from "./assets/avatars/av3.png";
@@ -193,6 +195,7 @@ export default function ProfilePage() {
   const [avatarPresetUrl, setAvatarPresetUrl] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [showAvatarPresets, setShowAvatarPresets] = useState(false);
+  const [showAvatarBuilder, setShowAvatarBuilder] = useState(false);
 
   // Stats
   const [level, setLevel] = useState(1);
@@ -701,6 +704,21 @@ export default function ProfilePage() {
     }
   }
 
+  function handleAvatarBuilderSave(file) {
+    setShowAvatarPresets(false);
+    setShowAvatarBuilder(false);
+    setAvatarPresetUrl("");
+    setAvatarFile(file);
+    avatarTouchedRef.current = true;
+    const url = URL.createObjectURL(file);
+    if (avatarObjectUrlRef.current) {
+      try { URL.revokeObjectURL(avatarObjectUrlRef.current); } catch {}
+    }
+    avatarObjectUrlRef.current = url;
+    setAvatarPreview(url);
+    setMessage("Avatar created.");
+  }
+
   // Auto-persist avatar to backend when user picks a file/preset.
   // This fixes the common issue where avatar looks changed but isn't saved after refresh.
   useEffect(() => {
@@ -1037,6 +1055,9 @@ export default function ProfilePage() {
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={handleAvatarPick} className="btn3d btn3d-brand text-xs">
                   <ImageIcon className="h-4 w-4" /> Upload
+                </button>
+                <button type="button" onClick={() => setShowAvatarBuilder(true)} className="btn3d btn3d-neutral text-xs">
+                  <Wand2 className="h-4 w-4" /> Build an avatar
                 </button>
                 <span className="px-1 text-xs font-bold text-slate-400 dark:text-stone-500">or pick a preset</span>
                 {PRESET_AVATARS.map((url, idx) => {
@@ -2183,6 +2204,12 @@ export default function ProfilePage() {
       )}
 
       {tab === "security" && <AccountDangerZone />}
+
+      <AvatarBuilder
+        open={showAvatarBuilder}
+        onClose={() => setShowAvatarBuilder(false)}
+        onSave={handleAvatarBuilderSave}
+      />
 
       {!!message && (
         <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-lg">
