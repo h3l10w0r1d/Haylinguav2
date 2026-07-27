@@ -1,18 +1,24 @@
 // src/screens/auth/LoginScreen.js — email/password login against the real
-// backend (POST /login). 2FA / Turnstile / OAuth are out of scope for Phase 0
-// (see plan) — if the backend demands either, we surface a plain error asking
-// the user to use the web app for now instead of half-building those flows.
+// backend (POST /login). 2FA and OAuth stay out of scope for Phase 0 — if
+// the backend demands 2FA we surface a plain error pointing at the web app.
+// Turnstile is adaptive (mirrors src/AuthModal.jsx's needsCaptcha flow): a
+// normal login sends no token; only after the backend responds 403 with
+// detail.requires_captcha do we show the challenge and retry with a token.
 import React, { useState } from 'react';
 import { View, Text, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { api, ApiError } from '../../lib/api';
 import { useAuthStore } from '../../lib/authStore';
 import Pressable3D from '../../components/Pressable3D';
+import TurnstileChallenge from '../../components/TurnstileChallenge';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [needsCaptcha, setNeedsCaptcha] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
   const signIn = useAuthStore((s) => s.signIn);
 
   async function submit() {
@@ -21,16 +27,27 @@ export default function LoginScreen({ navigation }) {
       setError('Enter your email and password.');
       return;
     }
+    if (needsCaptcha && !turnstileToken) {
+      setError('Complete the security check below.');
+      return;
+    }
     setLoading(true);
     try {
-      const res = await api.post('/login', { email: email.trim(), password }, { auth: false });
+      const res = await api.post(
+        '/login',
+        { email: email.trim(), password, turnstile_token: needsCaptcha ? turnstileToken : null },
+        { auth: false }
+      );
       await signIn(res.access_token, res.email);
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.detail?.requires_2fa) {
           setError('This account has 2FA enabled — not supported in the app yet. Use haylingua.am to log in.');
         } else if (e.detail?.requires_captcha) {
-          setError('Too many attempts — please log in on haylingua.am to verify you’re human, then try the app again.');
+          setNeedsCaptcha(true);
+          setTurnstileToken(null);
+          setTurnstileKey((k) => k + 1);
+          setError('Security check required — complete the challenge below and try again.');
         } else if (e.detail?.locked) {
           setError(e.detail.message || 'Too many failed attempts. Try again later.');
         } else {
@@ -80,12 +97,16 @@ export default function LoginScreen({ navigation }) {
           className="mb-2 rounded-2xl bg-white px-4 py-3.5 text-base text-stone-900 ring-1 ring-stone-200"
         />
 
+        {needsCaptcha && (
+          <TurnstileChallenge key={turnstileKey} style={{ marginBottom: 12 }} onVerify={setTurnstileToken} />
+        )}
+
         {!!error && <Text className="mb-2 text-sm font-semibold text-cardinal-600">{error}</Text>}
 
         <Pressable3D
           onPress={submit}
-          disabled={loading}
-          className="mt-4 items-center rounded-2xl bg-brand-500 py-4"
+          disabled={loading || (needsCaptcha && !turnstileToken)}
+          className={'mt-4 items-center rounded-2xl py-4 ' + (needsCaptcha && !turnstileToken ? 'bg-stone-300' : 'bg-brand-500')}
         >
           {loading ? <ActivityIndicator color="#fff" /> : <Text className="text-base font-extrabold text-white">Log in</Text>}
         </Pressable3D>

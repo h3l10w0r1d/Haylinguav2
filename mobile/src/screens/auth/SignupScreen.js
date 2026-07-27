@@ -9,6 +9,7 @@ import { View, Text, TextInput, ActivityIndicator, ScrollView, KeyboardAvoidingV
 import { api, ApiError } from '../../lib/api';
 import { useAuthStore } from '../../lib/authStore';
 import Pressable3D from '../../components/Pressable3D';
+import TurnstileChallenge from '../../components/TurnstileChallenge';
 
 export default function SignupScreen({ navigation }) {
   const [username, setUsername] = useState('');
@@ -16,6 +17,8 @@ export default function SignupScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
   const signIn = useAuthStore((s) => s.signIn);
 
   async function submit() {
@@ -24,11 +27,14 @@ export default function SignupScreen({ navigation }) {
     try {
       const res = await api.post(
         '/signup',
-        { username: username.trim(), email: email.trim(), password },
+        { username: username.trim(), email: email.trim(), password, turnstile_token: turnstileToken },
         { auth: false }
       );
       await signIn(res.access_token, res.email);
     } catch (e) {
+      // A stale/expired token can't be reused — force a fresh challenge.
+      setTurnstileToken(null);
+      setTurnstileKey((k) => k + 1);
       if (e instanceof ApiError && e.detail?.errors) {
         setError(e.detail.errors.join(' '));
       } else if (e instanceof ApiError) {
@@ -86,9 +92,19 @@ export default function SignupScreen({ navigation }) {
             className="mb-2 rounded-2xl bg-white px-4 py-3.5 text-base text-stone-900 ring-1 ring-stone-200"
           />
 
+          <TurnstileChallenge
+            key={turnstileKey}
+            style={{ marginTop: 8 }}
+            onVerify={setTurnstileToken}
+          />
+
           {!!error && <Text className="mb-2 text-sm font-semibold text-cardinal-600">{error}</Text>}
 
-          <Pressable3D onPress={submit} disabled={loading} className="mt-4 items-center rounded-2xl bg-brand-500 py-4">
+          <Pressable3D
+            onPress={submit}
+            disabled={loading || !turnstileToken}
+            className={'mt-4 items-center rounded-2xl py-4 ' + (turnstileToken ? 'bg-brand-500' : 'bg-stone-300')}
+          >
             {loading ? <ActivityIndicator color="#fff" /> : <Text className="text-base font-extrabold text-white">Create account</Text>}
           </Pressable3D>
 

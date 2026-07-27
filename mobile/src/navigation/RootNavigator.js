@@ -17,6 +17,7 @@ import PracticeScreen from '../screens/PracticeScreen';
 import ReviewScreen from '../screens/ReviewScreen';
 import PlacementScreen from '../screens/PlacementScreen';
 import AssessmentScreen from '../screens/AssessmentScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -46,6 +47,10 @@ export default function RootNavigator() {
           </>
         ) : (
           <>
+            {/* Onboarding is the real entry point after sign-in — it checks
+                GET /me/onboarding itself and replaces straight to Main if
+                already completed, so returning users barely notice it. */}
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Lesson" component={LessonScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="LessonComplete" component={LessonCompleteScreen} options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
