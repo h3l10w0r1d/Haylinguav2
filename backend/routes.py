@@ -3960,9 +3960,12 @@ def record_exercise_attempt(
             )
             _award_weekly_xp(db, user_id, combo_bonus_xp)
 
-    # Reward a chest the FIRST time a lesson is completed (not on replays), so
-    # the gem economy can't be farmed by re-doing the same lesson.
-    chest_earned = bool(progress.get("completed")) and not was_completed
+    # Reward a chest with a 35% chance the FIRST time a lesson is completed
+    # (never on replays, so the gem economy can't be farmed by re-doing the
+    # same lesson) — mirrors Duolingo's own drop-chance chest mechanic
+    # rather than a guaranteed reward every time.
+    CHEST_DROP_CHANCE = 0.35
+    chest_earned = bool(progress.get("completed")) and not was_completed and random.random() < CHEST_DROP_CHANCE
     if chest_earned:
         db.execute(text("UPDATE users SET chests = COALESCE(chests, 0) + 1 WHERE id = :u"), {"u": user_id})
 

@@ -1,9 +1,10 @@
 // src/components/LessonPath.js — a winding column of circular lesson nodes,
 // Duolingo's actual skill-tree shape. No connecting line between nodes (real
 // Duolingo doesn't draw one — the zigzag offsets alone read as a path).
-// Chest milestone nodes are interleaved every 5 lessons, and the current
-// lesson gets a radial progress ring + a speech-bubble mascot card with
-// star-rating pips, matching Duolingo's actual home screen.
+// Chest milestone nodes are interleaved every 2-3 lessons (alternating, not
+// a flat modulo — Duolingo's own cadence isn't perfectly uniform either),
+// and the current lesson gets a radial progress ring + a speech-bubble
+// mascot card with star-rating pips, matching Duolingo's actual home screen.
 import React, { useEffect } from 'react';
 import { View, Text, Image } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -14,7 +15,8 @@ import Pressable3D from './Pressable3D';
 const NODE_SIZE = 64;
 const V_GAP = 92;
 const RING_SIZE = NODE_SIZE + 16;
-const CHEST_EVERY = 5;
+// Alternating 2-then-3 cadence between chest milestones, not a flat modulo.
+const CHEST_CADENCE = [2, 3];
 // Short repeating zigzag pattern (px offset from center), same silhouette
 // Duolingo's path uses without needing a literal sine curve.
 const OFFSETS = [0, 56, 84, 56, 0, -56, -84, -56];
@@ -150,13 +152,20 @@ export default function LessonPath({ lessons, onPressLesson }) {
 
   const centerX = PATH_WIDTH / 2 - NODE_SIZE / 2;
 
-  // Interleave a decorative chest every CHEST_EVERY lessons, using the
-  // zigzag's own next offset slot so it sits naturally in the winding path.
+  // Interleave a decorative chest on an alternating 2-3 lesson cadence,
+  // using the zigzag's own next offset slot so it sits naturally in the
+  // winding path.
   const items = [];
+  let sinceLastChest = 0;
+  let cadenceIdx = 0;
   lessons.forEach((lesson, i) => {
     items.push({ type: 'lesson', lesson });
-    if ((i + 1) % CHEST_EVERY === 0 && i < lessons.length - 1) {
+    sinceLastChest += 1;
+    const target = CHEST_CADENCE[cadenceIdx % CHEST_CADENCE.length];
+    if (sinceLastChest >= target && i < lessons.length - 1) {
       items.push({ type: 'chest', unlocked: lesson.status === 'completed' });
+      sinceLastChest = 0;
+      cadenceIdx += 1;
     }
   });
 

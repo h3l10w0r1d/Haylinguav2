@@ -761,6 +761,28 @@ function pathNodeCenter(i) {
   return { x: PATH_HALF_W + PATH_OFFSETS[i % PATH_OFFSETS.length], y: PATH_ROW_H / 2 + i * PATH_ROW_H };
 }
 
+// Interleaves a decorative chest milestone into the path on an alternating
+// 2-3 lesson cadence (not a flat modulo — Duolingo's own cadence isn't
+// perfectly uniform either), mirroring the mobile app's LessonPath.js.
+const CHEST_CADENCE = [2, 3];
+
+function buildPathItems(lessons) {
+  const items = [];
+  let sinceLastChest = 0;
+  let cadenceIdx = 0;
+  lessons.forEach((lesson, i) => {
+    items.push({ type: "lesson", lesson });
+    sinceLastChest += 1;
+    const target = CHEST_CADENCE[cadenceIdx % CHEST_CADENCE.length];
+    if (sinceLastChest >= target && i < lessons.length - 1) {
+      items.push({ type: "chest", unlocked: lesson.status === "completed" });
+      sinceLastChest = 0;
+      cadenceIdx += 1;
+    }
+  });
+  return items;
+}
+
 // A course can run hundreds of lessons across dozens of units — mounting
 // every unit's LearningPath (one absolutely-positioned node + button per
 // lesson, plus an SVG curve) all at once on load is what actually made the
@@ -848,6 +870,29 @@ function LearningPathNode({ lesson, index, onStart }) {
   );
 }
 
+// Purely decorative milestone marker — not clickable, chests are opened
+// from the dashboard's persistent chest card, not from the path itself.
+// Brown/lit if the lesson just before it is already completed, gray/dim
+// otherwise, same convention as mobile's ChestNode.
+function LearningPathChest({ index, unlocked }) {
+  const { x, y } = pathNodeCenter(index);
+  return (
+    <div className="absolute flex flex-col items-center" style={{ left: x - PATH_NODE / 2, top: y - PATH_NODE / 2, width: PATH_NODE }}>
+      <div
+        style={{ width: PATH_NODE, height: PATH_NODE }}
+        className={
+          "grid shrink-0 place-items-center rounded-full ring-2 " +
+          (unlocked
+            ? "bg-amber-50 ring-amber-300 dark:bg-amber-500/15 dark:ring-amber-500/40"
+            : "bg-stone-100 ring-stone-200 dark:bg-white/[0.06] dark:ring-white/10")
+        }
+      >
+        <Gift className={"h-6 w-6 " + (unlocked ? "text-amber-500" : "text-stone-300 dark:text-stone-600")} />
+      </div>
+    </div>
+  );
+}
+
 function LearningPathCheckpoint({ unit, complete, onCheckpoint, index }) {
   const { x, y } = pathNodeCenter(index);
   return (
@@ -875,7 +920,8 @@ function LearningPathCheckpoint({ unit, complete, onCheckpoint, index }) {
 }
 
 function LearningPath({ unit, onStart, onCheckpoint, complete }) {
-  const nodeCount = unit.items.length + 1; // + checkpoint node
+  const pathItems = useMemo(() => buildPathItems(unit.items), [unit.items]);
+  const nodeCount = pathItems.length + 1; // + checkpoint node
   const width = PATH_HALF_W * 2;
   const height = PATH_ROW_H * (nodeCount - 1) + PATH_ROW_H;
 
@@ -908,10 +954,14 @@ function LearningPath({ unit, onStart, onCheckpoint, complete }) {
           className="stroke-stone-300 dark:stroke-white/[0.14]"
         />
       </svg>
-      {unit.items.map((lesson, i) => (
-        <LearningPathNode key={lesson.id ?? lesson.slug} lesson={lesson} index={i} onStart={onStart} />
-      ))}
-      <LearningPathCheckpoint unit={unit} complete={complete} onCheckpoint={onCheckpoint} index={unit.items.length} />
+      {pathItems.map((item, i) =>
+        item.type === "chest" ? (
+          <LearningPathChest key={`chest-${i}`} index={i} unlocked={item.unlocked} />
+        ) : (
+          <LearningPathNode key={item.lesson.id ?? item.lesson.slug} lesson={item.lesson} index={i} onStart={onStart} />
+        )
+      )}
+      <LearningPathCheckpoint unit={unit} complete={complete} onCheckpoint={onCheckpoint} index={pathItems.length} />
     </div>
   );
 }
