@@ -2325,6 +2325,21 @@ def cms_seed_a2more(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/a2types")
+def cms_seed_a2types(request: Request, db=Depends(get_db)):
+    """A2 · Exercise Variety — lessons built around under-used kinds
+    (conjugation, inflect, highlight_grammar, categorize, listen_word_bank,
+    listen_image, write_translate, dialogue_order, multi_select). Idempotent
+    (skips if a2t-conj exists). Authored live via single-create."""
+    require_cms(request, db)
+    from seed_a2types import seed_a2types
+    try:
+        res = seed_a2types()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
