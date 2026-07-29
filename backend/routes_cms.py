@@ -2310,6 +2310,21 @@ def cms_seed_vocab(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/a2more")
+def cms_seed_a2more(request: Request, db=Depends(get_db)):
+    """A2 functional + grammar depth — about yourself, plurals & possessives,
+    asking questions, daily actions (63 exercises, established kinds).
+    Idempotent (skips if a2-self-intro exists). Also authored live via the CMS
+    bulk-import API."""
+    require_cms(request, db)
+    from seed_a2more import seed_a2more
+    try:
+        res = seed_a2more()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
