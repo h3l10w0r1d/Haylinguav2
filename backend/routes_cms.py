@@ -2514,6 +2514,44 @@ def cms_repetitive_mistakes(request: Request, db: Connection = Depends(get_db)):
     return {"count": len(items), "items": items}
 
 
+@router.get("/cms/review-queue")
+def cms_review_queue(request: Request, risk: Optional[str] = Query(None),
+                     db: Connection = Depends(get_db)):
+    """Machine-generated exercises the content engine flagged for a human
+    spot-check. Generated content is published immediately (so learners get
+    volume), but any exercise whose source sentence scored `medium` or `high`
+    grammatical risk carries `config.reviewRisk` and surfaces here, ordered
+    riskiest-first. This is the "reviewer flags, publish live, fix on signal"
+    gate; auto-hidden items live in /cms/exercises/repetitive-mistakes.
+    Pass ?risk=high to narrow the list."""
+    require_cms(request, db)
+    wanted = [risk] if risk in ("medium", "high") else ["high", "medium"]
+    rows = db.execute(
+        text("""
+            SELECT e.id, e.kind, e.prompt, e.config->>'reviewRisk' AS risk,
+                   l.id AS lesson_id, l.slug AS lesson_slug, l.title AS lesson_title,
+                   c.title AS chapter_title
+            FROM exercises e
+            LEFT JOIN lessons l ON l.id = e.lesson_id
+            LEFT JOIN chapters c ON c.id = l.chapter_id
+            WHERE COALESCE(e.auto_disabled, FALSE) = FALSE
+              AND e.config->>'reviewRisk' = ANY(:wanted)
+            ORDER BY CASE e.config->>'reviewRisk' WHEN 'high' THEN 0 ELSE 1 END,
+                     l.slug ASC, e."order" ASC
+        """),
+        {"wanted": wanted},
+    ).mappings().all()
+    items = [{
+        "id": r["id"], "kind": r["kind"], "prompt": r["prompt"], "risk": r["risk"],
+        "lesson_id": r["lesson_id"], "lesson_slug": r["lesson_slug"],
+        "lesson_title": r["lesson_title"], "chapter_title": r["chapter_title"],
+    } for r in rows]
+    by_risk = {}
+    for it in items:
+        by_risk[it["risk"]] = by_risk.get(it["risk"], 0) + 1
+    return {"count": len(items), "by_risk": by_risk, "items": items}
+
+
 @router.post("/cms/exercises/{exercise_id}/restore")
 def cms_restore_exercise(exercise_id: int, request: Request, db: Connection = Depends(get_db)):
     """Bring an auto-hidden exercise back into its lesson. It's marked immune so
