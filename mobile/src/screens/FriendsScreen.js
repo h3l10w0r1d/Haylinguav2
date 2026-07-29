@@ -9,7 +9,7 @@
 //    Mobile fakes it the same way web does: locally hiding the request from
 //    view (AsyncStorage-backed dismissed-id set) rather than a real cancel.
 import React, { useCallback, useState } from 'react';
-import { View, Text, TextInput, ActivityIndicator, ScrollView, RefreshControl, Alert, Image } from 'react-native';
+import { View, Text, TextInput, ActivityIndicator, ScrollView, FlatList, RefreshControl, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -302,104 +302,76 @@ export default function FriendsScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: 8 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {tab === 'friends' && (
-          <>
-            <View className="mb-4 flex-row items-center gap-2 rounded-2xl bg-white px-3 py-1" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Add by username or email"
-                placeholderTextColor="#a8a29e"
-                autoCapitalize="none"
-                className="flex-1 py-2.5 text-sm font-semibold text-stone-800"
-                onSubmitEditing={() => sendRequest()}
-              />
-              <Pressable3D onPress={() => sendRequest()} disabled={!query.trim() || sending} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-brand-500">
-                {sending ? <ActivityIndicator size="small" color="#fff" /> : <UserPlus size={16} color="#fff" />}
-              </Pressable3D>
-            </View>
-            {!!message && <Text className="mb-3 text-sm font-semibold text-stone-500">{message}</Text>}
-
-            {friends.length === 0 ? (
-              <View className="items-center py-16">
-                <Text className="text-base font-bold text-stone-400">No friends yet — add one above!</Text>
+      {/* Friends and Discover are FlatLists — both can genuinely grow large
+          (an active user's friend count, or the 50-item discover feed), so
+          windowing keeps off-screen rows (and their avatar image requests)
+          from ever mounting. Requests and Activity stay a plain ScrollView:
+          both are naturally small (a handful of pending requests, 7 days of
+          activity), so windowing them buys nothing but adds real complexity
+          (Requests in particular has two sub-lists with section labels). */}
+      {tab === 'friends' ? (
+        <FlatList
+          data={friends}
+          keyExtractor={(f) => String(f.user_id)}
+          contentContainerStyle={{ padding: 16, paddingTop: 8 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListHeaderComponent={
+            <>
+              <View className="mb-4 flex-row items-center gap-2 rounded-2xl bg-white px-3 py-1" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Add by username or email"
+                  placeholderTextColor="#a8a29e"
+                  autoCapitalize="none"
+                  className="flex-1 py-2.5 text-sm font-semibold text-stone-800"
+                  onSubmitEditing={() => sendRequest()}
+                />
+                <Pressable3D onPress={() => sendRequest()} disabled={!query.trim() || sending} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-brand-500">
+                  {sending ? <ActivityIndicator size="small" color="#fff" /> : <UserPlus size={16} color="#fff" />}
+                </Pressable3D>
               </View>
-            ) : (
-              friends.map((f) => (
-                <Row key={f.user_id} onPress={() => navigation.navigate('PublicProfile', { username: f.username })} style={{ alignItems: 'flex-start' }}>
-                  <Avatar name={f.name || f.username} avatarUrl={f.avatar_url} size={48} isPremium={f.is_premium} />
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{f.name || f.username}</Text>
-                    <StatChips level={f.level} xp={f.xp} streak={f.streak} />
-                  </View>
-                  <Pressable3D onPress={() => confirmRemove(f)} pressDepth={2} className="h-8 w-8 items-center justify-center rounded-full bg-stone-100">
-                    <XIcon size={14} color="#a8a29e" />
-                  </Pressable3D>
-                </Row>
-              ))
-            )}
-          </>
-        )}
-
-        {tab === 'requests' && (
-          <>
-            <Text className="mb-2 text-xs font-extrabold uppercase tracking-wide text-stone-400">Incoming</Text>
-            {incoming.length === 0 ? (
-              <Text className="mb-4 text-sm font-semibold text-stone-400">No incoming requests.</Text>
-            ) : (
-              incoming.map((r) => (
-                <Row key={r.id}>
-                  <Avatar name={r.requester_name || r.requester_email} avatarUrl={r.avatar_url} size={48} isPremium={r.is_premium} />
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.requester_name || r.requester_email}</Text>
-                    <Text className="text-xs font-semibold text-stone-400">Wants to be friends · {timeAgo(r.created_at)}</Text>
-                  </View>
-                  <Pressable3D onPress={() => accept(r.id)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-grass-500">
-                    <Check size={16} color="#fff" />
-                  </Pressable3D>
-                  <Pressable3D onPress={() => reject(r.id)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
-                    <XIcon size={16} color="#57534e" />
-                  </Pressable3D>
-                </Row>
-              ))
-            )}
-
-            <Text className="mb-2 mt-4 text-xs font-extrabold uppercase tracking-wide text-stone-400">Sent</Text>
-            {visibleSent.length === 0 ? (
-              <Text className="text-sm font-semibold text-stone-400">No pending sent requests.</Text>
-            ) : (
-              visibleSent.map((r) => (
-                <Row key={r.id}>
-                  <Avatar name={r.addressee_name || r.addressee_email} avatarUrl={r.addressee_avatar_url} size={48} isPremium={r.addressee_is_premium} />
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.addressee_name || r.addressee_email}</Text>
-                    <Text className="text-xs font-semibold text-stone-400">Requested · {timeAgo(r.created_at)}</Text>
-                  </View>
-                  <Pressable3D onPress={() => dismissSent(r.id)} pressDepth={2} className="rounded-full bg-stone-100 px-3 py-1.5">
-                    <Text className="text-xs font-bold text-stone-500">Cancel</Text>
-                  </Pressable3D>
-                </Row>
-              ))
-            )}
-          </>
-        )}
-
-        {tab === 'discover' && (
-          discover === null ? (
-            <ActivityIndicator color="#FF7A1A" style={{ marginTop: 24 }} />
-          ) : discover.length === 0 ? (
+              {!!message && <Text className="mb-3 text-sm font-semibold text-stone-500">{message}</Text>}
+            </>
+          }
+          ListEmptyComponent={
             <View className="items-center py-16">
-              <Text className="text-base font-bold text-stone-400">No suggestions right now.</Text>
+              <Text className="text-base font-bold text-stone-400">No friends yet — add one above!</Text>
             </View>
-          ) : (
-            discover.map((p) => {
+          }
+          renderItem={({ item: f }) => (
+            <Row onPress={() => navigation.navigate('PublicProfile', { username: f.username })} style={{ alignItems: 'flex-start' }}>
+              <Avatar name={f.name || f.username} avatarUrl={f.avatar_url} size={48} isPremium={f.is_premium} />
+              <View className="min-w-0 flex-1">
+                <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{f.name || f.username}</Text>
+                <StatChips level={f.level} xp={f.xp} streak={f.streak} />
+              </View>
+              <Pressable3D onPress={() => confirmRemove(f)} pressDepth={2} className="h-8 w-8 items-center justify-center rounded-full bg-stone-100">
+                <XIcon size={14} color="#a8a29e" />
+              </Pressable3D>
+            </Row>
+          )}
+        />
+      ) : tab === 'discover' ? (
+        discover === null ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator color="#FF7A1A" />
+          </View>
+        ) : (
+          <FlatList
+            data={discover}
+            keyExtractor={(p) => String(p.user_id)}
+            contentContainerStyle={{ padding: 16, paddingTop: 8 }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            ListEmptyComponent={
+              <View className="items-center py-16">
+                <Text className="text-base font-bold text-stone-400">No suggestions right now.</Text>
+              </View>
+            }
+            renderItem={({ item: p }) => {
               const { state } = getFriendshipState(p.user_id, { friends, incoming, sent: visibleSent });
               return (
-                <Row key={p.user_id} onPress={() => p.username && navigation.navigate('PublicProfile', { username: p.username })} style={{ alignItems: 'flex-start' }}>
+                <Row onPress={() => p.username && navigation.navigate('PublicProfile', { username: p.username })} style={{ alignItems: 'flex-start' }}>
                   <Avatar name={p.name || p.username} avatarUrl={p.avatar_url} size={48} isPremium={p.is_premium} />
                   <View className="min-w-0 flex-1">
                     <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{p.name || p.username}</Text>
@@ -431,37 +403,85 @@ export default function FriendsScreen({ navigation }) {
                   )}
                 </Row>
               );
-            })
-          )
-        )}
+            }}
+          />
+        )
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingTop: 8 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          {tab === 'requests' && (
+            <>
+              <Text className="mb-2 text-xs font-extrabold uppercase tracking-wide text-stone-400">Incoming</Text>
+              {incoming.length === 0 ? (
+                <Text className="mb-4 text-sm font-semibold text-stone-400">No incoming requests.</Text>
+              ) : (
+                incoming.map((r) => (
+                  <Row key={r.id}>
+                    <Avatar name={r.requester_name || r.requester_email} avatarUrl={r.avatar_url} size={48} isPremium={r.is_premium} />
+                    <View className="min-w-0 flex-1">
+                      <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.requester_name || r.requester_email}</Text>
+                      <Text className="text-xs font-semibold text-stone-400">Wants to be friends · {timeAgo(r.created_at)}</Text>
+                    </View>
+                    <Pressable3D onPress={() => accept(r.id)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-grass-500">
+                      <Check size={16} color="#fff" />
+                    </Pressable3D>
+                    <Pressable3D onPress={() => reject(r.id)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
+                      <XIcon size={16} color="#57534e" />
+                    </Pressable3D>
+                  </Row>
+                ))
+              )}
 
-        {tab === 'activity' && (
-          activity === null ? (
-            <ActivityIndicator color="#FF7A1A" style={{ marginTop: 24 }} />
-          ) : activity.length === 0 ? (
-            <View className="items-center py-16">
-              <UsersIcon size={28} color="#d6d3d1" />
-              <Text className="mt-2 text-base font-bold text-stone-400">No recent activity from friends.</Text>
-            </View>
-          ) : (
-            activity.map((a, i) => (
-              <Row key={`${a.friend_id}-${a.completed_at}-${i}`} onPress={() => a.username && navigation.navigate('PublicProfile', { username: a.username })}>
-                <Avatar name={a.name} avatarUrl={a.avatar_url} size={48} isPremium={a.is_premium} />
-                <View className="min-w-0 flex-1">
-                  <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>
-                    {a.name} finished "{a.lesson_title}"
-                  </Text>
-                  <Text className="text-xs font-semibold text-stone-400">{timeAgo(a.completed_at)}</Text>
-                </View>
-                <View className="flex-row items-center gap-1 rounded-lg bg-gold-50 px-2.5 py-1.5">
-                  <Star size={12} color="#E0A800" />
-                  <Text className="text-xs font-extrabold text-gold-700">+{a.xp_earned}</Text>
-                </View>
-              </Row>
-            ))
-          )
-        )}
-      </ScrollView>
+              <Text className="mb-2 mt-4 text-xs font-extrabold uppercase tracking-wide text-stone-400">Sent</Text>
+              {visibleSent.length === 0 ? (
+                <Text className="text-sm font-semibold text-stone-400">No pending sent requests.</Text>
+              ) : (
+                visibleSent.map((r) => (
+                  <Row key={r.id}>
+                    <Avatar name={r.addressee_name || r.addressee_email} avatarUrl={r.addressee_avatar_url} size={48} isPremium={r.addressee_is_premium} />
+                    <View className="min-w-0 flex-1">
+                      <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.addressee_name || r.addressee_email}</Text>
+                      <Text className="text-xs font-semibold text-stone-400">Requested · {timeAgo(r.created_at)}</Text>
+                    </View>
+                    <Pressable3D onPress={() => dismissSent(r.id)} pressDepth={2} className="rounded-full bg-stone-100 px-3 py-1.5">
+                      <Text className="text-xs font-bold text-stone-500">Cancel</Text>
+                    </Pressable3D>
+                  </Row>
+                ))
+              )}
+            </>
+          )}
+
+          {tab === 'activity' && (
+            activity === null ? (
+              <ActivityIndicator color="#FF7A1A" style={{ marginTop: 24 }} />
+            ) : activity.length === 0 ? (
+              <View className="items-center py-16">
+                <UsersIcon size={28} color="#d6d3d1" />
+                <Text className="mt-2 text-base font-bold text-stone-400">No recent activity from friends.</Text>
+              </View>
+            ) : (
+              activity.map((a, i) => (
+                <Row key={`${a.friend_id}-${a.completed_at}-${i}`} onPress={() => a.username && navigation.navigate('PublicProfile', { username: a.username })}>
+                  <Avatar name={a.name} avatarUrl={a.avatar_url} size={48} isPremium={a.is_premium} />
+                  <View className="min-w-0 flex-1">
+                    <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>
+                      {a.name} finished "{a.lesson_title}"
+                    </Text>
+                    <Text className="text-xs font-semibold text-stone-400">{timeAgo(a.completed_at)}</Text>
+                  </View>
+                  <View className="flex-row items-center gap-1 rounded-lg bg-gold-50 px-2.5 py-1.5">
+                    <Star size={12} color="#E0A800" />
+                    <Text className="text-xs font-extrabold text-gold-700">+{a.xp_earned}</Text>
+                  </View>
+                </Row>
+              ))
+            )
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

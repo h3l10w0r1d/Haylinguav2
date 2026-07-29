@@ -1,5 +1,6 @@
 # backend/routes.py
 import os
+import io
 import json
 import re
 import unicodedata
@@ -8246,6 +8247,34 @@ def me_2fa_disable(
     return {"ok": True}
 
 
+_AVATAR_MAX_DIM = 512  # avatars only ever render in a 40-76px circle client-side
+
+
+def _resize_avatar_image(content: bytes, ext: str) -> bytes:
+    """Downscale an uploaded avatar to _AVATAR_MAX_DIM on its longest side —
+    phone photo-library picks routinely come in at multi-megapixel
+    resolution, and serving that untouched to render into a ~40-76px circle
+    was the single biggest contributor to slow avatar loads on mobile."""
+    from PIL import Image as PILImage, ImageOps
+
+    try:
+        img = PILImage.open(io.BytesIO(content))
+        img = ImageOps.exif_transpose(img)  # bake in phone-camera orientation
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not read image file")
+
+    fmt = {".png": "PNG", ".jpg": "JPEG", ".webp": "WEBP"}[ext]
+    if fmt == "JPEG" and img.mode in ("RGBA", "P", "LA"):
+        img = img.convert("RGB")
+
+    img.thumbnail((_AVATAR_MAX_DIM, _AVATAR_MAX_DIM), PILImage.Resampling.LANCZOS)
+
+    out = io.BytesIO()
+    save_kwargs = {"quality": 85, "optimize": True} if fmt in ("JPEG", "WEBP") else {}
+    img.save(out, format=fmt, **save_kwargs)
+    return out.getvalue()
+
+
 @router.post("/me/avatar")
 def me_avatar_upload(
     file: UploadFile = File(...),
@@ -8298,15 +8327,19 @@ def me_avatar_upload(
     filename = f"u{int(user_id)}_{uuid.uuid4().hex}{ext}"
     path = os.path.join(avatar_dir, filename)
 
-    # Save to disk
+    # Save to disk — downscaled. Uploads come straight from a phone's photo
+    # picker (multi-megapixel originals) but are only ever displayed in a
+    # 40-76px circle; serving them full-size was the single biggest
+    # contributor to slow avatar loads on mobile.
     try:
         content = file.file.read()
         if content is None or len(content) == 0:
             raise HTTPException(status_code=400, detail="Empty file")
         if len(content) > 5 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="Avatar too large (max 5MB)")
+        resized = _resize_avatar_image(content, ext)
         with open(path, "wb") as f:
-            f.write(content)
+            f.write(resized)
     finally:
         try:
             file.file.close()

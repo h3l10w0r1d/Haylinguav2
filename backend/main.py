@@ -16,6 +16,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from middleware.rate_limit import RateLimitMiddleware
 
+
+class CachedStaticFiles(StaticFiles):
+    """StaticFiles with a long-lived Cache-Control header. Every upload gets
+    a fresh UUID-based filename (never reused/overwritten in place), so a
+    URL's content never changes once served — safe to cache aggressively
+    and skip re-fetching on every mount, unlike the no-cache-header default
+    that was making mobile re-download the same avatar repeatedly."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
 from routes import router as api_router, _prune_stale_tts_cache
 from routes_cms import router as cms_router  # CMS ("Content Studio") admin routes
 from routes_social import router as social_router  # Friends, leaderboard, public profiles
@@ -164,7 +177,7 @@ except PermissionError:
     AVATAR_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "avatars")
     os.makedirs(AVATAR_UPLOAD_DIR, exist_ok=True)
 
-app.mount("/static/avatars", StaticFiles(directory=AVATAR_UPLOAD_DIR), name="avatars")
+app.mount("/static/avatars", CachedStaticFiles(directory=AVATAR_UPLOAD_DIR), name="avatars")
 
 # Serve uploaded banners from disk (custom banners).
 # Preset banners can be shipped by the frontend and stored as "/banners/...".
