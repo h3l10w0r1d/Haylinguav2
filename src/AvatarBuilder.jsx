@@ -257,9 +257,9 @@ export default function AvatarBuilder({ open, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 sm:p-4" onClick={onClose}>
       <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-[#18181b]"
+        className="flex h-full w-full max-w-2xl flex-col overflow-hidden bg-white dark:bg-[#18181b] sm:h-auto sm:max-h-[90vh] sm:rounded-3xl sm:shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-white/[0.08]">
