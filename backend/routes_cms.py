@@ -2354,6 +2354,20 @@ def cms_seed_a2travel(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/a2speak")
+def cms_seed_a2speak(request: Request, db=Depends(get_db)):
+    """A2 · Speaking — spoken production (greetings, about yourself, everyday
+    phrases) via the speak kind. Idempotent (skips if a2-speak-greet exists).
+    Authored live via single-create."""
+    require_cms(request, db)
+    from seed_a2speak import seed_a2speak
+    try:
+        res = seed_a2speak()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
