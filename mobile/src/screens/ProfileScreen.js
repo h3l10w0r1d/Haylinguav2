@@ -10,7 +10,7 @@
 // bookkeeping to decide whether to include avatar_url/banner_url in the
 // PUT /me/profile body; those two fields never go through that call here.
 import React, { useCallback, useState } from 'react';
-import { View, Text, Image, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, Image, ActivityIndicator, ScrollView, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -97,13 +97,24 @@ export default function ProfileScreen({ navigation }) {
     setProfile((p) => (p ? { ...p, ...patch } : p));
   }
 
-  async function pickAvatar() {
+  async function uploadPickedAvatar() {
     if (uploadingAvatar) return;
     setUploadingAvatar(true);
     await pickAndUpload('/me/avatar', (res) => {
       if (res?.avatar_url) patchProfile({ avatar_url: res.avatar_url });
       setUploadingAvatar(false);
     });
+  }
+
+  // Offers the same choice web gives on the avatar picker: build a
+  // Duolingo-style cartoon avatar (AvatarBuilderScreen) or upload a photo.
+  function pickAvatar() {
+    if (uploadingAvatar) return;
+    Alert.alert('Change avatar', undefined, [
+      { text: 'Build an avatar', onPress: () => navigation.navigate('AvatarBuilder') },
+      { text: 'Choose a photo', onPress: uploadPickedAvatar },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   if (loading) {

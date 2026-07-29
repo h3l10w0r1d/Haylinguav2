@@ -18,6 +18,7 @@ import ReviewScreen from '../screens/ReviewScreen';
 import PlacementScreen from '../screens/PlacementScreen';
 import AssessmentScreen from '../screens/AssessmentScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import AvatarBuilderScreen from '../screens/AvatarBuilderScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -60,6 +61,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Review" component={ReviewScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="Placement" component={PlacementScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="Assessment" component={AssessmentScreen} options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="AvatarBuilder" component={AvatarBuilderScreen} options={{ presentation: 'fullScreenModal' }} />
           </>
         )}
       </Stack.Navigator>
