@@ -3702,6 +3702,8 @@ _BULK_IMPORT_KNOWN_KINDS = {
     "sentence_order", "word_bank", "listen_word_bank", "dialogue_order",
     "char_build_word",
     "match_pairs",
+    # Newer kinds — all now handled by grading.grade_attempt.
+    "inflect", "trace_letter", "listen_image", "story", "radio",
 }
 
 

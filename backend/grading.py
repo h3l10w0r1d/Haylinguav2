@@ -32,7 +32,10 @@ _ODD_SPACE_RE = re.compile("[   ]")
 _WS_RE = re.compile(r"\s+")
 
 # Kinds that are pure information cards with no gradable answer.
-_INFO_KINDS = {"char_intro", "reading_section", "flashcard"}
+# Kinds with no server-verifiable answer — informational or client-graded (a
+# handwriting trace is judged by on-canvas pixel coverage in the browser and
+# can't be re-derived here), so the server accepts the attempt as complete.
+_INFO_KINDS = {"char_intro", "reading_section", "flashcard", "trace_letter"}
 
 
 def norm_text(x: Any) -> str:
@@ -279,7 +282,7 @@ def grade_attempt(
 
     # Free-text input (incl. dictation, and open-ended writing graded against a
     # teacher-provided set of acceptable answers).
-    if kind in ("letter_typing", "word_spelling", "fill_blank", "listen_type", "write_translate"):
+    if kind in ("letter_typing", "word_spelling", "fill_blank", "listen_type", "write_translate", "inflect"):
         expected = _expected_text_answers(cfg, expected_answer)
         if not expected:
             return False
@@ -404,6 +407,7 @@ def grade_attempt(
     if kind in (
         "translate_mcq", "char_mcq_sound", "audio_choice_tts", "multiple_choice", "select_missing_word",
         "dialogue_mcq", "image_select", "reading_comprehension", "minimal_pairs",
+        "listen_image", "story",
     ):
         return _grade_single_choice(options, cfg, expected_answer, sel, answer_text)
 
@@ -464,6 +468,25 @@ def grade_attempt(
             else:
                 return False
         return True
+
+    # Multi-segment listening (DuoRadio-style): the learner picks one option per
+    # segment; selected_indices carries those picks in order. Pass at >=60% of
+    # segments correct (matches the client's ceil(0.6 * M) threshold).
+    if kind == "radio":
+        segs = cfg.get("segments")
+        if not isinstance(segs, list) or not segs:
+            return False
+        hit = 0
+        for i, seg in enumerate(segs):
+            ai = seg.get("answerIndex", 0) if isinstance(seg, dict) else 0
+            try:
+                ai = int(ai)
+            except (TypeError, ValueError):
+                ai = 0
+            if i < len(sel) and sel[i] == ai:
+                hit += 1
+        need = (len(segs) * 3 + 4) // 5  # ceil(0.6 * len)
+        return hit >= need
 
     # Unknown / unverifiable kind -> never award credit.
     return False
