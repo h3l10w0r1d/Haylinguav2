@@ -14,7 +14,7 @@ import { View, Text, Image, ActivityIndicator, ScrollView, RefreshControl, Alert
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
-import { Camera, Globe, EyeOff, Star, Zap, Flame, User, Pencil, Palette, ShieldCheck } from 'lucide-react-native';
+import { Camera, Globe, EyeOff, Star, Zap, Flame, User, Pencil, Palette, ShieldCheck, Wand2 } from 'lucide-react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { api, resolveUrl } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
@@ -159,6 +159,15 @@ export default function ProfileScreen({ navigation }) {
               <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full bg-stone-800">
                 <Camera size={12} color="#fff" />
               </View>
+            </Pressable3D>
+            <Pressable3D
+              onPress={() => navigation.navigate('AvatarBuilder')}
+              pressDepth={2}
+              className="mt-2 flex-row items-center gap-1.5 rounded-full bg-white px-3 py-1.5"
+              style={{ borderWidth: 1, borderColor: '#e7e5e4' }}
+            >
+              <Wand2 size={12} color="#FF7A1A" />
+              <Text className="text-xs font-extrabold text-stone-700">Build an avatar</Text>
             </Pressable3D>
             <Text className="mt-2 text-lg font-extrabold text-stone-900 font-display">{displayName}</Text>
             {!!profile?.username && <Text className="text-sm font-semibold text-stone-400">@{profile.username}</Text>}

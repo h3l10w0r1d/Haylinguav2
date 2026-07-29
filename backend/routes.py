@@ -1,5 +1,6 @@
 # backend/routes.py
 import os
+import io
 import json
 import re
 import unicodedata
@@ -8271,6 +8272,34 @@ def me_2fa_disable(
     return {"ok": True}
 
 
+_AVATAR_MAX_DIM = 512  # avatars only ever render in a 40-76px circle client-side
+
+
+def _resize_avatar_image(content: bytes, ext: str) -> bytes:
+    """Downscale an uploaded avatar to _AVATAR_MAX_DIM on its longest side —
+    phone photo-library picks routinely come in at multi-megapixel
+    resolution, and serving that untouched to render into a ~40-76px circle
+    was the single biggest contributor to slow avatar loads on mobile."""
+    from PIL import Image as PILImage, ImageOps
+
+    try:
+        img = PILImage.open(io.BytesIO(content))
+        img = ImageOps.exif_transpose(img)  # bake in phone-camera orientation
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not read image file")
+
+    fmt = {".png": "PNG", ".jpg": "JPEG", ".webp": "WEBP"}[ext]
+    if fmt == "JPEG" and img.mode in ("RGBA", "P", "LA"):
+        img = img.convert("RGB")
+
+    img.thumbnail((_AVATAR_MAX_DIM, _AVATAR_MAX_DIM), PILImage.Resampling.LANCZOS)
+
+    out = io.BytesIO()
+    save_kwargs = {"quality": 85, "optimize": True} if fmt in ("JPEG", "WEBP") else {}
+    img.save(out, format=fmt, **save_kwargs)
+    return out.getvalue()
+
+
 @router.post("/me/avatar")
 def me_avatar_upload(
     file: UploadFile = File(...),
@@ -8323,20 +8352,112 @@ def me_avatar_upload(
     filename = f"u{int(user_id)}_{uuid.uuid4().hex}{ext}"
     path = os.path.join(avatar_dir, filename)
 
-    # Save to disk
+    # Save to disk — downscaled. Uploads come straight from a phone's photo
+    # picker (multi-megapixel originals) but are only ever displayed in a
+    # 40-76px circle; serving them full-size was the single biggest
+    # contributor to slow avatar loads on mobile.
     try:
         content = file.file.read()
         if content is None or len(content) == 0:
             raise HTTPException(status_code=400, detail="Empty file")
         if len(content) > 5 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="Avatar too large (max 5MB)")
+        resized = _resize_avatar_image(content, ext)
         with open(path, "wb") as f:
-            f.write(content)
+            f.write(resized)
     finally:
         try:
             file.file.close()
         except Exception:
             pass
+
+    avatar_url = f"/static/avatars/{filename}"
+    db.execute(
+        text("UPDATE users SET avatar_url = :url WHERE id = :id"),
+        {"url": avatar_url, "id": int(user_id)},
+    )
+
+    return {"avatar_url": avatar_url}
+
+
+class AvatarFromSvgIn(BaseModel):
+    svg: str
+
+
+@router.post("/me/avatar/from-svg")
+def me_avatar_from_svg(
+    payload: AvatarFromSvgIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Rasterize a client-generated avatar SVG (the DiceBear avataaars
+    builder — web rasterizes via <canvas> before uploading through
+    /me/avatar; mobile has no Canvas, so it POSTs the raw SVG here instead
+    and the same rasterize-then-store step happens server-side). Same
+    storage/response shape as /me/avatar so both clients treat the result
+    identically.
+    """
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    _require_verified(db, int(user_id))
+
+    svg = (payload.svg or "").strip()
+    if not svg:
+        raise HTTPException(status_code=400, detail="Empty SVG")
+    if len(svg) > 40_000:
+        raise HTTPException(status_code=400, detail="SVG too large")
+    if "<svg" not in svg[:200]:
+        raise HTTPException(status_code=400, detail="Not an SVG document")
+
+    import cairosvg
+
+    try:
+        # unsafe=False (the default) is load-bearing: it blocks cairosvg
+        # from resolving external resource references (e.g. a crafted
+        # <image xlink:href="http://...">), which would otherwise turn
+        # this into an SSRF primitive against an authenticated endpoint
+        # that accepts arbitrary attacker-supplied SVG text.
+        png_bytes = cairosvg.svg2png(
+            bytestring=svg.encode("utf-8"),
+            output_width=320,
+            output_height=320,
+            unsafe=False,
+        )
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not render SVG")
+
+    def _pick_uploads_dir() -> str:
+        candidates = []
+        env = os.getenv("UPLOADS_DIR")
+        if env:
+            candidates.append(env)
+        candidates.append("/var/data/uploads")
+        candidates.append("uploads")
+        for p in candidates:
+            try:
+                os.makedirs(p, exist_ok=True)
+            except PermissionError:
+                continue
+            except OSError:
+                continue
+            if os.access(p, os.W_OK):
+                return p
+        return "uploads"
+
+    uploads_dir = _pick_uploads_dir()
+    avatar_dir = os.path.join(uploads_dir, "avatars")
+    try:
+        os.makedirs(avatar_dir, exist_ok=True)
+    except PermissionError:
+        avatar_dir = os.path.join("uploads", "avatars")
+        os.makedirs(avatar_dir, exist_ok=True)
+
+    filename = f"u{int(user_id)}_{uuid.uuid4().hex}.png"
+    path = os.path.join(avatar_dir, filename)
+    with open(path, "wb") as f:
+        f.write(png_bytes)
 
     avatar_url = f"/static/avatars/{filename}"
     db.execute(

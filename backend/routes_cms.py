@@ -2309,6 +2309,109 @@ def cms_seed_free(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/vocab")
+def cms_seed_vocab(request: Request, db=Depends(get_db)):
+    """A2 vocabulary at scale — a verified base-word bank across ~42 everyday
+    domains expanded into ~1,900 exercises (match, translate both ways,
+    listen-and-type, pick-the-image, true/false). Established kinds only.
+    Idempotent (skips if voc-animals-1 exists). Also authored live via the CMS
+    bulk-import API; this generator is the reproducible record."""
+    require_cms(request, db)
+    from seed_vocab import seed_vocab
+    try:
+        res = seed_vocab()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/a2more")
+def cms_seed_a2more(request: Request, db=Depends(get_db)):
+    """A2 functional + grammar depth — about yourself, plurals & possessives,
+    asking questions, daily actions (63 exercises, established kinds).
+    Idempotent (skips if a2-self-intro exists). Also authored live via the CMS
+    bulk-import API."""
+    require_cms(request, db)
+    from seed_a2more import seed_a2more
+    try:
+        res = seed_a2more()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/a2types")
+def cms_seed_a2types(request: Request, db=Depends(get_db)):
+    """A2 · Exercise Variety — lessons built around under-used kinds
+    (conjugation, inflect, highlight_grammar, categorize, listen_word_bank,
+    listen_image, write_translate, dialogue_order, multi_select). Idempotent
+    (skips if a2t-conj exists). Authored live via single-create."""
+    require_cms(request, db)
+    from seed_a2types import seed_a2types
+    try:
+        res = seed_a2types()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/a2travel")
+def cms_seed_a2travel(request: Request, db=Depends(get_db)):
+    """A2 · Travel, Communication & Stories — airport/hotel/tickets, phone/help,
+    and past-tense storytelling. Mixed kinds incl. inflect + listen_image.
+    Idempotent (skips if a2-travel-airport exists). Authored live via single-create."""
+    require_cms(request, db)
+    from seed_a2travel import seed_a2travel
+    try:
+        res = seed_a2travel()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/a2speak")
+def cms_seed_a2speak(request: Request, db=Depends(get_db)):
+    """A2 · Speaking — spoken production (greetings, about yourself, everyday
+    phrases) via the speak kind. Idempotent (skips if a2-speak-greet exists).
+    Authored live via single-create."""
+    require_cms(request, db)
+    from seed_a2speak import seed_a2speak
+    try:
+        res = seed_a2speak()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/b1-1")
+def cms_seed_b1_1(request: Request, db=Depends(get_db)):
+    """B1 roadmap opener — opinions, reasons & contrast, relative clauses,
+    hopes & plans, and the past in detail (imperfect + past perfect). 5 chapters
+    / 10 lessons, cefr=B1 (gated behind the A2 assessment). Idempotent (skips if
+    b1-opinion-express exists). Authored live via single-create."""
+    require_cms(request, db)
+    from seed_b1_1 import seed_b1_1
+    try:
+        res = seed_b1_1()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
+@router.post("/cms/seed/trace-all")
+def cms_seed_trace_all(request: Request, db=Depends(get_db)):
+    """Give every alphabet letter a handwriting step: appends a trace_letter
+    for each of the 39 letters to the hl-alphabet lesson that teaches it.
+    Idempotent (skips letters already traced). Also authored live via the API."""
+    require_cms(request, db)
+    from seed_trace_all import seed_trace_all
+    try:
+        res = seed_trace_all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")

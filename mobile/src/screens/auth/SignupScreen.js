@@ -10,6 +10,8 @@ import { api, ApiError } from '../../lib/api';
 import { useAuthStore } from '../../lib/authStore';
 import Pressable3D from '../../components/Pressable3D';
 import TurnstileChallenge from '../../components/TurnstileChallenge';
+import SocialSignInModal from '../../components/SocialSignInModal';
+import { GoogleIcon, TelegramIcon } from '../../components/BrandIcons';
 
 export default function SignupScreen({ navigation }) {
   const [username, setUsername] = useState('');
@@ -19,7 +21,18 @@ export default function SignupScreen({ navigation }) {
   const [error, setError] = useState('');
   const [turnstileToken, setTurnstileToken] = useState(null);
   const [turnstileKey, setTurnstileKey] = useState(0);
+  const [socialProvider, setSocialProvider] = useState(null);
   const signIn = useAuthStore((s) => s.signIn);
+
+  async function handleSocialSuccess(token, socialEmail) {
+    setSocialProvider(null);
+    await signIn(token, socialEmail);
+  }
+
+  function handleSocialCancel(message) {
+    setSocialProvider(null);
+    if (message) setError(message);
+  }
 
   async function submit() {
     setError('');
@@ -57,6 +70,37 @@ export default function SignupScreen({ navigation }) {
             </View>
             <Text className="mt-3 text-2xl font-extrabold text-stone-900">Create your account</Text>
             <Text className="mt-1 text-sm font-medium text-stone-500">14 days of Premium free — no card</Text>
+          </View>
+
+          <View className="mb-4 flex-row" style={{ gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Pressable3D
+                onPress={() => setSocialProvider('google')}
+                pressDepth={2}
+                className="flex-row items-center justify-center rounded-2xl bg-white py-3.5"
+                style={{ borderWidth: 1, borderColor: '#e7e5e4' }}
+              >
+                <GoogleIcon size={17} />
+                <Text className="text-sm font-bold text-stone-700" style={{ marginLeft: 8 }}>Google</Text>
+              </Pressable3D>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Pressable3D
+                onPress={() => setSocialProvider('telegram')}
+                pressDepth={2}
+                className="flex-row items-center justify-center rounded-2xl bg-white py-3.5"
+                style={{ borderWidth: 1, borderColor: '#e7e5e4' }}
+              >
+                <TelegramIcon size={17} />
+                <Text className="text-sm font-bold text-stone-700" style={{ marginLeft: 8 }}>Telegram</Text>
+              </Pressable3D>
+            </View>
+          </View>
+
+          <View className="mb-4 flex-row items-center" style={{ gap: 10 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: '#e7e5e4' }} />
+            <Text className="text-xs font-bold text-stone-400">OR</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: '#e7e5e4' }} />
           </View>
 
           <Text className="mb-1.5 text-sm font-bold text-stone-700">Username</Text>
@@ -115,6 +159,9 @@ export default function SignupScreen({ navigation }) {
           </Pressable3D>
         </View>
       </ScrollView>
+      {socialProvider && (
+        <SocialSignInModal provider={socialProvider} onSuccess={handleSocialSuccess} onCancel={handleSocialCancel} />
+      )}
     </KeyboardAvoidingView>
   );
 }

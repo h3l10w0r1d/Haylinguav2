@@ -64,6 +64,7 @@ const CmsLetterAudio = lazy(() => import('./cms/CmsLetterAudio'));
 const CmsAccount = lazy(() => import('./cms/CmsAccount'));
 const AuthCallback = lazy(() => import('./AuthCallback'));
 const TelegramCallback = lazy(() => import('./TelegramCallback'));
+const MobileTelegramLogin = lazy(() => import('./MobileTelegramLogin'));
 const ResetPassword = lazy(() => import('./ResetPassword'));
 const PracticeMode = lazy(() => import('./PracticeMode'));
 const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
@@ -668,6 +669,7 @@ function AppShell() {
       <Route path="/auth/google/callback" element={<AuthCallback provider="google" />} />
       <Route path="/auth/facebook/callback" element={<AuthCallback provider="facebook" />} />
       <Route path="/auth/telegram/callback" element={<TelegramCallback />} />
+      <Route path="/mobile/telegram-login" element={<MobileTelegramLogin />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -56,6 +56,7 @@ class FriendSuggestionOut(BaseModel):
     streak: int
     score: int
     reasons: list[str] = []
+    is_premium: bool = False
 
 class FriendRequestOut(BaseModel):
 
@@ -64,6 +65,7 @@ class FriendRequestOut(BaseModel):
     requester_email: str
     requester_name: str | None = None
     avatar_url: str | None = None
+    is_premium: bool = False
     created_at: datetime
 
 class FriendRequestCreateIn(BaseModel):
@@ -322,6 +324,7 @@ def friends_suggestions(
                 u.id, u.username, u.display_name, u.email, u.avatar_url,
                 u.league_tier, u.league_week, u.league_cohort, u.referred_by,
                 u.current_streak, u.last_active_at,
+                COALESCE(u.is_premium, FALSE) AS is_premium,
                 DATE_TRUNC('week', u.joined_at) AS joined_week,
                 ob.country, ob.dialect, ob.primary_goal, ob.source_language,
                 COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS xp,
@@ -335,6 +338,7 @@ def friends_suggestions(
             GROUP BY u.id, u.username, u.display_name, u.email, u.avatar_url,
                      u.league_tier, u.league_week, u.league_cohort, u.referred_by,
                      u.current_streak, u.last_active_at, u.joined_at, u.bonus_xp,
+                     u.is_premium,
                      ob.country, ob.dialect, ob.primary_goal, ob.source_language,
                      m.mutual_count
             ORDER BY u.last_active_at DESC NULLS LAST
@@ -377,6 +381,7 @@ def friends_suggestions(
                 streak=int(cand.get("current_streak") or 0),
                 score=score,
                 reasons=reasons[:3],
+                is_premium=bool(cand.get("is_premium")),
             )
         )
 
@@ -401,6 +406,7 @@ def friends_requests_outgoing(
               u.email AS requester_email,
               u.name AS requester_name,
               u.avatar_url AS avatar_url,
+              COALESCE(u.is_premium, FALSE) AS is_premium,
               fr.created_at
             FROM friend_requests fr
             JOIN users u ON u.id = fr.addressee_id
@@ -420,6 +426,7 @@ def friends_requests_outgoing(
             requester_email=r["requester_email"],
             requester_name=r["requester_name"],
             avatar_url=r["avatar_url"],
+            is_premium=bool(r["is_premium"]),
             created_at=r["created_at"],
         )
         for r in rows
@@ -444,6 +451,7 @@ def friends_requests_incoming(
               u.email AS requester_email,
               u.name AS requester_name,
               u.avatar_url AS avatar_url,
+              COALESCE(u.is_premium, FALSE) AS is_premium,
               fr.created_at
             FROM friend_requests fr
             JOIN users u ON u.id = fr.requester_id
@@ -474,6 +482,7 @@ def friends_requests_sent(
               u.email AS addressee_email,
               u.name AS addressee_name,
               u.avatar_url AS addressee_avatar_url,
+              COALESCE(u.is_premium, FALSE) AS addressee_is_premium,
               fr.created_at
             FROM friend_requests fr
             JOIN users u ON u.id = fr.addressee_id
@@ -492,6 +501,7 @@ def friends_requests_sent(
             "addressee_email": r["addressee_email"],
             "addressee_name": r["addressee_name"],
             "addressee_avatar_url": r["addressee_avatar_url"],
+            "addressee_is_premium": bool(r["addressee_is_premium"]),
             "created_at": r["created_at"],
         }
         for r in rows
@@ -734,6 +744,7 @@ def friends_activity(
                 u.username,
                 u.display_name,
                 u.avatar_url,
+                COALESCE(u.is_premium, FALSE) AS is_premium,
                 u.email,
                 l.title     AS lesson_title,
                 ulp.xp_earned,
@@ -760,6 +771,7 @@ def friends_activity(
             "name": name,
             "username": username,
             "avatar_url": r.get("avatar_url"),
+            "is_premium": bool(r.get("is_premium")),
             "lesson_title": r.get("lesson_title") or "a lesson",
             "xp_earned": int(r.get("xp_earned") or 0),
             "completed_at": r["completed_at"].isoformat() if r.get("completed_at") else None,
