@@ -22,7 +22,8 @@ export const TOWN = {
   grass: 0,
   grassFlower: 1,
   grassSpark: 2,
-  cobble: 43,        // light stone plaza floor
+  cobble: 43,        // light stone plaza floor (grassy — reads as a patio)
+  stoneFloor: 109,   // solid grey stone floor (reads as paved / indoor)
   dirt: 25,          // dirt patch centre
   treeGreen: 4,
   treeGreenSm: 6,
@@ -183,7 +184,143 @@ const cafe = {
   ],
 };
 
-export const ADVENTURES = [cafe];
+// ── Adventure 2: At the Airport ──────────────────────────────────────────────
+// A paved terminal (cobble apron + a building facade at the top). Three
+// stations the traveller walks between: check-in desk → passport control →
+// boarding gate, each its own goal. Dialogue is polite/formal register (Ձեր/Ձեզ)
+// throughout, as you'd actually hear at Zvartnots.
+const airportLegend = {
+  '.': { g: TOWN.grass },
+  'c': { g: TOWN.stoneFloor },
+  'F': { g: TOWN.stoneFloor, d: TOWN.fenceH },   // barrier / queue rail on paved ground
+  'T': { g: TOWN.grass, d: TOWN.treeGreen },
+  'b': { g: TOWN.grass, d: TOWN.bush },
+  'Q': { g: TOWN.stoneFloor, d: TOWN.roofL },
+  'W': { g: TOWN.stoneFloor, d: TOWN.roofM },
+  'E': { g: TOWN.stoneFloor, d: TOWN.roofR },
+  'A': { g: TOWN.stoneFloor, d: TOWN.wallWindow },
+  'D': { g: TOWN.stoneFloor, d: TOWN.wallDoor },
+  'P': { g: TOWN.stoneFloor, d: TOWN.wallPlain },
+  'H': { g: TOWN.stoneFloor, d: TOWN.crate },    // check-in / gate counter
+  'L': { g: TOWN.stoneFloor, d: TOWN.barrel },   // luggage
+  's': { g: TOWN.stoneFloor, d: TOWN.signpost }, // gate sign
+};
+
+const airportRows = [
+  'QWWWWWWWWWWWWWWE',   // terminal roof
+  'PPPPPPPDDPPPPPPP',   // terminal facade (boarding doors, centre)
+  'FcccccccccsccccF',   // gate hall + a gate signpost
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',   // passport officer stands here…
+  'FccFFFFccFFFFccF',   // …behind a security barrier (gap in the middle)
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FcccccccccccLccF',   // luggage
+  'FcccHHHccccccccF',   // check-in counter
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FFFFFFFccFFFFFFF',   // perimeter fence + entrance gap
+];
+
+const airport = {
+  id: 'airport',
+  title: 'At the Airport',
+  emoji: '🛫',
+  blurb: 'Fly out of the country: check in, clear passport control, and board — all in Armenian.',
+  cefr: 'A2',
+  tileset: 'town',
+  map: expandMap(airportRows, airportLegend),
+  player: { frame: CHAR.adventurer, tx: 8, ty: 16 },   // enters at the bottom
+  goals: [
+    { id: 'checkin', label: 'Check in for your flight' },
+    { id: 'passport', label: 'Clear passport control' },
+    { id: 'board', label: 'Board your flight' },
+  ],
+  npcs: [
+    {
+      id: 'checkin',
+      name: 'Լիլիթ',            // check-in agent
+      frame: CHAR.woman,
+      tx: 5, ty: 11,
+      completes: 'checkin',
+      dialogue: [
+        { line: 'Բարև Ձեզ։ Ձեր տոմսն ու անձնագիրը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Your ticket and passport, please.' },
+        {
+          choose: 'Hand over your documents.',
+          options: [
+            { text: 'Ահա՛ իմ տոմսն ու անձնագիրը։', tr: 'Here are my ticket and passport.', correct: true },
+            { text: 'Ես թեյ եմ ուզում։', tr: 'I want tea.' },
+            { text: 'Ավտոբուսը ուշանում է։', tr: 'The bus is late.' },
+          ],
+        },
+        { line: 'Շնորհակալ եմ։ Ուղեբեռ ունե՞ք։', by: 'npc', tr: 'Thank you. Do you have any luggage?' },
+        {
+          choose: 'Say you have one suitcase.',
+          options: [
+            { text: 'Այո՛, մեկ ճամպրուկ։', tr: 'Yes, one suitcase.', correct: true },
+            { text: 'Ո՛չ, ես կատու ունեմ։', tr: 'No, I have a cat.' },
+            { text: 'Ժամը ե՞րբ է։', tr: 'What time is it?' },
+          ],
+        },
+        { line: 'Հիանալի՜։ Ահա Ձեր նստեցման կտրոնը։ Ձեր ելքը՝ հինգ։', by: 'npc', tr: 'Great! Here is your boarding pass. Your gate is five.' },
+      ],
+    },
+    {
+      id: 'passport',
+      name: 'Դավիթ',            // passport control officer
+      frame: CHAR.knight,
+      tx: 8, ty: 6,
+      completes: 'passport',
+      dialogue: [
+        { line: 'Բարև։ Անձնագի՛րը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Passport, please.' },
+        {
+          choose: 'Give him your passport.',
+          options: [
+            { text: 'Խնդրե՛մ, ահա՛ իմ անձնագիրը։', tr: 'Here is my passport, please.', correct: true },
+            { text: 'Ես չունեմ գումար։', tr: 'I have no money.' },
+            { text: 'Դուռը կանաչ է։', tr: 'The door is green.' },
+          ],
+        },
+        { line: 'Ո՞ւր եք մեկնում։', by: 'npc', tr: 'Where are you traveling to?' },
+        {
+          choose: 'Say you are flying to Yerevan.',
+          options: [
+            { text: 'Ես մեկնում եմ Երևան։', tr: 'I am traveling to Yerevan.', correct: true },
+            { text: 'Ես սիրում եմ ձյունը։', tr: 'I like the snow.' },
+            { text: 'Սա իմ շունն է։', tr: 'This is my dog.' },
+          ],
+        },
+        { line: 'Ամեն ինչ կարգին է։ Բարի ճանապարհ։', by: 'npc', tr: 'Everything is in order. Have a good trip.' },
+      ],
+    },
+    {
+      id: 'gate',
+      name: 'Անահիտ',           // boarding-gate agent
+      frame: CHAR.princess,
+      tx: 5, ty: 3,
+      completes: 'board',
+      dialogue: [
+        { line: 'Բարև Ձեզ։ Ձեր նստեցման կտրո՛նը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Your boarding pass, please.' },
+        {
+          choose: 'Hand over your boarding pass.',
+          options: [
+            { text: 'Ահա՛ իմ նստեցման կտրոնը։', tr: 'Here is my boarding pass.', correct: true },
+            { text: 'Ես մոռացել եմ իմ անունը։', tr: 'I forgot my name.' },
+            { text: 'Օդանավակայանը մեծ է։', tr: 'The airport is big.' },
+          ],
+        },
+        { line: 'Շնորհակալություն։ Բարի թռի՛չք։', by: 'npc', tr: 'Thank you. Have a good flight.' },
+      ],
+    },
+  ],
+};
+
+export const ADVENTURES = [cafe, airport];
 
 export function getAdventure(id) {
   return ADVENTURES.find((a) => a.id === id) || null;

@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Lock } from 'lucide-react';
+import { ArrowLeft, Play } from 'lucide-react';
 import { ADVENTURES, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
@@ -62,16 +62,6 @@ export default function AdventuresHome() {
             </button>
           ))}
 
-          {/* Teaser for the next scene */}
-          <div style={{ border: '1px dashed #d8cbba', borderRadius: 18, padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', opacity: 0.75 }}>
-            <div style={{ height: 96, background: '#efe7db', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 46 }}>🛫</div>
-            <div style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 15, color: '#9a8a78' }}>
-                <Lock size={13} /> At the Airport
-              </div>
-              <div style={{ fontSize: 13, color: '#a89a88', flex: 1 }}>Coming soon.</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
