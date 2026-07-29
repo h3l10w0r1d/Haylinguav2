@@ -69,7 +69,11 @@ export default function AppearanceTab({ profile, wallet, onThemeSaved, onBannerC
 
   async function pickBannerFile() {
     if (uploadingBanner) return;
-    const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.85 });
+    // maxWidth/maxHeight trim the picked file before it's even uploaded — the
+    // server (POST /me/banner) resizes to the same 1200px cap regardless, but
+    // capping here too means a multi-megapixel phone photo isn't uploaded in
+    // full just to be downsized server-side a moment later.
+    const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.85, maxWidth: 1200, maxHeight: 1200 });
     if (result.didCancel || !result.assets?.[0]) return;
     const asset = result.assets[0];
     const form = new FormData();

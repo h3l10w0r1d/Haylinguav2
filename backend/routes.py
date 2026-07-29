@@ -8287,13 +8287,15 @@ def me_2fa_disable(
 
 
 _AVATAR_MAX_DIM = 512  # avatars only ever render in a 40-76px circle client-side
+_BANNER_MAX_DIM = 1200  # banners render wide-but-short (~90-160px tall); this caps the long (width) edge
 
 
-def _resize_avatar_image(content: bytes, ext: str) -> bytes:
-    """Downscale an uploaded avatar to _AVATAR_MAX_DIM on its longest side —
-    phone photo-library picks routinely come in at multi-megapixel
-    resolution, and serving that untouched to render into a ~40-76px circle
-    was the single biggest contributor to slow avatar loads on mobile."""
+def _resize_image_to_fit(content: bytes, ext: str, max_dim: int) -> bytes:
+    """Downscale an uploaded image to max_dim on its longest side — phone
+    photo-library picks routinely come in at multi-megapixel resolution,
+    and serving that untouched into a small fixed-size card was the single
+    biggest contributor to slow avatar (and, identically, banner) loads on
+    mobile. Shared by both /me/avatar and /me/banner."""
     from PIL import Image as PILImage, ImageOps
 
     try:
@@ -8306,7 +8308,7 @@ def _resize_avatar_image(content: bytes, ext: str) -> bytes:
     if fmt == "JPEG" and img.mode in ("RGBA", "P", "LA"):
         img = img.convert("RGB")
 
-    img.thumbnail((_AVATAR_MAX_DIM, _AVATAR_MAX_DIM), PILImage.Resampling.LANCZOS)
+    img.thumbnail((max_dim, max_dim), PILImage.Resampling.LANCZOS)
 
     out = io.BytesIO()
     save_kwargs = {"quality": 85, "optimize": True} if fmt in ("JPEG", "WEBP") else {}
@@ -8376,7 +8378,7 @@ def me_avatar_upload(
             raise HTTPException(status_code=400, detail="Empty file")
         if len(content) > 5 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="Avatar too large (max 5MB)")
-        resized = _resize_avatar_image(content, ext)
+        resized = _resize_image_to_fit(content, ext, _AVATAR_MAX_DIM)
         with open(path, "wb") as f:
             f.write(resized)
     finally:
@@ -8451,8 +8453,9 @@ def me_banner_upload(
             raise HTTPException(status_code=400, detail="Empty file")
         if len(content) > 5 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="Banner too large (max 5MB)")
+        resized = _resize_image_to_fit(content, ext, _BANNER_MAX_DIM)
         with open(path, "wb") as f:
-            f.write(content)
+            f.write(resized)
     finally:
         try:
             file.file.close()
