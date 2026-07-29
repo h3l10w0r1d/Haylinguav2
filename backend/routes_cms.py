@@ -2382,6 +2382,21 @@ def cms_seed_a2speak(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/b1-1")
+def cms_seed_b1_1(request: Request, db=Depends(get_db)):
+    """B1 roadmap opener — opinions, reasons & contrast, relative clauses,
+    hopes & plans, and the past in detail (imperfect + past perfect). 5 chapters
+    / 10 lessons, cefr=B1 (gated behind the A2 assessment). Idempotent (skips if
+    b1-opinion-express exists). Authored live via single-create."""
+    require_cms(request, db)
+    from seed_b1_1 import seed_b1_1
+    try:
+        res = seed_b1_1()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/trace-all")
 def cms_seed_trace_all(request: Request, db=Depends(get_db)):
     """Give every alphabet letter a handwriting step: appends a trace_letter
