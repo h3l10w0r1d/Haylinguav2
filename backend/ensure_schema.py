@@ -135,6 +135,19 @@ def ensure_schema() -> None:
             )
         """)
 
+        # ---------- Adventures: CMS language overrides (Tier-1 authoring) ----------
+        # The scene map / NPC layout / grading live in the frontend code; editors
+        # override only the language content (titles, goal labels, NPC names,
+        # dialogue text) here, one JSONB blob per adventure id. Empty/missing ⇒
+        # the app falls back to the code defaults, so this table is purely additive.
+        ensure_table("adventure_overrides", """
+            CREATE TABLE adventure_overrides (
+                adventure_id TEXT PRIMARY KEY,
+                data         JSONB NOT NULL DEFAULT '{}'::jsonb,
+                updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
         # ---------- Per-user word exposure (drives NEW-word badges) ----------
         ensure_table("user_word_exposure", """
             CREATE TABLE user_word_exposure (

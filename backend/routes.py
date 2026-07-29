@@ -6429,6 +6429,17 @@ def list_vacancies(db: Connection = Depends(get_db)):
     return {"vacancies": [dict(r) for r in rows]}
 
 
+@router.get("/adventures/overrides")
+def list_adventure_overrides(db: Connection = Depends(get_db)):
+    """Public — CMS language overrides for Adventures, keyed by adventure id.
+    Unauthenticated; the app deep-merges these over its code defaults, so an
+    empty result just means every adventure uses its built-in text."""
+    rows = db.execute(
+        text("SELECT adventure_id, data FROM adventure_overrides")
+    ).mappings().all()
+    return {r["adventure_id"]: r["data"] for r in rows}
+
+
 @router.get("/careers/vacancies/{vacancy_id}")
 def get_vacancy(vacancy_id: int, db: Connection = Depends(get_db)):
     """Public — a single active vacancy plus its CMS-defined application

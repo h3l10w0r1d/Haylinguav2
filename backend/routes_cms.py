@@ -2882,6 +2882,41 @@ async def cms_reorder_vacancies(request: Request, db=Depends(get_db)):
         db.execute(text("UPDATE job_vacancies SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(vid)})
     return {"ok": True}
 
+# ==================== Adventures: CMS language overrides ====================
+# The scene layout / NPC positions / grading live in the frontend code; editors
+# override only language content (titles, goal labels, NPC names, dialogue text)
+# here as one JSONB blob per adventure id. The editor knows the base structure
+# (imported from the frontend adventures.js), so the backend just stores/serves
+# blobs — it needs no knowledge of a scene's shape.
+
+@router.get("/cms/adventures")
+def cms_list_adventure_overrides(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text(
+        "SELECT adventure_id, data, updated_at FROM adventure_overrides"
+    )).mappings().all()
+    return {"overrides": {r["adventure_id"]: r["data"] for r in rows}}
+
+@router.put("/cms/adventures/{adventure_id}")
+async def cms_save_adventure_override(adventure_id: str, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Override must be a JSON object")
+    db.execute(text("""
+        INSERT INTO adventure_overrides (adventure_id, data, updated_at)
+        VALUES (:id, CAST(:data AS jsonb), NOW())
+        ON CONFLICT (adventure_id)
+        DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+    """), {"id": adventure_id, "data": json.dumps(body)})
+    return {"ok": True}
+
+@router.delete("/cms/adventures/{adventure_id}")
+def cms_reset_adventure_override(adventure_id: str, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM adventure_overrides WHERE adventure_id = :id"), {"id": adventure_id})
+    return {"ok": True}
+
 # ==================== Careers: application form fields ====================
 
 FIELD_TYPES = {"text", "textarea", "url", "file"}

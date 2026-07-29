@@ -53,6 +53,7 @@ const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
 const CmsPremium = lazy(() => import('./cms/CmsPremium'));
 const CmsCareers = lazy(() => import('./cms/CmsCareers'));
+const CmsAdventures = lazy(() => import('./cms/CmsAdventures'));
 const CmsAffiliates = lazy(() => import('./cms/CmsAffiliates'));
 const CmsForum = lazy(() => import('./cms/CmsForum'));
 const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
@@ -679,6 +680,7 @@ function AppShell() {
       <Route path="/cms/team" element={<CmsTeam />} />
       <Route path="/cms/support" element={<CmsSupport />} />
       <Route path="/cms/chapters" element={<CmsChapters />} />
+      <Route path="/cms/adventures" element={<CmsAdventures />} />
       <Route path="/cms/achievements" element={<CmsAchievements />} />
       <Route path="/cms/shop" element={<CmsShop />} />
       <Route path="/cms/premium" element={<CmsPremium />} />

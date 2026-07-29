@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Volume2, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { getAdventure } from './adventures/adventures';
+import { getAdventure, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
 import { buildAdventureGame } from './adventures/adventureGame';
 import { ttsFetch } from './exercises/tts';
 import { newTrackedAudio } from './lib/audioRegistry';
@@ -20,7 +20,10 @@ const ORANGE = '#FF7A1A';
 export default function AdventurePlayer() {
   const { adventureId } = useParams();
   const navigate = useNavigate();
-  const adventure = useMemo(() => getAdventure(adventureId), [adventureId]);
+  const base = useMemo(() => getAdventure(adventureId), [adventureId]);
+  // `adventure` is the code base with any CMS language override merged in. Null
+  // until the override fetch resolves, so the game boots once (no re-boot flash).
+  const [adventure, setAdventure] = useState(null);
 
   const hostRef = useRef(null);
   const gameRef = useRef(null);
@@ -31,6 +34,17 @@ export default function AdventurePlayer() {
   const [dialog, setDialog] = useState(null);   // { npc, idx, wrongId }
   const [doneGoals, setDoneGoals] = useState(() => new Set());
   const [won, setWon] = useState(false);
+
+  // ── Resolve CMS override, then merge over the code base ──────────────────────
+  useEffect(() => {
+    if (!base) return;
+    let alive = true;
+    setAdventure(null);
+    fetchAdventureOverrides(API_BASE).then((all) => {
+      if (alive) setAdventure(all[base.id] ? mergeAdventure(base, all[base.id]) : base);
+    });
+    return () => { alive = false; };
+  }, [base]);
 
   // ── Boot Phaser ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -134,7 +148,7 @@ export default function AdventurePlayer() {
     setDialog(null);
   }
 
-  if (!adventure) {
+  if (!base) {
     return (
       <div style={fullCenter}>
         <p style={{ color: '#666' }}>Adventure not found.</p>
@@ -143,7 +157,8 @@ export default function AdventurePlayer() {
     );
   }
 
-  const step = dialog ? adventure.npcs.find((n) => n.id === dialog.npc.id)?.dialogue[dialog.idx] : null;
+  const step = dialog && adventure ? adventure.npcs.find((n) => n.id === dialog.npc.id)?.dialogue[dialog.idx] : null;
+  const adv = adventure || base;   // banner renders from base until the merge resolves
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#18240f', zIndex: 40, display: 'flex', justifyContent: 'center' }}>
@@ -160,9 +175,9 @@ export default function AdventurePlayer() {
           <ArrowLeft size={20} color="#fff" />
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{adventure.emoji} {adventure.title}</div>
+          <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{adv.emoji} {adv.title}</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {adventure.goals.map((g) => (
+            {adv.goals.map((g) => (
               <span key={g.id} style={{ fontSize: 11, color: '#fff', opacity: doneGoals.has(g.id) ? 1 : 0.85, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                 <span style={{ width: 13, height: 13, borderRadius: 4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: doneGoals.has(g.id) ? '#22c55e' : '#ffffff44', fontSize: 9 }}>{doneGoals.has(g.id) ? '✓' : ''}</span>
                 <span style={{ textDecoration: doneGoals.has(g.id) ? 'line-through' : 'none' }}>{g.label}</span>

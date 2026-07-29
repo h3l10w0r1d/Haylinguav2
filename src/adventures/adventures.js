@@ -188,3 +188,71 @@ export const ADVENTURES = [cafe];
 export function getAdventure(id) {
   return ADVENTURES.find((a) => a.id === id) || null;
 }
+
+// ── CMS overrides (Tier-1 authoring) ─────────────────────────────────────────
+// The map, NPC positions/sprites, player spawn and grading structure stay in
+// code (above). Editors can override only the *language content* via the CMS:
+// titles/blurbs, goal labels, NPC names, and the text of each dialogue step.
+// An override is stored per adventure id as this (all-optional) shape:
+//
+//   { title?, blurb?,
+//     goals?: { [goalId]: label },
+//     npcs?:  { [npcId]: { name?, dialogue?: [ perStep ] } } }
+//
+// where perStep is { line?, tr? } for a spoken line or
+// { choose?, options?: [{ text?, tr? }] } for a choice. Anything missing falls
+// back to the code default, and step COUNT/TYPE and which option is `correct`
+// always come from code — so a CMS edit can reword content but never break the
+// scene layout or the grading. Merge is index-aligned and defensive: a step
+// whose type doesn't match the code (e.g. after a code change) just falls back.
+export function mergeAdventure(base, override) {
+  if (!base || !override) return base;
+  const mergedGoals = base.goals.map((g) => ({
+    ...g,
+    label: override.goals?.[g.id] ?? g.label,
+  }));
+  const mergedNpcs = base.npcs.map((n) => {
+    const o = override.npcs?.[n.id];
+    if (!o) return n;
+    const dialogue = n.dialogue.map((step, i) => {
+      const os = o.dialogue?.[i];
+      if (!os) return step;
+      if (step.line != null) {
+        return { ...step, line: os.line ?? step.line, tr: os.tr ?? step.tr };
+      }
+      if (step.options) {
+        return {
+          ...step,
+          choose: os.choose ?? step.choose,
+          options: step.options.map((opt, j) => ({
+            ...opt,                                    // keeps `correct` from code
+            text: os.options?.[j]?.text ?? opt.text,
+            tr: os.options?.[j]?.tr ?? opt.tr,
+          })),
+        };
+      }
+      return step;
+    });
+    return { ...n, name: o.name ?? n.name, dialogue };
+  });
+  return {
+    ...base,
+    title: override.title ?? base.title,
+    blurb: override.blurb ?? base.blurb,
+    goals: mergedGoals,
+    npcs: mergedNpcs,
+  };
+}
+
+// Fetch all overrides ({ [adventureId]: override }) from the backend. Best-effort:
+// any failure yields {} so adventures always fall back to their code defaults.
+export async function fetchAdventureOverrides(apiBase) {
+  try {
+    const res = await fetch(`${apiBase}/adventures/overrides`);
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
+}

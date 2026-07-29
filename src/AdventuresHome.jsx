@@ -3,14 +3,25 @@
 // full-screen (its own header, no global nav), mirroring the AI Conversation
 // entry point. Cards route into /adventures/:id which mounts the Phaser scene.
 
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Lock } from 'lucide-react';
-import { ADVENTURES } from './adventures/adventures';
+import { ADVENTURES, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
 const ORANGE = '#FF7A1A';
 
 export default function AdventuresHome() {
   const navigate = useNavigate();
+  // Show CMS-overridden titles/blurbs in the list; fall back to code defaults.
+  const [list, setList] = useState(ADVENTURES);
+  useEffect(() => {
+    let alive = true;
+    fetchAdventureOverrides(API_BASE).then((all) => {
+      if (alive) setList(ADVENTURES.map((a) => (all[a.id] ? mergeAdventure(a, all[a.id]) : a)));
+    });
+    return () => { alive = false; };
+  }, []);
   return (
     <div style={{ minHeight: '100dvh', background: '#faf6f0' }}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '18px 16px 60px' }}>
@@ -25,7 +36,7 @@ export default function AdventuresHome() {
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-          {ADVENTURES.map((a) => (
+          {list.map((a) => (
             <button
               key={a.id}
               onClick={() => navigate(`/adventures/${a.id}`)}
