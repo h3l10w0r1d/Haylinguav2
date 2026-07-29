@@ -2427,6 +2427,21 @@ def cms_seed_b1_vocab(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/b1-3")
+def cms_seed_b1_3(request: Request, db=Depends(get_db)):
+    """B1 batch 3 — reading (3 passages x 4 questions), more grammar
+    (comparatives, purpose clauses, frequency/degree adverbs), and speaking
+    (6 spoken phrases). 3 chapters / 7 lessons / 39 exercises, cefr=B1.
+    Idempotent (skips if b1-read-work exists)."""
+    require_cms(request, db)
+    from seed_b1_3 import seed_b1_3
+    try:
+        res = seed_b1_3()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/trace-all")
 def cms_seed_trace_all(request: Request, db=Depends(get_db)):
     """Give every alphabet letter a handwriting step: appends a trace_letter
