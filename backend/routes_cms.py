@@ -65,6 +65,7 @@ from routes import (
     LEAGUE_DEMOTE_BOTTOM,
     # Shop / chests
     SHOP_EFFECTS,
+    FRAME_STYLES,
     CHEST_RARITIES,
     DEFAULT_HEARTS_MAX,
     _load_chest_rarities,
@@ -2525,10 +2526,10 @@ async def cms_email_test(request: Request, db=Depends(get_db)):
 def cms_list_shop_items(request: Request, db=Depends(get_db)):
     require_cms(request, db)
     rows = db.execute(text("""
-        SELECT id, title, description, icon, price, effect, effect_amount, sort_order, is_active
+        SELECT id, title, description, icon, price, effect, effect_amount, sort_order, is_active, frame_style
         FROM shop_items ORDER BY sort_order ASC, id ASC
     """)).mappings().all()
-    return {"items": [dict(r) for r in rows], "effects": sorted(SHOP_EFFECTS)}
+    return {"items": [dict(r) for r in rows], "effects": sorted(SHOP_EFFECTS), "frame_styles": sorted(FRAME_STYLES)}
 
 @router.post("/cms/shop/items")
 async def cms_create_shop_item(request: Request, db=Depends(get_db)):
@@ -2540,17 +2541,20 @@ async def cms_create_shop_item(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=400, detail="title is required")
     if effect not in SHOP_EFFECTS:
         raise HTTPException(status_code=400, detail=f"effect must be one of {sorted(SHOP_EFFECTS)}")
+    frame_style = (body.get("frame_style") or "").strip() or None
+    if frame_style and frame_style not in FRAME_STYLES:
+        raise HTTPException(status_code=400, detail=f"frame_style must be one of {sorted(FRAME_STYLES)}")
     pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM shop_items")).scalar() or 1
     new_id = db.execute(
         text("""
-            INSERT INTO shop_items (title, description, icon, price, effect, effect_amount, sort_order, is_active)
-            VALUES (:t, :d, :ic, :pr, :eff, :amt, :so, :act) RETURNING id
+            INSERT INTO shop_items (title, description, icon, price, effect, effect_amount, sort_order, is_active, frame_style)
+            VALUES (:t, :d, :ic, :pr, :eff, :amt, :so, :act, :fs) RETURNING id
         """),
         {
             "t": title, "d": (body.get("description") or "").strip(), "ic": (body.get("icon") or "gem").strip() or "gem",
             "pr": int(body.get("price") or 0), "eff": effect, "amt": int(body.get("effect_amount") or 0),
             # Draft by default — same reasoning as lessons/chapters.
-            "so": int(pos), "act": bool(body.get("is_active", False)),
+            "so": int(pos), "act": bool(body.get("is_active", False)), "fs": frame_style,
         },
     ).scalar_one()
     return {"id": int(new_id)}
@@ -2569,6 +2573,12 @@ async def cms_update_shop_item(item_id: int, request: Request, db=Depends(get_db
             raise HTTPException(status_code=400, detail="invalid effect")
         set_parts.append("effect = :effect")
         params["effect"] = body["effect"]
+    if "frame_style" in body:
+        fs = (body["frame_style"] or "").strip() or None
+        if fs and fs not in FRAME_STYLES:
+            raise HTTPException(status_code=400, detail=f"frame_style must be one of {sorted(FRAME_STYLES)}")
+        set_parts.append("frame_style = :frame_style")
+        params["frame_style"] = fs
     if not set_parts:
         return {"ok": True}
     db.execute(text(f"UPDATE shop_items SET {', '.join(set_parts)} WHERE id = :id"), params)

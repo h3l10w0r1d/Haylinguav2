@@ -6,6 +6,7 @@ import { CrownBadge } from "./lib/PremiumBadge";
 import { getTheme, toggleTheme } from "./lib/theme";
 import { isMuted, toggleMuted } from "./lib/muteAudio";
 import { identify } from "./lib/analytics";
+import AvatarFrame from "./lib/avatarFrame";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -113,6 +114,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
   useEffect(() => { if (user?.streak != null) setStreak(Number(user.streak) || 0); }, [user?.streak]);
 
   const [gems, setGems] = useState(null);
+  const [activeFrameStyle, setActiveFrameStyle] = useState(null);
   useEffect(() => {
     const token = getToken();
     if (!token) return;
@@ -120,7 +122,11 @@ export default function HeaderLayout({ user, onLogout, children }) {
     const load = () => {
       apiFetch("/me/wallet", { token, method: "GET" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => { if (d && !cancelled) setGems(Number(d.gems ?? 0)); })
+        .then((d) => {
+          if (!d || cancelled) return;
+          setGems(Number(d.gems ?? 0));
+          setActiveFrameStyle(d.active_frame_style || null);
+        })
         .catch(() => {});
     };
     load();
@@ -392,25 +398,28 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
             {user ? (
               <div className="relative" ref={accountMenuRef}>
-                <button
-                  onClick={() => setAccountMenuOpen((v) => !v)}
-                  aria-haspopup="menu"
-                  aria-expanded={accountMenuOpen}
-                  className={
-                    "relative w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm overflow-visible " +
-                    (hearts?.is_premium ? "ring-2 ring-gold-400" : "")
-                  }
-                  title="Account menu"
-                >
-                  <span className="block h-full w-full overflow-hidden rounded-full">
+                <AvatarFrame frameStyle={activeFrameStyle} size={36} radius="9999px" thickness={2.5}>
+                  <button
+                    onClick={() => setAccountMenuOpen((v) => !v)}
+                    aria-haspopup="menu"
+                    aria-expanded={accountMenuOpen}
+                    className={
+                      "w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center text-sm font-semibold shadow-sm " +
+                      (!activeFrameStyle && hearts?.is_premium ? "ring-2 ring-gold-400" : "")
+                    }
+                    title="Account menu"
+                  >
                     {avatarSrc ? (
                       <img src={avatarSrc} alt="Your avatar" className="w-full h-full object-cover" />
                     ) : (
                       initial
                     )}
-                  </span>
-                  {hearts?.is_premium && <CrownBadge size="h-4 w-4" iconSize="h-2.5 w-2.5" />}
-                </button>
+                  </button>
+                </AvatarFrame>
+                {/* Rendered outside AvatarFrame's clipped inner wrapper — the badge
+                    deliberately sits half outside the avatar circle (-bottom-1
+                    -right-1), which an overflow:hidden ancestor would clip. */}
+                {hearts?.is_premium && <CrownBadge size="h-4 w-4" iconSize="h-2.5 w-2.5" />}
 
                 {accountMenuOpen && (
                   <div

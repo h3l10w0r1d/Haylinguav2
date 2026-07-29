@@ -5888,6 +5888,12 @@ SHOP_EFFECTS = {
     "avatar_frame", "profile_theme",
 }
 
+# Named cosmetic rings an avatar_frame item can render as — kept as a fixed
+# palette (rather than a free-form color field) so every frame reads as
+# deliberately designed, and so web/mobile only ever need to ship the same
+# small, shared set of gradients once instead of parsing arbitrary CSS.
+FRAME_STYLES = {"gold", "silver", "bronze", "ruby", "sapphire", "emerald", "rainbow"}
+
 # Chest rarity tiers, ordered common → rare. Rolled server-side at open time.
 CHEST_RARITIES = ("wooden", "silver", "golden", "legendary")
 
@@ -5910,7 +5916,7 @@ _FALLBACK_SHOP = [
     {"id": "streak_repair",        "title": "Streak Repair",   "desc": "Restore a streak you lost in the last 3 days.",          "price": 150, "icon": "shield",       "effect": "streak_repair",  "effect_amount": 0},
     {"id": "heart_shield",         "title": "Heart Shield",    "desc": "Your next lesson won't cost any hearts.",                "price": 45,  "icon": "shield-check", "effect": "heart_shield",   "effect_amount": 0},
     {"id": "double_xp",            "title": "Double XP",       "desc": "Earn 2× XP on your next lesson.",                       "price": 80,  "icon": "trending-up",  "effect": "xp_multiplier",  "effect_amount": 0},
-    {"id": "frame_gold",           "title": "Gold Frame",      "desc": "A gleaming gold border around your avatar.",             "price": 200, "icon": "award",        "effect": "avatar_frame",   "effect_amount": 0},
+    {"id": "frame_gold",           "title": "Gold Frame",      "desc": "A gleaming gold border around your avatar.",             "price": 200, "icon": "award",        "effect": "avatar_frame",   "effect_amount": 0, "frame_style": "gold"},
     {"id": "banner_ararat",        "title": "Ararat Banner",   "desc": "Mount Ararat profile banner for your public page.",      "price": 300, "icon": "image",        "effect": "profile_theme",  "effect_amount": 0},
 ]
 
@@ -5920,7 +5926,7 @@ def _load_shop_items(db: Connection) -> list[dict]:
         rows = db.execute(
             text(
                 """
-                SELECT id, title, description, icon, price, effect, effect_amount
+                SELECT id, title, description, icon, price, effect, effect_amount, frame_style
                 FROM shop_items WHERE COALESCE(is_active, TRUE)
                 ORDER BY sort_order ASC, id ASC
                 """
@@ -5935,6 +5941,7 @@ def _load_shop_items(db: Connection) -> list[dict]:
             "id": r["id"], "title": r["title"], "desc": r.get("description") or "",
             "icon": r.get("icon") or "gem", "price": int(r["price"]),
             "effect": r["effect"], "effect_amount": int(r.get("effect_amount") or 0),
+            "frame_style": r.get("frame_style"),
         }
         for r in rows
     ]
@@ -5976,6 +5983,21 @@ def _load_chest_rewards(db: Connection, rarity: str = "wooden") -> list[tuple]:
     return _FALLBACK_CHEST.get(rarity) or _FALLBACK_CHEST["wooden"]
 
 
+def _frame_style_map(db: Connection) -> dict:
+    """{shop_items.id (as str): frame_style} for every avatar_frame item that
+    has one set. Cheap — the shop catalogue is a handful of rows — so this is
+    called fresh per request rather than cached, keeping a CMS edit to a
+    frame's style effective immediately everywhere it renders.
+    """
+    try:
+        rows = db.execute(
+            text("SELECT id, frame_style FROM shop_items WHERE effect = 'avatar_frame' AND frame_style IS NOT NULL")
+        ).mappings().all()
+    except Exception:
+        return {}
+    return {str(r["id"]): r["frame_style"] for r in rows}
+
+
 def _wallet(db: Connection, user_id: int) -> dict:
     row = db.execute(
         text(
@@ -5999,6 +6021,7 @@ def _wallet(db: Connection, user_id: int) -> dict:
     if isinstance(owned_themes, str):
         try: owned_themes = json.loads(owned_themes)
         except Exception: owned_themes = []
+    active_frame = row.get("active_frame")
     return {
         "gems": int(row.get("gems") or 0),
         "chests": int(row.get("chests") or 0),
@@ -6006,7 +6029,8 @@ def _wallet(db: Connection, user_id: int) -> dict:
         "xp_multiplier_active": bool(row.get("xp_multiplier_active")),
         "owned_frames": owned_frames,
         "owned_themes": owned_themes,
-        "active_frame": row.get("active_frame"),
+        "active_frame": active_frame,
+        "active_frame_style": _frame_style_map(db).get(str(active_frame)) if active_frame else None,
     }
 
 
@@ -6224,6 +6248,7 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
             "id": it["id"], "title": it["title"], "desc": it["desc"],
             "icon": it["icon"], "price": it["price"],
             "effect": it.get("effect"),
+            "frame_style": it.get("frame_style"),
             "affordable": w["gems"] >= it["price"],
             "status": _status(it),
         }

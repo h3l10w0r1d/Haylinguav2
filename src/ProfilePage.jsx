@@ -30,6 +30,7 @@ import ActivityChart from "./lib/ActivityChart";
 import AccountDangerZone from "./AccountDangerZone";
 import AvatarBuilder, { generateRandomAvatarFile } from "./AvatarBuilder";
 import BannerBuilder from "./BannerBuilder";
+import AvatarFrame from "./lib/avatarFrame";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -169,6 +170,7 @@ export default function ProfilePage() {
   // Frames
   const [ownedFrames, setOwnedFrames] = useState([]);
   const [activeFrame, setActiveFrame] = useState(null);
+  const [activeFrameStyle, setActiveFrameStyle] = useState(null);
   const [shopItems, setShopItems] = useState([]);
   const [frameEquipping, setFrameEquipping] = useState(null);
 
@@ -374,6 +376,7 @@ export default function ProfilePage() {
         if (!cancelled && w.ok && wd) {
           setOwnedFrames(wd.owned_frames || []);
           setActiveFrame(wd.active_frame || null);
+          setActiveFrameStyle(wd.active_frame_style || null);
         }
       } catch {}
 
@@ -921,15 +924,17 @@ export default function ProfilePage() {
           <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
               <div className="relative shrink-0">
-                <div className={"h-24 w-24 overflow-hidden rounded-3xl bg-white shadow-md dark:bg-[#18181b] " + (isPremium ? "ring-4 ring-gold-400" : "ring-4 ring-white")}>
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
-                      {(firstName || username || "H")[0]?.toUpperCase()}
-                    </div>
-                  )}
-                </div>
+                <AvatarFrame frameStyle={activeFrameStyle} size={96} radius="1.5rem" thickness={3}>
+                  <div className={"h-full w-full overflow-hidden rounded-3xl bg-white shadow-md dark:bg-[#18181b] " + (activeFrameStyle ? "" : isPremium ? "ring-4 ring-gold-400" : "ring-4 ring-white")}>
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center bg-brand-50 font-display text-3xl font-extrabold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+                        {(firstName || username || "H")[0]?.toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                </AvatarFrame>
                 {isPremium && (
                   <span title="Premium" className="absolute -top-1 -left-1 grid h-7 w-7 place-items-center rounded-full bg-gold-500 text-white shadow-[0_2px_0_0_#B45309] ring-2 ring-white dark:ring-[#18181b]">
                     <Crown className="h-3.5 w-3.5" />
@@ -1621,7 +1626,7 @@ export default function ProfilePage() {
           setFrameEquipping("none");
           try {
             const r = await apiFetch("/me/active-frame", { token, method: "PUT", body: JSON.stringify({ frame_id: null }) });
-            if (r.ok) { setActiveFrame(null); }
+            if (r.ok) { setActiveFrame(null); setActiveFrameStyle(null); window.dispatchEvent(new CustomEvent("hay_wallet")); }
           } catch {}
           setFrameEquipping(null);
         }}
@@ -1639,8 +1644,6 @@ export default function ProfilePage() {
         const isActive = String(activeFrame) === String(fid);
         const isEquipping = frameEquipping === String(fid);
         const frameTitle = item?.title || `Frame #${fid}`;
-        const isGold = frameTitle.toLowerCase().includes("gold");
-        const frameColor = isGold ? "#F59E0B" : "#6366F1";
         return (
           <button
             key={fid}
@@ -1650,20 +1653,19 @@ export default function ProfilePage() {
               setFrameEquipping(String(fid));
               try {
                 const r = await apiFetch("/me/active-frame", { token, method: "PUT", body: JSON.stringify({ frame_id: fid }) });
-                if (r.ok) { setActiveFrame(String(fid)); }
+                if (r.ok) { setActiveFrame(String(fid)); setActiveFrameStyle(item?.frame_style || null); window.dispatchEvent(new CustomEvent("hay_wallet")); }
               } catch {}
               setFrameEquipping(null);
             }}
             className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (isActive ? "ring-brand-500 bg-brand-50 dark:bg-brand-500/15" : "ring-slate-200 hover:ring-brand-300 bg-white dark:ring-white/[0.08] dark:bg-[#18181b]")}
           >
-            <div className="w-12 h-12 rounded-full relative flex items-center justify-center"
-              style={{ background: `${frameColor}22` }}>
-              <div className="absolute inset-0 rounded-full"
-                style={{ boxShadow: `0 0 0 3px ${frameColor}` }} />
-              <span className="text-xl font-extrabold" style={{ color: frameColor }}>
-                {String(username || "?")[0]?.toUpperCase()}
-              </span>
-            </div>
+            <AvatarFrame frameStyle={item?.frame_style} size={48} radius="9999px" thickness={2.5}>
+              <div className="h-full w-full rounded-full flex items-center justify-center bg-slate-100 dark:bg-white/[0.06]">
+                <span className="text-xl font-extrabold text-slate-500 dark:text-stone-300">
+                  {String(username || "?")[0]?.toUpperCase()}
+                </span>
+              </div>
+            </AvatarFrame>
             <span className="text-[10px] font-extrabold text-slate-600 leading-tight text-center dark:text-stone-300">{frameTitle}</span>
             {isActive && <Check className="h-3.5 w-3.5 text-brand-500" />}
             {isEquipping && <span className="text-[10px] text-slate-400 font-bold dark:text-stone-500">Saving…</span>}

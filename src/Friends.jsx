@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import { CrownBadge } from "./lib/PremiumBadge";
+import AvatarFrame from "./lib/avatarFrame";
 import grandma from "./assets/character-grandma.png";
 
 const API_BASE =
@@ -237,6 +238,8 @@ export default function Friends() {
         name: f.is_hidden ? "Hidden" : f.name || f.username || "User",
         username: f.is_hidden ? null : (f.username || null),
         avatar_url: f.is_hidden ? null : (f.avatar_url || null),
+        is_premium: !!f.is_premium,
+        active_frame_style: f.is_hidden ? null : (f.active_frame_style || null),
         // Sent requests don't have stats; keep neutral values.
         level: 1,
         xp: 0,
@@ -692,16 +695,22 @@ function dayLabel(isoStr) {
   return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }
 
-function Avatar({ name, avatarUrl, size = 12, ring = false }) {
+function Avatar({ name, avatarUrl, size = 12, ring = false, frameStyle = null }) {
   const initials = (name || "?").slice(0, 2).toUpperCase();
-  const cls = `h-${size} w-${size} shrink-0 rounded-full object-cover`;
-  return avatarUrl ? (
-    <img src={resolveUrl(avatarUrl)} className={cls + (ring ? " ring-2 ring-white ring-offset-1 ring-offset-brand-500" : "")} alt="" />
-  ) : (
-    <div className={`grid place-items-center rounded-full bg-gradient-to-br from-brand-300 to-brand-500 font-extrabold text-white ${cls}`}
-      style={{ fontSize: size < 10 ? 11 : 14 }}>
-      {initials}
-    </div>
+  const ringCls = ring && !frameStyle ? " ring-2 ring-white ring-offset-1 ring-offset-brand-500" : "";
+  return (
+    <AvatarFrame frameStyle={frameStyle} size={size * 4} radius="9999px" thickness={Math.max(2, size / 6)} className="shrink-0">
+      {avatarUrl ? (
+        <img src={resolveUrl(avatarUrl)} className={"h-full w-full rounded-full object-cover" + ringCls} alt="" />
+      ) : (
+        <div
+          className={"grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-brand-300 to-brand-500 font-extrabold text-white" + ringCls}
+          style={{ fontSize: size < 10 ? 11 : 14 }}
+        >
+          {initials}
+        </div>
+      )}
+    </AvatarFrame>
   );
 }
 
@@ -847,20 +856,22 @@ function PersonCard({
       <div className="flex items-start justify-between gap-3">
         <div className="relative flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
-            <div className={"grid h-12 w-12 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-pom-500 font-display font-extrabold text-white " + (person?.is_premium ? "ring-2 ring-gold-400" : "")}>
-              {isHidden ? (
-                <EyeOff className="h-5 w-5" />
-              ) : avatarSrc ? (
-                <img
-                  src={avatarSrc}
-                  alt="Avatar"
-                  className="h-full w-full object-cover"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
-                />
-              ) : (
-                initial
-              )}
-            </div>
+            <AvatarFrame frameStyle={!isHidden ? person?.active_frame_style : null} size={48} radius="1rem" thickness={2.5}>
+              <div className={"grid h-full w-full place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-pom-500 font-display font-extrabold text-white " + (!person?.active_frame_style && person?.is_premium ? "ring-2 ring-gold-400" : "")}>
+                {isHidden ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : avatarSrc ? (
+                  <img
+                    src={avatarSrc}
+                    alt="Avatar"
+                    className="h-full w-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                ) : (
+                  initial
+                )}
+              </div>
+            </AvatarFrame>
             {!isHidden && person?.is_premium && <CrownBadge size="h-4 w-4" iconSize="h-2.5 w-2.5" />}
           </div>
           <div className="min-w-0">

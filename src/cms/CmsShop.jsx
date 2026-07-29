@@ -4,9 +4,11 @@ import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Gem, Snowflake, Heart, Zap, Gift, Shield, ShieldCheck, TrendingUp, Award, Image } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import AvatarFrame from "../lib/avatarFrame";
 
 const ICONS = { snowflake: Snowflake, heart: Heart, zap: Zap, gem: Gem, shield: Shield, "shield-check": ShieldCheck, "trending-up": TrendingUp, award: Award, image: Image };
 const ICON_OPTS = ["snowflake", "heart", "zap", "gem", "shield", "shield-check", "trending-up", "award", "image"];
+const FRAME_STYLE_OPTIONS = ["gold", "silver", "bronze", "ruby", "sapphire", "emerald", "rainbow"];
 const EFFECTS = [
   { value: "streak_freeze",  label: "Grant streak freeze(s) — use amount for qty" },
   { value: "hearts_refill",  label: "Refill hearts" },
@@ -20,6 +22,30 @@ const EFFECTS = [
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
+}
+
+function FrameStylePicker({ value, onChange }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-50 p-2 ring-2 ring-slate-200">
+      <span className="pl-1 pr-0.5 text-xs font-extrabold uppercase tracking-wide text-slate-400">Frame style</span>
+      {FRAME_STYLE_OPTIONS.map((style) => (
+        <button
+          key={style}
+          type="button"
+          title={style}
+          onClick={() => onChange(value === style ? null : style)}
+          className={cx(
+            "grid place-items-center rounded-full transition",
+            value === style ? "ring-2 ring-brand-500 ring-offset-2" : "ring-1 ring-slate-200 hover:ring-slate-300"
+          )}
+        >
+          <AvatarFrame frameStyle={style} size={28} thickness={2.5}>
+            <div className="h-full w-full bg-white" />
+          </AvatarFrame>
+        </button>
+      ))}
+    </div>
+  );
 }
 const inputCls =
   "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
@@ -110,7 +136,7 @@ export default function CmsShop() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
-  const [draft, setDraft] = useState({ title: "", effect: "streak_freeze", price: 30, effect_amount: 0, icon: "gem" });
+  const [draft, setDraft] = useState({ title: "", effect: "streak_freeze", price: 30, effect_amount: 0, icon: "gem", frame_style: "" });
 
   function showToast(msg, kind = "ok") {
     setToast({ msg, kind });
@@ -126,6 +152,7 @@ export default function CmsShop() {
       e[it.id] = {
         title: it.title || "", description: it.description || "", icon: it.icon || "gem",
         price: it.price ?? 0, effect: it.effect || "streak_freeze", effect_amount: it.effect_amount ?? 0,
+        frame_style: it.frame_style || "",
       };
     });
     setEdits(e);
@@ -156,8 +183,9 @@ export default function CmsShop() {
       await api.createShopItem({
         title: draft.title.trim(), effect: draft.effect, price: Number(draft.price) || 0,
         effect_amount: Number(draft.effect_amount) || 0, icon: draft.icon,
+        frame_style: draft.effect === "avatar_frame" ? draft.frame_style || null : null,
       });
-      setDraft({ title: "", effect: "streak_freeze", price: 30, effect_amount: 0, icon: "gem" });
+      setDraft({ title: "", effect: "streak_freeze", price: 30, effect_amount: 0, icon: "gem", frame_style: "" });
       await refresh();
       showToast("Item created");
     } catch (err) {
@@ -174,6 +202,7 @@ export default function CmsShop() {
       await api.updateShopItem(it.id, {
         title: (e.title || "").trim(), description: (e.description || "").trim(), icon: e.icon,
         price: Number(e.price) || 0, effect: e.effect, effect_amount: Number(e.effect_amount) || 0,
+        frame_style: e.effect === "avatar_frame" ? e.frame_style || null : null,
       });
       await refresh();
       showToast("Saved");
@@ -265,6 +294,11 @@ export default function CmsShop() {
                 <Plus className="h-4 w-4" /> Add
               </button>
             </div>
+            {draft.effect === "avatar_frame" && (
+              <div className="mt-3">
+                <FrameStylePicker value={draft.frame_style} onChange={(v) => setDraft({ ...draft, frame_style: v })} />
+              </div>
+            )}
             <div className="mt-2 text-xs font-semibold text-slate-500">Amount only applies to “Add XP”. Prices are in gems.</div>
           </div>
 
@@ -298,6 +332,9 @@ export default function CmsShop() {
                           <input type="number" value={e.price ?? 0} onChange={(ev) => patch(it.id, { price: ev.target.value })} className={cx(inputCls, "!py-2")} title="Price (gems)" placeholder="Price" />
                           <input type="number" value={e.effect_amount ?? 0} onChange={(ev) => patch(it.id, { effect_amount: ev.target.value })} className={cx(inputCls, "!py-2")} title="Amount (XP)" placeholder="Amt" />
                         </div>
+                        {e.effect === "avatar_frame" && (
+                          <FrameStylePicker value={e.frame_style} onChange={(v) => patch(it.id, { frame_style: v })} />
+                        )}
                         <div className="flex flex-wrap items-center gap-2 pt-0.5">
                           <span className="inline-flex items-center gap-1 rounded-full bg-feather-50 px-2.5 py-0.5 text-xs font-bold text-feather-600"><Gem className="h-3.5 w-3.5" /> {e.price} gems</span>
                           <button type="button" onClick={() => toggleItem(it)} disabled={busy}

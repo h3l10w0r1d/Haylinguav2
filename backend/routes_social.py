@@ -25,6 +25,7 @@ from routes import (
     _compute_streak_days,
     _compute_achievements,
     _brevo_sync_user,
+    _frame_style_map,
 )
 
 router = APIRouter()
@@ -42,6 +43,7 @@ class FriendOut(BaseModel):
     streak: int
     global_rank: int
     is_premium: bool = False
+    active_frame_style: str | None = None
 
 class FriendSuggestionOut(BaseModel):
     user_id: int
@@ -90,11 +92,12 @@ def friends_list(
                 u.username,
                 u.display_name,
                 u.avatar_url,
+                u.active_frame,
                 COALESCE(u.is_premium, FALSE) AS is_premium,
                 COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.bonus_xp, u.is_premium
+              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.active_frame, u.bonus_xp, u.is_premium
             ), ranked AS (
               SELECT
                 xp.*,
@@ -111,6 +114,7 @@ def friends_list(
         {"uid": int(user_id)},
     ).mappings().all()
 
+    fmap = _frame_style_map(db)
     out: list[FriendOut] = []
     for r in rows:
         email = (r.get("email") or "").strip()
@@ -778,6 +782,7 @@ class LeaderboardEntryOut(BaseModel):
     level: int
     rank: int
     avatar_url: str | None = None
+    active_frame_style: str | None = None
 
 
 # === route:get_leaderboard ===
@@ -797,10 +802,11 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 u.email AS email,
                 u.username AS username,
                 u.avatar_url AS avatar_url,
+                u.active_frame AS active_frame,
                 COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
             FROM users u
             LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-            GROUP BY u.id, u.email, u.username, u.avatar_url, u.bonus_xp
+            GROUP BY u.id, u.email, u.username, u.avatar_url, u.active_frame, u.bonus_xp
             ORDER BY total_xp DESC, u.id ASC
             LIMIT :limit
             """
@@ -808,6 +814,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
         {"limit": limit},
     ).mappings().all()
 
+    fmap = _frame_style_map(db)
     out: List[LeaderboardEntryOut] = []
     for i, r in enumerate(rows, start=1):
         email = r["email"] or ""
@@ -836,6 +843,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 level=level,
                 rank=i,
                 avatar_url=r.get("avatar_url"),
+                active_frame_style=fmap.get(str(r.get("active_frame"))) if r.get("active_frame") else None,
             )
         )
 
@@ -850,6 +858,7 @@ class PublicUserOut(BaseModel):
     name: str
     bio: str | None = None
     avatar_url: str | None = None
+    active_frame_style: str | None = None
     banner_url: str | None = None
     profile_theme: dict = {}
     joined_at: datetime | None = None
@@ -883,6 +892,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
                 u.display_name,
                 u.bio,
                 u.avatar_url,
+                u.active_frame,
                 u.banner_url,
                 u.profile_theme,
                 u.joined_at,
@@ -891,7 +901,7 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
               WHERE u.id = :uid
-              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.banner_url, u.profile_theme, u.joined_at, u.bonus_xp, u.is_premium
+              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.active_frame, u.banner_url, u.profile_theme, u.joined_at, u.bonus_xp, u.is_premium
             ), ranked AS (
               SELECT
                 u2.id,
@@ -1088,6 +1098,7 @@ def get_public_user(
         name=name,
         bio=data.get("bio"),
         avatar_url=data.get("avatar_url"),
+        active_frame_style=_frame_style_map(db).get(str(data.get("active_frame"))) if data.get("active_frame") else None,
         banner_url=data.get("banner_url"),
         profile_theme=data.get("profile_theme") or {},
         joined_at=data.get("joined_at"),
@@ -1171,11 +1182,12 @@ def get_public_user_friends(
                 u.username,
                 u.display_name,
                 u.avatar_url,
+                u.active_frame,
                 COALESCE(u.is_premium, FALSE) AS is_premium,
                 COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
               FROM users u
               LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.bonus_xp, u.is_premium
+              GROUP BY u.id, u.email, u.username, u.display_name, u.avatar_url, u.active_frame, u.bonus_xp, u.is_premium
             ), ranked AS (
               SELECT
                 xp.*,
@@ -1198,6 +1210,7 @@ def get_public_user_friends(
         {"uid": target_id},
     ).mappings().all()
 
+    fmap = _frame_style_map(db)
     out: list[FriendOut] = []
     for r in rows:
         email = (r.get("email") or "").strip()
@@ -1218,6 +1231,7 @@ def get_public_user_friends(
                 streak=streak,
                 global_rank=int(r.get("global_rank") or 0),
                 is_premium=bool(r.get("is_premium")),
+                active_frame_style=fmap.get(str(r.get("active_frame"))) if r.get("active_frame") else None,
             )
         )
 

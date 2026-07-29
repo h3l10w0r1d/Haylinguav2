@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowUp, ArrowDown, Clock, Trophy, Users, Zap, ChevronRight, Medal } from "lucide-react";
 import { CrownBadge } from "./lib/PremiumBadge";
+import AvatarFrame from "./lib/avatarFrame";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function getToken() {
@@ -55,13 +56,15 @@ function Gem({ color, size = 48, locked = false }) {
   );
 }
 
-function Avatar({ name, url, size = "h-12 w-12", text = "text-lg", isPremium = false }) {
+function Avatar({ name, url, size = "h-12 w-12", text = "text-lg", isPremium = false, frameStyle = null }) {
   const src = resolveUrl(url);
   return (
     <div className={`relative grid ${size} shrink-0 place-items-center overflow-visible`}>
-      <div className={`grid h-full w-full place-items-center overflow-hidden rounded-full bg-gradient-to-br from-brand-400 to-pom-500 font-display ${text} font-extrabold text-white ` + (isPremium ? "ring-2 ring-gold-400" : "")}>
-        {src ? <img src={src} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : (name?.[0] || "U").toUpperCase()}
-      </div>
+      <AvatarFrame frameStyle={frameStyle} sizeClass={size} radius="9999px" thickness={2.5}>
+        <div className={`grid h-full w-full place-items-center overflow-hidden rounded-full bg-gradient-to-br from-brand-400 to-pom-500 font-display ${text} font-extrabold text-white ` + (!frameStyle && isPremium ? "ring-2 ring-gold-400" : "")}>
+          {src ? <img src={src} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : (name?.[0] || "U").toUpperCase()}
+        </div>
+      </AvatarFrame>
       {isPremium && <CrownBadge size="h-4 w-4" iconSize="h-2.5 w-2.5" />}
     </div>
   );
@@ -87,7 +90,7 @@ function Podium({ entries }) {
     const inner = (
       <div className="flex flex-col items-center gap-1.5">
         <div className="relative">
-          <Avatar name={e.name} url={e.avatar_url} size={isFirst ? "h-16 w-16" : "h-12 w-12"} text={isFirst ? "text-2xl" : "text-lg"} isPremium={e.is_premium} />
+          <Avatar name={e.name} url={e.avatar_url} size={isFirst ? "h-16 w-16" : "h-12 w-12"} text={isFirst ? "text-2xl" : "text-lg"} isPremium={e.is_premium} frameStyle={e.active_frame_style} />
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 grid h-5 w-5 place-items-center rounded-full font-display text-[11px] font-extrabold text-white ring-2 ring-white" style={{ background: color }}>
             {rank}
           </div>
@@ -119,7 +122,7 @@ function Row({ entry }) {
   const inner = (
     <>
       <RankBadge rank={entry.rank} />
-      <Avatar name={entry.name} url={entry.avatar_url} size="h-10 w-10" text="text-base" isPremium={entry.is_premium} />
+      <Avatar name={entry.name} url={entry.avatar_url} size="h-10 w-10" text="text-base" isPremium={entry.is_premium} frameStyle={entry.active_frame_style} />
       <div className="min-w-0 flex-1">
         <div className={`truncate font-display text-sm font-extrabold ${isSelf ? "text-brand-600 dark:text-brand-400" : "text-slate-800 dark:text-white"}`}>
           {entry.name}
@@ -342,7 +345,7 @@ export default function Leaderboard() {
         {selfEntry && selfEntry.rank > 10 && (
           <div className="fixed bottom-20 left-1/2 z-30 -translate-x-1/2 pointer-events-none">
             <div className="flex items-center gap-3 rounded-2xl bg-brand-600 px-4 py-2.5 text-white shadow-xl ring-1 ring-brand-700 pointer-events-auto">
-              <Avatar name={selfEntry.name} url={selfEntry.avatar_url} size="h-7 w-7" text="text-sm" />
+              <Avatar name={selfEntry.name} url={selfEntry.avatar_url} size="h-7 w-7" text="text-sm" frameStyle={selfEntry.active_frame_style} />
               <span className="font-display text-sm font-extrabold">#{selfEntry.rank} · {selfEntry.weekly_xp.toLocaleString()} XP</span>
             </div>
           </div>

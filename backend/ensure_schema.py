@@ -265,6 +265,11 @@ def ensure_schema() -> None:
                 END IF;
             END $$;
         """))
+        # Named cosmetic style for avatar_frame items (e.g. "gold", "silver") —
+        # the frontend/mobile render an actual ring around the avatar keyed
+        # off this, since purchasing a frame previously had no visible effect
+        # anywhere in the app.
+        add_col_if_missing("shop_items", "frame_style TEXT")
 
         # Always upsert the canonical item catalogue (title is the natural key).
         # New items added here will appear in existing databases on next boot.
@@ -291,6 +296,13 @@ def ensure_schema() -> None:
                 ),
                 {"t": t, "d": d, "ic": ic, "pr": pr, "eff": eff, "amt": amt, "so": i},
             )
+        # Backfill the one existing frame's cosmetic style — ON CONFLICT DO
+        # NOTHING above means the seed loop won't touch already-existing rows,
+        # so this can't be folded into the INSERT.
+        conn.execute(text("""
+            UPDATE shop_items SET frame_style = 'gold'
+            WHERE title = 'Gold Frame' AND frame_style IS NULL
+        """))
         print("[ensure_schema] upserted shop_items catalogue")
 
         # ---------- Premium pricing plans (CMS-editable, replaces the

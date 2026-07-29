@@ -4,6 +4,7 @@ import {
   Gem, Snowflake, Heart, Zap, Loader2, Check, Shield, ShieldCheck,
   TrendingUp, Award, Image as ImageIcon, X,
 } from "lucide-react";
+import AvatarFrame from "./lib/avatarFrame";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function getToken() {
@@ -55,9 +56,17 @@ function ItemCard({ item, onBuy }) {
   return (
     <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className="flex items-center gap-3">
-        <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
-          <Icon className="h-6 w-6" />
-        </div>
+        {item.effect === "avatar_frame" && item.frame_style ? (
+          <AvatarFrame frameStyle={item.frame_style} size={48} radius="9999px" thickness={3} className="shrink-0">
+            <div className="grid h-full w-full place-items-center rounded-full bg-slate-100 dark:bg-white/[0.08]">
+              <Icon className="h-5 w-5 text-slate-400 dark:text-stone-400" />
+            </div>
+          </AvatarFrame>
+        ) : (
+          <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
+            <Icon className="h-6 w-6" />
+          </div>
+        )}
         <div className="min-w-0">
           <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{item.title}</div>
           <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">{item.desc}</div>
