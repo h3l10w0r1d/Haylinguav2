@@ -91,6 +91,18 @@ function getToken() {
   );
 }
 
+// Shown by any audio exercise when TTS can't load (network hiccup / backend
+// cold start) instead of failing silently — with a Retry so the learner isn't
+// stuck (critical for audio-first kinds that show no text).
+function AudioFailNote({ onRetry, className = "" }) {
+  return (
+    <div className={"mt-2 flex items-center justify-center gap-2 text-sm font-bold text-cardinal-600 dark:text-cardinal-400 " + className}>
+      <span>🔇 Audio didn’t load</span>
+      <button type="button" onClick={onRetry} className="underline underline-offset-2 hover:text-cardinal-700 dark:hover:text-cardinal-300">Retry</button>
+    </div>
+  );
+}
+
 // Shared by every "speak" exercise kind: watches the live mic stream and
 // calls onSilence() once the learner has spoken and then gone quiet for a
 // beat — so recording stops itself instead of requiring a tap. Also a hard
@@ -1264,6 +1276,7 @@ function ExAudioChoiceTts({
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [graded, setGraded] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [audioErr, setAudioErr] = useState(false);
 
   const audioRef = useRef(null);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -1289,7 +1302,7 @@ function ExAudioChoiceTts({
   async function play() {
     if (!ttsText) return;
     try {
-      setBusy(true);
+      setBusy(true); setAudioErr(false);
       const url = await ttsFetch(apiBaseUrl, {
         text: ttsText,
         exerciseId: exercise?.id,
@@ -1298,8 +1311,10 @@ function ExAudioChoiceTts({
       const audio = newTrackedAudio(url);
       audioRef.current = audio;
       await audio.play();
-    } catch {
-      wrong("Could not play audio. Check ElevenLabs key / /tts endpoint.");
+    } catch (e) {
+      // Don't grade a playback failure as a wrong answer — just let them retry.
+      console.error("TTS failed", e);
+      setAudioErr(true);
     } finally {
       setBusy(false);
     }
@@ -1317,6 +1332,7 @@ function ExAudioChoiceTts({
           busy={busy}
           playDisabled={!ttsText}
         />
+        {audioErr ? <AudioFailNote onRetry={play} /> : null}
         {!ttsText && <Muted className="mt-2">Missing config.ttsText</Muted>}
       </div>
 
@@ -1812,6 +1828,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
 
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [audioErr, setAudioErr] = useState(false);
   const didAutoplay = useRef(false);
 
   useEffect(() => {
@@ -1822,13 +1839,14 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
   async function play(rate = 1) {
     if (!target) return;
     try {
-      setBusy(true);
+      setBusy(true); setAudioErr(false);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
       const a = newTrackedAudio(url);
       a.playbackRate = rate;
       await a.play();
     } catch (e) {
       console.error("TTS failed", e);
+      setAudioErr(true);
     } finally {
       setBusy(false);
     }
@@ -1857,6 +1875,7 @@ function ExListenType({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, api
           busy={busy}
           playDisabled={!target}
         />
+        {audioErr ? <AudioFailNote onRetry={() => play(1)} /> : null}
       </div>
 
       {hint ? <Muted className="mt-3">Hint: {hint}</Muted> : null}
@@ -1899,6 +1918,7 @@ function ExListenImage({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, ap
   const [sel, setSel] = useState(null);
   const [graded, setGraded] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [audioErr, setAudioErr] = useState(false);
   const didAutoplay = useRef(false);
 
   useEffect(() => { setSel(null); setGraded(null); didAutoplay.current = false; }, [exercise?.id]);
@@ -1906,10 +1926,10 @@ function ExListenImage({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, ap
   async function play(rate = 1) {
     if (!target) return;
     try {
-      setBusy(true);
+      setBusy(true); setAudioErr(false);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
       const a = newTrackedAudio(url); a.playbackRate = rate; await a.play();
-    } catch (e) { console.error("TTS failed", e); }
+    } catch (e) { console.error("TTS failed", e); setAudioErr(true); }
     finally { setBusy(false); }
   }
 
@@ -1932,6 +1952,7 @@ function ExListenImage({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, ap
           busy={busy}
           playDisabled={!target}
         />
+        {audioErr ? <AudioFailNote onRetry={() => play(1)} /> : null}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
@@ -2200,6 +2221,7 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
   const solution = Array.isArray(cfg.solution) && cfg.solution.length ? cfg.solution : (target ? target.split(/\s+/) : []);
 
   const [busy, setBusy] = useState(false);
+  const [audioErr, setAudioErr] = useState(false);
   const [picked, setPicked] = useState([]);
   const [available, setAvailable] = useState([]);
   const didAutoplay = useRef(false);
@@ -2214,13 +2236,14 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
   async function play(rate = 1) {
     if (!target) return;
     try {
-      setBusy(true);
+      setBusy(true); setAudioErr(false);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
       const a = newTrackedAudio(url);
       a.playbackRate = rate;
       await a.play();
     } catch (e) {
       console.error("TTS failed", e);
+      setAudioErr(true);
     } finally {
       setBusy(false);
     }
@@ -2250,6 +2273,7 @@ function ExListenWordBank({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer,
           busy={busy}
           playDisabled={!target}
         />
+        {audioErr ? <AudioFailNote onRetry={() => play(1)} /> : null}
       </div>
       <div className="wordbank-lines mt-4 flex min-h-[7rem] flex-wrap content-start gap-x-2 gap-y-2 px-1">
         {picked.length === 0 ? <Muted className="self-end pb-1">Tap the words you heard…</Muted> : picked.map((p, i) => <Pill key={p.key} active className="tile-pop" onClick={() => remove(i)}>{p.t}</Pill>)}
@@ -2459,16 +2483,17 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
   const didAutoplay = useRef(false);
   useEffect(() => { setSel(null); setGraded(null); didAutoplay.current = false; }, [exercise?.id]);
   const bubbleText = _MINIMAL_PAIRS_BUBBLES[Number(exercise?.id ?? 0) % _MINIMAL_PAIRS_BUBBLES.length];
+  const [audioErr, setAudioErr] = useState(false);
 
   async function play(rate = 1) {
     if (!target) return;
     try {
-      setBusy(true);
+      setBusy(true); setAudioErr(false);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text: target, exerciseId: exercise?.id });
       const a = newTrackedAudio(url);
       a.playbackRate = rate;
       await a.play();
-    } catch (e) { console.error("TTS failed", e); } finally { setBusy(false); }
+    } catch (e) { console.error("TTS failed", e); setAudioErr(true); } finally { setBusy(false); }
   }
   useEffect(() => {
     if (!exercise?.id || !target || didAutoplay.current) return;
@@ -2490,6 +2515,7 @@ function ExMinimalPairs({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, a
           busy={busy}
           playDisabled={!target}
         />
+        {audioErr ? <AudioFailNote onRetry={() => play(1)} /> : null}
       </div>
       <div className="mt-4"><ChoiceGrid choices={choices} selected={sel} onSelect={setSel} columns={2} graded={graded} /></div>
       {graded && emoji ? (
@@ -3278,7 +3304,10 @@ function ExRadio({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   const [sel, setSel] = useState(null);
   const [revealed, setRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [audioErr, setAudioErr] = useState(false);
+  const [forceText, setForceText] = useState(false); // reveal text if audio keeps failing
   const scoreRef = useRef(0);
+  const failRef = useRef(0);
   const picksRef = useRef([]); // the learner's pick per segment (for server grading)
   const seg = segments[idx] || {};
   const answerIndex = Number.isFinite(seg.answerIndex) ? Number(seg.answerIndex) : 0;
@@ -3288,15 +3317,20 @@ function ExRadio({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   async function play(rate = 1) {
     const text = seg?.text; if (!text) return;
     try {
-      setBusy(true);
+      setBusy(true); setAudioErr(false);
       const url = await ttsFetch(apiBaseUrl || API_BASE, { text, exerciseId: exercise?.id });
       const a = newTrackedAudio(url); a.playbackRate = rate; await a.play();
-    } catch (e) { console.error("TTS failed", e); }
+    } catch (e) {
+      console.error("TTS failed", e);
+      setAudioErr(true);
+      failRef.current += 1;
+      if (failRef.current >= 2) setForceText(true); // don't strand the learner in silence
+    }
     finally { setBusy(false); }
   }
 
   // Auto-play each segment as it becomes current.
-  useEffect(() => { setSel(null); setRevealed(false); if (seg?.text) play(); /* eslint-disable-next-line */ }, [idx, exercise?.id]);
+  useEffect(() => { setSel(null); setRevealed(false); setForceText(false); if (seg?.text) play(); /* eslint-disable-next-line */ }, [idx, exercise?.id]);
 
   const graded = revealed ? { correct: answerIndex, picked: sel } : null;
 
@@ -3328,7 +3362,7 @@ function ExRadio({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
       <div className="mt-3">
         <SpeechBubbleMascot
           character="armen"
-          text={revealed
+          text={(revealed || forceText)
             ? <span><GlossaryText text={seg?.text || ""} glossary={cfg.glossary} />{seg?.translation ? <span className="mt-0.5 block text-sm font-semibold text-slate-400 dark:text-stone-500">{seg.translation}</span> : null}</span>
             : "🎧 Listen…"}
           onPlay={() => play(1)}
@@ -3336,6 +3370,7 @@ function ExRadio({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
           busy={busy}
           playDisabled={!seg?.text}
         />
+        {audioErr ? <AudioFailNote onRetry={() => play(1)} /> : null}
       </div>
 
       {seg?.question ? (
