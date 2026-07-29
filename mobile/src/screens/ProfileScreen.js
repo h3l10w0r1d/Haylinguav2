@@ -32,7 +32,11 @@ const TABS = [
 ];
 
 async function pickAndUpload(endpoint, onDone) {
-  const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.85, includeBase64: false });
+  // maxWidth/maxHeight trim the picked file before it's even uploaded — the
+  // server (POST /me/avatar) resizes to the same 512px cap regardless, but
+  // capping here too means a multi-megapixel phone photo isn't uploaded in
+  // full just to be downsized server-side a moment later.
+  const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.85, includeBase64: false, maxWidth: 512, maxHeight: 512 });
   if (result.didCancel || !result.assets?.[0]) return;
   const asset = result.assets[0];
   const form = new FormData();

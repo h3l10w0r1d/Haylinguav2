@@ -70,6 +70,8 @@ const PracticeMode = lazy(() => import('./PracticeMode'));
 const CheckpointPlayer = lazy(() => import('./CheckpointPlayer'));
 const PlacementTest = lazy(() => import('./PlacementTest'));
 const AIConversation = lazy(() => import('./AIConversation'));
+const AdventuresHome = lazy(() => import('./AdventuresHome'));
+const AdventurePlayer = lazy(() => import('./AdventurePlayer'));
 // Spaced-repetition review feature — disabled (not deleted) per product
 // decision; re-enable by uncommenting this import + the /review route below.
 // const ReviewMode      = lazy(() => import('./ReviewMode'));
@@ -600,6 +602,36 @@ function AppShell() {
             <RequireVerified>
               <RequireOnboarded>
                 <AIConversation />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* Adventures — walk-through-a-scene quests, full-screen */}
+      <Route
+        path="/adventures"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <AdventuresHome />
+              </RequireOnboarded>
+            </RequireVerified>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
+        path="/adventures/:adventureId"
+        element={
+          user ? (
+            <RequireVerified>
+              <RequireOnboarded>
+                <AdventurePlayer />
               </RequireOnboarded>
             </RequireVerified>
           ) : (

@@ -190,7 +190,7 @@ except PermissionError:
     BANNER_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "banners")
     os.makedirs(BANNER_UPLOAD_DIR, exist_ok=True)
 
-app.mount("/static/banners", StaticFiles(directory=BANNER_UPLOAD_DIR), name="banners")
+app.mount("/static/banners", CachedStaticFiles(directory=BANNER_UPLOAD_DIR), name="banners")
 
 # Serve TTS audio files used by AI Conversation (SadTalker needs a public URL).
 CONV_AUDIO_DIR = os.path.join(UPLOADS_DIR, "conversation_audio")

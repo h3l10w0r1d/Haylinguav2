@@ -23,6 +23,10 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
           if (id.includes("@sentry")) return "sentry";
+          // Phaser (~1.2 MB) powers only the Adventures scene, which is loaded
+          // via dynamic import. Leave it OUT of the eager vendor chunk so it
+          // stays a lazy chunk fetched only when a learner opens an adventure.
+          if (id.includes("node_modules/phaser")) return "phaser";
           return "vendor";
         },
       },
