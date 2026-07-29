@@ -2234,6 +2234,20 @@ def cms_seed_radio(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/chapter-icons")
+def cms_seed_chapter_icons(request: Request, db=Depends(get_db)):
+    """Give every chapter a lucide icon (matched by title keyword), filling only
+    chapters that don't already have one — never overwrites an editor's pick.
+    Idempotent."""
+    require_cms(request, db)
+    from seed_chapter_icons import seed_chapter_icons
+    try:
+        res = seed_chapter_icons()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/situations")
 def cms_seed_situations(request: Request, db=Depends(get_db)):
     """A2 · Everyday Situations — at the doctor, at the shop, making plans.
