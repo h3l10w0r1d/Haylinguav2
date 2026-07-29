@@ -2988,9 +2988,10 @@ function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
 
   const drawRef = useRef(null);
   const ghostRef = useRef(null);
-  const audioRef = useRef(null);
   const drawing = useRef(false);
   const [dirty, setDirty] = useState(false);
+  const [audioErr, setAudioErr] = useState(false);
+  const didAutoplay = useRef(false);
 
   const dpr = () => Math.min(window.devicePixelRatio || 1, 2);
 
@@ -3010,6 +3011,8 @@ function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
     };
     drawRef.current?.getContext("2d").clearRect(0, 0, SIZE, SIZE);
     setDirty(false);
+    setAudioErr(false);
+    didAutoplay.current = false;
     paintGhost();
     // repaint once webfonts settle so the guide matches the grading mask
     if (document.fonts?.ready) document.fonts.ready.then(paintGhost);
@@ -3031,13 +3034,24 @@ function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
   const clear = () => { drawRef.current.getContext("2d").clearRect(0, 0, SIZE, SIZE); setDirty(false); };
 
   async function play() {
+    if (!audioText) return;
     try {
-      const res = await fetch(`${apiBaseUrl || ""}/tts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: audioText }) });
-      if (!res.ok) return;
-      const url = URL.createObjectURL(await res.blob());
-      if (audioRef.current) { audioRef.current.src = url; audioRef.current.play().catch(() => {}); }
-    } catch {}
+      setAudioErr(false);
+      // Use the shared TTS path (falls back to the backend API_BASE) — a bare
+      // "/tts" would hit the frontend host and 405.
+      const url = await ttsFetch(apiBaseUrl || API_BASE, { text: audioText, exerciseId: exercise?.id });
+      const a = newTrackedAudio(url);
+      await a.play();
+    } catch (e) { console.error("TTS failed", e); setAudioErr(true); }
   }
+
+  // Auto-play the letter's sound when it appears.
+  useEffect(() => {
+    if (didAutoplay.current || !audioText) return;
+    didAutoplay.current = true;
+    play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise?.id]);
 
   function grade() {
     const r = dpr(); const W = SIZE * r, H = SIZE * r;
@@ -3079,7 +3093,7 @@ function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
       <div className="mt-2 text-center">
         <button type="button" onClick={clear} className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300">Clear</button>
       </div>
-      <audio ref={audioRef} className="hidden" />
+      {audioErr ? <AudioFailNote onRetry={play} /> : null}
       <FooterSlot>
         <PrimaryButton disabled={!dirty} onClick={grade}>Check</PrimaryButton>
       </FooterSlot>
