@@ -2412,6 +2412,21 @@ def cms_seed_b1_2(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/b1-vocab")
+def cms_seed_b1_vocab(request: Request, db=Depends(get_db)):
+    """B1 vocabulary layer — 11 intermediate/abstract topical domains (emotions,
+    personality, technology, money, education, society, arts, sports, cooking,
+    travel, communication). 5 chapters / 11 lessons / 77 exercises, cefr=B1.
+    Idempotent (skips if b1v-emotions exists)."""
+    require_cms(request, db)
+    from seed_b1_vocab import seed_b1_vocab
+    try:
+        res = seed_b1_vocab()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/trace-all")
 def cms_seed_trace_all(request: Request, db=Depends(get_db)):
     """Give every alphabet letter a handwriting step: appends a trace_letter
