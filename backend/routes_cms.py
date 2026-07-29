@@ -2442,6 +2442,21 @@ def cms_seed_b1_3(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/b1-4")
+def cms_seed_b1_4(request: Request, db=Depends(get_db)):
+    """B1 batch 4 (finisher) — listening (type/tap what you hear), three
+    functional conversations (plans, restaurant, directions), and a mixed
+    checkpoint review. 3 chapters / 6 lessons / 33 exercises, cefr=B1.
+    Idempotent (skips if b1-listen-1 exists)."""
+    require_cms(request, db)
+    from seed_b1_4 import seed_b1_4
+    try:
+        res = seed_b1_4()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/trace-all")
 def cms_seed_trace_all(request: Request, db=Depends(get_db)):
     """Give every alphabet letter a handwriting step: appends a trace_letter
