@@ -277,7 +277,7 @@ export default function AudioManager({ exerciseId, exerciseText, targetKey = nul
     }
   }
 
-  function playAudio(audioId, voiceType) {
+  async function playAudio(audioId, voiceType) {
     if (playing === audioId) {
       audioPlayerRef.current[voiceType]?.pause();
       setPlaying(null);
@@ -285,16 +285,36 @@ export default function AudioManager({ exerciseId, exerciseText, targetKey = nul
     }
 
     Object.values(audioPlayerRef.current).forEach((p) => p?.pause());
-
-    const player = newTrackedAudio(
-      `${API_BASE}${targetKey ? "/cms/audio/targets" : "/cms/audio"}/${audioId}/preview`
-    );
-    player.onended = () => setPlaying(null);
-    player.onerror = () => setError("Playback failed.");
-
-    audioPlayerRef.current[voiceType] = player;
     setPlaying(audioId);
-    player.play();
+
+    // This endpoint requires a Bearer token, but a plain <audio src="..."> is
+    // a native browser request that can't carry custom headers — it always
+    // came back 401. Fetch the bytes ourselves (with the auth header) and
+    // play the resulting blob URL instead.
+    try {
+      const res = await fetch(
+        `${API_BASE}${targetKey ? "/cms/audio/targets" : "/cms/audio"}/${audioId}/preview`,
+        { headers: cmsHeaders() }
+      );
+      if (!res.ok) throw new Error(`Playback failed (HTTP ${res.status})`);
+      const blobUrl = URL.createObjectURL(await res.blob());
+
+      const player = newTrackedAudio(blobUrl);
+      player.onended = () => {
+        URL.revokeObjectURL(blobUrl);
+        setPlaying(null);
+      };
+      player.onerror = () => {
+        URL.revokeObjectURL(blobUrl);
+        setError("Playback failed.");
+      };
+
+      audioPlayerRef.current[voiceType] = player;
+      player.play();
+    } catch (err) {
+      setError(err?.message || "Playback failed.");
+      setPlaying(null);
+    }
   }
 
   async function deleteAudio(audioId) {
