@@ -2978,6 +2978,138 @@ function ExSpeakLine({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiB
 // authored stroke-path data — every one of the 39 letters works from just the
 // character. The single biggest week-one barrier for a non-Latin script.
 const _TRACE_FONT = 'bold {S}px "Baloo 2","Noto Sans Armenian",ui-sans-serif,system-ui,sans-serif';
+
+// ---- trace_letter stroke-path grading -------------------------------------
+// Instead of counting how much ink overlaps the glyph (which a dense scribble
+// trivially satisfies), we grade the drawn *path* against the letter's
+// centerline. Render the glyph → thin it to a 1-px skeleton (Zhang–Suen) →
+// compare the learner's polyline to that skeleton with a bidirectional
+// distance test: precision = how much of what they drew hugs the centerline,
+// recall = how much of the centerline they actually traced. A scribble covers
+// area but strays off the thin skeleton, so its precision collapses.
+const _TRACE_GRID = 120; // grading resolution (px per side)
+
+// Rasterise the glyph to a boolean bitmap at the grading resolution.
+function _traceGlyphMask(letter, W, H) {
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  g.fillStyle = "#000";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = _TRACE_FONT.replace("{S}", String(Math.round(H * 0.72)));
+  g.fillText(letter, W / 2, H / 2 + H * 0.02);
+  const a = g.getImageData(0, 0, W, H).data;
+  const bmp = new Uint8Array(W * H);
+  for (let p = 0, i = 3; p < bmp.length; p++, i += 4) bmp[p] = a[i] > 60 ? 1 : 0;
+  return bmp;
+}
+
+// Zhang–Suen thinning → 1-px medial skeleton. Mutates and returns bmp.
+function _traceThin(bmp, W, H) {
+  const at = (x, y) => bmp[y * W + x];
+  let changed = true;
+  const dead = [];
+  while (changed) {
+    changed = false;
+    for (let step = 0; step < 2; step++) {
+      dead.length = 0;
+      for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+          if (!bmp[y * W + x]) continue;
+          const P2 = at(x, y - 1), P3 = at(x + 1, y - 1), P4 = at(x + 1, y),
+                P5 = at(x + 1, y + 1), P6 = at(x, y + 1), P7 = at(x - 1, y + 1),
+                P8 = at(x - 1, y), P9 = at(x - 1, y - 1);
+          const B = P2 + P3 + P4 + P5 + P6 + P7 + P8 + P9;
+          if (B < 2 || B > 6) continue;
+          const seq = [P2, P3, P4, P5, P6, P7, P8, P9, P2];
+          let A = 0;
+          for (let k = 0; k < 8; k++) if (!seq[k] && seq[k + 1]) A++;
+          if (A !== 1) continue;
+          if (step === 0) {
+            if (P2 && P4 && P6) continue;
+            if (P4 && P6 && P8) continue;
+          } else {
+            if (P2 && P4 && P8) continue;
+            if (P2 && P6 && P8) continue;
+          }
+          dead.push(y * W + x);
+        }
+      }
+      if (dead.length) { changed = true; for (const i of dead) bmp[i] = 0; }
+    }
+  }
+  return bmp;
+}
+
+// Two-pass chamfer distance transform: dist from every cell to nearest set bit.
+function _traceDist(bmp, W, H) {
+  const INF = 1e9, D1 = 1, D2 = Math.SQRT2;
+  const d = new Float32Array(W * H);
+  for (let i = 0; i < d.length; i++) d[i] = bmp[i] ? 0 : INF;
+  const I = (x, y) => y * W + x;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = I(x, y); let v = d[i];
+    if (x > 0) v = Math.min(v, d[i - 1] + D1);
+    if (y > 0) v = Math.min(v, d[i - W] + D1);
+    if (x > 0 && y > 0) v = Math.min(v, d[i - W - 1] + D2);
+    if (x < W - 1 && y > 0) v = Math.min(v, d[i - W + 1] + D2);
+    d[i] = v;
+  }
+  for (let y = H - 1; y >= 0; y--) for (let x = W - 1; x >= 0; x--) {
+    const i = I(x, y); let v = d[i];
+    if (x < W - 1) v = Math.min(v, d[i + 1] + D1);
+    if (y < H - 1) v = Math.min(v, d[i + W] + D1);
+    if (x < W - 1 && y < H - 1) v = Math.min(v, d[i + W + 1] + D2);
+    if (x > 0 && y < H - 1) v = Math.min(v, d[i + W - 1] + D2);
+    d[i] = v;
+  }
+  return d;
+}
+
+// Rasterise recorded strokes (arrays of points, already in grid space) into a
+// boolean bitmap, joining consecutive samples so fast strokes stay continuous.
+function _traceRasterStrokes(strokes, W, H) {
+  const bmp = new Uint8Array(W * H);
+  const put = (x, y) => {
+    const xi = Math.round(x), yi = Math.round(y);
+    if (xi >= 0 && yi >= 0 && xi < W && yi < H) bmp[yi * W + xi] = 1;
+  };
+  for (const st of strokes) {
+    let prev = null;
+    for (const p of st) {
+      if (prev) {
+        const dx = p.x - prev.x, dy = p.y - prev.y;
+        const n = Math.max(1, Math.ceil(Math.hypot(dx, dy)));
+        for (let k = 0; k <= n; k++) put(prev.x + (dx * k) / n, prev.y + (dy * k) / n);
+      } else put(p.x, p.y);
+      prev = p;
+    }
+  }
+  return bmp;
+}
+
+// Score a trace. Returns { precision, recall, skelN, drawnN } or null if the
+// glyph didn't render (missing webfont — caller should not punish that).
+function _traceScore(letter, strokes, dispW) {
+  const G = _TRACE_GRID;
+  const mask = _traceGlyphMask(letter, G, G);
+  let maskN = 0; for (let i = 0; i < mask.length; i++) maskN += mask[i];
+  if (maskN === 0) return null;
+  const skel = _traceThin(mask.slice(), G, G);
+  let skelN = 0; for (let i = 0; i < skel.length; i++) skelN += skel[i];
+  // Map recorded points (in the canvas's displayed CSS px) into grid space.
+  const s = G / (dispW || G);
+  const scaled = strokes.map((st) => st.map((p) => ({ x: p.x * s, y: p.y * s })));
+  const drawn = _traceRasterStrokes(scaled, G, G);
+  let drawnN = 0; for (let i = 0; i < drawn.length; i++) drawnN += drawn[i];
+  if (skelN === 0 || drawnN === 0) return { precision: 0, recall: 0, skelN, drawnN };
+  const R = G * 0.075; // tolerance band (~9px on the 120-grid)
+  const dToSkel = _traceDist(skel, G, G);
+  const dToDrawn = _traceDist(drawn, G, G);
+  let prec = 0; for (let i = 0; i < drawn.length; i++) if (drawn[i] && dToSkel[i] <= R) prec++;
+  let rec = 0;  for (let i = 0; i < skel.length; i++)  if (skel[i]  && dToDrawn[i] <= R) rec++;
+  return { precision: prec / drawnN, recall: rec / skelN, skelN, drawnN };
+}
 function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, submit, apiBaseUrl }) {
   const { correct, wrong, skip } = useAnswerHelpers({ onCorrect, onWrong, onSkip, onAnswer, submit });
   const letter = String(cfg.letter ?? cfg.char ?? exercise?.prompt ?? "").trim();
@@ -2989,6 +3121,7 @@ function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
   const drawRef = useRef(null);
   const ghostRef = useRef(null);
   const drawing = useRef(false);
+  const ptsRef = useRef([]); // recorded strokes (each an array of {x,y}) for path grading
   const [dirty, setDirty] = useState(false);
   const [audioErr, setAudioErr] = useState(false);
   const didAutoplay = useRef(false);
@@ -3010,6 +3143,7 @@ function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
       g.fillText(letter, SIZE / 2, SIZE / 2 + SIZE * 0.02);
     };
     drawRef.current?.getContext("2d").clearRect(0, 0, SIZE, SIZE);
+    ptsRef.current = [];
     setDirty(false);
     setAudioErr(false);
     didAutoplay.current = false;
@@ -3028,10 +3162,10 @@ function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
     if (down) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineWidth = 26; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#e07b39"; }
     ctx.lineTo(x, y); ctx.stroke();
   };
-  const onDown = (e) => { e.preventDefault(); drawing.current = true; const { x, y } = at(e); stroke(x, y, true); stroke(x + 0.01, y + 0.01, false); setDirty(true); };
-  const onMove = (e) => { if (!drawing.current) return; e.preventDefault(); const { x, y } = at(e); stroke(x, y, false); };
+  const onDown = (e) => { e.preventDefault(); drawing.current = true; const { x, y } = at(e); ptsRef.current.push([{ x, y }]); stroke(x, y, true); stroke(x + 0.01, y + 0.01, false); setDirty(true); };
+  const onMove = (e) => { if (!drawing.current) return; e.preventDefault(); const { x, y } = at(e); const s = ptsRef.current; if (s.length) s[s.length - 1].push({ x, y }); stroke(x, y, false); };
   const onUp = () => { drawing.current = false; };
-  const clear = () => { drawRef.current.getContext("2d").clearRect(0, 0, SIZE, SIZE); setDirty(false); };
+  const clear = () => { drawRef.current.getContext("2d").clearRect(0, 0, SIZE, SIZE); ptsRef.current = []; setDirty(false); };
 
   async function play() {
     if (!audioText) return;
@@ -3054,27 +3188,18 @@ function ExTraceLetter({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, su
   }, [exercise?.id]);
 
   function grade() {
-    const r = dpr(); const W = SIZE * r, H = SIZE * r;
-    const m = document.createElement("canvas"); m.width = W; m.height = H;
-    const mc = m.getContext("2d"); mc.setTransform(r, 0, 0, r, 0, 0);
-    mc.fillStyle = "#000"; mc.textAlign = "center"; mc.textBaseline = "middle"; mc.font = glyphFont;
-    mc.fillText(letter, SIZE / 2, SIZE / 2 + SIZE * 0.02);
-    const mData = mc.getImageData(0, 0, W, H).data;
-    const dData = drawRef.current.getContext("2d").getImageData(0, 0, W, H).data;
-    let maskN = 0, drawN = 0, covered = 0;
-    for (let i = 3; i < mData.length; i += 4) {
-      const mm = mData[i] > 60, dd = dData[i] > 30;
-      if (mm) maskN++;
-      if (dd) drawN++;
-      if (mm && dd) covered++;
+    const dispW = drawRef.current?.getBoundingClientRect().width || SIZE;
+    const score = _traceScore(letter, ptsRef.current, dispW);
+    // Glyph didn't render (missing webfont) — don't punish the learner.
+    if (!score) { correct({ answerText: `trace:${letter}` }); return; }
+    if (import.meta?.env?.DEV) {
+      console.log("[trace]", { precision: +score.precision.toFixed(2), recall: +score.recall.toFixed(2) });
     }
-    if (maskN === 0) { correct({ answerText: `trace:${letter}` }); return; } // font missing — don't punish
-    const coverage = covered / maskN;
-    const drawnRatio = drawN / maskN;
-    const ok = coverage >= 0.55 && drawnRatio <= 2.6;
-    ok
-      ? correct({ answerText: `trace:${letter}` })
-      : wrong(coverage < 0.55 ? "Trace over the whole letter." : "Stay on the letter — don't scribble.", { answerText: `trace:${letter}` });
+    // recall  = how much of the letter's centerline the path actually covered
+    // precision = how much of the path stayed on the centerline (scribble killer)
+    if (score.recall < 0.6) { wrong("Trace over the whole letter.", { answerText: `trace:${letter}` }); return; }
+    if (score.precision < 0.6) { wrong("Stay on the letter — don't scribble.", { answerText: `trace:${letter}` }); return; }
+    correct({ answerText: `trace:${letter}` });
   }
 
   return (
