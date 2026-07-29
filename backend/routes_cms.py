@@ -2368,6 +2368,20 @@ def cms_seed_a2speak(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/trace-all")
+def cms_seed_trace_all(request: Request, db=Depends(get_db)):
+    """Give every alphabet letter a handwriting step: appends a trace_letter
+    for each of the 39 letters to the hl-alphabet lesson that teaches it.
+    Idempotent (skips letters already traced). Also authored live via the API."""
+    require_cms(request, db)
+    from seed_trace_all import seed_trace_all
+    try:
+        res = seed_trace_all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
