@@ -145,8 +145,12 @@ function SectionLabel({ children, style }) {
   );
 }
 
+// Rendered at its actual display size (56) rather than oversampling — RN
+// bridges every SVG path/group into a real native view, so avoiding
+// unnecessary geometry on ~29 simultaneously-mounted thumbnails (the Hair
+// tab) matters a lot more here than it does for a browser <img>.
 function OptionThumb({ traits, field, value, active, onPress }) {
-  const xml = useMemo(() => buildSvgMarkup({ ...traits, [field]: value }, 96), [traits, field, value]);
+  const xml = useMemo(() => buildSvgMarkup({ ...traits, [field]: value }, 56), [traits, field, value]);
   return (
     <Pressable3D onPress={onPress} pressDepth={2}>
       <View
@@ -249,15 +253,29 @@ export default function AvatarBuilderScreen({ navigation }) {
         <SvgXml xml={exportXml} override={{ ref: svgRef, width: 320, height: 320 }} />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="border-b border-stone-200 bg-white px-3 py-2">
-        <View className="flex-row" style={{ gap: 4 }}>
+      <View style={{ height: 52, borderBottomWidth: 1, borderBottomColor: '#e7e5e4', backgroundColor: '#fff' }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ alignItems: 'center', paddingHorizontal: 12, gap: 4 }}
+        >
           {TABS.map((t) => (
-            <Pressable key={t.key} onPress={() => setTab(t.key)} className={'rounded-full px-3 py-1.5 ' + (tab === t.key ? 'bg-brand-500' : '')}>
-              <Text className={'text-xs font-extrabold ' + (tab === t.key ? 'text-white' : 'text-stone-500')}>{t.label}</Text>
+            <Pressable
+              key={t.key}
+              onPress={() => setTab(t.key)}
+              style={{
+                height: 32,
+                justifyContent: 'center',
+                paddingHorizontal: 12,
+                borderRadius: 999,
+                backgroundColor: tab === t.key ? '#FF7A1A' : 'transparent',
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '800', color: tab === t.key ? '#fff' : '#78716c' }}>{t.label}</Text>
             </Pressable>
           ))}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 24 }}>
         {tab === 'hair' && (
