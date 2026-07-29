@@ -195,7 +195,11 @@ export default function DashboardScreen({ navigation }) {
     // fallback: estimate an offset, then correct once nearby cells are
     // measured.
     const timer = setTimeout(() => {
-      listRef.current?.scrollToIndex({ index: currentChapterIndex, animated: false, viewPosition: 0 });
+      // viewPosition: 0.5 aligns the chapter's center with the screen's
+      // center — 0 (the previous value) top-aligned it instead, which read
+      // as landing somewhere in the middle of the whole path, not centered
+      // on screen.
+      listRef.current?.scrollToIndex({ index: currentChapterIndex, animated: false, viewPosition: 0.5 });
     }, 50);
     return () => clearTimeout(timer);
   }, [loadingLessons, currentChapterIndex]);
@@ -281,7 +285,7 @@ export default function DashboardScreen({ navigation }) {
       onScrollToIndexFailed={(info) => {
         listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
         setTimeout(() => {
-          listRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0 });
+          listRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
         }, 100);
       }}
       ListHeaderComponent={

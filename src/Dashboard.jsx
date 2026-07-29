@@ -4,7 +4,7 @@
 // Theme is class-based (Tailwind darkMode: "class"); see src/lib/theme.js.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2 } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2, Map } from "lucide-react";
 import owl from "./assets/character-owl.png";
 import StreakFlame from "./lib/StreakFlame";
 import StreakCelebration from "./lib/StreakCelebration";
@@ -824,6 +824,7 @@ function LearningPathNode({ lesson, index, onStart }) {
 
   return (
     <div
+      id={current ? "current-lesson-node" : undefined}
       className="absolute flex flex-col items-center"
       style={{ left: x - PATH_NODE / 2, top: y - PATH_NODE / 2, width: PATH_NODE }}
     >
@@ -1075,7 +1076,8 @@ function LevelBand({ cefr, info, onAssess }) {
 function QuickLinks({ navigate }) {
   const tiles = [
     { icon: Dumbbell, label: "Practice", to: "/practice", accent: ACCENT.brand },
-    { icon: BookOpen, label: "Words", to: "/vocabulary", accent: ACCENT.grass },
+    { icon: Map, label: "Adventures", to: "/adventures", accent: ACCENT.grass },
+    { icon: BookOpen, label: "Words", to: "/vocabulary", accent: ACCENT.feather },
     { icon: BarChart2, label: "Progress", to: "/progress", accent: ACCENT.feather },
     { icon: Trophy, label: "Leaderboard", to: "/leaderboard", accent: ACCENT.amber },
     { icon: Users, label: "Friends", to: "/friends", accent: ACCENT.feather },
@@ -1214,6 +1216,21 @@ export default function Dashboard({ user }) {
   useEffect(() => {
     if (currentLesson?.slug) preloadLesson(currentLesson.slug, API_BASE_URL);
   }, [currentLesson?.slug]);
+
+  // Open the dashboard scrolled to the current lesson node, centered in the
+  // viewport — `block: "center"` is relative to the visible screen, not the
+  // page's total scroll height, so this stays correct regardless of how far
+  // down a long roadmap the learner's current lesson sits. Runs once per
+  // mount (a completed-lesson refetch shouldn't yank the scroll position
+  // out from under the learner mid-session).
+  const didAutoScrollRef = useRef(false);
+  useEffect(() => {
+    if (didAutoScrollRef.current || !currentLesson) return;
+    didAutoScrollRef.current = true;
+    requestAnimationFrame(() => {
+      document.getElementById("current-lesson-node")?.scrollIntoView({ block: "center", behavior: "auto" });
+    });
+  }, [currentLesson]);
 
   const currentUnitKey = useMemo(() => {
     if (!currentLesson) return null;
