@@ -23,6 +23,13 @@ async function request(path, { method = 'GET', body, auth = true, headers = {} }
     method,
     headers: {
       'Content-Type': 'application/json',
+      // TEMP: lets the backend skip Turnstile CAPTCHA verification for
+      // mobile-originated /signup and /login calls, since TurnstileChallenge.js
+      // still hardcodes Cloudflare's dummy test site key (no matching secret
+      // key configured server-side). Remove once the real production site
+      // key is wired in — see TurnstileChallenge.js and backend/routes.py's
+      // matching comments.
+      'X-Client-Platform': 'mobile',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },

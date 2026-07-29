@@ -1918,8 +1918,20 @@ class SignupPayload(BaseModel):
 @router.post("/signup")
 def signup(user: UserCreate, request: Request, db: Connection = Depends(get_db)):
     # 0) CAPTCHA — always required (see UserCreate.turnstile_token comment).
+    #
+    # TEMP: mobile's Turnstile widget (mobile/src/components/
+    # TurnstileChallenge.js) still hardcodes Cloudflare's dummy "always
+    # passes" test site key — it has no matching secret key pair with
+    # whatever real TURNSTILE_SECRET_KEY is configured here, so every real
+    # verification call for a mobile-originated token fails even though the
+    # widget itself shows "Success!" client-side. Bypass verification only
+    # for requests carrying the mobile client header, so web's real
+    # Turnstile flow is completely untouched. Remove this bypass (and the
+    # X-Client-Platform header in mobile/src/lib/api.js) once the real
+    # production site key is wired into TurnstileChallenge.js.
+    is_mobile_client = request.headers.get("x-client-platform") == "mobile"
     ip = _client_ip(request)
-    if not _verify_turnstile((user.turnstile_token or "").strip(), ip):
+    if not is_mobile_client and not _verify_turnstile((user.turnstile_token or "").strip(), ip):
         raise HTTPException(status_code=400, detail="Security check failed — please try again")
 
     # 1) clean inputs
@@ -2164,7 +2176,9 @@ def login(payload: UserLogin, request: Request, db: Connection = Depends(get_db)
         )
 
     # If we're in CAPTCHA phase, require Turnstile token before even attempting password.
-    if st.get('captcha_required'):
+    # TEMP mobile bypass — see the matching comment on /signup above.
+    is_mobile_client = request.headers.get("x-client-platform") == "mobile"
+    if st.get('captcha_required') and not is_mobile_client:
         token = (payload.turnstile_token or '').strip()
         if not _verify_turnstile(token, ip):
             # Do not count this as a password attempt; just request CAPTCHA.
