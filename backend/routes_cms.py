@@ -2340,6 +2340,20 @@ def cms_seed_a2types(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/a2travel")
+def cms_seed_a2travel(request: Request, db=Depends(get_db)):
+    """A2 · Travel, Communication & Stories — airport/hotel/tickets, phone/help,
+    and past-tense storytelling. Mixed kinds incl. inflect + listen_image.
+    Idempotent (skips if a2-travel-airport exists). Authored live via single-create."""
+    require_cms(request, db)
+    from seed_a2travel import seed_a2travel
+    try:
+        res = seed_a2travel()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 # ---- Repetitive-mistake exercises (auto-disabled) --------------------------
 
 @router.get("/cms/exercises/repetitive-mistakes")
