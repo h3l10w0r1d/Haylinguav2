@@ -30,7 +30,7 @@ _RULES = [
     ("travel", "plane"), ("direction", "compass"), ("transport", "bus"),
     ("city", "building-2"), ("town", "building"),
     ("nature", "trees"), ("garden", "flower"), ("place", "map-pin"),
-    ("home", "home"), ("house", "home"), ("bathroom", "bath"),
+    ("home", "house"), ("house", "house"), ("bathroom", "bath"),
     ("office", "briefcase"), ("tool", "wrench"), ("material", "package"), ("object", "package"),
     ("body", "activity"), ("health", "heart-pulse"),
     ("feeling", "smile"), ("emotion", "smile"),
@@ -40,12 +40,12 @@ _RULES = [
     ("from", "flag"), ("nationalit", "flag"),
     ("sea animal", "fish"), ("bird", "bird"), ("insect", "bug"), ("animal", "paw-print"),
     ("sport", "dumbbell"), ("music", "music"), ("technolog", "smartphone"), ("school", "graduation-cap"),
-    ("shape", "shapes"), ("question", "help-circle"),
+    ("shape", "shapes"), ("question", "circle-help"),
     ("adjective", "sliders-horizontal"), ("adverb", "gauge"), ("abstract", "brain"),
     ("plural", "copy"), ("possess", "copy"), ("word form", "shapes"),
     ("verb", "zap"), ("action", "zap"),
     ("past", "history"), ("future", "fast-forward"),
-    ("if and because", "git-branch"), ("who and what", "help-circle"), ("saying more", "plus-circle"),
+    ("if and because", "git-branch"), ("who and what", "circle-help"), ("saying more", "circle-plus"),
     ("about yourself", "user"),
     ("workshop", "dumbbell"), ("build", "blocks"), ("mixed", "shuffle"),
     ("free time", "sun"), ("daily", "sun"), ("situation", "coffee"), ("out & about", "coffee"), ("around", "coffee"),
@@ -66,6 +66,11 @@ def _icon_for(title: str) -> str:
     return _DEFAULT
 
 
+# Lucide renamed a few icons; the icon manifest only has the new names, so an
+# older value would render as a blank fallback. Remap any that slipped in.
+_RENAMED = {"home": "house", "help-circle": "circle-help", "plus-circle": "circle-plus"}
+
+
 def seed_chapter_icons():
     with engine.begin() as conn:
         rows = conn.execute(
@@ -78,4 +83,14 @@ def seed_chapter_icons():
                 {"icon": _icon_for(r["title"]), "id": r["id"]},
             )
             updated += 1
-        return {"ok": True, "chapters_updated": updated}
+
+        # Fix any chapters (incl. ones set by a prior run) using a renamed icon.
+        remapped = 0
+        for old, new in _RENAMED.items():
+            res = conn.execute(
+                text("UPDATE chapters SET icon = :new WHERE icon = :old"),
+                {"new": new, "old": old},
+            )
+            remapped += res.rowcount or 0
+
+        return {"ok": True, "chapters_updated": updated, "remapped": remapped}
