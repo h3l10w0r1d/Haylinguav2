@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Modal, ActivityIndicator, Image, Share, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Mail, Lock, ShieldCheck, Send, Download, Trash2, KeyRound, Link2, AlertTriangle } from 'lucide-react-native';
+import { Mail, Lock, ShieldCheck, Send, Download, Trash2, KeyRound, Link2, AlertTriangle, LogOut } from 'lucide-react-native';
 import { api, ApiError } from '../../lib/api';
 import { useAuthStore } from '../../lib/authStore';
 import Pressable3D from '../../components/Pressable3D';
@@ -254,6 +254,20 @@ export default function SecurityTab({ profile }) {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState('');
 
+  function confirmLogout() {
+    Alert.alert('Log out?', "You'll need to sign back in to continue your streak.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: async () => {
+          haptics.impact();
+          await signOut();
+        },
+      },
+    ]);
+  }
+
   async function deleteAccount() {
     if (deleteConfirmText.trim().toUpperCase() !== 'DELETE' || deleteBusy) return;
     setDeleteBusy(true);
@@ -294,6 +308,12 @@ export default function SecurityTab({ profile }) {
       )}
       <SectionButton icon={Send} label="Google — not available in the app yet" disabled />
       <SectionButton icon={Send} label="Facebook — not available in the app yet" disabled />
+
+      <View className="mb-2 mt-5 flex-row items-center gap-2">
+        <LogOut size={14} color="#a8a29e" />
+        <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Session</Text>
+      </View>
+      <SectionButton icon={LogOut} label="Log out" onPress={confirmLogout} />
 
       <View className="mb-2 mt-5 flex-row items-center gap-2">
         <AlertTriangle size={14} color="#FF4B4B" />
