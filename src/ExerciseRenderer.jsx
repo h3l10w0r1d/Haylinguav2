@@ -3279,10 +3279,11 @@ function ExRadio({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
   const [revealed, setRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
   const scoreRef = useRef(0);
+  const picksRef = useRef([]); // the learner's pick per segment (for server grading)
   const seg = segments[idx] || {};
   const answerIndex = Number.isFinite(seg.answerIndex) ? Number(seg.answerIndex) : 0;
 
-  useEffect(() => { setIdx(0); setSel(null); setRevealed(false); scoreRef.current = 0; }, [exercise?.id]);
+  useEffect(() => { setIdx(0); setSel(null); setRevealed(false); scoreRef.current = 0; picksRef.current = []; }, [exercise?.id]);
 
   async function play(rate = 1) {
     const text = seg?.text; if (!text) return;
@@ -3301,6 +3302,7 @@ function ExRadio({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
 
   function onPrimary() {
     if (!revealed) {
+      picksRef.current[idx] = sel; // record the pick for server grading
       if (sel === answerIndex) scoreRef.current += 1;
       setRevealed(true);
       return;
@@ -3308,7 +3310,8 @@ function ExRadio({ exercise, cfg, onCorrect, onWrong, onSkip, onAnswer, apiBaseU
     if (idx + 1 >= M) {
       const need = Math.ceil(M * 0.6);
       const pass = scoreRef.current >= need;
-      const payload = { answerText: `radio ${scoreRef.current}/${M}` };
+      // selectedIndices carries the per-segment picks so the server can verify.
+      const payload = { answerText: `radio ${scoreRef.current}/${M}`, selectedIndices: picksRef.current.slice(0, M) };
       pass ? correct(payload) : wrong(`You got ${scoreRef.current}/${M} — listen again.`, payload);
     } else {
       setIdx((i) => i + 1);
