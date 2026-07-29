@@ -4,7 +4,7 @@
 // Theme is class-based (Tailwind darkMode: "class"); see src/lib/theme.js.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2 } from "lucide-react";
+import { Flame, Lock, Play, Loader2, Trophy, Users, ChevronRight, ArrowRight, Target, Zap, Crown, Star, Check, Snowflake, Gem, Gift, Dumbbell, ShieldCheck, Heart, Store, BookOpen, BarChart2, Map } from "lucide-react";
 import owl from "./assets/character-owl.png";
 import StreakFlame from "./lib/StreakFlame";
 import StreakCelebration from "./lib/StreakCelebration";
@@ -1075,7 +1075,8 @@ function LevelBand({ cefr, info, onAssess }) {
 function QuickLinks({ navigate }) {
   const tiles = [
     { icon: Dumbbell, label: "Practice", to: "/practice", accent: ACCENT.brand },
-    { icon: BookOpen, label: "Words", to: "/vocabulary", accent: ACCENT.grass },
+    { icon: Map, label: "Adventures", to: "/adventures", accent: ACCENT.grass },
+    { icon: BookOpen, label: "Words", to: "/vocabulary", accent: ACCENT.feather },
     { icon: BarChart2, label: "Progress", to: "/progress", accent: ACCENT.feather },
     { icon: Trophy, label: "Leaderboard", to: "/leaderboard", accent: ACCENT.amber },
     { icon: Users, label: "Friends", to: "/friends", accent: ACCENT.feather },
