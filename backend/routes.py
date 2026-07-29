@@ -1477,6 +1477,7 @@ class TTSPayload(BaseModel):
     model_id: str | None = None
     voice_settings: dict | None = None  # optional override, used by the CMS voice-preview tool
     voice: str | None = None  # "male" | "female" — the learner's onboarding/profile voice preference
+    provider: str | None = None  # "azure" | "elevenlabs" — force a provider (Adventures pins "azure")
 
 
 
@@ -9229,14 +9230,19 @@ async def tts_speak(payload: TTSPayload):
     if not text_value:
         raise HTTPException(status_code=400, detail="Text is empty")
 
-    # An explicit voice_id/model_id means the CMS voice-preview/comparison
-    # tool is asking for ElevenLabs specifically — otherwise use whichever
-    # provider is configured as the default (Azure once its key is set).
-    if payload.voice_id or payload.model_id:
+    # An explicit provider wins (Adventures pins "azure" so ElevenLabs — poor at
+    # Armenian — can never voice a line). Otherwise a custom voice_id/model_id
+    # means the CMS voice-preview/comparison tool wants ElevenLabs specifically;
+    # bare calls use whichever provider is configured as the default (Azure).
+    if payload.provider in ("azure", "elevenlabs"):
+        provider = payload.provider
+    elif payload.voice_id or payload.model_id:
         provider = "elevenlabs"
     else:
         provider = _tts_provider_configured()
 
+    if provider == "azure" and not (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION):
+        raise HTTPException(status_code=500, detail="Azure TTS not configured on server")
     if provider == "elevenlabs" and not ELEVEN_API_KEY:
         raise HTTPException(status_code=500, detail="TTS not configured on server")
 
@@ -9258,12 +9264,19 @@ async def tts_speak(payload: TTSPayload):
 # narrower than the POST route: no voice_settings override, since that's
 # only used by the CMS's internal voice-preview/comparison tool.
 @router.get("/tts", response_class=Response)
-async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | None = None, voice: str | None = None):
+async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | None = None, voice: str | None = None, provider: str | None = None):
     text_value = (text or "").strip()
     if not text_value:
         raise HTTPException(status_code=400, detail="Text is empty")
 
-    provider = "elevenlabs" if (voice_id or model_id) else _tts_provider_configured()
+    if provider in ("azure", "elevenlabs"):
+        pass  # explicit provider honored as-is
+    elif voice_id or model_id:
+        provider = "elevenlabs"
+    else:
+        provider = _tts_provider_configured()
+    if provider == "azure" and not (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION):
+        raise HTTPException(status_code=500, detail="Azure TTS not configured on server")
     if provider == "elevenlabs" and not ELEVEN_API_KEY:
         raise HTTPException(status_code=500, detail="TTS not configured on server")
 

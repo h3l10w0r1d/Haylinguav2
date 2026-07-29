@@ -109,7 +109,8 @@ export default function AdventurePlayer() {
   function speak(step) {
     const text = step?.line || step?.options?.find((o) => o.correct)?.text;
     if (!step?.line) return;              // only auto-voice NPC lines
-    ttsFetch(API_BASE, { text: step.line })
+    // Pin Azure — its hy-AM voices handle Armenian far better than ElevenLabs.
+    ttsFetch(API_BASE, { text: step.line, provider: 'azure' })
       .then((url) => newTrackedAudio(url).play())
       .catch(() => {});
   }
