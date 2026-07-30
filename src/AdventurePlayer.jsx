@@ -34,12 +34,14 @@ export default function AdventurePlayer() {
   const [dialog, setDialog] = useState(null);   // { npc, idx, wrongId }
   const [doneGoals, setDoneGoals] = useState(() => new Set());
   const [won, setWon] = useState(false);
+  const [items, setItems] = useState([]);   // inventory: passport, ticket, boarding pass…
 
   // ── Resolve CMS override, then merge over the code base ──────────────────────
   useEffect(() => {
     if (!base) return;
     let alive = true;
     setAdventure(null);
+    setItems((base.startItems || []).map((i) => ({ ...i })));   // items you begin with
     fetchAdventureOverrides(API_BASE).then((all) => {
       if (alive) setAdventure(all[base.id] ? mergeAdventure(base, all[base.id]) : base);
     });
@@ -188,6 +190,17 @@ export default function AdventurePlayer() {
         </div>
       </div>
 
+      {/* Inventory "bag" — what you're carrying (passport, boarding pass…) */}
+      {items.length > 0 && !won && (
+        <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', gap: 4, background: '#0007', padding: '5px 7px', borderRadius: 12 }}>
+          {items.map((it) => (
+            <div key={it.id} title={it.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 30 }}>
+              <span style={{ fontSize: 19, lineHeight: 1 }}>{it.icon}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* "Talk" prompt when near an NPC and not in dialogue */}
       {nearNpc && !dialog && !won && (
         <div style={{ position: 'absolute', left: '50%', bottom: 132, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 6, background: '#fff', color: '#1a1a1a', padding: '7px 13px', borderRadius: 20, boxShadow: '0 3px 10px #0004', fontWeight: 600, fontSize: 13 }}>
@@ -223,7 +236,73 @@ export default function AdventurePlayer() {
               <button onClick={closeDialog} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#999', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close">×</button>
             </div>
 
-            {step.line ? (
+            {step.give ? (
+              /* Present an item from your bag — the boarding-pass / passport hand-over. */
+              <>
+                <div style={{ fontSize: 15, color: '#1a1a1a', fontWeight: 600 }}>{step.give}</div>
+                {step.tr && <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{step.tr}</div>}
+                <div style={{ fontSize: 11, color: '#999', margin: '10px 0 8px' }}>Tap the right item from your bag:</div>
+                {items.length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '9px 11px' }}>
+                    Your bag is empty — you may need to get this somewhere first.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {items.map((it) => {
+                      const isWrong = dialog.wrongId === it.id;
+                      return (
+                        <button
+                          key={it.id}
+                          onClick={() => {
+                            if (it.id === step.itemId) advance(dialog.npc, dialog.idx + 1);
+                            else setDialog((d) => ({ ...d, wrongId: it.id }));
+                          }}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 78,
+                            padding: '10px 12px', borderRadius: 12, cursor: 'pointer',
+                            border: `2px solid ${isWrong ? '#ef4444' : '#e6ddd3'}`,
+                            background: isWrong ? '#fff1f1' : '#fff',
+                            animation: isWrong ? 'advShake 0.3s' : 'none',
+                          }}
+                        >
+                          <span style={{ fontSize: 26 }}>{it.icon}</span>
+                          <span style={{ fontSize: 12, color: '#1a1a1a' }}>{it.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : step.receive ? (
+              /* An NPC hands you an item — adds it to your bag on "Take". */
+              <>
+                {step.line && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}>{step.line}</div>
+                      <button onClick={() => speak(step)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
+                    </div>
+                    {step.tr && <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{step.tr}</div>}
+                  </>
+                )}
+                <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '10px 12px' }}>
+                  <span style={{ fontSize: 26 }}>{step.receive.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>Added to your bag</div>
+                    <div style={{ fontSize: 15, color: '#1a1a1a' }}>{step.receive.label}</div>
+                  </div>
+                </div>
+                <button
+                  style={{ ...primaryBtn, width: '100%', marginTop: 16 }}
+                  onClick={() => {
+                    setItems((prev) => (prev.some((p) => p.id === step.receive.id) ? prev : [...prev, { ...step.receive }]));
+                    advance(dialog.npc, dialog.idx + 1);
+                  }}
+                >
+                  Վերցնել
+                </button>
+              </>
+            ) : step.line ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                   <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}>{step.line}</div>

@@ -236,6 +236,13 @@ const airport = {
   tileset: 'town',
   map: expandMap(airportRows, airportLegend),
   player: { frame: CHAR.adventurer, tx: 8, ty: 16 },   // enters at the bottom
+  // You arrive holding a passport + ticket; you earn the boarding pass at
+  // check-in and must present it at the gate. Presenting the right document is
+  // part of the challenge, so the order (check-in → gate) is enforced naturally.
+  startItems: [
+    { id: 'passport', label: 'Անձնագիր', icon: '📘' },
+    { id: 'ticket', label: 'Տոմս', icon: '🎫' },
+  ],
   goals: [
     { id: 'checkin', label: 'Check in for your flight' },
     { id: 'passport', label: 'Clear passport control' },
@@ -250,14 +257,8 @@ const airport = {
       completes: 'checkin',
       dialogue: [
         { line: 'Բարև Ձեզ։ Ձեր տոմսն ու անձնագիրը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Your ticket and passport, please.' },
-        {
-          choose: 'Hand over your documents.',
-          options: [
-            { text: 'Ահա՛ իմ տոմսն ու անձնագիրը։', tr: 'Here are my ticket and passport.', correct: true },
-            { text: 'Ես թեյ եմ ուզում։', tr: 'I want tea.' },
-            { text: 'Ավտոբուսը ուշանում է։', tr: 'The bus is late.' },
-          ],
-        },
+        { give: 'Present your ticket.', itemId: 'ticket', tr: 'Ձեր տոմսը' },
+        { give: 'Now present your passport.', itemId: 'passport', tr: 'Ձեր անձնագիրը' },
         { line: 'Շնորհակալ եմ։ Ուղեբեռ ունե՞ք։', by: 'npc', tr: 'Thank you. Do you have any luggage?' },
         {
           choose: 'Say you have one suitcase.',
@@ -267,7 +268,11 @@ const airport = {
             { text: 'Ժամը ե՞րբ է։', tr: 'What time is it?' },
           ],
         },
-        { line: 'Հիանալի՜։ Ահա Ձեր նստեցման կտրոնը։ Ձեր ելքը՝ հինգ։', by: 'npc', tr: 'Great! Here is your boarding pass. Your gate is five.' },
+        {
+          receive: { id: 'boarding', label: 'Նստ. կտրոն', icon: '🎟️' },
+          line: 'Հիանալի՜։ Ահա Ձեր նստեցման կտրոնը։ Ձեր ելքը՝ հինգ։',
+          by: 'npc', tr: 'Great! Here is your boarding pass. Your gate is five.',
+        },
       ],
     },
     {
@@ -278,14 +283,7 @@ const airport = {
       completes: 'passport',
       dialogue: [
         { line: 'Բարև։ Անձնագի՛րը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Passport, please.' },
-        {
-          choose: 'Give him your passport.',
-          options: [
-            { text: 'Խնդրե՛մ, ահա՛ իմ անձնագիրը։', tr: 'Here is my passport, please.', correct: true },
-            { text: 'Ես չունեմ գումար։', tr: 'I have no money.' },
-            { text: 'Դուռը կանաչ է։', tr: 'The door is green.' },
-          ],
-        },
+        { give: 'Show your passport.', itemId: 'passport', tr: 'Ձեր անձնագիրը' },
         { line: 'Ո՞ւր եք մեկնում։', by: 'npc', tr: 'Where are you traveling to?' },
         {
           choose: 'Say you are flying to Yerevan.',
@@ -306,14 +304,7 @@ const airport = {
       completes: 'board',
       dialogue: [
         { line: 'Բարև Ձեզ։ Ձեր նստեցման կտրո՛նը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Your boarding pass, please.' },
-        {
-          choose: 'Hand over your boarding pass.',
-          options: [
-            { text: 'Ահա՛ իմ նստեցման կտրոնը։', tr: 'Here is my boarding pass.', correct: true },
-            { text: 'Ես մոռացել եմ իմ անունը։', tr: 'I forgot my name.' },
-            { text: 'Օդանավակայանը մեծ է։', tr: 'The airport is big.' },
-          ],
-        },
+        { give: 'Hand over your boarding pass.', itemId: 'boarding', tr: 'Ձեր նստեցման կտրոնը' },
         { line: 'Շնորհակալություն։ Բարի թռի՛չք։', by: 'npc', tr: 'Thank you. Have a good flight.' },
       ],
     },

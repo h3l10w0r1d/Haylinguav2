@@ -485,49 +485,63 @@ FORMAT — output exactly these three lines, nothing else:
     # ------------------------------------------------------------------ #
     audio_url: Optional[str] = None
     audio_file_path: Optional[str] = None
+    audio_bytes: Optional[bytes] = None
 
-    if ELEVEN_API_KEY and armenian_text:
-        tts_url = f"{ELEVEN_API_URL}/text-to-speech/{ARAM_VOICE_ID}"
-        tts_headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
-        tts_params = {"output_format": "mp3_44100_128"}  # ElevenLabs takes this as a query param, not body
-        tts_payload = {
-            "text": armenian_text,
-            "model_id": ELEVEN_MODEL_ID,
-            # Kept in sync with routes.py's _DEFAULT_TTS_VOICE_SETTINGS — style=0.0
-            # (the old value) disables all expressive inflection, which reads as
-            # flat/robotic; a modest style weight sounds far more natural.
-            "voice_settings": {
-                "stability": 0.45,
-                "similarity_boost": 0.8,
-                "style": 0.25,
-                "use_speaker_boost": True,
-            },
-        }
+    if armenian_text:
+        # Prefer Azure hy-AM — its Armenian voices are markedly better than
+        # ElevenLabs, which stays only as a fallback if Azure is unavailable.
         try:
-            tts_resp = await _http.post(tts_url, headers=tts_headers, params=tts_params, json=tts_payload)
+            from routes import (
+                _generate_azure_tts, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION, AZURE_MALE_VOICE_ID,
+            )
+            if AZURE_SPEECH_KEY and AZURE_SPEECH_REGION:
+                audio_bytes = await _generate_azure_tts(armenian_text, AZURE_MALE_VOICE_ID)
+        except Exception as exc:
+            print(f"[conv TTS] Azure error, falling back to ElevenLabs: {exc}")
+            audio_bytes = None
 
-            # Recover from invalid voice_id (404) by using first available voice.
-            if tts_resp.status_code == 404:
-                voices_resp = await _http.get(f"{ELEVEN_API_URL}/voices", headers=tts_headers)
-                if voices_resp.status_code == 200:
-                    voices = (voices_resp.json() or {}).get("voices") or []
-                    if voices:
-                        fallback_id = voices[0].get("voice_id") or voices[0].get("id")
-                        if fallback_id:
-                            tts_url2 = f"{ELEVEN_API_URL}/text-to-speech/{fallback_id}"
-                            tts_resp = await _http.post(tts_url2, headers=tts_headers, params=tts_params, json=tts_payload)
+        if audio_bytes is None and ELEVEN_API_KEY:
+            tts_url = f"{ELEVEN_API_URL}/text-to-speech/{ARAM_VOICE_ID}"
+            tts_headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
+            tts_params = {"output_format": "mp3_44100_128"}  # ElevenLabs takes this as a query param, not body
+            tts_payload = {
+                "text": armenian_text,
+                "model_id": ELEVEN_MODEL_ID,
+                "voice_settings": {
+                    "stability": 0.45,
+                    "similarity_boost": 0.8,
+                    "style": 0.25,
+                    "use_speaker_boost": True,
+                },
+            }
+            try:
+                tts_resp = await _http.post(tts_url, headers=tts_headers, params=tts_params, json=tts_payload)
+                # Recover from invalid voice_id (404) by using first available voice.
+                if tts_resp.status_code == 404:
+                    voices_resp = await _http.get(f"{ELEVEN_API_URL}/voices", headers=tts_headers)
+                    if voices_resp.status_code == 200:
+                        voices = (voices_resp.json() or {}).get("voices") or []
+                        if voices:
+                            fallback_id = voices[0].get("voice_id") or voices[0].get("id")
+                            if fallback_id:
+                                tts_url2 = f"{ELEVEN_API_URL}/text-to-speech/{fallback_id}"
+                                tts_resp = await _http.post(tts_url2, headers=tts_headers, params=tts_params, json=tts_payload)
+                if tts_resp.status_code == 200:
+                    audio_bytes = tts_resp.content
+            except Exception as exc:
+                print(f"[conv TTS] ElevenLabs error: {exc}")
 
-            if tts_resp.status_code == 200:
-                audio_bytes = tts_resp.content
+        if audio_bytes:
+            try:
                 audio_filename = f"{uuid.uuid4().hex}.mp3"
                 audio_dir = _conv_audio_dir()
                 audio_file_path = os.path.join(audio_dir, audio_filename)
                 with open(audio_file_path, "wb") as f:
                     f.write(audio_bytes)
                 audio_url = f"{_api_base_url()}/static/conv-audio/{audio_filename}"
-        except Exception as exc:
-            # TTS failure is non-fatal; conversation still works without audio.
-            print(f"[conv TTS] error: {exc}")
+            except Exception as exc:
+                # TTS failure is non-fatal; conversation still works without audio.
+                print(f"[conv TTS] write error: {exc}")
 
     return ConversationTurnResponse(
         assistant_text=armenian_text,
