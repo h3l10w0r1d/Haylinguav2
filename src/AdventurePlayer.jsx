@@ -39,12 +39,20 @@ export default function AdventurePlayer() {
   const [won, setWon] = useState(false);
   const [items, setItems] = useState([]);   // inventory: passport, ticket, boarding pass…
   const [xpAwarded, setXpAwarded] = useState(null);
+  // Multi-location adventures: `scenes` is a list of locations you travel
+  // between; a single-map adventure is treated as one scene. `active` is the
+  // current location and drives the Phaser map/NPCs.
+  const scenes = useMemo(() => (adventure ? (adventure.scenes || [adventure]) : []), [adventure]);
+  const [sceneIdx, setSceneIdx] = useState(0);
+  const active = scenes[sceneIdx] || null;
+  const [transition, setTransition] = useState(null);   // { toLabel } between locations
 
   // ── Resolve CMS override, then merge over the code base ──────────────────────
   useEffect(() => {
     if (!base) return;
     let alive = true;
     setAdventure(null);
+    setSceneIdx(0);
     setItems((base.startItems || []).map((i) => ({ ...i })));   // items you begin with
     fetchAdventureOverrides(API_BASE).then((all) => {
       if (alive) setAdventure(all[base.id] ? mergeAdventure(base, all[base.id]) : base);
@@ -52,17 +60,18 @@ export default function AdventurePlayer() {
     return () => { alive = false; };
   }, [base]);
 
-  // ── Boot Phaser ────────────────────────────────────────────────────────────
+  // ── Boot Phaser (rebuilds when the active location changes) ─────────────────
   useEffect(() => {
-    if (!adventure || !hostRef.current) return;
+    if (!active || !hostRef.current) return;
     let cancelled = false;
     let game;
+    setReady(false);
     (async () => {
       const Phaser = (await import('phaser')).default;
       if (cancelled || !hostRef.current) return;
       game = buildAdventureGame(Phaser, {
         parent: hostRef.current,
-        adventure,
+        adventure: active,
         controls: controls.current,
         bridge: {
           onReady: () => setReady(true),
@@ -78,7 +87,7 @@ export default function AdventurePlayer() {
       gameRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adventure]);
+  }, [active]);
 
   // ── Keyboard controls ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -107,12 +116,11 @@ export default function AdventurePlayer() {
   // ── Objective beacon: point at the NPC for the next incomplete goal ──────────
   useEffect(() => {
     const g = gameRef.current;
-    if (!ready || !adventure || !g) return;
-    if (dialog || won) { g.setWaypoint?.(null); return; }
-    const nextGoal = adventure.goals.find((gg) => !doneGoals.has(gg.id));
-    const npc = nextGoal ? adventure.npcs.find((n) => n.completes === nextGoal.id) : null;
+    if (!ready || !active || !g) return;
+    if (dialog || won || transition) { g.setWaypoint?.(null); return; }
+    const npc = active.npcs.find((n) => n.completes && !doneGoals.has(n.completes)) || active.npcs.find((n) => !n.optional);
     g.setWaypoint?.(npc?.id || null);
-  }, [ready, adventure, doneGoals, dialog, won]);
+  }, [ready, active, doneGoals, dialog, won, transition]);
 
   // ── Dialogue flow ────────────────────────────────────────────────────────────
   function openDialog(npc) {
@@ -143,18 +151,29 @@ export default function AdventurePlayer() {
     controls.current.paused = false;
     gameRef.current?.unfocus?.();
     setDialog(null);
-    if (npc.completes) {
-      gameRef.current?.markNpcDone?.(npc.id);
-      setDoneGoals((prev) => {
-        const next = new Set(prev);
-        next.add(npc.completes);
-        const allDone = adventure.goals.every((g) => next.has(g.id));
-        if (allDone) setTimeout(fireWin, 250);
-        return next;
-      });
+    gameRef.current?.markNpcDone?.(npc.id);
+    if (!npc.completes) return;
+    const next = new Set(doneGoals);
+    next.add(npc.completes);
+    setDoneGoals(next);
+    // Is this location finished? (all its goal-NPCs done)
+    const sceneDone = active.npcs.filter((n) => n.completes).every((n) => next.has(n.completes));
+    if (!sceneDone) return;
+    if (sceneIdx < scenes.length - 1) {
+      // Travel to the next location.
+      const nextScene = scenes[sceneIdx + 1];
+      setTimeout(() => setTransition({ toLabel: nextScene.label || nextScene.title, n: sceneIdx + 2, total: scenes.length }), 350);
     } else {
-      gameRef.current?.markNpcDone?.(npc.id);
+      setTimeout(fireWin, 250);
     }
+  }
+
+  function goToNextScene() {
+    setTransition(null);
+    setNearNpc(null);
+    setDialog(null);
+    controls.current.paused = false;
+    setSceneIdx((i) => i + 1);   // active changes → the boot effect rebuilds the map
   }
 
   function fireWin() {
@@ -185,8 +204,13 @@ export default function AdventurePlayer() {
     );
   }
 
-  const step = dialog && adventure ? adventure.npcs.find((n) => n.id === dialog.npc.id)?.dialogue[dialog.idx] : null;
+  const step = dialog && active ? active.npcs.find((n) => n.id === dialog.npc.id)?.dialogue[dialog.idx] : null;
   const adv = adventure || base;   // banner renders from base until the merge resolves
+  // Progress shown in the top bar: locations for a multi-scene trip, else goals.
+  const progressItems = adventure?.scenes
+    ? adventure.scenes.map((s) => ({ id: s.id, label: s.label || s.title, done: (s.npcs || []).filter((n) => n.completes).every((n) => doneGoals.has(n.completes)) }))
+    : (adv.goals || []).map((g) => ({ id: g.id, label: g.label, done: doneGoals.has(g.id) }));
+  const locationLabel = adventure?.scenes ? (active?.label || active?.title) : null;
   // A "pure line" (NPC just speaks) shows as an in-world speech bubble; anything
   // interactive (choose/give/receive/exercise) uses the bottom sheet.
   const isPureLine = !!step && step.line != null && !step.receive && !step.options
@@ -207,12 +231,14 @@ export default function AdventurePlayer() {
           <ArrowLeft size={20} color="#fff" />
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{adv.emoji} {adv.title}</div>
+          <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
+            {adv.emoji} {adv.title}{locationLabel ? <span style={{ fontWeight: 500, opacity: 0.85 }}> · 📍 {locationLabel}</span> : null}
+          </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {adv.goals.map((g) => (
-              <span key={g.id} style={{ fontSize: 11, color: '#fff', opacity: doneGoals.has(g.id) ? 1 : 0.85, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                <span style={{ width: 13, height: 13, borderRadius: 4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: doneGoals.has(g.id) ? '#22c55e' : '#ffffff44', fontSize: 9 }}>{doneGoals.has(g.id) ? '✓' : ''}</span>
-                <span style={{ textDecoration: doneGoals.has(g.id) ? 'line-through' : 'none' }}>{g.label}</span>
+            {progressItems.map((it) => (
+              <span key={it.id} style={{ fontSize: 11, color: '#fff', opacity: it.done ? 1 : 0.85, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ width: 13, height: 13, borderRadius: 4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: it.done ? '#22c55e' : '#ffffff44', fontSize: 9 }}>{it.done ? '✓' : ''}</span>
+                <span style={{ textDecoration: it.done ? 'line-through' : 'none' }}>{it.label}</span>
               </span>
             ))}
           </div>
@@ -220,7 +246,7 @@ export default function AdventurePlayer() {
       </div>
 
       {/* Shopping-list / quest checklist — ticks off as you collect the items. */}
-      {adv.checklist?.length > 0 && !won && !dialog && (
+      {adv.checklist?.length > 0 && !won && !dialog && !transition && (
         <div style={{ position: 'absolute', top: 62, left: 12, background: '#fffdf9', border: '1px solid #ecdfce', borderRadius: 12, padding: '9px 11px', boxShadow: '0 3px 10px #0002', maxWidth: 190 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: '#7a6a58', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5 }}>🧾 Ցուցակ</div>
           {adv.checklist.map((c) => {
@@ -247,14 +273,14 @@ export default function AdventurePlayer() {
       )}
 
       {/* "Talk" prompt when near an NPC and not in dialogue */}
-      {nearNpc && !dialog && !won && (
+      {nearNpc && !dialog && !won && !transition && (
         <div style={{ position: 'absolute', left: '50%', bottom: 132, transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 6, background: '#fff', color: '#1a1a1a', padding: '7px 13px', borderRadius: 20, boxShadow: '0 3px 10px #0004', fontWeight: 600, fontSize: 13 }}>
           <MessageCircle size={15} color={ORANGE} /> Talk to {nearNpc.name}
         </div>
       )}
 
       {/* On-screen controls (touch) */}
-      {!dialog && !won && (
+      {!dialog && !won && !transition && (
         <>
           <DPad controls={controls} />
           <button
@@ -434,6 +460,19 @@ export default function AdventurePlayer() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Travelling between locations */}
+      {transition && !won && (
+        <div style={fullCenter}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: '28px 26px', maxWidth: 340, textAlign: 'center', boxShadow: '0 12px 40px #0005' }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>🚕</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#22a06b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Location complete ✓</div>
+            <h2 style={{ margin: '0 0 6px', fontSize: 19, color: '#1a1a1a' }}>Next stop {transition.n}/{transition.total}</h2>
+            <p style={{ margin: '0 0 20px', color: '#777', fontSize: 15 }}>📍 {transition.toLabel}</p>
+            <button style={{ ...primaryBtn, width: '100%' }} onClick={goToNextScene}>Գնա՛նք ({'Let’s go'})</button>
           </div>
         </div>
       )}

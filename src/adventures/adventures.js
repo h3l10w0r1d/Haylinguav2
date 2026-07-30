@@ -454,31 +454,62 @@ const cityRows = [
   'TTTTTT.cc.TTTTTT',
 ];
 
+// The bakery shopfront (scene 1) and a street with a taxi (scene 2). Republic
+// Square (scene 3) reuses sqRows.
+const bakeryRows = [
+  '..QWEQWEQWE...',
+  '..ASDASDASD...',
+  '..ZGCZGCZGC...',
+  '.pppppppppp...',
+  '.pmmnpppppp...',
+  '.pxxxpppppp...',
+  '.pppppppppp...',
+  '.TppppppppT...',
+  '.pbpppppppb...',
+  '.pppppppppp...',
+  '.lpppp.pppl...',
+  '..TTTT.TTT....',
+];
+const streetRows = [
+  'QWE......QWE..',
+  'ASD......ASD..',
+  'ZGC......ZGC..',
+  'ppp.pppp.ppp..',
+  'ppp.pppp.ppp..',
+  'Tpp.pppp.ppT..',
+  '.pp.pppp.pp...',
+  '.pp.pppp.pp...',
+  '.pplppppl.pp..',
+  '.pppppppppp...',
+  '.TpppppppT....',
+  '..pppppp......',
+];
+
+// A multi-location trip: you finish one place, then travel to the next.
 const yerevan = {
   id: 'yerevan',
   title: 'A Day in Yerevan',
   emoji: '🏙️',
   blurb: 'Buy fresh lavash, hail a taxi, and reach Republic Square — a day out in Armenian.',
   cefr: 'A2',
-  tileset: 'rogue',
-  map: expandMap(sqRows, sqLegend),
-  player: { frame: CHAR.adventurer, tx: 9, ty: 19 },
   startItems: [{ id: 'dram', label: 'Դրամ', icon: '💵' }],
   checklist: [
     { id: 'lavash', label: 'Լավաշ', icon: '🫓' },
     { id: 'gata', label: 'Գաթա', icon: '🥮' },
   ],
-  goals: [
-    { id: 'bakery', label: 'Buy lavash & gata' },
-    { id: 'taxi', label: 'Take a taxi downtown' },
-    { id: 'square', label: 'Reach Republic Square' },
-  ],
-  npcs: [
+  scenes: [
+    {
+      id: 'bakery',
+      label: 'The bakery',
+      tileset: 'rogue',
+      map: expandMap(bakeryRows, sqLegend),
+      player: { frame: CHAR.adventurer, tx: 7, ty: 9 },
+      npcs: [
     {
       id: 'baker',
       name: 'Անուշ',
       frame: CHAR.woman,
-      tx: 4, ty: 7,
+      tx: 3, ty: 6,
       completes: 'bakery',
       dialogue: [
         { line: 'Բարև ձեզ։ Բարի՜ գալուստ մեր հացատուն։', by: 'npc', tr: 'Hello. Welcome to our bakery!' },
@@ -498,11 +529,20 @@ const yerevan = {
         { receive: { id: 'gata', label: 'Գաթա', icon: '🥮' }, line: 'Եւ մի կտոր գաթա՝ նվեր։', by: 'npc', tr: 'And a piece of gata — a gift.' },
       ],
     },
+      ],
+    },
+    {
+      id: 'street',
+      label: 'The taxi stand',
+      tileset: 'rogue',
+      map: expandMap(streetRows, sqLegend),
+      player: { frame: CHAR.adventurer, tx: 5, ty: 10 },
+      npcs: [
     {
       id: 'taxi',
       name: 'Գագիկ',
       frame: CHAR.warrior,
-      tx: 13, ty: 7,
+      tx: 5, ty: 6,
       completes: 'taxi',
       dialogue: [
         { line: 'Բարև։ Ո՞ւր ենք գնում։', by: 'npc', tr: 'Hello. Where are we going?' },
@@ -515,6 +555,15 @@ const yerevan = {
         { line: 'Լավ, տա՛սը րոպեից տեղում կլինենք։', by: 'npc', tr: 'Alright, we’ll be there in ten minutes.' },
       ],
     },
+      ],
+    },
+    {
+      id: 'square',
+      label: 'Republic Square',
+      tileset: 'rogue',
+      map: expandMap(sqRows, sqLegend),
+      player: { frame: CHAR.adventurer, tx: 9, ty: 19 },
+      npcs: [
     {
       id: 'local',
       name: 'Մարիամ',
@@ -541,6 +590,8 @@ const yerevan = {
           },
         },
         { line: 'Հաճելի զբոսանք։ Բարի ճանապարհ։', by: 'npc', tr: 'Enjoy your walk. Safe travels!' },
+      ],
+    },
       ],
     },
   ],
@@ -570,11 +621,14 @@ export function getAdventure(id) {
 // whose type doesn't match the code (e.g. after a code change) just falls back.
 export function mergeAdventure(base, override) {
   if (!base || !override) return base;
-  const mergedGoals = base.goals.map((g) => ({
+  // Multi-scene adventures keep npcs/goals inside scenes; nothing to merge at
+  // the top level (CMS text editing of multi-scene scenes isn't wired yet).
+  if (base.scenes) return base;
+  const mergedGoals = (base.goals || []).map((g) => ({
     ...g,
     label: override.goals?.[g.id] ?? g.label,
   }));
-  const mergedNpcs = base.npcs.map((n) => {
+  const mergedNpcs = (base.npcs || []).map((n) => {
     const o = override.npcs?.[n.id];
     if (!o) return n;
     const dialogue = n.dialogue.map((step, i) => {
