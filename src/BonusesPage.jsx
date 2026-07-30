@@ -7,6 +7,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Dumbbell, Map as MapIcon, BookOpen, BarChart2, Store, Star } from "lucide-react";
 import { apiFetch } from "./lib/apiFetch";
+import { DailyGoalCard, DailyQuestsCard, StreakCard } from "./Dashboard";
+
+function getToken() {
+  return localStorage.getItem("hay_token") || localStorage.getItem("access_token") || "";
+}
 
 const CARD =
   "rounded-2xl bg-white shadow-[0_2px_10px_-2px_rgba(28,25,23,0.08)] ring-1 ring-black/[0.03] " +
@@ -39,12 +44,18 @@ const TILES = [
 
 export default function BonusesPage() {
   const navigate = useNavigate();
+  const token = getToken();
   const [mistakeCount, setMistakeCount] = useState(0);
+  const [stats, setStats] = useState({ today_xp: 0, streak: 0 });
 
   useEffect(() => {
     apiFetch("/me/mistakes/count")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d) setMistakeCount(Number(d.count) || 0); })
+      .catch(() => {});
+    apiFetch("/me/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setStats({ today_xp: Number(d.today_xp || 0), streak: Number(d.streak || 0) }); })
       .catch(() => {});
   }, []);
 
@@ -64,6 +75,9 @@ export default function BonusesPage() {
       </header>
 
       <div className="mx-auto max-w-lg space-y-3 px-4 pb-20 sm:px-6">
+        <DailyGoalCard todayXp={stats.today_xp} />
+        <DailyQuestsCard token={token} />
+
         {mistakeCount > 0 && (
           <div className={"p-5 " + CARD}>
             <div className="flex items-center justify-between">
@@ -84,6 +98,8 @@ export default function BonusesPage() {
             </button>
           </div>
         )}
+
+        <StreakCard token={token} streak={stats.streak} />
 
         <div className={"divide-y divide-stone-100 dark:divide-white/[0.06] " + CARD}>
           {TILES.map((t) => (

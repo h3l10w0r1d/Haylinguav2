@@ -62,7 +62,7 @@ function QuestTick({ className = "" }) {
   );
 }
 
-function DailyQuestsCard({ token }) {
+export function DailyQuestsCard({ token }) {
   const [data, setData] = useState(null);
   const [claiming, setClaiming] = useState("");
   const [celebrating, setCelebrating] = useState(false);
@@ -260,7 +260,7 @@ function ChestCard({ token }) {
   );
 }
 
-function StreakCard({ token, streak }) {
+export function StreakCard({ token, streak }) {
   const navigate = useNavigate();
   const [days, setDays] = useState(null);
   const [freeze, setFreeze] = useState({ freezes: 0, freeze_cap: 2 });
@@ -490,7 +490,7 @@ function MistakesCard({ token, navigate }) {
   );
 }
 
-function DailyGoalCard({ todayXp }) {
+export function DailyGoalCard({ todayXp }) {
   const [goal, setGoal] = React.useState(() => {
     const saved = parseInt(localStorage.getItem("hay_daily_goal") || "20", 10);
     return DAILY_GOAL_OPTIONS.includes(saved) ? saved : 20;
@@ -1332,20 +1332,20 @@ export default function Dashboard({ user }) {
 
         {/* ── Rail: everything that supports the journey ── */}
         <aside className="space-y-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:pb-6">
-          <DailyGoalCard todayXp={stats.today_xp} />
-          <DailyQuestsCard token={token} />
           {/* Spaced-repetition review card — disabled (not deleted) per
               product decision; re-enable by uncommenting this line + the
               ReviewCard function definition above. */}
           {/* <ReviewCard token={token} /> */}
-          {/* Mistakes + QuickLinks moved to a dedicated /bonuses page on
-              mobile (reachable from the bottom nav's "Bonuses" tab), so they
-              don't duplicate there — desktop keeps them inline here since it
-              has no bottom nav. */}
-          <div className="hidden md:block">
+          {/* Daily goal/quests, mistakes, streak, and QuickLinks all moved to
+              a dedicated /bonuses page on mobile (reachable from the bottom
+              nav's "Bonuses" tab), so they don't duplicate there — desktop
+              keeps them inline here since it has no bottom nav. */}
+          <div className="hidden md:block md:space-y-3">
+            <DailyGoalCard todayXp={stats.today_xp} />
+            <DailyQuestsCard token={token} />
             <MistakesCard token={token} navigate={navigate} />
+            <StreakCard token={token} streak={stats.streak} />
           </div>
-          <StreakCard token={token} streak={stats.streak} />
           <ChestCard token={token} />
           <div className="hidden md:block">
             <QuickLinks navigate={navigate} />
