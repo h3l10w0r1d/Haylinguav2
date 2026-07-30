@@ -178,6 +178,12 @@ class ConversationTurnRequest(BaseModel):
     user_audio_b64: Optional[str] = None
     user_level: str = "beginner"
     generate_video: bool = True
+    # Adventure NPCs override the default "Aram" persona so each character
+    # (a café barista, an airport officer…) plays itself with its own goal/voice.
+    persona_name: Optional[str] = None   # e.g. "Անի"
+    persona_desc: Optional[str] = None   # e.g. "a friendly café barista in Yerevan"
+    goal: Optional[str] = None           # overrides the scenario goal
+    voice: Optional[str] = None          # "male" | "female" (Azure hy-AM voice)
 
 
 class ConversationTurnResponse(BaseModel):
@@ -408,8 +414,15 @@ async def conversation_turn(
     # 2. Build Claude messages (keep last 10)
     # ------------------------------------------------------------------ #
     beginner_note = "Use only extremely simple, everyday Armenian words. Short sentences." if body.user_level == "beginner" else ""
-    system_prompt = f"""You are Aram (Արամ), a friendly 25-year-old from Yerevan helping someone practice Armenian.
-Scenario: "{scenario_title_en}" — Goal: {scenario_goal}
+    character_line = (
+        f"You are {body.persona_name}, {body.persona_desc}, talking with someone practicing Armenian."
+        if body.persona_name and body.persona_desc
+        else "You are Aram (Արամ), a friendly 25-year-old from Yerevan helping someone practice Armenian."
+    )
+    goal_text = body.goal or scenario_goal
+    system_prompt = f"""{character_line}
+Scenario: "{scenario_title_en}" — Goal: {goal_text}
+When the user has clearly accomplished the goal, warmly wrap up and thank them (say «շնորհակալություն»).
 
 ⚠️ ABSOLUTE RULE: Your response text MUST be written ONLY in Armenian (Eastern Armenian / հայերեն script).
 NEVER write Chinese, English, Russian, or ANY other language in the response body.
@@ -418,7 +431,7 @@ Violation of this rule is not acceptable under any circumstances.
 
 Style: {beginner_note} Keep responses to 1-2 sentences maximum. Be warm and encouraging.
 Stay in character and in the scenario at all times.
-If the user sends an empty or greeting message, naturally open the scenario as Aram.
+If the user sends an empty or greeting message, naturally open the scenario in character.
 
 FORMAT — output exactly these three lines, nothing else:
 <your 1-2 sentence Armenian response — Armenian script ONLY>
@@ -492,10 +505,12 @@ FORMAT — output exactly these three lines, nothing else:
         # ElevenLabs, which stays only as a fallback if Azure is unavailable.
         try:
             from routes import (
-                _generate_azure_tts, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION, AZURE_MALE_VOICE_ID,
+                _generate_azure_tts, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION,
+                AZURE_MALE_VOICE_ID, AZURE_FEMALE_VOICE_ID,
             )
             if AZURE_SPEECH_KEY and AZURE_SPEECH_REGION:
-                audio_bytes = await _generate_azure_tts(armenian_text, AZURE_MALE_VOICE_ID)
+                azure_voice = AZURE_FEMALE_VOICE_ID if (body.voice or "").lower() == "female" else AZURE_MALE_VOICE_ID
+                audio_bytes = await _generate_azure_tts(armenian_text, azure_voice)
         except Exception as exc:
             print(f"[conv TTS] Azure error, falling back to ElevenLabs: {exc}")
             audio_bytes = None

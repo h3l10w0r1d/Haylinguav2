@@ -160,6 +160,15 @@ const cafe = {
             { text: 'Ո՛չ։', tr: 'No!' },
           ],
         },
+        // Scripted part done — now a short, free SPOKEN conversation with Անի
+        // (real AI, Azure female voice). Finishes when she wraps up the chat.
+        {
+          ai: {
+            personaDesc: 'a warm, chatty café barista in Yerevan who enjoys a little small talk',
+            goal: 'Make brief, friendly small talk with the customer — ask how their day is going, react warmly — then wish them a nice day and say goodbye.',
+            voice: 'female',
+          },
+        },
         { line: 'Բարի ախորժակ։ 😊', by: 'npc', tr: 'Enjoy! / Bon appétit.' },
       ],
     },

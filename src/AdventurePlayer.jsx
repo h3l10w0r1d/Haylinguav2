@@ -11,6 +11,7 @@ import { ArrowLeft, MessageCircle, Volume2, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getAdventure, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
 import { buildAdventureGame } from './adventures/adventureGame';
+import AdventureVoiceChat from './adventures/AdventureVoiceChat';
 import { ttsFetch } from './exercises/tts';
 import { newTrackedAudio } from './lib/audioRegistry';
 
@@ -224,8 +225,18 @@ export default function AdventurePlayer() {
         </>
       )}
 
+      {/* Free spoken AI conversation with the NPC (scripted flow pauses here) */}
+      {dialog && step?.ai && (
+        <AdventureVoiceChat
+          npc={dialog.npc}
+          ai={step.ai}
+          onComplete={() => advance(dialog.npc, dialog.idx + 1)}
+          onClose={closeDialog}
+        />
+      )}
+
       {/* Dialogue sheet */}
-      {dialog && step && (
+      {dialog && step && !step.ai && (
         <div style={sheetWrap}>
           <div style={sheet}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
