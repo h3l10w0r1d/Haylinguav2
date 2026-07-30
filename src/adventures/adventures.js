@@ -151,6 +151,8 @@ const cafe = {
             { text: 'Ժամը քանի՞սն է։', tr: 'What time is it?' },
           ],
         },
+        // Produce it as a full sentence (word-bank) after recognising it above.
+        { wordbank: 'Now build the sentence: “I would like one coffee.”', answer: ['Ես', 'ուզում', 'եմ', 'մեկ', 'սուրճ'], tr: 'I would like one coffee.' },
         { line: 'Իհարկե՜։ Ահա Ձեր սուրճը։', by: 'npc', tr: 'Of course! Here is your coffee.' },
         {
           choose: 'She hands you the coffee. What do you say?',
@@ -266,6 +268,16 @@ const airport = {
       completes: 'checkin',
       dialogue: [
         { line: 'Բարև Ձեզ։ Ձեր տոմսն ու անձնագիրը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Your ticket and passport, please.' },
+        // Listen-and-pick: what did she ask for?
+        {
+          listen: 'Listen — what did Լիլիթ ask for?',
+          audioText: 'Ձեր տոմսն ու անձնագիրը',
+          options: [
+            { text: 'Ձեր տոմսն ու անձնագիրը', tr: 'Your ticket and passport', correct: true },
+            { text: 'Ձեր սուրճը', tr: 'Your coffee' },
+            { text: 'Ձեր անունը', tr: 'Your name' },
+          ],
+        },
         { give: 'Present your ticket.', itemId: 'ticket', tr: 'Ձեր տոմսը' },
         { give: 'Now present your passport.', itemId: 'passport', tr: 'Ձեր անձնագիրը' },
         { line: 'Շնորհակալ եմ։ Ուղեբեռ ունե՞ք։', by: 'npc', tr: 'Thank you. Do you have any luggage?' },
@@ -293,6 +305,12 @@ const airport = {
       dialogue: [
         { line: 'Բարև։ Անձնագի՛րը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Passport, please.' },
         { give: 'Show your passport.', itemId: 'passport', tr: 'Ձեր անձնագիրը' },
+        // Fill the blank — where are you going?
+        {
+          blank: 'Complete the sentence:', before: 'Ես մեկնում եմ', after: '։',
+          options: [{ text: 'Երևան', correct: true }, { text: 'սուրճ' }, { text: 'շուն' }],
+          tr: 'I am traveling to Yerevan.',
+        },
         { line: 'Ո՞ւր եք մեկնում։', by: 'npc', tr: 'Where are you traveling to?' },
         {
           choose: 'Say you are flying to Yerevan.',

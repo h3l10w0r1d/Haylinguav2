@@ -12,6 +12,8 @@ import confetti from 'canvas-confetti';
 import { getAdventure, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
 import { buildAdventureGame } from './adventures/adventureGame';
 import AdventureVoiceChat from './adventures/AdventureVoiceChat';
+import { GlossaryText } from './exercises/WordHint';
+import { WordBankStep, ListenStep, BlankStep } from './adventures/AdventureExercises';
 import { ttsFetch } from './exercises/tts';
 import { newTrackedAudio } from './lib/audioRegistry';
 
@@ -36,6 +38,7 @@ export default function AdventurePlayer() {
   const [doneGoals, setDoneGoals] = useState(() => new Set());
   const [won, setWon] = useState(false);
   const [items, setItems] = useState([]);   // inventory: passport, ticket, boarding pass…
+  const [xpAwarded, setXpAwarded] = useState(null);
 
   // ── Resolve CMS override, then merge over the code base ──────────────────────
   useEffect(() => {
@@ -156,7 +159,14 @@ export default function AdventurePlayer() {
 
   function fireWin() {
     setWon(true);
+    gameRef.current?.setWaypoint?.(null);
     confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 } });
+    // Record completion + earn XP (first time only). Best-effort.
+    const token = localStorage.getItem('hay_token') || localStorage.getItem('access_token') || '';
+    fetch(`${API_BASE}/adventures/${base.id}/complete`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setXpAwarded(d.awarded_xp); })
+      .catch(() => {});
   }
 
   function closeDialog() {
@@ -177,6 +187,10 @@ export default function AdventurePlayer() {
 
   const step = dialog && adventure ? adventure.npcs.find((n) => n.id === dialog.npc.id)?.dialogue[dialog.idx] : null;
   const adv = adventure || base;   // banner renders from base until the merge resolves
+  // A "pure line" (NPC just speaks) shows as an in-world speech bubble; anything
+  // interactive (choose/give/receive/exercise) uses the bottom sheet.
+  const isPureLine = !!step && step.line != null && !step.receive && !step.options
+    && !step.give && !step.ai && !step.wordbank && !step.blank && !step.listen;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#18240f', zIndex: 40, display: 'flex', justifyContent: 'center' }}>
@@ -249,8 +263,27 @@ export default function AdventurePlayer() {
         />
       )}
 
-      {/* Dialogue sheet */}
-      {dialog && step && !step.ai && (
+      {/* NPC speaking — an in-world-style speech bubble near the top, over the
+          (camera-framed) character, with tappable Armenian words. */}
+      {dialog && step && isPureLine && (
+        <div style={{ position: 'absolute', top: 64, left: 12, right: 12, display: 'flex', justifyContent: 'center', zIndex: 6, pointerEvents: 'none' }}>
+          <div style={{ pointerEvents: 'auto', position: 'relative', maxWidth: 380, background: '#fff', borderRadius: 18, padding: '13px 15px', boxShadow: '0 6px 20px #0005' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: ORANGE, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11 }}>{dialog.npc.name[0]}</div>
+              <div style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1a' }}>{dialog.npc.name}</div>
+              <button onClick={() => speak(step)} style={{ ...iconBtnLight, marginLeft: 'auto', padding: 4 }} aria-label="Play"><Volume2 size={15} color={ORANGE} /></button>
+            </div>
+            <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a' }}><GlossaryText text={step.line} /></div>
+            {step.tr && <div style={{ fontSize: 12.5, color: '#aaa', marginTop: 4 }}>{step.tr}</div>}
+            <button style={{ ...primaryBtn, width: '100%', marginTop: 12, padding: '9px 14px' }} onClick={() => advance(dialog.npc, dialog.idx + 1)}>Շարունակել</button>
+            {/* little tail pointing down toward the character */}
+            <div style={{ position: 'absolute', bottom: -9, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderTop: '10px solid #fff' }} />
+          </div>
+        </div>
+      )}
+
+      {/* Dialogue sheet (interactive steps) */}
+      {dialog && step && !step.ai && !isPureLine && (
         <div style={sheetWrap}>
           <div style={sheet}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -261,7 +294,13 @@ export default function AdventurePlayer() {
               <button onClick={closeDialog} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#999', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close">×</button>
             </div>
 
-            {step.give ? (
+            {step.wordbank ? (
+              <WordBankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+            ) : step.listen ? (
+              <ListenStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+            ) : step.blank ? (
+              <BlankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+            ) : step.give ? (
               /* Present an item from your bag — the boarding-pass / passport hand-over. */
               <>
                 <div style={{ fontSize: 15, color: '#1a1a1a', fontWeight: 600 }}>{step.give}</div>
@@ -304,7 +343,7 @@ export default function AdventurePlayer() {
                 {step.line && (
                   <>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                      <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}>{step.line}</div>
+                      <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}><GlossaryText text={step.line} /></div>
                       <button onClick={() => speak(step)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
                     </div>
                     {step.tr && <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{step.tr}</div>}
@@ -330,7 +369,7 @@ export default function AdventurePlayer() {
             ) : step.line ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}>{step.line}</div>
+                  <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}><GlossaryText text={step.line} /></div>
                   <button onClick={() => speak(step)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
                 </div>
                 {step.tr && <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{step.tr}</div>}
@@ -379,8 +418,13 @@ export default function AdventurePlayer() {
               <Trophy size={32} color={ORANGE} />
             </div>
             <h2 style={{ margin: '0 0 6px', fontSize: 20, color: '#1a1a1a' }}>Adventure complete! 🎉</h2>
-            <p style={{ margin: '0 0 20px', color: '#777', fontSize: 14 }}>You ordered a coffee entirely in Armenian.</p>
-            <button style={{ ...primaryBtn, width: '100%' }} onClick={() => navigate('/adventures')}>Done</button>
+            <p style={{ margin: '0 0 16px', color: '#777', fontSize: 14 }}>Nicely done — all in Armenian.</p>
+            {xpAwarded > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff7ed', color: '#b45309', border: '1px solid #fed7aa', borderRadius: 999, padding: '6px 14px', fontWeight: 800, fontSize: 15, marginBottom: 18 }}>
+                +{xpAwarded} XP
+              </div>
+            )}
+            <button style={{ ...primaryBtn, width: '100%', marginTop: xpAwarded > 0 ? 0 : 4 }} onClick={() => navigate('/adventures')}>Done</button>
           </div>
         </div>
       )}

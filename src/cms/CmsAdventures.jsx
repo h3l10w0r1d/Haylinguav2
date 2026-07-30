@@ -33,9 +33,11 @@ function seedDraft(base, override) {
               ? { kind: "give", label: s.give }                              // item hand-over — set in code
               : s.ai
                 ? { kind: "ai", label: s.ai.goal || "AI voice conversation" } // free AI chat — set in code
-                : s.line != null
-                  ? { kind: "line", line: s.line, tr: s.tr || "" }           // incl. `receive` (has a line)
-                  : { kind: "choose", choose: s.choose || "", options: (s.options || []).map((o) => ({ text: o.text, tr: o.tr || "" })) }
+                : (s.wordbank || s.listen || s.blank)
+                  ? { kind: "exercise", label: s.wordbank || s.listen || s.blank } // inline exercise — set in code
+                  : s.line != null
+                    ? { kind: "line", line: s.line, tr: s.tr || "" }         // incl. `receive` (has a line)
+                    : { kind: "choose", choose: s.choose || "", options: (s.options || []).map((o) => ({ text: o.text, tr: o.tr || "" })) }
           ),
         },
       ])
@@ -55,7 +57,7 @@ function draftToOverride(draft) {
         {
           name: n.name,
           dialogue: n.steps.map((s) =>
-            s.kind === "give" || s.kind === "ai"
+            s.kind === "give" || s.kind === "ai" || s.kind === "exercise"
               ? {}                                                        // placeholder — keeps indices aligned; merge ignores it
               : s.kind === "line"
                 ? { line: s.line, tr: s.tr }
@@ -211,6 +213,10 @@ export default function CmsAdventures() {
                           ) : s.kind === "ai" ? (
                             <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-500">
                               🎤 Free AI voice conversation — <span className="text-slate-400">“{s.label}”</span> (set in code)
+                            </div>
+                          ) : s.kind === "exercise" ? (
+                            <div className="flex items-center gap-2 text-[12px] font-semibold text-slate-500">
+                              🧩 Inline exercise — <span className="text-slate-400">“{s.label}”</span> (set in code)
                             </div>
                           ) : s.kind === "line" ? (
                             <>
