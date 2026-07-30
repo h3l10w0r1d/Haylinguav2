@@ -13,7 +13,7 @@ import { getAdventure, mergeAdventure, fetchAdventureOverrides } from './adventu
 import { buildAdventureGame } from './adventures/adventureGame';
 import AdventureVoiceChat from './adventures/AdventureVoiceChat';
 import { GlossaryText } from './exercises/WordHint';
-import { WordBankStep, ListenStep, BlankStep } from './adventures/AdventureExercises';
+import { WordBankStep, ListenStep, BlankStep, SpeakStep, MatchStep } from './adventures/AdventureExercises';
 import { ttsFetch } from './exercises/tts';
 import { newTrackedAudio } from './lib/audioRegistry';
 
@@ -219,6 +219,22 @@ export default function AdventurePlayer() {
         </div>
       </div>
 
+      {/* Shopping-list / quest checklist — ticks off as you collect the items. */}
+      {adv.checklist?.length > 0 && !won && !dialog && (
+        <div style={{ position: 'absolute', top: 62, left: 12, background: '#fffdf9', border: '1px solid #ecdfce', borderRadius: 12, padding: '9px 11px', boxShadow: '0 3px 10px #0002', maxWidth: 190 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#7a6a58', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5 }}>🧾 Ցուցակ</div>
+          {adv.checklist.map((c) => {
+            const have = items.some((it) => it.id === c.id);
+            return (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: have ? '#22a06b' : '#8a7a68', marginBottom: 2 }}>
+                <span style={{ width: 15, height: 15, borderRadius: 4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: have ? '#22c55e' : '#eee4d6', color: '#fff', fontSize: 10 }}>{have ? '✓' : ''}</span>
+                <span style={{ textDecoration: have ? 'line-through' : 'none' }}>{c.icon} {c.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Inventory "bag" — what you're carrying (passport, boarding pass…) */}
       {items.length > 0 && !won && (
         <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', gap: 4, background: '#0007', padding: '5px 7px', borderRadius: 12 }}>
@@ -294,7 +310,19 @@ export default function AdventurePlayer() {
               <button onClick={closeDialog} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#999', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close">×</button>
             </div>
 
-            {step.wordbank ? (
+            {step.note ? (
+              /* Cultural "did you know?" card. */
+              <>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: ORANGE, textTransform: 'uppercase', marginBottom: 6 }}>{step.note.emoji || '🇦🇲'} Did you know?</div>
+                {step.note.title && <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>{step.note.title}</div>}
+                <div style={{ fontSize: 14.5, lineHeight: 1.55, color: '#444' }}>{step.note.body}</div>
+                <button style={{ ...primaryBtn, width: '100%', marginTop: 16 }} onClick={() => advance(dialog.npc, dialog.idx + 1)}>Հասկացա</button>
+              </>
+            ) : step.speak ? (
+              <SpeakStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+            ) : step.match ? (
+              <MatchStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+            ) : step.wordbank ? (
               <WordBankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
             ) : step.listen ? (
               <ListenStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
