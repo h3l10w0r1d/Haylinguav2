@@ -338,7 +338,149 @@ const airport = {
   ],
 };
 
-export const ADVENTURES = [cafe, airport];
+// ── Adventure 3: A Day in Yerevan ────────────────────────────────────────────
+// The big one: a city square with three "stops" — a bakery (top-left), a taxi
+// stand (right), and Republic Square with its monument (bottom). It exercises
+// every mechanic: speech bubbles, glossary, items + a shopping checklist,
+// listen / word-bank / fill-blank / match / speaking exercises, cultural notes,
+// and a free AI voice conversation. Authentic Eastern Armenian throughout.
+const cityLegend = {
+  '.': { g: TOWN.grass },
+  ',': { g: TOWN.grassFlower },
+  'c': { g: TOWN.cobble },
+  'r': { g: TOWN.stoneFloor },
+  'T': { g: TOWN.grass, d: TOWN.treeGreen },
+  't': { g: TOWN.grass, d: TOWN.treeGreenSm },
+  'b': { g: TOWN.grass, d: TOWN.bush },
+  'Q': { g: TOWN.grass, d: TOWN.roofL },
+  'W': { g: TOWN.grass, d: TOWN.roofM },
+  'E': { g: TOWN.grass, d: TOWN.roofR },
+  'A': { g: TOWN.grass, d: TOWN.wallWindow },
+  'D': { g: TOWN.grass, d: TOWN.wallDoor },
+  'P': { g: TOWN.grass, d: TOWN.wallPlain },
+  'H': { g: TOWN.cobble, d: TOWN.crate },
+  's': { g: TOWN.cobble, d: TOWN.signpost },
+  'S': { g: TOWN.stoneFloor, d: TOWN.signpost },
+};
+
+const cityRows = [
+  'TTTTTTTTTTTTTTTT',
+  'T.QWE......QWE.T',
+  'T.ADP......APD.T',
+  'T.....cccc.....T',
+  'T.HHH.cccccc...T',
+  'T....cccccccc..T',
+  'T....cccccccc..T',
+  'T....cccccccc.ST',
+  'T....cccccccc..T',
+  'T.....cccccc...T',
+  'T......cccc....T',
+  'T......rrrr....T',
+  'T......rrrr....T',
+  'T.....rrrrrr...T',
+  'T....cccccccc..T',
+  'T...cccccccccc.T',
+  'T...cccsscccc..T',
+  'T...cccccccccc.T',
+  'T...cccccccccc.T',
+  'T....cccccccc..T',
+  'TT...cccccc...TT',
+  'TTTTTT.cc.TTTTTT',
+];
+
+const yerevan = {
+  id: 'yerevan',
+  title: 'A Day in Yerevan',
+  emoji: '🏙️',
+  blurb: 'Buy fresh lavash, hail a taxi, and reach Republic Square — a day out in Armenian.',
+  cefr: 'A2',
+  tileset: 'town',
+  map: expandMap(cityRows, cityLegend),
+  player: { frame: CHAR.adventurer, tx: 7, ty: 20 },
+  startItems: [{ id: 'dram', label: 'Դրամ', icon: '💵' }],
+  checklist: [
+    { id: 'lavash', label: 'Լավաշ', icon: '🫓' },
+    { id: 'gata', label: 'Գաթա', icon: '🥮' },
+  ],
+  goals: [
+    { id: 'bakery', label: 'Buy lavash & gata' },
+    { id: 'taxi', label: 'Take a taxi downtown' },
+    { id: 'square', label: 'Reach Republic Square' },
+  ],
+  npcs: [
+    {
+      id: 'baker',
+      name: 'Անուշ',
+      frame: CHAR.woman,
+      tx: 3, ty: 3,
+      completes: 'bakery',
+      dialogue: [
+        { line: 'Բարև ձեզ։ Բարի՜ գալուստ մեր հացատուն։', by: 'npc', tr: 'Hello. Welcome to our bakery!' },
+        { note: { emoji: '🫓', title: 'Լավաշ', body: 'Lavash — Armenia’s thin traditional flatbread — is on UNESCO’s heritage list. It’s baked against the wall of a clay oven called a թոնիր (tonir).' } },
+        {
+          listen: 'Listen — what does Անուշ have today?',
+          audioText: 'Թարմ լավաշ և գաթա',
+          options: [
+            { text: 'Թարմ լավաշ և գաթա', tr: 'Fresh lavash and gata', correct: true },
+            { text: 'Սառը սուրճ', tr: 'Cold coffee' },
+            { text: 'Կարմիր գինի', tr: 'Red wine' },
+          ],
+        },
+        { wordbank: 'Ask for bread: “I would like lavash.”', answer: ['Ես', 'ուզում', 'եմ', 'լավաշ'], tr: 'I would like lavash.' },
+        { give: 'Pay with your dram.', itemId: 'dram', tr: 'Ձեր դրամը' },
+        { receive: { id: 'lavash', label: 'Լավաշ', icon: '🫓' }, line: 'Ահա Ձեր թարմ լավաշը։', by: 'npc', tr: 'Here is your fresh lavash.' },
+        { receive: { id: 'gata', label: 'Գաթա', icon: '🥮' }, line: 'Եւ մի կտոր գաթա՝ նվեր։', by: 'npc', tr: 'And a piece of gata — a gift.' },
+      ],
+    },
+    {
+      id: 'taxi',
+      name: 'Գագիկ',
+      frame: CHAR.warrior,
+      tx: 13, ty: 8,
+      completes: 'taxi',
+      dialogue: [
+        { line: 'Բարև։ Ո՞ւր ենք գնում։', by: 'npc', tr: 'Hello. Where are we going?' },
+        { speak: 'Tell the driver where to go — say it out loud:', phrase: 'Հանրապետության հրապարակ, խնդրե՛մ', tr: 'To Republic Square, please.' },
+        {
+          blank: 'Tell him to go straight:', before: 'Գնացե՛ք', after: '։',
+          options: [{ text: 'ուղիղ', correct: true }, { text: 'կաթ' }, { text: 'շուն' }],
+          tr: 'Go straight.',
+        },
+        { line: 'Լավ, տա՛սը րոպեից տեղում կլինենք։', by: 'npc', tr: 'Alright, we’ll be there in ten minutes.' },
+      ],
+    },
+    {
+      id: 'local',
+      name: 'Մարիամ',
+      frame: CHAR.princess,
+      tx: 8, ty: 17,
+      completes: 'square',
+      dialogue: [
+        { line: 'Բարև՜։ Գեղեցի՛կ հրապարակ է, չէ՞։', by: 'npc', tr: 'Hello! Beautiful square, isn’t it?' },
+        { note: { emoji: '⛲', title: 'Հանրապետության հրապարակ', body: 'Republic Square is the heart of Yerevan — famous for its “singing fountains” and buildings of pink volcanic tufa stone.' } },
+        {
+          match: 'Match the Armenian with its meaning:',
+          pairs: [
+            { a: 'ջրվեժ', b: 'fountain' },
+            { a: 'հրապարակ', b: 'square' },
+            { a: 'քաղաք', b: 'city' },
+            { a: 'շենք', b: 'building' },
+          ],
+        },
+        {
+          ai: {
+            personaDesc: 'a warm Yerevan local chatting with a visitor at Republic Square',
+            goal: 'Chat warmly about Yerevan — ask the visitor if they like the city and suggest one thing to see or a food to try — then wish them a nice day.',
+            voice: 'female',
+          },
+        },
+        { line: 'Հաճելի զբոսանք։ Բարի ճանապարհ։', by: 'npc', tr: 'Enjoy your walk. Safe travels!' },
+      ],
+    },
+  ],
+};
+
+export const ADVENTURES = [cafe, airport, yerevan];
 
 export function getAdventure(id) {
   return ADVENTURES.find((a) => a.id === id) || null;

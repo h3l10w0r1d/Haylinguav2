@@ -8,13 +8,28 @@
 // Grading is client-side (adventures are practice mode). Wrong → red shake.
 
 import { useMemo, useRef, useState } from 'react';
-import { Volume2 } from 'lucide-react';
+import { Volume2, Mic, SkipForward, Check } from 'lucide-react';
 import { ttsFetch } from '../exercises/tts';
 import { newTrackedAudio } from '../lib/audioRegistry';
 import { GlossaryText } from '../exercises/WordHint';
 
 const ORANGE = '#FF7A1A';
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
+const getToken = () => localStorage.getItem('hay_token') || localStorage.getItem('access_token') || '';
+
+// Loose Armenian similarity for speaking checks: strip everything but letters,
+// then Levenshtein ratio. Lenient (STT + accents aren't perfect).
+function _norm(s) { return (s || '').toLowerCase().replace(/[^ա-ևԱ-Ֆa-z0-9]/g, ''); }
+function _sim(a, b) {
+  a = _norm(a); b = _norm(b);
+  if (!a || !b) return 0;
+  const m = a.length, n = b.length;
+  const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return 1 - d[m][n] / Math.max(m, n);
+}
 
 const chip = (extra) => ({
   padding: '9px 13px', borderRadius: 12, border: '2px solid #e6ddd3', background: '#fff',
@@ -128,6 +143,122 @@ export function BlankStep({ step, onCorrect }) {
         })}
       </div>
       {step.tr && <div style={{ fontSize: 12, color: '#bbb', marginTop: 10 }}>{step.tr}</div>}
+    </>
+  );
+}
+
+// ── Speaking: say the phrase, checked via Azure/hispeech STT ──────────────────
+export function SpeakStep({ step, onCorrect }) {
+  const [status, setStatus] = useState('idle');   // idle|recording|checking|pass|fail
+  const [heard, setHeard] = useState('');
+  const recRef = useRef(null); const chunksRef = useRef([]); const streamRef = useRef(null); const maxT = useRef(null);
+  const phrase = step.phrase || '';
+  const wordCount = phrase.trim().split(/\s+/).filter(Boolean).length;
+
+  const stopTracks = () => { try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* noop */ } };
+
+  const start = async () => {
+    if (status === 'recording' || status === 'checking') { if (recRef.current?.state === 'recording') recRef.current.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      const rec = new MediaRecorder(stream, { mimeType: mime });
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        clearTimeout(maxT.current); stopTracks();
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        if (blob.size < 600) { setStatus('idle'); return; }
+        setStatus('checking');
+        try {
+          const fd = new FormData();
+          fd.append('audio', blob, 'speech.webm');
+          fd.append('language_code', 'hye');
+          fd.append('word_count', String(wordCount));
+          const r = await fetch(`${API_BASE}/me/exercises/transcribe`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
+          const d = r.ok ? await r.json() : null;
+          const text = d?.text || '';
+          setHeard(text);
+          if (_sim(text, phrase) >= 0.6) { setStatus('pass'); setTimeout(onCorrect, 900); }
+          else setStatus('fail');
+        } catch { setStatus('idle'); }
+      };
+      rec.start(); recRef.current = rec; setHeard(''); setStatus('recording');
+      maxT.current = setTimeout(() => { if (recRef.current?.state === 'recording') recRef.current.stop(); }, 6000);
+    } catch { setStatus('fail'); setHeard('Microphone blocked — you can skip.'); }
+  };
+
+  const micColor = status === 'recording' ? '#ef4444' : status === 'pass' ? '#22c55e' : ORANGE;
+  const label = { idle: 'Tap the mic and say it', recording: 'Recording… tap to stop', checking: 'Checking…', pass: 'Nice! 🎉', fail: 'Not quite — try again' }[status];
+
+  return (
+    <>
+      <div style={{ fontSize: 13, color: '#666', fontWeight: 600, marginBottom: 8 }}>{step.speak || 'Say it out loud:'}</div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+        <div style={{ fontSize: 20, lineHeight: 1.4, color: '#1a1a1a', flex: 1 }}><GlossaryText text={phrase} /></div>
+        <button onClick={() => playAzure(phrase)} style={{ background: '#fff4ec', border: 'none', borderRadius: 10, padding: 6, cursor: 'pointer' }} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
+      </div>
+      {step.tr && <div style={{ fontSize: 13, color: '#aaa', marginBottom: 10 }}>{step.tr}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 6 }}>
+        <button onClick={start} disabled={status === 'checking'} style={{ width: 64, height: 64, borderRadius: '50%', border: 'none', background: micColor, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px #0003' }} aria-label="Speak">
+          {status === 'pass' ? <Check size={26} color="#fff" /> : <Mic size={26} color="#fff" />}
+        </button>
+        <div style={{ fontSize: 12, color: status === 'fail' ? '#ef4444' : '#999' }}>{label}</div>
+        {heard && <div style={{ fontSize: 13, color: '#666' }}>🗣️ <span style={{ fontStyle: 'italic' }}>{heard}</span></div>}
+      </div>
+      <button onClick={onCorrect} style={{ width: '100%', marginTop: 14, background: '#f3ede4', color: '#7a6a58', border: 'none', borderRadius: 12, padding: '10px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <SkipForward size={15} /> Skip
+      </button>
+    </>
+  );
+}
+
+// ── Match pairs: tap Armenian ↔ English until all are matched ─────────────────
+export function MatchStep({ step, onCorrect }) {
+  const pairs = step.pairs || [];
+  const left = useMemo(() => shuffled(pairs.map((p, i) => ({ t: p.a, i })), pairs.length), [step]);
+  const right = useMemo(() => shuffled(pairs.map((p, i) => ({ t: p.b, i })), pairs.length + 3), [step]);
+  const [selL, setSelL] = useState(null);
+  const [selR, setSelR] = useState(null);
+  const [matched, setMatched] = useState(() => new Set());
+  const [bad, setBad] = useState(false);
+
+  const resolve = (l, r) => {
+    if (l == null || r == null) return;
+    if (l === r) {
+      const m = new Set(matched); m.add(l); setMatched(m); setSelL(null); setSelR(null);
+      if (m.size === pairs.length) setTimeout(onCorrect, 400);
+    } else {
+      setBad(true);
+      setTimeout(() => { setBad(false); setSelL(null); setSelR(null); }, 450);
+    }
+  };
+
+  const cellStyle = (sel, isMatched) => chip({
+    width: '100%', textAlign: 'center', fontSize: 15,
+    opacity: isMatched ? 0.25 : 1,
+    borderColor: sel ? ORANGE : '#e6ddd3',
+    background: sel ? '#fff7f0' : '#fff',
+    animation: bad && sel ? 'advShake 0.3s' : 'none',
+    cursor: isMatched ? 'default' : 'pointer',
+  });
+
+  return (
+    <>
+      <div style={{ fontSize: 13, color: '#666', fontWeight: 600, marginBottom: 10 }}>{step.match || 'Match the pairs.'}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {left.map((it) => (
+            <button key={`l${it.i}`} disabled={matched.has(it.i)} onClick={() => { setSelL(it.i); resolve(it.i, selR); }} style={cellStyle(selL === it.i, matched.has(it.i))}>{it.t}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {right.map((it) => (
+            <button key={`r${it.i}`} disabled={matched.has(it.i)} onClick={() => { setSelR(it.i); resolve(selL, it.i); }} style={cellStyle(selR === it.i, matched.has(it.i))}>{it.t}</button>
+          ))}
+        </div>
+      </div>
     </>
   );
 }

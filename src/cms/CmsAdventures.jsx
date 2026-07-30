@@ -33,8 +33,8 @@ function seedDraft(base, override) {
               ? { kind: "give", label: s.give }                              // item hand-over — set in code
               : s.ai
                 ? { kind: "ai", label: s.ai.goal || "AI voice conversation" } // free AI chat — set in code
-                : (s.wordbank || s.listen || s.blank)
-                  ? { kind: "exercise", label: s.wordbank || s.listen || s.blank } // inline exercise — set in code
+                : (s.wordbank || s.listen || s.blank || s.speak || s.match || s.note)
+                  ? { kind: "exercise", label: s.wordbank || s.listen || s.blank || s.speak || s.match || (s.note && (s.note.title || "Cultural note")) } // inline exercise / note — set in code
                   : s.line != null
                     ? { kind: "line", line: s.line, tr: s.tr || "" }         // incl. `receive` (has a line)
                     : { kind: "choose", choose: s.choose || "", options: (s.options || []).map((o) => ({ text: o.text, tr: o.tr || "" })) }
