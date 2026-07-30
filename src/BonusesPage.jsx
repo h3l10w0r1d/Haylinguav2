@@ -5,7 +5,7 @@
 // reachable from the mobile bottom nav's new "Bonuses" tab.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Dumbbell, Map, BookOpen, BarChart2, Store, Star } from "lucide-react";
+import { ChevronLeft, Dumbbell, Map as MapIcon, BookOpen, BarChart2, Store, Star } from "lucide-react";
 import { apiFetch } from "./lib/apiFetch";
 
 const CARD =
@@ -30,7 +30,7 @@ function Chip({ chip, icon: Icon }) {
 
 const TILES = [
   { icon: Dumbbell, label: "Practice", desc: "Drill lessons you've already unlocked", to: "/practice", accent: ACCENT.brand },
-  { icon: Map, label: "Adventures", desc: "Walk through a scene, Duolingo-style", to: "/adventures", accent: ACCENT.grass },
+  { icon: MapIcon, label: "Adventures", desc: "Walk through a scene, Duolingo-style", to: "/adventures", accent: ACCENT.grass },
   { icon: BookOpen, label: "Words", desc: "Browse everything you've learned", to: "/vocabulary", accent: ACCENT.feather },
   { icon: BarChart2, label: "Progress", desc: "XP, streaks, and mastery over time", to: "/progress", accent: ACCENT.feather },
   { icon: Store, label: "Shop", desc: "Spend gems on frames, freezes, and more", to: "/shop", accent: ACCENT.pom },
