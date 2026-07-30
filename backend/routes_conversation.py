@@ -420,23 +420,31 @@ async def conversation_turn(
         else "You are Aram (Արամ), a friendly 25-year-old from Yerevan helping someone practice Armenian."
     )
     goal_text = body.goal or scenario_goal
+    # Pace the chat by how much the learner has actually said, so it neither ends
+    # after one line nor drags forever.
+    user_turns = sum(1 for m in body.messages if (m or {}).get("role") == "user") + (1 if user_text else 0)
+    if user_turns >= 5:
+        pacing = "This chat has gone on long enough — bring it to a warm, natural close NOW: a short goodbye, and set [DONE: yes]."
+    else:
+        pacing = "Keep it flowing: react to what they said and ask a short follow-up or offer help. Do NOT end after one exchange — only set [DONE: yes] once the goal is genuinely met or they clearly want to leave."
     system_prompt = f"""{character_line}
 Scenario: "{scenario_title_en}" — Goal: {goal_text}
-When the user has clearly accomplished the goal, warmly wrap up and thank them (say «շնորհակալություն»).
+
+Have a natural back-and-forth and let the LEARNER lead — they will tell you what they need; react like a real person, help them, keep it moving. {pacing}
 
 ⚠️ ABSOLUTE RULE: Your response text MUST be written ONLY in Armenian (Eastern Armenian / հայերեն script).
 NEVER write Chinese, English, Russian, or ANY other language in the response body.
 If you don't know a word in Armenian, use a simpler Armenian word instead.
 Violation of this rule is not acceptable under any circumstances.
 
-Style: {beginner_note} Keep responses to 1-2 sentences maximum. Be warm and encouraging.
-Stay in character and in the scenario at all times.
-If the user sends an empty or greeting message, naturally open the scenario in character.
+Style: {beginner_note} Keep responses to 1-2 sentences maximum. Warm and encouraging. Stay in character.
+If the user sends an empty or greeting message, open by greeting them and asking what they'd like / how you can help.
 
-FORMAT — output exactly these three lines, nothing else:
+FORMAT — output exactly these four lines, nothing else:
 <your 1-2 sentence Armenian response — Armenian script ONLY>
 [EN: English translation of what you said]
-[CORRECT: one short English correction of the user's Armenian, or "none"]"""
+[CORRECT: one short English correction of the user's Armenian, or "none"]
+[DONE: yes only if the conversation has reached a natural end or the goal is met, otherwise no]"""
 
     # Trim to last 10 messages
     recent_messages = list(body.messages)[-10:]
@@ -486,12 +494,13 @@ FORMAT — output exactly these three lines, nothing else:
         english_translation = "Sorry, let's start again."
         corrections = []
 
-    # Simple heuristic: consider conversation complete if Aram's reply contains
-    # keywords that suggest the goal was achieved.
-    is_complete = any(
-        kw in full_response.lower()
-        for kw in ["շնորհակալություն", "հաջողություն", "ցտեսություն", "well done", "completed", "goal achieved"]
-    )
+    # Completion is decided by the model's own [DONE] signal, gated so it can
+    # neither end after a single line nor run away: at least 2 learner turns
+    # before an early finish, and a hard cap that forces a graceful close.
+    done_match = re.search(r"\[DONE:\s*(yes|true)\b", full_response, re.IGNORECASE)
+    ai_done = bool(done_match)
+    MIN_TURNS, MAX_TURNS = 2, 6
+    is_complete = (ai_done and user_turns >= MIN_TURNS) or (user_turns >= MAX_TURNS)
 
     # ------------------------------------------------------------------ #
     # 3. Generate TTS audio

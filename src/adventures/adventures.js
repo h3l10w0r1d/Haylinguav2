@@ -164,8 +164,8 @@ const cafe = {
         // (real AI, Azure female voice). Finishes when she wraps up the chat.
         {
           ai: {
-            personaDesc: 'a warm, chatty café barista in Yerevan who enjoys a little small talk',
-            goal: 'Make brief, friendly small talk with the customer — ask how their day is going, react warmly — then wish them a nice day and say goodbye.',
+            personaDesc: 'a warm café barista in Yerevan',
+            goal: 'Open by asking if the customer would like anything else (a pastry, water, the bill…). Let THEM tell you what they need and help with it naturally over a few turns. Once they are set, warmly wish them a nice day and say goodbye.',
             voice: 'female',
           },
         },
