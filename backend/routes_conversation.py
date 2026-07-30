@@ -178,6 +178,12 @@ class ConversationTurnRequest(BaseModel):
     user_audio_b64: Optional[str] = None
     user_level: str = "beginner"
     generate_video: bool = True
+    # Adventure NPCs override the default "Aram" persona so each character
+    # (a café barista, an airport officer…) plays itself with its own goal/voice.
+    persona_name: Optional[str] = None   # e.g. "Անի"
+    persona_desc: Optional[str] = None   # e.g. "a friendly café barista in Yerevan"
+    goal: Optional[str] = None           # overrides the scenario goal
+    voice: Optional[str] = None          # "male" | "female" (Azure hy-AM voice)
 
 
 class ConversationTurnResponse(BaseModel):
@@ -408,22 +414,37 @@ async def conversation_turn(
     # 2. Build Claude messages (keep last 10)
     # ------------------------------------------------------------------ #
     beginner_note = "Use only extremely simple, everyday Armenian words. Short sentences." if body.user_level == "beginner" else ""
-    system_prompt = f"""You are Aram (Արամ), a friendly 25-year-old from Yerevan helping someone practice Armenian.
-Scenario: "{scenario_title_en}" — Goal: {scenario_goal}
+    character_line = (
+        f"You are {body.persona_name}, {body.persona_desc}, talking with someone practicing Armenian."
+        if body.persona_name and body.persona_desc
+        else "You are Aram (Արամ), a friendly 25-year-old from Yerevan helping someone practice Armenian."
+    )
+    goal_text = body.goal or scenario_goal
+    # Pace the chat by how much the learner has actually said, so it neither ends
+    # after one line nor drags forever.
+    user_turns = sum(1 for m in body.messages if (m or {}).get("role") == "user") + (1 if user_text else 0)
+    if user_turns >= 5:
+        pacing = "This chat has gone on long enough — bring it to a warm, natural close NOW: a short goodbye, and set [DONE: yes]."
+    else:
+        pacing = "Keep it flowing: react to what they said and ask a short follow-up or offer help. Do NOT end after one exchange — only set [DONE: yes] once the goal is genuinely met or they clearly want to leave."
+    system_prompt = f"""{character_line}
+Scenario: "{scenario_title_en}" — Goal: {goal_text}
+
+Have a natural back-and-forth and let the LEARNER lead — they will tell you what they need; react like a real person, help them, keep it moving. {pacing}
 
 ⚠️ ABSOLUTE RULE: Your response text MUST be written ONLY in Armenian (Eastern Armenian / հայերեն script).
 NEVER write Chinese, English, Russian, or ANY other language in the response body.
 If you don't know a word in Armenian, use a simpler Armenian word instead.
 Violation of this rule is not acceptable under any circumstances.
 
-Style: {beginner_note} Keep responses to 1-2 sentences maximum. Be warm and encouraging.
-Stay in character and in the scenario at all times.
-If the user sends an empty or greeting message, naturally open the scenario as Aram.
+Style: {beginner_note} Keep responses to 1-2 sentences maximum. Warm and encouraging. Stay in character.
+If the user sends an empty or greeting message, open by greeting them and asking what they'd like / how you can help.
 
-FORMAT — output exactly these three lines, nothing else:
+FORMAT — output exactly these four lines, nothing else:
 <your 1-2 sentence Armenian response — Armenian script ONLY>
 [EN: English translation of what you said]
-[CORRECT: one short English correction of the user's Armenian, or "none"]"""
+[CORRECT: one short English correction of the user's Armenian, or "none"]
+[DONE: yes only if the conversation has reached a natural end or the goal is met, otherwise no]"""
 
     # Trim to last 10 messages
     recent_messages = list(body.messages)[-10:]
@@ -473,61 +494,78 @@ FORMAT — output exactly these three lines, nothing else:
         english_translation = "Sorry, let's start again."
         corrections = []
 
-    # Simple heuristic: consider conversation complete if Aram's reply contains
-    # keywords that suggest the goal was achieved.
-    is_complete = any(
-        kw in full_response.lower()
-        for kw in ["շնորհակալություն", "հաջողություն", "ցտեսություն", "well done", "completed", "goal achieved"]
-    )
+    # Completion is decided by the model's own [DONE] signal, gated so it can
+    # neither end after a single line nor run away: at least 2 learner turns
+    # before an early finish, and a hard cap that forces a graceful close.
+    done_match = re.search(r"\[DONE:\s*(yes|true)\b", full_response, re.IGNORECASE)
+    ai_done = bool(done_match)
+    MIN_TURNS, MAX_TURNS = 2, 6
+    is_complete = (ai_done and user_turns >= MIN_TURNS) or (user_turns >= MAX_TURNS)
 
     # ------------------------------------------------------------------ #
     # 3. Generate TTS audio
     # ------------------------------------------------------------------ #
     audio_url: Optional[str] = None
     audio_file_path: Optional[str] = None
+    audio_bytes: Optional[bytes] = None
 
-    if ELEVEN_API_KEY and armenian_text:
-        tts_url = f"{ELEVEN_API_URL}/text-to-speech/{ARAM_VOICE_ID}"
-        tts_headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
-        tts_params = {"output_format": "mp3_44100_128"}  # ElevenLabs takes this as a query param, not body
-        tts_payload = {
-            "text": armenian_text,
-            "model_id": ELEVEN_MODEL_ID,
-            # Kept in sync with routes.py's _DEFAULT_TTS_VOICE_SETTINGS — style=0.0
-            # (the old value) disables all expressive inflection, which reads as
-            # flat/robotic; a modest style weight sounds far more natural.
-            "voice_settings": {
-                "stability": 0.45,
-                "similarity_boost": 0.8,
-                "style": 0.25,
-                "use_speaker_boost": True,
-            },
-        }
+    if armenian_text:
+        # Prefer Azure hy-AM — its Armenian voices are markedly better than
+        # ElevenLabs, which stays only as a fallback if Azure is unavailable.
         try:
-            tts_resp = await _http.post(tts_url, headers=tts_headers, params=tts_params, json=tts_payload)
+            from routes import (
+                _generate_azure_tts, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION,
+                AZURE_MALE_VOICE_ID, AZURE_FEMALE_VOICE_ID,
+            )
+            if AZURE_SPEECH_KEY and AZURE_SPEECH_REGION:
+                azure_voice = AZURE_FEMALE_VOICE_ID if (body.voice or "").lower() == "female" else AZURE_MALE_VOICE_ID
+                audio_bytes = await _generate_azure_tts(armenian_text, azure_voice)
+        except Exception as exc:
+            print(f"[conv TTS] Azure error, falling back to ElevenLabs: {exc}")
+            audio_bytes = None
 
-            # Recover from invalid voice_id (404) by using first available voice.
-            if tts_resp.status_code == 404:
-                voices_resp = await _http.get(f"{ELEVEN_API_URL}/voices", headers=tts_headers)
-                if voices_resp.status_code == 200:
-                    voices = (voices_resp.json() or {}).get("voices") or []
-                    if voices:
-                        fallback_id = voices[0].get("voice_id") or voices[0].get("id")
-                        if fallback_id:
-                            tts_url2 = f"{ELEVEN_API_URL}/text-to-speech/{fallback_id}"
-                            tts_resp = await _http.post(tts_url2, headers=tts_headers, params=tts_params, json=tts_payload)
+        if audio_bytes is None and ELEVEN_API_KEY:
+            tts_url = f"{ELEVEN_API_URL}/text-to-speech/{ARAM_VOICE_ID}"
+            tts_headers = {"xi-api-key": ELEVEN_API_KEY, "Content-Type": "application/json"}
+            tts_params = {"output_format": "mp3_44100_128"}  # ElevenLabs takes this as a query param, not body
+            tts_payload = {
+                "text": armenian_text,
+                "model_id": ELEVEN_MODEL_ID,
+                "voice_settings": {
+                    "stability": 0.45,
+                    "similarity_boost": 0.8,
+                    "style": 0.25,
+                    "use_speaker_boost": True,
+                },
+            }
+            try:
+                tts_resp = await _http.post(tts_url, headers=tts_headers, params=tts_params, json=tts_payload)
+                # Recover from invalid voice_id (404) by using first available voice.
+                if tts_resp.status_code == 404:
+                    voices_resp = await _http.get(f"{ELEVEN_API_URL}/voices", headers=tts_headers)
+                    if voices_resp.status_code == 200:
+                        voices = (voices_resp.json() or {}).get("voices") or []
+                        if voices:
+                            fallback_id = voices[0].get("voice_id") or voices[0].get("id")
+                            if fallback_id:
+                                tts_url2 = f"{ELEVEN_API_URL}/text-to-speech/{fallback_id}"
+                                tts_resp = await _http.post(tts_url2, headers=tts_headers, params=tts_params, json=tts_payload)
+                if tts_resp.status_code == 200:
+                    audio_bytes = tts_resp.content
+            except Exception as exc:
+                print(f"[conv TTS] ElevenLabs error: {exc}")
 
-            if tts_resp.status_code == 200:
-                audio_bytes = tts_resp.content
+        if audio_bytes:
+            try:
                 audio_filename = f"{uuid.uuid4().hex}.mp3"
                 audio_dir = _conv_audio_dir()
                 audio_file_path = os.path.join(audio_dir, audio_filename)
                 with open(audio_file_path, "wb") as f:
                     f.write(audio_bytes)
                 audio_url = f"{_api_base_url()}/static/conv-audio/{audio_filename}"
-        except Exception as exc:
-            # TTS failure is non-fatal; conversation still works without audio.
-            print(f"[conv TTS] error: {exc}")
+            except Exception as exc:
+                # TTS failure is non-fatal; conversation still works without audio.
+                print(f"[conv TTS] write error: {exc}")
 
     return ConversationTurnResponse(
         assistant_text=armenian_text,

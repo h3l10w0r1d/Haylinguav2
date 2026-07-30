@@ -3,14 +3,25 @@
 // full-screen (its own header, no global nav), mirroring the AI Conversation
 // entry point. Cards route into /adventures/:id which mounts the Phaser scene.
 
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Lock } from 'lucide-react';
-import { ADVENTURES } from './adventures/adventures';
+import { ArrowLeft, Play } from 'lucide-react';
+import { ADVENTURES, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
 const ORANGE = '#FF7A1A';
 
 export default function AdventuresHome() {
   const navigate = useNavigate();
+  // Show CMS-overridden titles/blurbs in the list; fall back to code defaults.
+  const [list, setList] = useState(ADVENTURES);
+  useEffect(() => {
+    let alive = true;
+    fetchAdventureOverrides(API_BASE).then((all) => {
+      if (alive) setList(ADVENTURES.map((a) => (all[a.id] ? mergeAdventure(a, all[a.id]) : a)));
+    });
+    return () => { alive = false; };
+  }, []);
   return (
     <div style={{ minHeight: '100dvh', background: '#faf6f0' }}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '18px 16px 60px' }}>
@@ -25,7 +36,7 @@ export default function AdventuresHome() {
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-          {ADVENTURES.map((a) => (
+          {list.map((a) => (
             <button
               key={a.id}
               onClick={() => navigate(`/adventures/${a.id}`)}
@@ -51,16 +62,6 @@ export default function AdventuresHome() {
             </button>
           ))}
 
-          {/* Teaser for the next scene */}
-          <div style={{ border: '1px dashed #d8cbba', borderRadius: 18, padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', opacity: 0.75 }}>
-            <div style={{ height: 96, background: '#efe7db', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 46 }}>🛫</div>
-            <div style={{ padding: '12px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 15, color: '#9a8a78' }}>
-                <Lock size={13} /> At the Airport
-              </div>
-              <div style={{ fontSize: 13, color: '#a89a88', flex: 1 }}>Coming soon.</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

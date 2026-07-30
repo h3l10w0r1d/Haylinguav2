@@ -22,7 +22,8 @@ export const TOWN = {
   grass: 0,
   grassFlower: 1,
   grassSpark: 2,
-  cobble: 43,        // light stone plaza floor
+  cobble: 43,        // light stone plaza floor (grassy — reads as a patio)
+  stoneFloor: 109,   // solid grey stone floor (reads as paved / indoor)
   dirt: 25,          // dirt patch centre
   treeGreen: 4,
   treeGreenSm: 6,
@@ -150,6 +151,8 @@ const cafe = {
             { text: 'Ժամը քանի՞սն է։', tr: 'What time is it?' },
           ],
         },
+        // Produce it as a full sentence (word-bank) after recognising it above.
+        { wordbank: 'Now build the sentence: “I would like one coffee.”', answer: ['Ես', 'ուզում', 'եմ', 'մեկ', 'սուրճ'], tr: 'I would like one coffee.' },
         { line: 'Իհարկե՜։ Ահա Ձեր սուրճը։', by: 'npc', tr: 'Of course! Here is your coffee.' },
         {
           choose: 'She hands you the coffee. What do you say?',
@@ -158,6 +161,15 @@ const cafe = {
             { text: 'Ցտեսությո՛ւն։', tr: 'Goodbye!' },
             { text: 'Ո՛չ։', tr: 'No!' },
           ],
+        },
+        // Scripted part done — now a short, free SPOKEN conversation with Անի
+        // (real AI, Azure female voice). Finishes when she wraps up the chat.
+        {
+          ai: {
+            personaDesc: 'a warm café barista in Yerevan',
+            goal: 'Open by asking if the customer would like anything else (a pastry, water, the bill…). Let THEM tell you what they need and help with it naturally over a few turns. Once they are set, warmly wish them a nice day and say goodbye.',
+            voice: 'female',
+          },
         },
         { line: 'Բարի ախորժակ։ 😊', by: 'npc', tr: 'Enjoy! / Bon appétit.' },
       ],
@@ -183,8 +195,219 @@ const cafe = {
   ],
 };
 
-export const ADVENTURES = [cafe];
+// ── Adventure 2: At the Airport ──────────────────────────────────────────────
+// A paved terminal (cobble apron + a building facade at the top). Three
+// stations the traveller walks between: check-in desk → passport control →
+// boarding gate, each its own goal. Dialogue is polite/formal register (Ձեր/Ձեզ)
+// throughout, as you'd actually hear at Zvartnots.
+const airportLegend = {
+  '.': { g: TOWN.grass },
+  'c': { g: TOWN.stoneFloor },
+  'F': { g: TOWN.stoneFloor, d: TOWN.fenceH },   // barrier / queue rail on paved ground
+  'T': { g: TOWN.grass, d: TOWN.treeGreen },
+  'b': { g: TOWN.grass, d: TOWN.bush },
+  'Q': { g: TOWN.stoneFloor, d: TOWN.roofL },
+  'W': { g: TOWN.stoneFloor, d: TOWN.roofM },
+  'E': { g: TOWN.stoneFloor, d: TOWN.roofR },
+  'A': { g: TOWN.stoneFloor, d: TOWN.wallWindow },
+  'D': { g: TOWN.stoneFloor, d: TOWN.wallDoor },
+  'P': { g: TOWN.stoneFloor, d: TOWN.wallPlain },
+  'H': { g: TOWN.stoneFloor, d: TOWN.crate },    // check-in / gate counter
+  'L': { g: TOWN.stoneFloor, d: TOWN.barrel },   // luggage
+  's': { g: TOWN.stoneFloor, d: TOWN.signpost }, // gate sign
+};
+
+const airportRows = [
+  'QWWWWWWWWWWWWWWE',   // terminal roof
+  'PPPPPPPDDPPPPPPP',   // terminal facade (boarding doors, centre)
+  'FcccccccccsccccF',   // gate hall + a gate signpost
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',   // passport officer stands here…
+  'FccFFFFccFFFFccF',   // …behind a security barrier (gap in the middle)
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FcccccccccccLccF',   // luggage
+  'FcccHHHccccccccF',   // check-in counter
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FFFFFFFccFFFFFFF',   // perimeter fence + entrance gap
+];
+
+const airport = {
+  id: 'airport',
+  title: 'At the Airport',
+  emoji: '🛫',
+  blurb: 'Fly out of the country: check in, clear passport control, and board — all in Armenian.',
+  cefr: 'A2',
+  tileset: 'town',
+  map: expandMap(airportRows, airportLegend),
+  player: { frame: CHAR.adventurer, tx: 8, ty: 16 },   // enters at the bottom
+  // You arrive holding a passport + ticket; you earn the boarding pass at
+  // check-in and must present it at the gate. Presenting the right document is
+  // part of the challenge, so the order (check-in → gate) is enforced naturally.
+  startItems: [
+    { id: 'passport', label: 'Անձնագիր', icon: '📘' },
+    { id: 'ticket', label: 'Տոմս', icon: '🎫' },
+  ],
+  goals: [
+    { id: 'checkin', label: 'Check in for your flight' },
+    { id: 'passport', label: 'Clear passport control' },
+    { id: 'board', label: 'Board your flight' },
+  ],
+  npcs: [
+    {
+      id: 'checkin',
+      name: 'Լիլիթ',            // check-in agent
+      frame: CHAR.woman,
+      tx: 5, ty: 11,
+      completes: 'checkin',
+      dialogue: [
+        { line: 'Բարև Ձեզ։ Ձեր տոմսն ու անձնագիրը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Your ticket and passport, please.' },
+        // Listen-and-pick: what did she ask for?
+        {
+          listen: 'Listen — what did Լիլիթ ask for?',
+          audioText: 'Ձեր տոմսն ու անձնագիրը',
+          options: [
+            { text: 'Ձեր տոմսն ու անձնագիրը', tr: 'Your ticket and passport', correct: true },
+            { text: 'Ձեր սուրճը', tr: 'Your coffee' },
+            { text: 'Ձեր անունը', tr: 'Your name' },
+          ],
+        },
+        { give: 'Present your ticket.', itemId: 'ticket', tr: 'Ձեր տոմսը' },
+        { give: 'Now present your passport.', itemId: 'passport', tr: 'Ձեր անձնագիրը' },
+        { line: 'Շնորհակալ եմ։ Ուղեբեռ ունե՞ք։', by: 'npc', tr: 'Thank you. Do you have any luggage?' },
+        {
+          choose: 'Say you have one suitcase.',
+          options: [
+            { text: 'Այո՛, մեկ ճամպրուկ։', tr: 'Yes, one suitcase.', correct: true },
+            { text: 'Ո՛չ, ես կատու ունեմ։', tr: 'No, I have a cat.' },
+            { text: 'Ժամը ե՞րբ է։', tr: 'What time is it?' },
+          ],
+        },
+        {
+          receive: { id: 'boarding', label: 'Նստ. կտրոն', icon: '🎟️' },
+          line: 'Հիանալի՜։ Ահա Ձեր նստեցման կտրոնը։ Ձեր ելքը՝ հինգ։',
+          by: 'npc', tr: 'Great! Here is your boarding pass. Your gate is five.',
+        },
+      ],
+    },
+    {
+      id: 'passport',
+      name: 'Դավիթ',            // passport control officer
+      frame: CHAR.knight,
+      tx: 8, ty: 6,
+      completes: 'passport',
+      dialogue: [
+        { line: 'Բարև։ Անձնագի՛րը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Passport, please.' },
+        { give: 'Show your passport.', itemId: 'passport', tr: 'Ձեր անձնագիրը' },
+        // Fill the blank — where are you going?
+        {
+          blank: 'Complete the sentence:', before: 'Ես մեկնում եմ', after: '։',
+          options: [{ text: 'Երևան', correct: true }, { text: 'սուրճ' }, { text: 'շուն' }],
+          tr: 'I am traveling to Yerevan.',
+        },
+        { line: 'Ո՞ւր եք մեկնում։', by: 'npc', tr: 'Where are you traveling to?' },
+        {
+          choose: 'Say you are flying to Yerevan.',
+          options: [
+            { text: 'Ես մեկնում եմ Երևան։', tr: 'I am traveling to Yerevan.', correct: true },
+            { text: 'Ես սիրում եմ ձյունը։', tr: 'I like the snow.' },
+            { text: 'Սա իմ շունն է։', tr: 'This is my dog.' },
+          ],
+        },
+        { line: 'Ամեն ինչ կարգին է։ Բարի ճանապարհ։', by: 'npc', tr: 'Everything is in order. Have a good trip.' },
+      ],
+    },
+    {
+      id: 'gate',
+      name: 'Անահիտ',           // boarding-gate agent
+      frame: CHAR.princess,
+      tx: 5, ty: 3,
+      completes: 'board',
+      dialogue: [
+        { line: 'Բարև Ձեզ։ Ձեր նստեցման կտրո՛նը, խնդրե՛մ։', by: 'npc', tr: 'Hello. Your boarding pass, please.' },
+        { give: 'Hand over your boarding pass.', itemId: 'boarding', tr: 'Ձեր նստեցման կտրոնը' },
+        { line: 'Շնորհակալություն։ Բարի թռի՛չք։', by: 'npc', tr: 'Thank you. Have a good flight.' },
+      ],
+    },
+  ],
+};
+
+export const ADVENTURES = [cafe, airport];
 
 export function getAdventure(id) {
   return ADVENTURES.find((a) => a.id === id) || null;
+}
+
+// ── CMS overrides (Tier-1 authoring) ─────────────────────────────────────────
+// The map, NPC positions/sprites, player spawn and grading structure stay in
+// code (above). Editors can override only the *language content* via the CMS:
+// titles/blurbs, goal labels, NPC names, and the text of each dialogue step.
+// An override is stored per adventure id as this (all-optional) shape:
+//
+//   { title?, blurb?,
+//     goals?: { [goalId]: label },
+//     npcs?:  { [npcId]: { name?, dialogue?: [ perStep ] } } }
+//
+// where perStep is { line?, tr? } for a spoken line or
+// { choose?, options?: [{ text?, tr? }] } for a choice. Anything missing falls
+// back to the code default, and step COUNT/TYPE and which option is `correct`
+// always come from code — so a CMS edit can reword content but never break the
+// scene layout or the grading. Merge is index-aligned and defensive: a step
+// whose type doesn't match the code (e.g. after a code change) just falls back.
+export function mergeAdventure(base, override) {
+  if (!base || !override) return base;
+  const mergedGoals = base.goals.map((g) => ({
+    ...g,
+    label: override.goals?.[g.id] ?? g.label,
+  }));
+  const mergedNpcs = base.npcs.map((n) => {
+    const o = override.npcs?.[n.id];
+    if (!o) return n;
+    const dialogue = n.dialogue.map((step, i) => {
+      const os = o.dialogue?.[i];
+      if (!os) return step;
+      if (step.line != null) {
+        return { ...step, line: os.line ?? step.line, tr: os.tr ?? step.tr };
+      }
+      if (step.options) {
+        return {
+          ...step,
+          choose: os.choose ?? step.choose,
+          options: step.options.map((opt, j) => ({
+            ...opt,                                    // keeps `correct` from code
+            text: os.options?.[j]?.text ?? opt.text,
+            tr: os.options?.[j]?.tr ?? opt.tr,
+          })),
+        };
+      }
+      return step;
+    });
+    return { ...n, name: o.name ?? n.name, dialogue };
+  });
+  return {
+    ...base,
+    title: override.title ?? base.title,
+    blurb: override.blurb ?? base.blurb,
+    goals: mergedGoals,
+    npcs: mergedNpcs,
+  };
+}
+
+// Fetch all overrides ({ [adventureId]: override }) from the backend. Best-effort:
+// any failure yields {} so adventures always fall back to their code defaults.
+export async function fetchAdventureOverrides(apiBase) {
+  try {
+    const res = await fetch(`${apiBase}/adventures/overrides`);
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
 }

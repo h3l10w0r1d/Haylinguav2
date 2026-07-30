@@ -70,15 +70,15 @@ async function tryFetchTargetAudio(base, exerciseId, targetKey, voice) {
   return bufferToObjectUrl(buffer, ct);
 }
 
-async function fetchLegacyTts(base, text, voice) {
-  const cacheKey = `tts:${voice || ""}:${text}`;
+async function fetchLegacyTts(base, text, voice, provider) {
+  const cacheKey = `tts:${provider || ""}:${voice || ""}:${text}`;
   if (_dataCache.has(cacheKey)) {
     return bufferToObjectUrl(_dataCache.get(cacheKey).buf, _dataCache.get(cacheKey).ct);
   }
   const res = await fetch(`${base}/tts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, voice: voice || undefined }),
+    body: JSON.stringify({ text, voice: voice || undefined, provider: provider || undefined }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const ct = res.headers.get("content-type") || "audio/mpeg";
@@ -125,7 +125,8 @@ export async function ttsFetch(apiBaseUrl, input) {
   }
 
   // 2) Fallback: legacy /tts — same resolved voice (first candidate; for
-  // "random" prefs that's already a per-call coin flip from voiceCandidates)
+  // "random" prefs that's already a per-call coin flip from voiceCandidates).
+  // A caller may pin a provider (Adventures pins "azure").
   if (!text) throw new Error("Missing text");
-  return fetchLegacyTts(base, text, candidates[0]);
+  return fetchLegacyTts(base, text, candidates[0], input?.provider);
 }

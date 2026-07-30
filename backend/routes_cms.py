@@ -2514,6 +2514,44 @@ def cms_repetitive_mistakes(request: Request, db: Connection = Depends(get_db)):
     return {"count": len(items), "items": items}
 
 
+@router.get("/cms/review-queue")
+def cms_review_queue(request: Request, risk: Optional[str] = Query(None),
+                     db: Connection = Depends(get_db)):
+    """Machine-generated exercises the content engine flagged for a human
+    spot-check. Generated content is published immediately (so learners get
+    volume), but any exercise whose source sentence scored `medium` or `high`
+    grammatical risk carries `config.reviewRisk` and surfaces here, ordered
+    riskiest-first. This is the "reviewer flags, publish live, fix on signal"
+    gate; auto-hidden items live in /cms/exercises/repetitive-mistakes.
+    Pass ?risk=high to narrow the list."""
+    require_cms(request, db)
+    wanted = [risk] if risk in ("medium", "high") else ["high", "medium"]
+    rows = db.execute(
+        text("""
+            SELECT e.id, e.kind, e.prompt, e.config->>'reviewRisk' AS risk,
+                   l.id AS lesson_id, l.slug AS lesson_slug, l.title AS lesson_title,
+                   c.title AS chapter_title
+            FROM exercises e
+            LEFT JOIN lessons l ON l.id = e.lesson_id
+            LEFT JOIN chapters c ON c.id = l.chapter_id
+            WHERE COALESCE(e.auto_disabled, FALSE) = FALSE
+              AND e.config->>'reviewRisk' = ANY(:wanted)
+            ORDER BY CASE e.config->>'reviewRisk' WHEN 'high' THEN 0 ELSE 1 END,
+                     l.slug ASC, e."order" ASC
+        """),
+        {"wanted": wanted},
+    ).mappings().all()
+    items = [{
+        "id": r["id"], "kind": r["kind"], "prompt": r["prompt"], "risk": r["risk"],
+        "lesson_id": r["lesson_id"], "lesson_slug": r["lesson_slug"],
+        "lesson_title": r["lesson_title"], "chapter_title": r["chapter_title"],
+    } for r in rows]
+    by_risk = {}
+    for it in items:
+        by_risk[it["risk"]] = by_risk.get(it["risk"], 0) + 1
+    return {"count": len(items), "by_risk": by_risk, "items": items}
+
+
 @router.post("/cms/exercises/{exercise_id}/restore")
 def cms_restore_exercise(exercise_id: int, request: Request, db: Connection = Depends(get_db)):
     """Bring an auto-hidden exercise back into its lesson. It's marked immune so
@@ -2842,6 +2880,41 @@ async def cms_reorder_vacancies(request: Request, db=Depends(get_db)):
     body = await request.json()
     for i, vid in enumerate(body.get("order") or []):
         db.execute(text("UPDATE job_vacancies SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(vid)})
+    return {"ok": True}
+
+# ==================== Adventures: CMS language overrides ====================
+# The scene layout / NPC positions / grading live in the frontend code; editors
+# override only language content (titles, goal labels, NPC names, dialogue text)
+# here as one JSONB blob per adventure id. The editor knows the base structure
+# (imported from the frontend adventures.js), so the backend just stores/serves
+# blobs — it needs no knowledge of a scene's shape.
+
+@router.get("/cms/adventures")
+def cms_list_adventure_overrides(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text(
+        "SELECT adventure_id, data, updated_at FROM adventure_overrides"
+    )).mappings().all()
+    return {"overrides": {r["adventure_id"]: r["data"] for r in rows}}
+
+@router.put("/cms/adventures/{adventure_id}")
+async def cms_save_adventure_override(adventure_id: str, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Override must be a JSON object")
+    db.execute(text("""
+        INSERT INTO adventure_overrides (adventure_id, data, updated_at)
+        VALUES (:id, CAST(:data AS jsonb), NOW())
+        ON CONFLICT (adventure_id)
+        DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+    """), {"id": adventure_id, "data": json.dumps(body)})
+    return {"ok": True}
+
+@router.delete("/cms/adventures/{adventure_id}")
+def cms_reset_adventure_override(adventure_id: str, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM adventure_overrides WHERE adventure_id = :id"), {"id": adventure_id})
     return {"ok": True}
 
 # ==================== Careers: application form fields ====================

@@ -9,8 +9,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Volume2, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { getAdventure } from './adventures/adventures';
+import { getAdventure, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
 import { buildAdventureGame } from './adventures/adventureGame';
+import AdventureVoiceChat from './adventures/AdventureVoiceChat';
+import { GlossaryText } from './exercises/WordHint';
+import { WordBankStep, ListenStep, BlankStep } from './adventures/AdventureExercises';
 import { ttsFetch } from './exercises/tts';
 import { newTrackedAudio } from './lib/audioRegistry';
 
@@ -20,7 +23,10 @@ const ORANGE = '#FF7A1A';
 export default function AdventurePlayer() {
   const { adventureId } = useParams();
   const navigate = useNavigate();
-  const adventure = useMemo(() => getAdventure(adventureId), [adventureId]);
+  const base = useMemo(() => getAdventure(adventureId), [adventureId]);
+  // `adventure` is the code base with any CMS language override merged in. Null
+  // until the override fetch resolves, so the game boots once (no re-boot flash).
+  const [adventure, setAdventure] = useState(null);
 
   const hostRef = useRef(null);
   const gameRef = useRef(null);
@@ -31,6 +37,20 @@ export default function AdventurePlayer() {
   const [dialog, setDialog] = useState(null);   // { npc, idx, wrongId }
   const [doneGoals, setDoneGoals] = useState(() => new Set());
   const [won, setWon] = useState(false);
+  const [items, setItems] = useState([]);   // inventory: passport, ticket, boarding pass…
+  const [xpAwarded, setXpAwarded] = useState(null);
+
+  // ── Resolve CMS override, then merge over the code base ──────────────────────
+  useEffect(() => {
+    if (!base) return;
+    let alive = true;
+    setAdventure(null);
+    setItems((base.startItems || []).map((i) => ({ ...i })));   // items you begin with
+    fetchAdventureOverrides(API_BASE).then((all) => {
+      if (alive) setAdventure(all[base.id] ? mergeAdventure(base, all[base.id]) : base);
+    });
+    return () => { alive = false; };
+  }, [base]);
 
   // ── Boot Phaser ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -84,10 +104,22 @@ export default function AdventurePlayer() {
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
   }, []);
 
+  // ── Objective beacon: point at the NPC for the next incomplete goal ──────────
+  useEffect(() => {
+    const g = gameRef.current;
+    if (!ready || !adventure || !g) return;
+    if (dialog || won) { g.setWaypoint?.(null); return; }
+    const nextGoal = adventure.goals.find((gg) => !doneGoals.has(gg.id));
+    const npc = nextGoal ? adventure.npcs.find((n) => n.completes === nextGoal.id) : null;
+    g.setWaypoint?.(npc?.id || null);
+  }, [ready, adventure, doneGoals, dialog, won]);
+
   // ── Dialogue flow ────────────────────────────────────────────────────────────
   function openDialog(npc) {
     controls.current.paused = true;
     controls.current.interact = false;
+    gameRef.current?.setWaypoint?.(null);
+    gameRef.current?.focusNpc?.(npc.id);   // cinematic zoom to the NPC
     setDialog({ npc, idx: 0, wrongId: null });
     speak(npc.dialogue[0]);
   }
@@ -95,7 +127,8 @@ export default function AdventurePlayer() {
   function speak(step) {
     const text = step?.line || step?.options?.find((o) => o.correct)?.text;
     if (!step?.line) return;              // only auto-voice NPC lines
-    ttsFetch(API_BASE, { text: step.line })
+    // Pin Azure — its hy-AM voices handle Armenian far better than ElevenLabs.
+    ttsFetch(API_BASE, { text: step.line, provider: 'azure' })
       .then((url) => newTrackedAudio(url).play())
       .catch(() => {});
   }
@@ -108,6 +141,7 @@ export default function AdventurePlayer() {
 
   function finishDialog(npc) {
     controls.current.paused = false;
+    gameRef.current?.unfocus?.();
     setDialog(null);
     if (npc.completes) {
       gameRef.current?.markNpcDone?.(npc.id);
@@ -125,16 +159,24 @@ export default function AdventurePlayer() {
 
   function fireWin() {
     setWon(true);
+    gameRef.current?.setWaypoint?.(null);
     confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 } });
+    // Record completion + earn XP (first time only). Best-effort.
+    const token = localStorage.getItem('hay_token') || localStorage.getItem('access_token') || '';
+    fetch(`${API_BASE}/adventures/${base.id}/complete`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setXpAwarded(d.awarded_xp); })
+      .catch(() => {});
   }
 
   function closeDialog() {
     controls.current.paused = false;
     controls.current.interact = false;
+    gameRef.current?.unfocus?.();
     setDialog(null);
   }
 
-  if (!adventure) {
+  if (!base) {
     return (
       <div style={fullCenter}>
         <p style={{ color: '#666' }}>Adventure not found.</p>
@@ -143,7 +185,12 @@ export default function AdventurePlayer() {
     );
   }
 
-  const step = dialog ? adventure.npcs.find((n) => n.id === dialog.npc.id)?.dialogue[dialog.idx] : null;
+  const step = dialog && adventure ? adventure.npcs.find((n) => n.id === dialog.npc.id)?.dialogue[dialog.idx] : null;
+  const adv = adventure || base;   // banner renders from base until the merge resolves
+  // A "pure line" (NPC just speaks) shows as an in-world speech bubble; anything
+  // interactive (choose/give/receive/exercise) uses the bottom sheet.
+  const isPureLine = !!step && step.line != null && !step.receive && !step.options
+    && !step.give && !step.ai && !step.wordbank && !step.blank && !step.listen;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#18240f', zIndex: 40, display: 'flex', justifyContent: 'center' }}>
@@ -160,9 +207,9 @@ export default function AdventurePlayer() {
           <ArrowLeft size={20} color="#fff" />
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{adventure.emoji} {adventure.title}</div>
+          <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{adv.emoji} {adv.title}</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {adventure.goals.map((g) => (
+            {adv.goals.map((g) => (
               <span key={g.id} style={{ fontSize: 11, color: '#fff', opacity: doneGoals.has(g.id) ? 1 : 0.85, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                 <span style={{ width: 13, height: 13, borderRadius: 4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: doneGoals.has(g.id) ? '#22c55e' : '#ffffff44', fontSize: 9 }}>{doneGoals.has(g.id) ? '✓' : ''}</span>
                 <span style={{ textDecoration: doneGoals.has(g.id) ? 'line-through' : 'none' }}>{g.label}</span>
@@ -171,6 +218,17 @@ export default function AdventurePlayer() {
           </div>
         </div>
       </div>
+
+      {/* Inventory "bag" — what you're carrying (passport, boarding pass…) */}
+      {items.length > 0 && !won && (
+        <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', gap: 4, background: '#0007', padding: '5px 7px', borderRadius: 12 }}>
+          {items.map((it) => (
+            <div key={it.id} title={it.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 30 }}>
+              <span style={{ fontSize: 19, lineHeight: 1 }}>{it.icon}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* "Talk" prompt when near an NPC and not in dialogue */}
       {nearNpc && !dialog && !won && (
@@ -195,8 +253,37 @@ export default function AdventurePlayer() {
         </>
       )}
 
-      {/* Dialogue sheet */}
-      {dialog && step && (
+      {/* Free spoken AI conversation with the NPC (scripted flow pauses here) */}
+      {dialog && step?.ai && (
+        <AdventureVoiceChat
+          npc={dialog.npc}
+          ai={step.ai}
+          onComplete={() => advance(dialog.npc, dialog.idx + 1)}
+          onClose={closeDialog}
+        />
+      )}
+
+      {/* NPC speaking — an in-world-style speech bubble near the top, over the
+          (camera-framed) character, with tappable Armenian words. */}
+      {dialog && step && isPureLine && (
+        <div style={{ position: 'absolute', top: 64, left: 12, right: 12, display: 'flex', justifyContent: 'center', zIndex: 6, pointerEvents: 'none' }}>
+          <div style={{ pointerEvents: 'auto', position: 'relative', maxWidth: 380, background: '#fff', borderRadius: 18, padding: '13px 15px', boxShadow: '0 6px 20px #0005' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: ORANGE, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11 }}>{dialog.npc.name[0]}</div>
+              <div style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1a' }}>{dialog.npc.name}</div>
+              <button onClick={() => speak(step)} style={{ ...iconBtnLight, marginLeft: 'auto', padding: 4 }} aria-label="Play"><Volume2 size={15} color={ORANGE} /></button>
+            </div>
+            <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a' }}><GlossaryText text={step.line} /></div>
+            {step.tr && <div style={{ fontSize: 12.5, color: '#aaa', marginTop: 4 }}>{step.tr}</div>}
+            <button style={{ ...primaryBtn, width: '100%', marginTop: 12, padding: '9px 14px' }} onClick={() => advance(dialog.npc, dialog.idx + 1)}>Շարունակել</button>
+            {/* little tail pointing down toward the character */}
+            <div style={{ position: 'absolute', bottom: -9, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderTop: '10px solid #fff' }} />
+          </div>
+        </div>
+      )}
+
+      {/* Dialogue sheet (interactive steps) */}
+      {dialog && step && !step.ai && !isPureLine && (
         <div style={sheetWrap}>
           <div style={sheet}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -207,10 +294,82 @@ export default function AdventurePlayer() {
               <button onClick={closeDialog} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#999', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close">×</button>
             </div>
 
-            {step.line ? (
+            {step.wordbank ? (
+              <WordBankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+            ) : step.listen ? (
+              <ListenStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+            ) : step.blank ? (
+              <BlankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+            ) : step.give ? (
+              /* Present an item from your bag — the boarding-pass / passport hand-over. */
+              <>
+                <div style={{ fontSize: 15, color: '#1a1a1a', fontWeight: 600 }}>{step.give}</div>
+                {step.tr && <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{step.tr}</div>}
+                <div style={{ fontSize: 11, color: '#999', margin: '10px 0 8px' }}>Tap the right item from your bag:</div>
+                {items.length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '9px 11px' }}>
+                    Your bag is empty — you may need to get this somewhere first.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {items.map((it) => {
+                      const isWrong = dialog.wrongId === it.id;
+                      return (
+                        <button
+                          key={it.id}
+                          onClick={() => {
+                            if (it.id === step.itemId) advance(dialog.npc, dialog.idx + 1);
+                            else setDialog((d) => ({ ...d, wrongId: it.id }));
+                          }}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 78,
+                            padding: '10px 12px', borderRadius: 12, cursor: 'pointer',
+                            border: `2px solid ${isWrong ? '#ef4444' : '#e6ddd3'}`,
+                            background: isWrong ? '#fff1f1' : '#fff',
+                            animation: isWrong ? 'advShake 0.3s' : 'none',
+                          }}
+                        >
+                          <span style={{ fontSize: 26 }}>{it.icon}</span>
+                          <span style={{ fontSize: 12, color: '#1a1a1a' }}>{it.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : step.receive ? (
+              /* An NPC hands you an item — adds it to your bag on "Take". */
+              <>
+                {step.line && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}><GlossaryText text={step.line} /></div>
+                      <button onClick={() => speak(step)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
+                    </div>
+                    {step.tr && <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{step.tr}</div>}
+                  </>
+                )}
+                <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '10px 12px' }}>
+                  <span style={{ fontSize: 26 }}>{step.receive.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>Added to your bag</div>
+                    <div style={{ fontSize: 15, color: '#1a1a1a' }}>{step.receive.label}</div>
+                  </div>
+                </div>
+                <button
+                  style={{ ...primaryBtn, width: '100%', marginTop: 16 }}
+                  onClick={() => {
+                    setItems((prev) => (prev.some((p) => p.id === step.receive.id) ? prev : [...prev, { ...step.receive }]));
+                    advance(dialog.npc, dialog.idx + 1);
+                  }}
+                >
+                  Վերցնել
+                </button>
+              </>
+            ) : step.line ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}>{step.line}</div>
+                  <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}><GlossaryText text={step.line} /></div>
                   <button onClick={() => speak(step)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
                 </div>
                 {step.tr && <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{step.tr}</div>}
@@ -259,8 +418,13 @@ export default function AdventurePlayer() {
               <Trophy size={32} color={ORANGE} />
             </div>
             <h2 style={{ margin: '0 0 6px', fontSize: 20, color: '#1a1a1a' }}>Adventure complete! 🎉</h2>
-            <p style={{ margin: '0 0 20px', color: '#777', fontSize: 14 }}>You ordered a coffee entirely in Armenian.</p>
-            <button style={{ ...primaryBtn, width: '100%' }} onClick={() => navigate('/adventures')}>Done</button>
+            <p style={{ margin: '0 0 16px', color: '#777', fontSize: 14 }}>Nicely done — all in Armenian.</p>
+            {xpAwarded > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff7ed', color: '#b45309', border: '1px solid #fed7aa', borderRadius: 999, padding: '6px 14px', fontWeight: 800, fontSize: 15, marginBottom: 18 }}>
+                +{xpAwarded} XP
+              </div>
+            )}
+            <button style={{ ...primaryBtn, width: '100%', marginTop: xpAwarded > 0 ? 0 : 4 }} onClick={() => navigate('/adventures')}>Done</button>
           </div>
         </div>
       )}

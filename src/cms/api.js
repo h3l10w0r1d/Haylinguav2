@@ -129,6 +129,11 @@ export function createCmsApi(accessToken) {
   const deleteVacancy = (id) => req(`/cms/vacancies/${id}`, { method: "DELETE" });
   const reorderVacancies = (order) => req("/cms/vacancies/reorder", { method: "POST", body: JSON.stringify({ order }) });
 
+  // Adventures: language overrides (map of adventureId -> override blob)
+  const listAdventureOverrides = () => req("/cms/adventures");
+  const saveAdventureOverride = (id, data) => req(`/cms/adventures/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  const resetAdventureOverride = (id) => req(`/cms/adventures/${id}`, { method: "DELETE" });
+
   // Careers: application form fields
   const listVacancyFields = (vacancyId) => req(`/cms/vacancies/${vacancyId}/fields`);
   const createVacancyField = (vacancyId, payload) => req(`/cms/vacancies/${vacancyId}/fields`, { method: "POST", body: JSON.stringify(payload) });
@@ -289,6 +294,9 @@ export function createCmsApi(accessToken) {
     updateVacancy,
     deleteVacancy,
     reorderVacancies,
+    listAdventureOverrides,
+    saveAdventureOverride,
+    resetAdventureOverride,
     listAffiliates,
     getAffiliatesAnalytics,
     approveAffiliate,
