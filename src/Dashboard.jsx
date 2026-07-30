@@ -1338,10 +1338,18 @@ export default function Dashboard({ user }) {
               product decision; re-enable by uncommenting this line + the
               ReviewCard function definition above. */}
           {/* <ReviewCard token={token} /> */}
-          <MistakesCard token={token} navigate={navigate} />
+          {/* Mistakes + QuickLinks moved to a dedicated /bonuses page on
+              mobile (reachable from the bottom nav's "Bonuses" tab), so they
+              don't duplicate there — desktop keeps them inline here since it
+              has no bottom nav. */}
+          <div className="hidden md:block">
+            <MistakesCard token={token} navigate={navigate} />
+          </div>
           <StreakCard token={token} streak={stats.streak} />
           <ChestCard token={token} />
-          <QuickLinks navigate={navigate} />
+          <div className="hidden md:block">
+            <QuickLinks navigate={navigate} />
+          </div>
         </aside>
       </div>
     </div>

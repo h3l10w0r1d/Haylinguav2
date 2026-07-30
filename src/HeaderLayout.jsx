@@ -532,6 +532,18 @@ export default function HeaderLayout({ user, onLogout, children }) {
           </NavLink>
 
           <NavLink
+            to="/bonuses"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
+                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
+              }`
+            }
+          >
+            <Gift className="w-5 h-5" />
+            <span className="text-[11px] font-medium">Bonuses</span>
+          </NavLink>
+
+          <NavLink
             to="/profile"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${

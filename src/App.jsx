@@ -26,6 +26,7 @@ const Shop = lazy(() => import('./Shop'));
 const Friends = lazy(() => import('./Friends'));
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const ProfilePage = lazy(() => import('./ProfilePage'));
+const BonusesPage = lazy(() => import('./BonusesPage'));
 const PublicUserPage = lazy(() => import('./PublicUserPage'));
 const AboutPage = lazy(() => import('./AboutPage'));
 const ContactPage = lazy(() => import('./ContactPage'));
@@ -53,6 +54,7 @@ const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
 const CmsPremium = lazy(() => import('./cms/CmsPremium'));
 const CmsCareers = lazy(() => import('./cms/CmsCareers'));
+const CmsAdventures = lazy(() => import('./cms/CmsAdventures'));
 const CmsAffiliates = lazy(() => import('./cms/CmsAffiliates'));
 const CmsForum = lazy(() => import('./cms/CmsForum'));
 const CmsAnalytics = lazy(() => import('./cms/analytics/index'));
@@ -477,6 +479,14 @@ function AppShell() {
           }
         />
         <Route
+          path="/bonuses"
+          element={
+            <RequireOnboarded>
+              <BonusesPage />
+            </RequireOnboarded>
+          }
+        />
+        <Route
           path="/premium"
           element={
             <RequireOnboarded>
@@ -679,6 +689,7 @@ function AppShell() {
       <Route path="/cms/team" element={<CmsTeam />} />
       <Route path="/cms/support" element={<CmsSupport />} />
       <Route path="/cms/chapters" element={<CmsChapters />} />
+      <Route path="/cms/adventures" element={<CmsAdventures />} />
       <Route path="/cms/achievements" element={<CmsAchievements />} />
       <Route path="/cms/shop" element={<CmsShop />} />
       <Route path="/cms/premium" element={<CmsPremium />} />
