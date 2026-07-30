@@ -38,8 +38,15 @@ function bfsPath(sx, sy, tx, ty, walkable) {
 // Turn a packed 12-col sheet into per-frame texture coords by loading it as a
 // spritesheet; frame index == the numbers we mapped in adventures.js.
 export function buildAdventureGame(Phaser, { parent, adventure, controls, bridge }) {
-  const TOWN_URL = '/adventures/kenney/tiny-town/Tilemap/tilemap_packed.png';
   const CHAR_URL = '/adventures/kenney/tiny-dungeon/Tilemap/tilemap_packed.png';
+  // Map tilesets. Tiny Town is a packed sheet (no spacing); the larger
+  // Roguelike/RPG pack (grand buildings, fountains, market stalls…) has 1px
+  // spacing between tiles, so it needs a different addTilesetImage call.
+  const TILESETS = {
+    town:  { url: '/adventures/kenney/tiny-town/Tilemap/tilemap_packed.png', spacing: 0 },
+    rogue: { url: '/adventures/kenney/roguelike/roguelikeSheet.png',          spacing: 1 },
+  };
+  const TS = TILESETS[adventure.tileset] || TILESETS.town;
 
   const { map } = adventure;
   const worldW = map.width * TILE;
@@ -67,18 +74,18 @@ export function buildAdventureGame(Phaser, { parent, adventure, controls, bridge
     }
 
     preload() {
-      this.load.image('town', TOWN_URL);
+      this.load.image('mapts', TS.url);
       this.load.spritesheet('chars', CHAR_URL, { frameWidth: TILE, frameHeight: TILE });
     }
 
     create() {
       // ── Tile layers ──────────────────────────────────────────────────────
       const groundMap = this.make.tilemap({ data: map.ground, tileWidth: TILE, tileHeight: TILE });
-      const groundTiles = groundMap.addTilesetImage('town');
+      const groundTiles = groundMap.addTilesetImage('mapts', 'mapts', TILE, TILE, 0, TS.spacing);
       groundMap.createLayer(0, groundTiles, 0, 0);
 
       const decorMap = this.make.tilemap({ data: map.decor, tileWidth: TILE, tileHeight: TILE });
-      const decorTiles = decorMap.addTilesetImage('town');
+      const decorTiles = decorMap.addTilesetImage('mapts', 'mapts', TILE, TILE, 0, TS.spacing);
       const decorLayer = decorMap.createLayer(0, decorTiles, 0, 0);
       decorLayer.setCollisionByExclusion([-1]);     // every placed decor tile is solid
 

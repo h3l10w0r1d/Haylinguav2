@@ -338,6 +338,72 @@ const airport = {
   ],
 };
 
+// ── Roguelike/RPG pack tile indices (57 cols, 16px + 1px spacing) ────────────
+// A much richer sheet than Tiny Town: grand "tufa" buildings, a fountain,
+// market stalls, benches, lampposts. Used by rogue-tileset adventures.
+export const ROGUE = {
+  grass: 5, plaza: 120, plazaTan: 122, dirt: 6,
+  treeG: 640, treeO: 641, hedge: 646, bush: 651,
+  bench: 304, lamp: 416, flower: 469,
+  awningO: 10, awningG: 11, stallL: 357, stallM: 358, stallR: 359,
+  // grand tan building facade (top / mid / door rows)
+  bTL: 697, bT: 698, bTR: 699,
+  bML: 754, bM: 755, bMR: 756,
+  bBL: 811, bDoor: 814, bBR: 817,
+  // fountain (3×3)
+  fTL: 409, fT: 410, fTR: 411,
+  fML: 466, fM: 467, fMR: 468,
+  fBL: 523, fB: 524, fBR: 525,
+};
+
+const sqLegend = {
+  '.': { g: ROGUE.grass },
+  'p': { g: ROGUE.plaza },
+  'P': { g: ROGUE.plazaTan },
+  'T': { g: ROGUE.grass, d: ROGUE.treeG },
+  'o': { g: ROGUE.grass, d: ROGUE.treeO },
+  'h': { g: ROGUE.plaza, d: ROGUE.hedge },
+  'b': { g: ROGUE.plaza, d: ROGUE.bench },
+  'l': { g: ROGUE.plaza, d: ROGUE.lamp },
+  'f': { g: ROGUE.grass, d: ROGUE.flower },
+  // grand building
+  'Q': { g: ROGUE.grass, d: ROGUE.bTL }, 'W': { g: ROGUE.grass, d: ROGUE.bT }, 'E': { g: ROGUE.grass, d: ROGUE.bTR },
+  'A': { g: ROGUE.grass, d: ROGUE.bML }, 'S': { g: ROGUE.grass, d: ROGUE.bM }, 'D': { g: ROGUE.grass, d: ROGUE.bMR },
+  'Z': { g: ROGUE.plaza, d: ROGUE.bBL }, 'G': { g: ROGUE.plaza, d: ROGUE.bDoor }, 'C': { g: ROGUE.plaza, d: ROGUE.bBR },
+  // fountain
+  '1': { g: ROGUE.plaza, d: ROGUE.fTL }, '2': { g: ROGUE.plaza, d: ROGUE.fT }, '3': { g: ROGUE.plaza, d: ROGUE.fTR },
+  '4': { g: ROGUE.plaza, d: ROGUE.fML }, '5': { g: ROGUE.plaza, d: ROGUE.fM }, '6': { g: ROGUE.plaza, d: ROGUE.fMR },
+  '7': { g: ROGUE.plaza, d: ROGUE.fBL }, '8': { g: ROGUE.plaza, d: ROGUE.fB }, '9': { g: ROGUE.plaza, d: ROGUE.fBR },
+  // market stalls
+  'm': { g: ROGUE.plaza, d: ROGUE.awningO }, 'n': { g: ROGUE.plaza, d: ROGUE.awningG },
+  'x': { g: ROGUE.plaza, d: ROGUE.stallM },
+};
+
+const sqRows = [
+  '..QWEQWEQWEQWE....',
+  '..ASDASDASDASD....',
+  '..ZGCZGCZGCZGC....',
+  '..pppppppppppp....',
+  '.TpppppppppppppT..',
+  '.lpmmnppppppppl...',
+  '.bpxxxpppppppb....',
+  '.ppppppppppppp....',
+  '.pppppp123ppppp...',
+  '.pppppp456ppppp...',
+  '.TppppP789Pppph...',
+  '.ppppppppppppp....',
+  '.bpppppppppppb....',
+  '.lppppTppTpppl....',
+  '.pppppppppppp.....',
+  '.oppppppppppo.....',
+  '.pppppppppppp.....',
+  '.hpppbppppbppph...',
+  '.ppppppppppppp....',
+  '.TppppppppppppT...',
+  '..pppppp.ppppp....',
+  '..TTTTT...TTTTT...',
+];
+
 // ── Adventure 3: A Day in Yerevan ────────────────────────────────────────────
 // The big one: a city square with three "stops" — a bakery (top-left), a taxi
 // stand (right), and Republic Square with its monument (bottom). It exercises
@@ -394,9 +460,9 @@ const yerevan = {
   emoji: '🏙️',
   blurb: 'Buy fresh lavash, hail a taxi, and reach Republic Square — a day out in Armenian.',
   cefr: 'A2',
-  tileset: 'town',
-  map: expandMap(cityRows, cityLegend),
-  player: { frame: CHAR.adventurer, tx: 7, ty: 20 },
+  tileset: 'rogue',
+  map: expandMap(sqRows, sqLegend),
+  player: { frame: CHAR.adventurer, tx: 9, ty: 19 },
   startItems: [{ id: 'dram', label: 'Դրամ', icon: '💵' }],
   checklist: [
     { id: 'lavash', label: 'Լավաշ', icon: '🫓' },
@@ -412,7 +478,7 @@ const yerevan = {
       id: 'baker',
       name: 'Անուշ',
       frame: CHAR.woman,
-      tx: 3, ty: 3,
+      tx: 4, ty: 7,
       completes: 'bakery',
       dialogue: [
         { line: 'Բարև ձեզ։ Բարի՜ գալուստ մեր հացատուն։', by: 'npc', tr: 'Hello. Welcome to our bakery!' },
@@ -436,7 +502,7 @@ const yerevan = {
       id: 'taxi',
       name: 'Գագիկ',
       frame: CHAR.warrior,
-      tx: 13, ty: 8,
+      tx: 13, ty: 7,
       completes: 'taxi',
       dialogue: [
         { line: 'Բարև։ Ո՞ւր ենք գնում։', by: 'npc', tr: 'Hello. Where are we going?' },
@@ -453,7 +519,7 @@ const yerevan = {
       id: 'local',
       name: 'Մարիամ',
       frame: CHAR.princess,
-      tx: 8, ty: 17,
+      tx: 8, ty: 11,
       completes: 'square',
       dialogue: [
         { line: 'Բարև՜։ Գեղեցի՛կ հրապարակ է, չէ՞։', by: 'npc', tr: 'Hello! Beautiful square, isn’t it?' },
