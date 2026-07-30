@@ -101,10 +101,22 @@ export default function AdventurePlayer() {
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
   }, []);
 
+  // ── Objective beacon: point at the NPC for the next incomplete goal ──────────
+  useEffect(() => {
+    const g = gameRef.current;
+    if (!ready || !adventure || !g) return;
+    if (dialog || won) { g.setWaypoint?.(null); return; }
+    const nextGoal = adventure.goals.find((gg) => !doneGoals.has(gg.id));
+    const npc = nextGoal ? adventure.npcs.find((n) => n.completes === nextGoal.id) : null;
+    g.setWaypoint?.(npc?.id || null);
+  }, [ready, adventure, doneGoals, dialog, won]);
+
   // ── Dialogue flow ────────────────────────────────────────────────────────────
   function openDialog(npc) {
     controls.current.paused = true;
     controls.current.interact = false;
+    gameRef.current?.setWaypoint?.(null);
+    gameRef.current?.focusNpc?.(npc.id);   // cinematic zoom to the NPC
     setDialog({ npc, idx: 0, wrongId: null });
     speak(npc.dialogue[0]);
   }
@@ -126,6 +138,7 @@ export default function AdventurePlayer() {
 
   function finishDialog(npc) {
     controls.current.paused = false;
+    gameRef.current?.unfocus?.();
     setDialog(null);
     if (npc.completes) {
       gameRef.current?.markNpcDone?.(npc.id);
@@ -149,6 +162,7 @@ export default function AdventurePlayer() {
   function closeDialog() {
     controls.current.paused = false;
     controls.current.interact = false;
+    gameRef.current?.unfocus?.();
     setDialog(null);
   }
 
