@@ -2917,6 +2917,61 @@ def cms_reset_adventure_override(adventure_id: str, request: Request, db=Depends
     db.execute(text("DELETE FROM adventure_overrides WHERE adventure_id = :id"), {"id": adventure_id})
     return {"ok": True}
 
+# ==================== Adventures: fully CMS-authored (no-code builder) ====================
+# Unlike the text overrides above, each custom adventure is a COMPLETE definition
+# authored in the CMS builder and rendered by the app as-is. Only published rows
+# are served to learners (see GET /adventures/custom in routes.py).
+
+def _valid_custom_adventure_id(adv_id: str) -> bool:
+    return (
+        isinstance(adv_id, str)
+        and 2 <= len(adv_id) <= 48
+        and all(c.islower() or c.isdigit() or c in "-_" for c in adv_id)
+        and adv_id[0] != "-"
+    )
+
+@router.get("/cms/custom-adventures")
+def cms_list_custom_adventures(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text(
+        "SELECT id, data, published, updated_at FROM custom_adventures ORDER BY created_at"
+    )).mappings().all()
+    return {"adventures": [
+        {"id": r["id"], "data": r["data"], "published": r["published"],
+         "updated_at": r["updated_at"].isoformat() if r["updated_at"] else None}
+        for r in rows
+    ]}
+
+@router.put("/cms/custom-adventures/{adv_id}")
+async def cms_save_custom_adventure(adv_id: str, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    if not _valid_custom_adventure_id(adv_id):
+        raise HTTPException(status_code=400, detail="Invalid id: lowercase letters, digits, - and _ only (2-48 chars)")
+    # Don't let a custom adventure shadow a built-in code adventure id.
+    if adv_id in {"cafe", "airport", "yerevan", "clinic", "transit"}:
+        raise HTTPException(status_code=400, detail="That id is reserved by a built-in adventure")
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Body must be a JSON object")
+    data = body.get("data") if isinstance(body.get("data"), dict) else body
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="Adventure `data` must be a JSON object")
+    published = bool(body.get("published", False))
+    data = {**data, "id": adv_id}   # id is authoritative from the path
+    db.execute(text("""
+        INSERT INTO custom_adventures (id, data, published, updated_at)
+        VALUES (:id, CAST(:data AS jsonb), :pub, NOW())
+        ON CONFLICT (id)
+        DO UPDATE SET data = EXCLUDED.data, published = EXCLUDED.published, updated_at = NOW()
+    """), {"id": adv_id, "data": json.dumps(data), "pub": published})
+    return {"ok": True, "id": adv_id, "published": published}
+
+@router.delete("/cms/custom-adventures/{adv_id}")
+def cms_delete_custom_adventure(adv_id: str, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM custom_adventures WHERE id = :id"), {"id": adv_id})
+    return {"ok": True}
+
 # ==================== Careers: application form fields ====================
 
 FIELD_TYPES = {"text", "textarea", "url", "file"}

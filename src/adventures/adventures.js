@@ -954,3 +954,16 @@ export async function fetchAdventureOverrides(apiBase) {
     return {};
   }
 }
+
+// Fetch fully CMS-authored (published) adventures — complete definitions the app
+// renders next to the built-in code adventures. Best-effort: [] on any failure.
+export async function fetchCustomAdventures(apiBase) {
+  try {
+    const res = await fetch(`${apiBase}/adventures/custom`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.adventures) ? data.adventures : [];
+  } catch {
+    return [];
+  }
+}

@@ -165,6 +165,20 @@ def ensure_schema() -> None:
         add_col_if_missing("adventure_completions", "plays INTEGER NOT NULL DEFAULT 1")
         add_col_if_missing("adventure_completions", "last_played_at TIMESTAMPTZ")
 
+        # Fully CMS-authored adventures (the no-code builder). Unlike
+        # adventure_overrides (text patches over code adventures), each row here is
+        # a COMPLETE adventure definition the app renders directly. Only published
+        # rows are served to learners.
+        ensure_table("custom_adventures", """
+            CREATE TABLE custom_adventures (
+                id         TEXT PRIMARY KEY,
+                data       JSONB NOT NULL DEFAULT '{}'::jsonb,
+                published  BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
         # ---------- Per-user word exposure (drives NEW-word badges) ----------
         ensure_table("user_word_exposure", """
             CREATE TABLE user_word_exposure (

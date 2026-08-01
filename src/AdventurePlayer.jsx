@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Volume2, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { getAdventure, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
+import { getAdventure, mergeAdventure, fetchAdventureOverrides, fetchCustomAdventures } from './adventures/adventures';
 import { buildAdventureGame } from './adventures/adventureGame';
 import AdventureVoiceChat from './adventures/AdventureVoiceChat';
 import { GlossaryText } from './exercises/WordHint';
@@ -23,7 +23,20 @@ const ORANGE = '#FF7A1A';
 export default function AdventurePlayer() {
   const { adventureId } = useParams();
   const navigate = useNavigate();
-  const base = useMemo(() => getAdventure(adventureId), [adventureId]);
+  // Built-in adventures resolve synchronously from code; fully CMS-authored
+  // ("custom") ones are fetched from the backend. undefined = still resolving,
+  // null = genuinely not found.
+  const [base, setBase] = useState(undefined);
+  useEffect(() => {
+    let alive = true;
+    const code = getAdventure(adventureId);
+    if (code) { setBase(code); return; }
+    setBase(undefined);
+    fetchCustomAdventures(API_BASE)
+      .then((list) => { if (alive) setBase(list.find((a) => a.id === adventureId) || null); })
+      .catch(() => { if (alive) setBase(null); });
+    return () => { alive = false; };
+  }, [adventureId]);
   // `adventure` is the code base with any CMS language override merged in. Null
   // until the override fetch resolves, so the game boots once (no re-boot flash).
   const [adventure, setAdventure] = useState(null);
@@ -209,7 +222,7 @@ export default function AdventurePlayer() {
     setDialog(null);
   }
 
-  if (!base) {
+  if (base === null) {
     return (
       <div style={fullCenter}>
         <p style={{ color: '#666' }}>Adventure not found.</p>
