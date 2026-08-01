@@ -1,5 +1,6 @@
 # backend/ensure_schema.py
 from __future__ import annotations
+import json
 import os
 from sqlalchemy import create_engine, text
 
@@ -1152,5 +1153,189 @@ def ensure_schema() -> None:
                 UNIQUE (token)
             )
         """)
+
+        # ---------- Marketplace: instance-owned cosmetic inventory ----------
+        # Replaces owned_frames/owned_themes/active_frame (JSONB array + a bare
+        # id string — no per-instance identity, so "own this exact item" can't
+        # be represented, which blocks trading). item_definitions is the new
+        # catalog (superset of shop_items' avatar_frame/profile_theme rows,
+        # now with rarity); user_items is one row per unit owned, with a
+        # stable id a trade can reference. shop_items itself is untouched and
+        # keeps serving non-instanced consumables (streak_freeze, xp_boost,
+        # etc.) — only frame/theme rows migrate out of it conceptually.
+        ensure_table(
+            "item_rarities",
+            """
+            CREATE TABLE item_rarities (
+                rarity      TEXT PRIMARY KEY,
+                sort_order  INTEGER NOT NULL,
+                color_hex   TEXT NOT NULL
+            )
+            """,
+        )
+        for r, so, hexcolor in [
+            ("common", 0, "#94A3B8"),
+            ("uncommon", 1, "#22C55E"),
+            ("rare", 2, "#1CB0F6"),
+            ("epic", 3, "#A855F7"),
+            ("legendary", 4, "#FFC800"),
+        ]:
+            conn.execute(
+                text(
+                    "INSERT INTO item_rarities (rarity, sort_order, color_hex) "
+                    "VALUES (:r, :so, :c) ON CONFLICT (rarity) DO NOTHING"
+                ),
+                {"r": r, "so": so, "c": hexcolor},
+            )
+
+        item_definitions_existed = table_exists("item_definitions")
+        ensure_table(
+            "item_definitions",
+            """
+            CREATE TABLE item_definitions (
+                id            SERIAL PRIMARY KEY,
+                category      TEXT NOT NULL,
+                slug          TEXT NOT NULL UNIQUE,
+                title         TEXT NOT NULL,
+                description   TEXT,
+                icon          TEXT,
+                rarity        TEXT NOT NULL REFERENCES item_rarities(rarity),
+                render_key    TEXT NOT NULL,
+                price_gems    INTEGER,
+                tradeable     BOOLEAN NOT NULL DEFAULT TRUE,
+                is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+                sort_order    INTEGER NOT NULL DEFAULT 0,
+                created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        ensure_table(
+            "user_items",
+            """
+            CREATE TABLE user_items (
+                id            BIGSERIAL PRIMARY KEY,
+                user_id       INTEGER NOT NULL,
+                item_id       INTEGER NOT NULL REFERENCES item_definitions(id),
+                category      TEXT NOT NULL,
+                acquired_via  TEXT NOT NULL,
+                acquired_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                equipped      BOOLEAN NOT NULL DEFAULT FALSE
+            )
+            """,
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS user_items_user_item_idx ON user_items (user_id, item_id)"))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS user_items_one_equipped_per_category "
+            "ON user_items (user_id, category) WHERE equipped"
+        ))
+
+        # One-time backfill: only runs the migration on the boot where
+        # item_definitions is first created, so it never re-runs (and never
+        # duplicates data) on subsequent restarts.
+        if not item_definitions_existed:
+            def _frame_rarity(frame_style):
+                if frame_style == "rainbow":
+                    return "legendary"
+                if frame_style in ("gold", "sapphire", "ruby", "emerald"):
+                    return "rare"
+                if frame_style in ("silver", "bronze"):
+                    return "uncommon"
+                return "common"
+
+            legacy_items = conn.execute(text(
+                "SELECT id, title, description, icon, frame_style, effect "
+                "FROM shop_items WHERE effect IN ('avatar_frame', 'profile_theme')"
+            )).mappings().all()
+
+            # Maps a legacy shop_items.id -> new item_definitions.id, needed
+            # below to translate each user's owned_frames/owned_themes arrays
+            # (which store shop_items ids) into user_items rows.
+            shop_id_to_item_def_id = {}
+            for row in legacy_items:
+                render_key = row["frame_style"] or (
+                    "_".join(w for w in row["title"].lower().split() if w.isalnum())
+                )
+                rarity = _frame_rarity(row["frame_style"]) if row["effect"] == "avatar_frame" else "common"
+                slug = f"{row['effect']}_{render_key}"
+                new_id = conn.execute(
+                    text(
+                        """
+                        INSERT INTO item_definitions
+                            (category, slug, title, description, icon, rarity, render_key, price_gems, sort_order)
+                        SELECT :cat, :slug, :title, :desc, :icon, :rarity, :render_key,
+                               si.price, si.sort_order
+                        FROM shop_items si WHERE si.id = :sid
+                        ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug
+                        RETURNING id
+                        """
+                    ),
+                    {
+                        "cat": row["effect"], "slug": slug, "title": row["title"],
+                        "desc": row["description"], "icon": row["icon"],
+                        "rarity": rarity, "render_key": render_key, "sid": row["id"],
+                    },
+                ).scalar()
+                shop_id_to_item_def_id[str(row["id"])] = new_id
+
+            if shop_id_to_item_def_id:
+                users_with_cosmetics = conn.execute(text(
+                    "SELECT id, owned_frames, owned_themes, active_frame FROM users "
+                    "WHERE COALESCE(owned_frames, '[]'::jsonb) != '[]'::jsonb "
+                    "   OR COALESCE(owned_themes, '[]'::jsonb) != '[]'::jsonb"
+                )).mappings().all()
+
+                def _parse_jsonb_array(v):
+                    if isinstance(v, str):
+                        try:
+                            v = json.loads(v)
+                        except Exception:
+                            v = []
+                    return v if isinstance(v, list) else []
+
+                migrated_users = 0
+                for u in users_with_cosmetics:
+                    active_frame = u["active_frame"]
+                    new_active_frame = None
+                    for shop_id in _parse_jsonb_array(u["owned_frames"]):
+                        item_def_id = shop_id_to_item_def_id.get(str(shop_id))
+                        if not item_def_id:
+                            continue
+                        is_equipped = str(shop_id) == str(active_frame)
+                        if is_equipped:
+                            new_active_frame = f"cosmetic_{item_def_id}"
+                        conn.execute(
+                            text(
+                                """
+                                INSERT INTO user_items (user_id, item_id, category, acquired_via, equipped)
+                                VALUES (:u, :i, 'avatar_frame', 'legacy_migration', :eq)
+                                """
+                            ),
+                            {"u": u["id"], "i": item_def_id, "eq": is_equipped},
+                        )
+                    for shop_id in _parse_jsonb_array(u["owned_themes"]):
+                        item_def_id = shop_id_to_item_def_id.get(str(shop_id))
+                        if not item_def_id:
+                            continue
+                        conn.execute(
+                            text(
+                                """
+                                INSERT INTO user_items (user_id, item_id, category, acquired_via, equipped)
+                                VALUES (:u, :i, 'profile_theme', 'legacy_migration', FALSE)
+                                """
+                            ),
+                            {"u": u["id"], "i": item_def_id},
+                        )
+                    # Rewrite the denormalized active_frame pointer (still the
+                    # source used by leaderboard/friends/public-profile
+                    # queries, and by _wallet's active_frame field) from the
+                    # old bare shop_items id into the new "cosmetic_<id>"
+                    # format that _frame_style_map now keys on.
+                    conn.execute(
+                        text("UPDATE users SET active_frame = :v WHERE id = :u"),
+                        {"v": new_active_frame, "u": u["id"]},
+                    )
+                    migrated_users += 1
+                print(f"[ensure_schema] migrated cosmetics for {migrated_users} users into user_items")
+            print("[ensure_schema] seeded item_definitions from legacy shop_items")
 
     print("[ensure_schema] done")

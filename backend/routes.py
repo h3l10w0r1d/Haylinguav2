@@ -5938,21 +5938,27 @@ _FALLBACK_SHOP = [
 
 
 def _load_shop_items(db: Connection) -> list[dict]:
+    # Consumable effects (streak_freeze, xp_boost, ...) still live in
+    # shop_items and are never instanced/tradeable. avatar_frame/profile_theme
+    # rows are excluded here — those categories now come from item_definitions
+    # (see below), the instance-owned catalog that supersedes shop_items'
+    # owned_frames/owned_themes JSONB-array tracking so a specific item can be
+    # traded. shop_items keeps its old avatar_frame/profile_theme rows only as
+    # historical reference; they're not read for the live shop anymore.
     try:
         rows = db.execute(
             text(
                 """
                 SELECT id, title, description, icon, price, effect, effect_amount, frame_style
-                FROM shop_items WHERE COALESCE(is_active, TRUE)
+                FROM shop_items
+                WHERE COALESCE(is_active, TRUE) AND effect NOT IN ('avatar_frame', 'profile_theme')
                 ORDER BY sort_order ASC, id ASC
                 """
             )
         ).mappings().all()
     except Exception:
         rows = []
-    if not rows:
-        return [dict(it) for it in _FALLBACK_SHOP]
-    return [
+    items = [
         {
             "id": r["id"], "title": r["title"], "desc": r.get("description") or "",
             "icon": r.get("icon") or "gem", "price": int(r["price"]),
@@ -5961,6 +5967,51 @@ def _load_shop_items(db: Connection) -> list[dict]:
         }
         for r in rows
     ]
+
+    try:
+        cosmetic_rows = db.execute(
+            text(
+                """
+                SELECT id, title, description, icon, price_gems, category, render_key, rarity
+                FROM item_definitions
+                WHERE COALESCE(is_active, TRUE) AND category IN ('avatar_frame', 'profile_theme')
+                ORDER BY sort_order ASC, id ASC
+                """
+            )
+        ).mappings().all()
+    except Exception:
+        cosmetic_rows = []
+    # "cosmetic_<id>" keeps these ids from colliding with shop_items ids
+    # above (both are independent SERIAL sequences starting at 1) — every
+    # place that matches an id against this list (buy, equip, owned checks)
+    # only ever echoes back whatever id it was given, so the prefix is
+    # transparent to callers.
+    items.extend(
+        {
+            "id": f"cosmetic_{r['id']}", "title": r["title"], "desc": r.get("description") or "",
+            "icon": r.get("icon") or "gem", "price": int(r["price_gems"] or 0),
+            "effect": r["category"], "effect_amount": 0,
+            "frame_style": r["render_key"] if r["category"] == "avatar_frame" else None,
+            "rarity": r.get("rarity"),
+        }
+        for r in cosmetic_rows
+    )
+
+    if not items:
+        return [dict(it) for it in _FALLBACK_SHOP]
+    return items
+
+
+def _parse_cosmetic_id(raw) -> Optional[int]:
+    """Extract the item_definitions.id from a "cosmetic_<id>" string; None if
+    the value isn't in that format (e.g. a plain shop_items id, or garbage)."""
+    s = str(raw or "")
+    if not s.startswith("cosmetic_"):
+        return None
+    try:
+        return int(s[len("cosmetic_"):])
+    except ValueError:
+        return None
 
 
 def _load_chest_rarities(db: Connection) -> list[tuple]:
@@ -6000,18 +6051,20 @@ def _load_chest_rewards(db: Connection, rarity: str = "wooden") -> list[tuple]:
 
 
 def _frame_style_map(db: Connection) -> dict:
-    """{shop_items.id (as str): frame_style} for every avatar_frame item that
-    has one set. Cheap — the shop catalogue is a handful of rows — so this is
-    called fresh per request rather than cached, keeping a CMS edit to a
-    frame's style effective immediately everywhere it renders.
+    """{"cosmetic_<item_definitions.id>": render_key} for every avatar_frame
+    item. Cheap — the catalogue is a handful of rows — so this is called
+    fresh per request rather than cached, keeping a CMS edit to a frame's
+    style effective immediately everywhere it renders. Keyed the same way
+    users.active_frame is now stored (see ensure_schema.py's migration and
+    PUT /me/active-frame), so `fmap.get(active_frame)` just works.
     """
     try:
         rows = db.execute(
-            text("SELECT id, frame_style FROM shop_items WHERE effect = 'avatar_frame' AND frame_style IS NOT NULL")
+            text("SELECT id, render_key FROM item_definitions WHERE category = 'avatar_frame' AND render_key IS NOT NULL")
         ).mappings().all()
     except Exception:
         return {}
-    return {str(r["id"]): r["frame_style"] for r in rows}
+    return {f"cosmetic_{r['id']}": r["render_key"] for r in rows}
 
 
 def _wallet(db: Connection, user_id: int) -> dict:
@@ -6021,22 +6074,27 @@ def _wallet(db: Connection, user_id: int) -> dict:
             SELECT COALESCE(gems, 0) AS gems, COALESCE(chests, 0) AS chests,
                    COALESCE(heart_shield_active, FALSE) AS heart_shield_active,
                    COALESCE(xp_multiplier_active, FALSE) AS xp_multiplier_active,
-                   COALESCE(owned_frames, '[]'::jsonb) AS owned_frames,
-                   COALESCE(owned_themes, '[]'::jsonb) AS owned_themes,
                    active_frame
             FROM users WHERE id = :u
             """
         ),
         {"u": user_id},
     ).mappings().first() or {}
-    owned_frames = row.get("owned_frames") or []
-    if isinstance(owned_frames, str):
-        try: owned_frames = json.loads(owned_frames)
-        except Exception: owned_frames = []
-    owned_themes = row.get("owned_themes") or []
-    if isinstance(owned_themes, str):
-        try: owned_themes = json.loads(owned_themes)
-        except Exception: owned_themes = []
+
+    # Ownership now lives in user_items (instance rows, tradeable) rather
+    # than the old owned_frames/owned_themes JSONB arrays on users — those
+    # columns are unreferenced dead weight past this point (kept in the DB
+    # only as a rollback safety net).
+    owned_rows = db.execute(
+        text(
+            "SELECT item_id, category FROM user_items "
+            "WHERE user_id = :u AND category IN ('avatar_frame', 'profile_theme')"
+        ),
+        {"u": user_id},
+    ).mappings().all()
+    owned_frames = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "avatar_frame"]
+    owned_themes = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "profile_theme"]
+
     active_frame = row.get("active_frame")
     return {
         "gems": int(row.get("gems") or 0),
@@ -6129,23 +6187,34 @@ def me_set_active_frame(
     frame_id = body.get("frame_id")
 
     if frame_id is not None:
-        # Verify ownership
-        owned_raw = db.execute(
-            text("SELECT COALESCE(owned_frames, '[]'::jsonb) FROM users WHERE id = :u"),
-            {"u": user_id},
-        ).scalar() or []
-        if isinstance(owned_raw, str):
-            try:
-                owned_raw = json.loads(owned_raw)
-            except Exception:
-                owned_raw = []
-        if str(frame_id) not in [str(x) for x in owned_raw]:
+        item_def_id = _parse_cosmetic_id(frame_id)
+        owned = item_def_id is not None and db.execute(
+            text("SELECT 1 FROM user_items WHERE user_id = :u AND item_id = :i AND category = 'avatar_frame'"),
+            {"u": user_id, "i": item_def_id},
+        ).first()
+        if not owned:
             raise HTTPException(status_code=403, detail="Frame not owned")
+        # user_items.equipped is the source of truth (what trading/inventory
+        # code reads); users.active_frame is a denormalized cache kept in
+        # sync here purely so leaderboard/friends/public-profile — which
+        # query it directly for cheap bulk reads — don't need a join per row.
+        db.execute(
+            text("UPDATE user_items SET equipped = FALSE WHERE user_id = :u AND category = 'avatar_frame'"),
+            {"u": user_id},
+        )
+        db.execute(
+            text("UPDATE user_items SET equipped = TRUE WHERE user_id = :u AND item_id = :i AND category = 'avatar_frame'"),
+            {"u": user_id, "i": item_def_id},
+        )
         db.execute(
             text("UPDATE users SET active_frame = :f WHERE id = :u"),
             {"f": str(frame_id), "u": user_id},
         )
     else:
+        db.execute(
+            text("UPDATE user_items SET equipped = FALSE WHERE user_id = :u AND category = 'avatar_frame'"),
+            {"u": user_id},
+        )
         db.execute(
             text("UPDATE users SET active_frame = NULL WHERE id = :u"),
             {"u": user_id},
@@ -6216,27 +6285,22 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
     w = _wallet(db, user_id)
 
     # Per-user state so the FE can show owned/active/maxed instead of a buy
-    # button that would only fail server-side after tapping.
+    # button that would only fail server-side after tapping. owned_frames/
+    # owned_themes come from _wallet (user_items-backed, see above) — NOT
+    # re-read from the users table here, since those JSONB columns are dead
+    # past the marketplace cutover and would always read back empty.
     u = db.execute(
         text("""
             SELECT COALESCE(streak_freezes, 0)          AS freezes,
                    COALESCE(heart_shield_active, FALSE) AS heart_shield_active,
                    COALESCE(xp_multiplier_active, FALSE) AS xp_multiplier_active,
-                   COALESCE(owned_frames, '[]'::jsonb)  AS owned_frames,
-                   COALESCE(owned_themes, '[]'::jsonb)  AS owned_themes,
                    COALESCE(is_premium, FALSE)          AS is_premium
             FROM users WHERE id = :u
         """),
         {"u": user_id},
     ).mappings().first() or {}
-    owned_frames = u.get("owned_frames") or []
-    owned_themes = u.get("owned_themes") or []
-    if isinstance(owned_frames, str):
-        try: owned_frames = json.loads(owned_frames)
-        except Exception: owned_frames = []
-    if isinstance(owned_themes, str):
-        try: owned_themes = json.loads(owned_themes)
-        except Exception: owned_themes = []
+    owned_frames = w["owned_frames"]
+    owned_themes = w["owned_themes"]
     hs = _hearts_state(db, user_id)
 
     def _status(it) -> str:
@@ -6316,18 +6380,14 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         today = _date.today()
         if not last_date or (today - last_date).days < 2 or (today - last_date).days > 4:
             raise HTTPException(status_code=400, detail="Streak Repair only works if your streak broke in the last 2–3 days")
-    elif effect == "avatar_frame":
-        owned = db.execute(text("SELECT owned_frames FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
-        if isinstance(owned, str):
-            import json as _json; owned = _json.loads(owned)
-        if str(item["id"]) in owned:
-            raise HTTPException(status_code=400, detail="You already own this frame")
-    elif effect == "profile_theme":
-        owned = db.execute(text("SELECT owned_themes FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
-        if isinstance(owned, str):
-            import json as _json; owned = _json.loads(owned)
-        if str(item["id"]) in owned:
-            raise HTTPException(status_code=400, detail="You already own this theme")
+    elif effect in ("avatar_frame", "profile_theme"):
+        item_def_id = _parse_cosmetic_id(item["id"])
+        already = item_def_id is not None and db.execute(
+            text("SELECT 1 FROM user_items WHERE user_id = :u AND item_id = :i AND category = :c"),
+            {"u": user_id, "i": item_def_id, "c": effect},
+        ).first()
+        if already:
+            raise HTTPException(status_code=400, detail=f"You already own this {'frame' if effect == 'avatar_frame' else 'theme'}")
 
     # Atomic charge: deduct gems only if balance is sufficient. This prevents
     # a double-tap race where two concurrent requests both pass the pre-flight check.
@@ -6372,20 +6432,15 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
                 text("UPDATE users SET current_streak = :c, streak_last_activity_date = CURRENT_DATE - 1 WHERE id = :u"),
                 {"c": streak_count, "u": user_id},
             )
-    elif effect == "avatar_frame":
-        import json as _json
-        owned = db.execute(text("SELECT owned_frames FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
-        if isinstance(owned, str): owned = _json.loads(owned)
-        if str(item["id"]) not in owned:
-            owned.append(str(item["id"]))
-        db.execute(text("UPDATE users SET owned_frames = CAST(:v AS jsonb) WHERE id = :u"), {"u": user_id, "v": _json.dumps(owned)})
-    elif effect == "profile_theme":
-        import json as _json
-        owned = db.execute(text("SELECT owned_themes FROM users WHERE id = :u"), {"u": user_id}).scalar() or []
-        if isinstance(owned, str): owned = _json.loads(owned)
-        if str(item["id"]) not in owned:
-            owned.append(str(item["id"]))
-        db.execute(text("UPDATE users SET owned_themes = CAST(:v AS jsonb) WHERE id = :u"), {"u": user_id, "v": _json.dumps(owned)})
+    elif effect in ("avatar_frame", "profile_theme"):
+        item_def_id = _parse_cosmetic_id(item["id"])
+        db.execute(
+            text(
+                "INSERT INTO user_items (user_id, item_id, category, acquired_via) "
+                "VALUES (:u, :i, :c, 'purchase')"
+            ),
+            {"u": user_id, "i": item_def_id, "c": effect},
+        )
 
     result = {"ok": True, "item": item["id"], **_wallet(db, user_id)}
     _brevo_sync_user(db, int(user_id), event="shop_purchase", event_props={
