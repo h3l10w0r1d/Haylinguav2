@@ -1362,4 +1362,41 @@ def ensure_schema() -> None:
             )
         print("[ensure_schema] seeded name_tag_effect item_definitions")
 
+        # ---------- Marketplace: friends-only peer-to-peer trading ----------
+        ensure_table(
+            "trade_offers",
+            """
+            CREATE TABLE trade_offers (
+                id              BIGSERIAL PRIMARY KEY,
+                proposer_id     INTEGER NOT NULL,
+                recipient_id    INTEGER NOT NULL,
+                status          TEXT NOT NULL DEFAULT 'pending',
+                proposer_gems   INTEGER NOT NULL DEFAULT 0,
+                recipient_gems  INTEGER NOT NULL DEFAULT 0,
+                parent_offer_id BIGINT REFERENCES trade_offers(id),
+                created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                responded_at    TIMESTAMPTZ,
+                expires_at      TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days',
+                CHECK (proposer_id <> recipient_id)
+            )
+            """,
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS trade_offers_recipient_idx ON trade_offers (recipient_id, status)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS trade_offers_proposer_idx ON trade_offers (proposer_id, status)"))
+        ensure_table(
+            "trade_offer_items",
+            """
+            CREATE TABLE trade_offer_items (
+                id            BIGSERIAL PRIMARY KEY,
+                offer_id      BIGINT NOT NULL REFERENCES trade_offers(id) ON DELETE CASCADE,
+                user_item_id  BIGINT NOT NULL REFERENCES user_items(id),
+                side          TEXT NOT NULL
+            )
+            """,
+        )
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS trade_offer_items_unique ON trade_offer_items (user_item_id, offer_id)"
+        ))
+        print("[ensure_schema] ensured trading tables")
+
     print("[ensure_schema] done")

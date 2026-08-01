@@ -17,6 +17,7 @@ import {
   Zap,
   Check,
   AlertCircle,
+  ArrowLeftRight,
 } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import { CrownBadge } from "./lib/PremiumBadge";
@@ -441,9 +442,19 @@ export default function Friends() {
               Send requests, accept incoming, and learn together.
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2 rounded-full bg-brand-50 px-3 py-2 text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/30">
-            <Users className="h-4 w-4" />
-            <span className="text-sm font-extrabold">{friendsList.length} friends</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/trades")}
+              className="flex items-center gap-2 rounded-full bg-white px-3 py-2 text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-[#18181b] dark:text-stone-300 dark:ring-white/[0.08] dark:hover:bg-white/[0.04]"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              <span className="text-sm font-extrabold">Trades</span>
+            </button>
+            <div className="flex items-center gap-2 rounded-full bg-brand-50 px-3 py-2 text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/30">
+              <Users className="h-4 w-4" />
+              <span className="text-sm font-extrabold">{friendsList.length} friends</span>
+            </div>
           </div>
         </div>
 
@@ -554,6 +565,7 @@ export default function Friends() {
                           mode="friend"
                           onOpenProfile={() => openPublicProfile(p)}
                           onMessage={() => handleMessage(p)}
+                          onTrade={() => navigate(`/trades?with=${p.id}`)}
                           onRemove={null}
                         />
                       ))}
@@ -856,6 +868,7 @@ function PersonCard({
   onDecline,
   onCancel,
   onMessage,
+  onTrade,
   onRemove,
   isFriend,
   isSent,
@@ -924,6 +937,15 @@ function PersonCard({
               >
                 <MessageCircle className="h-5 w-5" />
               </button>
+              {onTrade ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onTrade?.(); }}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-300 dark:hover:bg-white/10"
+                  title="Propose a trade"
+                >
+                  <ArrowLeftRight className="h-5 w-5" />
+                </button>
+              ) : null}
               {onRemove ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); onRemove?.(); }}

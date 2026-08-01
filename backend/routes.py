@@ -6540,7 +6540,7 @@ def me_inventory(
             f"""
             SELECT ui.id AS user_item_id, ui.item_id, ui.category, ui.equipped,
                    ui.acquired_via, ui.acquired_at,
-                   idf.title, idf.description, idf.icon, idf.rarity, idf.render_key
+                   idf.title, idf.description, idf.icon, idf.rarity, idf.render_key, idf.tradeable
             FROM user_items ui
             JOIN item_definitions idf ON idf.id = ui.item_id
             WHERE {where}

@@ -32,6 +32,7 @@ class CachedStaticFiles(StaticFiles):
 from routes import router as api_router, _prune_stale_tts_cache
 from routes_cms import router as cms_router  # CMS ("Content Studio") admin routes
 from routes_social import router as social_router  # Friends, leaderboard, public profiles
+from routes_trades import router as trades_router  # Friends-only cosmetic trading
 from routes_audio import router as audio_router  # NEW: Audio management
 from routes_conversation import router as conversation_router  # NEW: AI Conversation
 from db_utils import seed_alphabet_lessons
@@ -222,6 +223,8 @@ app.include_router(cms_router)  # CMS ("Content Studio") admin routes
 app.include_router(cms_router, prefix="/api")
 app.include_router(social_router)  # Friends, leaderboard, public profiles
 app.include_router(social_router, prefix="/api")
+app.include_router(trades_router)  # Friends-only cosmetic trading
+app.include_router(trades_router, prefix="/api")
 app.include_router(audio_router)  # NEW: Audio routes
 app.include_router(audio_router, prefix="/api")
 

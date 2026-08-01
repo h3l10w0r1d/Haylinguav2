@@ -24,6 +24,7 @@ const Premium = lazy(() => import('./Premium'));
 const Achievements = lazy(() => import('./Achievements'));
 const Shop = lazy(() => import('./Shop'));
 const Friends = lazy(() => import('./Friends'));
+const Trades = lazy(() => import('./Trades'));
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const ProfilePage = lazy(() => import('./ProfilePage'));
 const BonusesPage = lazy(() => import('./BonusesPage'));
@@ -459,6 +460,14 @@ function AppShell() {
           element={
             <RequireOnboarded>
               <Friends user={user} onUpdateUser={handleUpdateUser} />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/trades"
+          element={
+            <RequireOnboarded>
+              <Trades />
             </RequireOnboarded>
           }
         />
