@@ -345,7 +345,9 @@ const airport = {
 // market stalls, benches, lampposts. Used by rogue-tileset adventures.
 export const ROGUE = {
   grass: 5, plaza: 120, plazaTan: 122, dirt: 6,
-  treeG: 640, treeO: 641, hedge: 646, bush: 651,
+  // Full trees: 583/584 are the rounded-canopy leafy trees; 586/587 the pines.
+  // (640/641 look cut off at the top — don't use them.)
+  treeG: 583, treeO: 584, pineG: 586, pineO: 587, hedge: 646, bush: 651,
   bench: 304, lamp: 416, flower: 469,
   awningO: 10, awningG: 11, stallL: 357, stallM: 358, stallR: 359,
   // grand tan building facade (top / mid / door rows)
@@ -364,6 +366,9 @@ const sqLegend = {
   'P': { g: ROGUE.plazaTan },
   'T': { g: ROGUE.grass, d: ROGUE.treeG },
   'o': { g: ROGUE.grass, d: ROGUE.treeO },
+  'Y': { g: ROGUE.grass, d: ROGUE.pineG },
+  'y': { g: ROGUE.grass, d: ROGUE.pineO },
+  'U': { g: ROGUE.plaza, d: ROGUE.treeG }, // tree standing in the plaza (no grass patch)
   'h': { g: ROGUE.plaza, d: ROGUE.hedge },
   'b': { g: ROGUE.plaza, d: ROGUE.bench },
   'l': { g: ROGUE.plaza, d: ROGUE.lamp },
@@ -392,18 +397,18 @@ const sqRows = [
   '.ppppppppppppp....',
   '.pppppp123ppppp...',
   '.pppppp456ppppp...',
-  '.TppppP789Pppph...',
+  '.YppppP789PppphY..',
   '.ppppppppppppp....',
   '.bpppppppppppb....',
-  '.lppppTppTpppl....',
+  '.lppppUppUpppl....',
   '.pppppppppppp.....',
   '.oppppppppppo.....',
   '.pppppppppppp.....',
   '.hpppbppppbppph...',
   '.ppppppppppppp....',
-  '.TppppppppppppT...',
+  '.YppppppppppppY...',
   '..pppppp.ppppp....',
-  '..TTTTT...TTTTT...',
+  '..TYoTY...YoTYT...',
 ];
 
 // ── Adventure 3: A Day in Yerevan ────────────────────────────────────────────
