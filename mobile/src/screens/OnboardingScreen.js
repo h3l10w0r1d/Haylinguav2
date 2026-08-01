@@ -5,7 +5,7 @@
 // GET/POST /me/onboarding contract as before — only the pacing changed.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TextInput, ActivityIndicator, Modal, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, ChevronDown, Search, X } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -125,6 +125,14 @@ function GridOptionCard({ active, onPress, icon, label, sub }) {
 function CountryPicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // RN's Modal renders its content in a separate native view hierarchy (a
+  // detached UIViewController on iOS), which doesn't reliably inherit the
+  // outer SafeAreaProvider's context — SafeAreaView here fell back to a
+  // zero top inset, so the header collided with the status bar/notch and
+  // the close button landed under it, unreachable. useSafeAreaInsets()
+  // queries the device's real insets directly instead of relying on that
+  // inherited context.
+  const insets = useSafeAreaInsets();
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return COUNTRY_OPTIONS;
@@ -143,8 +151,8 @@ function CountryPicker({ value, onChange }) {
       </Pressable3D>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        <SafeAreaView className="flex-1 bg-[#f5f4f1]">
-          <View className="flex-row items-center gap-3 px-4 pb-3 pt-2">
+        <View className="flex-1 bg-[#f5f4f1]" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+          <View className="flex-row items-center gap-3 px-4 pb-3 pt-3">
             <Text className="flex-1 text-lg font-extrabold text-stone-900 font-display">Select country</Text>
             <Pressable3D onPress={() => setOpen(false)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
               <X size={18} color="#57534e" />
@@ -175,7 +183,7 @@ function CountryPicker({ value, onChange }) {
               </Pressable3D>
             )}
           />
-        </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );
