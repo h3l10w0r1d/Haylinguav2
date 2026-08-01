@@ -533,6 +533,21 @@
   .nametag-starlight, .nametag-prismatic { animation: none; }
 }
 
+/* ----- Idle avatar animation ----- */
+/* Subtle "breathing" applied only to hero-sized avatars (profile page, own
+   header avatar) via AvatarFrame's idle prop — dense list rows (leaderboard,
+   friends) skip it so the page doesn't feel restless. */
+@keyframes avatarIdleBreathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%      { transform: scale(1.015) translateY(-1px); }
+}
+.animate-avatar-idle {
+  animation: avatarIdleBreathe 4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-avatar-idle { animation: none; }
+}
+
 /* ----- Page transitions ----- */
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(10px); }

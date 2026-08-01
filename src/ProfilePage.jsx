@@ -946,7 +946,7 @@ export default function ProfilePage() {
           <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
               <div className="relative shrink-0">
-                <AvatarFrame frameStyle={activeFrameStyle} rarity={activeFrameRarity} size={96} radius="1.5rem" thickness={3}>
+                <AvatarFrame frameStyle={activeFrameStyle} rarity={activeFrameRarity} size={96} radius="1.5rem" thickness={3} idle>
                   <div className={"h-full w-full overflow-hidden rounded-3xl bg-white shadow-md dark:bg-[#18181b] " + (activeFrameStyle ? "" : isPremium ? "ring-4 ring-gold-400" : "ring-4 ring-white")}>
                     {avatarPreview ? (
                       <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />

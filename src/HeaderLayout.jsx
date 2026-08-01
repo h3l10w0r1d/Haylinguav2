@@ -400,7 +400,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
             {user ? (
               <div className="relative" ref={accountMenuRef}>
-                <AvatarFrame frameStyle={activeFrameStyle} rarity={activeFrameRarity} size={36} radius="9999px" thickness={2.5}>
+                <AvatarFrame frameStyle={activeFrameStyle} rarity={activeFrameRarity} size={36} radius="9999px" thickness={2.5} idle>
                   <button
                     onClick={() => setAccountMenuOpen((v) => !v)}
                     aria-haspopup="menu"

@@ -40,7 +40,7 @@ const TAILWIND_PX = { "h-7 w-7": 28, "h-9 w-9": 36, "h-10 w-10": 40, "h-12 w-12"
 // avatar image/initials inside) has a consistent, definite box to resolve
 // against whether or not a frame is equipped, rather than sizing behavior
 // silently changing based on frame state.
-export default function AvatarFrame({ frameStyle, rarity, size, sizeClass, radius = "9999px", thickness = 3, className = "", style, children }) {
+export default function AvatarFrame({ frameStyle, rarity, size, sizeClass, radius = "9999px", thickness = 3, idle = false, className = "", style, children }) {
   const gradient = FRAME_STYLES[frameStyle];
   const px = size || TAILWIND_PX[sizeClass] || 40;
   const pad = gradient ? thickness : 0;
@@ -48,7 +48,7 @@ export default function AvatarFrame({ frameStyle, rarity, size, sizeClass, radiu
   const glowColor = RARITY_COLORS[rarity];
   return (
     <div
-      className={[className, glowClass].filter(Boolean).join(" ")}
+      className={[className, glowClass, idle ? "animate-avatar-idle" : null].filter(Boolean).join(" ")}
       style={{
         background: gradient || "transparent",
         borderRadius: radius,
