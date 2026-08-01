@@ -39,6 +39,9 @@ export default function AdventurePlayer() {
   const [won, setWon] = useState(false);
   const [items, setItems] = useState([]);   // inventory: passport, ticket, boarding pass…
   const [xpAwarded, setXpAwarded] = useState(null);
+  const [stars, setStars] = useState(0);     // 0-3, shown on the win screen
+  const mistakes = useRef(0);                 // wrong attempts across the whole adventure
+  const bumpMistake = () => { mistakes.current += 1; };
   // Multi-location adventures: `scenes` is a list of locations you travel
   // between; a single-map adventure is treated as one scene. `active` is the
   // current location and drives the Phaser map/NPCs.
@@ -53,6 +56,7 @@ export default function AdventurePlayer() {
     let alive = true;
     setAdventure(null);
     setSceneIdx(0);
+    mistakes.current = 0;
     setItems((base.startItems || []).map((i) => ({ ...i })));   // items you begin with
     fetchAdventureOverrides(API_BASE).then((all) => {
       if (alive) setAdventure(all[base.id] ? mergeAdventure(base, all[base.id]) : base);
@@ -178,12 +182,21 @@ export default function AdventurePlayer() {
   }
 
   function fireWin() {
+    // Stars from mistakes: flawless = 3, a slip or two = 2, otherwise 1.
+    const m = mistakes.current;
+    const earned = m === 0 ? 3 : m <= 2 ? 2 : 1;
+    const score = Math.max(10, 100 - m * 12);
+    setStars(earned);
     setWon(true);
     gameRef.current?.setWaypoint?.(null);
     confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 } });
-    // Record completion + earn XP (first time only). Best-effort.
+    // Record completion + earn XP (first time only). Best result kept. Best-effort.
     const token = localStorage.getItem('hay_token') || localStorage.getItem('access_token') || '';
-    fetch(`${API_BASE}/adventures/${base.id}/complete`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE}/adventures/${base.id}/complete`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stars: earned, score }),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d) setXpAwarded(d.awarded_xp); })
       .catch(() => {});
@@ -346,15 +359,15 @@ export default function AdventurePlayer() {
                 <button style={{ ...primaryBtn, width: '100%', marginTop: 16 }} onClick={() => advance(dialog.npc, dialog.idx + 1)}>Հասկացա</button>
               </>
             ) : step.speak ? (
-              <SpeakStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+              <SpeakStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} onMistake={bumpMistake} />
             ) : step.match ? (
-              <MatchStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+              <MatchStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} onMistake={bumpMistake} />
             ) : step.wordbank ? (
-              <WordBankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+              <WordBankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} onMistake={bumpMistake} />
             ) : step.listen ? (
-              <ListenStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+              <ListenStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} onMistake={bumpMistake} />
             ) : step.blank ? (
-              <BlankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} />
+              <BlankStep step={step} onCorrect={() => advance(dialog.npc, dialog.idx + 1)} onMistake={bumpMistake} />
             ) : step.give ? (
               /* Present an item from your bag — the boarding-pass / passport hand-over. */
               <>
@@ -374,7 +387,7 @@ export default function AdventurePlayer() {
                           key={it.id}
                           onClick={() => {
                             if (it.id === step.itemId) advance(dialog.npc, dialog.idx + 1);
-                            else setDialog((d) => ({ ...d, wrongId: it.id }));
+                            else { bumpMistake(); setDialog((d) => ({ ...d, wrongId: it.id })); }
                           }}
                           style={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 78,
@@ -444,7 +457,7 @@ export default function AdventurePlayer() {
                         key={id}
                         onClick={() => {
                           if (o.correct) advance(dialog.npc, dialog.idx + 1);
-                          else setDialog((d) => ({ ...d, wrongId: id }));
+                          else { bumpMistake(); setDialog((d) => ({ ...d, wrongId: id })); }
                         }}
                         style={{
                           textAlign: 'left', padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
@@ -486,7 +499,15 @@ export default function AdventurePlayer() {
               <Trophy size={32} color={ORANGE} />
             </div>
             <h2 style={{ margin: '0 0 6px', fontSize: 20, color: '#1a1a1a' }}>Adventure complete! 🎉</h2>
-            <p style={{ margin: '0 0 16px', color: '#777', fontSize: 14 }}>Nicely done — all in Armenian.</p>
+            {/* Star rating from how cleanly you played */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, margin: '4px 0 12px' }}>
+              {[1, 2, 3].map((n) => (
+                <span key={n} style={{ fontSize: 34, lineHeight: 1, filter: n <= stars ? 'none' : 'grayscale(1)', opacity: n <= stars ? 1 : 0.3, transition: 'opacity .3s' }}>⭐</span>
+              ))}
+            </div>
+            <p style={{ margin: '0 0 16px', color: '#777', fontSize: 14 }}>
+              {stars === 3 ? 'Flawless — not a single mistake!' : stars === 2 ? 'Great job — almost perfect.' : 'Nicely done — all in Armenian.'}
+            </p>
             {xpAwarded > 0 && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff7ed', color: '#b45309', border: '1px solid #fed7aa', borderRadius: 999, padding: '6px 14px', fontWeight: 800, fontSize: 15, marginBottom: 18 }}>
                 +{xpAwarded} XP

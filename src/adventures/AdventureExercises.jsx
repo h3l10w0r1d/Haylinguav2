@@ -17,20 +17,6 @@ const ORANGE = '#FF7A1A';
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
 const getToken = () => localStorage.getItem('hay_token') || localStorage.getItem('access_token') || '';
 
-// Loose Armenian similarity for speaking checks: strip everything but letters,
-// then Levenshtein ratio. Lenient (STT + accents aren't perfect).
-function _norm(s) { return (s || '').toLowerCase().replace(/[^ա-ևԱ-Ֆa-z0-9]/g, ''); }
-function _sim(a, b) {
-  a = _norm(a); b = _norm(b);
-  if (!a || !b) return 0;
-  const m = a.length, n = b.length;
-  const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
-  for (let j = 0; j <= n; j++) d[0][j] = j;
-  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
-    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-  return 1 - d[m][n] / Math.max(m, n);
-}
-
 const chip = (extra) => ({
   padding: '9px 13px', borderRadius: 12, border: '2px solid #e6ddd3', background: '#fff',
   fontSize: 16, color: '#1a1a1a', cursor: 'pointer', ...extra,
@@ -52,7 +38,7 @@ function shuffled(arr, seed = 7) {
 }
 
 // ── Word bank: tap words in order to build the sentence ──────────────────────
-export function WordBankStep({ step, onCorrect }) {
+export function WordBankStep({ step, onCorrect, onMistake }) {
   const answer = step.answer || [];
   const pool = useMemo(() => shuffled(answer.map((w, i) => ({ w, id: i })), answer.length), [step]);
   const [picked, setPicked] = useState([]);   // ids in chosen order
@@ -62,7 +48,7 @@ export function WordBankStep({ step, onCorrect }) {
   const check = () => {
     const built = picked.map((id) => pool.find((p) => p.id === id).w);
     if (built.join(' ') === answer.join(' ')) onCorrect();
-    else { setWrong(true); setTimeout(() => setWrong(false), 400); }
+    else { setWrong(true); onMistake?.(); setTimeout(() => setWrong(false), 400); }
   };
 
   return (
@@ -92,7 +78,7 @@ export function WordBankStep({ step, onCorrect }) {
 }
 
 // ── Listen & pick: hear the Armenian, choose the match ───────────────────────
-export function ListenStep({ step, onCorrect }) {
+export function ListenStep({ step, onCorrect, onMistake }) {
   const [wrongId, setWrongId] = useState(null);
   const audioText = step.audioText || step.options?.find((o) => o.correct)?.text;
   // auto-play once on mount
@@ -111,7 +97,7 @@ export function ListenStep({ step, onCorrect }) {
         {step.options.map((o, i) => {
           const isWrong = wrongId === i;
           return (
-            <button key={i} onClick={() => (o.correct ? onCorrect() : setWrongId(i))}
+            <button key={i} onClick={() => (o.correct ? onCorrect() : (setWrongId(i), onMistake?.()))}
               style={chip({ textAlign: 'left', borderColor: isWrong ? '#ef4444' : '#e6ddd3', background: isWrong ? '#fff1f1' : '#fff', animation: isWrong ? 'advShake 0.3s' : 'none' })}>
               {o.text}{o.tr && <span style={{ fontSize: 12, color: '#aaa', marginLeft: 6 }}>{o.tr}</span>}
             </button>
@@ -123,7 +109,7 @@ export function ListenStep({ step, onCorrect }) {
 }
 
 // ── Fill the blank: pick the word for the gap ────────────────────────────────
-export function BlankStep({ step, onCorrect }) {
+export function BlankStep({ step, onCorrect, onMistake }) {
   const [wrongId, setWrongId] = useState(null);
   return (
     <>
@@ -137,7 +123,7 @@ export function BlankStep({ step, onCorrect }) {
         {step.options.map((o, i) => {
           const isWrong = wrongId === i;
           return (
-            <button key={i} onClick={() => (o.correct ? onCorrect() : setWrongId(i))}
+            <button key={i} onClick={() => (o.correct ? onCorrect() : (setWrongId(i), onMistake?.()))}
               style={chip({ borderColor: isWrong ? '#ef4444' : '#e6ddd3', background: isWrong ? '#fff1f1' : '#fff', animation: isWrong ? 'advShake 0.3s' : 'none' })}>
               {o.text}
             </button>
@@ -149,13 +135,37 @@ export function BlankStep({ step, onCorrect }) {
   );
 }
 
-// ── Speaking: say the phrase, checked via Azure/hispeech STT ──────────────────
-export function SpeakStep({ step, onCorrect }) {
-  const [status, setStatus] = useState('idle');   // idle|recording|checking|pass|fail
-  const [heard, setHeard] = useState('');
+// ── Speaking: say the phrase, scored per-word via Azure Pronunciation Assessment ─
+// The learner records; the backend returns an overall score plus per-word
+// accuracy, so we can colour each word (green solid / amber close / red off) and
+// show exactly which words to work on — real feedback a textbook can't give.
+const PASS_SCORE = 70;   // overall pron score needed to advance
+
+function wordStyle(w) {
+  const acc = w.accuracy || 0;
+  const omitted = w.error_type === 'Omission';
+  let bg = '#dcfce7', fg = '#15803d', bd = '#86efac';           // good
+  if (omitted || acc < 50) { bg = '#fee2e2'; fg = '#b91c1c'; bd = '#fca5a5'; }   // missed
+  else if (acc < 80) { bg = '#fef3c7'; fg = '#b45309'; bd = '#fcd34d'; }         // close
+  return {
+    padding: '4px 9px', borderRadius: 9, fontSize: 17, background: bg, color: fg,
+    border: `1.5px solid ${bd}`, textDecoration: omitted ? 'line-through' : 'none',
+  };
+}
+
+function scoreVerdict(score) {
+  if (score >= 90) return { label: 'Գերազանց! 🎉', color: '#15803d' };
+  if (score >= PASS_SCORE) return { label: 'Լավ էր! 👍', color: '#16a34a' };
+  if (score >= 45) return { label: 'Մոտ էիր — նորից', color: '#b45309' };
+  return { label: 'Փորձի՛ր նորից', color: '#dc2626' };
+}
+
+export function SpeakStep({ step, onCorrect, onMistake }) {
+  const [status, setStatus] = useState('idle');   // idle|recording|checking|result
+  const [result, setResult] = useState(null);      // { recognized, pron_score, words, fallback }
   const recRef = useRef(null); const chunksRef = useRef([]); const streamRef = useRef(null); const maxT = useRef(null);
+  const scoredWrong = useRef(false);   // count a mistake at most once per step
   const phrase = step.phrase || '';
-  const wordCount = phrase.trim().split(/\s+/).filter(Boolean).length;
 
   const stopTracks = () => { try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* noop */ } };
 
@@ -176,23 +186,24 @@ export function SpeakStep({ step, onCorrect }) {
         try {
           const fd = new FormData();
           fd.append('audio', blob, 'speech.webm');
-          fd.append('language_code', 'hye');
-          fd.append('word_count', String(wordCount));
-          const r = await fetch(`${API_BASE}/me/exercises/transcribe`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
+          fd.append('reference_text', phrase);
+          const r = await fetch(`${API_BASE}/me/exercises/pronounce`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
           const d = r.ok ? await r.json() : null;
-          const text = d?.text || '';
-          setHeard(text);
-          if (_sim(text, phrase) >= 0.6) { setStatus('pass'); setTimeout(onCorrect, 900); }
-          else setStatus('fail');
+          if (!d) { setStatus('idle'); return; }
+          setResult(d); setStatus('result');
+          if ((d.pron_score || 0) >= PASS_SCORE) { setTimeout(onCorrect, 1400); }
+          else if (!scoredWrong.current) { scoredWrong.current = true; onMistake?.(); }
         } catch { setStatus('idle'); }
       };
-      rec.start(); recRef.current = rec; setHeard(''); setStatus('recording');
+      rec.start(); recRef.current = rec; setResult(null); setStatus('recording');
       maxT.current = setTimeout(() => { if (recRef.current?.state === 'recording') recRef.current.stop(); }, 6000);
-    } catch { setStatus('fail'); setHeard('Microphone blocked — you can skip.'); }
+    } catch { setResult({ blocked: true }); setStatus('result'); }
   };
 
-  const micColor = status === 'recording' ? '#ef4444' : status === 'pass' ? '#22c55e' : ORANGE;
-  const label = { idle: 'Tap the mic and say it', recording: 'Recording… tap to stop', checking: 'Checking…', pass: 'Nice! 🎉', fail: 'Not quite — try again' }[status];
+  const passed = status === 'result' && (result?.pron_score || 0) >= PASS_SCORE;
+  const micColor = status === 'recording' ? '#ef4444' : passed ? '#22c55e' : ORANGE;
+  const label = { idle: 'Tap the mic and say it', recording: 'Recording… tap to stop', checking: 'Scoring…', result: passed ? 'Nice! 🎉' : 'Tap to try again' }[status];
+  const verdict = result && !result.blocked ? scoreVerdict(result.pron_score || 0) : null;
 
   return (
     <>
@@ -202,22 +213,59 @@ export function SpeakStep({ step, onCorrect }) {
         <button onClick={() => playAzure(phrase)} style={{ background: '#fff4ec', border: 'none', borderRadius: 10, padding: 6, cursor: 'pointer' }} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
       </div>
       {step.tr && <div style={{ fontSize: 13, color: '#aaa', marginBottom: 10 }}>{step.tr}</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 6 }}>
+
+      {/* Per-word feedback + score ring */}
+      {verdict && (result.words?.length > 0) && (
+        <div style={{ background: '#fbfaf8', border: '1px solid #eee4d6', borderRadius: 14, padding: '12px 13px', margin: '4px 0 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <ScoreRing score={result.pron_score || 0} color={verdict.color} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: verdict.color }}>{verdict.label}</div>
+              <div style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>
+                {result.fallback ? 'Word match' : 'Ճշտություն · Accuracy'}{!result.fallback && result.fluency ? ` · Սահունություն ${result.fluency}` : ''}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {result.words.map((w, i) => (
+              <span key={i} style={wordStyle(w)}>{w.word}</span>
+            ))}
+          </div>
+          {result.recognized && <div style={{ fontSize: 12, color: '#999', marginTop: 9 }}>🗣️ <span style={{ fontStyle: 'italic' }}>{result.recognized}</span></div>}
+        </div>
+      )}
+      {result?.blocked && <div style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 11px', margin: '4px 0 8px' }}>Microphone blocked — you can skip.</div>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 4 }}>
         <button onClick={start} disabled={status === 'checking'} style={{ width: 64, height: 64, borderRadius: '50%', border: 'none', background: micColor, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px #0003' }} aria-label="Speak">
-          {status === 'pass' ? <Check size={26} color="#fff" /> : <Mic size={26} color="#fff" />}
+          {passed ? <Check size={26} color="#fff" /> : <Mic size={26} color="#fff" />}
         </button>
-        <div style={{ fontSize: 12, color: status === 'fail' ? '#ef4444' : '#999' }}>{label}</div>
-        {heard && <div style={{ fontSize: 13, color: '#666' }}>🗣️ <span style={{ fontStyle: 'italic' }}>{heard}</span></div>}
+        <div style={{ fontSize: 12, color: (status === 'result' && !passed) ? '#b45309' : '#999' }}>{label}</div>
       </div>
-      <button onClick={onCorrect} style={{ width: '100%', marginTop: 14, background: '#f3ede4', color: '#7a6a58', border: 'none', borderRadius: 12, padding: '10px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-        <SkipForward size={15} /> Skip
-      </button>
+      {!passed && (
+        <button onClick={onCorrect} style={{ width: '100%', marginTop: 14, background: '#f3ede4', color: '#7a6a58', border: 'none', borderRadius: 12, padding: '10px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <SkipForward size={15} /> Skip
+        </button>
+      )}
     </>
   );
 }
 
+// Small circular score gauge (0-100).
+function ScoreRing({ score, color }) {
+  const r = 20, c = 2 * Math.PI * r, off = c * (1 - Math.max(0, Math.min(100, score)) / 100);
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52" style={{ flexShrink: 0 }}>
+      <circle cx="26" cy="26" r={r} fill="none" stroke="#eee4d6" strokeWidth="5" />
+      <circle cx="26" cy="26" r={r} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={off} transform="rotate(-90 26 26)" />
+      <text x="26" y="30" textAnchor="middle" fontSize="15" fontWeight="800" fill={color}>{Math.round(score)}</text>
+    </svg>
+  );
+}
+
 // ── Match pairs: tap Armenian ↔ English until all are matched ─────────────────
-export function MatchStep({ step, onCorrect }) {
+export function MatchStep({ step, onCorrect, onMistake }) {
   const pairs = step.pairs || [];
   const left = useMemo(() => shuffled(pairs.map((p, i) => ({ t: p.a, i })), pairs.length), [step]);
   const right = useMemo(() => shuffled(pairs.map((p, i) => ({ t: p.b, i })), pairs.length + 3), [step]);
@@ -232,7 +280,7 @@ export function MatchStep({ step, onCorrect }) {
       const m = new Set(matched); m.add(l); setMatched(m); setSelL(null); setSelR(null);
       if (m.size === pairs.length) setTimeout(onCorrect, 400);
     } else {
-      setBad(true);
+      setBad(true); onMistake?.();
       setTimeout(() => { setBad(false); setSelL(null); setSelR(null); }, 450);
     }
   };
