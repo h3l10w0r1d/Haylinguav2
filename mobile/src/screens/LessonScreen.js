@@ -6,7 +6,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X } from 'lucide-react-native';
+import { X, Flag } from 'lucide-react-native';
+import ReportProblemModal from '../components/ReportProblemModal';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence } from 'react-native-reanimated';
 import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
@@ -48,6 +49,7 @@ export default function LessonScreen({ route, navigation }) {
   // Duolingo's iconic "Wait, don't go!" dialog — the X no longer leaves
   // instantly, it confirms first.
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showReportProblem, setShowReportProblem] = useState(false);
 
   // A brief brightness flash on the progress bar each time an exercise
   // advances — mirrors the web's .progress-pulse.
@@ -167,8 +169,15 @@ export default function LessonScreen({ route, navigation }) {
             style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderRadius: 999 }, progressFlashStyle]}
           />
         </View>
+        {!!current && (
+          <Pressable3D onPress={() => setShowReportProblem(true)} pressDepth={1} hapticOnPress={false} style={{ padding: 4 }}>
+            <Flag size={16} color="#a8a29e" />
+          </Pressable3D>
+        )}
         <HeartsBadge />
       </View>
+
+      <ReportProblemModal visible={showReportProblem} exerciseId={current?.id} onClose={() => setShowReportProblem(false)} />
 
       <Modal visible={showExitConfirm} transparent animationType="fade" onRequestClose={() => setShowExitConfirm(false)}>
         <View className="flex-1 items-center justify-center bg-black/50 px-8">

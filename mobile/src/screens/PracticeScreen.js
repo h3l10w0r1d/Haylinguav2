@@ -15,20 +15,26 @@ import ExerciseResultBanner from '../components/ExerciseResultBanner';
 import CheckButton from '../components/CheckButton';
 import Pressable3D from '../components/Pressable3D';
 
-export default function PracticeScreen({ navigation }) {
+export default function PracticeScreen({ navigation, route }) {
+  // source/emptyHeading/emptyText let this screen double as the "Mistakes"
+  // queue (mirrors web's PracticeMode.jsx being reused for both /practice
+  // and /mistakes routes via props) instead of duplicating the entire
+  // queue/attempt/scoring/completion flow in a second file.
+  const source = route?.params?.source || '/me/practice';
+  const emptyHeading = route?.params?.emptyHeading || 'All caught up!';
   const [exercises, setExercises] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await api.get('/me/practice');
+        const data = await api.get(source);
         setExercises(Array.isArray(data?.exercises) ? data.exercises : []);
       } catch {
         setError('Could not load practice.');
       }
     })();
-  }, []);
+  }, [source]);
 
   const session = useExerciseQueueSession(exercises || []);
   const { current, total, index, checkState, onCheckStateChange, submitAttempt, advance, done, lastResult, lastAnswerText, combo, summary } = session;
@@ -58,7 +64,7 @@ export default function PracticeScreen({ navigation }) {
         <View className="h-24 w-24 items-center justify-center rounded-full bg-grass-50">
           <Dumbbell size={48} color="#58CC02" />
         </View>
-        <Text className="mt-5 text-center text-2xl font-extrabold text-stone-900 font-display">All caught up!</Text>
+        <Text className="mt-5 text-center text-2xl font-extrabold text-stone-900 font-display">{emptyHeading}</Text>
         <Text className="mt-2 text-center text-base font-semibold text-stone-500">Nothing to practice right now — come back later.</Text>
         <Pressable3D onPress={() => navigation.goBack()} className="mt-8 items-center self-stretch rounded-full bg-brand-500 py-4">
           <Text className="text-base font-extrabold text-white">Back</Text>

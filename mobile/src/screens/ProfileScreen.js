@@ -210,7 +210,7 @@ export default function ProfileScreen({ navigation }) {
 
         <View className="px-4 pt-4">
           {tab === 'overview' && (
-            <OverviewTab profile={profile} stats={stats} achievements={achievements} activityDays={activityDays} learningSummary={learningSummary} />
+            <OverviewTab profile={profile} stats={stats} achievements={achievements} activityDays={activityDays} learningSummary={learningSummary} navigation={navigation} />
           )}
           {tab === 'edit' && <EditTab profile={profile} onSaved={patchProfile} />}
           {tab === 'appearance' && (
