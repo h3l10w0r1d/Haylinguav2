@@ -70,7 +70,7 @@ function Sprite({ sheet, idx, scale = 2, style }) {
   );
 }
 
-export default function AdventureMapEditor({ base, value, onChange }) {
+export default function AdventureMapEditor({ npcs: npcList = [], value, onChange }) {
   const sheet = SHEETS[value.tileset] || SHEETS.town;
   const pal = PALETTES[value.tileset] || PALETTES.town;
   const { width, height, ground, decor } = value.map;
@@ -221,7 +221,7 @@ export default function AdventureMapEditor({ base, value, onChange }) {
           active={tool === "player"} onPlace={() => setTool("player")}
           pos={value.player}
         />
-        {(base.npcs || []).map((npc) => {
+        {(npcList || []).map((npc) => {
           const n = value.npcs[npc.id] || {};
           return (
             <div key={npc.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-2 ring-1 ring-slate-200">

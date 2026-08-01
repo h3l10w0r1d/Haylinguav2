@@ -8,10 +8,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Save, RotateCcw, MessageCircle, Volume2, ListChecks, Check, Map as MapIcon, Pencil, ChevronDown } from "lucide-react";
+import { Save, RotateCcw, MessageCircle, Volume2, ListChecks, Check, Map as MapIcon, Pencil, ChevronDown, Plus } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import { ADVENTURES, mergeAdventure } from "../adventures/adventures";
 import AdventureMapEditor from "./AdventureMapEditor";
+import AdventureBuilder, { blankAdventure } from "./AdventureBuilder";
 
 const inputCls =
   "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
@@ -100,6 +101,9 @@ export default function CmsAdventures() {
   const [mapDrafts, setMapDrafts] = useState({});   // { [advId]: structural draft | null }
   const [rawOverrides, setRawOverrides] = useState({}); // server blobs (preserve unknown fields)
   const [openMap, setOpenMap] = useState("");       // advId whose scene editor is expanded
+  const [customList, setCustomList] = useState([]); // fully CMS-authored adventures
+  const [editing, setEditing] = useState(null);     // custom adventure being built | null
+  const [isNewEdit, setIsNewEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");       // adventure id currently saving
   const [toast, setToast] = useState(null);
@@ -122,6 +126,50 @@ export default function CmsAdventures() {
     setRawOverrides(overrides);
     setDrafts(Object.fromEntries(ADVENTURES.map((a) => [a.id, seedDraft(a, overrides[a.id])])));
     setMapDrafts(Object.fromEntries(ADVENTURES.map((a) => [a.id, seedMapDraft(a, overrides[a.id])])));
+    try {
+      const c = await api.listCustomAdventures();
+      setCustomList(c?.adventures || []);
+    } catch { /* leave custom list as-is if it can't load */ }
+  }
+
+  // ── Custom (fully-authored) adventures ───────────────────────────────────────
+  function openNewCustom() {
+    const existing = new Set(customList.map((c) => c.id));
+    let n = customList.length + 1;
+    while (existing.has(`custom${n}`)) n++;
+    setEditing(blankAdventure(`custom${n}`));
+    setIsNewEdit(true);
+  }
+  function openEditCustom(row) {
+    setEditing({ ...row.data, id: row.id, __published: row.published });
+    setIsNewEdit(false);
+  }
+  async function saveCustom(adv, published) {
+    setBusy(adv.id);
+    try {
+      await api.saveCustomAdventure(adv.id, adv, published);
+      showToast(published ? "Saved & published — live for learners" : "Saved as draft");
+      await refresh();
+      setEditing(null);
+    } catch (err) {
+      showToast(err.message || "Save failed", "err");
+    } finally {
+      setBusy("");
+    }
+  }
+  async function deleteCustom(id) {
+    if (!window.confirm("Delete this custom adventure permanently?")) return;
+    setBusy(id);
+    try {
+      await api.deleteCustomAdventure(id);
+      showToast("Deleted");
+      await refresh();
+      setEditing(null);
+    } catch (err) {
+      showToast(err.message || "Delete failed", "err");
+    } finally {
+      setBusy("");
+    }
   }
 
   useEffect(() => {
@@ -185,11 +233,56 @@ export default function CmsAdventures() {
     }
   }
 
+  if (editing) {
+    return (
+      <CmsLayout active="adventures" title="Adventure Builder">
+        <AdventureBuilder
+          initial={editing}
+          isNew={isNewEdit}
+          busy={busy === editing.id}
+          onSave={saveCustom}
+          onDelete={deleteCustom}
+          onClose={() => setEditing(null)}
+        />
+        {toast && (
+          <div className={"fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl px-4 py-2.5 text-sm font-bold text-white shadow-lg " + (toast.kind === "err" ? "bg-cardinal-500" : "bg-grass-600")}>
+            {toast.msg}
+          </div>
+        )}
+      </CmsLayout>
+    );
+  }
+
   return (
     <CmsLayout active="adventures" title="Adventures">
       <div className="space-y-4">
+        {/* Your (fully-authored) adventures — build from scratch */}
+        <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="text-base font-bold text-slate-900">Your adventures</div>
+            <span className="text-xs font-semibold text-slate-400">Built with the no-code builder</span>
+            <button type="button" onClick={openNewCustom} className="btn3d btn3d-brand text-sm ml-auto inline-flex items-center gap-2"><Plus className="h-4 w-4" /> New adventure</button>
+          </div>
+          {customList.length === 0 ? (
+            <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-400">No custom adventures yet — click <b>New adventure</b> to build one from scratch (map, characters, dialogue, exercises).</div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {customList.map((row) => (
+                <button key={row.id} type="button" onClick={() => openEditCustom(row)} className="flex items-center gap-3 rounded-2xl p-3 text-left ring-1 ring-slate-200 hover:ring-brand-300">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-grass-50 text-xl">{row.data?.emoji || "🗺️"}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-bold text-slate-800">{row.data?.title || row.id}</div>
+                    <div className="text-xs text-slate-400">{row.id}{row.data?.cefr ? ` · ${row.data.cefr}` : ""}</div>
+                  </div>
+                  <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold " + (row.published ? "bg-grass-100 text-grass-700" : "bg-slate-100 text-slate-500")}>{row.published ? "Published" : "Draft"}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="rounded-3xl bg-brand-50 p-4 text-sm font-semibold text-brand-800 ring-1 ring-brand-200">
-          Edit the words learners read and hear. The scene layout, characters and answer-grading are set in code — here you control the title, goals, character names and every line of dialogue.
+          Below are the built-in adventures. Edit their words and repaint their scenes — the step structure and answer-grading for these are set in code.
         </div>
 
         {loading ? (
@@ -251,7 +344,7 @@ export default function CmsAdventures() {
                     </button>
                     {openMap === base.id && (
                       <div className="border-t border-slate-100 p-4">
-                        <AdventureMapEditor base={base} value={mapDrafts[base.id]} onChange={(next) => editMap(base.id, next)} />
+                        <AdventureMapEditor npcs={base.npcs} value={mapDrafts[base.id]} onChange={(next) => editMap(base.id, next)} />
                       </div>
                     )}
                   </div>

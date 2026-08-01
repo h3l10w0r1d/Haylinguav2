@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Lock, RotateCcw, Check } from 'lucide-react';
-import { ADVENTURES, mergeAdventure, fetchAdventureOverrides } from './adventures/adventures';
+import { ADVENTURES, mergeAdventure, fetchAdventureOverrides, fetchCustomAdventures } from './adventures/adventures';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://haylinguav2.onrender.com';
 const ORANGE = '#FF7A1A';
@@ -23,9 +23,11 @@ export default function AdventuresHome() {
 
   useEffect(() => {
     let alive = true;
-    // CMS-overridden titles/blurbs (falls back to code defaults).
-    fetchAdventureOverrides(API_BASE).then((all) => {
-      if (alive) setList(ADVENTURES.map((a) => (all[a.id] ? mergeAdventure(a, all[a.id]) : a)));
+    // Built-ins (with CMS text/scene overrides) + fully CMS-authored adventures.
+    Promise.all([fetchAdventureOverrides(API_BASE), fetchCustomAdventures(API_BASE)]).then(([all, custom]) => {
+      if (!alive) return;
+      const builtins = ADVENTURES.map((a) => (all[a.id] ? mergeAdventure(a, all[a.id]) : a));
+      setList([...builtins, ...custom]);
     });
     // Per-user progress: which are done, stars earned, replays.
     const token = getToken();

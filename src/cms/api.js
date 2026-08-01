@@ -133,6 +133,10 @@ export function createCmsApi(accessToken) {
   const listAdventureOverrides = () => req("/cms/adventures");
   const saveAdventureOverride = (id, data) => req(`/cms/adventures/${id}`, { method: "PUT", body: JSON.stringify(data) });
   const resetAdventureOverride = (id) => req(`/cms/adventures/${id}`, { method: "DELETE" });
+  // Fully CMS-authored adventures (the no-code builder).
+  const listCustomAdventures = () => req("/cms/custom-adventures");
+  const saveCustomAdventure = (id, data, published) => req(`/cms/custom-adventures/${id}`, { method: "PUT", body: JSON.stringify({ data, published }) });
+  const deleteCustomAdventure = (id) => req(`/cms/custom-adventures/${id}`, { method: "DELETE" });
 
   // Careers: application form fields
   const listVacancyFields = (vacancyId) => req(`/cms/vacancies/${vacancyId}/fields`);
@@ -297,6 +301,9 @@ export function createCmsApi(accessToken) {
     listAdventureOverrides,
     saveAdventureOverride,
     resetAdventureOverride,
+    listCustomAdventures,
+    saveCustomAdventure,
+    deleteCustomAdventure,
     listAffiliates,
     getAffiliatesAnalytics,
     approveAffiliate,
