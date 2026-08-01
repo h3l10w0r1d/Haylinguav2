@@ -605,7 +605,252 @@ const yerevan = {
   ],
 };
 
-export const ADVENTURES = [cafe, airport, yerevan];
+// ── Adventure 4: At the Clinic ───────────────────────────────────────────────
+// A clinic interior (paved floor, facade at top). Two stations: the doctor's
+// desk (describe your symptoms, get a prescription) → the pharmacy counter
+// (hand over the prescription, buy the medicine). Formal register throughout.
+const clinicLegend = {
+  '.': { g: TOWN.grass },
+  'c': { g: TOWN.stoneFloor },
+  'F': { g: TOWN.stoneFloor, d: TOWN.fenceH },   // interior divider / rail
+  'b': { g: TOWN.stoneFloor, d: TOWN.barrel },   // waiting-room plant/props
+  'Q': { g: TOWN.stoneFloor, d: TOWN.roofL },
+  'W': { g: TOWN.stoneFloor, d: TOWN.roofM },
+  'E': { g: TOWN.stoneFloor, d: TOWN.roofR },
+  'A': { g: TOWN.stoneFloor, d: TOWN.wallWindow },
+  'D': { g: TOWN.stoneFloor, d: TOWN.wallDoor },
+  'P': { g: TOWN.stoneFloor, d: TOWN.wallPlain },
+  'H': { g: TOWN.stoneFloor, d: TOWN.crate },    // doctor desk / pharmacy counter
+};
+
+const clinicRows = [
+  'QWWWWWWWWWWWWWWE',   // clinic roof
+  'PPPPPPPDDPPPPPPP',   // facade with entrance doors
+  'FccccccccccccccF',
+  'FccHHHcccccccbcF',   // doctor's desk (left)
+  'FccccccccccccccF',
+  'FccccccccccccccF',
+  'FccFFFFFFFFFFccF',   // divider (gaps at both sides)
+  'FccccccccccHHHcF',   // pharmacy counter (right)
+  'FccccccccccccccF',
+  'FbccccccccccccbF',
+  'FccccccccccccccF',
+  'FFFFFFFccFFFFFFF',   // entrance gap (centre)
+];
+
+const clinic = {
+  id: 'clinic',
+  title: 'At the Clinic',
+  emoji: '🏥',
+  blurb: 'Not feeling well? See the doctor, then pick up your medicine — in Armenian.',
+  cefr: 'A2',
+  tileset: 'town',
+  map: expandMap(clinicRows, clinicLegend),
+  player: { frame: CHAR.adventurer, tx: 8, ty: 10 },
+  goals: [
+    { id: 'checkup', label: 'See the doctor' },
+    { id: 'medicine', label: 'Get your medicine' },
+  ],
+  npcs: [
+    {
+      id: 'doctor',
+      name: 'Դոկտ. Նարինե',
+      frame: CHAR.woman,
+      tx: 4, ty: 2,
+      completes: 'checkup',
+      dialogue: [
+        { line: 'Բարև ձեզ, ներս մտեք։ Ի՞նչն է Ձեզ անհանգստացնում։', by: 'npc', tr: 'Hello, come in. What is troubling you?' },
+        {
+          choose: 'Tell the doctor what’s wrong.',
+          options: [
+            { text: 'Գլուխս ցավում է։', tr: 'My head hurts.', correct: true },
+            { text: 'Ես քաղցած եմ։', tr: 'I am hungry.' },
+            { text: 'Այսօր կիրակի է։', tr: 'Today is Sunday.' },
+          ],
+        },
+        { line: 'Ջերմություն ունե՞ք։', by: 'npc', tr: 'Do you have a fever?' },
+        {
+          choose: 'Say you have a slight fever.',
+          options: [
+            { text: 'Այո, թեթև ջերմություն ունեմ։', tr: 'Yes, I have a slight fever.', correct: true },
+            { text: 'Ոչ, ես բժիշկ եմ։', tr: 'No, I am a doctor.' },
+          ],
+        },
+        { listen: 'Listen — what does the doctor ask?', options: [
+          { text: 'Քանի՞ օր է ցավում։', tr: 'For how many days has it hurt?', correct: true },
+          { text: 'Ի՞նչ է Ձեր անունը։', tr: 'What is your name?' },
+          { text: 'Որտե՞ղ եք ապրում։', tr: 'Where do you live?' },
+        ] },
+        { blank: 'Answer: “It has hurt for two ___.”', before: 'Երկու', after: 'ցավում է։', tr: 'It has hurt for two days.',
+          options: [{ text: 'օր', correct: true }, { text: 'ջուր' }, { text: 'տուն' }] },
+        { speak: 'Tell the doctor again, out loud:', phrase: 'Գլուխս ցավում է։', tr: 'My head hurts.' },
+        { note: { emoji: '🏥', title: 'Դեղատուն', body: 'In Armenia a pharmacy (դեղատուն) sells many medicines without a prescription, and the pharmacist often gives first advice for minor complaints.' } },
+        { receive: { id: 'recipe', label: 'Դեղատոմս', icon: '📝' }, line: 'Ահա Ձեր դեղատոմսը։ Գնացեք դեղատուն։', by: 'npc', tr: 'Here is your prescription. Go to the pharmacy.' },
+        {
+          ai: {
+            personaDesc: 'a kind family doctor in a Yerevan clinic',
+            goal: 'Open by asking if they have any other symptoms or questions. Answer simply, advise rest and drinking water, and once they seem reassured, warmly wish them a quick recovery and say goodbye.',
+            voice: 'female',
+          },
+        },
+        { line: 'Շուտ առողջացեք։', by: 'npc', tr: 'Get well soon.' },
+      ],
+    },
+    {
+      id: 'pharmacist',
+      name: 'Դեղագործ Կարեն',
+      frame: CHAR.elder,
+      voice: 'male',
+      tx: 12, ty: 8,
+      completes: 'medicine',
+      dialogue: [
+        { line: 'Բարև ձեզ։ Ինչո՞վ կարող եմ օգնել։', by: 'npc', tr: 'Hello. How can I help?' },
+        { give: 'Hand the pharmacist your prescription.', itemId: 'recipe', tr: 'Give your prescription.' },
+        { match: 'Match the words while he prepares it.', pairs: [
+          { a: 'դեղ', b: 'medicine' }, { a: 'ջերմություն', b: 'fever' },
+          { a: 'գլխացավ', b: 'headache' }, { a: 'հազ', b: 'cough' },
+        ] },
+        { wordbank: 'Tell him what you need: “I need medicine.”', answer: ['Ինձ', 'դեղ', 'է', 'պետք'], tr: 'I need medicine.' },
+        { receive: { id: 'medicine', label: 'Դեղ', icon: '💊' }, line: 'Ահա Ձեր դեղը՝ օրը երեք անգամ։', by: 'npc', tr: 'Here is your medicine — three times a day.' },
+        {
+          choose: 'Ask how much it costs.',
+          options: [
+            { text: 'Ի՞նչ արժե։', tr: 'How much is it?', correct: true },
+            { text: 'Ժամը քանի՞սն է։', tr: 'What time is it?' },
+            { text: 'Ո՞ւր է ելքը։', tr: 'Where is the exit?' },
+          ],
+        },
+        { line: 'Երկու հազար դրամ։', by: 'npc', tr: 'Two thousand dram.' },
+        {
+          choose: 'Thank him and say goodbye.',
+          options: [
+            { text: 'Շնորհակալություն, ցտեսություն։', tr: 'Thank you, goodbye.', correct: true },
+            { text: 'Ես հիվանդ չեմ։', tr: 'I am not sick.' },
+          ],
+        },
+        { line: 'Առողջություն։', by: 'npc', tr: 'To your health.' },
+      ],
+    },
+  ],
+};
+
+// ── Adventure 5: Getting Around ──────────────────────────────────────────────
+// A city street with a marshrutka (minibus) stop. Ask a local which minibus
+// goes downtown, then board and ride with the driver. Everyday spoken register.
+const transitLegend = {
+  '.': { g: TOWN.grass },
+  ',': { g: TOWN.grassFlower },
+  'c': { g: TOWN.cobble },       // road
+  'r': { g: TOWN.stoneFloor },   // sidewalk
+  'T': { g: TOWN.grass, d: TOWN.treeGreen },
+  'b': { g: TOWN.grass, d: TOWN.bush },
+  's': { g: TOWN.stoneFloor, d: TOWN.signpost },   // bus-stop sign
+  'Q': { g: TOWN.grass, d: TOWN.roofL },
+  'W': { g: TOWN.grass, d: TOWN.roofM },
+  'E': { g: TOWN.grass, d: TOWN.roofR },
+  'A': { g: TOWN.grass, d: TOWN.wallWindow },
+  'D': { g: TOWN.grass, d: TOWN.wallDoor },
+  'P': { g: TOWN.grass, d: TOWN.wallPlain },
+};
+
+const transitRows = [
+  'TTTTTTTTTTTTTTTT',
+  'T,..rrccccrr..,T',
+  'Tb..rrccccrr..bT',
+  'TQWErrccccrrQWET',   // shops flanking the street
+  'TAPDrrccccrrAPDT',
+  'T...rrccccrr...T',
+  'T...srccccrs...T',   // bus-stop signs on both sidewalks
+  'T...rrccccrr...T',
+  'T,..rrccccrr..,T',
+  'T...rrccccrr...T',
+  'Tb..rrccccrr..bT',
+  'T...rrccccrr...T',
+  'T,..rrccccrr..,T',
+  'T...rrccccrr...T',
+  'TTTTTTTTTTTTTTTT',
+];
+
+const transit = {
+  id: 'transit',
+  title: 'Getting Around',
+  emoji: '🚐',
+  blurb: 'Find the right marshrutka, board it, and ride downtown — all in Armenian.',
+  cefr: 'A2',
+  tileset: 'town',
+  map: expandMap(transitRows, transitLegend),
+  player: { frame: CHAR.adventurer, tx: 5, ty: 12 },
+  goals: [
+    { id: 'ask', label: 'Ask for directions' },
+    { id: 'ride', label: 'Ride downtown' },
+  ],
+  npcs: [
+    {
+      id: 'local',
+      name: 'Անահիտ',
+      frame: CHAR.princess,
+      tx: 5, ty: 9,
+      completes: 'ask',
+      dialogue: [
+        { line: 'Բարև ձեզ։', by: 'npc', tr: 'Hello.' },
+        {
+          choose: 'Ask which marshrutka goes downtown.',
+          options: [
+            { text: 'Ո՞ր մարշրուտկան է գնում կենտրոն։', tr: 'Which marshrutka goes to the center?', correct: true },
+            { text: 'Ժամը քանի՞սն է։', tr: 'What time is it?' },
+            { text: 'Ի՞նչ արժե հացը։', tr: 'How much is the bread?' },
+          ],
+        },
+        { line: 'Համար հինգը գնում է կենտրոն։ Ահա կանգառը։', by: 'npc', tr: 'Number five goes to the center. Here is the stop.' },
+        { listen: 'Listen — where is the stop?', options: [
+          { text: 'Կանգառը այնտեղ է։', tr: 'The stop is over there.', correct: true },
+          { text: 'Խանութը փակ է։', tr: 'The shop is closed.' },
+          { text: 'Անձրև է գալիս։', tr: 'It is raining.' },
+        ] },
+        { note: { emoji: '🚐', title: 'Մարշրուտկա', body: 'The marshrutka is Armenia’s shared minibus. You usually pay the driver when you get OFF, and call out «Իջնում եմ» (“I’m getting off”) when you want your stop.' } },
+        { speak: 'Thank her out loud:', phrase: 'Շնորհակալություն։', tr: 'Thank you.' },
+        { line: 'Բարի ճանապարհ։', by: 'npc', tr: 'Have a good trip.' },
+      ],
+    },
+    {
+      id: 'driver',
+      name: 'Վարորդ Սամվել',
+      frame: CHAR.warrior,
+      voice: 'male',
+      tx: 8, ty: 6,
+      completes: 'ride',
+      dialogue: [
+        { line: 'Բարև։ Ո՞ւր եք գնում։', by: 'npc', tr: 'Hello. Where are you going?' },
+        {
+          choose: 'Tell him where you’re headed.',
+          options: [
+            { text: 'Կենտրոն, խնդրում եմ։', tr: 'Downtown, please.', correct: true },
+            { text: 'Ես շուն ունեմ։', tr: 'I have a dog.' },
+            { text: 'Կարմիր գույնը։', tr: 'The color red.' },
+          ],
+        },
+        { wordbank: 'Ask for a ticket: “One ticket, please.”', answer: ['Մեկ', 'տոմս', 'խնդրում', 'եմ'], tr: 'One ticket, please.' },
+        { line: 'Հարյուր դրամ է։', by: 'npc', tr: 'It’s one hundred dram.' },
+        { blank: 'Tell him your stop: “I’m getting off at the next ___.”', before: 'Հաջորդ', after: 'իջնում եմ։', tr: 'I’m getting off at the next stop.',
+          options: [{ text: 'կանգառում', correct: true }, { text: 'խանութում' }, { text: 'դպրոցում' }] },
+        { match: 'Match the travel words.', pairs: [
+          { a: 'կանգառ', b: 'stop' }, { a: 'տոմս', b: 'ticket' },
+          { a: 'կենտրոն', b: 'center' }, { a: 'վարորդ', b: 'driver' },
+        ] },
+        {
+          ai: {
+            personaDesc: 'a friendly, chatty marshrutka driver in Yerevan',
+            goal: 'Ask where exactly downtown they’re headed and whether it’s their first time in Yerevan. Make small talk for a couple of turns, give one short local tip, then tell them their stop is coming up and say a warm goodbye.',
+            voice: 'male',
+          },
+        },
+        { line: 'Հասանք, կենտրոնում ենք։ Բարի օր։', by: 'npc', tr: 'We’ve arrived, we’re downtown. Good day.' },
+      ],
+    },
+  ],
+};
+
+export const ADVENTURES = [cafe, airport, yerevan, clinic, transit];
 
 export function getAdventure(id) {
   return ADVENTURES.find((a) => a.id === id) || null;
