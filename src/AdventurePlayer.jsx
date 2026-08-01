@@ -129,14 +129,15 @@ export default function AdventurePlayer() {
     gameRef.current?.setWaypoint?.(null);
     gameRef.current?.focusNpc?.(npc.id);   // cinematic zoom to the NPC
     setDialog({ npc, idx: 0, wrongId: null });
-    speak(npc.dialogue[0]);
+    speak(npc.dialogue[0], npc.voice);
   }
 
-  function speak(step) {
-    const text = step?.line || step?.options?.find((o) => o.correct)?.text;
+  // Voice the NPC's line. Each character has its OWN voice (npc.voice) — never
+  // the learner's saved preference, so a female NPC never speaks in the male
+  // Azure voice. Azure hy-AM handles Armenian far better than ElevenLabs.
+  function speak(step, voice = 'female') {
     if (!step?.line) return;              // only auto-voice NPC lines
-    // Pin Azure — its hy-AM voices handle Armenian far better than ElevenLabs.
-    ttsFetch(API_BASE, { text: step.line, provider: 'azure' })
+    ttsFetch(API_BASE, { text: step.line, voice: voice || 'female', provider: 'azure' })
       .then((url) => newTrackedAudio(url).play())
       .catch(() => {});
   }
@@ -144,7 +145,7 @@ export default function AdventurePlayer() {
   function advance(npc, nextIdx) {
     if (nextIdx >= npc.dialogue.length) return finishDialog(npc);
     setDialog({ npc, idx: nextIdx, wrongId: null });
-    speak(npc.dialogue[nextIdx]);
+    speak(npc.dialogue[nextIdx], npc.voice);
   }
 
   function finishDialog(npc) {
@@ -313,7 +314,7 @@ export default function AdventurePlayer() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
               <div style={{ width: 22, height: 22, borderRadius: '50%', background: ORANGE, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11 }}>{dialog.npc.name[0]}</div>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1a' }}>{dialog.npc.name}</div>
-              <button onClick={() => speak(step)} style={{ ...iconBtnLight, marginLeft: 'auto', padding: 4 }} aria-label="Play"><Volume2 size={15} color={ORANGE} /></button>
+              <button onClick={() => speak(step, dialog.npc.voice)} style={{ ...iconBtnLight, marginLeft: 'auto', padding: 4 }} aria-label="Play"><Volume2 size={15} color={ORANGE} /></button>
             </div>
             <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a' }}><GlossaryText text={step.line} /></div>
             {step.tr && <div style={{ fontSize: 12.5, color: '#aaa', marginTop: 4 }}>{step.tr}</div>}
@@ -398,7 +399,7 @@ export default function AdventurePlayer() {
                   <>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}><GlossaryText text={step.line} /></div>
-                      <button onClick={() => speak(step)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
+                      <button onClick={() => speak(step, dialog.npc.voice)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
                     </div>
                     {step.tr && <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{step.tr}</div>}
                   </>
@@ -424,7 +425,7 @@ export default function AdventurePlayer() {
               <>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                   <div style={{ fontSize: 18, lineHeight: 1.5, color: '#1a1a1a', flex: 1 }}><GlossaryText text={step.line} /></div>
-                  <button onClick={() => speak(step)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
+                  <button onClick={() => speak(step, dialog.npc.voice)} style={iconBtnLight} aria-label="Play"><Volume2 size={18} color={ORANGE} /></button>
                 </div>
                 {step.tr && <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{step.tr}</div>}
                 <button style={{ ...primaryBtn, width: '100%', marginTop: 16 }} onClick={() => advance(dialog.npc, dialog.idx + 1)}>

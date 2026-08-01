@@ -37,9 +37,11 @@ const chip = (extra) => ({
 });
 const primaryBtn = { background: ORANGE, color: '#fff', border: 'none', borderRadius: 12, padding: '12px 18px', fontWeight: 700, fontSize: 15, cursor: 'pointer' };
 
-function playAzure(text) {
+function playAzure(text, voice = 'female') {
   if (!text) return;
-  ttsFetch(API_BASE, { text, provider: 'azure' }).then((u) => newTrackedAudio(u).play()).catch(() => {});
+  // Fixed voice (not the learner's saved preference) so exercise audio is
+  // consistent — an NPC's line is never read back in the wrong voice.
+  ttsFetch(API_BASE, { text, voice, provider: 'azure' }).then((u) => newTrackedAudio(u).play()).catch(() => {});
 }
 
 // Deterministic shuffle by index so it doesn't reshuffle every render.

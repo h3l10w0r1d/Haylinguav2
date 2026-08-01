@@ -178,6 +178,7 @@ const cafe = {
       id: 'guest',
       name: 'Արամ',
       frame: CHAR.elder,
+      voice: 'male',
       tx: 10, ty: 8,
       optional: true,
       dialogue: [
@@ -300,6 +301,7 @@ const airport = {
       id: 'passport',
       name: 'Դավիթ',            // passport control officer
       frame: CHAR.knight,
+      voice: 'male',
       tx: 8, ty: 6,
       completes: 'passport',
       dialogue: [
@@ -542,6 +544,7 @@ const yerevan = {
       id: 'taxi',
       name: 'Գագիկ',
       frame: CHAR.warrior,
+      voice: 'male',
       tx: 5, ty: 6,
       completes: 'taxi',
       dialogue: [
