@@ -26,7 +26,7 @@ export default function AdventuresHome() {
     <div style={{ minHeight: '100dvh', background: '#faf6f0' }}>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '18px 16px 60px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <button onClick={() => navigate(-1)} style={{ background: '#fff', border: '1px solid #eadfd2', borderRadius: 10, padding: 7, cursor: 'pointer', display: 'flex' }} aria-label="Back">
+          <button onClick={() => navigate('/dashboard')} style={{ background: '#fff', border: '1px solid #eadfd2', borderRadius: 10, padding: 7, cursor: 'pointer', display: 'flex' }} aria-label="Back">
             <ArrowLeft size={20} color="#7a6a58" />
           </button>
           <h1 style={{ margin: 0, fontSize: 22, color: '#1a1a1a' }}>Adventures</h1>
