@@ -9162,6 +9162,10 @@ def _escape_ssml(text: str) -> str:
 async def _generate_azure_tts(text_value: str, voice_name: str) -> bytes:
     if not AZURE_SPEECH_KEY or not AZURE_SPEECH_REGION:
         raise HTTPException(status_code=500, detail="Azure Speech not configured on server")
+    # Azure hy-AM silently drops the ligature «և» (U+0587) — it reads «Բարև» as
+    # «Բար». Expand it to the two-letter «եւ» so it's pronounced (barev). Same
+    # sound, correct output. (Applies to every Azure TTS call, incl. lessons.)
+    text_value = (text_value or "").replace("և", "եւ")
     token = await _get_azure_token()
     url = f"https://{AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
     ssml = (
@@ -9197,7 +9201,7 @@ def _tts_cache_dir() -> Path:
 # Bump this when voice_settings (or anything else affecting the generated
 # audio) changes, so old cached files — generated with the previous, worse
 # defaults — become orphaned cache misses instead of being served forever.
-_TTS_CACHE_VERSION = "v5"
+_TTS_CACHE_VERSION = "v6"  # bump: fixes «և» ligature pronunciation — busts stale audio
 
 
 def _prune_stale_tts_cache(max_age_days: int = 90) -> None:
