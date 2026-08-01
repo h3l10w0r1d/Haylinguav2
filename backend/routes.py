@@ -6444,6 +6444,23 @@ def list_adventure_overrides(db: Connection = Depends(get_db)):
 ADVENTURE_XP = 20  # flat reward for finishing an adventure (first time only)
 
 
+@router.get("/adventures/custom")
+def list_custom_adventures(db: Connection = Depends(get_db)):
+    """Public — fully CMS-authored adventures (the no-code builder), only the
+    published ones. Each row's `data` is a complete adventure definition the app
+    renders alongside its built-in (code) adventures."""
+    rows = db.execute(
+        text("SELECT id, data FROM custom_adventures WHERE published = TRUE ORDER BY created_at")
+    ).mappings().all()
+    out = []
+    for r in rows:
+        d = dict(r["data"] or {})
+        d["id"] = r["id"]          # id is authoritative from the row
+        d["custom"] = True         # let the app tell built-ins from custom
+        out.append(d)
+    return {"adventures": out}
+
+
 @router.get("/adventures/progress")
 def adventure_progress(
     authorization: Optional[str] = Header(default=None),
