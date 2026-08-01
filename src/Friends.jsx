@@ -15,6 +15,8 @@ import {
   Flame,
   EyeOff,
   Zap,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import { CrownBadge } from "./lib/PremiumBadge";
@@ -80,6 +82,7 @@ export default function Friends() {
   const [activeTab, setActiveTab] = useState("friends"); // friends | activity | pending | discover
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null); // { type: "success" | "error", text }
 
   // Discover data (leaderboard)
   const [people, setPeople] = useState([]);
@@ -102,6 +105,12 @@ export default function Friends() {
   const [referralCopied, setReferralCopied] = useState(false);
 
   const token = getToken();
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // --- load everything ---
   useEffect(() => {
@@ -345,7 +354,7 @@ export default function Friends() {
     }
   };
 
-  const acceptRequest = async (requestId) => {
+  const acceptRequest = async (requestId, name) => {
     if (!token) return;
     const res = await apiFetch(`/friends/requests/${requestId}/accept`, {
       token,
@@ -353,14 +362,15 @@ export default function Friends() {
     });
     if (res.ok) {
       await refreshFriendsData();
-      setActiveTab("friends");
+      setToast({ type: "success", text: name ? `You and ${name} are now friends!` : "Friend request accepted." });
     } else {
       const t = await res.text().catch(() => "");
       console.warn("[Friends] accept failed:", res.status, t);
+      setToast({ type: "error", text: "Couldn't accept that request. Try again." });
     }
   };
 
-  const rejectRequest = async (requestId) => {
+  const rejectRequest = async (requestId, name) => {
     if (!token) return;
     const res = await apiFetch(`/friends/requests/${requestId}/reject`, {
       token,
@@ -368,9 +378,11 @@ export default function Friends() {
     });
     if (res.ok) {
       await refreshFriendsData();
+      setToast({ type: "success", text: name ? `Declined ${name}'s request.` : "Request declined." });
     } else {
       const t = await res.text().catch(() => "");
       console.warn("[Friends] reject failed:", res.status, t);
+      setToast({ type: "error", text: "Couldn't decline that request. Try again." });
     }
   };
 
@@ -402,6 +414,20 @@ export default function Friends() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
+      {toast ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 md:bottom-6">
+          <div
+            className={
+              "pointer-events-auto flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-lg " +
+              (toast.type === "error" ? "bg-cardinal-500" : "bg-grass-500")
+            }
+          >
+            {toast.type === "error" ? <AlertCircle className="h-4 w-4 shrink-0" /> : <Check className="h-4 w-4 shrink-0" />}
+            {toast.text}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-auto max-w-3xl px-4 py-8">
         {/* Title */}
         <div className="mb-6 flex items-end justify-between gap-4">
@@ -569,8 +595,8 @@ export default function Friends() {
                             person={p}
                             mode="incoming"
                             onOpenProfile={() => openPublicProfile(p)}
-                            onAccept={() => acceptRequest(p.request_id)}
-                            onDecline={() => rejectRequest(p.request_id)}
+                            onAccept={() => acceptRequest(p.request_id, p.name)}
+                            onDecline={() => rejectRequest(p.request_id, p.name)}
                           />
                         ))}
                       </div>
@@ -632,7 +658,7 @@ export default function Friends() {
                                   const req = incomingList.find(
                                     (r) => r.email === p.email
                                   );
-                                  if (req?.request_id) acceptRequest(req.request_id);
+                                  if (req?.request_id) acceptRequest(req.request_id, p.name);
                                 }
                               : null
                           }
@@ -642,7 +668,7 @@ export default function Friends() {
                                   const req = incomingList.find(
                                     (r) => r.email === p.email
                                   );
-                                  if (req?.request_id) rejectRequest(req.request_id);
+                                  if (req?.request_id) rejectRequest(req.request_id, p.name);
                                 }
                               : null
                           }
@@ -853,7 +879,7 @@ function PersonCard({
         if (canNavigate && (e.key === "Enter" || e.key === " ")) onOpenProfile?.();
       }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="relative flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
             <AvatarFrame frameStyle={!isHidden ? person?.active_frame_style : null} size={48} radius="1rem" thickness={2.5}>
@@ -884,12 +910,12 @@ function PersonCard({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex items-center gap-2 sm:w-auto sm:shrink-0">
           {mode === "friend" ? (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); onMessage?.(); }}
-                className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-300 dark:hover:bg-white/10"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-300 dark:hover:bg-white/10"
                 title="Open profile"
               >
                 <MessageCircle className="h-5 w-5" />
@@ -897,7 +923,7 @@ function PersonCard({
               {onRemove ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
-                  className="btn3d btn3d-neutral !py-2 text-sm"
+                  className="btn3d btn3d-neutral flex-1 !py-2 text-sm sm:flex-none"
                 >
                   <UserX className="h-4 w-4" /> Remove
                 </button>
@@ -907,17 +933,17 @@ function PersonCard({
 
           {mode === "incoming" ? (
             <>
-              <button onClick={(e) => { e.stopPropagation(); onDecline?.(); }} className="btn3d btn3d-neutral !py-2 text-sm">
+              <button onClick={(e) => { e.stopPropagation(); onDecline?.(); }} className="btn3d btn3d-neutral flex-1 !py-2 text-sm sm:flex-none">
                 <UserX className="h-4 w-4" /> Decline
               </button>
-              <button onClick={(e) => { e.stopPropagation(); onAccept?.(); }} className="btn3d btn3d-brand !py-2 text-sm">
+              <button onClick={(e) => { e.stopPropagation(); onAccept?.(); }} className="btn3d btn3d-brand flex-1 !py-2 text-sm sm:flex-none">
                 <UserCheck className="h-4 w-4" /> Accept
               </button>
             </>
           ) : null}
 
           {mode === "sent" ? (
-            <button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="btn3d btn3d-neutral !py-2 text-sm">
+            <button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="btn3d btn3d-neutral flex-1 !py-2 text-sm sm:flex-none">
               <Mail className="h-4 w-4" /> Cancel
             </button>
           ) : null}
@@ -925,30 +951,30 @@ function PersonCard({
           {mode === "discover" ? (
             <>
               {isFriend ? (
-                <div className="inline-flex items-center gap-2 rounded-2xl bg-grass-50 px-4 py-2 text-sm font-extrabold text-grass-700 dark:bg-grass-500/15 dark:text-grass-400">
+                <div className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-grass-50 px-4 py-2 text-sm font-extrabold text-grass-700 dark:bg-grass-500/15 dark:text-grass-400 sm:flex-none">
                   <UserCheck className="h-4 w-4" /> Friends
                 </div>
               ) : null}
 
               {!isFriend && isIncoming ? (
                 <>
-                  <button onClick={(e) => { e.stopPropagation(); onDecline?.(); }} className="btn3d btn3d-neutral !py-2 text-sm">
+                  <button onClick={(e) => { e.stopPropagation(); onDecline?.(); }} className="btn3d btn3d-neutral flex-1 !py-2 text-sm sm:flex-none">
                     <UserX className="h-4 w-4" /> Decline
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); onAccept?.(); }} className="btn3d btn3d-brand !py-2 text-sm">
+                  <button onClick={(e) => { e.stopPropagation(); onAccept?.(); }} className="btn3d btn3d-brand flex-1 !py-2 text-sm sm:flex-none">
                     <UserCheck className="h-4 w-4" /> Accept
                   </button>
                 </>
               ) : null}
 
               {!isFriend && !isIncoming && isSent ? (
-                <button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="btn3d btn3d-neutral !py-2 text-sm">
+                <button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="btn3d btn3d-neutral flex-1 !py-2 text-sm sm:flex-none">
                   <Mail className="h-4 w-4" /> Requested
                 </button>
               ) : null}
 
               {!isFriend && !isIncoming && !isSent ? (
-                <button onClick={(e) => { e.stopPropagation(); onSend?.(); }} className="btn3d btn3d-brand !py-2 text-sm">
+                <button onClick={(e) => { e.stopPropagation(); onSend?.(); }} className="btn3d btn3d-brand flex-1 !py-2 text-sm sm:flex-none">
                   <UserPlus className="h-4 w-4" /> Add
                 </button>
               ) : null}
