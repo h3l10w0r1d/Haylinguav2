@@ -335,6 +335,89 @@ async def _transcribe_azure_stt(audio_bytes: bytes) -> str:
     return (data.get("DisplayText") or "").strip()
 
 
+def _pron_norm(s: str) -> str:
+    """Strip to letters/digits for lenient word matching (STT drops accents/punctuation)."""
+    return re.sub(r"[^ա-ևԱ-Ֆa-z0-9]", "", (s or "").lower())
+
+
+def _word_align(reference_text: str, recognized_text: str):
+    """Fallback per-word feedback when real pronunciation assessment isn't
+    available (e.g. Azure locale unsupported): mark each reference word hit or
+    missed by set membership against what STT heard. Returns (words, accuracy)."""
+    ref_words = [w for w in re.split(r"\s+", (reference_text or "").strip()) if w]
+    heard = {_pron_norm(w) for w in re.split(r"\s+", recognized_text or "") if _pron_norm(w)}
+    words, matched = [], 0
+    for w in ref_words:
+        ok = _pron_norm(w) in heard
+        matched += 1 if ok else 0
+        words.append({"word": w, "accuracy": 100 if ok else 0,
+                      "error_type": "None" if ok else "Omission"})
+    accuracy = round(100 * matched / len(ref_words)) if ref_words else 0
+    return words, accuracy
+
+
+async def _pronounce_azure(audio_bytes: bytes, reference_text: str) -> dict:
+    """Azure AI Speech **Pronunciation Assessment** — same Speech resource/endpoint
+    as STT, plus a base64 `Pronunciation-Assessment` header and format=detailed.
+    Returns overall Accuracy/Fluency/Completeness/PronScore (0-100) and per-word
+    accuracy + error type. Raises on any failure so the caller can fall back to
+    plain STT (Armenian hy-AM may not be a supported assessment locale)."""
+    from routes import _get_azure_token, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION
+
+    if not AZURE_SPEECH_KEY or not AZURE_SPEECH_REGION:
+        raise RuntimeError("Azure Speech not configured on server")
+
+    wav_bytes = _webm_to_wav(audio_bytes)
+    token = await _get_azure_token()
+    pa_config = {
+        "ReferenceText": (reference_text or "")[:400],
+        "GradingSystem": "HundredMark",
+        "Granularity": "Word",
+        "Dimension": "Comprehensive",
+        "EnableMiscue": True,
+    }
+    pa_header = base64.b64encode(json.dumps(pa_config).encode("utf-8")).decode("ascii")
+    url = f"https://{AZURE_SPEECH_REGION}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1"
+    params = {"language": "hy-AM", "format": "detailed"}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000",
+        "Accept": "application/json",
+        "Pronunciation-Assessment": pa_header,
+    }
+    async with httpx.AsyncClient(timeout=25.0) as client:
+        r = await client.post(url, params=params, headers=headers, content=wav_bytes)
+    if r.status_code != 200:
+        raise RuntimeError(f"Azure pron error ({r.status_code}): {(r.text or '')[:300]}")
+    data = r.json()
+    if data.get("RecognitionStatus") != "Success":
+        raise RuntimeError(f"Azure pron status {data.get('RecognitionStatus')}")
+    nbest = data.get("NBest") or []
+    if not nbest:
+        raise RuntimeError("Azure pron: empty NBest")
+    top = nbest[0]
+    pa = top.get("PronunciationAssessment") or {}
+    if not pa:
+        raise RuntimeError("Azure pron: no assessment (locale unsupported?)")
+    words = []
+    for w in (top.get("Words") or []):
+        wpa = w.get("PronunciationAssessment") or {}
+        words.append({
+            "word": w.get("Word", ""),
+            "accuracy": round(float(wpa.get("AccuracyScore", 0) or 0)),
+            "error_type": wpa.get("ErrorType", "None"),
+        })
+    return {
+        "recognized": (top.get("Display") or data.get("DisplayText") or "").strip(),
+        "accuracy": round(float(pa.get("AccuracyScore", 0) or 0)),
+        "fluency": round(float(pa.get("FluencyScore", 0) or 0)),
+        "completeness": round(float(pa.get("CompletenessScore", 0) or 0)),
+        "pron_score": round(float(pa.get("PronScore", 0) or 0)),
+        "words": words,
+        "fallback": False,
+    }
+
+
 
 
 # ---------------------------------------------------------------------------

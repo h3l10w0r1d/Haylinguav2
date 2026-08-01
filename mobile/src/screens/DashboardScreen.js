@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
+import { useCountUp } from '../lib/useCountUp';
 import Pressable3D from '../components/Pressable3D';
 import ChestReveal from '../components/ChestReveal';
 import UnitBanner from '../components/UnitBanner';
@@ -70,10 +71,17 @@ function StatPip({ icon: Icon, color, value, animateFlame }) {
     transform: [{ scale: 0.85 + enter.value * 0.15 }],
   }));
 
+  // Non-numeric values (the '∞'/'–' hearts placeholder) render as-is; real
+  // numbers tick from their previous displayed value instead of snapping —
+  // Duolingo's top-bar counters never jump straight to a new number.
+  const isNumeric = typeof value === 'number' && Number.isFinite(value);
+  const counted = useCountUp(isNumeric ? value : 0);
+  const displayValue = isNumeric ? counted : value;
+
   return (
     <Animated.View style={animatedStyle} className="flex-row items-center gap-1.5">
       {animateFlame ? <FlameIcon color={color} size={20} /> : <Icon size={20} color={color} fill={color} />}
-      <Text className="text-base font-extrabold text-stone-800 font-display">{value}</Text>
+      <Text className="text-base font-extrabold text-stone-800 font-display">{displayValue}</Text>
     </Animated.View>
   );
 }

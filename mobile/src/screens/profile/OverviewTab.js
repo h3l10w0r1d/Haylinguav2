@@ -3,7 +3,7 @@
 // props ProfileScreen already fetched.
 import React from 'react';
 import { View, Text, Share } from 'react-native';
-import { Award, Share2, Calendar, BookOpen, Flame, Zap, Target, Activity, CheckCircle2 } from 'lucide-react-native';
+import { Award, Share2, Calendar, BookOpen, Flame, Zap, Target, Activity, CheckCircle2, ChevronRight } from 'lucide-react-native';
 import Pressable3D from '../../components/Pressable3D';
 
 function HeatmapDay({ value }) {
@@ -32,7 +32,7 @@ function StatCell({ icon: Icon, tint, color, label, value }) {
   );
 }
 
-export default function OverviewTab({ profile, stats, achievements, activityDays, learningSummary }) {
+export default function OverviewTab({ profile, stats, achievements, activityDays, learningSummary, navigation }) {
   const activeDays = activityDays.filter((d) => d.value > 0).length;
   const totalExercises = activityDays.reduce((sum, d) => sum + d.value, 0);
 
@@ -75,9 +75,15 @@ export default function OverviewTab({ profile, stats, achievements, activityDays
 
       {/* Achievements */}
       <View className="mt-4 rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-        <View className="mb-3 flex-row items-center gap-2">
-          <Award size={16} color="#E0A800" />
-          <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Achievements</Text>
+        <View className="mb-3 flex-row items-center justify-between">
+          <View className="flex-row items-center gap-2">
+            <Award size={16} color="#E0A800" />
+            <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">Achievements</Text>
+          </View>
+          <Pressable3D onPress={() => navigation?.navigate('Achievements')} hapticOnPress={false} pressDepth={1} className="flex-row items-center">
+            <Text className="text-xs font-bold text-brand-600">See all</Text>
+            <ChevronRight size={13} color="#FF7A1A" />
+          </Pressable3D>
         </View>
         {achievements.length === 0 ? (
           <Text className="text-sm font-semibold text-stone-400">No achievements earned yet.</Text>

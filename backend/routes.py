@@ -6444,25 +6444,74 @@ def list_adventure_overrides(db: Connection = Depends(get_db)):
 ADVENTURE_XP = 20  # flat reward for finishing an adventure (first time only)
 
 
+@router.get("/adventures/progress")
+def adventure_progress(
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Per-user adventure progress for the Adventures map: which are done, the
+    best star rating (0-3) and best score kept across replays, and play count.
+    Drives lock/unlock gating and the star display on the journey path."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
+    rows = db.execute(
+        text(
+            "SELECT adventure_id, best_stars, best_score, plays, completed_at "
+            "FROM adventure_completions WHERE user_id = :u"
+        ),
+        {"u": int(user_id)},
+    ).mappings().all()
+    return {
+        r["adventure_id"]: {
+            "done": True,
+            "best_stars": int(r["best_stars"] or 0),
+            "best_score": int(r["best_score"] or 0),
+            "plays": int(r["plays"] or 1),
+            "completed_at": r["completed_at"].isoformat() if r["completed_at"] else None,
+        }
+        for r in rows
+    }
+
+
 @router.post("/adventures/{adventure_id}/complete")
 def complete_adventure(
     adventure_id: str,
+    payload: Optional[dict] = Body(default=None),
     authorization: Optional[str] = Header(default=None),
     db: Connection = Depends(get_db),
 ):
     """Award XP the FIRST time a learner finishes an adventure. Replays record
-    nothing new and grant no XP (anti-farming), mirroring lesson completion."""
+    nothing new and grant no XP (anti-farming), mirroring lesson completion.
+    An optional body {stars:0-3, score:int} records the learner's performance;
+    the best result is kept across replays so the map can show earned stars."""
     user_id = _get_user_id_from_bearer(authorization, db)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Missing or invalid authorization")
+    body = payload or {}
+    try:
+        stars = max(0, min(3, int(body.get("stars", 0))))
+    except (TypeError, ValueError):
+        stars = 0
+    try:
+        score = max(0, int(body.get("score", 0)))
+    except (TypeError, ValueError):
+        score = 0
     inserted = db.execute(
         text(
-            "INSERT INTO adventure_completions (user_id, adventure_id) "
-            "VALUES (:u, :a) ON CONFLICT (user_id, adventure_id) DO NOTHING RETURNING 1"
+            "INSERT INTO adventure_completions (user_id, adventure_id, best_stars, best_score, plays, last_played_at) "
+            "VALUES (:u, :a, :st, :sc, 1, NOW()) "
+            "ON CONFLICT (user_id, adventure_id) DO UPDATE SET "
+            "  best_stars = GREATEST(adventure_completions.best_stars, EXCLUDED.best_stars), "
+            "  best_score = GREATEST(adventure_completions.best_score, EXCLUDED.best_score), "
+            "  plays = adventure_completions.plays + 1, "
+            "  last_played_at = NOW() "
+            "RETURNING (xmax = 0) AS is_first"
         ),
-        {"u": int(user_id), "a": adventure_id},
+        {"u": int(user_id), "a": adventure_id, "st": stars, "sc": score},
     ).first()
-    first_time = inserted is not None
+    # xmax = 0 on the returned row means the row was freshly INSERTed (first play).
+    first_time = bool(inserted[0]) if inserted is not None else False
     awarded = ADVENTURE_XP if first_time else 0
     if awarded:
         db.execute(
@@ -6470,7 +6519,7 @@ def complete_adventure(
             {"x": awarded, "u": int(user_id)},
         )
         _award_weekly_xp(db, int(user_id), awarded)
-    return {"awarded_xp": awarded, "first_time": first_time}
+    return {"awarded_xp": awarded, "first_time": first_time, "stars": stars, "score": score}
 
 
 @router.get("/careers/vacancies/{vacancy_id}")
@@ -9162,6 +9211,10 @@ def _escape_ssml(text: str) -> str:
 async def _generate_azure_tts(text_value: str, voice_name: str) -> bytes:
     if not AZURE_SPEECH_KEY or not AZURE_SPEECH_REGION:
         raise HTTPException(status_code=500, detail="Azure Speech not configured on server")
+    # Azure hy-AM silently drops the ligature «և» (U+0587) — it reads «Բարև» as
+    # «Բար». Expand it to the two-letter «եւ» so it's pronounced (barev). Same
+    # sound, correct output. (Applies to every Azure TTS call, incl. lessons.)
+    text_value = (text_value or "").replace("և", "եւ")
     token = await _get_azure_token()
     url = f"https://{AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
     ssml = (
@@ -9197,7 +9250,7 @@ def _tts_cache_dir() -> Path:
 # Bump this when voice_settings (or anything else affecting the generated
 # audio) changes, so old cached files — generated with the previous, worse
 # defaults — become orphaned cache misses instead of being served forever.
-_TTS_CACHE_VERSION = "v5"
+_TTS_CACHE_VERSION = "v6"  # bump: fixes «և» ligature pronunciation — busts stale audio
 
 
 def _prune_stale_tts_cache(max_age_days: int = 90) -> None:

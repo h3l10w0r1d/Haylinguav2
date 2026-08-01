@@ -1,12 +1,23 @@
-// src/screens/OnboardingScreen.js — ports src/Onboarding.jsx's 4-step
-// personalization flow (name/age/country -> level/dialect/goal -> daily
-// plan/reminder/voice -> summary+consent) to mobile. Same GET/POST
-// /me/onboarding contract; RootNavigator routes here instead of Main
-// whenever GET /me/onboarding returns completed:false.
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, ActivityIndicator, ScrollView, Modal, FlatList } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// src/screens/OnboardingScreen.js — one-question-per-page onboarding
+// (Typeform-style), not web's 4-bundled-questions-per-step Onboarding.jsx.
+// Each question answers -> auto-advances with a slide+spring transition;
+// free-text/summary pages keep an explicit Continue/Start button. Same
+// GET/POST /me/onboarding contract as before — only the pacing changed.
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, TextInput, ActivityIndicator, Modal, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, ChevronDown, Search, X } from 'lucide-react-native';
+import Animated, {
+  FadeIn,
+  SlideInRight,
+  SlideInLeft,
+  SlideOutLeft,
+  SlideOutRight,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { api } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
 
@@ -18,12 +29,12 @@ const COUNTRY_OPTIONS = [
   'Other',
 ];
 
-const STEP_META = [
-  { emoji: '👤', label: 'About you', title: "Let's personalize your path", subtitle: 'A few quick questions so we start you at the right level.' },
-  { emoji: '📚', label: 'Curriculum', title: 'Curriculum calibration', subtitle: "Pick your level, dialect, and what you're learning for." },
-  { emoji: '🎯', label: 'Daily plan', title: 'Set your daily plan', subtitle: 'Set a realistic goal — consistency beats intensity every time.' },
-  { emoji: '✅', label: 'Confirm', title: 'Almost done', subtitle: 'Review your setup and confirm to start learning.' },
-];
+const CATEGORY_META = {
+  about: { emoji: '👤', label: 'About you' },
+  curriculum: { emoji: '📚', label: 'Curriculum' },
+  plan: { emoji: '🎯', label: 'Daily plan' },
+  confirm: { emoji: '✅', label: 'Confirm' },
+};
 
 const AGE_OPTIONS = [
   { v: 'Under 13', e: '🧒' }, { v: '13–17', e: '🎒' }, { v: '18–24', e: '🎓' },
@@ -66,35 +77,62 @@ function OptionCard({ active, onPress, icon, label, sub, style }) {
     <Pressable3D
       onPress={onPress}
       style={[
-        { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12 },
+        { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 16 },
         active
           ? { backgroundColor: '#FF7A1A', borderBottomWidth: 4, borderBottomColor: '#C2410C' }
           : { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#e7e5e4' },
         style,
       ]}
     >
-      {!!icon && <Text style={{ fontSize: 20 }}>{icon}</Text>}
+      {!!icon && <Text style={{ fontSize: 24 }}>{icon}</Text>}
       <View style={{ flex: 1 }}>
-        <Text className="text-sm font-extrabold" style={{ color: active ? '#fff' : '#1c1917' }}>{label}</Text>
-        {!!sub && <Text className="text-xs mt-0.5" style={{ color: active ? '#FFE4CC' : '#78716c' }}>{sub}</Text>}
+        <Text className="text-base font-extrabold" style={{ color: active ? '#fff' : '#1c1917' }}>{label}</Text>
+        {!!sub && <Text className="mt-0.5 text-sm" style={{ color: active ? '#FFE4CC' : '#78716c' }}>{sub}</Text>}
       </View>
-      {active && <Check size={16} color="#fff" />}
+      {active && <Check size={18} color="#fff" />}
     </Pressable3D>
   );
 }
 
-function SectionLabel({ title, subtitle }) {
+// Vertical icon-on-top card for narrow 3-column grids (age range, daily
+// goal) — a horizontal icon+label row doesn't fit a 31%-wide cell without
+// wrapping mid-word ("18–24" broke into "1 8 / – / 2 4"). Centering
+// everything and allowing a genuine 2-line label fixes that.
+function GridOptionCard({ active, onPress, icon, label, sub }) {
   return (
-    <View className="mb-3">
-      <Text className="text-base font-extrabold text-stone-900 font-display">{title}</Text>
-      {!!subtitle && <Text className="mt-0.5 text-sm text-stone-500">{subtitle}</Text>}
-    </View>
+    <Pressable3D
+      onPress={onPress}
+      style={[
+        { alignItems: 'center', justifyContent: 'center', borderRadius: 18, paddingHorizontal: 6, paddingVertical: 18, minHeight: 96 },
+        active
+          ? { backgroundColor: '#FF7A1A', borderBottomWidth: 4, borderBottomColor: '#C2410C' }
+          : { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#e7e5e4' },
+      ]}
+    >
+      {!!icon && <Text style={{ fontSize: 26, marginBottom: 6 }}>{icon}</Text>}
+      <Text numberOfLines={2} className="text-center text-sm font-extrabold" style={{ color: active ? '#fff' : '#1c1917' }}>
+        {label}
+      </Text>
+      {!!sub && (
+        <Text className="mt-0.5 text-center text-[11px] font-semibold" style={{ color: active ? '#FFE4CC' : '#a8a29e' }}>
+          {sub}
+        </Text>
+      )}
+    </Pressable3D>
   );
 }
 
 function CountryPicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // RN's Modal renders its content in a separate native view hierarchy (a
+  // detached UIViewController on iOS), which doesn't reliably inherit the
+  // outer SafeAreaProvider's context — SafeAreaView here fell back to a
+  // zero top inset, so the header collided with the status bar/notch and
+  // the close button landed under it, unreachable. useSafeAreaInsets()
+  // queries the device's real insets directly instead of relying on that
+  // inherited context.
+  const insets = useSafeAreaInsets();
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return COUNTRY_OPTIONS;
@@ -105,16 +143,16 @@ function CountryPicker({ value, onChange }) {
     <View>
       <Pressable3D
         onPress={() => setOpen(true)}
-        className="flex-row items-center gap-3 rounded-2xl bg-white px-4 py-3.5"
+        className="flex-row items-center gap-3 rounded-2xl bg-white px-4 py-4"
         style={{ borderWidth: 2, borderColor: '#e7e5e4' }}
       >
-        <Text className="flex-1 text-sm font-semibold text-stone-800">{value || 'Select country'}</Text>
-        <ChevronDown size={16} color="#a8a29e" />
+        <Text className="flex-1 text-base font-semibold text-stone-800">{value || 'Select country'}</Text>
+        <ChevronDown size={18} color="#a8a29e" />
       </Pressable3D>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        <SafeAreaView className="flex-1 bg-[#f5f4f1]">
-          <View className="flex-row items-center gap-3 px-4 pb-3 pt-2">
+        <View className="flex-1 bg-[#f5f4f1]" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+          <View className="flex-row items-center gap-3 px-4 pb-3 pt-3">
             <Text className="flex-1 text-lg font-extrabold text-stone-900 font-display">Select country</Text>
             <Pressable3D onPress={() => setOpen(false)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-stone-200">
               <X size={18} color="#57534e" />
@@ -145,14 +183,15 @@ function CountryPicker({ value, onChange }) {
               </Pressable3D>
             )}
           />
-        </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );
 }
 
 export default function OnboardingScreen({ navigation }) {
-  const [step, setStep] = useState(1);
+  const [qIndex, setQIndex] = useState(0);
+  const [dir, setDir] = useState(1); // 1 = advancing (slide from right), -1 = going back
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -174,8 +213,8 @@ export default function OnboardingScreen({ navigation }) {
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-  const totalSteps = 4;
   const showPlanningVisit = country && country !== '🇦🇲 Armenia';
+  const autoAdvanceTimer = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -207,44 +246,319 @@ export default function OnboardingScreen({ navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function canNext() {
-    if (step === 1) {
-      if (!displayName.trim()) return 'Please enter your name.';
-      if (!ageRange) return 'Please select your age range.';
-      if (!country) return 'Please select your country.';
-      if (showPlanningVisit && planningVisit === null) return "Please tell us if you're planning to visit Armenia.";
-      return '';
-    }
-    if (step === 2) {
-      if (!knowledgeLevel) return 'Please select your current level.';
-      if (!primaryGoal) return 'Please select your main goal.';
-      return '';
-    }
-    if (step === 3) {
-      if (!voicePref) return 'Please select at least one voice preference.';
-      return '';
-    }
-    if (step === 4) {
-      if (!acceptedTerms) return 'You must accept Terms & Conditions.';
-      return '';
-    }
-    return '';
+  useEffect(() => () => clearTimeout(autoAdvanceTimer.current), []);
+
+  function goTo(nextIndex, direction) {
+    clearTimeout(autoAdvanceTimer.current);
+    setError('');
+    setDir(direction);
+    setQIndex(nextIndex);
   }
 
-  function next() {
-    const msg = canNext();
-    if (msg) { setError(msg); return; }
-    setError('');
-    setStep((s) => Math.min(totalSteps, s + 1));
+  // Selecting an answer for a single-choice question feels like the "next"
+  // affordance itself — a brief pause lets the selected state register
+  // before the page slides away, then goTo() fires the transition.
+  function selectAndAdvance(setter, value, nextIndex) {
+    setter(value);
+    clearTimeout(autoAdvanceTimer.current);
+    autoAdvanceTimer.current = setTimeout(() => goTo(nextIndex, 1), 320);
   }
-  function back() {
-    setError('');
-    setStep((s) => Math.max(1, s - 1));
+
+  const questions = useMemo(() => {
+    const list = [
+      {
+        key: 'name',
+        category: 'about',
+        title: "What's your name?",
+        subtitle: "This is how we'll address you throughout the app.",
+        autoAdvance: false,
+        isValid: () => !!displayName.trim(),
+        errorMsg: 'Please enter your name.',
+        render: (onNext) => (
+          <TextInput
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="e.g. Armen"
+            placeholderTextColor="#a8a29e"
+            maxLength={50}
+            autoFocus
+            returnKeyType="next"
+            onSubmitEditing={onNext}
+            className="rounded-2xl bg-white px-5 py-5 text-lg font-semibold text-stone-900"
+            style={{ borderWidth: 2, borderColor: '#e7e5e4' }}
+          />
+        ),
+      },
+      {
+        key: 'age',
+        category: 'about',
+        title: 'How old are you?',
+        subtitle: 'We use this to tailor pacing and tone.',
+        autoAdvance: true,
+        isValid: () => !!ageRange,
+        errorMsg: 'Please select your age range.',
+        render: (_onNext, advance) => (
+          <View className="flex-row flex-wrap" style={{ gap: 10 }}>
+            {AGE_OPTIONS.map(({ v, e }) => (
+              <View key={v} style={{ width: '31%' }}>
+                <GridOptionCard active={ageRange === v} onPress={() => selectAndAdvance(setAgeRange, v, advance)} icon={e} label={v} />
+              </View>
+            ))}
+          </View>
+        ),
+      },
+      {
+        key: 'country',
+        category: 'about',
+        title: 'Where are you located?',
+        subtitle: 'Helps us optimize content and examples.',
+        autoAdvance: false,
+        isValid: () => !!country,
+        errorMsg: 'Please select your country.',
+        render: (onNext) => (
+          <CountryPicker
+            value={country}
+            onChange={(c) => {
+              setCountry(c);
+              setPlanningVisit(null);
+              clearTimeout(autoAdvanceTimer.current);
+              autoAdvanceTimer.current = setTimeout(onNext, 250);
+            }}
+          />
+        ),
+      },
+      ...(showPlanningVisit
+        ? [
+            {
+              key: 'visiting',
+              category: 'about',
+              title: 'Planning to visit Armenia soon?',
+              subtitle: "If yes, we'll prioritize travel phrases earlier.",
+              autoAdvance: true,
+              isValid: () => planningVisit !== null,
+              errorMsg: "Please tell us if you're planning to visit Armenia.",
+              render: (_onNext, advance) => (
+                <View className="flex-row" style={{ gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <OptionCard active={planningVisit === true} onPress={() => selectAndAdvance(setPlanningVisit, true, advance)} icon="✈️" label="Yes, a trip" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <OptionCard active={planningVisit === false} onPress={() => selectAndAdvance(setPlanningVisit, false, advance)} icon="🏠" label="Not right now" />
+                  </View>
+                </View>
+              ),
+            },
+          ]
+        : []),
+      {
+        key: 'level',
+        category: 'curriculum',
+        title: 'Your current level',
+        subtitle: "We don't want to start you too easy or too hard.",
+        autoAdvance: true,
+        isValid: () => !!knowledgeLevel,
+        errorMsg: 'Please select your current level.',
+        render: (_onNext, advance) => (
+          <View style={{ gap: 10 }}>
+            {LEVEL_OPTIONS.map(({ k, e, sub }) => (
+              <OptionCard key={k} active={knowledgeLevel === k} onPress={() => selectAndAdvance(setKnowledgeLevel, k, advance)} icon={e} label={k} sub={sub} />
+            ))}
+          </View>
+        ),
+      },
+      {
+        key: 'dialect',
+        category: 'curriculum',
+        title: 'Which dialect?',
+        subtitle: 'Eastern is official in Armenia; Western is diaspora Armenian.',
+        autoAdvance: true,
+        isValid: () => !!dialect,
+        errorMsg: 'Please select a dialect.',
+        render: (_onNext, advance) => (
+          <View className="flex-row" style={{ gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <OptionCard active={dialect === 'Eastern'} onPress={() => selectAndAdvance(setDialect, 'Eastern', advance)} icon="🇦🇲" label="Eastern" sub="Spoken in Armenia" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <OptionCard active={dialect === 'Western'} onPress={() => selectAndAdvance(setDialect, 'Western', advance)} icon="🌍" label="Western" sub="Diaspora Armenian" />
+            </View>
+          </View>
+        ),
+      },
+      {
+        key: 'goal',
+        category: 'curriculum',
+        title: 'Why are you learning?',
+        subtitle: "We'll prioritize vocabulary that matters to you.",
+        autoAdvance: true,
+        isValid: () => !!primaryGoal,
+        errorMsg: 'Please select your main goal.',
+        render: (_onNext, advance) => (
+          <View style={{ gap: 10 }}>
+            {GOAL_OPTIONS.map(({ v, e, sub }) => (
+              <OptionCard key={v} active={primaryGoal === v} onPress={() => selectAndAdvance(setPrimaryGoal, v, advance)} icon={e} label={v} sub={sub} />
+            ))}
+          </View>
+        ),
+      },
+      {
+        key: 'dailyGoal',
+        category: 'plan',
+        title: 'Daily goal',
+        subtitle: 'Pick a target you can actually keep.',
+        autoAdvance: true,
+        isValid: () => !!dailyGoalMin,
+        errorMsg: 'Please pick a daily goal.',
+        render: (_onNext, advance) => (
+          <View className="flex-row flex-wrap" style={{ gap: 10 }}>
+            {DAILY_GOAL_OPTIONS.map(({ min, label, sub }) => (
+              <View key={min} style={{ width: '31%' }}>
+                <GridOptionCard active={dailyGoalMin === min} onPress={() => selectAndAdvance(setDailyGoalMin, min, advance)} label={label} sub={sub} />
+              </View>
+            ))}
+          </View>
+        ),
+      },
+      {
+        key: 'reminder',
+        category: 'plan',
+        title: 'Study reminder',
+        subtitle: 'A daily nudge is the single biggest retention lever.',
+        autoAdvance: true,
+        isValid: () => true,
+        errorMsg: '',
+        render: (_onNext, advance) => (
+          <View className="flex-row flex-wrap" style={{ gap: 10 }}>
+            {REMINDER_OPTIONS.map(({ t, sub, v }) => {
+              const active = v === null ? !remindersEnabled : remindersEnabled && reminderTime === v;
+              return (
+                <View key={t} style={{ width: '47%' }}>
+                  <OptionCard
+                    active={active}
+                    onPress={() => {
+                      if (v === null) selectAndAdvance(setRemindersEnabled, false, advance);
+                      else {
+                        setReminderTime(v);
+                        selectAndAdvance(setRemindersEnabled, true, advance);
+                      }
+                    }}
+                    label={t}
+                    sub={sub}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        ),
+      },
+      {
+        key: 'voice',
+        category: 'plan',
+        title: 'Voice preference',
+        subtitle: 'Hearing multiple voices improves comprehension.',
+        autoAdvance: true,
+        isValid: () => !!voicePref,
+        errorMsg: 'Please select at least one voice preference.',
+        render: (_onNext, advance) => (
+          <View style={{ gap: 10 }}>
+            <OptionCard active={voicePref === 'Male'} onPress={() => selectAndAdvance(setVoicePref, 'Male', advance)} label="Male voice" sub="Clear pronunciation & lower pitch" />
+            <OptionCard active={voicePref === 'Female'} onPress={() => selectAndAdvance(setVoicePref, 'Female', advance)} label="Female voice" sub="Natural pitch variation & clarity" />
+            <OptionCard active={voicePref === 'Random'} onPress={() => selectAndAdvance(setVoicePref, 'Random', advance)} label="Mix both voices" sub="Best for real-world listening variety" />
+          </View>
+        ),
+      },
+      {
+        key: 'summary',
+        category: 'confirm',
+        title: 'Almost done',
+        subtitle: 'Review your setup and confirm to start learning.',
+        autoAdvance: false,
+        isValid: () => acceptedTerms,
+        errorMsg: 'You must accept Terms & Conditions.',
+        render: () => (
+          <View style={{ gap: 16 }}>
+            <View className="rounded-2xl bg-brand-50 p-5">
+              <Text className="text-base font-extrabold text-stone-900 font-display">Your plan</Text>
+              <View className="mt-3 flex-row flex-wrap" style={{ gap: 16 }}>
+                {[
+                  ['Level', knowledgeLevel || '—'],
+                  ['Dialect', dialect],
+                  ['Goal', primaryGoal || '—'],
+                  ['Daily', `${dailyGoalMin} min`],
+                  ['Voice', voicePref || '—'],
+                  ['Reminder', remindersEnabled ? reminderTime : 'Off'],
+                ].map(([k, v]) => (
+                  <View key={k} style={{ minWidth: '40%' }}>
+                    <Text className="text-xs font-bold uppercase tracking-wide text-stone-400">{k}</Text>
+                    <Text className="text-sm font-semibold text-stone-900" numberOfLines={1}>{v}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <Pressable3D
+              onPress={() => setMarketingOptIn((v) => !v)}
+              className="flex-row items-start gap-3 rounded-2xl p-4"
+              style={{ backgroundColor: marketingOptIn ? '#FFF5EC' : '#ffffff', borderWidth: 2, borderColor: marketingOptIn ? '#FFC99E' : '#e7e5e4' }}
+            >
+              <View className="mt-0.5 h-5 w-5 items-center justify-center rounded-md" style={{ backgroundColor: marketingOptIn ? '#FF7A1A' : '#f5f5f4' }}>
+                {marketingOptIn && <Check size={12} color="#fff" strokeWidth={3} />}
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-stone-900">Send me learning tips and product updates</Text>
+                <Text className="mt-0.5 text-xs text-stone-500">You can unsubscribe anytime.</Text>
+              </View>
+            </Pressable3D>
+
+            <Pressable3D
+              onPress={() => setAcceptedTerms((v) => !v)}
+              className="flex-row items-start gap-3 rounded-2xl p-4"
+              style={{ backgroundColor: acceptedTerms ? '#FFF5EC' : '#ffffff', borderWidth: 2, borderColor: acceptedTerms ? '#FFC99E' : '#e7e5e4' }}
+            >
+              <View className="mt-0.5 h-5 w-5 items-center justify-center rounded-md" style={{ backgroundColor: acceptedTerms ? '#FF7A1A' : '#f5f5f4' }}>
+                {acceptedTerms && <Check size={12} color="#fff" strokeWidth={3} />}
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-stone-900">I accept the Terms &amp; Conditions</Text>
+                <Text className="mt-0.5 text-xs text-stone-500">Required to start learning.</Text>
+              </View>
+            </Pressable3D>
+          </View>
+        ),
+      },
+    ];
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    displayName, ageRange, country, planningVisit, showPlanningVisit,
+    knowledgeLevel, dialect, primaryGoal, dailyGoalMin, reminderTime, remindersEnabled, voicePref,
+    marketingOptIn, acceptedTerms,
+  ]);
+
+  // Country selection can remove/re-add the "visiting" question mid-flow —
+  // clamp so an in-progress index never points past the (possibly shorter) list.
+  const clampedIndex = Math.min(qIndex, questions.length - 1);
+  const q = questions[clampedIndex];
+  const isLast = clampedIndex === questions.length - 1;
+
+  function handleNext() {
+    if (!q.isValid()) {
+      setError(q.errorMsg);
+      return;
+    }
+    if (isLast) {
+      submit();
+      return;
+    }
+    goTo(clampedIndex + 1, 1);
+  }
+
+  function handleBack() {
+    if (clampedIndex === 0) return;
+    goTo(clampedIndex - 1, -1);
   }
 
   async function submit() {
-    const msg = canNext();
-    if (msg) { setError(msg); return; }
     setSaving(true);
     setError('');
     try {
@@ -271,6 +585,14 @@ export default function OnboardingScreen({ navigation }) {
     }
   }
 
+  // Animated progress bar — smoothly eases to the new fraction whenever the
+  // question index changes, instead of a hard jump.
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withTiming((clampedIndex + 1) / questions.length, { duration: 380, easing: Easing.out(Easing.cubic) });
+  }, [clampedIndex, questions.length, progress]);
+  const progressStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
+
   if (loading) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-[#f5f4f1]">
@@ -279,247 +601,67 @@ export default function OnboardingScreen({ navigation }) {
     );
   }
 
-  const meta = STEP_META[step - 1];
+  const cat = CATEGORY_META[q.category];
+  const EnterAnim = (dir === 1 ? SlideInRight : SlideInLeft).duration(360).springify().damping(19).mass(0.7);
+  const ExitAnim = (dir === 1 ? SlideOutLeft : SlideOutRight).duration(200);
 
   return (
     <SafeAreaView className="flex-1 bg-[#f5f4f1]">
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        <View className="mb-5 flex-row items-center justify-center" style={{ gap: 6 }}>
-          {STEP_META.map((m, i) => {
-            const idx = i + 1;
-            const done = step > idx;
-            const active = step === idx;
-            return (
-              <View key={idx} className="flex-row items-center" style={{ gap: 6 }}>
-                <View
-                  className="rounded-full px-2.5 py-1"
-                  style={{ backgroundColor: active ? '#FF7A1A' : done ? '#EFFCE3' : '#f5f5f4' }}
-                >
-                  <Text className="text-xs font-extrabold" style={{ color: active ? '#fff' : done ? '#3A8A00' : '#a8a29e' }}>
-                    {done ? '✓' : m.emoji}
-                  </Text>
-                </View>
-                {idx < totalSteps && <View className="h-0.5 w-4 rounded-full" style={{ backgroundColor: done ? '#A5E86B' : '#e7e5e4' }} />}
-              </View>
-            );
-          })}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
+        <View className="px-5 pt-3">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-1.5">
+              <Text style={{ fontSize: 15 }}>{cat.emoji}</Text>
+              <Text className="text-xs font-extrabold uppercase tracking-wide text-stone-400">{cat.label}</Text>
+            </View>
+            <Text className="text-xs font-bold text-stone-400">{clampedIndex + 1} / {questions.length}</Text>
+          </View>
+          <View className="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
+            <Animated.View className="h-full rounded-full bg-brand-500" style={progressStyle} />
+          </View>
         </View>
 
-        <View className="rounded-3xl bg-white p-6" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-          <Text style={{ fontSize: 22 }}>{meta.emoji}</Text>
-          <Text className="mt-1 text-xl font-extrabold text-stone-900 font-display">{meta.title}</Text>
-          <Text className="mt-1 text-sm text-stone-500">{meta.subtitle}</Text>
+        <View className="flex-1 px-5 pt-6" style={{ overflow: 'hidden' }}>
+          <Animated.View key={q.key} entering={EnterAnim} exiting={ExitAnim} style={{ flex: 1 }}>
+            <Animated.View entering={FadeIn.delay(60).duration(260)}>
+              <Text className="text-2xl font-extrabold text-stone-900 font-display">{q.title}</Text>
+              <Text className="mt-1.5 text-sm text-stone-500">{q.subtitle}</Text>
+            </Animated.View>
 
-          <View className="mt-5" style={{ gap: 20 }}>
             {!!error && (
-              <View className="rounded-2xl bg-cardinal-50 px-4 py-3">
+              <View className="mt-4 rounded-2xl bg-cardinal-50 px-4 py-3">
                 <Text className="text-sm font-semibold text-cardinal-700">{error}</Text>
               </View>
             )}
 
-            {step === 1 && (
-              <>
-                <View>
-                  <SectionLabel title="What's your name?" subtitle="This is how we'll address you throughout the app." />
-                  <TextInput
-                    value={displayName}
-                    onChangeText={setDisplayName}
-                    placeholder="e.g. Armen"
-                    placeholderTextColor="#a8a29e"
-                    maxLength={50}
-                    className="rounded-2xl bg-white px-4 py-3.5 text-base font-semibold text-stone-900"
-                    style={{ borderWidth: 2, borderColor: '#e7e5e4' }}
-                  />
-                </View>
-                <View>
-                  <SectionLabel title="How old are you?" subtitle="We use this to tailor pacing and tone." />
-                  <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-                    {AGE_OPTIONS.map(({ v, e }) => (
-                      <View key={v} style={{ width: '31%' }}>
-                        <OptionCard active={ageRange === v} onPress={() => setAgeRange(v)} icon={e} label={v} />
-                      </View>
-                    ))}
-                  </View>
-                </View>
-                <View>
-                  <SectionLabel title="Where are you located?" subtitle="Helps us optimize content and examples." />
-                  <CountryPicker value={country} onChange={(c) => { setCountry(c); setPlanningVisit(null); }} />
-                </View>
-                {showPlanningVisit && (
-                  <View>
-                    <SectionLabel title="Planning to visit Armenia soon?" subtitle="If yes, we'll prioritize travel phrases earlier." />
-                    <View className="flex-row" style={{ gap: 10 }}>
-                      <View style={{ flex: 1 }}>
-                        <OptionCard active={planningVisit === true} onPress={() => setPlanningVisit(true)} icon="✈️" label="Yes, a trip" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <OptionCard active={planningVisit === false} onPress={() => setPlanningVisit(false)} icon="🏠" label="Not right now" />
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </>
-            )}
-
-            {step === 2 && (
-              <>
-                <View>
-                  <SectionLabel title="Your current level" subtitle="We don't want to start you too easy or too hard." />
-                  <View style={{ gap: 8 }}>
-                    {LEVEL_OPTIONS.map(({ k, e, sub }) => (
-                      <OptionCard key={k} active={knowledgeLevel === k} onPress={() => setKnowledgeLevel(k)} icon={e} label={k} sub={sub} />
-                    ))}
-                  </View>
-                </View>
-                <View>
-                  <SectionLabel title="Which dialect?" subtitle="Eastern is official in Armenia; Western is diaspora Armenian." />
-                  <View className="flex-row" style={{ gap: 10 }}>
-                    <View style={{ flex: 1 }}>
-                      <OptionCard active={dialect === 'Eastern'} onPress={() => setDialect('Eastern')} icon="🇦🇲" label="Eastern" sub="Spoken in Armenia" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <OptionCard active={dialect === 'Western'} onPress={() => setDialect('Western')} icon="🌍" label="Western" sub="Diaspora Armenian" />
-                    </View>
-                  </View>
-                </View>
-                <View>
-                  <SectionLabel title="Why are you learning?" subtitle="We'll prioritize vocabulary that matters to you." />
-                  <View style={{ gap: 8 }}>
-                    {GOAL_OPTIONS.map(({ v, e, sub }) => (
-                      <OptionCard key={v} active={primaryGoal === v} onPress={() => setPrimaryGoal(v)} icon={e} label={v} sub={sub} />
-                    ))}
-                  </View>
-                </View>
-              </>
-            )}
-
-            {step === 3 && (
-              <>
-                <View>
-                  <SectionLabel title="Daily goal" subtitle="Pick a target you can actually keep." />
-                  <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-                    {DAILY_GOAL_OPTIONS.map(({ min, label, sub }) => (
-                      <View key={min} style={{ width: '31%' }}>
-                        <OptionCard active={dailyGoalMin === min} onPress={() => setDailyGoalMin(min)} label={label} sub={sub} />
-                      </View>
-                    ))}
-                  </View>
-                </View>
-                <View>
-                  <SectionLabel title="Study reminder" subtitle="A daily nudge is the single biggest retention lever." />
-                  <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-                    {REMINDER_OPTIONS.map(({ t, sub, v }) => {
-                      const active = v === null ? !remindersEnabled : remindersEnabled && reminderTime === v;
-                      return (
-                        <View key={t} style={{ width: '47%' }}>
-                          <OptionCard
-                            active={active}
-                            onPress={() => (v === null ? setRemindersEnabled(false) : (setReminderTime(v), setRemindersEnabled(true)))}
-                            label={t}
-                            sub={sub}
-                          />
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
-                <View>
-                  <SectionLabel title="Voice preference" subtitle="Hearing multiple voices improves comprehension." />
-                  <View style={{ gap: 8 }}>
-                    <OptionCard active={voicePref === 'Male'} onPress={() => setVoicePref('Male')} label="Male voice" sub="Clear pronunciation & lower pitch" />
-                    <OptionCard active={voicePref === 'Female'} onPress={() => setVoicePref('Female')} label="Female voice" sub="Natural pitch variation & clarity" />
-                    <OptionCard active={voicePref === 'Random'} onPress={() => setVoicePref('Random')} label="Mix both voices" sub="Best for real-world listening variety" />
-                  </View>
-                </View>
-              </>
-            )}
-
-            {step === 4 && (
-              <>
-                <View className="rounded-2xl bg-brand-50 p-5">
-                  <Text className="text-base font-extrabold text-stone-900 font-display">Your plan</Text>
-                  <View className="mt-3 flex-row flex-wrap" style={{ gap: 16 }}>
-                    {[
-                      ['Level', knowledgeLevel || '—'],
-                      ['Dialect', dialect],
-                      ['Goal', primaryGoal || '—'],
-                      ['Daily', `${dailyGoalMin} min`],
-                      ['Voice', voicePref || '—'],
-                      ['Reminder', remindersEnabled ? reminderTime : 'Off'],
-                    ].map(([k, v]) => (
-                      <View key={k} style={{ minWidth: '40%' }}>
-                        <Text className="text-xs font-bold uppercase tracking-wide text-stone-400">{k}</Text>
-                        <Text className="text-sm font-semibold text-stone-900" numberOfLines={1}>{v}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-
-                <Pressable3D
-                  onPress={() => setMarketingOptIn((v) => !v)}
-                  className="flex-row items-start gap-3 rounded-2xl p-4"
-                  style={{ backgroundColor: marketingOptIn ? '#FFF5EC' : '#ffffff', borderWidth: 2, borderColor: marketingOptIn ? '#FFC99E' : '#e7e5e4' }}
-                >
-                  <View className="mt-0.5 h-5 w-5 items-center justify-center rounded-md" style={{ backgroundColor: marketingOptIn ? '#FF7A1A' : '#f5f5f4' }}>
-                    {marketingOptIn && <Check size={12} color="#fff" strokeWidth={3} />}
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-stone-900">Send me learning tips and product updates</Text>
-                    <Text className="mt-0.5 text-xs text-stone-500">You can unsubscribe anytime.</Text>
-                  </View>
-                </Pressable3D>
-
-                <Pressable3D
-                  onPress={() => setAcceptedTerms((v) => !v)}
-                  className="flex-row items-start gap-3 rounded-2xl p-4"
-                  style={{ backgroundColor: acceptedTerms ? '#FFF5EC' : '#ffffff', borderWidth: 2, borderColor: acceptedTerms ? '#FFC99E' : '#e7e5e4' }}
-                >
-                  <View className="mt-0.5 h-5 w-5 items-center justify-center rounded-md" style={{ backgroundColor: acceptedTerms ? '#FF7A1A' : '#f5f5f4' }}>
-                    {acceptedTerms && <Check size={12} color="#fff" strokeWidth={3} />}
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-stone-900">I accept the Terms &amp; Conditions</Text>
-                    <Text className="mt-0.5 text-xs text-stone-500">Required to start learning.</Text>
-                  </View>
-                </Pressable3D>
-              </>
-            )}
-          </View>
-
-          <View className="mt-6 flex-row items-center justify-between">
-            <Pressable3D
-              onPress={back}
-              disabled={step === 1 || saving}
-              className="rounded-2xl bg-stone-100 px-5 py-3"
-              style={{ opacity: step === 1 || saving ? 0.4 : 1 }}
-            >
-              <Text className="text-sm font-extrabold text-stone-700">Back</Text>
-            </Pressable3D>
-
-            {step < totalSteps ? (
-              <Pressable3D
-                onPress={next}
-                disabled={saving}
-                className="rounded-2xl px-6 py-3"
-                style={{ backgroundColor: '#FF7A1A', borderBottomWidth: 4, borderBottomColor: '#C2410C' }}
-              >
-                <Text className="text-sm font-extrabold uppercase text-white">Continue</Text>
-              </Pressable3D>
-            ) : (
-              <Pressable3D
-                onPress={submit}
-                disabled={saving}
-                className="flex-row items-center gap-2 rounded-2xl px-6 py-3"
-                style={{ backgroundColor: '#FF7A1A', borderBottomWidth: 4, borderBottomColor: '#C2410C' }}
-              >
-                {saving ? <ActivityIndicator color="#fff" /> : <Text className="text-sm font-extrabold uppercase text-white">Start learning</Text>}
-              </Pressable3D>
-            )}
-          </View>
+            <View className="mt-6">{q.render(handleNext, clampedIndex + 1)}</View>
+          </Animated.View>
         </View>
 
-        <Text className="mt-4 text-center text-xs text-stone-400">You can change all preferences later in your profile.</Text>
-      </ScrollView>
+        <View className="flex-row items-center justify-between px-5 pb-6 pt-3">
+          <Pressable3D
+            onPress={handleBack}
+            disabled={clampedIndex === 0 || saving}
+            className="rounded-2xl bg-stone-100 px-5 py-3.5"
+            style={{ opacity: clampedIndex === 0 || saving ? 0.4 : 1 }}
+          >
+            <Text className="text-sm font-extrabold text-stone-700">Back</Text>
+          </Pressable3D>
+
+          {!q.autoAdvance && (
+            <Pressable3D
+              onPress={handleNext}
+              disabled={saving}
+              className="flex-row items-center gap-2 rounded-2xl px-7 py-3.5"
+              style={{ backgroundColor: '#FF7A1A', borderBottomWidth: 4, borderBottomColor: '#C2410C' }}
+            >
+              {saving ? <ActivityIndicator color="#fff" /> : (
+                <Text className="text-sm font-extrabold uppercase text-white">{isLast ? 'Start learning' : 'Continue'}</Text>
+              )}
+            </Pressable3D>
+          )}
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

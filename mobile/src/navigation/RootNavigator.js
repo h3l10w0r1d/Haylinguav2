@@ -20,6 +20,13 @@ import PlacementScreen from '../screens/PlacementScreen';
 import AssessmentScreen from '../screens/AssessmentScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import AvatarBuilderScreen from '../screens/AvatarBuilderScreen';
+import ForumScreen from '../screens/ForumScreen';
+import ForumCategoryScreen from '../screens/ForumCategoryScreen';
+import ForumThreadScreen from '../screens/ForumThreadScreen';
+import ProgressScreen from '../screens/ProgressScreen';
+import AchievementsScreen from '../screens/AchievementsScreen';
+import BonusesScreen from '../screens/BonusesScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -64,6 +71,13 @@ export default function RootNavigator() {
             <Stack.Screen name="Placement" component={PlacementScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="Assessment" component={AssessmentScreen} options={{ presentation: 'fullScreenModal' }} />
             <Stack.Screen name="AvatarBuilder" component={AvatarBuilderScreen} options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="Forum" component={ForumScreen} />
+            <Stack.Screen name="ForumCategory" component={ForumCategoryScreen} />
+            <Stack.Screen name="ForumThread" component={ForumThreadScreen} />
+            <Stack.Screen name="Progress" component={ProgressScreen} />
+            <Stack.Screen name="Achievements" component={AchievementsScreen} />
+            <Stack.Screen name="Bonuses" component={BonusesScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
           </>
         )}
       </Stack.Navigator>
