@@ -24,6 +24,8 @@ from auth import get_current_user
 from routes_conversation import (
     _transcribe_hispeech,
     _transcribe_azure_stt,
+    _pronounce_azure,
+    _word_align,
     HISPEECH_API_KEY,
 )
 from routes import AZURE_SPEECH_KEY, AZURE_SPEECH_REGION
@@ -843,6 +845,62 @@ async def transcribe_speech(
     # Last resort — Azure and/or hispeech either weren't configured, weren't
     # applicable (non-Armenian), or returned nothing.
     return await _transcribe_elevenlabs_fallback(data, filename, audio.content_type, lang)
+
+
+@router.post("/me/exercises/pronounce")
+async def assess_pronunciation(
+    audio: UploadFile = File(...),
+    reference_text: str = Form(...),
+    user=Depends(get_current_user),  # 🔒 logged-in learners only (costs an STT request)
+):
+    """Score a learner's spoken attempt against a reference phrase and return
+    per-word feedback, for the adventures' Speaking exercise. Uses Azure
+    Pronunciation Assessment when the locale is supported; otherwise degrades to
+    plain STT + word alignment so the learner still sees which words landed."""
+    _check_transcribe_rate(int(user["id"]))
+    if not AZURE_SPEECH_CONFIGURED and not HISPEECH_API_KEY:
+        raise HTTPException(status_code=400, detail="Speech scoring is not configured")
+
+    data = await audio.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty audio")
+    if len(data) > MAX_AUDIO_SIZE:
+        raise HTTPException(status_code=400, detail=f"Audio too large. Max: {MAX_AUDIO_SIZE/1024/1024}MB")
+
+    ref = (reference_text or "").strip()
+
+    # Preferred path: real Azure Pronunciation Assessment (per-phoneme accuracy).
+    if AZURE_SPEECH_CONFIGURED:
+        try:
+            return await _pronounce_azure(data, ref)
+        except Exception as e:
+            print(f"[pron] Azure assessment unavailable, falling back to STT+align: {e}")
+
+    # Fallback: transcribe, then align heard words against the reference so the
+    # learner still gets word-level matched/missed feedback and an overall score.
+    recognized = ""
+    if AZURE_SPEECH_CONFIGURED:
+        try:
+            t = await _transcribe_azure_stt(data)
+            recognized = "" if (t or "").startswith("[") else (t or "")
+        except Exception:
+            recognized = ""
+    if not recognized and HISPEECH_API_KEY:
+        try:
+            recognized = await _transcribe_hispeech(data, audio.filename or "speech.webm") or ""
+        except Exception:
+            recognized = ""
+
+    words, accuracy = _word_align(ref, recognized)
+    return {
+        "recognized": recognized,
+        "accuracy": accuracy,
+        "fluency": 0,
+        "completeness": accuracy,
+        "pron_score": accuracy,
+        "words": words,
+        "fallback": True,
+    }
 
 
 async def _transcribe_elevenlabs_scribe(data: bytes, filename: str) -> str:

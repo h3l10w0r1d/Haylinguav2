@@ -158,6 +158,12 @@ def ensure_schema() -> None:
                 PRIMARY KEY (user_id, adventure_id)
             )
         """)
+        # Mastery / replay: best result kept across replays. best_stars 0-3 drives
+        # the progression map's star display; plays counts replays (no XP on those).
+        add_col_if_missing("adventure_completions", "best_stars INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("adventure_completions", "best_score INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("adventure_completions", "plays INTEGER NOT NULL DEFAULT 1")
+        add_col_if_missing("adventure_completions", "last_played_at TIMESTAMPTZ")
 
         # ---------- Per-user word exposure (drives NEW-word badges) ----------
         ensure_table("user_word_exposure", """
