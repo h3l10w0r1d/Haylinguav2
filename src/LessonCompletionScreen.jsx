@@ -15,6 +15,7 @@ import {
 import ChestOpening from "./lib/ChestOpening";
 import { mascotFaceUrl } from "./lib/mascotFaces";
 import { sfx } from "./lib/sfx";
+import { useCountUp } from "./lib/useCountUp";
 
 const RS_API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function rsToken() {
@@ -24,25 +25,6 @@ function rsToken() {
 function clamp01(n) {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(1, n));
-}
-
-/** Ease-out count-up used for the XP roll-up. */
-function useCountUp(target, ms = 900) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    const to = Number(target) || 0;
-    if (to <= 0) { setN(0); return; }
-    let raf;
-    const start = performance.now();
-    const tick = (t) => {
-      const p = Math.min(1, (t - start) / ms);
-      setN(Math.round(to * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, ms]);
-  return n;
 }
 
 const CONFETTI_COLORS = ["#FF7A1A", "#58CC02", "#1CB0F6", "#FFC800", "#E11D48"];
@@ -201,7 +183,7 @@ export default function LessonCompletionScreen({
   const total = Number(analytics?.total_exercises ?? 0) || 0;
 
   const xp = Number(sessionXpEarned ?? earnedXp) || 0;
-  const xpCount = useCountUp(xp);
+  const xpCount = useCountUp(xp, { duration: 900, startFromZero: true });
 
   const accuracy = useMemo(() => {
     const attempts = Number(analytics?.total_attempts ?? 0) || 0;
@@ -264,7 +246,7 @@ export default function LessonCompletionScreen({
           className="animate-pop h-40 w-40 object-contain drop-shadow-xl sm:h-48 sm:w-48"
         />
 
-        <div>
+        <div className="page-in" style={{ animationDelay: "100ms" }}>
           <h2 className="font-display text-3xl font-extrabold tracking-tight text-gold-500 sm:text-4xl dark:text-gold-400">
             {perfect ? "Perfect Lesson!" : passed ? "Lesson Complete!" : "Almost there!"}
           </h2>
@@ -279,12 +261,19 @@ export default function LessonCompletionScreen({
 
         {/* Two Duolingo stat cards: TOTAL XP + rating/accuracy. */}
         <div className="grid w-full max-w-sm grid-cols-2 gap-3">
-          <DuoStatCard label="Total XP" icon={Zap} value={`+${xpCount}`} tone="gold" />
-          <DuoStatCard label={ratingWord} icon={Target} value={`${accuracy}%`} tone="grass" />
+          <div className="tile-pop" style={{ animationDelay: "180ms" }}>
+            <DuoStatCard label="Total XP" icon={Zap} value={`+${xpCount}`} tone="gold" />
+          </div>
+          <div className="tile-pop" style={{ animationDelay: "230ms" }}>
+            <DuoStatCard label={ratingWord} icon={Target} value={`${accuracy}%`} tone="grass" />
+          </div>
         </div>
 
         {/* Optional third line: correct count + time, compact. */}
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm font-bold text-slate-400 dark:text-stone-500">
+        <div
+          className="page-in flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm font-bold text-slate-400 dark:text-stone-500"
+          style={{ animationDelay: "280ms" }}
+        >
           {total ? <span>{correct}/{total} correct</span> : null}
           {Number.isFinite(timeMs) ? (
             <span className="inline-flex items-center gap-1"><Clock className="h-4 w-4" /> {formatDuration(timeMs)}</span>
@@ -292,7 +281,9 @@ export default function LessonCompletionScreen({
           {comboBonusXp > 0 ? <span className="text-brand-500 dark:text-brand-400">+{comboBonusXp} combo</span> : null}
         </div>
 
-        <RewardExtras onOpenChest={openChest} />
+        <div className="page-in" style={{ animationDelay: "340ms" }}>
+          <RewardExtras onOpenChest={openChest} />
+        </div>
 
         {analyticsError ? (
           <div className="text-xs font-semibold text-cardinal-500">Couldn’t load full analytics.</div>
