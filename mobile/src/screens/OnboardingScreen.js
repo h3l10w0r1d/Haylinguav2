@@ -83,6 +83,38 @@ function OptionCard({ active, onPress, icon, label, sub, style }) {
   );
 }
 
+// Vertical icon-on-top card for narrow 3-column grids (age range, daily
+// goal) — OptionCard's horizontal icon+label row doesn't fit a 31%-wide
+// cell without wrapping mid-word ("18–24" broke into "1 8 / – / 2 4").
+// Centering everything and allowing a genuine 2-line label fixes that.
+function GridOptionCard({ active, onPress, icon, label, sub }) {
+  return (
+    <Pressable3D
+      onPress={onPress}
+      style={[
+        { alignItems: 'center', justifyContent: 'center', borderRadius: 16, paddingHorizontal: 6, paddingVertical: 14, minHeight: 84 },
+        active
+          ? { backgroundColor: '#FF7A1A', borderBottomWidth: 4, borderBottomColor: '#C2410C' }
+          : { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#e7e5e4' },
+      ]}
+    >
+      {!!icon && <Text style={{ fontSize: 22, marginBottom: 4 }}>{icon}</Text>}
+      <Text
+        numberOfLines={2}
+        className="text-center text-xs font-extrabold"
+        style={{ color: active ? '#fff' : '#1c1917' }}
+      >
+        {label}
+      </Text>
+      {!!sub && (
+        <Text className="mt-0.5 text-center text-[10px] font-semibold" style={{ color: active ? '#FFE4CC' : '#a8a29e' }}>
+          {sub}
+        </Text>
+      )}
+    </Pressable3D>
+  );
+}
+
 function SectionLabel({ title, subtitle }) {
   return (
     <View className="mb-3">
@@ -336,7 +368,7 @@ export default function OnboardingScreen({ navigation }) {
                   <View className="flex-row flex-wrap" style={{ gap: 8 }}>
                     {AGE_OPTIONS.map(({ v, e }) => (
                       <View key={v} style={{ width: '31%' }}>
-                        <OptionCard active={ageRange === v} onPress={() => setAgeRange(v)} icon={e} label={v} />
+                        <GridOptionCard active={ageRange === v} onPress={() => setAgeRange(v)} icon={e} label={v} />
                       </View>
                     ))}
                   </View>
@@ -400,7 +432,7 @@ export default function OnboardingScreen({ navigation }) {
                   <View className="flex-row flex-wrap" style={{ gap: 8 }}>
                     {DAILY_GOAL_OPTIONS.map(({ min, label, sub }) => (
                       <View key={min} style={{ width: '31%' }}>
-                        <OptionCard active={dailyGoalMin === min} onPress={() => setDailyGoalMin(min)} label={label} sub={sub} />
+                        <GridOptionCard active={dailyGoalMin === min} onPress={() => setDailyGoalMin(min)} label={label} sub={sub} />
                       </View>
                     ))}
                   </View>
