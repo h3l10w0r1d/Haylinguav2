@@ -31,6 +31,7 @@ import AccountDangerZone from "./AccountDangerZone";
 import AvatarBuilder, { generateRandomAvatarFile } from "./AvatarBuilder";
 import BannerBuilder from "./BannerBuilder";
 import AvatarFrame from "./lib/avatarFrame";
+import NameTag from "./lib/nameTag";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -172,8 +173,15 @@ export default function ProfilePage() {
   const [activeFrame, setActiveFrame] = useState(null);
   const [activeFrameStyle, setActiveFrameStyle] = useState(null);
   const [activeFrameRarity, setActiveFrameRarity] = useState(null);
+  const [activeNameTagStyle, setActiveNameTagStyle] = useState(null);
+  const [activeNameTagRarity, setActiveNameTagRarity] = useState(null);
   const [shopItems, setShopItems] = useState([]);
   const [frameEquipping, setFrameEquipping] = useState(null);
+
+  // Name tags
+  const [nameTagInventory, setNameTagInventory] = useState([]);
+  const [activeUserItemId, setActiveUserItemId] = useState(null);
+  const [nameTagEquipping, setNameTagEquipping] = useState(null);
 
   // Share
   const [copied, setCopied] = useState(false);
@@ -379,6 +387,8 @@ export default function ProfilePage() {
           setActiveFrame(wd.active_frame || null);
           setActiveFrameStyle(wd.active_frame_style || null);
           setActiveFrameRarity(wd.active_frame_rarity || null);
+          setActiveNameTagStyle(wd.active_name_tag_style || null);
+          setActiveNameTagRarity(wd.active_name_tag_rarity || null);
         }
       } catch {}
 
@@ -386,6 +396,16 @@ export default function ProfilePage() {
         const sh = await apiFetch("/me/shop", { token });
         const shd = await safeJsonParse(sh);
         if (!cancelled && sh.ok && shd?.items) setShopItems(shd.items);
+      } catch {}
+
+      try {
+        const nt = await apiFetch("/me/inventory?category=name_tag_effect", { token });
+        const ntd = await safeJsonParse(nt);
+        if (!cancelled && nt.ok && ntd?.items) {
+          setNameTagInventory(ntd.items);
+          const equipped = ntd.items.find((i) => i.equipped);
+          setActiveUserItemId(equipped ? equipped.user_item_id : null);
+        }
       } catch {}
     }
 
@@ -954,7 +974,9 @@ export default function ProfilePage() {
 
               <div className="pb-1">
                 <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800 dark:text-white">
-                  {firstName || lastName ? `${firstName} ${lastName}`.trim() : username || "Your profile"}
+                  <NameTag renderKey={activeNameTagStyle} rarity={activeNameTagRarity}>
+                    {firstName || lastName ? `${firstName} ${lastName}`.trim() : username || "Your profile"}
+                  </NameTag>
                 </h1>
                 <div className="text-sm font-bold text-slate-400 dark:text-stone-500">@{username || "set-a-username"}</div>
               </div>
@@ -1603,6 +1625,7 @@ export default function ProfilePage() {
 
       {/* ===== Avatar frames ===== */}
       {tab === "appearance" && (
+<>
 <section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
   <div className="flex items-center gap-2 mb-1">
     <Award className="w-5 h-5 text-brand-500 shrink-0" />
@@ -1677,6 +1700,71 @@ export default function ProfilePage() {
     </div>
   )}
 </section>
+
+<section className="rounded-3xl bg-white p-6 ring-1 ring-slate-200 shadow-sm mt-6 dark:bg-[#18181b] dark:ring-white/[0.08]">
+  <div className="flex items-center gap-2 mb-1">
+    <Award className="w-5 h-5 text-brand-500 shrink-0" />
+    <h2 className="font-display text-lg font-extrabold text-slate-800 dark:text-white">Name tag</h2>
+  </div>
+  <p className="text-sm font-semibold text-slate-500 mb-4 dark:text-stone-400">
+    Equip a name tag effect you own to show it wherever your name appears.
+  </p>
+
+  {nameTagInventory.length === 0 ? (
+    <div className="flex flex-col items-center gap-2 py-6 text-center">
+      <Award className="w-10 h-10 text-slate-300 dark:text-stone-600" />
+      <p className="text-sm font-bold text-slate-400 dark:text-stone-500">No name tags owned yet.</p>
+      <p className="text-xs font-semibold text-slate-400 dark:text-stone-500">Visit the shop to buy name tag effects.</p>
+    </div>
+  ) : (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <button
+        type="button"
+        onClick={async () => {
+          if (activeUserItemId === null) return;
+          setNameTagEquipping("none");
+          try {
+            const r = await apiFetch("/me/inventory/unequip", { token, method: "POST", body: JSON.stringify({ category: "name_tag_effect" }) });
+            if (r.ok) { setActiveUserItemId(null); setActiveNameTagStyle(null); setActiveNameTagRarity(null); window.dispatchEvent(new CustomEvent("hay_wallet")); }
+          } catch {}
+          setNameTagEquipping(null);
+        }}
+        className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (activeUserItemId === null ? "ring-brand-500 bg-brand-50 dark:bg-brand-500/15" : "ring-slate-200 hover:ring-brand-300 bg-white dark:ring-white/[0.08] dark:bg-[#18181b]")}
+      >
+        <span className="text-sm font-extrabold text-slate-500 dark:text-stone-400">{username || "Name"}</span>
+        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide leading-tight dark:text-stone-400">None</span>
+        {activeUserItemId === null && <Check className="h-3.5 w-3.5 text-brand-500" />}
+      </button>
+
+      {nameTagInventory.map((it) => {
+        const isActive = activeUserItemId === it.user_item_id;
+        const isEquipping = nameTagEquipping === String(it.user_item_id);
+        return (
+          <button
+            key={it.user_item_id}
+            type="button"
+            disabled={isActive || isEquipping}
+            onClick={async () => {
+              setNameTagEquipping(String(it.user_item_id));
+              try {
+                const r = await apiFetch(`/me/inventory/${it.user_item_id}/equip`, { token, method: "POST" });
+                if (r.ok) { setActiveUserItemId(it.user_item_id); setActiveNameTagStyle(it.render_key || null); setActiveNameTagRarity(it.rarity || null); window.dispatchEvent(new CustomEvent("hay_wallet")); }
+              } catch {}
+              setNameTagEquipping(null);
+            }}
+            className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (isActive ? "ring-brand-500 bg-brand-50 dark:bg-brand-500/15" : "ring-slate-200 hover:ring-brand-300 bg-white dark:ring-white/[0.08] dark:bg-[#18181b]")}
+          >
+            <NameTag renderKey={it.render_key} rarity={it.rarity} className="text-sm font-extrabold">{username || it.title}</NameTag>
+            <span className="text-[10px] font-extrabold text-slate-600 leading-tight text-center dark:text-stone-300">{it.title}</span>
+            {isActive && <Check className="h-3.5 w-3.5 text-brand-500" />}
+            {isEquipping && <span className="text-[10px] text-slate-400 font-bold dark:text-stone-500">Saving…</span>}
+          </button>
+        );
+      })}
+    </div>
+  )}
+</section>
+</>
       )}
 
       {/* ===== Security tab ===== */}

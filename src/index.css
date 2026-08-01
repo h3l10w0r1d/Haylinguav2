@@ -491,6 +491,48 @@
   .rarity-glow-epic, .rarity-glow-legendary { animation: none; background-image: none; }
 }
 
+/* ----- Name-tag effects (item_definitions category "name_tag_effect") -----
+   render_key names one of these classes directly, same pattern as
+   AvatarFrame's frame_style -> FRAME_STYLES gradient key. Gradient-text
+   classes use the background-clip:text trick — works fine on inline spans,
+   no layout changes needed at call sites. */
+.nametag-frost {
+  color: #38BDF8;
+}
+.nametag-ember {
+  color: #FB923C;
+  text-shadow: 0 0 6px rgba(251, 146, 60, 0.5);
+}
+.nametag-royal {
+  background: linear-gradient(90deg, #C084FC, #7C3AED, #C084FC);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@keyframes nametagShimmer {
+  0%   { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
+}
+.nametag-starlight {
+  background: linear-gradient(90deg, #FFE79A, #E8A317, #FFE79A, #E8A317);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: nametagShimmer 2.6s linear infinite;
+}
+.nametag-prismatic {
+  background: linear-gradient(90deg, #FF5A5A, #FFB25A, #FFE45A, #7DDE6A, #5AA7FF, #A65AFF, #FF5A5A);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: nametagShimmer 3s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nametag-starlight, .nametag-prismatic { animation: none; }
+}
+
 /* ----- Page transitions ----- */
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(10px); }

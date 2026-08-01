@@ -5974,7 +5974,7 @@ def _load_shop_items(db: Connection) -> list[dict]:
                 """
                 SELECT id, title, description, icon, price_gems, category, render_key, rarity
                 FROM item_definitions
-                WHERE COALESCE(is_active, TRUE) AND category IN ('avatar_frame', 'profile_theme')
+                WHERE COALESCE(is_active, TRUE) AND category IN ('avatar_frame', 'profile_theme', 'name_tag_effect')
                 ORDER BY sort_order ASC, id ASC
                 """
             )
@@ -5992,6 +5992,7 @@ def _load_shop_items(db: Connection) -> list[dict]:
             "icon": r.get("icon") or "gem", "price": int(r["price_gems"] or 0),
             "effect": r["category"], "effect_amount": 0,
             "frame_style": r["render_key"] if r["category"] == "avatar_frame" else None,
+            "render_key": r.get("render_key"),
             "rarity": r.get("rarity"),
         }
         for r in cosmetic_rows
@@ -6082,6 +6083,39 @@ def _frame_rarity_map(db: Connection) -> dict:
     return {f"cosmetic_{r['id']}": r["rarity"] for r in rows}
 
 
+def _active_name_tag_map(db: Connection, user_ids: Optional[list] = None) -> dict:
+    """{user_id: {"style": render_key, "rarity": rarity}} for every user with
+    an equipped name_tag_effect. Unlike avatar frames, this category has no
+    legacy denormalized column to read (no pre-existing users.active_* to
+    preserve) — always computed live from user_items, scoped to `user_ids`
+    when given (leaderboard/friends pages already have a bounded row set;
+    single-user lookups like the public profile route pass one id).
+    """
+    where = "ui.category = 'name_tag_effect' AND ui.equipped"
+    params: Dict[str, Any] = {}
+    if user_ids is not None:
+        ids = list({int(u) for u in user_ids if u is not None})
+        if not ids:
+            return {}
+        where += " AND ui.user_id = ANY(:uids)"
+        params["uids"] = ids
+    try:
+        rows = db.execute(
+            text(
+                f"""
+                SELECT ui.user_id, idf.render_key, idf.rarity
+                FROM user_items ui
+                JOIN item_definitions idf ON idf.id = ui.item_id
+                WHERE {where}
+                """
+            ),
+            params,
+        ).mappings().all()
+    except Exception:
+        return {}
+    return {int(r["user_id"]): {"style": r["render_key"], "rarity": r["rarity"]} for r in rows}
+
+
 def _wallet(db: Connection, user_id: int) -> dict:
     row = db.execute(
         text(
@@ -6103,14 +6137,16 @@ def _wallet(db: Connection, user_id: int) -> dict:
     owned_rows = db.execute(
         text(
             "SELECT item_id, category FROM user_items "
-            "WHERE user_id = :u AND category IN ('avatar_frame', 'profile_theme')"
+            "WHERE user_id = :u AND category IN ('avatar_frame', 'profile_theme', 'name_tag_effect')"
         ),
         {"u": user_id},
     ).mappings().all()
     owned_frames = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "avatar_frame"]
     owned_themes = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "profile_theme"]
+    owned_name_tags = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "name_tag_effect"]
 
     active_frame = row.get("active_frame")
+    name_tag = _active_name_tag_map(db, [user_id]).get(user_id)
     return {
         "gems": int(row.get("gems") or 0),
         "chests": int(row.get("chests") or 0),
@@ -6118,9 +6154,12 @@ def _wallet(db: Connection, user_id: int) -> dict:
         "xp_multiplier_active": bool(row.get("xp_multiplier_active")),
         "owned_frames": owned_frames,
         "owned_themes": owned_themes,
+        "owned_name_tags": owned_name_tags,
         "active_frame": active_frame,
         "active_frame_style": _frame_style_map(db).get(str(active_frame)) if active_frame else None,
         "active_frame_rarity": _frame_rarity_map(db).get(str(active_frame)) if active_frame else None,
+        "active_name_tag_style": name_tag["style"] if name_tag else None,
+        "active_name_tag_rarity": name_tag["rarity"] if name_tag else None,
     }
 
 
@@ -6317,6 +6356,7 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
     ).mappings().first() or {}
     owned_frames = w["owned_frames"]
     owned_themes = w["owned_themes"]
+    owned_name_tags = w["owned_name_tags"]
     hs = _hearts_state(db, user_id)
 
     def _status(it) -> str:
@@ -6325,6 +6365,8 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
             return "owned" if str(it["id"]) in owned_frames else "available"
         if eff == "profile_theme":
             return "owned" if str(it["id"]) in owned_themes else "available"
+        if eff == "name_tag_effect":
+            return "owned" if str(it["id"]) in owned_name_tags else "available"
         if eff == "heart_shield":
             return "active" if u.get("heart_shield_active") else "available"
         if eff == "xp_multiplier":
@@ -6345,6 +6387,8 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
             "icon": it["icon"], "price": it["price"],
             "effect": it.get("effect"),
             "frame_style": it.get("frame_style"),
+            "render_key": it.get("render_key"),
+            "rarity": it.get("rarity"),
             "affordable": w["gems"] >= it["price"],
             "status": _status(it),
         }
@@ -6396,14 +6440,15 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         today = _date.today()
         if not last_date or (today - last_date).days < 2 or (today - last_date).days > 4:
             raise HTTPException(status_code=400, detail="Streak Repair only works if your streak broke in the last 2–3 days")
-    elif effect in ("avatar_frame", "profile_theme"):
+    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect"):
         item_def_id = _parse_cosmetic_id(item["id"])
         already = item_def_id is not None and db.execute(
             text("SELECT 1 FROM user_items WHERE user_id = :u AND item_id = :i AND category = :c"),
             {"u": user_id, "i": item_def_id, "c": effect},
         ).first()
         if already:
-            raise HTTPException(status_code=400, detail=f"You already own this {'frame' if effect == 'avatar_frame' else 'theme'}")
+            _label = {"avatar_frame": "frame", "profile_theme": "theme", "name_tag_effect": "name tag effect"}.get(effect, "item")
+            raise HTTPException(status_code=400, detail=f"You already own this {_label}")
 
     # Atomic charge: deduct gems only if balance is sufficient. This prevents
     # a double-tap race where two concurrent requests both pass the pre-flight check.
@@ -6448,7 +6493,7 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
                 text("UPDATE users SET current_streak = :c, streak_last_activity_date = CURRENT_DATE - 1 WHERE id = :u"),
                 {"c": streak_count, "u": user_id},
             )
-    elif effect in ("avatar_frame", "profile_theme"):
+    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect"):
         item_def_id = _parse_cosmetic_id(item["id"])
         db.execute(
             text(
@@ -6465,6 +6510,107 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         "price_gems": price,
     })
     return result
+
+
+# ----------------------------
+# Marketplace inventory — generic ownership/equip surface for every
+# item_definitions category (avatar_frame still equips through the older
+# PUT /me/active-frame too, kept for backward compatibility with existing
+# frontend code; new categories like name_tag_effect only have this path).
+# ----------------------------
+
+@router.get("/me/inventory")
+def me_inventory(
+    category: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    where = "ui.user_id = :u"
+    params: Dict[str, Any] = {"u": user_id}
+    if category:
+        where += " AND ui.category = :c"
+        params["c"] = category
+
+    rows = db.execute(
+        text(
+            f"""
+            SELECT ui.id AS user_item_id, ui.item_id, ui.category, ui.equipped,
+                   ui.acquired_via, ui.acquired_at,
+                   idf.title, idf.description, idf.icon, idf.rarity, idf.render_key
+            FROM user_items ui
+            JOIN item_definitions idf ON idf.id = ui.item_id
+            WHERE {where}
+            ORDER BY ui.acquired_at DESC
+            """
+        ),
+        params,
+    ).mappings().all()
+    return {"items": [dict(r) for r in rows]}
+
+
+@router.post("/me/inventory/{user_item_id}/equip")
+def me_inventory_equip(
+    user_item_id: int,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    row = db.execute(
+        text("SELECT item_id, category FROM user_items WHERE id = :id AND user_id = :u"),
+        {"id": user_item_id, "u": user_id},
+    ).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Item not found")
+    category = row["category"]
+
+    db.execute(
+        text("UPDATE user_items SET equipped = FALSE WHERE user_id = :u AND category = :c"),
+        {"u": user_id, "c": category},
+    )
+    db.execute(text("UPDATE user_items SET equipped = TRUE WHERE id = :id"), {"id": user_item_id})
+
+    # Keep the users.active_frame denormalized cache in sync when equipping
+    # an avatar_frame through this generic endpoint too — same reasoning as
+    # PUT /me/active-frame (leaderboard/friends/public-profile read that
+    # column directly for cheap bulk lookups).
+    if category == "avatar_frame":
+        db.execute(
+            text("UPDATE users SET active_frame = :f WHERE id = :u"),
+            {"f": f"cosmetic_{row['item_id']}", "u": user_id},
+        )
+
+    return {"ok": True}
+
+
+class InventoryUnequipIn(BaseModel):
+    category: str
+
+
+@router.post("/me/inventory/unequip")
+def me_inventory_unequip(
+    body: InventoryUnequipIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    db.execute(
+        text("UPDATE user_items SET equipped = FALSE WHERE user_id = :u AND category = :c"),
+        {"u": user_id, "c": body.category},
+    )
+    if body.category == "avatar_frame":
+        db.execute(text("UPDATE users SET active_frame = NULL WHERE id = :u"), {"u": user_id})
+
+    return {"ok": True}
 
 
 # ----------------------------

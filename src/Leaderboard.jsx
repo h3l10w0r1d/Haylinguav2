@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { ArrowUp, ArrowDown, Clock, Trophy, Users, Zap, ChevronRight, Medal } from "lucide-react";
 import { CrownBadge } from "./lib/PremiumBadge";
 import AvatarFrame from "./lib/avatarFrame";
+import NameTag from "./lib/nameTag";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function getToken() {
@@ -95,7 +96,9 @@ function Podium({ entries }) {
             {rank}
           </div>
         </div>
-        <div className="mt-3 max-w-[80px] truncate text-center font-display text-xs font-extrabold text-slate-700 dark:text-stone-200">{e.name}</div>
+        <div className="mt-3 max-w-[80px] truncate text-center font-display text-xs font-extrabold text-slate-700 dark:text-stone-200">
+          <NameTag renderKey={e.active_name_tag_style} rarity={e.active_name_tag_rarity}>{e.name}</NameTag>
+        </div>
         <div className="font-display text-sm font-extrabold tabular-nums" style={{ color }}>{e.weekly_xp.toLocaleString()} XP</div>
         <div className={`w-full rounded-t-xl ${isFirst ? "h-20" : rank === 2 ? "h-14" : "h-10"}`} style={{ background: color, opacity: 0.12 }} />
       </div>
@@ -125,7 +128,7 @@ function Row({ entry }) {
       <Avatar name={entry.name} url={entry.avatar_url} size="h-10 w-10" text="text-base" isPremium={entry.is_premium} frameStyle={entry.active_frame_style} rarity={entry.active_frame_rarity} />
       <div className="min-w-0 flex-1">
         <div className={`truncate font-display text-sm font-extrabold ${isSelf ? "text-brand-600 dark:text-brand-400" : "text-slate-800 dark:text-white"}`}>
-          {entry.name}
+          <NameTag renderKey={entry.active_name_tag_style} rarity={entry.active_name_tag_rarity}>{entry.name}</NameTag>
           {isSelf && <span className="ml-1.5 rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] text-brand-600 dark:bg-brand-500/20 dark:text-brand-400">You</span>}
         </div>
       </div>

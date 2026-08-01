@@ -27,6 +27,7 @@ from routes import (
     _brevo_sync_user,
     _frame_style_map,
     _frame_rarity_map,
+    _active_name_tag_map,
 )
 
 router = APIRouter()
@@ -46,6 +47,8 @@ class FriendOut(BaseModel):
     is_premium: bool = False
     active_frame_style: str | None = None
     active_frame_rarity: str | None = None
+    active_name_tag_style: str | None = None
+    active_name_tag_rarity: str | None = None
 
 class FriendSuggestionOut(BaseModel):
     user_id: int
@@ -120,6 +123,7 @@ def friends_list(
 
     fmap = _frame_style_map(db)
     rmap = _frame_rarity_map(db)
+    namemap = _active_name_tag_map(db, [r["id"] for r in rows])
     out: list[FriendOut] = []
     for r in rows:
         email = (r.get("email") or "").strip()
@@ -136,6 +140,7 @@ def friends_list(
         level = max(1, (xp // 500) + 1)
         streak = _compute_streak_days(db, int(r["id"]))
         active_frame = r.get("active_frame")
+        name_tag = namemap.get(int(r["id"]))
 
         out.append(
             FriendOut(
@@ -150,6 +155,8 @@ def friends_list(
                 is_premium=bool(r.get("is_premium")),
                 active_frame_style=fmap.get(str(active_frame)) if active_frame else None,
                 active_frame_rarity=rmap.get(str(active_frame)) if active_frame else None,
+                active_name_tag_style=name_tag["style"] if name_tag else None,
+                active_name_tag_rarity=name_tag["rarity"] if name_tag else None,
             )
         )
 
@@ -802,6 +809,8 @@ class LeaderboardEntryOut(BaseModel):
     avatar_url: str | None = None
     active_frame_style: str | None = None
     active_frame_rarity: str | None = None
+    active_name_tag_style: str | None = None
+    active_name_tag_rarity: str | None = None
 
 
 # === route:get_leaderboard ===
@@ -835,6 +844,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
 
     fmap = _frame_style_map(db)
     rmap = _frame_rarity_map(db)
+    namemap = _active_name_tag_map(db, [r["user_id"] for r in rows])
     out: List[LeaderboardEntryOut] = []
     for i, r in enumerate(rows, start=1):
         email = r["email"] or ""
@@ -852,6 +862,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
         # Streak not tracked in DB yet in this version -> return 0
         streak = 0
 
+        name_tag = namemap.get(int(r["user_id"]))
         out.append(
             LeaderboardEntryOut(
                 user_id=int(r["user_id"]),
@@ -865,6 +876,8 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 avatar_url=r.get("avatar_url"),
                 active_frame_style=fmap.get(str(r.get("active_frame"))) if r.get("active_frame") else None,
                 active_frame_rarity=rmap.get(str(r.get("active_frame"))) if r.get("active_frame") else None,
+                active_name_tag_style=name_tag["style"] if name_tag else None,
+                active_name_tag_rarity=name_tag["rarity"] if name_tag else None,
             )
         )
 
@@ -881,6 +894,8 @@ class PublicUserOut(BaseModel):
     avatar_url: str | None = None
     active_frame_style: str | None = None
     active_frame_rarity: str | None = None
+    active_name_tag_style: str | None = None
+    active_name_tag_rarity: str | None = None
     banner_url: str | None = None
     profile_theme: dict = {}
     joined_at: datetime | None = None
@@ -1113,6 +1128,7 @@ def get_public_user(
         """
     )
     top_friends = [dict(r) for r in db.execute(q_top, {"uid": target_id}).mappings().all()]
+    name_tag = _active_name_tag_map(db, [target_id]).get(target_id)
 
     return PublicUserOut(
         user_id=target_id,
@@ -1122,6 +1138,8 @@ def get_public_user(
         avatar_url=data.get("avatar_url"),
         active_frame_style=_frame_style_map(db).get(str(data.get("active_frame"))) if data.get("active_frame") else None,
         active_frame_rarity=_frame_rarity_map(db).get(str(data.get("active_frame"))) if data.get("active_frame") else None,
+        active_name_tag_style=name_tag["style"] if name_tag else None,
+        active_name_tag_rarity=name_tag["rarity"] if name_tag else None,
         banner_url=data.get("banner_url"),
         profile_theme=data.get("profile_theme") or {},
         joined_at=data.get("joined_at"),
@@ -1235,6 +1253,7 @@ def get_public_user_friends(
 
     fmap = _frame_style_map(db)
     rmap = _frame_rarity_map(db)
+    namemap = _active_name_tag_map(db, [r["id"] for r in rows])
     out: list[FriendOut] = []
     for r in rows:
         email = (r.get("email") or "").strip()
@@ -1245,6 +1264,7 @@ def get_public_user_friends(
         level = max(1, (xp // 500) + 1)
         streak = _compute_streak_days(db, int(r["id"]))
         active_frame = r.get("active_frame")
+        name_tag = namemap.get(int(r["id"]))
         out.append(
             FriendOut(
                 user_id=int(r["id"]),
@@ -1258,6 +1278,8 @@ def get_public_user_friends(
                 is_premium=bool(r.get("is_premium")),
                 active_frame_style=fmap.get(str(active_frame)) if active_frame else None,
                 active_frame_rarity=rmap.get(str(active_frame)) if active_frame else None,
+                active_name_tag_style=name_tag["style"] if name_tag else None,
+                active_name_tag_rarity=name_tag["rarity"] if name_tag else None,
             )
         )
 

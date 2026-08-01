@@ -5,6 +5,7 @@ import { StarMotif } from "./lib/motifs";
 import ActivityChart from "./lib/ActivityChart";
 import { CrownBadge } from "./lib/PremiumBadge";
 import AvatarFrame from "./lib/avatarFrame";
+import NameTag from "./lib/nameTag";
 
 const ACH_ICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -363,7 +364,9 @@ export default function PublicUserPage({ token }) {
                 </div>
                 {/* Name + username — always in white area below banner */}
                 <div>
-                  <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800 sm:text-3xl dark:text-white">{displayName}</h1>
+                  <h1 className="font-display text-2xl font-extrabold leading-tight text-slate-800 sm:text-3xl dark:text-white">
+                    <NameTag renderKey={data?.active_name_tag_style} rarity={data?.active_name_tag_rarity}>{displayName}</NameTag>
+                  </h1>
                   <div className="text-sm font-bold text-slate-400 dark:text-stone-500">
                     @{data.username}
                     {joinDate ? <span className="ml-1.5">· Joined {joinDate}</span> : null}

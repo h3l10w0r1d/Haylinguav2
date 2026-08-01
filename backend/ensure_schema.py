@@ -1338,4 +1338,28 @@ def ensure_schema() -> None:
                 print(f"[ensure_schema] migrated cosmetics for {migrated_users} users into user_items")
             print("[ensure_schema] seeded item_definitions from legacy shop_items")
 
+        # ---------- Marketplace: name-tag effects (first brand-new cosmetic
+        # category, no legacy data to migrate — seeded directly) ----------
+        # render_key is a CSS class name defined in src/index.css; NameTag
+        # wraps a username in it the same way AvatarFrame keys off frame_style.
+        for slug, title, desc, rarity, render_key, price in [
+            ("nametag_frost", "Frost Tag", "A cool icy shimmer on your name.", "common", "nametag-frost", 80),
+            ("nametag_ember", "Ember Tag", "A warm glowing ember on your name.", "uncommon", "nametag-ember", 150),
+            ("nametag_royal", "Royal Tag", "A rich purple gradient fit for royalty.", "rare", "nametag-royal", 300),
+            ("nametag_starlight", "Starlight Tag", "A shimmering gold gradient that catches the eye.", "epic", "nametag-starlight", 600),
+            ("nametag_prismatic", "Prismatic Tag", "A shifting rainbow gradient — as rare as it looks.", "legendary", "nametag-prismatic", 1200),
+        ]:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO item_definitions
+                        (category, slug, title, description, icon, rarity, render_key, price_gems, sort_order)
+                    VALUES ('name_tag_effect', :slug, :title, :desc, 'sparkles', :rarity, :render_key, :price, 0)
+                    ON CONFLICT (slug) DO NOTHING
+                    """
+                ),
+                {"slug": slug, "title": title, "desc": desc, "rarity": rarity, "render_key": render_key, "price": price},
+            )
+        print("[ensure_schema] seeded name_tag_effect item_definitions")
+
     print("[ensure_schema] done")

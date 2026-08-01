@@ -21,6 +21,7 @@ import {
 import { StarMotif } from "./lib/motifs";
 import { CrownBadge } from "./lib/PremiumBadge";
 import AvatarFrame from "./lib/avatarFrame";
+import NameTag from "./lib/nameTag";
 import grandma from "./assets/character-grandma.png";
 
 const API_BASE =
@@ -250,6 +251,8 @@ export default function Friends() {
         is_premium: !!f.is_premium,
         active_frame_style: f.is_hidden ? null : (f.active_frame_style || null),
         active_frame_rarity: f.is_hidden ? null : (f.active_frame_rarity || null),
+        active_name_tag_style: f.is_hidden ? null : (f.active_name_tag_style || null),
+        active_name_tag_rarity: f.is_hidden ? null : (f.active_name_tag_rarity || null),
         // Sent requests don't have stats; keep neutral values.
         level: 1,
         xp: 0,
@@ -903,7 +906,7 @@ function PersonCard({
           </div>
           <div className="min-w-0">
             <h3 className="truncate font-display text-base font-extrabold text-slate-800 dark:text-white">
-              {isHidden ? "Hidden" : person.name}
+              {isHidden ? "Hidden" : <NameTag renderKey={person?.active_name_tag_style} rarity={person?.active_name_tag_rarity}>{person.name}</NameTag>}
             </h3>
             <p className="truncate text-sm font-semibold text-slate-400 dark:text-stone-500">
               {isHidden ? "This user is hidden" : (person.email || person.username || "")}

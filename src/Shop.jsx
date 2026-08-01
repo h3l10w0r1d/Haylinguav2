@@ -2,9 +2,10 @@
 import React, { useEffect, useState } from "react";
 import {
   Gem, Snowflake, Heart, Zap, Loader2, Check, Shield, ShieldCheck,
-  TrendingUp, Award, Image as ImageIcon, X,
+  TrendingUp, Award, Image as ImageIcon, Sparkles, X,
 } from "lucide-react";
 import AvatarFrame from "./lib/avatarFrame";
+import NameTag from "./lib/nameTag";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function getToken() {
@@ -21,6 +22,7 @@ const ICON = {
   "trending-up": TrendingUp,
   award: Award,
   image: ImageIcon,
+  sparkles: Sparkles,
 };
 const TONE = {
   snowflake: "bg-feather-50 text-feather-500 dark:bg-feather-500/15 dark:text-feather-400",
@@ -71,6 +73,10 @@ function ItemCard({ item, onBuy }) {
               <Icon className="h-5 w-5 text-slate-400 dark:text-stone-400" />
             </div>
           </AvatarFrame>
+        ) : item.effect === "name_tag_effect" && item.render_key ? (
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
+            <NameTag renderKey={item.render_key} rarity={item.rarity} className="font-display text-lg font-extrabold">Aa</NameTag>
+          </div>
         ) : (
           <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
             <Icon className="h-6 w-6" />
