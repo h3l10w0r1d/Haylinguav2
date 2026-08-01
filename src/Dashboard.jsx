@@ -11,6 +11,7 @@ import StreakCelebration from "./lib/StreakCelebration";
 import ChestOpening, { ChestIcon } from "./lib/ChestOpening";
 import { preloadLesson } from "./lib/lessonPreload";
 import { LucideGlyph } from "./lib/lucideIcons";
+import { useCountUp } from "./lib/useCountUp";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -583,6 +584,15 @@ export function DailyGoalCard({ todayXp }) {
 
 // Stat row — hearts / streak / XP / gems. Each a lifted card with a colored
 // tinted chip + big number. This is where the palette gets to sing.
+// Ticks a numeric stat from its previous displayed value instead of
+// snapping (Duolingo's XP-counter touch) — non-numeric values (the "∞"/"–"
+// hearts placeholder) just render as-is.
+function KpiValue({ value, numeric }) {
+  const isNum = numeric && typeof value === "number" && Number.isFinite(value);
+  const counted = useCountUp(isNum ? value : 0);
+  return isNum ? counted : value;
+}
+
 function KpiStrip({ token, streak, xp, onPremiumChange }) {
   const [hearts, setHearts] = useState(null);
   const [gems, setGems] = useState(null);
@@ -625,19 +635,25 @@ function KpiStrip({ token, streak, xp, onPremiumChange }) {
     : "–";
 
   const items = [
-    { icon: hearts?.is_premium ? Crown : Heart, label: "Hearts", value: heartLabel, accent: hearts?.is_premium ? ACCENT.gold : ACCENT.cardinal },
-    { icon: Flame, label: "Streak", value: streak, accent: ACCENT.brand },
-    { icon: Zap, label: "XP", value: xp, accent: ACCENT.amber },
-    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, accent: ACCENT.feather },
+    { icon: hearts?.is_premium ? Crown : Heart, label: "Hearts", value: heartLabel, numeric: false, accent: hearts?.is_premium ? ACCENT.gold : ACCENT.cardinal },
+    { icon: Flame, label: "Streak", value: streak, numeric: true, accent: ACCENT.brand },
+    { icon: Zap, label: "XP", value: xp, numeric: true, accent: ACCENT.amber },
+    { icon: Gem, label: "Gems", value: gems == null ? "–" : gems, numeric: gems != null, accent: ACCENT.feather },
   ];
 
   return (
     <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {items.map((it) => (
-        <div key={it.label} className={"flex items-center gap-2.5 px-3.5 py-3 " + CARD}>
+      {items.map((it, i) => (
+        <div
+          key={it.label}
+          className={"tile-pop flex items-center gap-2.5 px-3.5 py-3 " + CARD}
+          style={{ animationDelay: `${i * 60}ms` }}
+        >
           <Chip chip={it.accent} icon={it.icon} size="h-9 w-9" ic="h-4.5 w-4.5" />
           <div className="min-w-0">
-            <div className="text-xl font-extrabold leading-none tabular-nums text-stone-900 dark:text-white">{it.value}</div>
+            <div className="text-xl font-extrabold leading-none tabular-nums text-stone-900 dark:text-white">
+              <KpiValue value={it.value} numeric={it.numeric} />
+            </div>
             <div className="text-[11px] font-semibold text-stone-400 dark:text-stone-500">{it.label}</div>
           </div>
         </div>
@@ -1001,7 +1017,9 @@ function CurriculumUnit({ unit, index, isCurrent, onStart, onCheckpoint }) {
 
       <div className="mt-4" ref={pathRef}>
         {pathMounted ? (
-          <LearningPath unit={unit} onStart={onStart} onCheckpoint={onCheckpoint} complete={complete} />
+          <div className="page-in">
+            <LearningPath unit={unit} onStart={onStart} onCheckpoint={onCheckpoint} complete={complete} />
+          </div>
         ) : (
           <div style={{ height: placeholderHeight }} className="flex items-center justify-center text-stone-300 dark:text-stone-700">
             <Loader2 className="h-5 w-5 animate-spin" />
