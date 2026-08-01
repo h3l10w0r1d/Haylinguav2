@@ -341,7 +341,7 @@ export default function PublicUserPage({ token }) {
                 {/* Avatar — pulled up to overlap the banner */}
                 <div className="-mt-12 mb-3 flex items-end justify-between">
                   <div className="relative shrink-0">
-                    <AvatarFrame frameStyle={data?.active_frame_style} size={96} radius="1.5rem" thickness={3} className="relative z-10">
+                    <AvatarFrame frameStyle={data?.active_frame_style} rarity={data?.active_frame_rarity} size={96} radius="1.5rem" thickness={3} className="relative z-10">
                       <div className={"h-full w-full overflow-hidden rounded-3xl bg-brand-50 shadow-md dark:bg-brand-500/15 " + (data?.active_frame_style ? "" : data?.is_premium ? "ring-4 ring-gold-400" : "ring-4 ring-white dark:ring-[#18181b]")}>
                         {avatarUrl && !avatarBroken ? (
                           <img

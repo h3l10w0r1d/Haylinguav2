@@ -115,6 +115,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
   const [gems, setGems] = useState(null);
   const [activeFrameStyle, setActiveFrameStyle] = useState(null);
+  const [activeFrameRarity, setActiveFrameRarity] = useState(null);
   useEffect(() => {
     const token = getToken();
     if (!token) return;
@@ -126,6 +127,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
           if (!d || cancelled) return;
           setGems(Number(d.gems ?? 0));
           setActiveFrameStyle(d.active_frame_style || null);
+          setActiveFrameRarity(d.active_frame_rarity || null);
         })
         .catch(() => {});
     };
@@ -398,7 +400,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
             {user ? (
               <div className="relative" ref={accountMenuRef}>
-                <AvatarFrame frameStyle={activeFrameStyle} size={36} radius="9999px" thickness={2.5}>
+                <AvatarFrame frameStyle={activeFrameStyle} rarity={activeFrameRarity} size={36} radius="9999px" thickness={2.5}>
                   <button
                     onClick={() => setAccountMenuOpen((v) => !v)}
                     aria-haspopup="menu"

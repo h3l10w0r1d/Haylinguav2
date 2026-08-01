@@ -283,6 +283,13 @@ export default function CmsShop() {
       <div className="space-y-8">
         {/* ----- Shop items ----- */}
         <section className="space-y-4">
+          <div className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
+            Avatar frames and profile themes now live in the new item_definitions
+            catalog (rarity tiers, instance-owned inventory, tradeable) — a dedicated
+            admin view for that is coming with the name-tag-effects rollout. Any
+            avatar_frame/profile_theme rows below are historical only: editing them
+            here no longer affects what players see in the shop.
+          </div>
           <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
             <div className="mb-3 font-display text-base font-bold text-slate-900">New shop item</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1.2fr_0.7fr_0.7fr_auto]">

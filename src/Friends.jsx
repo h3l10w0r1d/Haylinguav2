@@ -249,6 +249,7 @@ export default function Friends() {
         avatar_url: f.is_hidden ? null : (f.avatar_url || null),
         is_premium: !!f.is_premium,
         active_frame_style: f.is_hidden ? null : (f.active_frame_style || null),
+        active_frame_rarity: f.is_hidden ? null : (f.active_frame_rarity || null),
         // Sent requests don't have stats; keep neutral values.
         level: 1,
         xp: 0,
@@ -882,7 +883,7 @@ function PersonCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="relative flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
-            <AvatarFrame frameStyle={!isHidden ? person?.active_frame_style : null} size={48} radius="1rem" thickness={2.5}>
+            <AvatarFrame frameStyle={!isHidden ? person?.active_frame_style : null} rarity={!isHidden ? person?.active_frame_rarity : null} size={48} radius="1rem" thickness={2.5}>
               <div className={"grid h-full w-full place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-pom-500 font-display font-extrabold text-white " + (!person?.active_frame_style && person?.is_premium ? "ring-2 ring-gold-400" : "")}>
                 {isHidden ? (
                   <EyeOff className="h-5 w-5" />

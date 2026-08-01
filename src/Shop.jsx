@@ -49,6 +49,15 @@ const STATUS_BADGE = {
   not_needed: { text: "Premium ∞", cls: "bg-gold-50 text-gold-600 ring-gold-100 dark:bg-gold-500/15 dark:text-gold-400 dark:ring-gold-500/30" },
 };
 
+const RARITY_LABEL = { common: "Common", uncommon: "Uncommon", rare: "Rare", epic: "Epic", legendary: "Legendary" };
+const RARITY_TEXT_CLS = {
+  common: "text-slate-400 dark:text-stone-500",
+  uncommon: "text-grass-600 dark:text-grass-400",
+  rare: "text-feather-600 dark:text-feather-400",
+  epic: "text-purple-600 dark:text-purple-400",
+  legendary: "text-gold-600 dark:text-gold-400",
+};
+
 function ItemCard({ item, onBuy }) {
   const Icon = ICON[item.icon] || Gem;
   const badge = STATUS_BADGE[item.status];
@@ -57,7 +66,7 @@ function ItemCard({ item, onBuy }) {
     <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className="flex items-center gap-3">
         {item.effect === "avatar_frame" && item.frame_style ? (
-          <AvatarFrame frameStyle={item.frame_style} size={48} radius="9999px" thickness={3} className="shrink-0">
+          <AvatarFrame frameStyle={item.frame_style} rarity={item.rarity} size={48} radius="9999px" thickness={3} className="shrink-0">
             <div className="grid h-full w-full place-items-center rounded-full bg-slate-100 dark:bg-white/[0.08]">
               <Icon className="h-5 w-5 text-slate-400 dark:text-stone-400" />
             </div>
@@ -68,7 +77,14 @@ function ItemCard({ item, onBuy }) {
           </div>
         )}
         <div className="min-w-0">
-          <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{item.title}</div>
+          <div className="flex items-center gap-1.5">
+            <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{item.title}</div>
+            {item.rarity && RARITY_LABEL[item.rarity] ? (
+              <span className={"text-[10px] font-extrabold uppercase tracking-wide " + (RARITY_TEXT_CLS[item.rarity] || "")}>
+                {RARITY_LABEL[item.rarity]}
+              </span>
+            ) : null}
+          </div>
           <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">{item.desc}</div>
         </div>
       </div>

@@ -6067,6 +6067,21 @@ def _frame_style_map(db: Connection) -> dict:
     return {f"cosmetic_{r['id']}": r["render_key"] for r in rows}
 
 
+def _frame_rarity_map(db: Connection) -> dict:
+    """{"cosmetic_<item_definitions.id>": rarity} for every avatar_frame item
+    — same shape/keying as _frame_style_map, kept as a separate function
+    (rather than folding rarity into that one's return value) so existing
+    callers of _frame_style_map don't need to change at all.
+    """
+    try:
+        rows = db.execute(
+            text("SELECT id, rarity FROM item_definitions WHERE category = 'avatar_frame'")
+        ).mappings().all()
+    except Exception:
+        return {}
+    return {f"cosmetic_{r['id']}": r["rarity"] for r in rows}
+
+
 def _wallet(db: Connection, user_id: int) -> dict:
     row = db.execute(
         text(
@@ -6105,6 +6120,7 @@ def _wallet(db: Connection, user_id: int) -> dict:
         "owned_themes": owned_themes,
         "active_frame": active_frame,
         "active_frame_style": _frame_style_map(db).get(str(active_frame)) if active_frame else None,
+        "active_frame_rarity": _frame_rarity_map(db).get(str(active_frame)) if active_frame else None,
     }
 
 

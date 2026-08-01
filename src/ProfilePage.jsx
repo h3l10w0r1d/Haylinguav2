@@ -171,6 +171,7 @@ export default function ProfilePage() {
   const [ownedFrames, setOwnedFrames] = useState([]);
   const [activeFrame, setActiveFrame] = useState(null);
   const [activeFrameStyle, setActiveFrameStyle] = useState(null);
+  const [activeFrameRarity, setActiveFrameRarity] = useState(null);
   const [shopItems, setShopItems] = useState([]);
   const [frameEquipping, setFrameEquipping] = useState(null);
 
@@ -377,6 +378,7 @@ export default function ProfilePage() {
           setOwnedFrames(wd.owned_frames || []);
           setActiveFrame(wd.active_frame || null);
           setActiveFrameStyle(wd.active_frame_style || null);
+          setActiveFrameRarity(wd.active_frame_rarity || null);
         }
       } catch {}
 
@@ -924,7 +926,7 @@ export default function ProfilePage() {
           <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
               <div className="relative shrink-0">
-                <AvatarFrame frameStyle={activeFrameStyle} size={96} radius="1.5rem" thickness={3}>
+                <AvatarFrame frameStyle={activeFrameStyle} rarity={activeFrameRarity} size={96} radius="1.5rem" thickness={3}>
                   <div className={"h-full w-full overflow-hidden rounded-3xl bg-white shadow-md dark:bg-[#18181b] " + (activeFrameStyle ? "" : isPremium ? "ring-4 ring-gold-400" : "ring-4 ring-white")}>
                     {avatarPreview ? (
                       <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
@@ -1626,7 +1628,7 @@ export default function ProfilePage() {
           setFrameEquipping("none");
           try {
             const r = await apiFetch("/me/active-frame", { token, method: "PUT", body: JSON.stringify({ frame_id: null }) });
-            if (r.ok) { setActiveFrame(null); setActiveFrameStyle(null); window.dispatchEvent(new CustomEvent("hay_wallet")); }
+            if (r.ok) { setActiveFrame(null); setActiveFrameStyle(null); setActiveFrameRarity(null); window.dispatchEvent(new CustomEvent("hay_wallet")); }
           } catch {}
           setFrameEquipping(null);
         }}
@@ -1653,13 +1655,13 @@ export default function ProfilePage() {
               setFrameEquipping(String(fid));
               try {
                 const r = await apiFetch("/me/active-frame", { token, method: "PUT", body: JSON.stringify({ frame_id: fid }) });
-                if (r.ok) { setActiveFrame(String(fid)); setActiveFrameStyle(item?.frame_style || null); window.dispatchEvent(new CustomEvent("hay_wallet")); }
+                if (r.ok) { setActiveFrame(String(fid)); setActiveFrameStyle(item?.frame_style || null); setActiveFrameRarity(item?.rarity || null); window.dispatchEvent(new CustomEvent("hay_wallet")); }
               } catch {}
               setFrameEquipping(null);
             }}
             className={"flex flex-col items-center gap-1.5 rounded-2xl p-3 ring-2 transition " + (isActive ? "ring-brand-500 bg-brand-50 dark:bg-brand-500/15" : "ring-slate-200 hover:ring-brand-300 bg-white dark:ring-white/[0.08] dark:bg-[#18181b]")}
           >
-            <AvatarFrame frameStyle={item?.frame_style} size={48} radius="9999px" thickness={2.5}>
+            <AvatarFrame frameStyle={item?.frame_style} rarity={item?.rarity} size={48} radius="9999px" thickness={2.5}>
               <div className="h-full w-full rounded-full flex items-center justify-center bg-slate-100 dark:bg-white/[0.06]">
                 <span className="text-xl font-extrabold text-slate-500 dark:text-stone-300">
                   {String(username || "?")[0]?.toUpperCase()}

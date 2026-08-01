@@ -464,6 +464,33 @@
 }
 .tile-pop { animation: tilePop 180ms cubic-bezier(.2,.8,.2,1) both; }
 
+/* ----- Marketplace item rarity flair ----- */
+/* --rarity-color is set inline per-instance from item_rarities.color_hex.
+   common/uncommon get no glow class at all — scarcity should read visually,
+   not apply to every item. */
+@keyframes rarityShimmer {
+  0%   { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
+}
+.rarity-glow-rare {
+  box-shadow: 0 0 8px 2px var(--rarity-color);
+}
+.rarity-glow-epic {
+  box-shadow: 0 0 12px 3px var(--rarity-color);
+  background-image: linear-gradient(120deg, transparent 40%, color-mix(in srgb, var(--rarity-color) 55%, transparent) 50%, transparent 60%);
+  background-size: 250% 100%;
+  animation: rarityShimmer 2.4s ease-in-out infinite;
+}
+.rarity-glow-legendary {
+  box-shadow: 0 0 16px 4px var(--rarity-color);
+  background-image: linear-gradient(120deg, transparent 35%, color-mix(in srgb, var(--rarity-color) 70%, transparent) 50%, transparent 65%);
+  background-size: 250% 100%;
+  animation: rarityShimmer 1.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rarity-glow-epic, .rarity-glow-legendary { animation: none; background-image: none; }
+}
+
 /* ----- Page transitions ----- */
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(10px); }

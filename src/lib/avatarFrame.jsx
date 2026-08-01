@@ -14,6 +14,20 @@ export const FRAME_STYLES = {
   rainbow: "conic-gradient(from 180deg, #FF5A5A, #FFB25A, #FFE45A, #7DDE6A, #5AA7FF, #A65AFF, #FF5A5A)",
 };
 
+// Mirrors backend/ensure_schema.py's item_rarities seed — a semantic key
+// (not a raw hex prop) so this stays one fixed, deliberately-designed
+// palette rather than free-form color, same reasoning as FRAME_STYLES.
+// common/uncommon intentionally have no glow class (see .rarity-glow-* in
+// index.css) — scarcity should read visually, not apply to every item.
+export const RARITY_COLORS = {
+  common: "#94A3B8",
+  uncommon: "#22C55E",
+  rare: "#1CB0F6",
+  epic: "#A855F7",
+  legendary: "#FFC800",
+};
+const RARITY_GLOW_CLASS = { rare: "rarity-glow-rare", epic: "rarity-glow-epic", legendary: "rarity-glow-legendary" };
+
 // Tailwind spacing scale (1 unit = 0.25rem = 4px) for the handful of
 // avatar sizes actually used across the app — lets callers keep passing
 // their existing "h-12 w-12"-style className instead of a separate pixel
@@ -26,13 +40,15 @@ const TAILWIND_PX = { "h-7 w-7": 28, "h-9 w-9": 36, "h-10 w-10": 40, "h-12 w-12"
 // avatar image/initials inside) has a consistent, definite box to resolve
 // against whether or not a frame is equipped, rather than sizing behavior
 // silently changing based on frame state.
-export default function AvatarFrame({ frameStyle, size, sizeClass, radius = "9999px", thickness = 3, className = "", style, children }) {
+export default function AvatarFrame({ frameStyle, rarity, size, sizeClass, radius = "9999px", thickness = 3, className = "", style, children }) {
   const gradient = FRAME_STYLES[frameStyle];
   const px = size || TAILWIND_PX[sizeClass] || 40;
   const pad = gradient ? thickness : 0;
+  const glowClass = RARITY_GLOW_CLASS[rarity];
+  const glowColor = RARITY_COLORS[rarity];
   return (
     <div
-      className={className}
+      className={[className, glowClass].filter(Boolean).join(" ")}
       style={{
         background: gradient || "transparent",
         borderRadius: radius,
@@ -41,6 +57,7 @@ export default function AvatarFrame({ frameStyle, size, sizeClass, radius = "999
         boxSizing: "border-box",
         padding: pad,
         display: "grid",
+        ...(glowColor ? { "--rarity-color": glowColor } : null),
         ...style,
       }}
     >

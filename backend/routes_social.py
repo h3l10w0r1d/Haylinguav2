@@ -26,6 +26,7 @@ from routes import (
     _compute_achievements,
     _brevo_sync_user,
     _frame_style_map,
+    _frame_rarity_map,
 )
 
 router = APIRouter()
@@ -44,6 +45,7 @@ class FriendOut(BaseModel):
     global_rank: int
     is_premium: bool = False
     active_frame_style: str | None = None
+    active_frame_rarity: str | None = None
 
 class FriendSuggestionOut(BaseModel):
     user_id: int
@@ -117,6 +119,7 @@ def friends_list(
     ).mappings().all()
 
     fmap = _frame_style_map(db)
+    rmap = _frame_rarity_map(db)
     out: list[FriendOut] = []
     for r in rows:
         email = (r.get("email") or "").strip()
@@ -132,6 +135,7 @@ def friends_list(
         xp = int(r.get("total_xp") or 0)
         level = max(1, (xp // 500) + 1)
         streak = _compute_streak_days(db, int(r["id"]))
+        active_frame = r.get("active_frame")
 
         out.append(
             FriendOut(
@@ -144,6 +148,8 @@ def friends_list(
                 streak=streak,
                 global_rank=int(r.get("global_rank") or 0),
                 is_premium=bool(r.get("is_premium")),
+                active_frame_style=fmap.get(str(active_frame)) if active_frame else None,
+                active_frame_rarity=rmap.get(str(active_frame)) if active_frame else None,
             )
         )
 
@@ -795,6 +801,7 @@ class LeaderboardEntryOut(BaseModel):
     rank: int
     avatar_url: str | None = None
     active_frame_style: str | None = None
+    active_frame_rarity: str | None = None
 
 
 # === route:get_leaderboard ===
@@ -827,6 +834,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
     ).mappings().all()
 
     fmap = _frame_style_map(db)
+    rmap = _frame_rarity_map(db)
     out: List[LeaderboardEntryOut] = []
     for i, r in enumerate(rows, start=1):
         email = r["email"] or ""
@@ -856,6 +864,7 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 rank=i,
                 avatar_url=r.get("avatar_url"),
                 active_frame_style=fmap.get(str(r.get("active_frame"))) if r.get("active_frame") else None,
+                active_frame_rarity=rmap.get(str(r.get("active_frame"))) if r.get("active_frame") else None,
             )
         )
 
@@ -871,6 +880,7 @@ class PublicUserOut(BaseModel):
     bio: str | None = None
     avatar_url: str | None = None
     active_frame_style: str | None = None
+    active_frame_rarity: str | None = None
     banner_url: str | None = None
     profile_theme: dict = {}
     joined_at: datetime | None = None
@@ -1111,6 +1121,7 @@ def get_public_user(
         bio=data.get("bio"),
         avatar_url=data.get("avatar_url"),
         active_frame_style=_frame_style_map(db).get(str(data.get("active_frame"))) if data.get("active_frame") else None,
+        active_frame_rarity=_frame_rarity_map(db).get(str(data.get("active_frame"))) if data.get("active_frame") else None,
         banner_url=data.get("banner_url"),
         profile_theme=data.get("profile_theme") or {},
         joined_at=data.get("joined_at"),
@@ -1223,6 +1234,7 @@ def get_public_user_friends(
     ).mappings().all()
 
     fmap = _frame_style_map(db)
+    rmap = _frame_rarity_map(db)
     out: list[FriendOut] = []
     for r in rows:
         email = (r.get("email") or "").strip()
@@ -1232,6 +1244,7 @@ def get_public_user_friends(
         xp = int(r.get("total_xp") or 0)
         level = max(1, (xp // 500) + 1)
         streak = _compute_streak_days(db, int(r["id"]))
+        active_frame = r.get("active_frame")
         out.append(
             FriendOut(
                 user_id=int(r["id"]),
@@ -1243,7 +1256,8 @@ def get_public_user_friends(
                 streak=streak,
                 global_rank=int(r.get("global_rank") or 0),
                 is_premium=bool(r.get("is_premium")),
-                active_frame_style=fmap.get(str(r.get("active_frame"))) if r.get("active_frame") else None,
+                active_frame_style=fmap.get(str(active_frame)) if active_frame else None,
+                active_frame_rarity=rmap.get(str(active_frame)) if active_frame else None,
             )
         )
 
