@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ActivityIndicator, FlatList, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { Heart, Flame, Zap, Gem, Play, ArrowRight, Gift, BookOpen, Dumbbell, Shield, Bell, Users, Sparkles } from 'lucide-react-native';
+import { Heart, Flame, Zap, Gem, Play, ArrowRight, Gift, BookOpen, Dumbbell, Shield } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { api } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
+import { useCountUp } from '../lib/useCountUp';
 import Pressable3D from '../components/Pressable3D';
 import ChestReveal from '../components/ChestReveal';
 import UnitBanner from '../components/UnitBanner';
@@ -70,10 +71,17 @@ function StatPip({ icon: Icon, color, value, animateFlame }) {
     transform: [{ scale: 0.85 + enter.value * 0.15 }],
   }));
 
+  // Non-numeric values (the '∞'/'–' hearts placeholder) render as-is; real
+  // numbers tick from their previous displayed value instead of snapping —
+  // Duolingo's top-bar counters never jump straight to a new number.
+  const isNumeric = typeof value === 'number' && Number.isFinite(value);
+  const counted = useCountUp(isNumeric ? value : 0);
+  const displayValue = isNumeric ? counted : value;
+
   return (
     <Animated.View style={animatedStyle} className="flex-row items-center gap-1.5">
       {animateFlame ? <FlameIcon color={color} size={20} /> : <Icon size={20} color={color} fill={color} />}
-      <Text className="text-base font-extrabold text-stone-800 font-display">{value}</Text>
+      <Text className="text-base font-extrabold text-stone-800 font-display">{displayValue}</Text>
     </Animated.View>
   );
 }
@@ -103,7 +111,6 @@ export default function DashboardScreen({ navigation }) {
   const [chestOpen, setChestOpen] = useState(false);
   const [reviewStats, setReviewStats] = useState(null);
   const [levels, setLevels] = useState([]);
-  const [hasUnreadNotif, setHasUnreadNotif] = useState(false);
 
   // Ask for notification permission + register the device token once the
   // learner has actually reached the home screen (not on every focus —
@@ -143,20 +150,13 @@ export default function DashboardScreen({ navigation }) {
     }
   }, []);
 
-  const loadNotifications = useCallback(async () => {
-    const res = await api.get('/me/notifications').catch(() => null);
-    const list = Array.isArray(res?.notifications) ? res.notifications : [];
-    setHasUnreadNotif(list.some((n) => !n.read_at));
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       load();
       loadReviewStats();
       loadLevels();
-      loadNotifications();
       stats.refresh();
-    }, [load, loadReviewStats, loadLevels, loadNotifications])
+    }, [load, loadReviewStats, loadLevels])
   );
 
   const readyLevel = useMemo(() => levels.find((l) => l.assessment_ready), [levels]);
@@ -273,14 +273,6 @@ export default function DashboardScreen({ navigation }) {
       <StatPip icon={Gem} color="#1CB0F6" value={stats.gems ?? '–'} />
       <StatPip icon={Zap} color="#E0A800" value={stats.totalXp} />
       <StatPip icon={Heart} color="#FF4B4B" value={heartLabel} />
-      <Pressable3D onPress={() => navigation.navigate('Notifications')} hapticOnPress={false} style={{ padding: 2 }}>
-        <View>
-          <Bell size={20} color="#78716c" />
-          {hasUnreadNotif && (
-            <View className="absolute rounded-full bg-cardinal-500" style={{ top: -1, right: -1, width: 8, height: 8, borderWidth: 1.5, borderColor: '#f5f4f1' }} />
-          )}
-        </View>
-      </Pressable3D>
     </View>
     <FlatList
       ref={listRef}
@@ -400,31 +392,6 @@ export default function DashboardScreen({ navigation }) {
                 </View>
                 <Text className="mt-2 text-sm font-extrabold text-stone-900">Practice</Text>
                 <Text className="text-xs font-semibold text-stone-400">Sharpen weak spots</Text>
-              </Pressable3D>
-            </View>
-          </View>
-
-          {/* Community + Bonuses — full-width row of two quick-nav cards.
-              Bonuses bundles Daily Goal/Quests/Streak (mirrors web's
-              BonusesPage, a single mobile-only route bundling several
-              cards, not a dashboard-inline widget). */}
-          <View className="mb-4 flex-row" style={{ gap: 12 }}>
-            <View className="flex-1">
-              <Pressable3D onPress={() => navigation.navigate('Forum')} className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-                <View className="h-10 w-10 items-center justify-center rounded-xl bg-feather-50">
-                  <Users size={20} color="#1CB0F6" />
-                </View>
-                <Text className="mt-2 text-sm font-extrabold text-stone-900">Community</Text>
-                <Text className="text-xs font-semibold text-stone-400">Ask, share, discuss</Text>
-              </Pressable3D>
-            </View>
-            <View className="flex-1">
-              <Pressable3D onPress={() => navigation.navigate('Bonuses')} className="rounded-2xl bg-white p-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 }}>
-                <View className="h-10 w-10 items-center justify-center rounded-xl bg-gold-50">
-                  <Sparkles size={20} color="#E0A800" />
-                </View>
-                <Text className="mt-2 text-sm font-extrabold text-stone-900">Bonuses</Text>
-                <Text className="text-xs font-semibold text-stone-400">Quests, streak &amp; goal</Text>
               </Pressable3D>
             </View>
           </View>

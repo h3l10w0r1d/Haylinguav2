@@ -19,32 +19,9 @@ import ChestReveal from '../components/ChestReveal';
 import { haptics } from '../lib/haptics';
 import { markStreakMilestoneSeen } from '../lib/streakMilestones';
 import { useStatsStore } from '../lib/statsStore';
+import { useCountUp } from '../lib/useCountUp';
 
 const CONFETTI_COLORS = ['#FF7A1A', '#58CC02', '#1CB0F6', '#FFC800', '#E11D48'];
-
-function useCountUp(target, ms = 900) {
-  const [value, setValue] = useState(0);
-
-  useEffect(() => {
-    if (!target) {
-      setValue(0);
-      return;
-    }
-    let raf;
-    const start = Date.now();
-    function tick() {
-      const p = Math.min(1, (Date.now() - start) / ms);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setValue(Math.round(target * eased));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    }
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target]);
-
-  return value;
-}
 
 function PopIn({ delay = 0, children, style }) {
   const enter = useSharedValue(0);
@@ -64,7 +41,7 @@ function PopIn({ delay = 0, children, style }) {
 
 export default function LessonCompleteScreen({ route, navigation }) {
   const { xpEarned = 0, streak = 0, milestoneHit = null, chestEarned = false } = route.params || {};
-  const xpDisplay = useCountUp(xpEarned, 900);
+  const xpDisplay = useCountUp(xpEarned, { duration: 900, startFromZero: true });
   const [chestOpen, setChestOpen] = useState(false);
 
   useEffect(() => {

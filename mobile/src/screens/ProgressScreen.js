@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Zap, BookOpen, Sparkles, Flame } from 'lucide-react-native';
 import { api } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
+import ScreenFadeIn from '../components/ScreenFadeIn';
 
 const RANGES = [7, 30, 60];
 const CHART_HEIGHT = 120;
@@ -59,6 +60,7 @@ export default function ProgressScreen({ navigation }) {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
+          <ScreenFadeIn>
           <View className="mb-4 flex-row" style={{ gap: 10 }}>
             <StatCard icon={Zap} color="#E0A800" bg="bg-gold-50" label="Total XP" value={data?.total_xp ?? 0} />
             <StatCard icon={BookOpen} color="#58CC02" bg="bg-grass-50" label="Lessons done" value={data?.total_lessons ?? 0} />
@@ -152,6 +154,7 @@ export default function ProgressScreen({ navigation }) {
               </ScrollView>
             )}
           </View>
+          </ScreenFadeIn>
         </ScrollView>
       )}
     </SafeAreaView>

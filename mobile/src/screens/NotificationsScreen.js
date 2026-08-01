@@ -11,6 +11,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, Gift, BellOff } from 'lucide-react-native';
 import { api } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
+import ScreenFadeIn from '../components/ScreenFadeIn';
 
 function timeAgo(iso) {
   if (!iso) return '';
@@ -64,6 +65,7 @@ export default function NotificationsScreen({ navigation }) {
           <ActivityIndicator size="large" color="#FF7A1A" />
         </View>
       ) : (
+        <ScreenFadeIn style={{ flex: 1 }}>
         <FlatList
           data={notifications}
           keyExtractor={(n) => String(n.id)}
@@ -94,6 +96,7 @@ export default function NotificationsScreen({ navigation }) {
             </Pressable3D>
           )}
         />
+        </ScreenFadeIn>
       )}
     </SafeAreaView>
   );

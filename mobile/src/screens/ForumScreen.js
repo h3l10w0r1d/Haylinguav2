@@ -9,6 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Hand, MessageCircle, Lightbulb, Bug, Search, ChevronRight, Users } from 'lucide-react-native';
 import { api } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
+import ScreenFadeIn from '../components/ScreenFadeIn';
 
 const CATEGORY_ICONS = { hand: Hand, 'message-circle': MessageCircle, lightbulb: Lightbulb, bug: Bug };
 
@@ -100,6 +101,7 @@ export default function ForumScreen({ navigation }) {
         </View>
       </View>
 
+      <ScreenFadeIn style={{ flex: 1 }}>
       {searchResults !== null ? (
         <FlatList
           data={searchResults}
@@ -155,6 +157,7 @@ export default function ForumScreen({ navigation }) {
           }}
         />
       )}
+      </ScreenFadeIn>
     </SafeAreaView>
   );
 }

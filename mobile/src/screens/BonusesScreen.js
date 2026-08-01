@@ -12,6 +12,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ArrowLeft, Target, Crown, Zap, Flame, Star, CheckCircle2, Dumbbell, TrendingUp, Award, AlertCircle, ChevronRight, Snowflake } from 'lucide-react-native';
 import { api } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
+import ClaimPulse from '../components/ClaimPulse';
+import ScreenFadeIn from '../components/ScreenFadeIn';
 import { haptics } from '../lib/haptics';
 
 const GOAL_KEY = 'hay_daily_goal';
@@ -35,6 +37,8 @@ export default function BonusesScreen({ navigation }) {
   const [goal, setGoal] = useState(20);
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState(null);
+  const [justClaimedId, setJustClaimedId] = useState(null);
+  const [pulseToken, setPulseToken] = useState(0);
 
   const load = useCallback(async () => {
     const [s, q, st, wk, mc, savedGoal] = await Promise.all([
@@ -66,6 +70,8 @@ export default function BonusesScreen({ navigation }) {
     try {
       await api.post('/me/rewards/claim', { kind: 'quest', id: q.id });
       haptics.success();
+      setJustClaimedId(q.id);
+      setPulseToken((t) => t + 1);
       await load();
     } catch {
       haptics.error();
@@ -98,6 +104,7 @@ export default function BonusesScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
+        <ScreenFadeIn>
         {/* Daily Goal */}
         <Card>
           <View className="mb-2 flex-row items-center justify-between">
@@ -136,28 +143,34 @@ export default function BonusesScreen({ navigation }) {
               const Icon = ICONS[q.icon] || Target;
               const pct = q.target > 0 ? Math.max(4, Math.min(100, (q.progress / q.target) * 100)) : 0;
               return (
-                <View key={q.id} className={'flex-row items-center gap-3 py-2.5 ' + (i > 0 ? 'border-t border-stone-100' : '')}>
-                  <View className="h-9 w-9 items-center justify-center rounded-xl bg-brand-50">
-                    <Icon size={16} color="#FF7A1A" />
+                <ClaimPulse
+                  key={q.id}
+                  pulseKey={justClaimedId === q.id ? pulseToken : 0}
+                  style={{ borderRadius: 14 }}
+                >
+                  <View className={'flex-row items-center gap-3 py-2.5 ' + (i > 0 ? 'border-t border-stone-100' : '')}>
+                    <View className="h-9 w-9 items-center justify-center rounded-xl bg-brand-50">
+                      <Icon size={16} color="#FF7A1A" />
+                    </View>
+                    <View className="min-w-0 flex-1">
+                      <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{q.title}</Text>
+                      {!q.done ? (
+                        <View className="mt-1 overflow-hidden rounded-full bg-stone-100" style={{ height: 5 }}>
+                          <View style={{ width: `${pct}%`, height: 5, borderRadius: 2.5, backgroundColor: '#FF7A1A' }} />
+                        </View>
+                      ) : (
+                        <Text className="text-xs font-semibold text-stone-400">{q.progress}/{q.target}</Text>
+                      )}
+                    </View>
+                    {q.claimable ? (
+                      <Pressable3D onPress={() => claimQuest(q)} disabled={claimingId === q.id} pressDepth={1} className="rounded-lg bg-gold-500 px-2.5 py-1.5">
+                        {claimingId === q.id ? <Spinner size="small" color="#fff" /> : <Text className="text-[11px] font-extrabold text-white">+{q.reward_xp} XP</Text>}
+                      </Pressable3D>
+                    ) : q.claimed ? (
+                      <Text className="text-[11px] font-extrabold text-grass-600">Claimed</Text>
+                    ) : null}
                   </View>
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{q.title}</Text>
-                    {!q.done ? (
-                      <View className="mt-1 overflow-hidden rounded-full bg-stone-100" style={{ height: 5 }}>
-                        <View style={{ width: `${pct}%`, height: 5, borderRadius: 2.5, backgroundColor: '#FF7A1A' }} />
-                      </View>
-                    ) : (
-                      <Text className="text-xs font-semibold text-stone-400">{q.progress}/{q.target}</Text>
-                    )}
-                  </View>
-                  {q.claimable ? (
-                    <Pressable3D onPress={() => claimQuest(q)} disabled={claimingId === q.id} pressDepth={1} className="rounded-lg bg-gold-500 px-2.5 py-1.5">
-                      {claimingId === q.id ? <Spinner size="small" color="#fff" /> : <Text className="text-[11px] font-extrabold text-white">+{q.reward_xp} XP</Text>}
-                    </Pressable3D>
-                  ) : q.claimed ? (
-                    <Text className="text-[11px] font-extrabold text-grass-600">Claimed</Text>
-                  ) : null}
-                </View>
+                </ClaimPulse>
               );
             })
           )}
@@ -225,6 +238,7 @@ export default function BonusesScreen({ navigation }) {
             </Pressable3D>
           </View>
         </View>
+        </ScreenFadeIn>
       </ScrollView>
     </SafeAreaView>
   );

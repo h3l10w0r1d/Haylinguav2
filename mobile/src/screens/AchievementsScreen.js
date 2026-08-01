@@ -9,17 +9,20 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, Target, Crown, Zap, Flame, Star, Award, Check } from 'lucide-react-native';
 import { api } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
+import ClaimPulse from '../components/ClaimPulse';
+import ScreenFadeIn from '../components/ScreenFadeIn';
 import { haptics } from '../lib/haptics';
 
 const ICONS = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
-function AchievementCard({ a, onClaim, claiming }) {
+function AchievementCard({ a, onClaim, claiming, pulseKey }) {
   const Icon = ICONS[a.icon] || Award;
   const pct = a.target > 0 ? Math.max(4, Math.min(100, (a.progress / a.target) * 100)) : 0;
   return (
-    <View
-      className="mb-3 rounded-2xl bg-white p-4"
+    <ClaimPulse
+      pulseKey={pulseKey}
       style={{
+        marginBottom: 12, borderRadius: 16, backgroundColor: '#fff', padding: 16,
         shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
         opacity: a.earned ? 1 : 0.9,
       }}
@@ -62,7 +65,7 @@ function AchievementCard({ a, onClaim, claiming }) {
       {a.earned && a.claimed && (
         <Text className="mt-3 text-center text-xs font-extrabold text-grass-600">+{a.reward_xp} XP claimed ✓</Text>
       )}
-    </View>
+    </ClaimPulse>
   );
 }
 
@@ -70,6 +73,8 @@ export default function AchievementsScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState(null);
+  const [justClaimedId, setJustClaimedId] = useState(null);
+  const [pulseToken, setPulseToken] = useState(0);
 
   const load = useCallback(async () => {
     const res = await api.get('/me/achievements').catch(() => null);
@@ -84,6 +89,8 @@ export default function AchievementsScreen({ navigation }) {
     try {
       await api.post('/me/rewards/claim', { kind: 'achievement', id: a.id });
       haptics.success();
+      setJustClaimedId(a.id);
+      setPulseToken((t) => t + 1);
       await load();
     } catch {
       haptics.error();
@@ -112,16 +119,24 @@ export default function AchievementsScreen({ navigation }) {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
-          {achievements.length === 0 ? (
-            <View className="items-center py-16">
-              <Award size={28} color="#d6d3d1" />
-              <Text className="mt-2 text-base font-bold text-stone-400">Start a lesson to earn your first badge!</Text>
-            </View>
-          ) : (
-            achievements.map((a) => (
-              <AchievementCard key={a.id} a={a} onClaim={claim} claiming={claimingId === a.id} />
-            ))
-          )}
+          <ScreenFadeIn>
+            {achievements.length === 0 ? (
+              <View className="items-center py-16">
+                <Award size={28} color="#d6d3d1" />
+                <Text className="mt-2 text-base font-bold text-stone-400">Start a lesson to earn your first badge!</Text>
+              </View>
+            ) : (
+              achievements.map((a) => (
+                <AchievementCard
+                  key={a.id}
+                  a={a}
+                  onClaim={claim}
+                  claiming={claimingId === a.id}
+                  pulseKey={justClaimedId === a.id ? pulseToken : 0}
+                />
+              ))
+            )}
+          </ScreenFadeIn>
         </ScrollView>
       )}
     </SafeAreaView>
