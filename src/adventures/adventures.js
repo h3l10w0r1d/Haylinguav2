@@ -872,10 +872,21 @@ export function getAdventure(id) {
 // always come from code — so a CMS edit can reword content but never break the
 // scene layout or the grading. Merge is index-aligned and defensive: a step
 // whose type doesn't match the code (e.g. after a code change) just falls back.
+// A CMS-painted map override is valid only if it's a fully rectangular pair of
+// ground/decor grids — otherwise we ignore it and keep the code map (so a
+// malformed blob can never break the scene).
+function _validMapOverride(m) {
+  if (!m || !Number.isInteger(m.width) || !Number.isInteger(m.height)) return false;
+  if (m.width < 2 || m.height < 2 || m.width > 40 || m.height > 40) return false;
+  const okLayer = (g) => Array.isArray(g) && g.length === m.height
+    && g.every((row) => Array.isArray(row) && row.length === m.width);
+  return okLayer(m.ground) && okLayer(m.decor);
+}
+
 export function mergeAdventure(base, override) {
   if (!base || !override) return base;
   // Multi-scene adventures keep npcs/goals inside scenes; nothing to merge at
-  // the top level (CMS text editing of multi-scene scenes isn't wired yet).
+  // the top level (CMS editing of multi-scene scenes isn't wired yet).
   if (base.scenes) return base;
   const mergedGoals = (base.goals || []).map((g) => ({
     ...g,
@@ -903,14 +914,31 @@ export function mergeAdventure(base, override) {
       }
       return step;
     });
-    return { ...n, name: o.name ?? n.name, dialogue };
+    // Structural (map-painter) overrides: reposition/re-sprite/re-voice the NPC.
+    const pos = {};
+    if (Number.isInteger(o.tx)) pos.tx = o.tx;
+    if (Number.isInteger(o.ty)) pos.ty = o.ty;
+    if (Number.isInteger(o.frame)) pos.frame = o.frame;
+    if (o.voice === 'male' || o.voice === 'female') pos.voice = o.voice;
+    return { ...n, name: o.name ?? n.name, dialogue, ...pos };
   });
+  // Structural overrides for the scene itself (from the CMS map painter).
+  const map = _validMapOverride(override.map)
+    ? { width: override.map.width, height: override.map.height, ground: override.map.ground, decor: override.map.decor }
+    : base.map;
+  const player = (override.player && Number.isInteger(override.player.tx) && Number.isInteger(override.player.ty))
+    ? { ...base.player, tx: override.player.tx, ty: override.player.ty }
+    : base.player;
+  const tileset = (override.tileset === 'town' || override.tileset === 'rogue') ? override.tileset : base.tileset;
   return {
     ...base,
     title: override.title ?? base.title,
     blurb: override.blurb ?? base.blurb,
     goals: mergedGoals,
     npcs: mergedNpcs,
+    map,
+    player,
+    tileset,
   };
 }
 
