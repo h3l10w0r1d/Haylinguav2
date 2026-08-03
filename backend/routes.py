@@ -9449,6 +9449,13 @@ async def _generate_azure_tts(text_value: str, voice_name: str) -> bytes:
     # «Բար». Expand it to the two-letter «եւ» so it's pronounced (barev). Same
     # sound, correct output. (Applies to every Azure TTS call, incl. lessons.)
     text_value = (text_value or "").replace("և", "եւ")
+    # Azure hy-AM mispronounces words carrying the Armenian emphasis / question /
+    # exclamation marks that sit ON a vowel — «Ի՞նչ», «Բարև՜», «Շնորհակալությո՛ւն»
+    # — reading them as broken or letter-by-letter. Strip that whole punctuation
+    # block (U+055A–U+055F: ՚ ՛ ՜ ՝ ՞ ՟) so the audio is clean. The learner still
+    # SEES the correct orthography on screen; only the synthesized audio changes.
+    # The sentence-final «։» (U+0589) is deliberately kept for natural prosody.
+    text_value = re.sub("[՚-՟]", "", text_value)
     token = await _get_azure_token()
     url = f"https://{AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
     ssml = (
@@ -9484,7 +9491,7 @@ def _tts_cache_dir() -> Path:
 # Bump this when voice_settings (or anything else affecting the generated
 # audio) changes, so old cached files — generated with the previous, worse
 # defaults — become orphaned cache misses instead of being served forever.
-_TTS_CACHE_VERSION = "v6"  # bump: fixes «և» ligature pronunciation — busts stale audio
+_TTS_CACHE_VERSION = "v7"  # bump: strips Armenian emphasis/question marks (՚-՟) for clean TTS
 
 
 def _prune_stale_tts_cache(max_age_days: int = 90) -> None:
