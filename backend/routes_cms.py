@@ -36,6 +36,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
+from sqlalchemy.exc import IntegrityError
 
 from database import engine, get_db
 from auth import hash_password, validate_password_simple, verify_password
@@ -2810,6 +2811,129 @@ async def cms_reorder_shop_items(request: Request, db=Depends(get_db)):
     body = await request.json()
     for i, iid in enumerate(body.get("order") or []):
         db.execute(text("UPDATE shop_items SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(iid)})
+    return {"ok": True}
+
+# ==================== Item definitions (marketplace: frames, name tags,
+# avatar-builder trait unlocks) ====================
+# The live catalog behind GET /me/shop's cosmetic listing (see routes.py's
+# _load_shop_items) — unlike shop_items above, avatar_frame/profile_theme
+# rows HERE are what players actually see; shop_items' avatar_frame/
+# profile_theme rows are historical-only post-marketplace-cutover.
+
+# Known categories shown as quick-pick suggestions in the CMS UI — the
+# `category` column itself is a free TEXT field (no CHECK constraint), so
+# this list is a convenience, not an enforced whitelist, to stay
+# forward-compatible with categories added after this code ships.
+ITEM_DEFINITION_CATEGORIES = {
+    "avatar_frame", "profile_theme", "name_tag_effect",
+    "avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows",
+}
+
+@router.get("/cms/item-definitions")
+def cms_list_item_definitions(request: Request, category: Optional[str] = Query(default=None), db=Depends(get_db)):
+    require_cms(request, db)
+    where = ""
+    params: Dict[str, Any] = {}
+    if category:
+        where = "WHERE category = :cat"
+        params["cat"] = category
+    rows = db.execute(text(f"""
+        SELECT id, category, slug, title, description, icon, rarity, render_key,
+               price_gems, tradeable, is_active, sort_order, created_at
+        FROM item_definitions {where} ORDER BY category ASC, sort_order ASC, id ASC
+    """), params).mappings().all()
+    rarities = db.execute(text("SELECT rarity, sort_order, color_hex FROM item_rarities ORDER BY sort_order ASC")).mappings().all()
+    return {
+        "items": [dict(r) for r in rows],
+        "categories": sorted(ITEM_DEFINITION_CATEGORIES),
+        "rarities": [dict(r) for r in rarities],
+    }
+
+@router.post("/cms/item-definitions")
+async def cms_create_item_definition(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    category = (body.get("category") or "").strip()
+    slug = (body.get("slug") or "").strip()
+    title = (body.get("title") or "").strip()
+    rarity = (body.get("rarity") or "").strip()
+    render_key = (body.get("render_key") or "").strip()
+    if not category:
+        raise HTTPException(status_code=400, detail="category is required")
+    if not slug:
+        raise HTTPException(status_code=400, detail="slug is required")
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    if not render_key:
+        raise HTTPException(status_code=400, detail="render_key is required")
+    rarity_exists = db.execute(text("SELECT 1 FROM item_rarities WHERE rarity = :r"), {"r": rarity}).first()
+    if not rarity_exists:
+        raise HTTPException(status_code=400, detail="rarity must reference an existing item_rarities row")
+    existing_slug = db.execute(text("SELECT 1 FROM item_definitions WHERE slug = :s"), {"s": slug}).first()
+    if existing_slug:
+        raise HTTPException(status_code=400, detail="slug already exists")
+    pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM item_definitions WHERE category = :c"), {"c": category}).scalar() or 1
+    try:
+        new_id = db.execute(
+            text("""
+                INSERT INTO item_definitions
+                    (category, slug, title, description, icon, rarity, render_key, price_gems, tradeable, is_active, sort_order)
+                VALUES (:cat, :slug, :title, :desc, :icon, :rarity, :render_key, :price, :tradeable, :active, :so)
+                RETURNING id
+            """),
+            {
+                "cat": category, "slug": slug, "title": title,
+                "desc": (body.get("description") or "").strip() or None,
+                "icon": (body.get("icon") or "").strip() or None,
+                "rarity": rarity, "render_key": render_key,
+                "price": int(body["price_gems"]) if body.get("price_gems") not in (None, "") else None,
+                "tradeable": bool(body.get("tradeable", True)),
+                "active": bool(body.get("is_active", True)),
+                "so": int(pos),
+            },
+        ).scalar_one()
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="slug already exists")
+    return {"id": int(new_id)}
+
+@router.put("/cms/item-definitions/{item_id}")
+async def cms_update_item_definition(item_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": item_id}
+    for f in ("category", "slug", "title", "description", "icon", "render_key", "tradeable", "is_active"):
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = body[f]
+    if "rarity" in body:
+        rarity_exists = db.execute(text("SELECT 1 FROM item_rarities WHERE rarity = :r"), {"r": body["rarity"]}).first()
+        if not rarity_exists:
+            raise HTTPException(status_code=400, detail="rarity must reference an existing item_rarities row")
+        set_parts.append("rarity = :rarity")
+        params["rarity"] = body["rarity"]
+    if "price_gems" in body:
+        set_parts.append("price_gems = :price_gems")
+        params["price_gems"] = int(body["price_gems"]) if body["price_gems"] not in (None, "") else None
+    if not set_parts:
+        return {"ok": True}
+    try:
+        db.execute(text(f"UPDATE item_definitions SET {', '.join(set_parts)} WHERE id = :id"), params)
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="slug already exists")
+    return {"ok": True}
+
+@router.delete("/cms/item-definitions/{item_id}")
+def cms_delete_item_definition(item_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM item_definitions WHERE id = :id"), {"id": item_id})
+    return {"ok": True}
+
+@router.post("/cms/item-definitions/reorder")
+async def cms_reorder_item_definitions(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    for i, iid in enumerate(body.get("order") or []):
+        db.execute(text("UPDATE item_definitions SET sort_order = :p WHERE id = :id"), {"p": i + 1, "id": int(iid)})
     return {"ok": True}
 
 # ==================== Careers: job vacancies ====================

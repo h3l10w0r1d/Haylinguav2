@@ -12,10 +12,10 @@
 // renders internally, and `ref` is a key React always extracts specially
 // from that merged config object even when it arrives via spread.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
-import { X, Shuffle, Check } from 'lucide-react-native';
+import { X, Shuffle, Check, Lock, Gem } from 'lucide-react-native';
 import { createAvatar } from '@dicebear/core';
 import { avataaars } from '@dicebear/collection';
 import { api } from '../lib/api';
@@ -27,18 +27,41 @@ const HAIR_COLORS = ['2c1b18', '4a312c', '724133', 'a55728', 'b58143', 'd6b370',
 const CLOTHES_COLORS = ['262e33', '3c4f5c', '5199e4', '65c9ff', 'b1e2ff', '929598', 'e6e6e6', 'ffffff', 'a7ffc4', 'ffafb9', 'ff488e', 'ff5c5c', 'ffffff', '25557c'];
 const BG_COLORS = ['b6e3f4', 'ffd5dc', 'ffdfbf', 'c0f0c8', 'd1d4f9', 'f4d9b6', 'e0e0e0', 'ffe0f0'];
 
+// Free, built-in hairstyles/eyebrows. PREMIUM_TOP_VALUES/PREMIUM_EYEBROW_VALUES
+// (below) list the marketplace-gated additions to these same trait
+// dimensions — mirrors src/AvatarBuilder.jsx's web equivalent exactly.
 const TOP_OPTIONS = [
   'shortFlat', 'shortRound', 'shortWaved', 'shortCurly', 'theCaesar', 'sides', 'shaggy', 'shaggyMullet',
   'curly', 'curvy', 'straight01', 'straight02', 'straightAndStrand', 'dreads01', 'dreads02', 'frizzle',
   'bob', 'bun', 'fro', 'froBand', 'bigHair', 'miaWallace', 'longButNotTooLong',
   'hat', 'hijab', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04',
+  'dreads', 'frida', 'shavedSides', 'theCaesarAndSidePart',
 ];
 const EYES_OPTIONS = ['default', 'happy', 'side', 'squint', 'wink', 'winkWacky', 'surprised', 'hearts', 'closed', 'cry', 'eyeRoll', 'xDizzy'];
-const EYEBROW_OPTIONS = ['defaultNatural', 'angryNatural', 'flatNatural', 'raisedExcitedNatural', 'sadConcernedNatural', 'unibrowNatural', 'upDownNatural'];
+const EYEBROW_OPTIONS = [
+  'defaultNatural', 'angryNatural', 'flatNatural', 'raisedExcitedNatural', 'sadConcernedNatural', 'unibrowNatural', 'upDownNatural',
+  'angry', 'default', 'raisedExcited', 'sadConcerned', 'upDown',
+];
 const MOUTH_OPTIONS = ['smile', 'default', 'twinkle', 'serious', 'concerned', 'disbelief', 'sad', 'tongue', 'eating', 'grimace', 'screamOpen'];
 const FACIAL_HAIR_OPTIONS = ['none', 'beardLight', 'beardMedium', 'beardMajestic', 'moustacheFancy', 'moustacheMagnum'];
 const CLOTHING_OPTIONS = ['hoodie', 'shirtCrewNeck', 'shirtVNeck', 'shirtScoopNeck', 'collarAndSweater', 'overall', 'blazerAndShirt', 'blazerAndSweater', 'graphicShirt'];
 const ACCESSORY_OPTIONS = ['none', 'round', 'wayfarers', 'prescription01', 'prescription02', 'sunglasses', 'kurt', 'eyepatch'];
+// DiceBear's clothesGraphic trait — every non-"none" value is a paid unlock
+// (see backend/ensure_schema.py's avatar_clothing_graphic seed).
+const CLOTHES_GRAPHIC_OPTIONS = ['none', 'bat', 'bear', 'cumbia', 'deer', 'diamond', 'hola', 'pizza', 'resist', 'skull', 'skullOutline'];
+
+const PREMIUM_TOP_VALUES = new Set(['dreads', 'frida', 'shavedSides', 'theCaesarAndSidePart']);
+const PREMIUM_EYEBROW_VALUES = new Set(['angry', 'default', 'raisedExcited', 'sadConcerned', 'upDown']);
+
+const RARITY_COLORS = { common: '#94A3B8', uncommon: '#22C55E', rare: '#1CB0F6', epic: '#A855F7', legendary: '#FFC800' };
+const RARITY_LABEL = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+
+// Categories/fields for the marketplace-gated trait dimensions.
+const PREMIUM_FIELD_CATEGORIES = {
+  top: 'avatar_hairstyle',
+  eyebrows: 'avatar_eyebrows',
+  clothesGraphic: 'avatar_clothing_graphic',
+};
 
 const DEFAULT_TRAITS = {
   top: 'shortFlat',
@@ -50,6 +73,7 @@ const DEFAULT_TRAITS = {
   facialHair: 'none',
   clothing: 'hoodie',
   clothesColor: CLOTHES_COLORS[3],
+  clothesGraphic: 'none',
   accessories: 'none',
   backgroundColor: BG_COLORS[0],
 };
@@ -58,17 +82,23 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function randomTraits() {
+// Randomize never previews a locked look the user hasn't paid for — pools
+// for the marketplace-gated dimensions are filtered to free + owned values.
+function randomTraits(owned = { top: new Set(), eyebrows: new Set(), clothesGraphic: new Set() }) {
+  const topPool = TOP_OPTIONS.filter((v) => !PREMIUM_TOP_VALUES.has(v) || owned.top.has(v));
+  const eyebrowPool = EYEBROW_OPTIONS.filter((v) => !PREMIUM_EYEBROW_VALUES.has(v) || owned.eyebrows.has(v));
+  const ownedGraphics = CLOTHES_GRAPHIC_OPTIONS.filter((v) => v !== 'none' && owned.clothesGraphic.has(v));
   return {
-    top: pick(TOP_OPTIONS),
+    top: pick(topPool),
     hairColor: pick(HAIR_COLORS),
     skinColor: pick(SKIN_COLORS),
     eyes: pick(EYES_OPTIONS),
-    eyebrows: pick(EYEBROW_OPTIONS),
+    eyebrows: pick(eyebrowPool),
     mouth: pick(MOUTH_OPTIONS),
     facialHair: Math.random() < 0.3 ? pick(FACIAL_HAIR_OPTIONS.slice(1)) : 'none',
     clothing: pick(CLOTHING_OPTIONS),
     clothesColor: pick(CLOTHES_COLORS),
+    clothesGraphic: ownedGraphics.length > 0 && Math.random() < 0.3 ? pick(ownedGraphics) : 'none',
     accessories: Math.random() < 0.35 ? pick(ACCESSORY_OPTIONS.slice(1)) : 'none',
     backgroundColor: pick(BG_COLORS),
   };
@@ -88,6 +118,7 @@ function buildSvgMarkup(traits, size = 200) {
     facialHairProbability: traits.facialHair === 'none' ? 0 : 100,
     clothing: [traits.clothing],
     clothesColor: [traits.clothesColor],
+    clothesGraphic: !traits.clothesGraphic || traits.clothesGraphic === 'none' ? [] : [traits.clothesGraphic],
     accessories: traits.accessories === 'none' ? [] : [traits.accessories],
     accessoriesProbability: traits.accessories === 'none' ? 0 : 100,
     backgroundColor: [traits.backgroundColor],
@@ -149,8 +180,12 @@ function SectionLabel({ children, style }) {
 // bridges every SVG path/group into a real native view, so avoiding
 // unnecessary geometry on ~29 simultaneously-mounted thumbnails (the Hair
 // tab) matters a lot more here than it does for a browser <img>.
-function OptionThumb({ traits, field, value, active, onPress }) {
+// `locked` items (marketplace items not yet owned) render dimmed with a
+// rarity-colored border + lock badge; onPress still fires — the caller
+// branches to a buy-confirm flow instead of selecting the trait directly.
+function OptionThumb({ traits, field, value, active, onPress, locked, rarity }) {
   const xml = useMemo(() => buildSvgMarkup({ ...traits, [field]: value }, 56), [traits, field, value]);
+  const borderColor = active ? '#FF7A1A' : locked ? RARITY_COLORS[rarity] || '#e7e5e4' : '#e7e5e4';
   return (
     <Pressable3D onPress={onPress} pressDepth={2}>
       <View
@@ -160,16 +195,22 @@ function OptionThumb({ traits, field, value, active, onPress }) {
           borderRadius: 16,
           overflow: 'hidden',
           borderWidth: 2,
-          borderColor: active ? '#FF7A1A' : '#e7e5e4',
+          borderColor,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#fafaf9',
+          opacity: locked ? 0.6 : 1,
         }}
       >
         {value === 'none' ? (
           <Text style={{ fontSize: 9, fontWeight: '800', color: '#a8a29e', textTransform: 'uppercase' }}>None</Text>
         ) : (
           <SvgXml xml={xml} width={56} height={56} />
+        )}
+        {locked && (
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', paddingVertical: 2 }}>
+            <Lock size={10} color="#fff" />
+          </View>
         )}
       </View>
     </Pressable3D>
@@ -190,6 +231,45 @@ export default function AvatarBuilderScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
   const svgRef = useRef(null);
 
+  // { top: Set<renderKey>, eyebrows: Set<renderKey>, clothesGraphic: Set<renderKey> }
+  const [owned, setOwned] = useState({ top: new Set(), eyebrows: new Set(), clothesGraphic: new Set() });
+  // renderKey -> { id, price, rarity, category }
+  const [catalog, setCatalog] = useState({});
+  const [pendingBuy, setPendingBuy] = useState(null); // { field, value, id, price, rarity }
+  const [buying, setBuying] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [shopData, invData] = await Promise.all([api.get('/me/shop'), api.get('/me/inventory')]);
+        if (cancelled) return;
+
+        const premiumCategories = new Set(Object.values(PREMIUM_FIELD_CATEGORIES));
+        const nextCatalog = {};
+        for (const it of shopData?.items || []) {
+          if (!premiumCategories.has(it.effect) || !it.render_key) continue;
+          nextCatalog[it.render_key] = { id: it.id, price: it.price, rarity: it.rarity, category: it.effect };
+        }
+        setCatalog(nextCatalog);
+
+        const nextOwned = { top: new Set(), eyebrows: new Set(), clothesGraphic: new Set() };
+        const categoryToField = { avatar_hairstyle: 'top', avatar_eyebrows: 'eyebrows', avatar_clothing_graphic: 'clothesGraphic' };
+        for (const it of invData?.items || []) {
+          const field = categoryToField[it.category];
+          if (field && it.render_key) nextOwned[field].add(it.render_key);
+        }
+        setOwned(nextOwned);
+      } catch {
+        // Non-fatal — locked options just won't show as owned.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const blinking = useFlicker(BLINKABLE_EYES.has(traits.eyes), 2200, 5400, 130);
   const talking = useFlicker(TALKABLE_MOUTHS.has(traits.mouth), 3000, 6500, 220);
 
@@ -204,9 +284,51 @@ export default function AvatarBuilderScreen({ navigation }) {
     setTraits((t) => ({ ...t, [field]: value }));
   }
 
+  // Locked = a marketplace-gated value the user doesn't yet own. Free
+  // built-in values are never locked.
+  function isLocked(field, value) {
+    if (field === 'top' && PREMIUM_TOP_VALUES.has(value)) return !owned.top.has(value);
+    if (field === 'eyebrows' && PREMIUM_EYEBROW_VALUES.has(value)) return !owned.eyebrows.has(value);
+    if (field === 'clothesGraphic' && value !== 'none') return !owned.clothesGraphic.has(value);
+    return false;
+  }
+
+  function handleOptionPress(field, value) {
+    if (isLocked(field, value)) {
+      const info = catalog[value];
+      if (!info) {
+        setError("This item isn't available to buy right now.");
+        return;
+      }
+      setError('');
+      setPendingBuy({ field, value, ...info });
+      return;
+    }
+    set(field, value);
+  }
+
+  async function confirmBuy() {
+    if (!pendingBuy) return;
+    setBuying(true);
+    setError('');
+    try {
+      await api.post('/me/shop/buy', { item: pendingBuy.id });
+      const { field, value } = pendingBuy;
+      setOwned((prev) => ({ ...prev, [field]: new Set(prev[field]).add(value) }));
+      set(field, value);
+      setPendingBuy(null);
+      haptics.success();
+    } catch (e) {
+      setError(e?.message || "Couldn't complete that purchase.");
+      haptics.error();
+    } finally {
+      setBuying(false);
+    }
+  }
+
   function randomize() {
     haptics.impact();
-    setTraits(randomTraits());
+    setTraits(randomTraits(owned));
   }
 
   async function handleUse() {
@@ -283,7 +405,11 @@ export default function AvatarBuilderScreen({ navigation }) {
             <SectionLabel>Style</SectionLabel>
             <View className="flex-row flex-wrap" style={{ gap: 8 }}>
               {TOP_OPTIONS.map((v) => (
-                <OptionThumb key={v} traits={traits} field="top" value={v} active={traits.top === v} onPress={() => set('top', v)} />
+                <OptionThumb
+                  key={v} traits={traits} field="top" value={v} active={traits.top === v}
+                  onPress={() => handleOptionPress('top', v)}
+                  locked={isLocked('top', v)} rarity={catalog[v]?.rarity}
+                />
               ))}
             </View>
             <SectionLabel style={{ marginTop: 16 }}>Color</SectionLabel>
@@ -312,7 +438,11 @@ export default function AvatarBuilderScreen({ navigation }) {
             <SectionLabel style={{ marginTop: 16 }}>Eyebrows</SectionLabel>
             <View className="flex-row flex-wrap" style={{ gap: 8 }}>
               {EYEBROW_OPTIONS.map((v) => (
-                <OptionThumb key={v} traits={traits} field="eyebrows" value={v} active={traits.eyebrows === v} onPress={() => set('eyebrows', v)} />
+                <OptionThumb
+                  key={v} traits={traits} field="eyebrows" value={v} active={traits.eyebrows === v}
+                  onPress={() => handleOptionPress('eyebrows', v)}
+                  locked={isLocked('eyebrows', v)} rarity={catalog[v]?.rarity}
+                />
               ))}
             </View>
             <SectionLabel style={{ marginTop: 16 }}>Mouth</SectionLabel>
@@ -346,6 +476,16 @@ export default function AvatarBuilderScreen({ navigation }) {
                 <ColorDot key={hex + i} hex={hex} active={traits.clothesColor === hex} onPress={() => set('clothesColor', hex)} />
               ))}
             </View>
+            <SectionLabel style={{ marginTop: 16 }}>Graphic</SectionLabel>
+            <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+              {CLOTHES_GRAPHIC_OPTIONS.map((v) => (
+                <OptionThumb
+                  key={v} traits={traits} field="clothesGraphic" value={v} active={(traits.clothesGraphic || 'none') === v}
+                  onPress={() => handleOptionPress('clothesGraphic', v)}
+                  locked={isLocked('clothesGraphic', v)} rarity={catalog[v]?.rarity}
+                />
+              ))}
+            </View>
           </>
         )}
 
@@ -366,6 +506,12 @@ export default function AvatarBuilderScreen({ navigation }) {
         )}
       </ScrollView>
 
+      {error ? (
+        <View className="border-t border-cardinal-100 bg-cardinal-50 px-4 py-2">
+          <Text className="text-xs font-bold text-cardinal-700">{error}</Text>
+        </View>
+      ) : null}
+
       <View className="flex-row gap-2 border-t border-stone-200 bg-white px-4 py-3">
         <Pressable3D onPress={() => navigation.goBack()} pressDepth={2} className="flex-1 items-center rounded-xl bg-stone-100 py-3">
           <Text className="text-sm font-extrabold text-stone-700">Cancel</Text>
@@ -375,6 +521,35 @@ export default function AvatarBuilderScreen({ navigation }) {
           <Text className="text-sm font-extrabold text-white">Use this avatar</Text>
         </Pressable3D>
       </View>
+
+      <Modal visible={!!pendingBuy} transparent animationType="fade" onRequestClose={() => !buying && setPendingBuy(null)}>
+        <View className="flex-1 items-center justify-center bg-black/60 px-8">
+          <View className="w-full items-center rounded-3xl bg-white p-5">
+            {pendingBuy && (
+              <SvgXml xml={buildSvgMarkup({ ...traits, [pendingBuy.field]: pendingBuy.value }, 80)} width={80} height={80} />
+            )}
+            <Text className="mt-3 font-display text-base font-extrabold text-stone-900">Unlock this look?</Text>
+            {pendingBuy?.rarity && (
+              <Text className="mt-1 text-xs font-extrabold uppercase tracking-wide" style={{ color: RARITY_COLORS[pendingBuy.rarity] }}>
+                {RARITY_LABEL[pendingBuy.rarity] || pendingBuy.rarity}
+              </Text>
+            )}
+            <View className="mt-3 flex-row items-center gap-1.5 rounded-full bg-feather-50 px-3 py-1">
+              <Gem size={14} color="#1CB0F6" />
+              <Text className="text-sm font-extrabold text-feather-600">{pendingBuy?.price ?? 0} gems</Text>
+            </View>
+            <View className="mt-4 w-full flex-row gap-2">
+              <Pressable3D onPress={() => setPendingBuy(null)} disabled={buying} pressDepth={2} className="flex-1 items-center rounded-xl bg-stone-100 py-2.5">
+                <Text className="text-sm font-extrabold text-stone-700">Cancel</Text>
+              </Pressable3D>
+              <Pressable3D onPress={confirmBuy} disabled={buying} pressDepth={2} className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl bg-brand-500 py-2.5">
+                {buying ? <ActivityIndicator color="#fff" /> : <Check size={16} color="#fff" />}
+                <Text className="text-sm font-extrabold text-white">Unlock</Text>
+              </Pressable3D>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

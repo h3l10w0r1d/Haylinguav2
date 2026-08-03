@@ -1399,4 +1399,74 @@ def ensure_schema() -> None:
         ))
         print("[ensure_schema] ensured trading tables")
 
+        # ---------- Marketplace: avatar-builder trait unlocks ----------
+        # Unlike avatar_frame/name_tag_effect, these are NOT "equip one active
+        # slot" items — a user can own many hairstyles/graphics/eyebrows at
+        # once, and whichever is currently selected in the DiceBear builder
+        # is just baked into the next uploaded avatar PNG. So user_items rows
+        # for these categories are never equipped=TRUE; ownership alone is
+        # what AvatarBuilder checks via GET /me/inventory?category=....
+        # render_key is the literal DiceBear avataaars option value.
+        for slug, title, desc, rarity, render_key, price in [
+            ("clothesgraphic_bear", "Bear Print", "A friendly bear graphic on your shirt.", "common", "bear", 60),
+            ("clothesgraphic_hola", "Hola Print", "A cheerful greeting on your shirt.", "common", "hola", 60),
+            ("clothesgraphic_cumbia", "Cumbia Print", "A festive pattern on your shirt.", "uncommon", "cumbia", 120),
+            ("clothesgraphic_resist", "Resist Print", "A bold statement graphic.", "uncommon", "resist", 120),
+            ("clothesgraphic_pizza", "Pizza Print", "A slice of pizza on your shirt.", "uncommon", "pizza", 150),
+            ("clothesgraphic_deer", "Deer Print", "A stylized deer graphic.", "rare", "deer", 300),
+            ("clothesgraphic_diamond", "Diamond Print", "A sparkling diamond graphic.", "rare", "diamond", 300),
+            ("clothesgraphic_bat", "Bat Print", "A spooky bat graphic.", "rare", "bat", 350),
+            ("clothesgraphic_skulloutline", "Skull Outline Print", "An outlined skull graphic.", "epic", "skullOutline", 600),
+            ("clothesgraphic_skull", "Skull Print", "A bold skull graphic — as rare as it looks.", "legendary", "skull", 1200),
+        ]:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO item_definitions
+                        (category, slug, title, description, icon, rarity, render_key, price_gems, sort_order)
+                    VALUES ('avatar_clothing_graphic', :slug, :title, :desc, 'shirt', :rarity, :render_key, :price, 0)
+                    ON CONFLICT (slug) DO NOTHING
+                    """
+                ),
+                {"slug": slug, "title": title, "desc": desc, "rarity": rarity, "render_key": render_key, "price": price},
+            )
+
+        for slug, title, desc, rarity, render_key, price in [
+            ("hairstyle_shavedsides", "Shaved Sides", "A sharp shaved-sides cut.", "uncommon", "shavedSides", 150),
+            ("hairstyle_dreads", "Dreads", "Long flowing dreadlocks.", "uncommon", "dreads", 180),
+            ("hairstyle_caesar", "Caesar & Side Part", "A classic caesar cut with a side part.", "rare", "theCaesarAndSidePart", 300),
+            ("hairstyle_frida", "Frida Braid", "An iconic braided crown.", "rare", "frida", 350),
+        ]:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO item_definitions
+                        (category, slug, title, description, icon, rarity, render_key, price_gems, sort_order)
+                    VALUES ('avatar_hairstyle', :slug, :title, :desc, 'scissors', :rarity, :render_key, :price, 0)
+                    ON CONFLICT (slug) DO NOTHING
+                    """
+                ),
+                {"slug": slug, "title": title, "desc": desc, "rarity": rarity, "render_key": render_key, "price": price},
+            )
+
+        for slug, title, desc, rarity, render_key, price in [
+            ("eyebrows_default", "Bold Brows", "A confident, defined brow.", "common", "default", 50),
+            ("eyebrows_updown", "Up-Down Brows", "One brow raised, always skeptical.", "common", "upDown", 60),
+            ("eyebrows_sadconcerned", "Concerned Brows", "A thoughtful, concerned look.", "uncommon", "sadConcerned", 90),
+            ("eyebrows_raisedexcited", "Excited Brows", "Wide-eyed and enthusiastic.", "uncommon", "raisedExcited", 90),
+            ("eyebrows_angry", "Angry Brows", "A fierce, furrowed brow.", "uncommon", "angry", 100),
+        ]:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO item_definitions
+                        (category, slug, title, description, icon, rarity, render_key, price_gems, sort_order)
+                    VALUES ('avatar_eyebrows', :slug, :title, :desc, 'smile', :rarity, :render_key, :price, 0)
+                    ON CONFLICT (slug) DO NOTHING
+                    """
+                ),
+                {"slug": slug, "title": title, "desc": desc, "rarity": rarity, "render_key": render_key, "price": price},
+            )
+        print("[ensure_schema] seeded avatar trait unlock item_definitions")
+
     print("[ensure_schema] done")

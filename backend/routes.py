@@ -5974,7 +5974,10 @@ def _load_shop_items(db: Connection) -> list[dict]:
                 """
                 SELECT id, title, description, icon, price_gems, category, render_key, rarity
                 FROM item_definitions
-                WHERE COALESCE(is_active, TRUE) AND category IN ('avatar_frame', 'profile_theme', 'name_tag_effect')
+                WHERE COALESCE(is_active, TRUE) AND category IN (
+                    'avatar_frame', 'profile_theme', 'name_tag_effect',
+                    'avatar_clothing_graphic', 'avatar_hairstyle', 'avatar_eyebrows'
+                )
                 ORDER BY sort_order ASC, id ASC
                 """
             )
@@ -6137,13 +6140,24 @@ def _wallet(db: Connection, user_id: int) -> dict:
     owned_rows = db.execute(
         text(
             "SELECT item_id, category FROM user_items "
-            "WHERE user_id = :u AND category IN ('avatar_frame', 'profile_theme', 'name_tag_effect')"
+            "WHERE user_id = :u AND category IN ("
+            "'avatar_frame', 'profile_theme', 'name_tag_effect', "
+            "'avatar_clothing_graphic', 'avatar_hairstyle', 'avatar_eyebrows'"
+            ")"
         ),
         {"u": user_id},
     ).mappings().all()
     owned_frames = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "avatar_frame"]
     owned_themes = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "profile_theme"]
     owned_name_tags = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "name_tag_effect"]
+    # Combined ownership set for the 3 avatar-builder trait-unlock categories
+    # — they have no "equipped"/denormalized-active-column concept (see
+    # ensure_schema.py's seed comment), so a single owned-ids list is enough
+    # for Shop.jsx's owned/available status.
+    owned_avatar_unlocks = [
+        f"cosmetic_{r['item_id']}" for r in owned_rows
+        if r["category"] in ("avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows")
+    ]
 
     active_frame = row.get("active_frame")
     name_tag = _active_name_tag_map(db, [user_id]).get(user_id)
@@ -6155,6 +6169,7 @@ def _wallet(db: Connection, user_id: int) -> dict:
         "owned_frames": owned_frames,
         "owned_themes": owned_themes,
         "owned_name_tags": owned_name_tags,
+        "owned_avatar_unlocks": owned_avatar_unlocks,
         "active_frame": active_frame,
         "active_frame_style": _frame_style_map(db).get(str(active_frame)) if active_frame else None,
         "active_frame_rarity": _frame_rarity_map(db).get(str(active_frame)) if active_frame else None,
@@ -6357,6 +6372,7 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
     owned_frames = w["owned_frames"]
     owned_themes = w["owned_themes"]
     owned_name_tags = w["owned_name_tags"]
+    owned_avatar_unlocks = w["owned_avatar_unlocks"]
     hs = _hearts_state(db, user_id)
 
     def _status(it) -> str:
@@ -6367,6 +6383,8 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
             return "owned" if str(it["id"]) in owned_themes else "available"
         if eff == "name_tag_effect":
             return "owned" if str(it["id"]) in owned_name_tags else "available"
+        if eff in ("avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"):
+            return "owned" if str(it["id"]) in owned_avatar_unlocks else "available"
         if eff == "heart_shield":
             return "active" if u.get("heart_shield_active") else "available"
         if eff == "xp_multiplier":
@@ -6440,14 +6458,17 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         today = _date.today()
         if not last_date or (today - last_date).days < 2 or (today - last_date).days > 4:
             raise HTTPException(status_code=400, detail="Streak Repair only works if your streak broke in the last 2–3 days")
-    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect"):
+    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect", "avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"):
         item_def_id = _parse_cosmetic_id(item["id"])
         already = item_def_id is not None and db.execute(
             text("SELECT 1 FROM user_items WHERE user_id = :u AND item_id = :i AND category = :c"),
             {"u": user_id, "i": item_def_id, "c": effect},
         ).first()
         if already:
-            _label = {"avatar_frame": "frame", "profile_theme": "theme", "name_tag_effect": "name tag effect"}.get(effect, "item")
+            _label = {
+                "avatar_frame": "frame", "profile_theme": "theme", "name_tag_effect": "name tag effect",
+                "avatar_clothing_graphic": "clothing graphic", "avatar_hairstyle": "hairstyle", "avatar_eyebrows": "eyebrows",
+            }.get(effect, "item")
             raise HTTPException(status_code=400, detail=f"You already own this {_label}")
 
     # Atomic charge: deduct gems only if balance is sufficient. This prevents
@@ -6493,7 +6514,7 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
                 text("UPDATE users SET current_streak = :c, streak_last_activity_date = CURRENT_DATE - 1 WHERE id = :u"),
                 {"c": streak_count, "u": user_id},
             )
-    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect"):
+    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect", "avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"):
         item_def_id = _parse_cosmetic_id(item["id"])
         db.execute(
             text(

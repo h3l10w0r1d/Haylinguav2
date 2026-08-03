@@ -105,6 +105,13 @@ export function createCmsApi(accessToken) {
   const deleteShopItem = (id) => req(`/cms/shop/items/${id}`, { method: "DELETE" });
   const reorderShopItems = (order) => req("/cms/shop/items/reorder", { method: "POST", body: JSON.stringify({ order }) });
 
+  // Item definitions (marketplace: frames, name tags, avatar-builder unlocks)
+  const listItemDefinitions = (category) => req(`/cms/item-definitions${category ? `?category=${encodeURIComponent(category)}` : ""}`);
+  const createItemDefinition = (payload) => req("/cms/item-definitions", { method: "POST", body: JSON.stringify(payload) });
+  const updateItemDefinition = (id, payload) => req(`/cms/item-definitions/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteItemDefinition = (id) => req(`/cms/item-definitions/${id}`, { method: "DELETE" });
+  const reorderItemDefinitions = (order) => req("/cms/item-definitions/reorder", { method: "POST", body: JSON.stringify({ order }) });
+
   // Premium pricing plans
   const listPremiumPlans = () => req("/cms/premium-plans");
   const createPremiumPlan = (payload) => req("/cms/premium-plans", { method: "POST", body: JSON.stringify(payload) });
@@ -286,6 +293,11 @@ export function createCmsApi(accessToken) {
     updateShopItem,
     deleteShopItem,
     reorderShopItems,
+    listItemDefinitions,
+    createItemDefinition,
+    updateItemDefinition,
+    deleteItemDefinition,
+    reorderItemDefinitions,
     listPremiumPlans,
     createPremiumPlan,
     updatePremiumPlan,

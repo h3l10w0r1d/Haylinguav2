@@ -1,11 +1,41 @@
 // src/Shop.jsx — gem marketplace. Spend gems earned from chests.
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Gem, Snowflake, Heart, Zap, Loader2, Check, Shield, ShieldCheck,
   TrendingUp, Award, Image as ImageIcon, Sparkles, X,
 } from "lucide-react";
+import { createAvatar } from "@dicebear/core";
+import { avataaars } from "@dicebear/collection";
 import AvatarFrame from "./lib/avatarFrame";
 import NameTag from "./lib/nameTag";
+
+// Minimal fixed base avatar for previewing one marketplace-gated trait value
+// at a time (clothing graphic, hairstyle, eyebrows) — same DiceBear call as
+// src/AvatarBuilder.jsx's buildSvg, just fixed to defaults for every field
+// except the one being previewed, since the shop doesn't know the buyer's
+// other trait choices.
+const TRAIT_PREVIEW_FIELD = {
+  avatar_hairstyle: "top",
+  avatar_eyebrows: "eyebrows",
+  avatar_clothing_graphic: "clothesGraphic",
+};
+function buildTraitPreviewUri(field, value) {
+  const avatar = createAvatar(avataaars, {
+    seed: "haylingua",
+    size: 96,
+    top: [field === "top" ? value : "shortFlat"],
+    hairColor: ["4a312c"],
+    skinColor: ["edb98a"],
+    eyes: ["default"],
+    eyebrows: [field === "eyebrows" ? value : "defaultNatural"],
+    mouth: ["smile"],
+    clothing: ["hoodie"],
+    clothesColor: ["65c9ff"],
+    clothesGraphic: field === "clothesGraphic" ? [value] : [],
+    backgroundColor: ["b6e3f4"],
+  });
+  return avatar.toDataUri();
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function getToken() {
@@ -39,7 +69,8 @@ const TONE = {
 const SECTIONS = [
   { key: "power", title: "Power-ups", effects: ["xp_boost", "xp_multiplier", "hearts_refill", "heart_shield"] },
   { key: "streak", title: "Streak protection", effects: ["streak_freeze", "streak_repair"] },
-  { key: "cosmetic", title: "Cosmetics", effects: ["avatar_frame", "profile_theme"] },
+  { key: "cosmetic", title: "Cosmetics", effects: ["avatar_frame", "profile_theme", "name_tag_effect"] },
+  { key: "avatar_unlocks", title: "Avatar builder unlocks", effects: ["avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"] },
 ];
 
 // Non-buyable states → badge copy.
@@ -64,6 +95,11 @@ function ItemCard({ item, onBuy }) {
   const Icon = ICON[item.icon] || Gem;
   const badge = STATUS_BADGE[item.status];
   const buyable = !badge;
+  const traitField = TRAIT_PREVIEW_FIELD[item.effect];
+  const traitPreviewUri = useMemo(
+    () => (traitField && item.render_key ? buildTraitPreviewUri(traitField, item.render_key) : null),
+    [traitField, item.render_key]
+  );
   return (
     <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
       <div className="flex items-center gap-3">
@@ -76,6 +112,10 @@ function ItemCard({ item, onBuy }) {
         ) : item.effect === "name_tag_effect" && item.render_key ? (
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
             <NameTag renderKey={item.render_key} rarity={item.rarity} className="font-display text-lg font-extrabold">Aa</NameTag>
+          </div>
+        ) : traitPreviewUri ? (
+          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
+            <img src={traitPreviewUri} alt={item.title} className="h-full w-full object-cover" />
           </div>
         ) : (
           <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
