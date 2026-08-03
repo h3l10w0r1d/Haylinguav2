@@ -91,12 +91,19 @@ export default function HeaderLayout({ user, onLogout, children }) {
   // Account dropdown — clicking the avatar opens a menu (Profile, mute,
   // theme, log out) instead of every one of those living as its own
   // always-visible header button. Closes on an outside click or Escape.
+  // AccountArea renders twice (desktop sidebar + mobile top bar, only one
+  // visible at a time via CSS breakpoints) — two separate refs so the
+  // outside-click check tracks whichever instance is actually on screen,
+  // rather than one shared ref getting clobbered by the other's mount.
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const accountMenuRef = useRef(null);
+  const sidebarAccountMenuRef = useRef(null);
+  const mobileAccountMenuRef = useRef(null);
   useEffect(() => {
     if (!accountMenuOpen) return;
     const onPointerDown = (e) => {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target)) setAccountMenuOpen(false);
+      const insideSidebar = sidebarAccountMenuRef.current?.contains(e.target);
+      const insideMobile = mobileAccountMenuRef.current?.contains(e.target);
+      if (!insideSidebar && !insideMobile) setAccountMenuOpen(false);
     };
     const onKeyDown = (e) => {
       if (e.key === "Escape") setAccountMenuOpen(false);
@@ -297,14 +304,6 @@ export default function HeaderLayout({ user, onLogout, children }) {
     };
   }, []);
 
-  const linkBase =
-    "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors";
-  const activeClass = "bg-orange-600 text-white shadow-sm";
-  const inactiveClass = "text-gray-600 hover:bg-orange-50 hover:text-orange-700 dark:text-stone-300 dark:hover:bg-white/[0.06] dark:hover:text-white";
-
-  const navLinkClass = ({ isActive }) =>
-    `${linkBase} ${isActive ? activeClass : inactiveClass}`;
-
   const initial =
     user?.name?.[0]?.toUpperCase() ??
     user?.email?.[0]?.toUpperCase() ??
@@ -312,94 +311,85 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
   const avatarSrc = resolveUrl(user?.avatar_url || user?.avatarUrl || user?.avatar || "");
 
-  return (
-    <div className="min-h-screen bg-orange-50 dark:bg-[#0d0d0f]">
-      {/* Top header (desktop & tablet) */}
-      <header className="fixed top-0 inset-x-0 z-20 bg-white/90 backdrop-blur shadow-sm dark:bg-[#151517]/90 dark:shadow-none dark:ring-1 dark:ring-white/[0.06]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 px-4 py-3">
-          {/* Logo / home */}
+  // Single source of truth for nav items — the sidebar (desktop, lg+) shows
+  // every item; the mobile bottom tab bar shows only `mobile: true` items
+  // (space-constrained to ~5 icons, matching Duolingo's mobile convention).
+  // Previously desktop and mobile hand-duplicated two different, drifted
+  // lists (desktop had Shop but not Bonuses; mobile had Bonuses but not
+  // Shop) — this reconciles them to one canonical set.
+  const NAV = [
+    { key: "learn", label: "Learn", icon: Home, to: "/dashboard", mobile: true },
+    { key: "friends", label: "Friends", icon: Users, to: "/friends", mobile: true },
+    { key: "leaderboard", label: "Leaderboard", icon: Trophy, to: "/leaderboard", mobile: true },
+    { key: "shop", label: "Shop", icon: Store, to: "/shop", mobile: true },
+    { key: "bonuses", label: "Bonuses", icon: Gift, to: "/bonuses", mobile: false },
+    { key: "profile", label: "Profile", icon: User, to: "/profile", mobile: true },
+    ...(isAffiliate ? [{ key: "affiliate", label: "Affiliate", icon: Percent, to: "/affiliate-dashboard", mobile: false }] : []),
+  ];
+  const mobileNav = NAV.filter((n) => n.mobile);
+
+  function SidebarNavLink({ item }) {
+    const Icon = item.icon;
+    return (
+      <NavLink
+        to={item.to}
+        className={({ isActive }) =>
+          "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold transition " +
+          (isActive
+            ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
+            : "text-gray-600 hover:bg-orange-50 hover:text-orange-700 dark:text-stone-300 dark:hover:bg-white/[0.06] dark:hover:text-white")
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <Icon className={"h-5 w-5 " + (isActive ? "text-brand-500 dark:text-brand-400" : "text-gray-400 dark:text-stone-500")} />
+            {item.label}
+          </>
+        )}
+      </NavLink>
+    );
+  }
+
+  // Shared quick-stats (premium/hearts, streak, gems) + account dropdown —
+  // rendered once in the desktop sidebar footer and once in the mobile top
+  // bar, so the two surfaces can't drift the way the old dual nav lists did.
+  function AccountArea({ compact = false }) {
+    return (
+      <div className={compact ? "flex items-center gap-2" : "space-y-2"}>
+        <div className={compact ? "flex items-center gap-1.5" : "flex flex-wrap items-center gap-1.5"}>
           <button
-            onClick={() => navigate(user ? "/dashboard" : "/leaderboard")}
-            className="flex shrink-0 items-center gap-2"
+            type="button"
+            onClick={() => navigate("/premium")}
+            title={hearts?.is_premium ? "Premium — unlimited hearts" : "Get unlimited hearts"}
+            className={
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition " +
+              (hearts?.is_premium
+                ? "bg-gold-100 text-gold-700 hover:bg-gold-100/80 dark:bg-gold-500/15 dark:text-gold-300 dark:hover:bg-gold-500/25"
+                : "bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25")
+            }
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg">
-              Հ
-            </div>
-            <div className="hidden flex-col items-start sm:flex">
-              <span className="font-bold text-lg leading-tight text-gray-900 dark:text-white">Haylingua</span>
-              <span className="whitespace-nowrap text-[11px] leading-tight text-gray-500 dark:text-stone-400">
-                Armenian made playful
-              </span>
-            </div>
+            {hearts?.is_premium ? <Crown className="w-4 h-4 fill-gold-500" /> : <Heart className="w-4 h-4" />}
+            <span>{hearts ? (hearts.is_premium ? "∞" : `${hearts.current}/${hearts.max}`) : "–"}</span>
           </button>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">
+            <Flame className={"w-4 h-4 fill-orange-500 text-orange-500" + (streak > 0 ? " flame-flicker" : "")} />
+            <span>{streak}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/shop")}
+            title="Spend your gems in the shop"
+            className="inline-flex items-center gap-1.5 rounded-full bg-feather-50 px-3 py-1.5 text-xs font-semibold text-feather-600 transition hover:bg-feather-100 dark:bg-feather-500/15 dark:text-feather-300 dark:hover:bg-feather-500/25"
+          >
+            <Gem className="w-4 h-4" />
+            <span>{gems == null ? "–" : gems}</span>
+          </button>
+        </div>
 
-          {/* Center nav – hidden on mobile */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-            <NavLink to="/dashboard" className={navLinkClass}>
-              <Home className="w-4 h-4" />
-              <span>Learn</span>
-            </NavLink>
-            <NavLink to="/friends" className={navLinkClass}>
-              <Users className="w-4 h-4" />
-              <span>Friends</span>
-            </NavLink>
-            <NavLink to="/leaderboard" className={navLinkClass}>
-              <Trophy className="w-4 h-4" />
-              <span>Leaderboard</span>
-            </NavLink>
-            <NavLink to="/shop" className={navLinkClass}>
-              <Store className="w-4 h-4" />
-              <span>Shop</span>
-            </NavLink>
-            {isAffiliate && (
-              <NavLink to="/affiliate-dashboard" className={navLinkClass}>
-                <Percent className="w-4 h-4" />
-                <span>Affiliate</span>
-              </NavLink>
-            )}
-            <NavLink to="/profile" className={navLinkClass}>
-              <User className="w-4 h-4" />
-              <span>Profile</span>
-            </NavLink>
-          </nav>
-
-          {/* Right side: quick stats + account menu */}
-          <div className="flex shrink-0 items-center gap-2 lg:gap-3">
-            {/* Quick stats — trimmed to what actually changes moment-to-
-                moment (premium/hearts, streak, gems); XP has its own home on
-                the Dashboard and doesn't need a permanent header slot too. */}
-            <div className="hidden md:flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => navigate("/premium")}
-                title={hearts?.is_premium ? "Premium — unlimited hearts" : "Get unlimited hearts"}
-                className={
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition " +
-                  (hearts?.is_premium
-                    ? "bg-gold-100 text-gold-700 hover:bg-gold-100/80 dark:bg-gold-500/15 dark:text-gold-300 dark:hover:bg-gold-500/25"
-                    : "bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25")
-                }
-              >
-                {hearts?.is_premium ? <Crown className="w-4 h-4 fill-gold-500" /> : <Heart className="w-4 h-4" />}
-                <span>{hearts ? (hearts.is_premium ? "∞" : `${hearts.current}/${hearts.max}`) : "–"}</span>
-              </button>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">
-                <Flame className={"w-4 h-4 fill-orange-500 text-orange-500" + (streak > 0 ? " flame-flicker" : "")} />
-                <span>{streak}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate("/shop")}
-                title="Spend your gems in the shop"
-                className="inline-flex items-center gap-1.5 rounded-full bg-feather-50 px-3 py-1.5 text-xs font-semibold text-feather-600 transition hover:bg-feather-100 dark:bg-feather-500/15 dark:text-feather-300 dark:hover:bg-feather-500/25"
-              >
-                <Gem className="w-4 h-4" />
-                <span>{gems == null ? "–" : gems}</span>
-              </button>
-            </div>
-
-            {user ? (
-              <div className="relative" ref={accountMenuRef}>
+        {user ? (
+          <div className="relative">
+            <div className={compact ? "" : "flex items-center gap-2.5"}>
+              <div className="relative shrink-0" ref={compact ? mobileAccountMenuRef : sidebarAccountMenuRef}>
                 <AvatarFrame frameStyle={activeFrameStyle} rarity={activeFrameRarity} size={36} radius="9999px" thickness={2.5} idle>
                   <button
                     onClick={() => setAccountMenuOpen((v) => !v)}
@@ -426,7 +416,10 @@ export default function HeaderLayout({ user, onLogout, children }) {
                 {accountMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 top-full z-30 mt-2 w-52 overflow-hidden rounded-2xl bg-white py-1.5 shadow-lg ring-1 ring-black/5 dark:bg-[#1f1f23] dark:ring-white/10"
+                    className={
+                      "absolute z-30 mt-2 w-52 overflow-hidden rounded-2xl bg-white py-1.5 shadow-lg ring-1 ring-black/5 dark:bg-[#1f1f23] dark:ring-white/10 " +
+                      (compact ? "right-0 top-full" : "bottom-full left-0 mb-2")
+                    }
                   >
                     <button
                       role="menuitem"
@@ -482,113 +475,132 @@ export default function HeaderLayout({ user, onLogout, children }) {
                   </div>
                 )}
               </div>
-            ) : (
-              <button
-                onClick={() => navigate("/login")}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600"
-              >
-                Login
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Bottom nav (mobile only) */}
-      <nav className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-orange-100 md:hidden dark:bg-[#151517] dark:border-white/[0.06]">
-        <div className="max-w-md mx-auto flex justify-around py-1.5">
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
-              }`
-            }
-          >
-            <Home className="w-5 h-5" />
-            <span className="text-[11px] font-medium">Learn</span>
-          </NavLink>
-
-          <NavLink
-            to="/friends"
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
-              }`
-            }
-          >
-            <Users className="w-5 h-5" />
-            <span className="text-[11px] font-medium">Friends</span>
-          </NavLink>
-
-          <NavLink
-            to="/leaderboard"
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
-              }`
-            }
-          >
-            <Trophy className="w-5 h-5" />
-            <span className="text-[11px] font-medium">Rank</span>
-          </NavLink>
-
-          <NavLink
-            to="/bonuses"
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
-              }`
-            }
-          >
-            <Gift className="w-5 h-5" />
-            <span className="text-[11px] font-medium">Bonuses</span>
-          </NavLink>
-
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
-              }`
-            }
-          >
-            <User className="w-5 h-5" />
-            <span className="text-[11px] font-medium">You</span>
-          </NavLink>
-        </div>
-      </nav>
-
-      {/* Main content under header, above mobile nav. Keyed by route so each
-          page fades/slides in on navigation. */}
-      <main className="pt-16 pb-14 md:pb-0">
-        {notifications.length > 0 && (
-          <div className="mx-auto max-w-2xl space-y-2 px-4 pt-4">
-            {notifications.map((n) => (
-              <div
-                key={n.id}
-                className="flex items-start gap-3 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-200 dark:bg-brand-500/10 dark:ring-brand-500/25"
-              >
-                <Gift className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
+              {!compact && (
                 <div className="min-w-0 flex-1">
-                  <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">{n.title}</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-600 dark:text-stone-300">{n.body}</div>
+                  <div className="truncate text-sm font-bold text-gray-800 dark:text-white">{user?.name || user?.email || "Account"}</div>
+                  <div className="truncate text-xs font-semibold text-gray-400 dark:text-stone-500">View account</div>
                 </div>
-                <button
-                  onClick={() => dismissNotification(n.id)}
-                  className="shrink-0 text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
+        ) : (
+          <button
+            onClick={() => navigate("/login")}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600"
+          >
+            Login
+          </button>
         )}
-        <div key={location.pathname} className="page-in">
-          {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
-          {children ?? <Outlet />}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-orange-50 dark:bg-[#0d0d0f]">
+      <div className="flex">
+        {/* ---------- Sidebar (desktop, lg+) ---------- */}
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-orange-100 bg-white px-3 py-4 lg:flex dark:bg-[#151517] dark:border-white/[0.06]">
+          <button
+            onClick={() => navigate(user ? "/dashboard" : "/leaderboard")}
+            className="flex shrink-0 items-center gap-2 px-2 py-1"
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg shrink-0">
+              Հ
+            </div>
+            <div className="flex flex-col items-start">
+              <span className="font-bold text-base leading-tight text-gray-900 dark:text-white">Haylingua</span>
+              <span className="whitespace-nowrap text-[11px] leading-tight text-gray-500 dark:text-stone-400">
+                Armenian made playful
+              </span>
+            </div>
+          </button>
+
+          <nav className="mt-6 space-y-1">
+            {NAV.map((item) => (
+              <SidebarNavLink key={item.key} item={item} />
+            ))}
+          </nav>
+
+          <div className="flex-1" />
+
+          <div className="border-t border-orange-100 pt-3 dark:border-white/[0.06]">
+            <AccountArea />
+          </div>
+        </aside>
+
+        {/* ---------- Main column ---------- */}
+        <div className="min-w-0 flex-1">
+          {/* Slim top bar (mobile & tablet only — sidebar covers this on desktop) */}
+          <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-orange-100 bg-white/90 px-4 py-3 backdrop-blur lg:hidden dark:bg-[#151517]/90 dark:border-white/[0.06]">
+            <button
+              onClick={() => navigate(user ? "/dashboard" : "/leaderboard")}
+              className="flex shrink-0 items-center gap-2"
+            >
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg">
+                Հ
+              </div>
+              <span className="hidden font-bold text-lg leading-tight text-gray-900 sm:inline dark:text-white">Haylingua</span>
+            </button>
+            <AccountArea compact />
+          </div>
+
+          {/* Bottom nav (mobile & tablet only) */}
+          <nav className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-orange-100 lg:hidden dark:bg-[#151517] dark:border-white/[0.06]">
+            <div className="max-w-md mx-auto flex justify-around py-1.5">
+              {mobileNav.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.key}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
+                        isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
+                      }`
+                    }
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-[11px] font-medium">{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </nav>
+
+          {/* Main content. Keyed by route so each page fades/slides in on
+              navigation. No pt- offset needed: the sidebar/top bar above are
+              sticky (in-flow), not fixed — only the mobile bottom nav is
+              fixed, so pb-14 compensates for that alone. */}
+          <main className="pb-14 lg:pb-0">
+            {notifications.length > 0 && (
+              <div className="mx-auto max-w-2xl space-y-2 px-4 pt-4">
+                {notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className="flex items-start gap-3 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-200 dark:bg-brand-500/10 dark:ring-brand-500/25"
+                  >
+                    <Gift className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">{n.title}</div>
+                      <div className="mt-0.5 text-sm font-semibold text-slate-600 dark:text-stone-300">{n.body}</div>
+                    </div>
+                    <button
+                      onClick={() => dismissNotification(n.id)}
+                      className="shrink-0 text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div key={location.pathname} className="page-in">
+              {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
+              {children ?? <Outlet />}
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

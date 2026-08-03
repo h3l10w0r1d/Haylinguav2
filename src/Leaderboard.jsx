@@ -346,7 +346,7 @@ export default function Leaderboard() {
 
         {/* ── Sticky self-rank pill when user is far down the list ── */}
         {selfEntry && selfEntry.rank > 10 && (
-          <div className="fixed bottom-20 left-1/2 z-30 -translate-x-1/2 pointer-events-none">
+          <div className="fixed bottom-20 lg:bottom-6 left-1/2 z-30 -translate-x-1/2 pointer-events-none">
             <div className="flex items-center gap-3 rounded-2xl bg-brand-600 px-4 py-2.5 text-white shadow-xl ring-1 ring-brand-700 pointer-events-auto">
               <Avatar name={selfEntry.name} url={selfEntry.avatar_url} size="h-7 w-7" text="text-sm" frameStyle={selfEntry.active_frame_style} rarity={selfEntry.active_frame_rarity} />
               <span className="font-display text-sm font-extrabold">#{selfEntry.rank} · {selfEntry.weekly_xp.toLocaleString()} XP</span>

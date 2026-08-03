@@ -1284,10 +1284,12 @@ export default function Dashboard({ user }) {
         {/* ── Main: stats + hero + curriculum ── */}
         <main className="mx-auto w-full max-w-xl lg:mx-0 lg:justify-self-center">
           {/* Sticky so streak/hearts/XP/gems stay visible while scrolling the
-              roadmap below — top-20 matches the site nav height (same offset
-              the sidebar's own sticky uses). The hero card underneath is
-              deliberately NOT part of this — it stays inline and scrolls away. */}
-          <div className="sticky top-20 z-30 -mt-2 bg-[#f5f4f1]/95 pb-3 pt-2 backdrop-blur dark:bg-[#0d0d0f]/95">
+              roadmap below. top-16 clears the mobile/tablet top bar's real
+              height; lg:top-4 is just breathing room, since the desktop
+              sidebar nav takes horizontal space, not vertical. The hero card
+              underneath is deliberately NOT part of this — it stays inline
+              and scrolls away. */}
+          <div className="sticky top-16 lg:top-4 z-30 -mt-2 bg-[#f5f4f1]/95 pb-3 pt-2 backdrop-blur dark:bg-[#0d0d0f]/95">
             <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} onPremiumChange={setIsPremium} />
           </div>
 
@@ -1349,7 +1351,7 @@ export default function Dashboard({ user }) {
         </main>
 
         {/* ── Rail: everything that supports the journey ── */}
-        <aside className="space-y-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:pb-6">
+        <aside className="space-y-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:overscroll-contain lg:px-1 lg:pb-6">
           {/* Spaced-repetition review card — disabled (not deleted) per
               product decision; re-enable by uncommenting this line + the
               ReviewCard function definition above. */}
