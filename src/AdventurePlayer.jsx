@@ -222,6 +222,10 @@ export default function AdventurePlayer() {
     setDialog(null);
   }
 
+  if (base === undefined) {
+    // Still resolving (a custom adventure is fetched by id). Brief loading state.
+    return <div style={fullCenter}><div style={{ color: '#fff', fontSize: 16 }}>Loading adventure…</div></div>;
+  }
   if (base === null) {
     return (
       <div style={fullCenter}>
