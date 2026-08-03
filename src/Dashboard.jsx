@@ -1091,6 +1091,67 @@ function LevelBand({ cefr, info, onAssess }) {
 }
 
 // Quick access — colored tinted chips in one card.
+// Rail upsell card, Duolingo's "Try Super free" pattern — pure link-out to
+// the existing /premium page, no new entitlement logic. Hides once the
+// learner is already premium (isPremium comes from Dashboard's own
+// KpiStrip-driven state, the same source HeroCard's crown badge uses).
+function PremiumUpsellCard({ isPremium, navigate }) {
+  if (isPremium) return null;
+  return (
+    <div className={"overflow-hidden " + CARD}>
+      <div className="flex items-start gap-3 bg-gradient-to-br from-gold-50 to-white p-4 dark:from-gold-500/10 dark:to-transparent">
+        <Chip chip={ACCENT.gold} icon={Crown} size="h-10 w-10" ic="h-5 w-5" />
+        <div className="min-w-0 flex-1">
+          <Label>Try Premium free</Label>
+          <p className="mt-0.5 text-[13px] font-semibold leading-snug text-stone-500 dark:text-stone-400">
+            Unlimited hearts, no ads, and faster progress.
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => navigate("/premium")}
+        className="w-full border-t border-black/[0.04] px-4 py-2.5 text-center text-[13px] font-extrabold text-gold-600 transition hover:bg-gold-50 dark:border-white/[0.06] dark:text-gold-400 dark:hover:bg-white/[0.04]"
+      >
+        Try 1 week free
+      </button>
+    </div>
+  );
+}
+
+// Rail progress card echoing Duolingo's "Unlock leaderboards" slot — but
+// Haylingua's leaderboard has no actual access gate (see /me/league), so
+// this deliberately doesn't claim one. It's honest encouragement toward a
+// milestone instead: framing lesson progress as what grows your rank, with
+// a plain link to the (already-open) leaderboard.
+function LeaderboardProgressCard({ doneLessons, navigate }) {
+  const milestone = 10;
+  const remaining = Math.max(0, milestone - Number(doneLessons || 0));
+  const pct = Math.min(100, Math.round((Number(doneLessons || 0) / milestone) * 100));
+  return (
+    <button
+      type="button"
+      onClick={() => navigate("/leaderboard")}
+      className={"block w-full p-4 text-left transition hover:bg-stone-50 dark:hover:bg-white/[0.04] " + CARD}
+    >
+      <div className="flex items-center gap-3">
+        <Chip chip={ACCENT.amber} icon={Trophy} size="h-10 w-10" ic="h-5 w-5" />
+        <div className="min-w-0 flex-1">
+          <Label>Climb the leaderboard</Label>
+          <p className="mt-0.5 text-[13px] font-semibold leading-snug text-stone-500 dark:text-stone-400">
+            {remaining > 0
+              ? `${remaining} more lesson${remaining === 1 ? "" : "s"} builds your weekly rank`
+              : "Keep learning to climb this week's rank"}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-white/10">
+        <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${Math.max(pct, 6)}%` }} />
+      </div>
+    </button>
+  );
+}
+
 function QuickLinks({ navigate }) {
   const tiles = [
     { icon: Dumbbell, label: "Practice", to: "/practice", accent: ACCENT.brand },
@@ -1357,17 +1418,22 @@ export default function Dashboard({ user }) {
               ReviewCard function definition above. */}
           {/* <ReviewCard token={token} /> */}
           {/* Daily goal/quests, mistakes, streak, and QuickLinks all moved to
-              a dedicated /bonuses page on mobile (reachable from the bottom
-              nav's "Bonuses" tab), so they don't duplicate there — desktop
-              keeps them inline here since it has no bottom nav. */}
-          <div className="hidden md:block md:space-y-3">
+              a dedicated /bonuses page on mobile/tablet (reachable from the
+              bottom nav's "Bonuses" tab), so they don't duplicate there —
+              only the true desktop sidebar breakpoint (lg:, matching
+              HeaderLayout's sidebar toggle) keeps them inline here, since
+              that's the only width with no bottom nav to send people to
+              /bonuses instead. */}
+          <div className="hidden lg:block lg:space-y-3">
+            <PremiumUpsellCard isPremium={isPremium} navigate={navigate} />
             <DailyGoalCard todayXp={stats.today_xp} />
             <DailyQuestsCard token={token} />
+            <LeaderboardProgressCard doneLessons={doneLessons} navigate={navigate} />
             <MistakesCard token={token} navigate={navigate} />
             <StreakCard token={token} streak={stats.streak} />
           </div>
           <ChestCard token={token} />
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <QuickLinks navigate={navigate} />
           </div>
         </aside>

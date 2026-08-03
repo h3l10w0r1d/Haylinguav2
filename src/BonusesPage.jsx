@@ -1,8 +1,8 @@
-// src/BonusesPage.jsx — mobile-only hub for the "extra" features that live
-// in Dashboard's desktop sidebar (QuickLinks + the mistakes card). Desktop
-// keeps those inline in the sidebar; on mobile they're hidden there (see
-// Dashboard.jsx's `hidden md:block` wrappers) and surfaced here instead,
-// reachable from the mobile bottom nav's new "Bonuses" tab.
+// src/BonusesPage.jsx — mobile/tablet hub for the "extra" features that live
+// in Dashboard's desktop sidebar (QuickLinks + the mistakes card). Only the
+// true desktop sidebar breakpoint (lg:) keeps those inline; below that
+// they're hidden there (see Dashboard.jsx's `hidden lg:block` wrappers) and
+// surfaced here instead, reachable from the mobile bottom nav's "Bonuses" tab.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Dumbbell, Map as MapIcon, BookOpen, BarChart2, Store, Star } from "lucide-react";
