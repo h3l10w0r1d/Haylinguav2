@@ -408,37 +408,31 @@ export default function ExerciseShell({
         </div>
       ) : null}
 
-      {/* Mascot is fixed to the left gutter, independent of the exercise
-          column — so the exercise itself stays truly centered on the page
-          instead of being pushed off-center to make room. Positioned lower
-          than dead-center (matches where the character reads naturally
-          alongside the question text, not floating mid-header). Desktop
-          only (there's no gutter to dock it in on mobile, and every mobile
-          screenshot of feedback so far showed exercise content — the actual
-          thing the learner needs to see — getting pushed below the fold to
-          make room for it). Mobile still gets the compact status medallion
-          in the result sheet; it just isn't a large persistent presence
-          competing with the exercise for space. */}
-      {!hideFooter && !hideMascot ? (
-        <img
-          key={mascotFaceState}
-          src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
-          alt=""
-          aria-hidden="true"
-          loading="eager"
-          decoding="async"
-          fetchPriority="high"
-          className="animate-pop pointer-events-none fixed left-6 top-[58%] z-[65] hidden h-[30rem] w-[30rem] -translate-y-1/2 object-contain drop-shadow-2xl min-[1180px]:block xl:left-16 xl:h-[38rem] xl:w-[38rem]"
-        />
-      ) : null}
-
       {/* Centers short exercise content vertically, same as `justify-center`
           would — but `margin: auto` on the child degrades gracefully instead
           of clipping when content is taller than the viewport (a known
           flexbox trap: `justify-content: center` on an overflowing
-          container makes the far edge unreachable even with scroll). */}
+          container makes the far edge unreachable even with scroll). The
+          mascot now sits in-flow, centered above the content column at
+          every viewport width (previously it was a desktop-only giant image
+          docked in the left gutter — mobile got no mascot at all for kinds
+          that don't render their own inline SpeechBubbleMascot). */}
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
-        <div className="m-auto w-full">{children}</div>
+        <div className="m-auto w-full">
+          {!hideFooter && !hideMascot ? (
+            <img
+              key={mascotFaceState}
+              src={mascotFaceUrl(mascotCharacter, mascotFaceState)}
+              alt=""
+              aria-hidden="true"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+              className="animate-pop pointer-events-none mx-auto mb-3 h-28 w-28 object-contain drop-shadow-xl sm:h-32 sm:w-32"
+            />
+          ) : null}
+          {children}
+        </div>
       </main>
 
       {/* Bottom action bar — in-flow so it's always visible on mobile.
@@ -466,7 +460,7 @@ export default function ExerciseShell({
                 type="button"
                 disabled={primaryDisabled}
                 onClick={onPrimary}
-                className="btn3d btn3d-brand ml-auto min-w-[160px] uppercase"
+                className="btn3d btn3d-grass ml-auto min-w-[160px] uppercase"
               >
                 {primaryLabel}
               </button>

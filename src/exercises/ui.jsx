@@ -50,14 +50,16 @@ export function Muted({ children, className }) {
   return <div className={cx("text-sm font-semibold text-slate-500 dark:text-stone-400", className)}>{children}</div>;
 }
 
-/** Affirmative action (Check / Continue) — Haylingua apricot, pressable 3D. */
+/** Affirmative action (Check / Continue) — green, pressable 3D (matches
+ *  ExerciseShell's own primaryLabel-driven Check button, which uses the
+ *  same btn3d-grass color for the same action rendered a different way). */
 export function PrimaryButton({ children, onClick, disabled, className, type = "button" }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={cx("btn3d btn3d-brand w-full uppercase", className)}
+      className={cx("btn3d btn3d-grass w-full uppercase", className)}
     >
       {children}
     </button>
