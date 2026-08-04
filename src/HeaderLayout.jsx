@@ -496,110 +496,115 @@ export default function HeaderLayout({ user, onLogout, children }) {
   }
 
   return (
-    <div className="min-h-screen bg-orange-50 dark:bg-[#0d0d0f]">
-      <div className="flex">
-        {/* ---------- Sidebar (desktop, lg+) ---------- */}
-        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-orange-100 bg-white px-3 py-4 lg:flex dark:bg-[#151517] dark:border-white/[0.06]">
+    <div className="app-shell flex overflow-hidden bg-orange-50 dark:bg-[#0d0d0f]">
+      {/* ---------- Sidebar (desktop, lg+) ---------- */}
+      <aside className="hidden h-full w-60 shrink-0 flex-col border-r border-orange-100 bg-white px-3 py-4 lg:flex dark:bg-[#151517] dark:border-white/[0.06]">
+        <button
+          onClick={() => navigate(user ? "/dashboard" : "/leaderboard")}
+          className="flex shrink-0 items-center gap-2 px-2 py-1"
+        >
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg shrink-0">
+            Հ
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="font-bold text-base leading-tight text-gray-900 dark:text-white">Haylingua</span>
+            <span className="whitespace-nowrap text-[11px] leading-tight text-gray-500 dark:text-stone-400">
+              Armenian made playful
+            </span>
+          </div>
+        </button>
+
+        <nav className="mt-6 space-y-1">
+          {NAV.map((item) => (
+            <SidebarNavLink key={item.key} item={item} />
+          ))}
+        </nav>
+
+        <div className="flex-1" />
+
+        <div className="border-t border-orange-100 pt-3 dark:border-white/[0.06]">
+          <AccountArea />
+        </div>
+      </aside>
+
+      {/* ---------- Main column — a non-scrolling flex column; the mobile
+          top bar and bottom nav are just shrink-0 rows in it, and <main> is
+          the only child that scrolls. This structural approach (rather than
+          `position: sticky`/`fixed`) is what actually keeps nav pinned: this
+          app's html/body both set overflow-x: hidden for in-app-browser
+          viewport bugs, which per the CSS overflow spec forces overflow-y to
+          compute as auto too — that silently breaks sticky descendants in
+          some engines. Making the whole shell fixed-height and scrolling
+          only the content pane sidesteps the issue entirely. ---------- */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Slim top bar (mobile & tablet only — sidebar covers this on desktop) */}
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-orange-100 bg-white/90 px-4 py-3 backdrop-blur lg:hidden dark:bg-[#151517]/90 dark:border-white/[0.06]">
           <button
             onClick={() => navigate(user ? "/dashboard" : "/leaderboard")}
-            className="flex shrink-0 items-center gap-2 px-2 py-1"
+            className="flex shrink-0 items-center gap-2"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg">
               Հ
             </div>
-            <div className="flex flex-col items-start">
-              <span className="font-bold text-base leading-tight text-gray-900 dark:text-white">Haylingua</span>
-              <span className="whitespace-nowrap text-[11px] leading-tight text-gray-500 dark:text-stone-400">
-                Armenian made playful
-              </span>
-            </div>
+            <span className="hidden font-bold text-lg leading-tight text-gray-900 sm:inline dark:text-white">Haylingua</span>
           </button>
-
-          <nav className="mt-6 space-y-1">
-            {NAV.map((item) => (
-              <SidebarNavLink key={item.key} item={item} />
-            ))}
-          </nav>
-
-          <div className="flex-1" />
-
-          <div className="border-t border-orange-100 pt-3 dark:border-white/[0.06]">
-            <AccountArea />
-          </div>
-        </aside>
-
-        {/* ---------- Main column ---------- */}
-        <div className="min-w-0 flex-1">
-          {/* Slim top bar (mobile & tablet only — sidebar covers this on desktop) */}
-          <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-orange-100 bg-white/90 px-4 py-3 backdrop-blur lg:hidden dark:bg-[#151517]/90 dark:border-white/[0.06]">
-            <button
-              onClick={() => navigate(user ? "/dashboard" : "/leaderboard")}
-              className="flex shrink-0 items-center gap-2"
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold text-lg">
-                Հ
-              </div>
-              <span className="hidden font-bold text-lg leading-tight text-gray-900 sm:inline dark:text-white">Haylingua</span>
-            </button>
-            <AccountArea compact />
-          </div>
-
-          {/* Bottom nav (mobile & tablet only) */}
-          <nav className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-orange-100 lg:hidden dark:bg-[#151517] dark:border-white/[0.06]">
-            <div className="max-w-md mx-auto flex justify-around py-1.5">
-              {mobileNav.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.key}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
-                        isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
-                      }`
-                    }
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="text-[11px] font-medium">{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </div>
-          </nav>
-
-          {/* Main content. Keyed by route so each page fades/slides in on
-              navigation. No pt- offset needed: the sidebar/top bar above are
-              sticky (in-flow), not fixed — only the mobile bottom nav is
-              fixed, so pb-14 compensates for that alone. */}
-          <main className="pb-14 lg:pb-0">
-            {notifications.length > 0 && (
-              <div className="mx-auto max-w-2xl space-y-2 px-4 pt-4">
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className="flex items-start gap-3 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-200 dark:bg-brand-500/10 dark:ring-brand-500/25"
-                  >
-                    <Gift className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">{n.title}</div>
-                      <div className="mt-0.5 text-sm font-semibold text-slate-600 dark:text-stone-300">{n.body}</div>
-                    </div>
-                    <button
-                      onClick={() => dismissNotification(n.id)}
-                      className="shrink-0 text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div key={location.pathname} className="page-in">
-              {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
-              {children ?? <Outlet />}
-            </div>
-          </main>
+          <AccountArea compact />
         </div>
+
+        {/* Scrollable content. Keyed by route so each page fades/slides in
+            on navigation. */}
+        <main className="flex-1 overflow-y-auto">
+          {notifications.length > 0 && (
+            <div className="mx-auto max-w-2xl space-y-2 px-4 pt-4">
+              {notifications.map((n) => (
+                <div
+                  key={n.id}
+                  className="flex items-start gap-3 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-200 dark:bg-brand-500/10 dark:ring-brand-500/25"
+                >
+                  <Gift className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-sm font-extrabold text-slate-800 dark:text-white">{n.title}</div>
+                    <div className="mt-0.5 text-sm font-semibold text-slate-600 dark:text-stone-300">{n.body}</div>
+                  </div>
+                  <button
+                    onClick={() => dismissNotification(n.id)}
+                    className="shrink-0 text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div key={location.pathname} className="page-in">
+            {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
+            {children ?? <Outlet />}
+          </div>
+        </main>
+
+        {/* Bottom nav (mobile & tablet only) — a shrink-0 row, not fixed;
+            the parent column never scrolls so this never needs to fight it. */}
+        <nav className="shrink-0 bg-white border-t border-orange-100 lg:hidden dark:bg-[#151517] dark:border-white/[0.06]">
+          <div className="max-w-md mx-auto flex justify-around py-1.5">
+            {mobileNav.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.key}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 ${
+                      isActive ? "text-orange-600 dark:text-brand-400" : "text-gray-500 dark:text-stone-400"
+                    }`
+                  }
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[11px] font-medium">{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        </nav>
       </div>
     </div>
   );

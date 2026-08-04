@@ -1345,12 +1345,14 @@ export default function Dashboard({ user }) {
         {/* ── Main: stats + hero + curriculum ── */}
         <main className="mx-auto w-full max-w-xl lg:mx-0 lg:justify-self-center">
           {/* Sticky so streak/hearts/XP/gems stay visible while scrolling the
-              roadmap below. top-16 clears the mobile/tablet top bar's real
-              height; lg:top-4 is just breathing room, since the desktop
-              sidebar nav takes horizontal space, not vertical. The hero card
-              underneath is deliberately NOT part of this — it stays inline
-              and scrolls away. */}
-          <div className="sticky top-16 lg:top-4 z-30 -mt-2 bg-[#f5f4f1]/95 pb-3 pt-2 backdrop-blur dark:bg-[#0d0d0f]/95">
+              roadmap below. The nearest scrolling ancestor is HeaderLayout's
+              own <main> (a fixed-height flex column, not document/window
+              scroll) — the mobile top bar lives outside that scroll region
+              entirely now, so there's no phantom height to clear here, just
+              a little breathing room. The hero card underneath is
+              deliberately NOT part of this — it stays inline and scrolls
+              away. */}
+          <div className="sticky top-2 z-30 -mt-2 bg-[#f5f4f1]/95 pb-3 pt-2 backdrop-blur dark:bg-[#0d0d0f]/95">
             <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} onPremiumChange={setIsPremium} />
           </div>
 

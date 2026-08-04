@@ -96,6 +96,17 @@
    bar is always reachable. Falls back to vh on browsers without dvh. */
 .lesson-shell { height: 100vh; height: 100dvh; }
 
+/* The authenticated app shell (HeaderLayout) — fixed to the viewport height
+   so the sidebar/top bar/bottom nav never move; only the content pane inside
+   scrolls. Same vh->dvh fallback pattern as .lesson-shell (mobile Safari's
+   address bar changes 100vh mid-scroll otherwise). Structural fixed-height
+   was chosen over `position: sticky` because this app's html/body both set
+   overflow-x: hidden (needed for in-app-browser viewport bugs), which per
+   the CSS overflow spec forces overflow-y to compute as auto too — that
+   silently breaks sticky descendants in some engines even though nothing
+   about the sticky element itself is wrong. */
+.app-shell { height: 100vh; height: 100dvh; }
+
 /* Duolingo-style word-bank answer area: picked tiles sit on ruled lines
    (like writing on notebook lines) instead of inside a dashed box. Row
    pitch = tile height (~3rem) + gap-y-2 (0.5rem). */
