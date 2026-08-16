@@ -7,6 +7,7 @@ import {
   Navigate,
   useNavigate,
   useParams,
+  useLocation,
 } from 'react-router-dom';
 
 import LandingPage from './LandingPage';
@@ -14,7 +15,8 @@ import HeaderLayout from './HeaderLayout';
 import LoadingScreen from './lib/LoadingScreen';
 import ErrorBoundary from './lib/ErrorBoundary';
 import NotifyPrompt from './lib/NotifyPrompt';
-import { track } from './lib/analytics';
+import ConsentBanner from './ConsentBanner';
+import { track, pageview } from './lib/analytics';
 
 // Code-split heavy routes so the initial bundle stays small.
 const Dashboard = lazy(() => import('./Dashboard'));
@@ -95,6 +97,13 @@ function AppShell() {
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Fires the PageView dataLayer event GTM's web container reacts to for
+  // Meta's PageView — see src/lib/analytics.js.
+  useEffect(() => {
+    pageview(location.pathname);
+  }, [location.pathname]);
 
   // Load auth state from localStorage
   useEffect(() => {
@@ -737,6 +746,7 @@ export default function App() {
       <BrowserRouter>
         <AppShell />
         <NotifyPrompt />
+        <ConsentBanner />
       </BrowserRouter>
     </ErrorBoundary>
   );

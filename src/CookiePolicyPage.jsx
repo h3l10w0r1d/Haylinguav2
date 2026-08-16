@@ -1,7 +1,8 @@
 // src/CookiePolicyPage.jsx — Cookie Policy. Public, unauthenticated page.
 import StaticPageShell, { Prose } from "./StaticPageShell";
+import { reopenConsentBanner } from "./ConsentBanner";
 
-const UPDATED = "July 19, 2026";
+const UPDATED = "August 4, 2026";
 
 function CookieTable({ rows }) {
   return (
@@ -39,8 +40,8 @@ export default function CookiePolicyPage() {
       <Prose>
         <h2>1. What we mean by "cookies"</h2>
         <p>
-          This covers browser cookies and similar local storage used to keep you logged in and remember
-          your preferences. We use as few as possible and avoid third-party advertising trackers entirely.
+          This covers browser cookies and similar local storage used to keep you logged in, remember
+          your preferences, and — only with your consent — measure our advertising campaigns.
         </p>
 
         <h2>2. Strictly necessary</h2>
@@ -75,28 +76,52 @@ export default function CookiePolicyPage() {
           ]}
         />
 
-        <h2>5. Third-party embeds</h2>
+        <h2>5. Advertising (only with your consent)</h2>
+        <p>
+          We use Google Tag Manager to load a Meta (Facebook/Instagram) Pixel that helps us measure
+          which ads led to a signup or a Premium purchase. This only loads if you accept cookies in the
+          banner shown on your first visit — if you reject or haven't decided, none of this runs. We also
+          send a matching copy of key events (like a Premium purchase) from our own servers to Meta, so
+          the measurement stays accurate even if your browser blocks the on-page pixel.
+        </p>
+        <CookieTable
+          rows={[
+            ["_fbp / fbc (Meta Pixel)", "Attributes visits and conversions to a Meta ad campaign", "Up to 90 days"],
+            ["GTM container cookies", "Lets Google Tag Manager coordinate which tags have fired", "Session to 2 years"],
+          ]}
+        />
+
+        <h2>6. Third-party embeds</h2>
         <p>
           If you use the in-app chat widget (Brevo Conversations) or sign in with Google, Facebook, or
           Telegram, those providers may set their own cookies during that interaction, governed by their
           own privacy policies.
         </p>
 
-        <h2>6. Managing cookies</h2>
+        <h2>7. Managing cookies</h2>
         <p>
           Most browsers let you block or delete cookies in their settings. Blocking strictly-necessary
           cookies will prevent you from staying logged in. You can also clear Haylingua's local storage
           at any time via your browser's site data settings — you'll just need to log back in and reset
           your preferences.
         </p>
+        <p>
+          <button
+            type="button"
+            onClick={reopenConsentBanner}
+            className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-white shadow-[0_3px_0_0_#c2410c] transition active:translate-y-0.5"
+          >
+            Change my cookie preferences
+          </button>
+        </p>
 
-        <h2>7. Changes to this policy</h2>
+        <h2>8. Changes to this policy</h2>
         <p>
           If the cookies we use change meaningfully, we'll update this page and, where required, ask for
           your consent again.
         </p>
 
-        <h2>8. Contact</h2>
+        <h2>9. Contact</h2>
         <p>
           Questions about cookies on Haylingua? Reach us at{" "}
           <a href="mailto:info@haylingua.am">info@haylingua.am</a> or via our <a href="/contact">contact page</a>.

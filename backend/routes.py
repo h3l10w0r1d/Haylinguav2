@@ -47,6 +47,13 @@ except Exception:
     _brevo_track_event = None
     def _iso(dt): return dt.isoformat() if dt else None  # fallback
 
+# GTM server-side container forwarder (Meta Conversions API lives inside
+# that container's tag config, not in our own env — see gtm_server.py).
+try:
+    from integrations.gtm_server import send_event as _gtm_send_event
+except Exception:
+    _gtm_send_event = None
+
 
 def _expose_dev_codes() -> bool:
     """Whether to return email verification / change codes in API responses.
@@ -1324,6 +1331,58 @@ def _brevo_sync_user(db: Connection, user_id: int, *, event: str | None = None, 
         except Exception:
             pass
         # Never raise; just log server-side.
+        try:
+            traceback.print_exc()
+        except Exception:
+            pass
+
+
+def _gtm_forward_purchase(
+    db: Connection,
+    user_id: int,
+    *,
+    event_id: str | None,
+    value: float | None,
+    currency: str | None,
+) -> None:
+    """Best-effort server-side Purchase event forward to our GTM server-side
+    container (holds the actual Meta CAPI tag + token). Mirrors
+    _brevo_sync_user's isolation: SAVEPOINT'd so a forwarding failure can
+    never roll back the real premium activation, and this must NEVER break
+    the checkout flow.
+    """
+    if _gtm_send_event is None:
+        return
+    try:
+        sp_name = "gtm_purchase_forward"
+        try:
+            db.execute(text(f"SAVEPOINT {sp_name}"))
+        except Exception:
+            sp_name = None
+
+        email = db.execute(
+            text("SELECT email FROM users WHERE id = :id"),
+            {"id": int(user_id)},
+        ).scalar()
+
+        _gtm_send_event(
+            event_name="Purchase",
+            event_id=event_id,
+            user_data={"email": (email or "").strip() or None},
+            custom_data={"value": float(value) if value is not None else None, "currency": currency},
+        )
+
+        if sp_name:
+            try:
+                db.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+            except Exception:
+                pass
+    except Exception:
+        try:
+            db.execute(text("ROLLBACK TO SAVEPOINT gtm_purchase_forward"))
+            db.execute(text("RELEASE SAVEPOINT gtm_purchase_forward"))
+        except Exception:
+            pass
         try:
             traceback.print_exc()
         except Exception:
@@ -7212,6 +7271,10 @@ def me_premium_status(
 
 class PremiumCheckoutIn(BaseModel):
     plan_id: Optional[int] = None
+    # Generated client-side (src/lib/analytics.js's newEventId()) and echoed
+    # back here so the server-side Meta CAPI forward (see gtm_server.py) and
+    # the browser Pixel fire share one id — Meta dedupes on exact match.
+    event_id: Optional[str] = None
 
 
 @router.post("/me/premium/checkout")
@@ -7230,15 +7293,17 @@ def me_premium_checkout(
 
     plan_id = None
     plan_price = None
+    plan_currency = None
     if payload.plan_id is not None:
         plan = db.execute(
-            text("SELECT id, price FROM pricing_plans WHERE id = :id AND is_active = TRUE"),
+            text("SELECT id, price, currency FROM pricing_plans WHERE id = :id AND is_active = TRUE"),
             {"id": payload.plan_id},
         ).mappings().first()
         if not plan:
             raise HTTPException(status_code=400, detail="Unknown or inactive plan")
         plan_id = plan["id"]
         plan_price = plan["price"]
+        plan_currency = plan["currency"]
 
     db.execute(
         text(
@@ -7275,6 +7340,13 @@ def me_premium_checkout(
             text("UPDATE affiliate_referrals SET converted_at = NOW(), commission_amount = :amt WHERE id = :id"),
             {"amt": commission_amount, "id": referral["id"]},
         )
+
+    _gtm_forward_purchase(
+        db, user_id,
+        event_id=payload.event_id,
+        value=float(plan_price) if plan_price is not None else None,
+        currency=plan_currency,
+    )
 
     st = _hearts_state(db, user_id)
     return {"ok": True, **st}

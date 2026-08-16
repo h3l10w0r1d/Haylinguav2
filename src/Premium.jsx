@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Crown, Heart, Check, Infinity as InfinityIcon, ShieldCheck, Loader2, Lock, Star } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { writeHearts } from "./lib/hearts";
-import { track } from "./lib/analytics";
+import { track, newEventId } from "./lib/analytics";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 function getToken() {
@@ -129,6 +129,12 @@ export default function Premium() {
   async function pay(e) {
     e?.preventDefault?.();
     setPaying(true);
+    // Shared between this browser-side track() call (Pixel, via GTM's
+    // dataLayer) and the backend's server-side CAPI forward for the same
+    // Purchase event, so Meta deduplicates instead of double-counting —
+    // see src/lib/analytics.js's newEventId() and
+    // backend/integrations/gtm_server.py.
+    const eventId = newEventId();
     try {
       // SIMULATED payment — pretend to process the card, then activate premium.
       await new Promise((res) => setTimeout(res, 1200));
@@ -139,13 +145,18 @@ export default function Premium() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ plan_id: selectedPlan?.id ?? null }),
+        body: JSON.stringify({ plan_id: selectedPlan?.id ?? null, event_id: eventId }),
       });
       if (!r.ok) throw new Error("checkout failed");
       const d = await r.json();
       writeHearts(d); // ∞ hearts everywhere
       setIsPremium(true);
-      track("premium_purchase_completed", { plan_id: selectedPlan?.id ?? null });
+      track("premium_purchase_completed", {
+        plan_id: selectedPlan?.id ?? null,
+        value: selectedPlan?.price ?? null,
+        currency: selectedPlan?.currency ?? null,
+        event_id: eventId,
+      });
       setPremiumInfo({ is_premium: true, is_trial: false, premium_since: new Date().toISOString(), premium_until: null });
     } catch {
       track("checkout_failed", { plan_id: selectedPlan?.id ?? null });

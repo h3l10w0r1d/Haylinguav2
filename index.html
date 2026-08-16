@@ -104,6 +104,37 @@
   })();
 </script>
 
+<!-- GTM (web container): consent-gated, hard gate — never injected until the
+     visitor has explicitly accepted via src/ConsentBanner.jsx, which writes
+     localStorage["hay_consent"] = "accepted" and calls
+     window.__loadGTMIfConsented() to start it immediately without a reload.
+     No Consent Mode ping-then-adjust here on purpose — see the marketing
+     integration plan: a script that's simply never loaded pre-consent is a
+     strictly stronger privacy posture than one that loads and queues. -->
+<script>
+  (function () {
+    function loadGTM() {
+      if (window.__gtmLoaded) return;
+      window.__gtmLoaded = true;
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+      var containerId = "%VITE_GTM_CONTAINER_ID%";
+      // Vite leaves the literal "%VAR%" in place if the env var is unset
+      // (rather than an empty string) — guard both cases so this safely
+      // no-ops until a real container id is configured.
+      if (!containerId || containerId.charAt(0) === "%") return;
+      var s = document.createElement("script");
+      s.async = true;
+      s.src = "https://www.googletagmanager.com/gtm.js?id=" + containerId;
+      document.head.appendChild(s);
+    }
+    try {
+      if (localStorage.getItem("hay_consent") === "accepted") loadGTM();
+    } catch (e) {}
+    window.__loadGTMIfConsented = loadGTM;
+  })();
+</script>
+
     <!-- Structured data: SoftwareApplication -->
     <script type="application/ld+json">
       {
