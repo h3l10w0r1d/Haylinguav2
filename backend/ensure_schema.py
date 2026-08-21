@@ -761,6 +761,51 @@ def ensure_schema() -> None:
             END $$;
         """))
 
+        # Denormalized running total of lesson_progress.xp_earned per user.
+        # Leaderboard/profile/rank queries used to LEFT JOIN lesson_progress and
+        # SUM() across every user's rows on every single request (O(all users x
+        # all progress rows) per page view). This column lets those queries read
+        # the total directly off `users` instead of re-aggregating.
+        add_col_if_missing("users", "lesson_xp INTEGER NOT NULL DEFAULT 0")
+        conn.execute(text(
+            """
+            UPDATE users u
+            SET lesson_xp = sub.total
+            FROM (SELECT user_id, COALESCE(SUM(xp_earned), 0) AS total FROM lesson_progress GROUP BY user_id) sub
+            WHERE u.id = sub.user_id AND u.lesson_xp = 0 AND sub.total <> 0
+            """
+        ))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS users_lesson_xp_idx ON users (lesson_xp)"))
+        # Kept in sync at the DB level (not in application code) so it stays
+        # correct no matter which code path writes lesson_progress — this
+        # route, future CMS/admin tooling, data-fix scripts, or test seeding —
+        # rather than relying on every future write site remembering to also
+        # update users.lesson_xp.
+        conn.execute(text(
+            """
+            CREATE OR REPLACE FUNCTION sync_users_lesson_xp() RETURNS TRIGGER AS $$
+            BEGIN
+                IF TG_OP = 'INSERT' THEN
+                    UPDATE users SET lesson_xp = lesson_xp + NEW.xp_earned WHERE id = NEW.user_id;
+                ELSIF TG_OP = 'UPDATE' THEN
+                    UPDATE users SET lesson_xp = lesson_xp + (NEW.xp_earned - OLD.xp_earned) WHERE id = NEW.user_id;
+                ELSIF TG_OP = 'DELETE' THEN
+                    UPDATE users SET lesson_xp = lesson_xp - OLD.xp_earned WHERE id = OLD.user_id;
+                END IF;
+                RETURN NULL;
+            END;
+            $$ LANGUAGE plpgsql
+            """
+        ))
+        conn.execute(text("DROP TRIGGER IF EXISTS lesson_progress_sync_xp ON lesson_progress"))
+        conn.execute(text(
+            """
+            CREATE TRIGGER lesson_progress_sync_xp
+            AFTER INSERT OR UPDATE OF xp_earned OR DELETE ON lesson_progress
+            FOR EACH ROW EXECUTE FUNCTION sync_users_lesson_xp()
+            """
+        ))
+
         ensure_table(
             "user_lesson_progress",
             """
@@ -797,6 +842,11 @@ def ensure_schema() -> None:
             )
             """,
         )
+        # The UNIQUE(user_id, friend_id) constraint above only indexes the
+        # user_id side. Every friends lookup also filters on friend_id (a
+        # friendship can be queried from either side), which was forcing a
+        # sequential scan on this table for nearly every profile/social page.
+        conn.execute(text("CREATE INDEX IF NOT EXISTS friends_friend_id_idx ON friends (friend_id)"))
 
         ensure_table(
             "friend_requests",

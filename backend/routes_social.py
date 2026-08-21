@@ -821,7 +821,9 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
     if limit > 200:
         limit = 200
 
-    # Real XP from lesson_progress
+    # Real XP read directly off users.lesson_xp (kept in sync incrementally on
+    # lesson completion) + users.bonus_xp, instead of joining/re-aggregating
+    # lesson_progress across every user on every leaderboard load.
     rows = db.execute(
         text(
             """
@@ -831,10 +833,8 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
                 u.username AS username,
                 u.avatar_url AS avatar_url,
                 u.active_frame AS active_frame,
-                COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
+                (u.lesson_xp + COALESCE(u.bonus_xp, 0)) AS total_xp
             FROM users u
-            LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-            GROUP BY u.id, u.email, u.username, u.avatar_url, u.active_frame, u.bonus_xp
             ORDER BY total_xp DESC, u.id ASC
             LIMIT :limit
             """
@@ -918,46 +918,38 @@ class PublicUserOut(BaseModel):
 
 
 def _get_user_public_by_id(db: Connection, uid: int) -> dict:
+    # total_xp lives on users.lesson_xp (kept in sync incrementally where lessons
+    # are completed) + users.bonus_xp, so rank can be computed with a single
+    # scan over `users` instead of joining/re-aggregating lesson_progress for
+    # every user on every profile view.
     r = db.execute(
         text(
             """
-            WITH xp AS (
-              SELECT
-                u.id,
-                u.email,
-                u.username,
-                u.display_name,
-                u.bio,
-                u.avatar_url,
-                u.active_frame,
-                u.banner_url,
-                u.profile_theme,
-                u.joined_at,
-                COALESCE(u.is_premium, FALSE) AS is_premium,
-                COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
-              FROM users u
-              LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              WHERE u.id = :uid
-              GROUP BY u.id, u.email, u.username, u.display_name, u.bio, u.avatar_url, u.active_frame, u.banner_url, u.profile_theme, u.joined_at, u.bonus_xp, u.is_premium
-            ), ranked AS (
-              SELECT
-                u2.id,
-                COALESCE(SUM(lp2.xp_earned), 0) + COALESCE(u2.bonus_xp, 0) AS total_xp
-              FROM users u2
-              LEFT JOIN lesson_progress lp2 ON lp2.user_id = u2.id
-              GROUP BY u2.id, u2.bonus_xp
-            ), ranks AS (
+            WITH ranks AS (
               SELECT
                 id,
-                RANK() OVER (ORDER BY total_xp DESC, id ASC) AS global_rank
-              FROM ranked
+                (lesson_xp + COALESCE(bonus_xp, 0)) AS total_xp,
+                RANK() OVER (ORDER BY (lesson_xp + COALESCE(bonus_xp, 0)) DESC, id ASC) AS global_rank
+              FROM users
             )
             SELECT
-              xp.*,
+              u.id,
+              u.email,
+              u.username,
+              u.display_name,
+              u.bio,
+              u.avatar_url,
+              u.active_frame,
+              u.banner_url,
+              u.profile_theme,
+              u.joined_at,
+              COALESCE(u.is_premium, FALSE) AS is_premium,
+              ranks.total_xp,
               ranks.global_rank,
-              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = xp.id OR f.friend_id = xp.id)) AS friends_count
-            FROM xp
-            JOIN ranks ON ranks.id = xp.id
+              (SELECT COUNT(1) FROM friends f WHERE (f.user_id = u.id OR f.friend_id = u.id)) AS friends_count
+            FROM users u
+            JOIN ranks ON ranks.id = u.id
+            WHERE u.id = :uid
             """
         ),
         {"uid": uid},
@@ -970,8 +962,9 @@ def _get_user_public_by_id(db: Connection, uid: int) -> dict:
 def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[dict]:
     """Small preview list of friends for public pages (only when friends_public=True)."""
 
-    # Compute ranks based on SUM(lesson_progress.xp_earned) to avoid relying on a non-existent
-    # users.xp_total column.
+    # total_xp/rank read directly off users.lesson_xp + users.bonus_xp (kept in
+    # sync incrementally) instead of joining/re-aggregating lesson_progress for
+    # every user on every friends-preview render.
     rows = db.execute(
         text(
             """
@@ -979,10 +972,8 @@ def _get_user_public_friends(db: Connection, uid: int, limit: int = 6) -> list[d
               SELECT u.id, u.username,
                      COALESCE(NULLIF(u.display_name, ''), NULLIF(u.username, ''), split_part(u.email, '@', 1)) AS display_name,
                      u.avatar_url,
-                     COALESCE(SUM(lp.xp_earned), 0) + COALESCE(u.bonus_xp, 0) AS total_xp
+                     (u.lesson_xp + COALESCE(u.bonus_xp, 0)) AS total_xp
               FROM users u
-              LEFT JOIN lesson_progress lp ON lp.user_id = u.id
-              GROUP BY u.id, u.username, u.display_name, u.email, u.avatar_url, u.bonus_xp
             ), ranks AS (
               SELECT id,
                      RANK() OVER (ORDER BY total_xp DESC, id ASC) AS global_rank

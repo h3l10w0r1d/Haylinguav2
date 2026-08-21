@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional
 import httpx
 import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query, UploadFile, File
+from fastapi.concurrency import run_in_threadpool
 import asyncio
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 from fastapi.encoders import jsonable_encoder
@@ -3560,7 +3561,10 @@ def complete_lesson(
     if multiplied:
         xp_value = xp_value * 2
 
-    # 3) Upsert into lesson_progress (no double-count protection here; your schema updates the same row)
+    # 3) Upsert into lesson_progress (no double-count protection here; your schema updates the same row).
+    # users.lesson_xp is kept in sync by a DB trigger (see ensure_schema.py) —
+    # not app code here — so it stays correct regardless of which code path
+    # writes to lesson_progress (this route, CMS tooling, data fixes, tests).
     db.execute(
         text(
             """
@@ -6920,8 +6924,15 @@ async def _save_application_file(upload_file, prefix: str):
         raise HTTPException(status_code=400, detail="File content doesn't match a valid PDF, DOC, or DOCX file")
     filename = f"{prefix}_{uuid.uuid4().hex}{ext}"
     path = os.path.join(_applications_upload_dir(), filename)
-    with open(path, "wb") as f:
-        f.write(content)
+
+    def _write():
+        with open(path, "wb") as f:
+            f.write(content)
+
+    # Files here can be up to 8MB; this handler is `async def`, and a plain
+    # blocking write would stall the event loop (and every other in-flight
+    # request on this worker) for the duration of the disk write.
+    await run_in_threadpool(_write)
     return path, (upload_file.filename or filename)
 
 
@@ -6967,7 +6978,11 @@ async def apply_to_vacancy(vacancy_id: int, request: Request, db: Connection = D
                 raise HTTPException(status_code=400, detail=f"\"{f['label']}\" is required")
 
     ip = _client_ip(request)
-    if not _verify_turnstile(turnstile_token, ip):
+    # This handler is `async def` (unlike signup/login/etc, which are plain
+    # `def` and get auto-threadpooled by FastAPI), so a direct call here would
+    # block the event loop — and every other in-flight request on this worker
+    # — for the duration of the Cloudflare round-trip (up to a 5s timeout).
+    if not await run_in_threadpool(_verify_turnstile, turnstile_token, ip):
         raise HTTPException(status_code=400, detail="Security check failed — please try again")
 
     cv_path, cv_filename = await _save_application_file(cv, "cv")
@@ -7487,22 +7502,24 @@ def _compute_quests(db: Connection, user_id: int) -> list:
 
 
 def _compute_achievements(db: Connection, user_id: int) -> list:
+    # These two were previously separate round-trips; both are unconditional,
+    # single-user-scoped aggregates (unlike the metrics below, which are each
+    # individually try/except-guarded for environments where the underlying
+    # table/column may not exist) so merging them into one query is safe and
+    # cuts a network round-trip off every profile/achievements view.
     lp = db.execute(
         text(
             """
-            SELECT COALESCE(SUM(xp_earned), 0) AS total_xp,
-                   COUNT(DISTINCT lesson_id) FILTER (WHERE completed_at IS NOT NULL) AS lessons_completed
-            FROM user_lesson_progress WHERE user_id = :u
+            SELECT
+                COALESCE(SUM(ulp.xp_earned), 0) AS total_xp,
+                COUNT(DISTINCT ulp.lesson_id) FILTER (WHERE ulp.completed_at IS NOT NULL) AS lessons_completed,
+                (SELECT COUNT(*) FILTER (WHERE is_correct) FROM user_exercise_attempts WHERE user_id = :u) AS correct_total
+            FROM user_lesson_progress ulp WHERE ulp.user_id = :u
             """
         ),
         {"u": user_id},
     ).mappings().first() or {}
-    correct_total = int(
-        db.execute(
-            text("SELECT COUNT(*) FILTER (WHERE is_correct) FROM user_exercise_attempts WHERE user_id = :u"),
-            {"u": user_id},
-        ).scalar() or 0
-    )
+    correct_total = int(lp.get("correct_total") or 0)
     streak = _compute_streak_days(db, user_id)
     total_xp = int(lp.get("total_xp") or 0)
     lessons = int(lp.get("lessons_completed") or 0)
