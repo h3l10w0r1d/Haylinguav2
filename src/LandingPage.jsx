@@ -7,7 +7,7 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
   Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
-  X, Eye, EyeOff, Play, RotateCw, Loader2, Bell,
+  X, Eye, EyeOff, Play, RotateCw, Loader2, Bell, AlertTriangle,
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
@@ -16,6 +16,7 @@ import student from "./assets/character-student.png";
 import { ttsFetch } from "./exercises/tts";
 import { sfx } from "./lib/sfx";
 import { newTrackedAudio } from "./lib/audioRegistry";
+import { track } from "./lib/analytics";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "387340156498-udb3h083d3mcnj135kvbfcstsdslbe64.apps.googleusercontent.com";
@@ -964,6 +965,10 @@ export default function LandingPage({ onLogin, onSignup }) {
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  // Six single-digit boxes that compose into the same `code` string
+  // handleVerify already validates/submits — only how the digits get typed
+  // in changes, not the verification logic itself.
+  const verifyBoxRefs = useRef([]);
 
   // UI-only state
   const [faqOpen, setFaqOpen] = useState(0);
@@ -1124,6 +1129,7 @@ export default function LandingPage({ onLogin, onSignup }) {
   }
 
   const handleSignup = async () => {
+    const refCode = getStoredRefCode();
     const res = await fetch(`${API_BASE}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1132,7 +1138,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         username: username.trim(),
         email: email.trim(),
         password,
-        ref_code: getStoredRefCode(),
+        ref_code: refCode,
         turnstile_token: captchaToken,
       }),
     });
@@ -1157,6 +1163,7 @@ export default function LandingPage({ onLogin, onSignup }) {
     };
     localStorage.setItem("hay_user", JSON.stringify(newUser));
     if (data.verification_code) setDevCode(data.verification_code);
+    track("signup_completed", { source: "landing_modal_inline", has_referral: !!refCode });
     setMode("verify");
     setLoading(false);
   };
@@ -1227,7 +1234,32 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   // ── Verification Screen ─────────────────────────────────────────────────────
 
+  function setVerifyDigit(i, raw) {
+    const val = raw.replace(/\D/g, "");
+    const chars = code.split("");
+    if (!val) {
+      chars[i] = "";
+      setCode(chars.join("").slice(0, 6));
+      return;
+    }
+    // A multi-char value here means a paste landed in this box — spread the
+    // rest of the pasted digits forward starting at this position.
+    const spread = val.split("");
+    spread.forEach((d, j) => { chars[i + j] = d; });
+    const next = chars.join("").slice(0, 6);
+    setCode(next);
+    if (error && next.length === 6) setError("");
+    verifyBoxRefs.current[Math.min(i + spread.length, 5)]?.focus();
+  }
+
+  function onVerifyBoxKeyDown(i, e) {
+    if (e.key === "Backspace" && !code[i] && i > 0) verifyBoxRefs.current[i - 1]?.focus();
+    if (e.key === "ArrowLeft" && i > 0) verifyBoxRefs.current[i - 1]?.focus();
+    if (e.key === "ArrowRight" && i < 5) verifyBoxRefs.current[i + 1]?.focus();
+  }
+
   if (mode === "verify") {
+    const verifyDigits = Array.from({ length: 6 }, (_, i) => code[i] || "");
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-brand-50/60 to-white dark:from-[#0d0d0f] dark:to-[#0d0d0f] px-4">
         <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#18181b] p-8 text-center shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
@@ -1238,27 +1270,50 @@ export default function LandingPage({ onLogin, onSignup }) {
           </p>
 
           {devCode && (
-            <div className="mt-5 rounded-2xl border-2 border-amber-200 bg-amber-50 p-4">
-              <div className="text-xs font-bold uppercase text-amber-700">🔧 Dev mode — use this code</div>
-              <div className="mt-1 font-mono text-3xl font-extrabold tracking-[0.3em] text-amber-900">{devCode}</div>
-              <button onClick={() => { setCode(devCode); setError(""); }} className="mt-2 text-sm font-bold text-amber-700 underline">
+            <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-left ring-1 ring-amber-200">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase text-amber-700">
+                <AlertTriangle className="h-3.5 w-3.5" /> Dev mode — use this code
+              </div>
+              <div className="mt-2 rounded-xl bg-white py-2.5 text-center font-display text-2xl font-extrabold tracking-[0.3em] text-amber-900 ring-1 ring-amber-200">
+                {devCode}
+              </div>
+              <button onClick={() => { setCode(devCode); setError(""); }} className="btn3d btn3d-brand mt-2.5 w-full !py-2.5 text-sm">
                 Use this code
               </button>
             </div>
           )}
 
-          <form onSubmit={handleVerify} className="mt-5">
-            <input
-              value={code}
-              onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setCode(v); if (error && v.length === 6) setError(""); }}
-              placeholder="000000"
-              inputMode="numeric"
-              maxLength={6}
-              autoFocus
-              className="w-full rounded-2xl bg-slate-50 dark:bg-white/[0.04] px-4 py-4 text-center font-mono text-3xl font-extrabold tracking-[0.4em] text-slate-800 dark:text-white ring-2 ring-slate-200 dark:ring-white/[0.08] focus:bg-white dark:focus:bg-white/[0.06] focus:outline-none focus:ring-brand-400"
-            />
-            {error && <div className="mt-3 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
+          <form onSubmit={handleVerify} className="mt-6">
+            <div
+              className="flex justify-center gap-2"
+              onPaste={(e) => {
+                const pasted = (e.clipboardData?.getData("text") || "").replace(/\D/g, "").slice(0, 6);
+                if (!pasted) return;
+                e.preventDefault();
+                setVerifyDigit(0, pasted);
+              }}
+            >
+              {verifyDigits.map((d, i) => (
+                <input
+                  key={i}
+                  ref={(el) => (verifyBoxRefs.current[i] = el)}
+                  value={d}
+                  onChange={(e) => setVerifyDigit(i, e.target.value)}
+                  onKeyDown={(e) => onVerifyBoxKeyDown(i, e)}
+                  inputMode="numeric"
+                  maxLength={1}
+                  autoFocus={i === 0}
+                  aria-label={`Digit ${i + 1} of 6`}
+                  className={
+                    "h-14 w-11 rounded-2xl bg-slate-50 text-center font-display text-2xl font-extrabold text-slate-800 ring-2 transition focus:bg-white focus:outline-none focus:ring-brand-400 dark:bg-white/[0.04] dark:text-white dark:focus:bg-white/[0.06] " +
+                    (error ? "ring-cardinal-400" : "ring-slate-200 dark:ring-white/[0.08]")
+                  }
+                />
+              ))}
+            </div>
+            {error && <div className="mt-4 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
             <button type="submit" disabled={loading || code.trim().length !== 6} className="btn3d btn3d-grass mt-4 w-full uppercase">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {loading ? "Verifying…" : "Verify email"}
             </button>
           </form>

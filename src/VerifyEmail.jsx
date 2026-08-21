@@ -1,9 +1,10 @@
 // src/VerifyEmail.jsx - SECURE VERSION
 // Receives devCode as prop instead of reading from sessionStorage
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "./landing.css";
+import { AlertTriangle, Loader2, Mail } from "lucide-react";
+import grandma from "./assets/character-grandma.png";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -161,179 +162,131 @@ export default function VerifyEmail({ onVerified, devCode = null }) {
     }
   }
 
-  return (
-    <div style={{ 
-      minHeight: "100vh", 
-      paddingTop: "4rem",
-      background: "linear-gradient(180deg, #fff7ec 0%, #ffffff 55%, #f9fafb 100%)",
-      fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    }}>
-      <h1 style={{ 
-        textAlign: "center", 
-        marginBottom: "0.75rem",
-        fontSize: "2rem",
-        fontWeight: "700",
-        color: "#111827"
-      }}>
-        Verify your email
-      </h1>
-      <p style={{ 
-        textAlign: "center", 
-        marginBottom: "2rem", 
-        opacity: 0.8,
-        color: "#4b5563",
-        fontSize: "0.95rem"
-      }}>
-        We sent a 6-digit code to <strong>{userEmail}</strong>
-      </p>
+  // Six single-digit boxes that compose into the same `code` string the rest
+  // of the component already works with — no changes needed to verify()'s
+  // validation or submit logic, just how the digits get typed in.
+  const digits = Array.from({ length: 6 }, (_, i) => code[i] || "");
+  const boxRefs = useRef([]);
+  const isDevError = error.includes("Development");
 
-      <div
-        style={{
-          maxWidth: 420,
-          margin: "0 auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: "1rem",
-          padding: "0 1rem"
-        }}
-      >
+  function setDigit(i, raw) {
+    const val = raw.replace(/\D/g, "");
+    const chars = code.split("");
+    if (!val) {
+      chars[i] = "";
+      setCode(chars.join("").slice(0, 6));
+      return;
+    }
+    // Typing (or pasting) more than one digit into a single box — e.g. a
+    // paste landed here — spreads the rest forward starting at this box.
+    const spread = val.split("");
+    spread.forEach((d, j) => { chars[i + j] = d; });
+    const next = chars.join("").slice(0, 6);
+    setCode(next);
+    if (error && next.length === 6) setError("");
+    const lastFilled = Math.min(i + spread.length, 5);
+    boxRefs.current[lastFilled]?.focus();
+  }
+
+  function onBoxKeyDown(i, e) {
+    if (e.key === "Backspace" && !digits[i] && i > 0) {
+      boxRefs.current[i - 1]?.focus();
+    }
+    if (e.key === "ArrowLeft" && i > 0) boxRefs.current[i - 1]?.focus();
+    if (e.key === "ArrowRight" && i < 5) boxRefs.current[i + 1]?.focus();
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50/60 via-white to-white px-4 py-12">
+      <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-lg ring-1 ring-slate-200">
+        <img src={grandma} alt="" className="mx-auto mb-5 h-20 w-20 rounded-2xl object-cover ring-4 ring-brand-50" />
+
+        <h1 className="font-display text-2xl font-extrabold text-slate-800">Check your inbox</h1>
+        <p className="mt-2 text-sm font-semibold text-slate-500">
+          We sent a 6-digit code to
+          <br />
+          <span className="text-slate-700">{userEmail}</span>
+        </p>
+
         {/* Dev Mode Alert - Only shown if devCode prop is provided */}
         {showDevMode && devCode && (
-          <div
-            style={{
-              background: "#fef3c7",
-              color: "#92400e",
-              border: "2px solid #fde68a",
-              padding: "1.5rem",
-              borderRadius: 12,
-              fontSize: 14,
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: "0.75rem", fontSize: "16px" }}>
-              🔧 Development Mode
+          <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-left ring-1 ring-amber-200">
+            <div className="flex items-center gap-1.5 text-sm font-extrabold text-amber-800">
+              <AlertTriangle className="h-4 w-4" /> Development mode
             </div>
-            <div style={{ marginBottom: "1rem", lineHeight: "1.5" }}>
-              Email sending is not configured on the server. This code is only shown in development.
-            </div>
-            <div
-              style={{
-                background: "#fff",
-                padding: "1rem",
-                borderRadius: 8,
-                fontFamily: "monospace",
-                fontSize: 28,
-                letterSpacing: "0.3em",
-                textAlign: "center",
-                fontWeight: 700,
-                marginBottom: "1rem",
-                border: "2px solid #fbbf24",
-              }}
-            >
+            <p className="mt-1.5 text-xs font-semibold leading-snug text-amber-700">
+              Email sending isn't configured on the server — this code only shows up in development.
+            </p>
+            <div className="mt-3 rounded-xl bg-white py-3 text-center font-display text-2xl font-extrabold tracking-[0.3em] text-amber-900 ring-1 ring-amber-200">
               {devCode}
             </div>
             <button
+              type="button"
               onClick={useDevCode}
-              style={{
-                background: "#92400e",
-                color: "#fff",
-                border: "none",
-                padding: "0.75rem 1.5rem",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 14,
-                fontWeight: 600,
-                width: "100%",
-              }}
+              className="btn3d btn3d-brand mt-3 w-full !py-2.5 text-sm"
             >
               Use this code
             </button>
-            <div style={{ marginTop: "1rem", fontSize: "12px", opacity: 0.8 }}>
-              ⚠️ In production, users will receive this code via email
-            </div>
           </div>
         )}
 
-        <input
-          value={code}
-          onChange={(e) => {
-            const val = e.target.value.replace(/\D/g, "");
-            setCode(val);
-            if (error && val.length === 6) setError("");
-          }}
-          placeholder="000000"
-          inputMode="numeric"
-          maxLength={6}
-          style={{
-            padding: "1rem",
-            borderRadius: 12,
-            border: error && !error.includes("Development") 
-              ? "2px solid #ef4444" 
-              : "2px solid #e5e7eb",
-            letterSpacing: "0.3em",
-            textAlign: "center",
-            fontSize: 24,
-            fontFamily: "monospace",
-            fontWeight: "600",
-            background: "#fff",
-            outline: "none",
-          }}
-        />
+        <div className="mt-6 flex justify-center gap-2" onPaste={(e) => {
+          const pasted = (e.clipboardData?.getData("text") || "").replace(/\D/g, "").slice(0, 6);
+          if (!pasted) return;
+          e.preventDefault();
+          setDigit(0, pasted);
+        }}>
+          {digits.map((d, i) => (
+            <input
+              key={i}
+              ref={(el) => (boxRefs.current[i] = el)}
+              value={d}
+              onChange={(e) => setDigit(i, e.target.value)}
+              onKeyDown={(e) => onBoxKeyDown(i, e)}
+              inputMode="numeric"
+              maxLength={1}
+              autoFocus={i === 0}
+              aria-label={`Digit ${i + 1} of 6`}
+              className={
+                "h-14 w-11 rounded-2xl text-center font-display text-2xl font-extrabold text-slate-800 ring-2 transition focus:outline-none focus:ring-brand-400 " +
+                (error && !isDevError ? "ring-cardinal-400" : "ring-slate-200")
+              }
+            />
+          ))}
+        </div>
 
         {error && (
           <div
-            style={{
-              background: error.includes("Development") ? "#fef3c7" : "#fee2e2",
-              color: error.includes("Development") ? "#92400e" : "#991b1b",
-              border: error.includes("Development") 
-                ? "2px solid #fde68a" 
-                : "2px solid #fecaca",
-              padding: "0.75rem 1rem",
-              borderRadius: 8,
-              fontSize: 14,
-              lineHeight: "1.5"
-            }}
+            className={
+              "mt-4 flex items-start gap-2 rounded-2xl px-4 py-3 text-left text-sm font-semibold leading-snug " +
+              (isDevError ? "bg-amber-50 text-amber-800" : "bg-cardinal-50 text-cardinal-700")
+            }
           >
             {error}
           </div>
         )}
 
         <button
+          type="button"
           onClick={verify}
           disabled={loading || code.trim().length !== 6}
-          className="btn btn-primary"
-          style={{
-            width: "100%",
-            padding: "0.75rem 1.5rem",
-            fontSize: "16px",
-            opacity: loading || code.trim().length !== 6 ? 0.5 : 1,
-            cursor: loading || code.trim().length !== 6 ? "not-allowed" : "pointer",
-          }}
+          className="btn3d btn3d-brand mt-6 w-full uppercase"
         >
-          {loading ? "Verifying..." : "Verify Email"}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+          {loading ? "Verifying…" : "Verify email"}
         </button>
 
-        <div style={{ textAlign: "center", fontSize: "14px", color: "#6b7280", margin: "0.5rem 0" }}>
-          Didn't receive the code?
-        </div>
-
+        <p className="mt-5 text-sm font-semibold text-slate-400">Didn't receive the code?</p>
         <button
+          type="button"
           onClick={resend}
           disabled={loading || cooldown > 0}
-          className="btn btn-secondary"
-          style={{
-            width: "100%",
-            padding: "0.75rem 1.5rem",
-            fontSize: "16px",
-            opacity: loading || cooldown > 0 ? 0.5 : 1,
-            cursor: loading || cooldown > 0 ? "not-allowed" : "pointer",
-          }}
+          className="mt-1 text-sm font-extrabold text-brand-600 transition hover:text-brand-700 disabled:cursor-not-allowed disabled:text-slate-400"
         >
           {cooldown > 0 ? `Resend code (${cooldown}s)` : "Resend code"}
         </button>
 
-        <div style={{ textAlign: "center", fontSize: "13px", color: "#9ca3af", marginTop: "1rem" }}>
-          The code expires in 10 minutes
-        </div>
+        <p className="mt-4 text-xs font-semibold text-slate-400">Code expires in 10 minutes</p>
       </div>
     </div>
   );
