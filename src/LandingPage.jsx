@@ -340,11 +340,69 @@ function DemoPromptHeader({ q }) {
 // of the real lesson player's canvas tracer (ExerciseRenderer.jsx's
 // ExTraceLetter), minus its stroke-path precision/recall scoring: this is a
 // marketing-page teaser, not a graded drill, so any real stroke counts.
+// Approximates a tracing path for `letter` by rendering it to an offscreen
+// canvas — same font/size/weight as the visible ghost glyph in
+// TraceLetterPad below — then walking a vertical centerline scan across its
+// ink. This is what lets the autoplay ghost cursor actually follow the real
+// glyph's shape (whatever letter is passed in) instead of a hand-guessed
+// generic path that only vaguely resembled "Ա".
+function computeGlyphStrokePath(letter, size) {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = "#000";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `900 ${Math.round(size * 0.62)}px "Baloo 2", "Nunito", sans-serif`;
+    ctx.fillText(letter, size / 2, size / 2 + size * 0.02);
+
+    const { data } = ctx.getImageData(0, 0, size, size);
+    const inkY = (x) => {
+      let top = -1;
+      let bottom = -1;
+      for (let y = 0; y < size; y++) {
+        if (data[(y * size + x) * 4 + 3] > 80) {
+          if (top === -1) top = y;
+          bottom = y;
+        }
+      }
+      return top === -1 ? null : (top + bottom) / 2;
+    };
+
+    // Column scan, split into separate strokes wherever a column has no
+    // ink (handles glyphs with disconnected parts).
+    const strokes = [];
+    let current = [];
+    for (let x = 0; x < size; x += 3) {
+      const y = inkY(x);
+      if (y != null) current.push({ x, y });
+      else if (current.length) { strokes.push(current); current = []; }
+    }
+    if (current.length) strokes.push(current);
+
+    // Downsample each stroke to a handful of points so the animation has a
+    // natural pace instead of one point per scanned column.
+    return strokes
+      .filter((s) => s.length > 2)
+      .map((s) => {
+        const n = Math.min(7, Math.max(3, Math.round(s.length / 5)));
+        const step = (s.length - 1) / (n - 1);
+        return Array.from({ length: n }, (_, i) => s[Math.round(i * step)]);
+      });
+  } catch {
+    return [];
+  }
+}
+
 const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChange, onInteractStart }, ref) {
   const SIZE = 180;
   const drawRef = useRef(null);
   const drawing = useRef(false);
   const hasInk = useRef(false);
+  const strokePathRef = useRef([]);
 
   useEffect(() => {
     const c = drawRef.current;
@@ -357,6 +415,7 @@ const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChang
     ctx.clearRect(0, 0, SIZE, SIZE);
     hasInk.current = false;
     onDirtyChange?.(false);
+    strokePathRef.current = computeGlyphStrokePath(letter, SIZE);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [letter]);
 
@@ -418,6 +477,7 @@ const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChang
   // shared autoTimers array before the simulated stroke finishes drawing.
   useImperativeHandle(ref, () => ({
     canvasRect: () => drawRef.current?.getBoundingClientRect(),
+    strokePath: () => strokePathRef.current,
     paintDown: (x, y) => strokeTo(x, y, true),
     paintMove: (x, y) => strokeTo(x, y, false),
     finishPaint: () => markInk(),
@@ -567,7 +627,9 @@ function LandingExerciseDemo({ onSignup }) {
   // way a real pointerdown/move sequence would. Ink is only marked "dirty"
   // (finishPaint) once both strokes are fully drawn — see the comment on
   // TraceLetterPad's useImperativeHandle for why doing it earlier breaks
-  // the animation.
+  // the animation. The path itself comes from strokePath() — the real
+  // glyph's shape (see computeGlyphStrokePath) — with a rough fallback only
+  // if that somehow comes back empty (e.g. canvas unsupported).
   function simulateAutoTrace(onDone) {
     const pad = traceRef.current;
     const rect = pad?.canvasRect?.();
@@ -576,7 +638,8 @@ function LandingExerciseDemo({ onSignup }) {
       return;
     }
     const c = cardRef.current.getBoundingClientRect();
-    const strokes = [
+    const computed = pad.strokePath?.();
+    const strokes = computed && computed.length ? computed : [
       [{ x: 90, y: 38 }, { x: 72, y: 88 }, { x: 55, y: 140 }],
       [{ x: 90, y: 68 }, { x: 108, y: 104 }, { x: 126, y: 140 }],
     ];
