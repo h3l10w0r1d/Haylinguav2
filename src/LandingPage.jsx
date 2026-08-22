@@ -340,7 +340,7 @@ function DemoPromptHeader({ q }) {
 // of the real lesson player's canvas tracer (ExerciseRenderer.jsx's
 // ExTraceLetter), minus its stroke-path precision/recall scoring: this is a
 // marketing-page teaser, not a graded drill, so any real stroke counts.
-function TraceLetterPad({ letter, onDirtyChange, onInteractStart }) {
+const TraceLetterPad = React.forwardRef(function TraceLetterPad({ letter, onDirtyChange, onInteractStart }, ref) {
   const SIZE = 180;
   const drawRef = useRef(null);
   const drawing = useRef(false);
@@ -378,6 +378,12 @@ function TraceLetterPad({ letter, onDirtyChange, onInteractStart }) {
     ctx.lineTo(x, y);
     ctx.stroke();
   }
+  function markInk() {
+    if (!hasInk.current) {
+      hasInk.current = true;
+      onDirtyChange?.(true);
+    }
+  }
   function onDown(e) {
     e.preventDefault();
     onInteractStart?.();
@@ -385,10 +391,7 @@ function TraceLetterPad({ letter, onDirtyChange, onInteractStart }) {
     const { x, y } = at(e);
     strokeTo(x, y, true);
     strokeTo(x + 0.01, y + 0.01, false);
-    if (!hasInk.current) {
-      hasInk.current = true;
-      onDirtyChange?.(true);
-    }
+    markInk();
   }
   function onMove(e) {
     if (!drawing.current) return;
@@ -404,6 +407,17 @@ function TraceLetterPad({ letter, onDirtyChange, onInteractStart }) {
     hasInk.current = false;
     onDirtyChange?.(false);
   }
+
+  // Imperative paint primitives for the autoplay ghost cursor to actually
+  // draw a visible stroke (not just flip a "done" flag) — see
+  // simulateAutoTrace below, which drives these the same way a real
+  // pointerdown/pointermove/pointerup sequence would.
+  React.useImperativeHandle(ref, () => ({
+    canvasRect: () => drawRef.current?.getBoundingClientRect(),
+    strokeDown: (x, y) => { strokeTo(x, y, true); strokeTo(x + 0.01, y + 0.01, false); markInk(); },
+    strokeMove: (x, y) => strokeTo(x, y, false),
+    strokeUp: () => {},
+  }));
 
   return (
     <div>
@@ -431,7 +445,7 @@ function TraceLetterPad({ letter, onDirtyChange, onInteractStart }) {
       </div>
     </div>
   );
-}
+});
 
 // Small speaker chip that plays real Armenian TTS for a word via the same /audio
 // pipeline the learner app uses — so a visitor can actually hear pronunciation.
@@ -510,6 +524,7 @@ function LandingExerciseDemo({ onSignup }) {
   const cardRef = useRef(null);
   const optionRefs = useRef([]);
   const padRef = useRef(null);
+  const traceRef = useRef(null);
   const checkRef = useRef(null);
   const continueRef = useRef(null);
   const autoTimers = useRef([]);
@@ -540,6 +555,48 @@ function LandingExerciseDemo({ onSignup }) {
         onArrive();
       }, 550);
     }, ms);
+  }
+  // Actually draws the trace_letter demo instead of just flipping a "done"
+  // flag — the ghost cursor drags across two rough strokes over the pad
+  // (SIZE=180 coordinate space, see TraceLetterPad) while real ink appears
+  // on the canvas via its imperative strokeDown/strokeMove handle, the same
+  // way a real pointerdown/move sequence would.
+  function simulateAutoTrace(onDone) {
+    const pad = traceRef.current;
+    const rect = pad?.canvasRect?.();
+    if (!pad || !rect || !cardRef.current) {
+      onDone();
+      return;
+    }
+    const c = cardRef.current.getBoundingClientRect();
+    const strokes = [
+      [{ x: 90, y: 38 }, { x: 72, y: 88 }, { x: 55, y: 140 }],
+      [{ x: 90, y: 68 }, { x: 108, y: 104 }, { x: 126, y: 140 }],
+    ];
+    const toCard = (p) => ({ x: rect.left + p.x - c.left, y: rect.top + p.y - c.top });
+    let strokeIdx = 0;
+    let pointIdx = 0;
+    const step = () => {
+      const stroke = strokes[strokeIdx];
+      const p = stroke[pointIdx];
+      setCursorPos(toCard(p));
+      if (pointIdx === 0) pad.strokeDown(p.x, p.y);
+      else pad.strokeMove(p.x, p.y);
+      pointIdx += 1;
+      if (pointIdx >= stroke.length) {
+        pad.strokeUp();
+        strokeIdx += 1;
+        pointIdx = 0;
+        if (strokeIdx >= strokes.length) {
+          scheduleAuto(onDone, 200);
+          return;
+        }
+        scheduleAuto(step, 240);
+        return;
+      }
+      scheduleAuto(step, 140);
+    };
+    step();
   }
   useEffect(() => clearAutoTimers, []);
 
@@ -666,7 +723,7 @@ function LandingExerciseDemo({ onSignup }) {
     const ready = q.kind === "trace_letter" ? traceDirty : selected != null;
     if (ready) return;
     if (q.kind === "trace_letter") {
-      moveCursorTo(padRef.current, 1200, () => setTraceDirty(true));
+      moveCursorTo(padRef.current, 1200, () => simulateAutoTrace(() => setTraceDirty(true)));
     } else {
       moveCursorTo(optionRefs.current[q.correct], 1000, () => pick(q.correct));
     }
@@ -755,7 +812,7 @@ function LandingExerciseDemo({ onSignup }) {
 
       {q.kind === "trace_letter" ? (
         <div ref={padRef} className="mt-4">
-          <TraceLetterPad letter={q.prompt} onDirtyChange={setTraceDirty} onInteractStart={stopAutoplay} />
+          <TraceLetterPad ref={traceRef} letter={q.prompt} onDirtyChange={setTraceDirty} onInteractStart={stopAutoplay} />
         </div>
       ) : (
       <div className="mt-4 grid grid-cols-1 gap-3">
