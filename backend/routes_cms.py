@@ -25,13 +25,14 @@ import secrets
 import threading
 import time
 import traceback
+import uuid
 from datetime import datetime, timedelta
 import datetime as dt
 from typing import Any, Dict, List, Literal, Optional
 
 import httpx
 import pyotp
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -75,6 +76,8 @@ from routes import (
     validate_exercise_config,
     # Careers: application file storage (shared with the public apply endpoint)
     _applications_upload_dir,
+    # Image resize (shared with /me/avatar, /me/banner)
+    _resize_image_to_fit,
     # Email
     _send_email,
     _render_cms_invite_html,
@@ -4626,9 +4629,43 @@ def cms_account_2fa_disable(payload: Dict[str, Any] = Body(...), u: dict = Depen
 # routes_blog.py, unauthenticated, mounted without the /cms prefix.
 
 _BLOG_LIST_COLS = (
-    "id, slug, title, meta_description, excerpt, cover_image_url, author_name, "
-    "tags, is_published, published_at, created_at, updated_at"
+    "id, slug, title, meta_description, excerpt, body_markdown, cover_image_url, cover_image_alt, "
+    "author_name, tags, is_published, published_at, created_at, updated_at"
 )
+
+_BLOG_UPLOAD_MAX_DIM = 1600  # article body/cover images render up to full article width
+
+@router.post("/cms/blog/upload-image")
+def cms_upload_blog_image(request: Request, file: UploadFile = File(...), db=Depends(get_db)):
+    """Uploads one image (cover or inline-body) to disk, resized, and returns
+    its public /static/blog/... URL. Mirrors /me/avatar and /me/banner's
+    upload-and-resize pattern (see routes.py's _resize_image_to_fit)."""
+    require_cms(request, db)
+
+    allowed = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+    ext = allowed.get((file.content_type or "").lower())
+    if not ext:
+        raise HTTPException(status_code=400, detail="Only PNG, JPG, or WEBP images are allowed")
+
+    from main import BLOG_UPLOAD_DIR
+
+    try:
+        content = file.file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Empty file")
+        if len(content) > 8 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image too large (max 8MB)")
+        resized = _resize_image_to_fit(content, ext, _BLOG_UPLOAD_MAX_DIM)
+        filename = f"{uuid.uuid4().hex}{ext}"
+        with open(os.path.join(BLOG_UPLOAD_DIR, filename), "wb") as f:
+            f.write(resized)
+    finally:
+        try:
+            file.file.close()
+        except Exception:
+            pass
+
+    return {"url": f"/static/blog/{filename}"}
 
 @router.get("/cms/blog")
 def cms_list_blog_posts(request: Request, db=Depends(get_db)):
@@ -4665,10 +4702,10 @@ async def cms_create_blog_post(request: Request, db=Depends(get_db)):
             text("""
                 INSERT INTO blog_posts
                     (slug, title, meta_description, excerpt, body_markdown, cover_image_url,
-                     author_name, tags, is_published, published_at)
+                     cover_image_alt, author_name, tags, is_published, published_at)
                 VALUES
-                    (:slug, :title, :meta, :excerpt, :body, :cover, :author, CAST(:tags AS jsonb),
-                     :pub, CASE WHEN :pub THEN NOW() ELSE NULL END)
+                    (:slug, :title, :meta, :excerpt, :body, :cover, :cover_alt, :author,
+                     CAST(:tags AS jsonb), :pub, CASE WHEN :pub THEN NOW() ELSE NULL END)
                 RETURNING id
             """),
             {
@@ -4677,6 +4714,7 @@ async def cms_create_blog_post(request: Request, db=Depends(get_db)):
                 "excerpt": (body.get("excerpt") or "").strip() or None,
                 "body": body.get("body_markdown") or "",
                 "cover": (body.get("cover_image_url") or "").strip() or None,
+                "cover_alt": (body.get("cover_image_alt") or "").strip() or None,
                 "author": (body.get("author_name") or "Haylingua").strip() or "Haylingua",
                 "tags": json.dumps(tags), "pub": is_published,
             },
@@ -4692,7 +4730,7 @@ async def cms_update_blog_post(post_id: int, request: Request, db=Depends(get_db
     require_cms(request, db)
     body = await request.json()
     set_parts, params = [], {"id": post_id}
-    for f in ("slug", "title", "meta_description", "excerpt", "body_markdown", "cover_image_url", "author_name"):
+    for f in ("slug", "title", "meta_description", "excerpt", "body_markdown", "cover_image_url", "cover_image_alt", "author_name"):
         if f in body:
             set_parts.append(f"{f} = :{f}")
             params[f] = body[f]

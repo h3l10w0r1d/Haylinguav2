@@ -113,6 +113,22 @@ export function createCmsApi(accessToken) {
   const reorderItemDefinitions = (order) => req("/cms/item-definitions/reorder", { method: "POST", body: JSON.stringify({ order }) });
 
   // Blog (first-party — separate from blog.haylingua.am)
+  // Bypasses req() deliberately: a multipart upload must NOT carry a
+  // Content-Type header set by us — the browser sets it (with the correct
+  // boundary) when the body is a FormData instance, and req() always
+  // defaults to application/json whenever a body is present.
+  const uploadBlogImage = async (file) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(`${API_BASE}/cms/blog/upload-image`, {
+      method: "POST",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      body: fd,
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.detail) || "Upload failed");
+    return data;
+  };
   const listBlogPosts = () => req("/cms/blog");
   const getBlogPost = (id) => req(`/cms/blog/${id}`);
   const createBlogPost = (payload) => req("/cms/blog", { method: "POST", body: JSON.stringify(payload) });
@@ -304,6 +320,7 @@ export function createCmsApi(accessToken) {
     createItemDefinition,
     updateItemDefinition,
     deleteItemDefinition,
+    uploadBlogImage,
     listBlogPosts,
     getBlogPost,
     createBlogPost,

@@ -123,7 +123,7 @@ export default function BlogPostPage() {
 
               {post.cover_image_url && (
                 <div className="mt-6 overflow-hidden rounded-3xl bg-slate-100 dark:bg-white/[0.06]">
-                  <img src={post.cover_image_url} alt="" className="w-full object-cover" />
+                  <img src={post.cover_image_url} alt={post.cover_image_alt || post.title} className="w-full object-cover" />
                 </div>
               )}
 

@@ -205,6 +205,16 @@ except (PermissionError, OSError):
 
 app.mount("/static/conv-audio", StaticFiles(directory=CONV_AUDIO_DIR), name="conv_audio")
 
+# Serve uploaded blog images (cover + inline body images) from disk.
+BLOG_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "blog")
+try:
+    os.makedirs(BLOG_UPLOAD_DIR, exist_ok=True)
+except (PermissionError, OSError):
+    BLOG_UPLOAD_DIR = os.path.join("uploads", "blog")
+    os.makedirs(BLOG_UPLOAD_DIR, exist_ok=True)
+
+app.mount("/static/blog", CachedStaticFiles(directory=BLOG_UPLOAD_DIR), name="blog_images")
+
 # Base ORM tables (users, lessons, exercises, exercise_options) — every other
 # table ensure_schema() manages assumes these already exist (columns get
 # ALTER'd onto them, or they're FOREIGN KEY targets). Only the test suite's

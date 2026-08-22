@@ -78,7 +78,7 @@ export default function BlogPage() {
                 >
                   {p.cover_image_url && (
                     <div className="aspect-[16/9] w-full overflow-hidden bg-slate-100 dark:bg-white/[0.06]">
-                      <img src={p.cover_image_url} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
+                      <img src={p.cover_image_url} alt={p.cover_image_alt || ""} className="h-full w-full object-cover transition group-hover:scale-105" />
                     </div>
                   )}
                   <div className="flex flex-1 flex-col p-5">

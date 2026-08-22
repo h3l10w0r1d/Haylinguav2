@@ -16,9 +16,9 @@ from database import get_db
 
 router = APIRouter(tags=["blog"])
 
-_LIST_COLS = "id, slug, title, excerpt, cover_image_url, author_name, tags, published_at"
+_LIST_COLS = "id, slug, title, excerpt, cover_image_url, cover_image_alt, author_name, tags, published_at"
 _DETAIL_COLS = (
-    "id, slug, title, meta_description, excerpt, body_markdown, cover_image_url, "
+    "id, slug, title, meta_description, excerpt, body_markdown, cover_image_url, cover_image_alt, "
     "author_name, tags, published_at, updated_at"
 )
 

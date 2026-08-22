@@ -1615,6 +1615,7 @@ def ensure_schema() -> None:
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS blog_posts_published_idx ON blog_posts (is_published, published_at DESC)"
         ))
+        add_col_if_missing("blog_posts", "cover_image_alt TEXT")
         print("[ensure_schema] ensured blog_posts table")
 
     print("[ensure_schema] done")

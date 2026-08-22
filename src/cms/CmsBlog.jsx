@@ -2,12 +2,14 @@
 // table). Separate from blog.haylingua.am (external, Ghost-hosted, not
 // managed here). Structurally mirrors CmsItems.jsx: token/api-client setup,
 // a "new post" creation form, and a list of existing posts each editable
-// inline with a Save/Delete pair.
-import { useEffect, useMemo, useState } from "react";
+// inline — both built on the same PostEditor (Markdown toolbar, drag-and-
+// drop image upload, alt text, live SEO checklist).
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Plus, Save, Trash2, Eye, EyeOff, ExternalLink, ImagePlus, Loader2, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { TOOLBAR_ACTIONS, insertAtCursor, analyzeBlogSeo } from "./markdownEditor";
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
@@ -17,13 +19,207 @@ const inputCls =
   "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 const textareaCls = inputCls + " resize-y";
 
-const emptyDraft = () => ({
+const emptyFields = () => ({
   slug: "", title: "", meta_description: "", excerpt: "", body_markdown: "",
-  cover_image_url: "", author_name: "Haylingua", tagsText: "", is_published: false,
+  cover_image_url: "", cover_image_alt: "", author_name: "Haylingua", tagsText: "", is_published: false,
 });
 
 function slugify(s) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+const STATUS_ICON = { good: CheckCircle2, warn: AlertTriangle, bad: XCircle };
+const STATUS_CLS = {
+  good: "text-grass-600 dark:text-grass-400",
+  warn: "text-gold-600 dark:text-gold-400",
+  bad: "text-cardinal-600 dark:text-cardinal-400",
+};
+
+function SeoChecklist({ fields }) {
+  const { checks, score, total } = useMemo(() => analyzeBlogSeo(fields), [fields]);
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-xs font-extrabold uppercase tracking-wide text-slate-500 dark:text-stone-400">SEO checklist</div>
+        <div className="text-xs font-bold text-slate-400 dark:text-stone-500">{score}/{total}</div>
+      </div>
+      <ul className="space-y-1.5">
+        {checks.map((c) => {
+          const Icon = STATUS_ICON[c.status];
+          return (
+            <li key={c.id} className="flex items-start gap-2 text-xs">
+              <Icon className={cx("mt-0.5 h-3.5 w-3.5 shrink-0", STATUS_CLS[c.status])} />
+              <span>
+                <span className="font-bold text-slate-700 dark:text-stone-200">{c.label}:</span>{" "}
+                <span className="text-slate-500 dark:text-stone-400">{c.detail}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function MarkdownToolbar({ onAction }) {
+  return (
+    <div className="flex flex-wrap gap-1 rounded-t-2xl border-b border-slate-200 bg-slate-50 p-1.5 dark:border-white/[0.08] dark:bg-white/[0.04]">
+      {TOOLBAR_ACTIONS.map((a) => (
+        <button
+          key={a.key}
+          type="button"
+          title={a.title}
+          onClick={() => onAction(a)}
+          className="grid h-7 w-8 place-items-center rounded-lg text-xs font-extrabold text-slate-600 hover:bg-white hover:shadow-sm dark:text-stone-300 dark:hover:bg-white/[0.08]"
+        >
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// One editor, used both for the "New post" form and each existing row's
+// inline edit — toolbar + drag-and-drop body image upload + cover image
+// upload with alt text + live SEO checklist, all driven off the same
+// `fields` shape.
+function PostEditor({ fields, onChange, api, onUploadError }) {
+  const bodyRef = useRef(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingBody, setUploadingBody] = useState(false);
+  const [dragOverBody, setDragOverBody] = useState(false);
+
+  function patch(p) {
+    onChange({ ...fields, ...p });
+  }
+
+  function applyToolbarAction(action) {
+    const el = bodyRef.current;
+    if (!el) return;
+    const { value, selStart, selEnd } = action.apply(fields.body_markdown || "", el.selectionStart, el.selectionEnd);
+    patch({ body_markdown: value });
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(selStart, selEnd);
+    });
+  }
+
+  async function uploadCoverFile(file) {
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const { url } = await api.uploadBlogImage(file);
+      patch({ cover_image_url: url });
+    } catch (err) {
+      onUploadError?.(err.message || "Cover image upload failed");
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
+  async function uploadBodyFile(file) {
+    if (!file) return;
+    setUploadingBody(true);
+    try {
+      const { url } = await api.uploadBlogImage(file);
+      const alt = window.prompt("Alt text for this image (for accessibility & SEO):", "") || "";
+      const el = bodyRef.current;
+      const md = `![${alt}](${url})`;
+      if (el) {
+        const { value, selStart, selEnd } = insertAtCursor(fields.body_markdown || "", el.selectionStart, el.selectionEnd, md);
+        patch({ body_markdown: value });
+        requestAnimationFrame(() => {
+          el.focus();
+          el.setSelectionRange(selStart, selEnd);
+        });
+      } else {
+        patch({ body_markdown: (fields.body_markdown || "") + `\n\n${md}\n` });
+      }
+    } catch (err) {
+      onUploadError?.(err.message || "Image upload failed");
+    } finally {
+      setUploadingBody(false);
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <input value={fields.title} onChange={(e) => patch({ title: e.target.value })} placeholder="Title" className={cx(inputCls, "font-bold")} />
+          <input value={fields.slug} onChange={(e) => patch({ slug: e.target.value })} placeholder="Slug (auto from title if blank)" className={inputCls} />
+        </div>
+        <input value={fields.meta_description} onChange={(e) => patch({ meta_description: e.target.value })} placeholder="Meta description (for search results)" className={inputCls} />
+        <input value={fields.excerpt} onChange={(e) => patch({ excerpt: e.target.value })} placeholder="Excerpt (shown on the blog listing)" className={inputCls} />
+
+        {/* Cover image: upload, or paste a URL directly */}
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const f = e.dataTransfer.files?.[0];
+            if (f) uploadCoverFile(f);
+          }}
+          className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-2 ring-dashed ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]"
+        >
+          {fields.cover_image_url ? (
+            <img src={fields.cover_image_url} alt="" className="h-14 w-20 shrink-0 rounded-lg object-cover" />
+          ) : (
+            <div className="grid h-14 w-20 shrink-0 place-items-center rounded-lg bg-slate-200 text-slate-400 dark:bg-white/[0.08]">
+              <ImagePlus className="h-5 w-5" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <input value={fields.cover_image_url} onChange={(e) => patch({ cover_image_url: e.target.value })} placeholder="Cover image URL, or drop/choose a file" className={cx(inputCls, "!py-1.5 text-xs")} />
+              <label className="shrink-0 cursor-pointer rounded-xl bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-stone-300 dark:ring-white/[0.08]">
+                {uploadingCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Choose"}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => uploadCoverFile(e.target.files?.[0])} />
+              </label>
+            </div>
+            <input value={fields.cover_image_alt} onChange={(e) => patch({ cover_image_alt: e.target.value })} placeholder="Cover image alt text" className={cx(inputCls, "!py-1.5 text-xs")} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <input value={fields.author_name} onChange={(e) => patch({ author_name: e.target.value })} placeholder="Author" className={inputCls} />
+          <input value={fields.tagsText} onChange={(e) => patch({ tagsText: e.target.value })} placeholder="Tags, comma-separated" className={inputCls} />
+        </div>
+
+        {/* Body: toolbar + drag-and-drop image upload onto the textarea */}
+        <div>
+          <MarkdownToolbar onAction={applyToolbarAction} />
+          <div
+            className="relative"
+            onDragOver={(e) => { e.preventDefault(); setDragOverBody(true); }}
+            onDragLeave={() => setDragOverBody(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOverBody(false);
+              const f = e.dataTransfer.files?.[0];
+              if (f) uploadBodyFile(f);
+            }}
+          >
+            <textarea
+              ref={bodyRef}
+              value={fields.body_markdown}
+              onChange={(e) => patch({ body_markdown: e.target.value })}
+              placeholder="Body (Markdown) — drag an image in to upload it"
+              rows={14}
+              className={cx(textareaCls, "rounded-t-none font-mono text-xs", dragOverBody && "ring-brand-400")}
+            />
+            {(dragOverBody || uploadingBody) && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-b-2xl bg-brand-500/10 text-sm font-extrabold text-brand-700 dark:text-brand-400">
+                {uploadingBody ? <Loader2 className="h-5 w-5 animate-spin" /> : "Drop image to upload"}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <SeoChecklist fields={fields} />
+    </div>
+  );
 }
 
 export default function CmsBlog() {
@@ -38,11 +234,11 @@ export default function CmsBlog() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
-  const [draft, setDraft] = useState(emptyDraft());
+  const [draft, setDraft] = useState(emptyFields());
 
   function showToast(msg, kind = "ok") {
     setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
+    setTimeout(() => setToast(null), 2800);
   }
 
   async function refresh() {
@@ -53,11 +249,11 @@ export default function CmsBlog() {
     list.forEach((p) => {
       e[p.id] = {
         slug: p.slug || "", title: p.title || "", meta_description: p.meta_description || "",
-        excerpt: p.excerpt || "", cover_image_url: p.cover_image_url || "",
+        excerpt: p.excerpt || "", cover_image_url: p.cover_image_url || "", cover_image_alt: p.cover_image_alt || "",
         author_name: p.author_name || "Haylingua",
         tagsText: Array.isArray(p.tags) ? p.tags.join(", ") : "",
         is_published: !!p.is_published,
-        body_markdown: null, // lazy-loaded on first edit of the body field
+        body_markdown: p.body_markdown || "",
       };
     });
     setEdits(e);
@@ -79,16 +275,6 @@ export default function CmsBlog() {
 
   if (!token) return <Navigate to="/cms/login" replace />;
 
-  function patch(id, p) {
-    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
-  }
-
-  async function loadBody(id) {
-    if (edits[id]?.body_markdown != null) return;
-    const full = await api.getBlogPost(id);
-    patch(id, { body_markdown: full.body_markdown || "" });
-  }
-
   async function createPost() {
     const slug = draft.slug.trim() || slugify(draft.title);
     if (!slug || !draft.title.trim()) return;
@@ -100,11 +286,12 @@ export default function CmsBlog() {
         excerpt: draft.excerpt.trim() || null,
         body_markdown: draft.body_markdown,
         cover_image_url: draft.cover_image_url.trim() || null,
+        cover_image_alt: draft.cover_image_alt.trim() || null,
         author_name: draft.author_name.trim() || "Haylingua",
         tags: draft.tagsText.split(",").map((t) => t.trim()).filter(Boolean),
         is_published: draft.is_published,
       });
-      setDraft(emptyDraft());
+      setDraft(emptyFields());
       await refresh();
       showToast("Post created");
     } catch (err) {
@@ -118,15 +305,14 @@ export default function CmsBlog() {
     const e = edits[p.id] || {};
     setBusy(true);
     try {
-      const payload = {
+      await api.updateBlogPost(p.id, {
         slug: e.slug, title: e.title, meta_description: e.meta_description || null,
-        excerpt: e.excerpt || null, cover_image_url: e.cover_image_url || null,
+        excerpt: e.excerpt || null, body_markdown: e.body_markdown,
+        cover_image_url: e.cover_image_url || null, cover_image_alt: e.cover_image_alt || null,
         author_name: e.author_name || "Haylingua",
         tags: (e.tagsText || "").split(",").map((t) => t.trim()).filter(Boolean),
         is_published: !!e.is_published,
-      };
-      if (e.body_markdown != null) payload.body_markdown = e.body_markdown;
-      await api.updateBlogPost(p.id, payload);
+      });
       await refresh();
       showToast("Saved");
     } catch (err) {
@@ -171,25 +357,11 @@ export default function CmsBlog() {
           publish date once and never resets it on later edits.
         </div>
 
-        <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-          <div className="mb-3 font-display text-base font-bold text-slate-900">New post</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Title" className={inputCls} />
-            <input value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} placeholder="Slug (auto from title if blank)" className={inputCls} />
-            <input value={draft.meta_description} onChange={(e) => setDraft({ ...draft, meta_description: e.target.value })} placeholder="Meta description (for search results)" className={cx(inputCls, "sm:col-span-2")} />
-            <input value={draft.excerpt} onChange={(e) => setDraft({ ...draft, excerpt: e.target.value })} placeholder="Excerpt (shown on the blog listing)" className={cx(inputCls, "sm:col-span-2")} />
-            <input value={draft.cover_image_url} onChange={(e) => setDraft({ ...draft, cover_image_url: e.target.value })} placeholder="Cover image URL (optional)" className={inputCls} />
-            <input value={draft.tagsText} onChange={(e) => setDraft({ ...draft, tagsText: e.target.value })} placeholder="Tags, comma-separated" className={inputCls} />
-          </div>
-          <textarea
-            value={draft.body_markdown}
-            onChange={(e) => setDraft({ ...draft, body_markdown: e.target.value })}
-            placeholder="Body (Markdown)"
-            rows={10}
-            className={cx(textareaCls, "mt-3 font-mono text-xs")}
-          />
+        <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
+          <div className="mb-3 font-display text-base font-bold text-slate-900 dark:text-white">New post</div>
+          <PostEditor fields={draft} onChange={setDraft} api={api} onUploadError={(m) => showToast(m, "err")} />
           <div className="mt-3 flex items-center justify-between">
-            <label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 ring-2 ring-slate-200">
+            <label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 ring-2 ring-slate-200 dark:bg-white/[0.04] dark:text-stone-200 dark:ring-white/[0.08]">
               <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} />
               Publish immediately
             </label>
@@ -207,57 +379,42 @@ export default function CmsBlog() {
         {loading ? (
           <div className="p-6 text-sm text-slate-500">Loading…</div>
         ) : posts.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm">No posts yet.</div>
+          <div className="rounded-3xl bg-white p-8 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08] dark:text-stone-400">No posts yet.</div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {posts.map((p) => {
-              const e = edits[p.id] || {};
+              const e = edits[p.id] || emptyFields();
               return (
-                <div key={p.id} className={cx("rounded-3xl bg-white p-4 ring-1 shadow-sm", p.is_published ? "ring-slate-200" : "ring-slate-200 opacity-80")}>
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <input value={e.title || ""} onChange={(ev) => patch(p.id, { title: ev.target.value })} className={cx(inputCls, "!py-2 font-bold")} placeholder="Title" />
-                      <input value={e.slug || ""} onChange={(ev) => patch(p.id, { slug: ev.target.value })} className={cx(inputCls, "!py-2 text-xs")} title="Slug" />
-                      <input value={e.author_name || ""} onChange={(ev) => patch(p.id, { author_name: ev.target.value })} className={cx(inputCls, "!py-2 text-xs")} title="Author" />
-                    </div>
-                    <input value={e.meta_description || ""} onChange={(ev) => patch(p.id, { meta_description: ev.target.value })} placeholder="Meta description" className={cx(inputCls, "!py-2 text-xs")} />
-                    <input value={e.excerpt || ""} onChange={(ev) => patch(p.id, { excerpt: ev.target.value })} placeholder="Excerpt" className={cx(inputCls, "!py-2 text-xs")} />
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <input value={e.cover_image_url || ""} onChange={(ev) => patch(p.id, { cover_image_url: ev.target.value })} placeholder="Cover image URL" className={cx(inputCls, "!py-2 text-xs")} />
-                      <input value={e.tagsText || ""} onChange={(ev) => patch(p.id, { tagsText: ev.target.value })} placeholder="Tags, comma-separated" className={cx(inputCls, "!py-2 text-xs")} />
-                    </div>
-                    <textarea
-                      value={e.body_markdown ?? ""}
-                      onFocus={() => loadBody(p.id)}
-                      onChange={(ev) => patch(p.id, { body_markdown: ev.target.value })}
-                      placeholder={e.body_markdown == null ? "Click to load body…" : "Body (Markdown)"}
-                      rows={8}
-                      className={cx(textareaCls, "font-mono text-xs")}
-                    />
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => togglePost(p)}
-                          disabled={busy}
-                          className={cx(
-                            "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 transition",
-                            p.is_published ? "bg-grass-50 text-grass-700 ring-grass-200 hover:bg-grass-100" : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200"
-                          )}
-                        >
-                          {p.is_published ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                          {p.is_published ? "Published" : "Draft"}
-                        </button>
-                        {p.is_published && (
-                          <a href={`/blog/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:underline">
-                            <ExternalLink className="h-3.5 w-3.5" /> View live
-                          </a>
+                <div key={p.id} className={cx("rounded-3xl bg-white p-4 ring-1 shadow-sm dark:bg-[#18181b]", p.is_published ? "ring-slate-200 dark:ring-white/[0.08]" : "ring-slate-200 opacity-80 dark:ring-white/[0.08]")}>
+                  <PostEditor
+                    fields={e}
+                    onChange={(next) => setEdits((prev) => ({ ...prev, [p.id]: next }))}
+                    api={api}
+                    onUploadError={(m) => showToast(m, "err")}
+                  />
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-white/[0.06]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => togglePost(p)}
+                        disabled={busy}
+                        className={cx(
+                          "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 transition",
+                          p.is_published ? "bg-grass-50 text-grass-700 ring-grass-200 hover:bg-grass-100" : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200"
                         )}
-                      </div>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => savePost(p)} disabled={busy} className="btn3d btn3d-brand text-xs inline-flex items-center gap-1.5"><Save className="h-3.5 w-3.5" /> Save</button>
-                        <button type="button" onClick={() => removePost(p)} disabled={busy} className="btn3d btn3d-cardinal text-xs inline-flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-                      </div>
+                      >
+                        {p.is_published ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        {p.is_published ? "Published" : "Draft"}
+                      </button>
+                      {p.is_published && (
+                        <a href={`/blog/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:underline">
+                          <ExternalLink className="h-3.5 w-3.5" /> View live
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => savePost(p)} disabled={busy} className="btn3d btn3d-brand text-xs inline-flex items-center gap-1.5"><Save className="h-3.5 w-3.5" /> Save</button>
+                      <button type="button" onClick={() => removePost(p)} disabled={busy} className="btn3d btn3d-cardinal text-xs inline-flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                     </div>
                   </div>
                 </div>
