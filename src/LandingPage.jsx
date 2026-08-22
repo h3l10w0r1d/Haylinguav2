@@ -288,7 +288,7 @@ function DemoPromptHeader({ q }) {
       <>
         <div className={label}>Tap what you hear</div>
         <div className="mt-4 flex justify-center">
-          <VoiceChip text={q.prompt} label="Play the word" />
+          <VoiceChip text={q.prompt} displayText="Play the word" />
         </div>
       </>
     );
@@ -435,7 +435,7 @@ function TraceLetterPad({ letter, onDirtyChange, onInteractStart }) {
 
 // Small speaker chip that plays real Armenian TTS for a word via the same /audio
 // pipeline the learner app uses — so a visitor can actually hear pronunciation.
-function VoiceChip({ text, label, tone = "brand" }) {
+function VoiceChip({ text, label, tone = "brand", displayText }) {
   const [state, setState] = useState("idle"); // idle | loading | playing
   const audioRef = useRef(null);
   const urlRef = useRef(null);
@@ -483,7 +483,7 @@ function VoiceChip({ text, label, tone = "brand" }) {
       ) : (
         <Volume2 className={"h-4 w-4 " + (state === "playing" ? "animate-pulse" : "")} />
       )}
-      <span>{text}</span>
+      <span>{displayText || text}</span>
       {label && <span className="font-bold text-slate-400 dark:text-stone-500">· {label}</span>}
     </button>
   );
