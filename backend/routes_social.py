@@ -54,7 +54,6 @@ class FriendSuggestionOut(BaseModel):
     user_id: int
     username: str | None = None
     name: str
-    email: str | None = None
     avatar_url: str | None = None
     xp: int
     level: int
@@ -67,14 +66,14 @@ class FriendRequestOut(BaseModel):
 
     id: int
     requester_id: int
-    requester_email: str
     requester_name: str | None = None
     avatar_url: str | None = None
     is_premium: bool = False
     created_at: datetime
 
 class FriendRequestCreateIn(BaseModel):
-    query: str  # username or email
+    query: str | None = None  # username or email (legacy path)
+    user_id: int | None = None  # preferred: add by id, no email exposure needed
 
 
 # === route:friends_list ===
@@ -387,7 +386,6 @@ def friends_suggestions(
                 user_id=int(cand["id"]),
                 username=username,
                 name=name,
-                email=email or None,
                 avatar_url=cand.get("avatar_url"),
                 xp=xp,
                 level=max(1, (xp // 500) + 1),
@@ -416,7 +414,6 @@ def friends_requests_outgoing(
             SELECT
               fr.id,
               fr.requester_id,
-              u.email AS requester_email,
               u.name AS requester_name,
               u.avatar_url AS avatar_url,
               COALESCE(u.is_premium, FALSE) AS is_premium,
@@ -436,7 +433,6 @@ def friends_requests_outgoing(
         FriendRequestOut(
             id=r["id"],
             requester_id=user_id,
-            requester_email=r["requester_email"],
             requester_name=r["requester_name"],
             avatar_url=r["avatar_url"],
             is_premium=bool(r["is_premium"]),
@@ -461,7 +457,6 @@ def friends_requests_incoming(
             SELECT
               fr.id,
               fr.requester_id,
-              u.email AS requester_email,
               u.name AS requester_name,
               u.avatar_url AS avatar_url,
               COALESCE(u.is_premium, FALSE) AS is_premium,
@@ -492,7 +487,6 @@ def friends_requests_sent(
             SELECT
               fr.id,
               fr.addressee_id,
-              u.email AS addressee_email,
               u.name AS addressee_name,
               u.avatar_url AS addressee_avatar_url,
               COALESCE(u.is_premium, FALSE) AS addressee_is_premium,
@@ -511,7 +505,6 @@ def friends_requests_sent(
         {
             "id": int(r["id"]),
             "addressee_id": int(r["addressee_id"]),
-            "addressee_email": r["addressee_email"],
             "addressee_name": r["addressee_name"],
             "addressee_avatar_url": r["addressee_avatar_url"],
             "addressee_is_premium": bool(r["addressee_is_premium"]),
@@ -532,16 +525,25 @@ def friends_request_create(
     if requester_id is None:
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
-    q = (payload.query or "").strip()
-    if not q:
-        raise HTTPException(status_code=400, detail="username or email is required")
-
-    q_l = q.lower()
-
-    addressee = db.execute(
-        text("SELECT id FROM users WHERE lower(email) = :q OR lower(username) = :q"),
-        {"q": q_l},
-    ).mappings().first()
+    if payload.user_id is not None:
+        # Preferred path — Discover/Pending only ever hand back a user_id,
+        # never an email, so the frontend never needs to know anyone else's
+        # address to send a request.
+        addressee = db.execute(
+            text("SELECT id FROM users WHERE id = :uid"),
+            {"uid": int(payload.user_id)},
+        ).mappings().first()
+    else:
+        # Legacy path — still used by "add a friend by email/username" entry
+        # points that take a raw string from the current user themselves.
+        q = (payload.query or "").strip()
+        if not q:
+            raise HTTPException(status_code=400, detail="username or email is required")
+        q_l = q.lower()
+        addressee = db.execute(
+            text("SELECT id FROM users WHERE lower(email) = :q OR lower(username) = :q"),
+            {"q": q_l},
+        ).mappings().first()
 
     if not addressee:
         raise HTTPException(status_code=404, detail="User not found")
@@ -797,7 +799,6 @@ def friends_activity(
 
 class LeaderboardEntryOut(BaseModel):
     user_id: int
-    email: str | None = None
     name: str
     username: str | None = None
     xp: int
@@ -866,7 +867,6 @@ def get_leaderboard(limit: int = 50, db: Connection = Depends(get_db)):
         out.append(
             LeaderboardEntryOut(
                 user_id=int(r["user_id"]),
-                email=email,
                 name=name,
                 username=(r.get("username") or "").strip() or None,
                 xp=xp,

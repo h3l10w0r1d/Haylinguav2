@@ -201,13 +201,13 @@ export default function FriendsScreen({ navigation }) {
     await AsyncStorage.setItem(DISMISSED_SENT_KEY, JSON.stringify(next)).catch(() => {});
   }
 
-  async function sendRequest(target) {
+  async function sendRequest(target, userId) {
     const q = (target ?? query).trim();
-    if (!q || sending) return;
+    if ((!q && !userId) || sending) return;
     setSending(true);
     setMessage('');
     try {
-      const res = await api.post('/friends/request', { query: q });
+      const res = await api.post('/friends/request', userId ? { user_id: userId } : { query: q });
       if (res.status === 'already_friends') setMessage("You're already friends.");
       else if (res.status === 'request_exists') setMessage('A request already exists.');
       else setMessage('Friend request sent!');
@@ -392,7 +392,7 @@ export default function FriendsScreen({ navigation }) {
                     </View>
                   ) : (
                     <Pressable3D
-                      onPress={() => sendRequest(p.email || p.username)}
+                      onPress={() => sendRequest(null, p.user_id)}
                       pressDepth={2}
                       className="flex-row items-center gap-1 rounded-xl bg-brand-500 px-3 py-1.5"
                       style={{ borderBottomWidth: 2, borderBottomColor: '#E85F00' }}
@@ -419,9 +419,9 @@ export default function FriendsScreen({ navigation }) {
               ) : (
                 incoming.map((r) => (
                   <Row key={r.id}>
-                    <Avatar name={r.requester_name || r.requester_email} avatarUrl={r.avatar_url} size={48} isPremium={r.is_premium} />
+                    <Avatar name={r.requester_name} avatarUrl={r.avatar_url} size={48} isPremium={r.is_premium} />
                     <View className="min-w-0 flex-1">
-                      <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.requester_name || r.requester_email}</Text>
+                      <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.requester_name}</Text>
                       <Text className="text-xs font-semibold text-stone-400">Wants to be friends · {timeAgo(r.created_at)}</Text>
                     </View>
                     <Pressable3D onPress={() => accept(r.id)} pressDepth={2} className="h-9 w-9 items-center justify-center rounded-full bg-grass-500">
@@ -440,9 +440,9 @@ export default function FriendsScreen({ navigation }) {
               ) : (
                 visibleSent.map((r) => (
                   <Row key={r.id}>
-                    <Avatar name={r.addressee_name || r.addressee_email} avatarUrl={r.addressee_avatar_url} size={48} isPremium={r.addressee_is_premium} />
+                    <Avatar name={r.addressee_name} avatarUrl={r.addressee_avatar_url} size={48} isPremium={r.addressee_is_premium} />
                     <View className="min-w-0 flex-1">
-                      <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.addressee_name || r.addressee_email}</Text>
+                      <Text className="text-sm font-bold text-stone-800" numberOfLines={1}>{r.addressee_name}</Text>
                       <Text className="text-xs font-semibold text-stone-400">Requested · {timeAgo(r.created_at)}</Text>
                     </View>
                     <Pressable3D onPress={() => dismissSent(r.id)} pressDepth={2} className="rounded-full bg-stone-100 px-3 py-1.5">

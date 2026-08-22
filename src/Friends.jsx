@@ -177,7 +177,7 @@ export default function Friends() {
           const normalized = Array.isArray(s)
             ? s.map((x) => ({
                 id: x.id,
-                email: x.addressee_email || x.email || "",
+                addressee_id: x.addressee_id ?? null,
                 name: x.addressee_name || x.name || null,
                 avatar_url: x.addressee_avatar_url || x.avatar_url || null,
                 created_at: x.created_at || null,
@@ -240,7 +240,7 @@ export default function Friends() {
         const normalized = Array.isArray(s)
           ? s.map((x) => ({
               id: x.id,
-              email: x.addressee_email || x.email || "",
+              addressee_id: x.addressee_id ?? null,
               name: x.addressee_name || x.name || null,
               avatar_url: x.addressee_avatar_url || x.avatar_url || null,
               created_at: x.created_at || null,
@@ -316,9 +316,7 @@ export default function Friends() {
     return (incoming || []).map((r) => ({
       request_id: r.id,
       id: Number(r.requester_id),
-      name:
-        r.requester_name || r.requester_username || (r.requester_email ? r.requester_email.split("@")[0] : "User"),
-      email: r.requester_email || "",
+      name: r.requester_name || r.requester_username || "User",
       avatar_url: r.avatar_url || null,
       level: 1,
       xp: 0,
@@ -329,12 +327,11 @@ export default function Friends() {
 
   const sentList = useMemo(() => {
     return (sent || [])
-      .filter((x) => x?.email)
+      .filter((x) => Number.isFinite(Number(x?.addressee_id)))
       .map((x) => ({
         request_id: x.id || null,
-        id: x.email, // stable key if no id
-        name: x.name || x.email.split("@")[0],
-        email: x.email,
+        id: Number(x.addressee_id),
+        name: x.name || "User",
         avatar_url: x.avatar_url || null,
         // Sent requests don't have stats; keep neutral values.
         level: 1,
@@ -353,49 +350,41 @@ export default function Friends() {
         id: Number(p.user_id ?? p.id),
         username: p.username || null,
         avatar_url: p.avatar_url || null,
-        name: p.name || (p.email ? p.email.split("@")[0] : "User"),
-        email: p.email || "",
+        name: p.name || "User",
         level: Number(p.level ?? 1) || 1,
         xp: Number(p.xp ?? 0) || 0,
         streak: Math.max(1, Number(p.streak ?? 1) || 1),
         score: Number(p.score ?? 0) || 0,
         reasons: Array.isArray(p.reasons) ? p.reasons : [],
       }))
-      .filter((p) => Number.isFinite(p.id) && p.email);
+      .filter((p) => Number.isFinite(p.id));
   }, [people]);
 
   const applySearch = (list) => {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return list;
-    return list.filter(
-      (p) =>
-        (p.name || "").toLowerCase().includes(q) ||
-        (p.email || "").toLowerCase().includes(q)
-    );
+    return list.filter((p) => (p.name || "").toLowerCase().includes(q));
   };
 
   // --- Actions (backend) ---
-  const sendRequestByEmail = async (email) => {
+  const sendFriendRequest = async (userId) => {
     if (!token) return;
+    const uid = Number(userId);
+    if (!Number.isFinite(uid)) return;
 
-    const cleanEmail = String(email || "").trim().toLowerCase();
-    if (!cleanEmail) return;
-
-    // Friends list doesn't include emails; avoid crashing on undefined.
-    if (incomingList.some((r) => r.email.toLowerCase() === cleanEmail)) return;
-    if (sentList.some((r) => r.email.toLowerCase() === cleanEmail)) return;
+    if (incomingList.some((r) => r.id === uid)) return;
+    if (sentList.some((r) => r.id === uid)) return;
 
     const res = await apiFetch("/friends/request", {
       token,
       method: "POST",
-      // Backend expects { query: "<username_or_email>" }
-      body: JSON.stringify({ query: cleanEmail }),
+      body: JSON.stringify({ user_id: uid }),
     });
 
     if (res.ok) {
       const cached = readSentCache();
       const next = [
-        { id: null, email: cleanEmail, name: null, created_at: new Date().toISOString() },
+        { id: null, addressee_id: uid, name: null, created_at: new Date().toISOString() },
         ...cached,
       ].slice(0, 100);
       writeSentCache(next);
@@ -440,11 +429,9 @@ export default function Friends() {
     }
   };
 
-  const cancelSentRequest = (email) => {
-    const clean = String(email || "").trim().toLowerCase();
-    const cached = readSentCache().filter(
-      (x) => (x.email || "").toLowerCase() !== clean
-    );
+  const cancelSentRequest = (addresseeId) => {
+    const uid = Number(addresseeId);
+    const cached = readSentCache().filter((x) => Number(x.addressee_id) !== uid);
     writeSentCache(cached);
     setSent(cached);
   };
@@ -540,7 +527,7 @@ export default function Friends() {
           <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-stone-500" />
           <input
             type="text"
-            placeholder="Search by name or email…"
+            placeholder="Search by name…"
             className="w-full rounded-2xl bg-white py-3.5 pl-12 pr-4 font-semibold text-slate-800 ring-2 ring-slate-200 transition focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 dark:bg-[#18181b] dark:text-white dark:ring-white/[0.08] dark:placeholder:text-stone-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -705,11 +692,11 @@ export default function Friends() {
                       <div className="grid gap-3">
                         {applySearch(sentList).map((p) => (
                           <PersonCard
-                            key={`${p.email}-${p.request_id ?? "x"}`}
+                            key={`${p.id}-${p.request_id ?? "x"}`}
                             person={p}
                             mode="sent"
                             onOpenProfile={() => openPublicProfile(p)}
-                            onCancel={() => cancelSentRequest(p.email)}
+                            onCancel={() => cancelSentRequest(p.id)}
                           />
                         ))}
                       </div>
@@ -725,9 +712,9 @@ export default function Friends() {
                 ) : (
                   <div className="grid gap-3">
                     {applySearch(discoverList).map((p) => {
-                      const isFriend = friendsList.some((f) => f.email === p.email);
-                      const isIncoming = incomingList.some((r) => r.email === p.email);
-                      const isSent = sentList.some((r) => r.email === p.email);
+                      const isFriend = friendsList.some((f) => f.id === p.id);
+                      const isIncoming = incomingList.some((r) => r.id === p.id);
+                      const isSent = sentList.some((r) => r.id === p.id);
 
                       return (
                         <PersonCard
@@ -740,15 +727,13 @@ export default function Friends() {
                           isSent={isSent}
                           onSend={
                             !isFriend && !isIncoming && !isSent
-                              ? () => sendRequestByEmail(p.email)
+                              ? () => sendFriendRequest(p.id)
                               : null
                           }
                           onAccept={
                             isIncoming
                               ? () => {
-                                  const req = incomingList.find(
-                                    (r) => r.email === p.email
-                                  );
+                                  const req = incomingList.find((r) => r.id === p.id);
                                   if (req?.request_id) acceptRequest(req.request_id, p.name);
                                 }
                               : null
@@ -756,14 +741,12 @@ export default function Friends() {
                           onDecline={
                             isIncoming
                               ? () => {
-                                  const req = incomingList.find(
-                                    (r) => r.email === p.email
-                                  );
+                                  const req = incomingList.find((r) => r.id === p.id);
                                   if (req?.request_id) rejectRequest(req.request_id, p.name);
                                 }
                               : null
                           }
-                          onCancel={isSent ? () => cancelSentRequest(p.email) : null}
+                          onCancel={isSent ? () => cancelSentRequest(p.id) : null}
                         />
                       );
                     })}
@@ -1013,9 +996,7 @@ function PersonCard({
   isSent,
   isIncoming,
 }) {
-  const initial = (person?.name?.[0] || person?.email?.[0] || "U")
-    .toUpperCase()
-    .trim();
+  const initial = (person?.name?.[0] || "U").toUpperCase().trim();
 
   const isHidden = !!person?.is_hidden;
   const avatarSrc = !isHidden ? resolveUrl(person?.avatar_url) : "";
@@ -1061,7 +1042,7 @@ function PersonCard({
               {isHidden ? "Hidden" : <NameTag renderKey={person?.active_name_tag_style} rarity={person?.active_name_tag_rarity}>{person.name}</NameTag>}
             </h3>
             <p className="truncate text-sm font-semibold text-slate-400 dark:text-stone-500">
-              {isHidden ? "This user is hidden" : (person.email || person.username || "")}
+              {isHidden ? "This user is hidden" : (person.username ? `@${person.username}` : "")}
             </p>
           </div>
         </div>
