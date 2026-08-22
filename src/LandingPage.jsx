@@ -1,7 +1,7 @@
 // src/LandingPage.jsx — Full marketing landing in the Haylingua brand.
 // All auth logic preserved: login, signup, 2FA, captcha, email verification.
 import Turnstile from "./lib/Turnstile";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
@@ -340,7 +340,7 @@ function DemoPromptHeader({ q }) {
 // of the real lesson player's canvas tracer (ExerciseRenderer.jsx's
 // ExTraceLetter), minus its stroke-path precision/recall scoring: this is a
 // marketing-page teaser, not a graded drill, so any real stroke counts.
-const TraceLetterPad = React.forwardRef(function TraceLetterPad({ letter, onDirtyChange, onInteractStart }, ref) {
+const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChange, onInteractStart }, ref) {
   const SIZE = 180;
   const drawRef = useRef(null);
   const drawing = useRef(false);
@@ -412,7 +412,7 @@ const TraceLetterPad = React.forwardRef(function TraceLetterPad({ letter, onDirt
   // draw a visible stroke (not just flip a "done" flag) — see
   // simulateAutoTrace below, which drives these the same way a real
   // pointerdown/pointermove/pointerup sequence would.
-  React.useImperativeHandle(ref, () => ({
+  useImperativeHandle(ref, () => ({
     canvasRect: () => drawRef.current?.getBoundingClientRect(),
     strokeDown: (x, y) => { strokeTo(x, y, true); strokeTo(x + 0.01, y + 0.01, false); markInk(); },
     strokeMove: (x, y) => strokeTo(x, y, false),
@@ -621,7 +621,7 @@ function LandingExerciseDemo({ onSignup }) {
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
-  const canAutoplay = inView && tabVisible;
+  const canAutoplay = inView; // TEMP DEBUG
   useEffect(() => {
     if (!canAutoplay) {
       setCursorPos(null);
