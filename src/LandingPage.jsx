@@ -411,12 +411,16 @@ const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChang
   // Imperative paint primitives for the autoplay ghost cursor to actually
   // draw a visible stroke (not just flip a "done" flag) — see
   // simulateAutoTrace below, which drives these the same way a real
-  // pointerdown/pointermove/pointerup sequence would.
+  // pointerdown/pointermove/pointerup sequence would. Deliberately does NOT
+  // call markInk() until finishPaint() — marking ink (onDirtyChange) is a
+  // state update, and firing it mid-gesture makes the pick-phase effect's
+  // deps change, which cancels the *remaining* animation steps via the
+  // shared autoTimers array before the simulated stroke finishes drawing.
   useImperativeHandle(ref, () => ({
     canvasRect: () => drawRef.current?.getBoundingClientRect(),
-    strokeDown: (x, y) => { strokeTo(x, y, true); strokeTo(x + 0.01, y + 0.01, false); markInk(); },
-    strokeMove: (x, y) => strokeTo(x, y, false),
-    strokeUp: () => {},
+    paintDown: (x, y) => strokeTo(x, y, true),
+    paintMove: (x, y) => strokeTo(x, y, false),
+    finishPaint: () => markInk(),
   }));
 
   return (
@@ -559,8 +563,11 @@ function LandingExerciseDemo({ onSignup }) {
   // Actually draws the trace_letter demo instead of just flipping a "done"
   // flag — the ghost cursor drags across two rough strokes over the pad
   // (SIZE=180 coordinate space, see TraceLetterPad) while real ink appears
-  // on the canvas via its imperative strokeDown/strokeMove handle, the same
-  // way a real pointerdown/move sequence would.
+  // on the canvas via its imperative paintDown/paintMove handle, the same
+  // way a real pointerdown/move sequence would. Ink is only marked "dirty"
+  // (finishPaint) once both strokes are fully drawn — see the comment on
+  // TraceLetterPad's useImperativeHandle for why doing it earlier breaks
+  // the animation.
   function simulateAutoTrace(onDone) {
     const pad = traceRef.current;
     const rect = pad?.canvasRect?.();
@@ -580,15 +587,14 @@ function LandingExerciseDemo({ onSignup }) {
       const stroke = strokes[strokeIdx];
       const p = stroke[pointIdx];
       setCursorPos(toCard(p));
-      if (pointIdx === 0) pad.strokeDown(p.x, p.y);
-      else pad.strokeMove(p.x, p.y);
+      if (pointIdx === 0) pad.paintDown(p.x, p.y);
+      else pad.paintMove(p.x, p.y);
       pointIdx += 1;
       if (pointIdx >= stroke.length) {
-        pad.strokeUp();
         strokeIdx += 1;
         pointIdx = 0;
         if (strokeIdx >= strokes.length) {
-          scheduleAuto(onDone, 200);
+          scheduleAuto(() => { pad.finishPaint(); onDone(); }, 200);
           return;
         }
         scheduleAuto(step, 240);
@@ -621,7 +627,7 @@ function LandingExerciseDemo({ onSignup }) {
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
-  const canAutoplay = inView; // TEMP DEBUG
+  const canAutoplay = inView && tabVisible;
   useEffect(() => {
     if (!canAutoplay) {
       setCursorPos(null);
