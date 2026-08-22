@@ -340,58 +340,150 @@ function DemoPromptHeader({ q }) {
 // of the real lesson player's canvas tracer (ExerciseRenderer.jsx's
 // ExTraceLetter), minus its stroke-path precision/recall scoring: this is a
 // marketing-page teaser, not a graded drill, so any real stroke counts.
-// Approximates a tracing path for `letter` by rendering it to an offscreen
-// canvas — same font/size/weight as the visible ghost glyph in
-// TraceLetterPad below — then walking a vertical centerline scan across its
-// ink. This is what lets the autoplay ghost cursor actually follow the real
-// glyph's shape (whatever letter is passed in) instead of a hand-guessed
-// generic path that only vaguely resembled "Ա".
-function computeGlyphStrokePath(letter, size) {
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = "#000";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `900 ${Math.round(size * 0.62)}px "Baloo 2", "Nunito", sans-serif`;
-    ctx.fillText(letter, size / 2, size / 2 + size * 0.02);
+// Derives a tracing path for `letter` the same way the real lesson player's
+// trace_letter grader (ExerciseRenderer.jsx's _traceGlyphMask/_traceThin)
+// scores a handwritten trace: rasterize the glyph, then Zhang–Suen-thin it
+// down to a 1px medial skeleton. A naive "vertical centerline per column"
+// scan (the first version of this) falls apart on any glyph with tall
+// vertical strokes at the edges — e.g. "Ա" renders as a rounded "u" bowl in
+// the fallback Armenian font, and a column scan just averages top-to-bottom
+// at each x, producing a meaningless zigzag instead of following the bowl.
+// The skeleton is a proper 1px-wide centerline, so walking it pixel-to-pixel
+// gives an ordered path that actually hugs the glyph's shape.
+const _TRACE_GRID = 96;
 
-    const { data } = ctx.getImageData(0, 0, size, size);
-    const inkY = (x) => {
-      let top = -1;
-      let bottom = -1;
-      for (let y = 0; y < size; y++) {
-        if (data[(y * size + x) * 4 + 3] > 80) {
-          if (top === -1) top = y;
-          bottom = y;
+function _traceGlyphMask(letter, W, H, fontString) {
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  g.fillStyle = "#000";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.font = fontString;
+  g.fillText(letter, W / 2, H / 2 + H * 0.02);
+  const a = g.getImageData(0, 0, W, H).data;
+  const bmp = new Uint8Array(W * H);
+  for (let p = 0, i = 3; p < bmp.length; p++, i += 4) bmp[p] = a[i] > 60 ? 1 : 0;
+  return bmp;
+}
+
+// Zhang–Suen thinning → 1px medial skeleton. Mutates and returns bmp.
+function _traceThin(bmp, W, H) {
+  const at = (x, y) => bmp[y * W + x];
+  let changed = true;
+  const dead = [];
+  while (changed) {
+    changed = false;
+    for (let step = 0; step < 2; step++) {
+      dead.length = 0;
+      for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+          if (!bmp[y * W + x]) continue;
+          const P2 = at(x, y - 1), P3 = at(x + 1, y - 1), P4 = at(x + 1, y),
+                P5 = at(x + 1, y + 1), P6 = at(x, y + 1), P7 = at(x - 1, y + 1),
+                P8 = at(x - 1, y), P9 = at(x - 1, y - 1);
+          const B = P2 + P3 + P4 + P5 + P6 + P7 + P8 + P9;
+          if (B < 2 || B > 6) continue;
+          const seq = [P2, P3, P4, P5, P6, P7, P8, P9, P2];
+          let A = 0;
+          for (let k = 0; k < 8; k++) if (!seq[k] && seq[k + 1]) A++;
+          if (A !== 1) continue;
+          if (step === 0) {
+            if (P2 && P4 && P6) continue;
+            if (P4 && P6 && P8) continue;
+          } else {
+            if (P2 && P4 && P8) continue;
+            if (P2 && P6 && P8) continue;
+          }
+          dead.push(y * W + x);
         }
       }
-      return top === -1 ? null : (top + bottom) / 2;
-    };
-
-    // Column scan, split into separate strokes wherever a column has no
-    // ink (handles glyphs with disconnected parts).
-    const strokes = [];
-    let current = [];
-    for (let x = 0; x < size; x += 3) {
-      const y = inkY(x);
-      if (y != null) current.push({ x, y });
-      else if (current.length) { strokes.push(current); current = []; }
+      if (dead.length) { changed = true; for (const i of dead) bmp[i] = 0; }
     }
-    if (current.length) strokes.push(current);
+  }
+  return bmp;
+}
 
+// Walks the 1px skeleton into ordered polylines (a real stroke path a pen
+// could draw), starting from endpoints (skeleton pixels with exactly one
+// neighbor) so open strokes get traced end-to-end rather than from the
+// middle. Falls back to starting anywhere for closed loops.
+function _skeletonToStrokes(skel, W, H) {
+  const idx = (x, y) => y * W + x;
+  const neighborsOf = (x, y) => {
+    const out = [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < W && ny < H && skel[idx(nx, ny)]) out.push([nx, ny]);
+      }
+    }
+    return out;
+  };
+  const visited = new Uint8Array(W * H);
+  const points = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (skel[idx(x, y)]) points.push([x, y]);
+  const endpoints = points.filter(([x, y]) => neighborsOf(x, y).length === 1);
+  const starts = endpoints.length ? endpoints : points.slice(0, 1);
+
+  const strokes = [];
+  for (const [sx, sy] of starts) {
+    if (visited[idx(sx, sy)]) continue;
+    const stroke = [];
+    let cur = [sx, sy];
+    while (cur) {
+      const [cx, cy] = cur;
+      if (visited[idx(cx, cy)]) break;
+      visited[idx(cx, cy)] = 1;
+      stroke.push({ x: cx, y: cy });
+      const next = neighborsOf(cx, cy).find(([nx, ny]) => !visited[idx(nx, ny)]);
+      cur = next || null;
+    }
+    if (stroke.length > 3) strokes.push(stroke);
+  }
+  // Any leftover pixels (a second disconnected component, or a loop with no
+  // endpoint) become their own stroke via a plain unvisited sweep.
+  for (const [x, y] of points) {
+    if (visited[idx(x, y)]) continue;
+    const stroke = [];
+    let cur = [x, y];
+    while (cur) {
+      const [cx, cy] = cur;
+      if (visited[idx(cx, cy)]) break;
+      visited[idx(cx, cy)] = 1;
+      stroke.push({ x: cx, y: cy });
+      const next = neighborsOf(cx, cy).find(([nx, ny]) => !visited[idx(nx, ny)]);
+      cur = next || null;
+    }
+    if (stroke.length > 3) strokes.push(stroke);
+  }
+  return strokes;
+}
+
+function computeGlyphStrokePath(letter, size, fontString) {
+  try {
+    const G = _TRACE_GRID;
+    const font = fontString
+      ? fontString.replace(/[\d.]+px/, `${Math.round(G * 0.62)}px`)
+      : `900 ${Math.round(G * 0.62)}px "Baloo 2", "Noto Sans Armenian", sans-serif`;
+    const mask = _traceGlyphMask(letter, G, G, font);
+    let maskN = 0;
+    for (let i = 0; i < mask.length; i++) maskN += mask[i];
+    if (!maskN) return [];
+    const skel = _traceThin(mask, G, G);
+    const strokes = _skeletonToStrokes(skel, G, G);
+    const scale = size / G;
     // Downsample each stroke to a handful of points so the animation has a
-    // natural pace instead of one point per scanned column.
-    return strokes
-      .filter((s) => s.length > 2)
-      .map((s) => {
-        const n = Math.min(7, Math.max(3, Math.round(s.length / 5)));
-        const step = (s.length - 1) / (n - 1);
-        return Array.from({ length: n }, (_, i) => s[Math.round(i * step)]);
+    // natural pace instead of one point per skeleton pixel.
+    return strokes.map((s) => {
+      const n = Math.min(9, Math.max(3, Math.round(s.length / 6)));
+      const step = (s.length - 1) / (n - 1);
+      return Array.from({ length: n }, (_, i) => {
+        const p = s[Math.round(i * step)];
+        return { x: p.x * scale, y: p.y * scale };
       });
+    });
   } catch {
     return [];
   }
@@ -400,6 +492,7 @@ function computeGlyphStrokePath(letter, size) {
 const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChange, onInteractStart }, ref) {
   const SIZE = 180;
   const drawRef = useRef(null);
+  const ghostRef = useRef(null);
   const drawing = useRef(false);
   const hasInk = useRef(false);
   const strokePathRef = useRef([]);
@@ -415,7 +508,20 @@ const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChang
     ctx.clearRect(0, 0, SIZE, SIZE);
     hasInk.current = false;
     onDirtyChange?.(false);
-    strokePathRef.current = computeGlyphStrokePath(letter, SIZE);
+    // Read the ghost glyph's own resolved font instead of guessing a font
+    // stack string — Baloo 2/Nunito don't cover Armenian, so the ghost
+    // (and this canvas scan) actually render Armenian letters in whatever
+    // font the cascade falls through to; hardcoding a stack here silently
+    // produced a DIFFERENT glyph shape than what's on screen. Recomputes
+    // once webfonts are confirmed loaded too, since the very first paint
+    // can race ahead of that and get a fallback-font shape otherwise.
+    const compute = () => {
+      const cs = ghostRef.current && getComputedStyle(ghostRef.current);
+      const fontString = cs ? `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}` : null;
+      strokePathRef.current = computeGlyphStrokePath(letter, SIZE, fontString);
+    };
+    compute();
+    if (document.fonts?.ready) document.fonts.ready.then(compute);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [letter]);
 
@@ -487,6 +593,7 @@ const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChang
     <div>
       <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
         <div
+          ref={ghostRef}
           className="absolute inset-0 grid select-none place-items-center rounded-3xl bg-slate-50 font-display font-black ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]"
           style={{ fontSize: SIZE * 0.62, color: "rgba(120,120,120,0.25)" }}
           aria-hidden="true"
