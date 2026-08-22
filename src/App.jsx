@@ -32,6 +32,13 @@ const ProfilePage = lazy(() => import('./ProfilePage'));
 const BonusesPage = lazy(() => import('./BonusesPage'));
 const PublicUserPage = lazy(() => import('./PublicUserPage'));
 const AboutPage = lazy(() => import('./AboutPage'));
+const ArmenianAlphabetPage = lazy(() => import('./ArmenianAlphabetPage'));
+const LearnArmenianOnlinePage = lazy(() => import('./LearnArmenianOnlinePage'));
+const ArmenianPronunciationPage = lazy(() => import('./ArmenianPronunciationPage'));
+const ArmenianVocabularyPage = lazy(() => import('./ArmenianVocabularyPage'));
+const EasternArmenianPage = lazy(() => import('./EasternArmenianPage'));
+const BlogPage = lazy(() => import('./BlogPage'));
+const BlogPostPage = lazy(() => import('./BlogPostPage'));
 const ContactPage = lazy(() => import('./ContactPage'));
 const TermsPage = lazy(() => import('./TermsPage'));
 const PrivacyPolicyPage = lazy(() => import('./PrivacyPolicyPage'));
@@ -56,6 +63,7 @@ const CmsChapters = lazy(() => import('./cms/CmsChapters'));
 const CmsAchievements = lazy(() => import('./cms/CmsAchievements'));
 const CmsShop = lazy(() => import('./cms/CmsShop'));
 const CmsItems = lazy(() => import('./cms/CmsItems'));
+const CmsBlog = lazy(() => import('./cms/CmsBlog'));
 const CmsPremium = lazy(() => import('./cms/CmsPremium'));
 const CmsCareers = lazy(() => import('./cms/CmsCareers'));
 const CmsAdventures = lazy(() => import('./cms/CmsAdventures'));
@@ -408,6 +416,13 @@ function AppShell() {
       {/* Marketing page — standalone (own nav/footer, like LandingPage), no
           auth required and accessible even when logged in. */}
       <Route path="/about" element={<AboutPage />} />
+      <Route path="/armenian-alphabet" element={<ArmenianAlphabetPage />} />
+      <Route path="/learn-armenian-online" element={<LearnArmenianOnlinePage />} />
+      <Route path="/armenian-pronunciation" element={<ArmenianPronunciationPage />} />
+      <Route path="/armenian-vocabulary" element={<ArmenianVocabularyPage />} />
+      <Route path="/eastern-armenian" element={<EasternArmenianPage />} />
+      <Route path="/blog" element={<BlogPage />} />
+      <Route path="/blog/:slug" element={<BlogPostPage />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
@@ -712,6 +727,7 @@ function AppShell() {
       <Route path="/cms/achievements" element={<CmsAchievements />} />
       <Route path="/cms/shop" element={<CmsShop />} />
       <Route path="/cms/items" element={<CmsItems />} />
+      <Route path="/cms/blog" element={<CmsBlog />} />
       <Route path="/cms/premium" element={<CmsPremium />} />
       <Route path="/cms/careers" element={<CmsCareers />} />
       <Route path="/cms/affiliates" element={<CmsAffiliates />} />

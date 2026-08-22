@@ -34,6 +34,7 @@ from routes_cms import router as cms_router  # CMS ("Content Studio") admin rout
 from routes_social import router as social_router  # Friends, leaderboard, public profiles
 from routes_trades import router as trades_router  # Friends-only cosmetic trading
 from routes_emotes import router as emotes_router  # Friends-only emote sending
+from routes_blog import router as blog_router  # Public first-party blog reads
 from routes_audio import router as audio_router  # NEW: Audio management
 from routes_conversation import router as conversation_router  # NEW: AI Conversation
 from db_utils import seed_alphabet_lessons
@@ -228,6 +229,8 @@ app.include_router(trades_router)  # Friends-only cosmetic trading
 app.include_router(trades_router, prefix="/api")
 app.include_router(emotes_router)  # Friends-only emote sending
 app.include_router(emotes_router, prefix="/api")
+app.include_router(blog_router)  # Public first-party blog reads
+app.include_router(blog_router, prefix="/api")
 app.include_router(audio_router)  # NEW: Audio routes
 app.include_router(audio_router, prefix="/api")
 

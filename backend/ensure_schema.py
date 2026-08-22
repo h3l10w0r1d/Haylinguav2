@@ -1590,4 +1590,31 @@ def ensure_schema() -> None:
         ))
         print("[ensure_schema] ensured emote_sends table")
 
+        # ---------- First-party blog (SEO content tool, separate from the
+        # external blog.haylingua.am/Ghost site) ----------
+        ensure_table(
+            "blog_posts",
+            """
+            CREATE TABLE blog_posts (
+                id               SERIAL PRIMARY KEY,
+                slug             TEXT NOT NULL UNIQUE,
+                title            TEXT NOT NULL,
+                meta_description TEXT,
+                excerpt          TEXT,
+                body_markdown    TEXT NOT NULL DEFAULT '',
+                cover_image_url  TEXT,
+                author_name      TEXT NOT NULL DEFAULT 'Haylingua',
+                tags             JSONB NOT NULL DEFAULT '[]'::jsonb,
+                is_published     BOOLEAN NOT NULL DEFAULT FALSE,
+                published_at     TIMESTAMPTZ,
+                created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+        )
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS blog_posts_published_idx ON blog_posts (is_published, published_at DESC)"
+        ))
+        print("[ensure_schema] ensured blog_posts table")
+
     print("[ensure_schema] done")

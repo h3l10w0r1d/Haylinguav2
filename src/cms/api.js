@@ -112,6 +112,13 @@ export function createCmsApi(accessToken) {
   const deleteItemDefinition = (id) => req(`/cms/item-definitions/${id}`, { method: "DELETE" });
   const reorderItemDefinitions = (order) => req("/cms/item-definitions/reorder", { method: "POST", body: JSON.stringify({ order }) });
 
+  // Blog (first-party — separate from blog.haylingua.am)
+  const listBlogPosts = () => req("/cms/blog");
+  const getBlogPost = (id) => req(`/cms/blog/${id}`);
+  const createBlogPost = (payload) => req("/cms/blog", { method: "POST", body: JSON.stringify(payload) });
+  const updateBlogPost = (id, payload) => req(`/cms/blog/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteBlogPost = (id) => req(`/cms/blog/${id}`, { method: "DELETE" });
+
   // Premium pricing plans
   const listPremiumPlans = () => req("/cms/premium-plans");
   const createPremiumPlan = (payload) => req("/cms/premium-plans", { method: "POST", body: JSON.stringify(payload) });
@@ -297,6 +304,11 @@ export function createCmsApi(accessToken) {
     createItemDefinition,
     updateItemDefinition,
     deleteItemDefinition,
+    listBlogPosts,
+    getBlogPost,
+    createBlogPost,
+    updateBlogPost,
+    deleteBlogPost,
     reorderItemDefinitions,
     listPremiumPlans,
     createPremiumPlan,

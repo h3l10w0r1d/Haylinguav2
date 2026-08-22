@@ -2044,6 +2044,23 @@ def cms_seed_enrich_alphabet(request: Request, db=Depends(get_db)):
     return res or {"ok": True}
 
 
+@router.post("/cms/seed/enrich-alphabet-2")
+def cms_seed_enrich_alphabet2(request: Request, db=Depends(get_db)):
+    """Adds an example word + emoji to each char_intro in hl-alphabet-3
+    through hl-alphabet-10 (the remaining 33 letters seed_alphabet.py added,
+    which enrich-alphabet above doesn't cover) — reusing the word/translit
+    pair already seeded there for audio_choice_tts. UPDATE-based, idempotent
+    per exercise. Built for the /armenian-alphabet public page's letter
+    grid, so every card shows a consistent example word."""
+    require_cms(request, db)
+    from seed_enrich_alphabet2 import seed_enrich_alphabet2
+    try:
+        res = seed_enrich_alphabet2()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
+
 @router.post("/cms/seed/enrich-sounds")
 def cms_seed_enrich_sounds(request: Request, db=Depends(get_db)):
     """snd-vowels-1 is the TRUE first lesson (chapter position 1, ahead of
@@ -4602,5 +4619,109 @@ def cms_account_2fa_disable(payload: Dict[str, Any] = Body(...), u: dict = Depen
         text("UPDATE cms_users SET totp_enabled=FALSE, totp_secret=NULL, updated_at=NOW() WHERE id=:id"),
         {"id": u["id"]},
     )
+    return {"ok": True}
+
+# ==================== Blog (first-party — separate from blog.haylingua.am) ====================
+# Admin CRUD for blog_posts (see ensure_schema.py). Public reads live in
+# routes_blog.py, unauthenticated, mounted without the /cms prefix.
+
+_BLOG_LIST_COLS = (
+    "id, slug, title, meta_description, excerpt, cover_image_url, author_name, "
+    "tags, is_published, published_at, created_at, updated_at"
+)
+
+@router.get("/cms/blog")
+def cms_list_blog_posts(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    rows = db.execute(text(f"""
+        SELECT {_BLOG_LIST_COLS} FROM blog_posts ORDER BY updated_at DESC
+    """)).mappings().all()
+    return {"posts": [dict(r) for r in rows]}
+
+@router.get("/cms/blog/{post_id}")
+def cms_get_blog_post(post_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    row = db.execute(
+        text("SELECT * FROM blog_posts WHERE id = :id"), {"id": post_id}
+    ).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return dict(row)
+
+@router.post("/cms/blog")
+async def cms_create_blog_post(request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    slug = (body.get("slug") or "").strip()
+    title = (body.get("title") or "").strip()
+    if not slug or not title:
+        raise HTTPException(status_code=400, detail="slug and title are required")
+    tags = body.get("tags")
+    if not isinstance(tags, list):
+        tags = []
+    is_published = bool(body.get("is_published", False))
+    try:
+        new_id = db.execute(
+            text("""
+                INSERT INTO blog_posts
+                    (slug, title, meta_description, excerpt, body_markdown, cover_image_url,
+                     author_name, tags, is_published, published_at)
+                VALUES
+                    (:slug, :title, :meta, :excerpt, :body, :cover, :author, CAST(:tags AS jsonb),
+                     :pub, CASE WHEN :pub THEN NOW() ELSE NULL END)
+                RETURNING id
+            """),
+            {
+                "slug": slug, "title": title,
+                "meta": (body.get("meta_description") or "").strip() or None,
+                "excerpt": (body.get("excerpt") or "").strip() or None,
+                "body": body.get("body_markdown") or "",
+                "cover": (body.get("cover_image_url") or "").strip() or None,
+                "author": (body.get("author_name") or "Haylingua").strip() or "Haylingua",
+                "tags": json.dumps(tags), "pub": is_published,
+            },
+        ).scalar_one()
+    except Exception as e:
+        if "unique" in str(e).lower():
+            raise HTTPException(status_code=400, detail="That slug is already taken")
+        raise
+    return {"id": int(new_id)}
+
+@router.put("/cms/blog/{post_id}")
+async def cms_update_blog_post(post_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    body = await request.json()
+    set_parts, params = [], {"id": post_id}
+    for f in ("slug", "title", "meta_description", "excerpt", "body_markdown", "cover_image_url", "author_name"):
+        if f in body:
+            set_parts.append(f"{f} = :{f}")
+            params[f] = body[f]
+    if "tags" in body:
+        if not isinstance(body["tags"], list):
+            raise HTTPException(status_code=400, detail="tags must be a list of strings")
+        set_parts.append("tags = CAST(:tags AS jsonb)")
+        params["tags"] = json.dumps(body["tags"])
+    if "is_published" in body:
+        set_parts.append("is_published = :is_published")
+        params["is_published"] = bool(body["is_published"])
+        if body["is_published"]:
+            # Only stamp published_at the FIRST time a post goes live, so
+            # later edits don't reset datePublished in the article's JSON-LD.
+            set_parts.append("published_at = COALESCE(published_at, NOW())")
+    if not set_parts:
+        return {"ok": True}
+    set_parts.append("updated_at = NOW()")
+    try:
+        db.execute(text(f"UPDATE blog_posts SET {', '.join(set_parts)} WHERE id = :id"), params)
+    except Exception as e:
+        if "unique" in str(e).lower():
+            raise HTTPException(status_code=400, detail="That slug is already taken")
+        raise
+    return {"ok": True}
+
+@router.delete("/cms/blog/{post_id}")
+def cms_delete_blog_post(post_id: int, request: Request, db=Depends(get_db)):
+    require_cms(request, db)
+    db.execute(text("DELETE FROM blog_posts WHERE id = :id"), {"id": post_id})
     return {"ok": True}
 
