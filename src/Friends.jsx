@@ -18,6 +18,8 @@ import {
   Check,
   AlertCircle,
   ArrowLeftRight,
+  Smile,
+  X,
 } from "lucide-react";
 import { StarMotif } from "./lib/motifs";
 import { CrownBadge } from "./lib/PremiumBadge";
@@ -106,6 +108,12 @@ export default function Friends() {
   const [referral, setReferral] = useState(null); // { code, referred_count }
   const [referralCopied, setReferralCopied] = useState(false);
 
+  // Emotes: owned catalog (lazy-loaded once) + which friend the picker is open for
+  const [ownedEmotes, setOwnedEmotes] = useState(null);
+  const [emotePickerFor, setEmotePickerFor] = useState(null); // friend person object
+  const [emoteSending, setEmoteSending] = useState(false);
+  const [recentEmotes, setRecentEmotes] = useState([]); // received from friends
+
   const token = getToken();
 
   useEffect(() => {
@@ -183,6 +191,14 @@ export default function Friends() {
         // 5) Referral code
         const refRes = await apiFetch("/me/referral", { token, method: "GET" });
         if (refRes.ok) setReferral(await refRes.json());
+
+        // 6) Recently received emotes
+        const emRes = await apiFetch("/me/emotes/inbox", { token, method: "GET" });
+        if (emRes.ok) {
+          const em = await emRes.json();
+          setRecentEmotes(Array.isArray(em?.emotes) ? em.emotes : []);
+          apiFetch("/me/emotes/inbox/seen", { token, method: "POST" }).catch(() => {});
+        }
       } finally {
         setLoading(false);
       }
@@ -238,6 +254,39 @@ export default function Friends() {
       // ignore
     }
   };
+
+  function openEmotePicker(friend) {
+    setEmotePickerFor(friend);
+    if (ownedEmotes == null) {
+      apiFetch("/me/inventory?category=emote", { token, method: "GET" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setOwnedEmotes(Array.isArray(d?.items) ? d.items : []))
+        .catch(() => setOwnedEmotes([]));
+    }
+  }
+
+  async function sendEmote(item) {
+    if (!emotePickerFor || emoteSending) return;
+    setEmoteSending(true);
+    try {
+      const r = await apiFetch(`/friends/${emotePickerFor.id}/emote`, {
+        token,
+        method: "POST",
+        body: JSON.stringify({ item_id: item.item_id }),
+      });
+      if (r.ok) {
+        setToast({ type: "success", text: `Sent ${item.title} to ${emotePickerFor.name}!` });
+        setEmotePickerFor(null);
+      } else {
+        const d = await r.json().catch(() => null);
+        setToast({ type: "error", text: (d && d.detail) || "Couldn't send that emote" });
+      }
+    } catch {
+      setToast({ type: "error", text: "Network error" });
+    } finally {
+      setEmoteSending(false);
+    }
+  }
 
   // --- derived lists ---
 
@@ -512,6 +561,31 @@ export default function Friends() {
               {/* FRIENDS TAB */}
               {activeTab === "friends" ? (
                 <>
+                  {/* Recently received emotes */}
+                  {recentEmotes.length > 0 && (
+                    <div className="mb-5">
+                      <SectionLabel icon={Smile} title="Emotes for you" count={recentEmotes.length} />
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {recentEmotes.slice(0, 12).map((e) => (
+                          <div
+                            key={e.id}
+                            title={`${e.sender_name} · ${e.title}`}
+                            className="flex shrink-0 flex-col items-center gap-1 rounded-2xl bg-slate-50 px-3 py-2 dark:bg-white/[0.04]"
+                          >
+                            <img
+                              src={`/emotes/kenney/emotes-pack/${e.render_key}.png`}
+                              alt={e.title}
+                              className="h-8 w-8 object-contain"
+                            />
+                            <span className="max-w-[72px] truncate text-[10px] font-bold text-slate-500 dark:text-stone-400">
+                              {e.sender_name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Referral invite card */}
                   {referral && (
                     <div className="mb-5 flex items-center gap-4 rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:ring-brand-500/30">
@@ -566,6 +640,7 @@ export default function Friends() {
                           onOpenProfile={() => openPublicProfile(p)}
                           onMessage={() => handleMessage(p)}
                           onTrade={() => navigate(`/trades?with=${p.id}`)}
+                          onEmote={() => openEmotePicker(p)}
                           onRemove={null}
                         />
                       ))}
@@ -699,11 +774,74 @@ export default function Friends() {
           )}
         </div>
       </div>
+
+      <EmotePicker
+        friend={emotePickerFor}
+        items={ownedEmotes}
+        busy={emoteSending}
+        onPick={sendEmote}
+        onClose={() => setEmotePickerFor(null)}
+      />
     </div>
   );
 }
 
 /* ---------- Helpers ---------- */
+
+// ── Emote picker — bottom sheet of owned emotes to fire at a friend ────────
+function EmotePicker({ friend, items, busy, onPick, onClose }) {
+  if (!friend) return null;
+  const loading = items == null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-900/50" onClick={busy ? undefined : onClose} />
+      <div className="animate-pop relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-3xl dark:bg-[#18181b]">
+        <button
+          onClick={onClose}
+          disabled={busy}
+          aria-label="Close"
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:hover:bg-white/10"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">
+          Send an emote to {friend.name}
+        </div>
+
+        {loading ? (
+          <div className="py-10 text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
+          </div>
+        ) : items.length === 0 ? (
+          <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-white/[0.04] dark:text-stone-400">
+            You don't own any emotes yet — grab some from the Shop.
+          </div>
+        ) : (
+          <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-5">
+            {items.map((it) => (
+              <button
+                key={it.user_item_id}
+                disabled={busy}
+                onClick={() => onPick(it)}
+                title={it.title}
+                className="flex flex-col items-center gap-1.5 rounded-2xl bg-slate-50 p-3 transition hover:bg-slate-100 disabled:opacity-60 dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
+              >
+                <img
+                  src={`/emotes/kenney/emotes-pack/${it.render_key}.png`}
+                  alt={it.title}
+                  className="h-9 w-9 object-contain"
+                />
+                <span className="truncate w-full text-center text-[11px] font-bold text-slate-600 dark:text-stone-300">
+                  {it.title}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Activity feed ─────────────────────────────────────────────────────────────
 const XP_COLORS = [
@@ -869,6 +1007,7 @@ function PersonCard({
   onCancel,
   onMessage,
   onTrade,
+  onEmote,
   onRemove,
   isFriend,
   isSent,
@@ -944,6 +1083,15 @@ function PersonCard({
                   title="Propose a trade"
                 >
                   <ArrowLeftRight className="h-5 w-5" />
+                </button>
+              ) : null}
+              {onEmote ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEmote?.(); }}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-white/[0.06] dark:text-stone-300 dark:hover:bg-white/10"
+                  title="Send an emote"
+                >
+                  <Smile className="h-5 w-5" />
                 </button>
               ) : null}
               {onRemove ? (

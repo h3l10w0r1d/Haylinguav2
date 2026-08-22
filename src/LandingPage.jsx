@@ -196,56 +196,242 @@ function SignupPromoPanel({ mode }) {
 // is what powers the "why was I wrong" feedback (no real LLM call — the demo is
 // on the public landing page — but the explanations are tailored per mistake and
 // phrased several different ways so it reads like a live tutor, not a canned line).
+// Each question declares a `kind` so the demo shows several different
+// exercise formats back to back (read→pick-meaning, listen→pick-word,
+// true/false judgment, meaning→pick-word) instead of one MCQ type repeated
+// with different vocab — matching the variety the real lesson player has.
 const DEMO_QUESTIONS = [
   {
+    kind: "translate_mcq",
     prompt: "Բարև", rom: "ba-rev", meaning: "Hello", correct: 0,
     options: ["Hello", "Goodbye", "Thank you"],
     hook: "It's the word you lead with when you meet someone.",
     wrong: {
-      1: { picked: "Goodbye", arm: "Ցտեսություն", rom: "tse-te-su-tyun" },
-      2: { picked: "Thank you", arm: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun" },
+      1: { arm: "Ցտեսություն", rom: "tse-te-su-tyun" },
+      2: { arm: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun" },
     },
   },
   {
+    kind: "listening",
     prompt: "Ջուր", rom: "jur", meaning: "Water", correct: 1,
-    options: ["Bread", "Water", "Milk"],
-    hook: "Picture ordering at a café: «մեկ բաժակ ջուր» — one glass of water.",
+    options: ["Հաց", "Ջուր", "Կաթ"],
+    hook: "Listen for the soft «ջ» sound at the start.",
     wrong: {
-      0: { picked: "Bread", arm: "Հաց", rom: "hats" },
-      2: { picked: "Milk", arm: "Կաթ", rom: "kat" },
+      0: { meaning: "Bread" },
+      2: { meaning: "Milk" },
     },
   },
   {
-    prompt: "Ընկեր", rom: "ən-ker", meaning: "Friend", correct: 2,
-    options: ["Enemy", "Stranger", "Friend"],
+    kind: "true_false",
+    prompt: "Ընկեր", rom: "ən-ker", meaning: "Friend", correct: 1,
+    statementClaim: "Enemy",
+    options: ["True", "False"],
     hook: "You'll hear it constantly — Armenians call a close friend ընկեր.",
+    wrong: { 0: {} },
+  },
+  {
+    kind: "word_match",
+    prompt: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun", meaning: "Thank you", correct: 2,
+    englishPrompt: "Thank you",
+    options: ["Խնդրեմ", "Ներողություն", "Շնորհակալություն"],
+    hook: "It's a long one, but you'll say it every day.",
     wrong: {
-      0: { picked: "Enemy", arm: "Թշնամի", rom: "təsh-na-mi" },
-      1: { picked: "Stranger", arm: "Անծանոթ", rom: "an-tsa-not" },
+      0: { meaning: "Please" },
+      1: { meaning: "Sorry" },
     },
   },
   {
-    prompt: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun", meaning: "Thank you", correct: 2,
-    options: ["Please", "Sorry", "Thank you"],
-    hook: "It's a long one, but you'll say it every day — it simply means thank you.",
-    wrong: {
-      0: { picked: "Please", arm: "Խնդրեմ", rom: "khən-drem" },
-      1: { picked: "Sorry", arm: "Ներողություն", rom: "ne-ro-ghu-tyun" },
-    },
+    // No MCQ options — the learner draws instead, so `correct` is just the
+    // sentinel index onCheck() forces `selected` to once a stroke is drawn.
+    // See TraceLetterPad + the onCheck/DemoPromptHeader kind branches below.
+    kind: "trace_letter",
+    prompt: "Ա", rom: "a", meaning: "the letter A", correct: 0,
+    hook: "It's the very first letter of the Armenian alphabet — 38 to go.",
   },
 ];
 
-// Sentence frames the "AI tutor" composes its explanation from. Each takes the
-// question and the specific wrong-option facts, so the reply always names what
-// the learner actually picked and what it should have been. Multiple frames +
-// the "explain it differently" button let a visitor regenerate the reply and see
-// it's genuinely reasoning about their mistake, not replaying one fixed string.
-const AI_FRAMES = [
-  (q, w) => `Close — but «${q.prompt}» means "${q.meaning}", not "${w.picked}". The word for "${w.picked}" is «${w.arm}» (${w.rom}). ${q.hook}`,
-  (q, w) => `I see the mix-up: "${w.picked}" in Armenian is «${w.arm}» (${w.rom}). «${q.prompt}» (${q.rom}) actually means "${q.meaning}". ${q.hook}`,
-  (q, w) => `Not this time. «${q.prompt}» = "${q.meaning}". You went with "${w.picked}", which is «${w.arm}» (${w.rom}) — an easy pair to confuse. ${q.hook}`,
-  (q, w) => `Almost! "${w.picked}" would be «${w.arm}» (${w.rom}). Here, «${q.prompt}» translates to "${q.meaning}". ${q.hook}`,
-];
+// Explanation phrasings the simulated "AI tutor" picks from, keyed by exercise
+// kind since what "picked" means differs per kind (an English word for
+// translate_mcq, an Armenian word already on screen for listening/word_match,
+// nothing at all for true_false). Multiple frames per kind + the "explain it
+// differently" button let a visitor regenerate the reply and see it's
+// genuinely reasoning about their mistake, not replaying one fixed string.
+const KIND_FRAMES = {
+  translate_mcq: [
+    (q, w, picked) => `Close — but «${q.prompt}» means "${q.meaning}", not "${picked}". The word for "${picked}" is «${w.arm}» (${w.rom}). ${q.hook}`,
+    (q, w, picked) => `I see the mix-up: "${picked}" in Armenian is «${w.arm}» (${w.rom}). «${q.prompt}» (${q.rom}) actually means "${q.meaning}". ${q.hook}`,
+    (q, w, picked) => `Not this time. «${q.prompt}» = "${q.meaning}". You went with "${picked}", which is «${w.arm}» (${w.rom}) — an easy pair to confuse. ${q.hook}`,
+  ],
+  listening: [
+    (q, w, picked) => `That's «${picked}» — "${w.meaning}". Listen again: the audio said «${q.prompt}» ("${q.meaning}"). ${q.hook}`,
+    (q, w, picked) => `Not quite — «${picked}» means "${w.meaning}". What played was «${q.prompt}», which means "${q.meaning}". ${q.hook}`,
+  ],
+  true_false: [
+    (q) => `Actually, «${q.prompt}» means "${q.meaning}" — not "${q.statementClaim}". ${q.hook}`,
+    (q) => `Not quite. «${q.prompt}» (${q.rom}) translates to "${q.meaning}", so that statement is false. ${q.hook}`,
+  ],
+  word_match: [
+    (q, w, picked) => `«${picked}» actually means "${w.meaning}" — the word for "${q.englishPrompt}" is «${q.prompt}» (${q.rom}). ${q.hook}`,
+    (q, w, picked) => `Not this one — «${picked}» is "${w.meaning}". You're looking for «${q.prompt}» (${q.rom}), which means "${q.englishPrompt}". ${q.hook}`,
+  ],
+};
+
+// The instruction + prompt row varies by kind: translate_mcq shows the
+// Armenian word to translate, listening hides the text and leads with audio,
+// true_false shows a claim to judge, word_match starts from English instead
+// of Armenian.
+function DemoPromptHeader({ q }) {
+  const label = "mt-5 text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-stone-300";
+  const big = "max-w-full font-display text-2xl font-extrabold text-slate-800 [overflow-wrap:anywhere] dark:text-white";
+  if (q.kind === "listening") {
+    return (
+      <>
+        <div className={label}>Tap what you hear</div>
+        <div className="mt-4 flex justify-center">
+          <VoiceChip text={q.prompt} label="Play the word" />
+        </div>
+      </>
+    );
+  }
+  if (q.kind === "true_false") {
+    return (
+      <>
+        <div className={label}>True or false?</div>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <div className={big}>«{q.prompt}» means "{q.statementClaim}"</div>
+          <VoiceChip text={q.prompt} tone="slate" />
+        </div>
+      </>
+    );
+  }
+  if (q.kind === "word_match") {
+    return (
+      <>
+        <div className={label}>Select the matching word</div>
+        <div className={big + " mt-1"}>"{q.englishPrompt}" in Armenian is…</div>
+      </>
+    );
+  }
+  if (q.kind === "trace_letter") {
+    return (
+      <>
+        <div className={label}>Trace the letter</div>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <div className={big}>
+            {q.prompt} <span className="text-base font-semibold text-slate-400 dark:text-stone-500">— {q.meaning}</span>
+          </div>
+          <VoiceChip text={q.prompt} tone="slate" />
+        </div>
+      </>
+    );
+  }
+  return (
+    <>
+      <div className={label}>Select the correct translation</div>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <div className={big}>"{q.prompt}" means…</div>
+        <VoiceChip text={q.prompt} tone="slate" />
+      </div>
+    </>
+  );
+}
+
+// Freehand tracing pad for the trace_letter demo kind — a scaled-down version
+// of the real lesson player's canvas tracer (ExerciseRenderer.jsx's
+// ExTraceLetter), minus its stroke-path precision/recall scoring: this is a
+// marketing-page teaser, not a graded drill, so any real stroke counts.
+function TraceLetterPad({ letter, onDirtyChange, onInteractStart }) {
+  const SIZE = 180;
+  const drawRef = useRef(null);
+  const drawing = useRef(false);
+  const hasInk = useRef(false);
+
+  useEffect(() => {
+    const c = drawRef.current;
+    if (!c) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = SIZE * dpr;
+    c.height = SIZE * dpr;
+    const ctx = c.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    hasInk.current = false;
+    onDirtyChange?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [letter]);
+
+  function at(e) {
+    const rect = drawRef.current.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  }
+  function strokeTo(x, y, down) {
+    const ctx = drawRef.current.getContext("2d");
+    if (down) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineWidth = 14;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#e07b39";
+    }
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+  function onDown(e) {
+    e.preventDefault();
+    onInteractStart?.();
+    drawing.current = true;
+    const { x, y } = at(e);
+    strokeTo(x, y, true);
+    strokeTo(x + 0.01, y + 0.01, false);
+    if (!hasInk.current) {
+      hasInk.current = true;
+      onDirtyChange?.(true);
+    }
+  }
+  function onMove(e) {
+    if (!drawing.current) return;
+    e.preventDefault();
+    const { x, y } = at(e);
+    strokeTo(x, y, false);
+  }
+  function onUp() {
+    drawing.current = false;
+  }
+  function clear() {
+    drawRef.current?.getContext("2d").clearRect(0, 0, SIZE, SIZE);
+    hasInk.current = false;
+    onDirtyChange?.(false);
+  }
+
+  return (
+    <div>
+      <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
+        <div
+          className="absolute inset-0 grid select-none place-items-center rounded-3xl bg-slate-50 font-display font-black ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]"
+          style={{ fontSize: SIZE * 0.62, color: "rgba(120,120,120,0.25)" }}
+          aria-hidden="true"
+        >
+          {letter}
+        </div>
+        <canvas
+          ref={drawRef}
+          style={{ position: "absolute", inset: 0, width: SIZE, height: SIZE, touchAction: "none", cursor: "crosshair" }}
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerLeave={onUp}
+        />
+      </div>
+      <div className="mt-2 text-center">
+        <button type="button" onClick={clear} className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300">
+          Clear
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // Small speaker chip that plays real Armenian TTS for a word via the same /audio
 // pipeline the learner app uses — so a visitor can actually hear pronunciation.
@@ -312,6 +498,7 @@ function LandingExerciseDemo({ onSignup }) {
   const [aiPhase, setAiPhase] = useState("thinking"); // thinking | reveal
   const [typed, setTyped] = useState(0);         // typewriter cursor position
   const [done, setDone] = useState(false);       // finished all demo questions
+  const [traceDirty, setTraceDirty] = useState(false); // trace_letter: has the learner drawn anything
   const comboRef = useRef(0);                    // correct-answer streak, for sfx pitch escalation
 
   // Ambient autoplay: a ghost cursor plays the demo by itself until a visitor
@@ -322,6 +509,7 @@ function LandingExerciseDemo({ onSignup }) {
   const [tapping, setTapping] = useState(false);
   const cardRef = useRef(null);
   const optionRefs = useRef([]);
+  const padRef = useRef(null);
   const checkRef = useRef(null);
   const continueRef = useRef(null);
   const autoTimers = useRef([]);
@@ -388,7 +576,9 @@ function LandingExerciseDemo({ onSignup }) {
   const isCorrect = checked && selected === q.correct;
   const isWrong = checked && selected !== q.correct;
   const wrongInfo = isWrong ? q.wrong[selected] : null;
-  const feedbackText = wrongInfo ? AI_FRAMES[frameIdx % AI_FRAMES.length](q, wrongInfo) : "";
+  const pickedText = checked && selected != null ? (q.options || [])[selected] : "";
+  const frames = KIND_FRAMES[q.kind] || KIND_FRAMES.translate_mcq;
+  const feedbackText = wrongInfo ? frames[frameIdx % frames.length](q, wrongInfo, pickedText) : "";
 
   // Wrong answer → the tutor "thinks" briefly, then types its reply. Re-runs when
   // the learner asks for a different phrasing (frameIdx changes).
@@ -413,9 +603,16 @@ function LandingExerciseDemo({ onSignup }) {
   }
 
   function onCheck() {
-    if (selected == null || checked) return;
+    if (checked) return;
+    // trace_letter has no MCQ selection — any real stroke counts, so checking
+    // is just "did they draw something" (traceDirty) rather than "did they
+    // pick the right option". Force sel to q.correct so the rest of the
+    // correct/wrong plumbing below (shared with every other kind) just works.
+    const sel = q.kind === "trace_letter" ? q.correct : selected;
+    if (sel == null || (q.kind === "trace_letter" && !traceDirty)) return;
+    setSelected(sel);
     setChecked(true);
-    if (selected === q.correct) {
+    if (sel === q.correct) {
       sfx.correct(comboRef.current);
       comboRef.current += 1;
     } else {
@@ -441,6 +638,7 @@ function LandingExerciseDemo({ onSignup }) {
     setQi((i) => i + 1);
     setSelected(null);
     setChecked(false);
+    setTraceDirty(false);
     setAiPhase("thinking");
     setTyped(0);
   }
@@ -450,6 +648,7 @@ function LandingExerciseDemo({ onSignup }) {
     setQi(0);
     setSelected(null);
     setChecked(false);
+    setTraceDirty(false);
     setHearts(4);
     setFrameIdx(0);
     setAiPhase("thinking");
@@ -463,18 +662,26 @@ function LandingExerciseDemo({ onSignup }) {
   // Continue. Each effect only fires when it's actually that step's turn, so it
   // stays in sync with the real state instead of a blind timer chain.
   useEffect(() => {
-    if (!autoActive || !canAutoplay || checked || selected != null) return;
-    moveCursorTo(optionRefs.current[q.correct], 1000, () => pick(q.correct));
+    if (!autoActive || !canAutoplay || checked) return;
+    const ready = q.kind === "trace_letter" ? traceDirty : selected != null;
+    if (ready) return;
+    if (q.kind === "trace_letter") {
+      moveCursorTo(padRef.current, 1200, () => setTraceDirty(true));
+    } else {
+      moveCursorTo(optionRefs.current[q.correct], 1000, () => pick(q.correct));
+    }
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, canAutoplay, checked, selected, qi]);
+  }, [autoActive, canAutoplay, checked, selected, traceDirty, qi]);
 
   useEffect(() => {
-    if (!autoActive || !canAutoplay || checked || selected == null) return;
+    if (!autoActive || !canAutoplay || checked) return;
+    const ready = q.kind === "trace_letter" ? traceDirty : selected != null;
+    if (!ready) return;
     moveCursorTo(checkRef.current, 500, onCheck);
     return clearAutoTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoActive, canAutoplay, checked, selected]);
+  }, [autoActive, canAutoplay, checked, selected, traceDirty]);
 
   useEffect(() => {
     if (!autoActive || !canAutoplay || !checked) return;
@@ -497,7 +704,7 @@ function LandingExerciseDemo({ onSignup }) {
           <Trophy className="h-7 w-7" />
         </div>
         <div className="mt-4 font-display text-xl font-extrabold text-slate-800 dark:text-white">
-          You just learned {DEMO_QUESTIONS.length} Armenian words!
+          You just tried {DEMO_QUESTIONS.length} Armenian exercises!
         </div>
         <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">
           Create a free account to save this progress and keep going — the real
@@ -544,12 +751,13 @@ function LandingExerciseDemo({ onSignup }) {
         </span>
       </div>
 
-      <div className="mt-5 text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-stone-300">Select the correct translation</div>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        <div className="max-w-full font-display text-2xl font-extrabold text-slate-800 [overflow-wrap:anywhere] dark:text-white">"{q.prompt}" means…</div>
-        <VoiceChip text={q.prompt} tone="slate" />
-      </div>
+      <DemoPromptHeader q={q} />
 
+      {q.kind === "trace_letter" ? (
+        <div ref={padRef} className="mt-4">
+          <TraceLetterPad letter={q.prompt} onDirtyChange={setTraceDirty} onInteractStart={stopAutoplay} />
+        </div>
+      ) : (
       <div className="mt-4 grid grid-cols-1 gap-3">
         {q.options.map((t, i) => {
           const isSel = selected === i;
@@ -591,6 +799,7 @@ function LandingExerciseDemo({ onSignup }) {
           );
         })}
       </div>
+      )}
 
       {checked ? (
         isCorrect ? (
@@ -642,7 +851,12 @@ function LandingExerciseDemo({ onSignup }) {
             {aiPhase === "reveal" && !typing && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <VoiceChip text={q.prompt} label={q.meaning} />
-                {wrongInfo && <VoiceChip text={wrongInfo.arm} label={wrongInfo.picked} tone="slate" />}
+                {q.kind === "translate_mcq" && wrongInfo?.arm && (
+                  <VoiceChip text={wrongInfo.arm} label={pickedText} tone="slate" />
+                )}
+                {(q.kind === "listening" || q.kind === "word_match") && (
+                  <VoiceChip text={pickedText} label={wrongInfo?.meaning} tone="slate" />
+                )}
               </div>
             )}
 
@@ -657,7 +871,7 @@ function LandingExerciseDemo({ onSignup }) {
             ref={checkRef}
             type="button"
             onClick={() => { stopAutoplay(); onCheck(); }}
-            disabled={selected == null}
+            disabled={q.kind === "trace_letter" ? !traceDirty : selected == null}
             className="btn3d btn3d-grass uppercase disabled:cursor-not-allowed disabled:opacity-40"
           >
             Check

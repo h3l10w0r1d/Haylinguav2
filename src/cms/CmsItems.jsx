@@ -26,6 +26,7 @@ const RENDER_KEY_HINTS = {
   avatar_clothing_graphic: "DiceBear clothesGraphic value: bat, bear, cumbia, deer, diamond, hola, pizza, resist, skull, skullOutline",
   avatar_hairstyle: "DiceBear top value: dreads, frida, shavedSides, theCaesarAndSidePart",
   avatar_eyebrows: "DiceBear eyebrows value: angry, default, raisedExcited, sadConcerned, upDown",
+  emote: "PNG filename stem under public/emotes/kenney/emotes-pack/, e.g. faceHappy, heart, star",
 };
 
 const RARITY_TEXT_CLS = {

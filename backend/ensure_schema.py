@@ -1519,4 +1519,75 @@ def ensure_schema() -> None:
             )
         print("[ensure_schema] seeded avatar trait unlock item_definitions")
 
+        # ---------- Marketplace: emotes ----------
+        # Like avatar_clothing_graphic/hairstyle/eyebrows, ownership-only (no
+        # equip slot) — a user can own many and fire whichever one they like
+        # at a friend via POST /friends/{id}/emote (routes_emotes.py).
+        # render_key is the PNG filename stem under
+        # public/emotes/kenney/emotes-pack/<render_key>.png (Kenney "Emotes
+        # Pack", CC0, Vector Style 8).
+        for slug, title, desc, rarity, render_key, price in [
+            ("emote_circle", "Circle", "A simple round bubble.", "common", "circle", 40),
+            ("emote_dots1", "Dots", "A quiet little dot cluster.", "common", "dots1", 40),
+            ("emote_dots2", "Double Dots", "Two dots, thinking it over.", "common", "dots2", 40),
+            ("emote_dots3", "Triple Dots", "Still typing…", "common", "dots3", 45),
+            ("emote_cloud", "Cloud", "A drifting little cloud.", "common", "cloud", 45),
+            ("emote_cross", "Cross", "A plain X mark.", "common", "cross", 45),
+            ("emote_bars", "Bars", "A stack of signal bars.", "common", "bars", 50),
+            ("emote_drop", "Drop", "A single water drop.", "common", "drop", 55),
+            ("emote_alert", "Alert", "Heads up!", "uncommon", "alert", 90),
+            ("emote_question", "Question", "Wait, what?", "uncommon", "question", 90),
+            ("emote_exclamation", "Exclamation", "No way!", "uncommon", "exclamation", 95),
+            ("emote_sleep", "Sleep", "Zzz.", "uncommon", "sleep", 100),
+            ("emote_sleeps", "Deep Sleep", "Zzz Zzz Zzz.", "uncommon", "sleeps", 110),
+            ("emote_swirl", "Dizzy", "Whoa, everything's spinning.", "uncommon", "swirl", 120),
+            ("emote_drops", "Sweat", "Phew, that was close.", "uncommon", "drops", 130),
+            ("emote_facehappy", "Happy Face", "A big cheerful grin.", "rare", "faceHappy", 200),
+            ("emote_facesad", "Sad Face", "Aw, that's rough.", "rare", "faceSad", 200),
+            ("emote_faceangry", "Angry Face", "Grr!", "rare", "faceAngry", 220),
+            ("emote_laugh", "Laughing", "Can't stop laughing!", "rare", "laugh", 240),
+            ("emote_idea", "Idea", "Eureka!", "rare", "idea", 260),
+            ("emote_music", "Music", "Feeling the rhythm.", "rare", "music", 280),
+            ("emote_cash", "Cash", "Cha-ching!", "rare", "cash", 300),
+            ("emote_heart", "Heart", "Sending some love.", "epic", "heart", 450),
+            ("emote_hearts", "Hearts", "Lots of love.", "epic", "hearts", 500),
+            ("emote_star", "Star", "You're a star!", "epic", "star", 520),
+            ("emote_stars", "Stars", "Shooting for the stars.", "epic", "stars", 550),
+            ("emote_exclamations", "Big News", "Huge news incoming!", "epic", "exclamations", 600),
+            ("emote_heartbroken", "Heartbroken", "Ouch, right in the feels.", "legendary", "heartBroken", 900),
+            ("emote_anger", "Fuming", "Absolutely fuming — as rare as it looks.", "legendary", "anger", 1200),
+        ]:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO item_definitions
+                        (category, slug, title, description, icon, rarity, render_key, price_gems, sort_order)
+                    VALUES ('emote', :slug, :title, :desc, 'sparkles', :rarity, :render_key, :price, 0)
+                    ON CONFLICT (slug) DO NOTHING
+                    """
+                ),
+                {"slug": slug, "title": title, "desc": desc, "rarity": rarity, "render_key": render_key, "price": price},
+            )
+        print("[ensure_schema] seeded emote item_definitions")
+
+        # ---------- Marketplace: emote sends (friends-only) ----------
+        ensure_table(
+            "emote_sends",
+            """
+            CREATE TABLE emote_sends (
+                id            BIGSERIAL PRIMARY KEY,
+                sender_id     INTEGER NOT NULL,
+                recipient_id  INTEGER NOT NULL,
+                item_id       INTEGER NOT NULL REFERENCES item_definitions(id),
+                created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                seen_at       TIMESTAMPTZ,
+                CHECK (sender_id <> recipient_id)
+            )
+            """,
+        )
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS emote_sends_recipient_idx ON emote_sends (recipient_id, created_at DESC)"
+        ))
+        print("[ensure_schema] ensured emote_sends table")
+
     print("[ensure_schema] done")

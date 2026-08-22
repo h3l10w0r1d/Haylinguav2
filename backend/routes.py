@@ -1390,6 +1390,58 @@ def _gtm_forward_purchase(
             pass
 
 
+def _gtm_forward_referral_conversion(
+    db: Connection,
+    user_id: int,
+    *,
+    commission_amount: float | None,
+) -> None:
+    """Best-effort server-side forward for a referral converting to a paying
+    user (the affiliate_referrals.converted_at moment) — a custom event, not
+    one of Meta's standard types, but still useful as a GTM trigger for
+    affiliate/referral-attributed ad reporting. Same isolation contract as
+    _gtm_forward_purchase: SAVEPOINT'd, never raises, never breaks checkout.
+    No event_id — there's no corresponding client-side dataLayer push for
+    this one, so there's nothing to deduplicate against.
+    """
+    if _gtm_send_event is None:
+        return
+    try:
+        sp_name = "gtm_referral_forward"
+        try:
+            db.execute(text(f"SAVEPOINT {sp_name}"))
+        except Exception:
+            sp_name = None
+
+        email = db.execute(
+            text("SELECT email FROM users WHERE id = :id"),
+            {"id": int(user_id)},
+        ).scalar()
+
+        _gtm_send_event(
+            event_name="ReferralConversion",
+            event_id=None,
+            user_data={"email": (email or "").strip() or None},
+            custom_data={"commission_amount": float(commission_amount) if commission_amount is not None else None},
+        )
+
+        if sp_name:
+            try:
+                db.execute(text(f"RELEASE SAVEPOINT {sp_name}"))
+            except Exception:
+                pass
+    except Exception:
+        try:
+            db.execute(text("ROLLBACK TO SAVEPOINT gtm_referral_forward"))
+            db.execute(text("RELEASE SAVEPOINT gtm_referral_forward"))
+        except Exception:
+            pass
+        try:
+            traceback.print_exc()
+        except Exception:
+            pass
+
+
 
 
 
@@ -6039,7 +6091,8 @@ def _load_shop_items(db: Connection) -> list[dict]:
                 FROM item_definitions
                 WHERE COALESCE(is_active, TRUE) AND category IN (
                     'avatar_frame', 'profile_theme', 'name_tag_effect',
-                    'avatar_clothing_graphic', 'avatar_hairstyle', 'avatar_eyebrows'
+                    'avatar_clothing_graphic', 'avatar_hairstyle', 'avatar_eyebrows',
+                    'emote'
                 )
                 ORDER BY sort_order ASC, id ASC
                 """
@@ -6205,7 +6258,8 @@ def _wallet(db: Connection, user_id: int) -> dict:
             "SELECT item_id, category FROM user_items "
             "WHERE user_id = :u AND category IN ("
             "'avatar_frame', 'profile_theme', 'name_tag_effect', "
-            "'avatar_clothing_graphic', 'avatar_hairstyle', 'avatar_eyebrows'"
+            "'avatar_clothing_graphic', 'avatar_hairstyle', 'avatar_eyebrows', "
+            "'emote'"
             ")"
         ),
         {"u": user_id},
@@ -6221,6 +6275,9 @@ def _wallet(db: Connection, user_id: int) -> dict:
         f"cosmetic_{r['item_id']}" for r in owned_rows
         if r["category"] in ("avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows")
     ]
+    # Emotes are also ownership-only (no equip slot) — fired at friends via
+    # POST /friends/{id}/emote instead of equipped.
+    owned_emotes = [f"cosmetic_{r['item_id']}" for r in owned_rows if r["category"] == "emote"]
 
     active_frame = row.get("active_frame")
     name_tag = _active_name_tag_map(db, [user_id]).get(user_id)
@@ -6233,6 +6290,7 @@ def _wallet(db: Connection, user_id: int) -> dict:
         "owned_themes": owned_themes,
         "owned_name_tags": owned_name_tags,
         "owned_avatar_unlocks": owned_avatar_unlocks,
+        "owned_emotes": owned_emotes,
         "active_frame": active_frame,
         "active_frame_style": _frame_style_map(db).get(str(active_frame)) if active_frame else None,
         "active_frame_rarity": _frame_rarity_map(db).get(str(active_frame)) if active_frame else None,
@@ -6436,6 +6494,7 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
     owned_themes = w["owned_themes"]
     owned_name_tags = w["owned_name_tags"]
     owned_avatar_unlocks = w["owned_avatar_unlocks"]
+    owned_emotes = w["owned_emotes"]
     hs = _hearts_state(db, user_id)
 
     def _status(it) -> str:
@@ -6448,6 +6507,8 @@ def me_shop(authorization: Optional[str] = Header(default=None), db: Connection 
             return "owned" if str(it["id"]) in owned_name_tags else "available"
         if eff in ("avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"):
             return "owned" if str(it["id"]) in owned_avatar_unlocks else "available"
+        if eff == "emote":
+            return "owned" if str(it["id"]) in owned_emotes else "available"
         if eff == "heart_shield":
             return "active" if u.get("heart_shield_active") else "available"
         if eff == "xp_multiplier":
@@ -6521,7 +6582,7 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
         today = _date.today()
         if not last_date or (today - last_date).days < 2 or (today - last_date).days > 4:
             raise HTTPException(status_code=400, detail="Streak Repair only works if your streak broke in the last 2–3 days")
-    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect", "avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"):
+    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect", "avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows", "emote"):
         item_def_id = _parse_cosmetic_id(item["id"])
         already = item_def_id is not None and db.execute(
             text("SELECT 1 FROM user_items WHERE user_id = :u AND item_id = :i AND category = :c"),
@@ -6531,6 +6592,7 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
             _label = {
                 "avatar_frame": "frame", "profile_theme": "theme", "name_tag_effect": "name tag effect",
                 "avatar_clothing_graphic": "clothing graphic", "avatar_hairstyle": "hairstyle", "avatar_eyebrows": "eyebrows",
+                "emote": "emote",
             }.get(effect, "item")
             raise HTTPException(status_code=400, detail=f"You already own this {_label}")
 
@@ -6577,7 +6639,7 @@ def me_shop_buy(payload: Dict[str, Any] = Body(default=None), authorization: Opt
                 text("UPDATE users SET current_streak = :c, streak_last_activity_date = CURRENT_DATE - 1 WHERE id = :u"),
                 {"c": streak_count, "u": user_id},
             )
-    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect", "avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"):
+    elif effect in ("avatar_frame", "profile_theme", "name_tag_effect", "avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows", "emote"):
         item_def_id = _parse_cosmetic_id(item["id"])
         db.execute(
             text(
@@ -7355,6 +7417,7 @@ def me_premium_checkout(
             text("UPDATE affiliate_referrals SET converted_at = NOW(), commission_amount = :amt WHERE id = :id"),
             {"amt": commission_amount, "id": referral["id"]},
         )
+        _gtm_forward_referral_conversion(db, user_id, commission_amount=commission_amount)
 
     _gtm_forward_purchase(
         db, user_id,

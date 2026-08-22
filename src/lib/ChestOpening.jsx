@@ -216,28 +216,31 @@ const BG_GEMS = [
 ];
 
 // ── Confetti bursts, escalating with rarity ──────────────────────────────────
-function fireBurst(theme) {
+// `fire` is a canvas-confetti instance bound to our own in-tree canvas (see
+// the component below) so the burst paints in normal DOM stacking order —
+// behind the chest/text content — instead of canvas-confetti's default of
+// auto-appending a canvas to document.body above everything.
+function fireBurst(theme, fire) {
   const base = {
     colors: theme.confetti,
-    zIndex: 100000,
     disableForReducedMotion: true,
     gravity: 0.9,
     ticks: 220,
     startVelocity: 46,
     scalar: 1 + (theme.burst - 1) * 0.15,
   };
-  confetti({ ...base, particleCount: Math.round(90 * theme.burst), spread: 100, origin: { x: 0.5, y: 0.55 } });
+  fire({ ...base, particleCount: Math.round(90 * theme.burst), spread: 100, origin: { x: 0.5, y: 0.55 } });
   if (theme.burst >= 1.4) {
-    setTimeout(() => confetti({ ...base, particleCount: 50, spread: 70, startVelocity: 55, origin: { x: 0.5, y: 0.6 } }), 140);
+    setTimeout(() => fire({ ...base, particleCount: 50, spread: 70, startVelocity: 55, origin: { x: 0.5, y: 0.6 } }), 140);
   }
   if (theme.burst >= 2) {
     setTimeout(() => {
-      confetti({ ...base, particleCount: 60, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } });
-      confetti({ ...base, particleCount: 60, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } });
+      fire({ ...base, particleCount: 60, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } });
+      fire({ ...base, particleCount: 60, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } });
     }, 220);
   }
   if (theme.burst >= 3) {
-    setTimeout(() => confetti({
+    setTimeout(() => fire({
       ...base, particleCount: 80, spread: 160, startVelocity: 30,
       shapes: ["star"], scalar: 1.6, origin: { x: 0.5, y: -0.05 },
     }), 420);
@@ -276,6 +279,15 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
   // "Charge" — the Duolingo-style escalation. Grows with time on screen
   // (0→1 over ~8s) and jumps with each tap, driving ray speed/brightness,
   // aura intensity and the orbiting sparks. setInterval (hidden-tab safe).
+  const confettiCanvasRef = React.useRef(null);
+  const fireConfettiRef = React.useRef(null);
+  useEffect(() => {
+    if (confettiCanvasRef.current) {
+      fireConfettiRef.current = confetti.create(confettiCanvasRef.current, { resize: true, useWorker: true });
+    }
+    return () => { fireConfettiRef.current = null; };
+  }, []);
+
   const [charge, setCharge] = useState(0);
   useEffect(() => {
     if (phase !== "intro" && phase !== "crack") return;
@@ -332,7 +344,7 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
 
   useEffect(() => {
     if (phase !== "open") return;
-    fireBurst(theme);
+    if (fireConfettiRef.current) fireBurst(theme, fireConfettiRef.current);
     const t = setTimeout(() => setPhase("reveal"), 850);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -457,6 +469,14 @@ export default function ChestOpening({ reward = { type: "gems", gems: 0 }, onClo
           />
         ))}
       </div>
+
+      {/* Confetti canvas — sits between the background/ambient layers above
+          and the chest/text content below, in plain DOM stacking order, so
+          the burst never covers the reward or the "Opening…" label. */}
+      <canvas
+        ref={confettiCanvasRef}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+      />
 
       {/* ── Chest stage — tap to crack/open ── */}
       <div

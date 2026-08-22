@@ -71,7 +71,12 @@ const SECTIONS = [
   { key: "streak", title: "Streak protection", effects: ["streak_freeze", "streak_repair"] },
   { key: "cosmetic", title: "Cosmetics", effects: ["avatar_frame", "profile_theme", "name_tag_effect"] },
   { key: "avatar_unlocks", title: "Avatar builder unlocks", effects: ["avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"] },
+  { key: "emotes", title: "Emotes", effects: ["emote"] },
 ];
+
+function emoteIconUrl(renderKey) {
+  return `/emotes/kenney/emotes-pack/${renderKey}.png`;
+}
 
 // Non-buyable states → badge copy.
 const STATUS_BADGE = {
@@ -116,6 +121,10 @@ function ItemCard({ item, onBuy }) {
         ) : traitPreviewUri ? (
           <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
             <img src={traitPreviewUri} alt={item.title} className="h-full w-full object-cover" />
+          </div>
+        ) : item.effect === "emote" && item.render_key ? (
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-100 p-2 dark:bg-white/[0.06]">
+            <img src={emoteIconUrl(item.render_key)} alt={item.title} className="h-full w-full object-contain" />
           </div>
         ) : (
           <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
@@ -176,9 +185,15 @@ function ConfirmSheet({ item, gems, busy, onConfirm, onCancel }) {
         </button>
 
         <div className="flex items-center gap-3">
-          <div className={"grid h-14 w-14 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
-            <Icon className="h-7 w-7" />
-          </div>
+          {item.effect === "emote" && item.render_key ? (
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-slate-100 p-2.5 dark:bg-white/[0.06]">
+              <img src={emoteIconUrl(item.render_key)} alt={item.title} className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className={"grid h-14 w-14 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
+              <Icon className="h-7 w-7" />
+            </div>
+          )}
           <div className="min-w-0">
             <div className="font-display text-lg font-extrabold text-slate-800 dark:text-white">{item.title}</div>
             <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">{item.desc}</div>
