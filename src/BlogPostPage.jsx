@@ -137,6 +137,10 @@ export default function BlogPostPage() {
                   "[&_blockquote]:border-l-4 [&_blockquote]:border-brand-200 [&_blockquote]:pl-4 [&_blockquote]:italic dark:[&_blockquote]:border-brand-500/30",
                   "[&_code]:rounded [&_code]:bg-slate-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm dark:[&_code]:bg-white/[0.08]",
                   "[&_img]:rounded-2xl",
+                  "[&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:whitespace-nowrap [&_table]:rounded-2xl [&_table]:ring-1 [&_table]:ring-slate-200 dark:[&_table]:ring-white/[0.08]",
+                  "[&_thead]:bg-slate-50 dark:[&_thead]:bg-white/[0.04]",
+                  "[&_th]:px-4 [&_th]:py-2.5 [&_th]:text-left [&_th]:font-display [&_th]:text-sm [&_th]:font-extrabold [&_th]:text-slate-700 dark:[&_th]:text-stone-200",
+                  "[&_td]:border-t [&_td]:border-slate-100 [&_td]:px-4 [&_td]:py-2.5 [&_td]:text-sm [&_td]:font-semibold [&_td]:text-slate-600 dark:[&_td]:border-white/[0.06] dark:[&_td]:text-stone-300",
                 ].join(" ")}
               >
                 <Markdown>{post.body_markdown || ""}</Markdown>

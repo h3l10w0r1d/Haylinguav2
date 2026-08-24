@@ -129,6 +129,7 @@ export function createCmsApi(accessToken) {
     if (!res.ok) throw new Error((data && data.detail) || "Upload failed");
     return data;
   };
+  const seedBlogPosts = () => req("/cms/seed/blog-posts", { method: "POST" });
   const listBlogPosts = () => req("/cms/blog");
   const getBlogPost = (id) => req(`/cms/blog/${id}`);
   const createBlogPost = (payload) => req("/cms/blog", { method: "POST", body: JSON.stringify(payload) });
@@ -321,6 +322,7 @@ export function createCmsApi(accessToken) {
     updateItemDefinition,
     deleteItemDefinition,
     uploadBlogImage,
+    seedBlogPosts,
     listBlogPosts,
     getBlogPost,
     createBlogPost,

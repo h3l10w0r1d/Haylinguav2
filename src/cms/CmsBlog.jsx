@@ -233,6 +233,7 @@ export default function CmsBlog() {
   const [edits, setEdits] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState(emptyFields());
 
@@ -274,6 +275,20 @@ export default function CmsBlog() {
   }, [token]);
 
   if (!token) return <Navigate to="/cms/login" replace />;
+
+  async function importPlannedPosts() {
+    setSeeding(true);
+    try {
+      const res = await api.seedBlogPosts();
+      await refresh();
+      const n = res?.posts_inserted ?? 0;
+      showToast(n > 0 ? `Imported ${n} new post${n === 1 ? "" : "s"}` : "Already imported — nothing new to add");
+    } catch (err) {
+      showToast(err.message || "Import failed", "err");
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   async function createPost() {
     const slug = draft.slug.trim() || slugify(draft.title);
@@ -351,10 +366,22 @@ export default function CmsBlog() {
   return (
     <CmsLayout active="blog" title="Blog">
       <div className="space-y-6">
-        <div className="rounded-2xl bg-brand-50 p-4 text-sm font-semibold text-brand-800 ring-1 ring-brand-200">
-          This is Haylingua's first-party blog at /blog — separate from the external
-          blog.haylingua.am (Ghost). Body is Markdown. Publishing sets the article's
-          publish date once and never resets it on later edits.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-50 p-4 text-sm font-semibold text-brand-800 ring-1 ring-brand-200">
+          <div>
+            This is Haylingua's first-party blog at /blog — separate from the external
+            blog.haylingua.am (Ghost). Body is Markdown. Publishing sets the article's
+            publish date once and never resets it on later edits.
+          </div>
+          <button
+            type="button"
+            onClick={importPlannedPosts}
+            disabled={seeding}
+            title="Publishes the planned SEO content batch (greetings, alphabet, dialects, numbers, travel phrases, FAQs) — safe to click more than once, already-imported posts are skipped."
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-brand-700 ring-1 ring-brand-300 hover:bg-brand-100 disabled:opacity-60 dark:bg-[#18181b]"
+          >
+            {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+            Import planned posts
+          </button>
         </div>
 
         <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">

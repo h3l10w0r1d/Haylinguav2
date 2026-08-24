@@ -4763,3 +4763,16 @@ def cms_delete_blog_post(post_id: int, request: Request, db=Depends(get_db)):
     db.execute(text("DELETE FROM blog_posts WHERE id = :id"), {"id": post_id})
     return {"ok": True}
 
+@router.post("/cms/seed/blog-posts")
+def cms_seed_blog_posts(request: Request, db=Depends(get_db)):
+    """Publishes the initial SEO content batch — one post per high-value
+    keyword cluster (high-intent, alphabet, dialect/FAQ, vocabulary) that
+    had zero blog coverage. Idempotent — safe to re-trigger."""
+    require_cms(request, db)
+    from seed_blog_posts import seed_blog_posts
+    try:
+        res = seed_blog_posts()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
