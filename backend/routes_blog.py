@@ -30,13 +30,18 @@ def list_blog_posts(
     db: Connection = Depends(get_db),
 ):
     offset = (page - 1) * page_size
+    # is_published alone isn't enough — a post can be marked published with a
+    # future published_at (scheduling: see routes_cms.py's create/update),
+    # and must stay invisible here until that date actually arrives. The
+    # scheduling model is deliberately "lazy" — no cron/worker needed, a
+    # scheduled post just becomes query-visible the moment NOW() passes it.
     total = db.execute(
-        text("SELECT COUNT(*) FROM blog_posts WHERE is_published = true")
+        text("SELECT COUNT(*) FROM blog_posts WHERE is_published = true AND published_at <= NOW()")
     ).scalar() or 0
     rows = db.execute(
         text(f"""
             SELECT {_LIST_COLS} FROM blog_posts
-            WHERE is_published = true
+            WHERE is_published = true AND published_at <= NOW()
             ORDER BY published_at DESC
             LIMIT :limit OFFSET :offset
         """),
@@ -53,11 +58,11 @@ def list_blog_posts(
 @router.get("/blog/{slug}")
 def get_blog_post(slug: str, db: Connection = Depends(get_db)):
     row = db.execute(
-        text(f"SELECT {_DETAIL_COLS} FROM blog_posts WHERE slug = :slug AND is_published = true"),
+        text(f"SELECT {_DETAIL_COLS} FROM blog_posts WHERE slug = :slug AND is_published = true AND published_at <= NOW()"),
         {"slug": slug},
     ).mappings().first()
-    # 404 for missing OR draft — don't leak that a draft with this slug
-    # exists, same behavior unpublished lessons already have.
+    # 404 for missing, draft, OR not-yet-due (scheduled for the future) —
+    # don't leak that a post with this slug exists before its scheduled date.
     if not row:
         raise HTTPException(status_code=404, detail="Post not found")
     return dict(row)

@@ -8,15 +8,23 @@ genuinely substantive (300+ words, real structure, internal links to the
 matching landing page + at least one other post), not thin SEO filler —
 same bar as the hand-verified test post from the earlier CMS pass.
 
-Every post is inserted published (is_published=TRUE, published_at=NOW()) so
-they show up in the sitemap and /blog immediately. cover_image_url is left
-NULL — no real photography exists yet; add cover images later through the
-CMS upload UI (BlogPage.jsx/BlogPostPage.jsx already handle a missing cover
-gracefully).
+_POSTS (the original 8) publish immediately. _SCHEDULED_POSTS is a second
+wave of 13 more posts, one per week for the next ~3 months, so /blog reads
+as an actively-maintained publication rather than a one-time content dump.
+Every row is inserted with is_published=TRUE; "scheduled" just means a
+future published_at — routes_blog.py's public queries require
+published_at <= NOW(), so a scheduled post sits invisible until its date
+arrives, no cron/worker required. days_from_now is resolved against the
+DB's own NOW() when this actually runs, not a baked-in calendar date.
+
+cover_image_url is left NULL on every post — no real photography exists
+yet; add cover images later through the CMS upload UI (BlogPage.jsx/
+BlogPostPage.jsx already handle a missing cover gracefully).
 
 Idempotent: ON CONFLICT (slug) DO NOTHING, so re-running never duplicates or
-overwrites hand-edited content. Triggered via POST /cms/seed/blog-posts
-(CMS-admin only), same pattern as POST /cms/seed/alphabet.
+overwrites hand-edited content, and never reschedules a post that's already
+in the table. Triggered via POST /cms/seed/blog-posts (CMS-admin only),
+same pattern as POST /cms/seed/alphabet.
 """
 
 import json
@@ -347,33 +355,609 @@ If you already speak Russian, it won't give you a meaningful head start on Armen
     },
 ]
 
+# Second content wave — scheduled one per week for the next ~3 months rather
+# than dumped all at once, so /blog looks like an actively-maintained
+# publication instead of a one-time content drop (also spreads out how fast
+# Google needs to crawl/index new URLs). days_from_now is resolved against
+# the DB's own NOW() at the moment this seed actually runs, not baked in as
+# a calendar date, so re-running this script on a different day still lands
+# a sane weekly cadence starting from "today."
+_SCHEDULED_POSTS = [
+    {
+        "slug": "armenian-colors-vocabulary-guide",
+        "days_from_now": 7,
+        "title": "Armenian Colors: A Complete Vocabulary Guide",
+        "meta_description": "Learn all the essential Armenian color words with pronunciation — from the basics like red and blue to shades you'll actually use in conversation.",
+        "excerpt": "From կարմիր (red) to մանուշակագույն (purple) — every color word worth learning, with pronunciation.",
+        "tags": ["vocabulary", "colors"],
+        "body": """Colors are some of the most useful descriptive words in any language — they show up constantly, from describing clothes to talking about a sunset. Here's the full set in Armenian.
+
+## The basics
+
+- **կարմիր** (kar-mir) — red
+- **կապույտ** (ka-puyt) — blue
+- **դեղին** (de-ghin) — yellow
+- **կանաչ** (ka-nach) — green
+- **սպիտակ** (spi-tak) — white
+- **սև** (sev) — black
+- **նարնջագույն** (nar-nja-guyn) — orange
+- **մանուշակագույն** (ma-nu-sha-ka-guyn) — purple
+
+## Beyond the basics
+
+- **վարդագույն** (var-da-guyn) — pink (literally "rose-colored")
+- **շագանակագույն** (sha-ga-na-ka-guyn) — brown
+- **մոխրագույն** (mokh-ra-guyn) — gray
+- **ոսկեգույն** (vos-ke-guyn) — golden
+
+## A pattern worth noticing
+
+You've probably spotted it already — many Armenian color words end in **-գույն** (guyn), which literally means "color." That's not a coincidence: several colors are built as "[something]-colored" rather than having a fully separate root word, similar to how English sometimes says "rose-colored" instead of just "pink." Once you notice this pattern, new color words become much easier to guess and remember.
+
+## Using colors in a sentence
+
+Armenian adjectives (including colors) typically come before the noun they describe, just like in English — so "կարմիր տուն" is simply "red house," in the same word order you'd expect. That makes colors one of the easier vocabulary categories to start actively using in real sentences right away.
+
+## Keep building your vocabulary
+
+Colors are just one category — see our full [Armenian vocabulary](/armenian-vocabulary) page for greetings, numbers, family, and food words, or work through [50 basic Armenian words every beginner should know](/blog/50-basic-armenian-words) for a broader starting set.""",
+    },
+    {
+        "slug": "armenian-family-words",
+        "days_from_now": 14,
+        "title": "Armenian Family Words: Mother, Father, and Everyone In Between",
+        "meta_description": "Learn Armenian words for family members — mother, father, siblings, grandparents, and more — with pronunciation for each.",
+        "excerpt": "Family vocabulary comes up constantly in real conversation — here's the full set, from mayr to tatik.",
+        "tags": ["vocabulary", "family"],
+        "body": """Family vocabulary is some of the most-used vocabulary in everyday Armenian conversation — people ask about your family constantly, and it's often one of the first real conversations you'll have.
+
+## Immediate family
+
+- **մայր** (mayr) — mother
+- **հայր** (hayr) — father
+- **քույր** (k'uyr) — sister
+- **եղբայր** (yegh-bayr) — brother
+- **երեխա** (ye-re-kha) — child
+- **ամուսին** (a-mu-sin) — spouse / husband
+- **կին** (kin) — wife / woman
+
+## Extended family
+
+- **տատիկ** (ta-tik) — grandmother
+- **պապիկ** (pa-pik) — grandfather
+- **մորաքույր** (mo-ra-k'uyr) — aunt (mother's side)
+- **հորաքույր** (ho-ra-k'uyr) — aunt (father's side)
+- **քեռի** (k'e-ri) — uncle (mother's side)
+- **հորեղբայր** (ho-regh-bayr) — uncle (father's side)
+- **զարմիկ** (zar-mik) — cousin (male)
+- **զարմուհի** (zar-mu-hi) — cousin (female)
+
+## A detail worth knowing
+
+Notice that aunts and uncles have *different words* depending on whether they're on your mother's or father's side — Armenian, like several other languages, distinguishes maternal and paternal relatives more precisely than English does. This is genuinely useful to know early, since it's the kind of detail that comes up the moment you're introduced to someone's extended family.
+
+## Talking about your own family
+
+A simple, useful pattern: **Իմ [family word]-ը...** ("My [family member] is...") lets you build real sentences immediately. For example, **Իմ մայրը Երևանից է** — "My mother is from Yerevan."
+
+## Where to go next
+
+Once family words feel comfortable, [Armenian numbers](/blog/armenian-numbers-1-to-100) and [colors](/blog/armenian-colors-vocabulary-guide) round out the core vocabulary you'll lean on daily — or start from the [Armenian alphabet](/armenian-alphabet) if you're still building up to reading these words yourself.""",
+    },
+    {
+        "slug": "days-of-the-week-in-armenian",
+        "days_from_now": 21,
+        "title": "Days of the Week in Armenian",
+        "meta_description": "Learn the days of the week in Armenian with pronunciation — essential vocabulary for making plans and talking about schedules.",
+        "excerpt": "From երկուշաբթի (Monday) to կիրակի (Sunday) — every day of the week, with pronunciation and the logic behind the names.",
+        "tags": ["vocabulary", "days-of-the-week"],
+        "body": """Whether you're making plans or just talking about your schedule, the days of the week are essential everyday vocabulary. Here's the full week in Armenian.
+
+## The seven days
+
+- **երկուշաբթի** (yer-ku-shab-t'i) — Monday
+- **երեքշաբթի** (ye-rek'-shab-t'i) — Tuesday
+- **չորեքշաբթի** (cho-rek'-shab-t'i) — Wednesday
+- **հինգշաբթի** (hing-shab-t'i) — Thursday
+- **ուրբաթ** (ur-bat') — Friday
+- **շաբաթ** (sha-bat') — Saturday
+- **կիրակի** (ki-ra-ki) — Sunday
+
+## The pattern that makes these easy to remember
+
+Look closely and you'll spot it: **երկու** (2), **երեք** (3), **չորս** (4), and **հինգ** (5) are hiding inside Monday through Thursday's names, each attached to **-շաբթի** ("week"). Armenian literally names its weekdays "day 2 of the week," "day 3 of the week," and so on — Monday is the second day because the week traditionally starts counting from Sunday. Once you know your [Armenian numbers](/blog/armenian-numbers-1-to-100), four of the seven days become almost free to remember.
+
+**Ուրբաթ** (Friday), **շաբաթ** (Saturday), and **կիրակի** (Sunday) break the pattern — they have their own distinct roots rather than being numbered, similar to how Saturday and Sunday stand apart from the numbered logic in some other languages too.
+
+## Using days in a sentence
+
+**Ես կիրակի օրը հանգստանում եմ** — "I rest on Sunday." The structure **[day] օրը** ("on the day of...") is a simple, reusable pattern for talking about when things happen.
+
+## Build on this
+
+Days of the week pair naturally with talking about plans and schedules — a great next step is [common Armenian phrases for travel](/blog/common-armenian-phrases-for-travel), or continue building core vocabulary with [Armenian family words](/blog/armenian-family-words).""",
+    },
+    {
+        "slug": "armenian-food-vocabulary",
+        "days_from_now": 28,
+        "title": "Armenian Food Vocabulary: 30 Words for Your Next Meal",
+        "meta_description": "Essential Armenian food vocabulary — 30 words for ingredients, dishes, and drinks, with pronunciation for your next meal or trip to Armenia.",
+        "excerpt": "From հաց (bread) to խորոված (barbecue) — the food words you'll actually use at the table.",
+        "tags": ["vocabulary", "food"],
+        "body": """Food vocabulary is some of the most rewarding to learn — it's useful immediately, whether you're at an Armenian restaurant, cooking with family recipes, or traveling.
+
+## Everyday staples
+
+- **հաց** (hats) — bread
+- **ջուր** (jur) — water
+- **կաթ** (kat) — milk
+- **պանիր** (pa-nir) — cheese
+- **միս** (mis) — meat
+- **ձու** (dzu) — egg
+- **բրինձ** (brindz) — rice
+- **կարտոֆիլ** (kar-to-fil) — potato
+
+## Fruits and vegetables
+
+- **խնձոր** (khn-dzor) — apple
+- **նարինջ** (na-rinj) — orange
+- **խաղող** (kha-ghogh) — grape
+- **լոլիկ** (lo-lik) — tomato
+- **վարունգ** (va-rung) — cucumber
+- **սոխ** (sokh) — onion
+
+## Dishes worth knowing
+
+- **խորոված** (kho-ro-vats) — barbecue/grilled meat, a cornerstone of Armenian cuisine
+- **դոլմա** (dol-ma) — dolma, grape leaves stuffed with rice and meat
+- **լավաշ** (la-vash) — lavash, the thin traditional flatbread (UNESCO-recognized as intangible cultural heritage)
+- **խաշ** (khash) — khash, a traditional slow-cooked dish
+- **գաթա** (ga-t'a) — gata, a sweet pastry often served with coffee
+
+## At the table
+
+- **համեղ է** (ha-megh e) — it's tasty
+- **շատ եմ ուզում** (shat em u-zum) — I want a lot / more
+- **հագեցած եմ** (ha-ge-tsats em) — I'm full
+- **բարի ախորժակ** (ba-ri a-khor-zhak) — bon appétit / enjoy your meal
+
+## Practice ordering for real
+
+Pair this vocabulary with our [common Armenian phrases for travel](/blog/common-armenian-phrases-for-travel), which covers exactly how to order, ask for the check, and compliment the food — or explore [50 basic Armenian words every beginner should know](/blog/50-basic-armenian-words) to round out your core vocabulary.""",
+    },
+    {
+        "slug": "50-basic-armenian-words",
+        "days_from_now": 35,
+        "title": "50 Basic Armenian Words Every Beginner Should Know",
+        "meta_description": "50 essential Armenian words for beginners, organized by category — greetings, numbers, questions, and everyday essentials with pronunciation.",
+        "excerpt": "A starter vocabulary list organized by category — the words that show up constantly, in one place.",
+        "tags": ["vocabulary", "beginner"],
+        "body": """Every learner needs a starting vocabulary — words common enough that you'll hear and need them constantly. Here are 50, organized by category so you can focus on what's relevant to you first.
+
+## Question words (7)
+
+- **ինչ** (inch) — what
+- **ով** (ov) — who
+- **որտեղ** (vor-tegh) — where
+- **ե՞րբ** (yerb) — when
+- **ինչու** (in-chu) — why
+- **ինչպես** (inch-pes) — how
+- **ինչքան** (inch-k'an) — how much/many
+
+## Everyday essentials (10)
+
+- **այո** (a-yo) — yes
+- **ոչ** (voch) — no
+- **խնդրում եմ** (khən-drum em) — please
+- **շնորհակալություն** (shnor-ha-ka-lu-tyun) — thank you
+- **ներողություն** (ne-ro-ghu-tyun) — sorry / excuse me
+- **լավ** (lav) — good
+- **վատ** (vat) — bad
+- **մեծ** (mets) — big
+- **փոքր** (p'ok'r) — small
+- **նոր** (nor) — new
+
+## People and pronouns (8)
+
+- **ես** (yes) — I
+- **դու / դուք** (du / duk) — you (informal/formal)
+- **նա** (na) — he/she
+- **մենք** (menk) — we
+- **նրանք** (nrank) — they
+- **մարդ** (mard) — person
+- **ընկեր** (ən-ker) — friend
+- **ընտանիք** (ən-ta-nik') — family
+
+## Time (6)
+
+- **այսօր** (ay-sor) — today
+- **վաղը** (va-ghə) — tomorrow
+- **երեկ** (ye-rek) — yesterday
+- **հիմա** (hi-ma) — now
+- **ժամանակ** (zha-ma-nak) — time
+- **օր** (or) — day
+
+## Places and objects (10)
+
+- **տուն** (tun) — house
+- **քաղաք** (k'a-ghak') — city
+- **երկիր** (yer-kir) — country
+- **ճանապարհ** (chan-a-parh) — road/way
+- **դուռ** (dur) — door
+- **պատուհան** (pa-tu-han) — window
+- **գիրք** (girk') — book
+- **գրիչ** (grich) — pen
+- **հեռախոս** (he-ra-khos) — phone
+- **փող** (p'ogh) — money
+
+## Common verbs, in their basic form (9)
+
+- **ուզել** (u-zel) — to want
+- **գնալ** (gə-nal) — to go
+- **գալ** (gal) — to come
+- **տեսնել** (tes-nel) — to see
+- **ասել** (a-sel) — to say
+- **անել** (a-nel) — to do
+- **սիրել** (si-rel) — to love
+- **ուտել** (u-tel) — to eat
+- **խոսել** (kho-sel) — to speak
+
+## What to do with this list
+
+Don't try to memorize all 50 in one sitting — pick one category that's most relevant to what you need right now, and build from there. For a structured, audio-backed path through vocabulary like this from the very beginning, [Haylingua's course](/learn-armenian-online) sequences words exactly this way, paired with real pronunciation on every one.""",
+    },
+    {
+        "slug": "how-to-read-armenian",
+        "days_from_now": 42,
+        "title": "How to Read Armenian: A Step-by-Step Guide",
+        "meta_description": "A step-by-step guide to reading Armenian — from recognizing individual letters to sounding out full words and sentences with confidence.",
+        "excerpt": "Reading Armenian is a skill you build in stages — here's the exact progression, from single letters to full sentences.",
+        "tags": ["alphabet", "reading", "beginner"],
+        "body": """Knowing the alphabet and being able to *read* Armenian fluently are two different milestones. Here's the practical path between them.
+
+## Stage 1: Recognize individual letters
+
+Before you can read anything, you need instant recognition of all 39 letters — both uppercase and lowercase — without having to stop and think. This is the foundation everything else builds on. Our [Armenian alphabet page](/armenian-alphabet) is built exactly for this stage: every letter with audio, so you're linking the shape to the sound from the very first look, not memorizing symbols in silence.
+
+## Stage 2: Sound out short, familiar words
+
+Once letters are automatic, start sounding out words you already know the meaning of — greetings, family words, numbers. Reading **մայր** and recognizing it as "mother" (a word you already know from [Armenian family vocabulary](/blog/armenian-family-words)) reinforces both the reading skill and the vocabulary at the same time, rather than treating them as separate tasks.
+
+## Stage 3: Read without translating in your head
+
+This is the real turning point — reading **ջուր** and picturing water directly, instead of mentally converting "ջ-ու-ր → sounds like 'jur' → oh, that means water." It happens gradually with repeated exposure, not through a single trick — the words you encounter most often become instant the fastest.
+
+## Stage 4: Read full sentences at a natural pace
+
+Once individual words are fast, sentence-level reading is mostly about handling word order and grammatical endings — Armenian nouns change form depending on their role in the sentence, which affects how a word looks at the end even when the root is the same.
+
+## Why phonetic spelling makes this easier than it sounds
+
+Armenian's biggest advantage for readers: spelling is almost entirely consistent. Once you know what sound a letter makes, it makes that same sound in virtually every word — unlike English, where "read" is pronounced two different ways depending on tense. This means Stage 1 (letter recognition) does most of the heavy lifting; there's no separate, unpredictable "spelling rules" phase to layer on top the way there is in English.
+
+## A realistic timeline
+
+Most learners hit Stage 1 within one to two weeks of daily practice — see our full breakdown in [how long does it take to learn Armenian](/blog/how-long-to-learn-armenian) for what the stages after that typically take.""",
+    },
+    {
+        "slug": "armenian-grammar-basics",
+        "days_from_now": 49,
+        "title": "Armenian Grammar Basics: Sentence Structure for Beginners",
+        "meta_description": "An introduction to Armenian grammar for beginners — sentence structure, word order, and the core concepts you need before building real sentences.",
+        "excerpt": "Word order, cases, and verb basics — the grammar concepts that unlock real sentence-building, explained simply.",
+        "tags": ["grammar", "beginner"],
+        "body": """Vocabulary gets you words; grammar is what turns those words into sentences. Here's a beginner-friendly map of how Armenian grammar actually works.
+
+## Basic word order
+
+Armenian's default word order is Subject-Object-Verb (SOV) — the verb typically comes at the end of the sentence, unlike English's Subject-Verb-Object order. For example, "I water drink" rather than "I drink water." This feels backward at first if you're coming from English, but it's a fixed, learnable pattern, not something that varies unpredictably sentence to sentence.
+
+In casual speech, word order is actually more flexible than this rule suggests — Armenian uses noun endings (not just position) to signal who's doing what, so meaning often stays clear even when the order shifts for emphasis.
+
+## No grammatical gender
+
+Unlike French, Spanish, German, or Russian, Armenian nouns don't belong to masculine/feminine/neuter categories. Every noun is grammatically neutral — which means one entire category of memorization (which gender is "table," which is "chair") simply doesn't exist here.
+
+## Noun cases: what they are and why they matter
+
+Armenian nouns change form depending on their grammatical role in a sentence — whether they're the subject, the object, showing possession, and so on. This is called a case system. English does a light version of this too (he/him/his changes depending on role), but Armenian applies it more broadly across nouns generally, not just pronouns. It sounds intimidating listed abstractly, but in practice you absorb the common patterns through repeated exposure to real sentences, the same way English speakers never consciously "learn" that it's "he sees her" and not "he sees she."
+
+## Verbs and tense
+
+Armenian verbs conjugate for person (I/you/he-she/we/they) and tense (past/present/future), similar in spirit to Spanish or French conjugation, though with different specific endings. We cover the present tense in detail in [Armenian verb conjugation: the present tense explained](/blog/armenian-verb-conjugation-present-tense).
+
+## Questions
+
+Yes/no questions in Armenian are often formed just by changing intonation — rising pitch at the end of a statement — rather than rearranging word order the way English does ("You are here." → "Are you here?"). This is actually a simplification compared to English, not an added complication.
+
+## Where grammar meets vocabulary
+
+Grammar rules feel abstract in isolation — they click once you're applying them to real vocabulary. Build your word bank with [50 basic Armenian words](/blog/50-basic-armenian-words), then come back to see these patterns in action, or jump into [Haylingua's course](/learn-armenian-online), which introduces grammar gradually alongside real sentences rather than as a separate unit to memorize upfront.""",
+    },
+    {
+        "slug": "best-way-to-learn-armenian-online",
+        "days_from_now": 56,
+        "title": "Best Way to Learn Armenian Online in 2026",
+        "meta_description": "Looking for the best way to learn Armenian online? Compare your real options — apps, tutors, and structured courses — and what actually works.",
+        "excerpt": "Apps, tutors, immersion, structured courses — an honest comparison of what actually works for learning Armenian online.",
+        "tags": ["getting started", "online-learning"],
+        "body": """If you've searched for how to learn Armenian online, you've probably found a scattered mix of options. Here's an honest breakdown of what each approach actually offers.
+
+## Structured courses and apps
+
+A well-built structured course sequences content deliberately — alphabet before words, words before sentences, simple grammar before complex — instead of leaving you to guess what to study next. The advantage is consistency and a clear sense of progress; the tradeoff is that you're following someone else's curriculum rather than chasing whatever interests you that day. This matters most in the first few months, when not knowing *what* to study is the biggest obstacle, more than motivation.
+
+## One-on-one tutors
+
+A tutor gives you real conversation practice and personalized correction — genuinely valuable, especially once you have a vocabulary base to work with. The tradeoffs are cost and scheduling, and a tutor alone (without structured material alongside) can leave gaps, since sessions tend to follow conversation rather than systematically covering the language.
+
+## Immersion content (shows, music, podcasts)
+
+Great for training your ear and picking up natural rhythm and slang, but genuinely difficult before you have foundational vocabulary and grammar — total immersion with zero prior knowledge mostly produces frustration, not learning, in the first weeks. It's a strong *supplement* once you're past the very beginning, not a starting point.
+
+## Language exchange partners
+
+Free, and gives real conversation practice with a native speaker in exchange for helping them with your own language. The catch is consistency — quality depends entirely on who you're paired with, and there's no structured curriculum behind it.
+
+## What actually works: layering approaches
+
+The most effective learners typically combine a structured foundation (so you always know what to study) with real audio exposure (so pronunciation is correct from day one) and eventually conversation practice (to apply what you've learned). Trying to skip straight to conversation without vocabulary, or consuming immersion content without any structure, are the two most common ways beginners stall out.
+
+## What Haylingua does
+
+[Haylingua](/learn-armenian-online) is built as that structured foundation — bite-sized lessons sequenced from the [alphabet](/armenian-alphabet) onward, with real audio on every single word rather than just a sample. It's free to start, and pairs naturally with a tutor or exchange partner once you've built a real vocabulary base to converse with.""",
+    },
+    {
+        "slug": "armenian-for-heritage-speakers",
+        "days_from_now": 63,
+        "title": "Armenian for Heritage Speakers: Where to Start",
+        "meta_description": "A guide for Armenian heritage speakers — how to formalize the Armenian you already understand into real reading, writing, and speaking ability.",
+        "excerpt": "You understand more than you think — here's how to turn passive family Armenian into real reading, writing, and speaking skills.",
+        "tags": ["heritage-speakers", "getting started"],
+        "body": """If you grew up hearing Armenian at home — from parents, grandparents, or a diaspora community — but never formally learned to read, write, or speak it confidently, you're a heritage speaker. Your starting point is genuinely different from a complete beginner's, and it's worth learning differently too.
+
+## What heritage speakers usually already have
+
+Most heritage speakers have real advantages most learners spend months building: natural pronunciation (your ear is already trained on real Armenian sounds, even if you can't explain the rules), a passive vocabulary that's often much larger than you realize, and cultural context that makes idioms and references land immediately instead of needing explanation.
+
+## What's usually the actual gap
+
+For most heritage speakers, the gap isn't vocabulary or listening comprehension — it's **reading, writing, and active production**. You can understand a conversation but freeze when asked to respond, or you speak fluently but have never learned the alphabet at all. That's an extremely common, specific gap, not a sign you're "not really" a speaker.
+
+## Where to actually start
+
+**Don't start at zero.** Skipping straight to basic greetings and "hello, how are you" wastes the real advantage you already have and gets boring fast. Instead:
+
+1. **Learn the [alphabet](/armenian-alphabet) properly**, even if you already speak — this is very often the single missing piece for heritage speakers specifically.
+2. **Bridge spoken vocabulary to written form.** Words you already know how to *say* become dramatically easier to learn to *read and write*, since you're attaching a new skill to an existing one rather than learning from nothing.
+3. **Focus early on production, not comprehension.** You likely don't need much listening practice — prioritize speaking and writing practice instead, since that's almost always the actual gap.
+
+## A note on dialect
+
+Many diaspora heritage speakers grew up with Western Armenian, while most formal online resources — including Haylingua — teach Standard Eastern Armenian. The two share the same alphabet and a large amount of vocabulary and grammar; see our full breakdown in [Eastern vs. Western Armenian](/blog/eastern-vs-western-armenian) to understand exactly where they overlap and where they diverge, so you know what to expect either way.
+
+## Start where it counts
+
+If reading and writing are your real gap, the [Armenian alphabet](/armenian-alphabet) is the highest-leverage place to spend your first real study session — not because you're starting from zero, but because it unlocks everything else you already know how to say.""",
+    },
+    {
+        "slug": "how-to-write-in-armenian",
+        "days_from_now": 70,
+        "title": "How to Write in Armenian: Alphabet, Keyboard, and Practice Tips",
+        "meta_description": "Learn how to write in Armenian — from forming letters by hand to typing on an Armenian keyboard, with practical tips for beginners.",
+        "excerpt": "Handwriting, typing, and the practice habits that actually build real writing ability — a practical starting guide.",
+        "tags": ["writing", "alphabet", "beginner"],
+        "body": """Reading Armenian and writing it are related but distinct skills. Here's how to approach writing specifically, whether by hand or on a keyboard.
+
+## Handwriting: where to start
+
+Before worrying about speed or style, focus on learning each letter's basic form correctly — both uppercase and lowercase, since they don't always resemble each other the way you might expect. Tracing letters while saying their sound out loud reinforces both the shape and pronunciation together, rather than treating writing as a purely visual exercise disconnected from the spoken language.
+
+Armenian handwriting, like any script, develops its own natural "cursive-ish" flow with practice — but there's no need to worry about that early on. Clean, deliberate letterforms first; speed and personal style come later, the same progression as learning to write any new script.
+
+## Typing Armenian on a keyboard
+
+You don't need a physical Armenian keyboard to type Armenian:
+
+- **Phone keyboards**: iOS and Android both support adding an Armenian keyboard layout in your system language settings — once added, you can switch to it like any other language keyboard.
+- **Computer keyboards**: Windows, macOS, and Linux all support installing an Armenian keyboard layout without any extra software, through your system's language/input settings.
+- **Phonetic/transliteration typing tools**: Several online tools let you type Armenian phonetically using Latin letters (typing roughly how a word sounds) and auto-convert to Armenian script — useful for occasional typing without learning a new key layout, though less useful for building genuine typing fluency.
+
+## Practice habits that actually help
+
+**Copy real words, not random letters.** Writing out words you're also learning to read and speak — like the ones in [50 basic Armenian words](/blog/50-basic-armenian-words) — reinforces multiple skills in the same practice session instead of treating writing as isolated drilling.
+
+**Write, don't just trace, once letters feel familiar.** Tracing builds initial muscle memory, but producing letters from memory (writing a word you're only thinking of, not copying) is what actually cements the skill.
+
+**Short, frequent sessions beat long infrequent ones.** Ten minutes of handwriting practice most days will get you further than one long session per week — the same spaced-repetition logic that applies to vocabulary applies to motor skills like handwriting too.
+
+## Start with the shapes themselves
+
+If you haven't yet, the [Armenian alphabet](/armenian-alphabet) is the natural starting point — every letter's uppercase and lowercase form, ready to trace and practice, before you move on to full words and sentences.""",
+    },
+    {
+        "slug": "armenian-verb-conjugation-present-tense",
+        "days_from_now": 77,
+        "title": "Armenian Verb Conjugation: The Present Tense Explained",
+        "meta_description": "A clear explanation of Armenian present tense verb conjugation for beginners, with real examples and the patterns that make it predictable.",
+        "excerpt": "Armenian present-tense verbs follow predictable patterns once you see the logic — here's a clear walkthrough with real examples.",
+        "tags": ["grammar", "verbs"],
+        "body": """Verb conjugation is where Armenian grammar starts feeling like a real system rather than a list of vocabulary. Here's a clear walkthrough of the present tense.
+
+## The basic idea
+
+Just like English changes "I go" to "she goes," Armenian verbs change their ending depending on who's doing the action. The difference is that Armenian marks this more consistently across all persons (I/you/he-she/we/you-all/they), not just the third person singular the way English does.
+
+## A regular verb, conjugated
+
+Take **խոսել** (kho-sel) — "to speak." Its present tense follows a predictable pattern:
+
+- **ես խոսում եմ** (yes kho-sum em) — I speak
+- **դու խոսում ես** (du kho-sum es) — you speak (informal)
+- **նա խոսում է** (na kho-sum e) — he/she speaks
+- **մենք խոսում ենք** (menk' kho-sum enk') — we speak
+- **դուք խոսում եք** (duk' kho-sum ek') — you speak (formal/plural)
+- **նրանք խոսում են** (nrank' kho-sum en) — they speak
+
+## The pattern to notice
+
+Armenian present tense is built from two pieces: the verb's present participle form (**խոսում**, roughly "speaking") plus a conjugated form of "to be" (**եմ / ես / է / ենք / եք / են**) that changes with the subject. Once you recognize this two-part structure, you're really just learning one small set of "to be" endings and reusing them across every verb — not memorizing a completely new ending set per verb.
+
+## Trying it with another verb
+
+**ուտել** (u-tel) — "to eat" — follows the same shape:
+
+- **ես ուտում եմ** (yes u-tum em) — I eat
+- **նա ուտում է** (na u-tum e) — he/she eats
+- **նրանք ուտում են** (nrank' u-tum en) — they eat
+
+Notice the ending pattern (**եմ / է / են**) is identical to **խոսել** above — that consistency is exactly what makes Armenian conjugation learnable as a system rather than case-by-case memorization.
+
+## Why this matters early
+
+Once this pattern clicks, you can conjugate *any* regular verb in the present tense correctly, immediately — including verbs you're learning for the first time. That's a disproportionately high return for one grammar concept, which is why it's worth understanding deliberately rather than picking it up passively.
+
+## Keep building
+
+This is one piece of the larger picture — see [Armenian grammar basics](/blog/armenian-grammar-basics) for how word order, cases, and verbs fit together, or start applying this directly with vocabulary from [50 basic Armenian words](/blog/50-basic-armenian-words).""",
+    },
+    {
+        "slug": "common-mistakes-english-speakers-learning-armenian",
+        "days_from_now": 84,
+        "title": "Top 10 Mistakes English Speakers Make Learning Armenian",
+        "meta_description": "The most common mistakes English speakers make when learning Armenian — pronunciation, grammar, and study-habit pitfalls, and how to avoid them.",
+        "excerpt": "From mixing up plain and puffed consonants to skipping the alphabet — the pitfalls that trip up English-speaking learners most.",
+        "tags": ["tips", "beginner"],
+        "body": """After the alphabet itself, these are the specific mistakes that come up again and again for English speakers learning Armenian.
+
+## 1. Skipping the alphabet to "save time"
+
+Trying to learn Armenian through romanized transliteration instead of the real script feels faster at first, but it caps how far you can go and builds habits you'll have to unlearn. The [alphabet](/armenian-alphabet) is a one-time investment, not an optional detour.
+
+## 2. Confusing plain and "puffed" consonants
+
+Armenian distinguishes crisp, unaspirated consonants from breathy, aspirated ones — a contrast English simply doesn't make. Mixing up «տ» (plain t) and «թ» (puffed t) is probably the single most common pronunciation error. See our [pronunciation guide](/armenian-pronunciation) for exactly which pairs to watch for.
+
+## 3. Mixing up the two R sounds
+
+Eastern Armenian has both a light, single tongue-tap «ր» and a strongly rolled «ռ». English has neither distinction, so both tend to collapse into "the English R" for new learners — worth deliberately practicing as two separate sounds.
+
+## 4. Assuming word order works like English
+
+Armenian defaults to Subject-Object-Verb rather than English's Subject-Verb-Object. Direct word-for-word translation from English routinely produces backward-sounding sentences — see [Armenian grammar basics](/blog/armenian-grammar-basics) for the full picture.
+
+## 5. Ignoring noun case endings
+
+Because English barely marks grammatical case (mostly just pronouns — he/him/his), it's easy to under-weight how much Armenian nouns change form based on their role in a sentence. Skimming past this early creates confusion later, when the same word looks "wrong" in a new sentence.
+
+## 6. Not using formal vs. informal "you"
+
+Armenian distinguishes formal and informal "you" (similar to French tu/vous). English speakers, who don't have this distinction at all, often default to informal even with strangers or elders — a real, noticeable etiquette slip, not just a grammar quirk.
+
+## 7. Learning vocabulary without audio
+
+Because Armenian spelling is phonetic, it's tempting to assume you can learn pronunciation purely from reading. But a few sounds (see mistake #2 and #3) simply can't be reverse-engineered from spelling alone — they have to be heard.
+
+## 8. Studying in long, infrequent sessions
+
+One two-hour session per week is measurably less effective than 15 minutes daily, because language retention depends heavily on spaced repetition, not raw study time. See [how long does it take to learn Armenian](/blog/how-long-to-learn-armenian) for the timeline consistency actually produces.
+
+## 9. Assuming Armenian is related to Russian
+
+A common but incorrect assumption based on geography and Soviet history — Armenian is its own independent Indo-European branch, unrelated to Russian in any way that gives you a head start. Full explanation in [is Armenian similar to Russian](/blog/is-armenian-similar-to-russian).
+
+## 10. Avoiding speaking until you feel "ready"
+
+Waiting for total confidence before speaking out loud delays the exact practice that builds that confidence. Mistakes while speaking are how the language actually sticks — treat them as part of the process, not a sign you're behind.
+
+## Turn this into a study plan
+
+Most of these are avoided simply by starting with real audio and structured sequencing from day one — exactly how [Haylingua's course](/learn-armenian-online) is built.""",
+    },
+    {
+        "slug": "armenian-idioms-and-expressions",
+        "days_from_now": 91,
+        "title": "Armenian Culture Through Its Language: Idioms and Expressions",
+        "meta_description": "Explore Armenian culture through its language — common idioms and expressions, what they literally mean, and the stories behind them.",
+        "excerpt": "Idioms reveal how a culture thinks — here are some of the most common Armenian expressions and what they really mean.",
+        "tags": ["culture", "idioms", "expressions"],
+        "body": """Idioms and set expressions are where language and culture meet most directly — the phrases a language reaches for reveal what that culture actually values. Here's a starting point, built around one expression every Armenian learner runs into almost immediately, plus the cultural themes worth knowing as you go deeper.
+
+## Ապրե՛ս — the phrase you'll hear constantly
+
+**Ապրե՛ս** (a-pres) is one of the most common things you'll hear in casual Armenian conversation — used as praise or encouragement, roughly like "well done," "bravo," or "nice one" in English. Its literal root is the verb "to live," so it carries a warmer, more personal weight than a plain "good job" — closer to "may you live [long/well]" compressed into a single everyday exclamation. You'll hear it after someone answers a question well, finishes a task, or does something worth a compliment — it's woven into ordinary encouragement, not reserved for special occasions.
+
+## Hospitality as a cultural throughline
+
+Hospitality runs deep in Armenian culture, and it shows up constantly in how people talk about home and guests — offering food immediately when someone visits, insisting guests eat more, treating a shared meal as a meaningful social act rather than a formality. This isn't unique to Armenia (it's a broader Caucasus and Middle Eastern tradition too), but it's genuinely central to how Armenians talk about family and community, and it's worth understanding as context before you're a guest in an Armenian home yourself.
+
+## Resilience as a recurring theme
+
+Armenian history includes long periods of hardship and displacement, and that history shows up in the culture's language and storytelling — themes of endurance, memory, and "we're still here" recur often, in everything from proverbs parents pass down to how national holidays are talked about. You don't need to know specific quoted phrases to notice this theme — it surfaces naturally once you're consuming real Armenian content (conversations, shows, music).
+
+## Family and community language
+
+Armenian conversation leans heavily on family and community framing — how someone's doing is often discussed in terms of their family, and community ties (village, church, diaspora organization) come up as identity markers in a way that's more prominent than in a lot of English conversation. Our guide to [Armenian family vocabulary](/blog/armenian-family-words) covers the actual words behind these relationships.
+
+## A note on learning idioms
+
+Idioms are genuinely an advanced-stage skill — they rely on vocabulary, grammar, and cultural context all at once, which is exactly why they don't make sense translated word-for-word. If some of the phrases above don't fully click yet, that's completely normal; they're worth encountering early as motivation and cultural context, even before you can produce them yourself.
+
+## Why this matters for learning
+
+Idioms are a strong signal that you've moved from "translating a language" to actually "thinking in it" — they're one of the most rewarding milestones precisely because they can't be learned mechanically. Build toward them with real vocabulary and grammar first: [50 basic Armenian words](/blog/50-basic-armenian-words) and [Armenian grammar basics](/blog/armenian-grammar-basics) are the foundation that eventually makes idioms make sense.
+
+## Keep exploring
+
+Language and culture are inseparable — the more Armenian you learn, the more of these expressions will start to click into place on their own, not just as vocabulary but as a genuine way of seeing the world.""",
+    },
+]
+
+
+def _insert_post(conn, post, days_from_now):
+    result = conn.execute(
+        text(
+            """
+            INSERT INTO blog_posts
+                (slug, title, meta_description, excerpt, body_markdown, author_name, tags, is_published, published_at)
+            VALUES
+                (:slug, :title, :meta, :excerpt, :body, 'Haylingua', CAST(:tags AS jsonb), TRUE,
+                 NOW() + (:days || ' days')::interval)
+            ON CONFLICT (slug) DO NOTHING
+            RETURNING id
+            """
+        ),
+        {
+            "slug": post["slug"],
+            "title": post["title"],
+            "meta": post["meta_description"],
+            "excerpt": post["excerpt"],
+            "body": post["body"],
+            "tags": json.dumps(post["tags"]),
+            "days": days_from_now,
+        },
+    ).first()
+    return bool(result)
+
 
 def seed_blog_posts():
+    """Publishes both waves: _POSTS immediately (days_from_now=0 — this is
+    the original batch, already live since the first run of this script),
+    and _SCHEDULED_POSTS spread across the next ~3 months per-post via each
+    entry's own days_from_now. Both go through the same is_published=TRUE +
+    future-dated published_at mechanism — routes_blog.py's public queries
+    gate on "published_at <= NOW()", so a scheduled post simply becomes
+    visible on its own once that date passes. No cron/worker involved."""
     with engine.begin() as conn:
         inserted = 0
         skipped = []
         for post in _POSTS:
-            result = conn.execute(
-                text(
-                    """
-                    INSERT INTO blog_posts
-                        (slug, title, meta_description, excerpt, body_markdown, author_name, tags, is_published, published_at)
-                    VALUES
-                        (:slug, :title, :meta, :excerpt, :body, 'Haylingua', CAST(:tags AS jsonb), TRUE, NOW())
-                    ON CONFLICT (slug) DO NOTHING
-                    RETURNING id
-                    """
-                ),
-                {
-                    "slug": post["slug"],
-                    "title": post["title"],
-                    "meta": post["meta_description"],
-                    "excerpt": post["excerpt"],
-                    "body": post["body"],
-                    "tags": json.dumps(post["tags"]),
-                },
-            ).first()
-            if result:
+            if _insert_post(conn, post, 0):
+                inserted += 1
+            else:
+                skipped.append(post["slug"])
+        for post in _SCHEDULED_POSTS:
+            if _insert_post(conn, post, post["days_from_now"]):
                 inserted += 1
             else:
                 skipped.append(post["slug"])

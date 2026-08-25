@@ -22,7 +22,24 @@ const textareaCls = inputCls + " resize-y";
 const emptyFields = () => ({
   slug: "", title: "", meta_description: "", excerpt: "", body_markdown: "",
   cover_image_url: "", cover_image_alt: "", author_name: "Haylingua", tagsText: "", is_published: false,
+  scheduledAt: "", // datetime-local string; blank = publish immediately when is_published is checked
 });
+
+// datetime-local wants "YYYY-MM-DDTHH:mm" in the browser's local time; the
+// API wants/returns a real ISO timestamp. Both conversions live here so the
+// rest of the file just deals with one or the other, never juggling both.
+function isoToLocalInput(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function localInputToIso(local) {
+  if (!local) return null;
+  const d = new Date(local);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 function slugify(s) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -186,6 +203,16 @@ function PostEditor({ fields, onChange, api, onUploadError }) {
           <input value={fields.tagsText} onChange={(e) => patch({ tagsText: e.target.value })} placeholder="Tags, comma-separated" className={inputCls} />
         </div>
 
+        <label className="block text-xs font-bold text-slate-500 dark:text-stone-400">
+          Publish date <span className="font-semibold text-slate-400 dark:text-stone-500">— leave blank to publish immediately when checked below</span>
+          <input
+            type="datetime-local"
+            value={fields.scheduledAt}
+            onChange={(e) => patch({ scheduledAt: e.target.value })}
+            className={cx(inputCls, "mt-1.5 !py-2")}
+          />
+        </label>
+
         {/* Body: toolbar + drag-and-drop image upload onto the textarea */}
         <div>
           <MarkdownToolbar onAction={applyToolbarAction} />
@@ -255,6 +282,7 @@ export default function CmsBlog() {
         tagsText: Array.isArray(p.tags) ? p.tags.join(", ") : "",
         is_published: !!p.is_published,
         body_markdown: p.body_markdown || "",
+        scheduledAt: isoToLocalInput(p.published_at),
       };
     });
     setEdits(e);
@@ -305,6 +333,7 @@ export default function CmsBlog() {
         author_name: draft.author_name.trim() || "Haylingua",
         tags: draft.tagsText.split(",").map((t) => t.trim()).filter(Boolean),
         is_published: draft.is_published,
+        published_at: localInputToIso(draft.scheduledAt),
       });
       setDraft(emptyFields());
       await refresh();
@@ -327,6 +356,7 @@ export default function CmsBlog() {
         author_name: e.author_name || "Haylingua",
         tags: (e.tagsText || "").split(",").map((t) => t.trim()).filter(Boolean),
         is_published: !!e.is_published,
+        published_at: localInputToIso(e.scheduledAt),
       });
       await refresh();
       showToast("Saved");
@@ -390,7 +420,7 @@ export default function CmsBlog() {
           <div className="mt-3 flex items-center justify-between">
             <label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 ring-2 ring-slate-200 dark:bg-white/[0.04] dark:text-stone-200 dark:ring-white/[0.08]">
               <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} />
-              Publish immediately
+              {draft.scheduledAt ? "Publish (using date above)" : "Publish immediately"}
             </label>
             <button
               type="button"
@@ -411,6 +441,8 @@ export default function CmsBlog() {
           <div className="space-y-4">
             {posts.map((p) => {
               const e = edits[p.id] || emptyFields();
+              const isScheduled = p.is_published && p.published_at && new Date(p.published_at) > new Date();
+              const isLive = p.is_published && !isScheduled;
               return (
                 <div key={p.id} className={cx("rounded-3xl bg-white p-4 ring-1 shadow-sm dark:bg-[#18181b]", p.is_published ? "ring-slate-200 dark:ring-white/[0.08]" : "ring-slate-200 opacity-80 dark:ring-white/[0.08]")}>
                   <PostEditor
@@ -427,13 +459,17 @@ export default function CmsBlog() {
                         disabled={busy}
                         className={cx(
                           "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 transition",
-                          p.is_published ? "bg-grass-50 text-grass-700 ring-grass-200 hover:bg-grass-100" : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200"
+                          isLive
+                            ? "bg-grass-50 text-grass-700 ring-grass-200 hover:bg-grass-100"
+                            : isScheduled
+                            ? "bg-gold-50 text-gold-700 ring-gold-200 hover:bg-gold-100"
+                            : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200"
                         )}
                       >
-                        {p.is_published ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                        {p.is_published ? "Published" : "Draft"}
+                        {isLive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        {isLive ? "Published" : isScheduled ? `Scheduled · ${new Date(p.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Draft"}
                       </button>
-                      {p.is_published && (
+                      {isLive && (
                         <a href={`/blog/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:underline">
                           <ExternalLink className="h-3.5 w-3.5" /> View live
                         </a>

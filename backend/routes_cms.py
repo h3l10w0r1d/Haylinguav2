@@ -4697,6 +4697,12 @@ async def cms_create_blog_post(request: Request, db=Depends(get_db)):
     if not isinstance(tags, list):
         tags = []
     is_published = bool(body.get("is_published", False))
+    # A caller-supplied published_at schedules the post for that moment —
+    # routes_blog.py's public queries gate on "published_at <= NOW()", so a
+    # future timestamp here just sits invisible until that date arrives, no
+    # cron/worker needed. Falls back to NOW() (immediate) when publishing
+    # without an explicit date, same as before this existed.
+    explicit_published_at = (body.get("published_at") or "").strip() or None
     try:
         new_id = db.execute(
             text("""
@@ -4705,7 +4711,9 @@ async def cms_create_blog_post(request: Request, db=Depends(get_db)):
                      cover_image_alt, author_name, tags, is_published, published_at)
                 VALUES
                     (:slug, :title, :meta, :excerpt, :body, :cover, :cover_alt, :author,
-                     CAST(:tags AS jsonb), :pub, CASE WHEN :pub THEN NOW() ELSE NULL END)
+                     CAST(:tags AS jsonb), :pub,
+                     CASE WHEN :explicit_at IS NOT NULL THEN CAST(:explicit_at AS timestamptz)
+                          WHEN :pub THEN NOW() ELSE NULL END)
                 RETURNING id
             """),
             {
@@ -4717,6 +4725,7 @@ async def cms_create_blog_post(request: Request, db=Depends(get_db)):
                 "cover_alt": (body.get("cover_image_alt") or "").strip() or None,
                 "author": (body.get("author_name") or "Haylingua").strip() or "Haylingua",
                 "tags": json.dumps(tags), "pub": is_published,
+                "explicit_at": explicit_published_at,
             },
         ).scalar_one()
     except Exception as e:
@@ -4739,11 +4748,21 @@ async def cms_update_blog_post(post_id: int, request: Request, db=Depends(get_db
             raise HTTPException(status_code=400, detail="tags must be a list of strings")
         set_parts.append("tags = CAST(:tags AS jsonb)")
         params["tags"] = json.dumps(body["tags"])
+    if "published_at" in body:
+        # Explicit schedule/reschedule — always wins over the auto-stamp
+        # logic below, whether or not is_published is also present in this
+        # same request. Passing null clears it back to unscheduled/draft-dated.
+        if body["published_at"]:
+            set_parts.append("published_at = CAST(:published_at AS timestamptz)")
+            params["published_at"] = body["published_at"]
+        else:
+            set_parts.append("published_at = NULL")
     if "is_published" in body:
         set_parts.append("is_published = :is_published")
         params["is_published"] = bool(body["is_published"])
-        if body["is_published"]:
-            # Only stamp published_at the FIRST time a post goes live, so
+        if body["is_published"] and "published_at" not in body:
+            # Only stamp published_at the FIRST time a post goes live (and
+            # only when this request didn't already set one explicitly), so
             # later edits don't reset datePublished in the article's JSON-LD.
             set_parts.append("published_at = COALESCE(published_at, NOW())")
     if not set_parts:

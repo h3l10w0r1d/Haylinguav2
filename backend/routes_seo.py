@@ -96,7 +96,7 @@ def sitemap(db: Connection = Depends(get_db)):
                 """
                 SELECT slug, updated_at
                 FROM blog_posts
-                WHERE is_published = true
+                WHERE is_published = true AND published_at <= NOW()
                 ORDER BY published_at DESC
                 """
             )
