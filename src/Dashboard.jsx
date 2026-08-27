@@ -1363,8 +1363,17 @@ export default function Dashboard({ user }) {
               entirely now, so there's no phantom height to clear here, just
               a little breathing room. The hero card underneath is
               deliberately NOT part of this — it stays inline and scrolls
-              away. */}
-          <div className="sticky top-2 z-30 -mt-2 bg-[#f5f4f1]/95 pb-3 pt-2 backdrop-blur dark:bg-[#0d0d0f]/95">
+              away.
+
+              This bar's background is nearly identical to the page
+              background (by design, for the minimal look), which meant
+              content scrolling underneath it — normal, unavoidable sticky
+              behavior — read as an abrupt hard clip rather than passing
+              under an intentional floating layer (most visible with the
+              checkpoint badge: it looked guillotined, not "behind"
+              anything). A cast shadow is enough to signal elevation without
+              changing the flat/minimal color language. */}
+          <div className="sticky top-2 z-30 -mt-2 bg-[#f5f4f1]/95 pb-3 pt-2 backdrop-blur shadow-[0_8px_12px_-6px_rgba(28,25,23,0.12)] dark:bg-[#0d0d0f]/95 dark:shadow-[0_8px_12px_-6px_rgba(0,0,0,0.45)]">
             <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} onPremiumChange={setIsPremium} />
           </div>
 
