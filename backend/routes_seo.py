@@ -13,6 +13,18 @@ from database import get_db
 
 router = APIRouter(tags=["seo"])
 
+# Mirrors src/i18n/index.js's SUPPORTED_LOCALES — kept in sync manually since
+# the frontend and backend are separate deploys. English is the implicit
+# default and stays unprefixed.
+SUPPORTED_LOCALES = ["ru", "fr", "es"]
+ALL_LOCALES = ["en", *SUPPORTED_LOCALES]
+
+
+def _localized_path(path: str, locale: str) -> str:
+    if not locale or locale == "en":
+        return path
+    return f"/{locale}{'' if path == '/' else path}"
+
 
 def _iso_date(dt: datetime) -> str:
     # Sitemap accepts day precision: YYYY-MM-DD
@@ -53,16 +65,30 @@ STATIC_PAGES: list[tuple[str, str, str]] = [
     ("/cookie-policy", "yearly", "0.2"),
 ]
 
+# Mirrors App.jsx's PUBLIC_ROUTE_DEFS — the subset of STATIC_PAGES that's
+# also mounted under /ru, /fr, /es (legal pages, community, deep-link routes
+# are deliberately English-only, out of this pass's translation scope).
+TRANSLATED_STATIC_PATHS = {
+    "/", "/learn-armenian-online", "/armenian-alphabet", "/armenian-pronunciation",
+    "/armenian-vocabulary", "/eastern-armenian", "/about", "/pricing",
+    "/careers", "/affiliates", "/contact",
+}
+
 
 @router.get("/sitemap.xml")
 def sitemap(db: Connection = Depends(get_db)):
     # IMPORTANT: This must be the public website domain (not the backend domain).
     site = (os.getenv("PUBLIC_SITE_URL") or "https://www.haylingua.am").rstrip("/")
 
-    urlset = Element("urlset", {"xmlns": "http://www.sitemaps.org/schemas/sitemap/0.9"})
+    urlset = Element("urlset", {
+        "xmlns": "http://www.sitemaps.org/schemas/sitemap/0.9",
+        "xmlns:xhtml": "http://www.w3.org/1999/xhtml",
+    })
     today = _iso_date(datetime.now(timezone.utc))
 
-    def add_url(loc: str, changefreq: str | None = None, priority: str | None = None, lastmod: str | None = None):
+    def add_url(loc: str, changefreq: str | None = None, priority: str | None = None,
+                lastmod: str | None = None, alternates: list[tuple[str, str]] | None = None):
+        # alternates: list of (hreflang, href) pairs, including "x-default".
         url = SubElement(urlset, "url")
         SubElement(url, "loc").text = loc
         SubElement(url, "lastmod").text = lastmod or today
@@ -70,9 +96,20 @@ def sitemap(db: Connection = Depends(get_db)):
             SubElement(url, "changefreq").text = changefreq
         if priority:
             SubElement(url, "priority").text = priority
+        for hreflang, href in (alternates or []):
+            SubElement(url, "xhtml:link", {"rel": "alternate", "hreflang": hreflang, "href": href})
 
     for path, cf, pr in STATIC_PAGES:
-        add_url(f"{site}{path}", cf, pr)
+        if path in TRANSLATED_STATIC_PATHS:
+            alternates = [
+                (loc if loc != "en" else "en", f"{site}{_localized_path(path, loc)}")
+                for loc in ALL_LOCALES
+            ]
+            alternates.append(("x-default", f"{site}{path}"))
+            for loc in ALL_LOCALES:
+                add_url(f"{site}{_localized_path(path, loc)}", cf, pr, alternates=alternates)
+        else:
+            add_url(f"{site}{path}", cf, pr)
 
     # Active community categories.
     try:
@@ -94,7 +131,7 @@ def sitemap(db: Connection = Depends(get_db)):
         blog_rows = db.execute(
             text(
                 """
-                SELECT slug, updated_at
+                SELECT slug, updated_at, locale, translation_group
                 FROM blog_posts
                 WHERE is_published = true AND published_at <= NOW()
                 ORDER BY published_at DESC
@@ -103,12 +140,36 @@ def sitemap(db: Connection = Depends(get_db)):
         ).mappings().all()
     except Exception:
         blog_rows = []
+
+    # Group by translation_group so sibling-language posts can point their
+    # hreflang alternates at each other; a post with no translation_group
+    # (not part of any translated set) just gets no alternates.
+    by_group: dict[str, list] = {}
+    for r in blog_rows:
+        group = (r.get("translation_group") or "").strip()
+        if group:
+            by_group.setdefault(group, []).append(r)
+
     for r in blog_rows:
         slug = (r.get("slug") or "").strip()
         if not slug:
             continue
+        locale = (r.get("locale") or "en").strip() or "en"
         lastmod = _iso_date(r["updated_at"]) if r.get("updated_at") else today
-        add_url(f"{site}/blog/{slug}", "monthly", "0.6", lastmod)
+        group = (r.get("translation_group") or "").strip()
+        alternates = None
+        siblings = by_group.get(group) if group else None
+        if siblings and len(siblings) > 1:
+            alternates = []
+            for s in siblings:
+                s_locale = s["locale"] or "en"
+                s_path = _localized_path(f"/blog/{s['slug']}", s_locale)
+                alternates.append((s_locale, f"{site}{s_path}"))
+            en_sibling = next((s for s in siblings if (s["locale"] or "en") == "en"), None)
+            if en_sibling:
+                alternates.append(("x-default", f"{site}/blog/{en_sibling['slug']}"))
+        blog_path = _localized_path(f"/blog/{slug}", locale)
+        add_url(f"{site}{blog_path}", "monthly", "0.6", lastmod, alternates=alternates)
 
     xml_bytes = b'<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(urlset, encoding="utf-8")
     return _xml_response(xml_bytes)

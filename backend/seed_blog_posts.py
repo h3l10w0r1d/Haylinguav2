@@ -31,6 +31,10 @@ import json
 from sqlalchemy import text
 from database import engine
 
+from _translated_posts_ru import POSTS_RU
+from _translated_posts_fr import POSTS_FR
+from _translated_posts_es import POSTS_ES
+
 _POSTS = [
     {
         "slug": "how-to-say-hello-in-armenian-20-essential-greetings",
@@ -914,16 +918,32 @@ Language and culture are inseparable — the more Armenian you learn, the more o
 ]
 
 
-def _insert_post(conn, post, days_from_now):
+# Russian/French/Spanish translations of the original 8 _POSTS (not
+# _SCHEDULED_POSTS — that's a deliberately separate follow-up pass). Each
+# entry keeps the SAME slug as its English original (locale, not slug,
+# disambiguates the row — see the (slug, locale) unique constraint in
+# ensure_schema.py) and every internal link is re-prefixed with the locale
+# (e.g. "/armenian-pronunciation" -> "/ru/armenian-pronunciation",
+# "/blog/some-slug" -> "/ru/blog/some-slug") so a reader never gets bounced
+# back into English mid-article.
+_TRANSLATED_POSTS = {
+    "ru": POSTS_RU,
+    "fr": POSTS_FR,
+    "es": POSTS_ES,
+}
+
+
+def _insert_post(conn, post, days_from_now, locale="en", translation_group=None):
     result = conn.execute(
         text(
             """
             INSERT INTO blog_posts
-                (slug, title, meta_description, excerpt, body_markdown, author_name, tags, is_published, published_at)
+                (slug, title, meta_description, excerpt, body_markdown, author_name, tags, is_published, published_at,
+                 locale, translation_group)
             VALUES
                 (:slug, :title, :meta, :excerpt, :body, 'Haylingua', CAST(:tags AS jsonb), TRUE,
-                 NOW() + (:days || ' days')::interval)
-            ON CONFLICT (slug) DO NOTHING
+                 NOW() + (:days || ' days')::interval, :locale, :translation_group)
+            ON CONFLICT (slug, locale) DO NOTHING
             RETURNING id
             """
         ),
@@ -935,30 +955,47 @@ def _insert_post(conn, post, days_from_now):
             "body": post["body"],
             "tags": json.dumps(post["tags"]),
             "days": days_from_now,
+            "locale": locale,
+            "translation_group": translation_group or post["slug"],
         },
     ).first()
     return bool(result)
 
 
 def seed_blog_posts():
-    """Publishes both waves: _POSTS immediately (days_from_now=0 — this is
+    """Publishes all waves: _POSTS immediately (days_from_now=0 — this is
     the original batch, already live since the first run of this script),
-    and _SCHEDULED_POSTS spread across the next ~3 months per-post via each
-    entry's own days_from_now. Both go through the same is_published=TRUE +
-    future-dated published_at mechanism — routes_blog.py's public queries
-    gate on "published_at <= NOW()", so a scheduled post simply becomes
-    visible on its own once that date passes. No cron/worker involved."""
+    _SCHEDULED_POSTS spread across the next ~3 months per-post via each
+    entry's own days_from_now, and _TRANSLATED_POSTS (Russian/French/Spanish
+    versions of the original 8 _POSTS, linked to their English original via
+    translation_group=the English slug) published immediately alongside
+    them. All go through the same is_published=TRUE + future-dated
+    published_at mechanism — routes_blog.py's public queries gate on
+    "published_at <= NOW()", so a scheduled post simply becomes visible on
+    its own once that date passes. No cron/worker involved."""
     with engine.begin() as conn:
+        # Backfill translation_group for English posts inserted before this
+        # column existed (production already has the original 8 live) — a
+        # slug's own value is a stable, always-available group key.
+        conn.execute(text(
+            "UPDATE blog_posts SET translation_group = slug WHERE translation_group IS NULL AND locale = 'en'"
+        ))
         inserted = 0
         skipped = []
         for post in _POSTS:
-            if _insert_post(conn, post, 0):
+            if _insert_post(conn, post, 0, locale="en"):
                 inserted += 1
             else:
                 skipped.append(post["slug"])
         for post in _SCHEDULED_POSTS:
-            if _insert_post(conn, post, post["days_from_now"]):
+            if _insert_post(conn, post, post["days_from_now"], locale="en"):
                 inserted += 1
             else:
                 skipped.append(post["slug"])
+        for locale, posts in _TRANSLATED_POSTS.items():
+            for post in posts:
+                if _insert_post(conn, post, 0, locale=locale, translation_group=post["slug"]):
+                    inserted += 1
+                else:
+                    skipped.append(f"{post['slug']} ({locale})")
         return {"ok": True, "posts_inserted": inserted, "skipped_existing": skipped}

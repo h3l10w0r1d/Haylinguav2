@@ -1,0 +1,286 @@
+{
+  "armenianAlphabet": {
+    "meta": {
+      "title": "Armenian Alphabet — Learn All 39 Letters with Audio",
+      "description": "Learn the Armenian alphabet with real pronunciation audio for every letter, transliteration, and example words — all 39 letters, free, no signup needed to browse."
+    },
+    "breadcrumb": { "home": "Home", "current": "Armenian Alphabet" },
+    "hero": {
+      "title": "The Armenian Alphabet",
+      "subtitle": "All 39 letters of the Armenian alphabet — tap any letter to hear it pronounced, with transliteration and a real example word for each. This is the exact same audio and content Haylingua's own beginner course teaches from.",
+      "ctaStart": "Start learning free",
+      "ctaEasternLink": "What's Eastern Armenian? →"
+    },
+    "loading": "Loading the alphabet…",
+    "loadError": "Couldn't load the alphabet right now — please refresh.",
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Armenian Pronunciation", "text": "Master the sounds that don't exist in English." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start reading and speaking." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "faqHeading": "Questions about the Armenian alphabet",
+    "faq": [
+      {
+        "q": "Is the Armenian alphabet hard to learn?",
+        "a": "Not really — it has 39 letters and, unlike English, each letter almost always makes exactly one sound. Once you've drilled the sounds, reading Armenian is far more predictable than reading English."
+      },
+      {
+        "q": "How long does it take to learn the Armenian alphabet?",
+        "a": "Most learners can recognize and sound out every letter within one to two weeks of short daily practice — Haylingua's own alphabet course is broken into 11 bite-sized lessons for exactly this pace."
+      },
+      {
+        "q": "What's the difference between Eastern and Western Armenian letters?",
+        "a": "The letterforms and alphabet order are identical — the difference is in pronunciation of certain letter pairs. Haylingua teaches Standard Eastern Armenian, the form used in Armenia today."
+      },
+      {
+        "q": "Do I need to learn cursive Armenian handwriting?",
+        "a": "Not to read or type Armenian — the printed letterforms shown on this page are what you'll see everywhere online and in most print. Handwriting is a separate, optional skill you can pick up later."
+      }
+    ],
+    "structuredData": {
+      "learningResourceName": "The Armenian Alphabet",
+      "learningResourceDescription": "All 39 letters of the Armenian alphabet with pronunciation audio, transliteration, and example words."
+    },
+    "cta": {
+      "heading": "Ready to go beyond the alphabet?",
+      "subtext": "Start Haylingua's free course and build real words, grammar, and conversation on top of what you just learned.",
+      "button": "Start learning — free"
+    },
+    "letterOverrides": {
+      "Ա": { "hint": "Like 'a' in 'father'.", "exampleMeaning": "sun" },
+      "Բ": { "hint": "Like 'b' in 'boy'.", "exampleMeaning": "hello" },
+      "Գ": { "hint": "Like 'g' in 'go'.", "exampleMeaning": "book" },
+      "Դ": { "hint": "Like 'd' in 'dog'.", "exampleMeaning": "door" },
+      "Ե": { "hint": "Like 'ye' at the start of a word.", "exampleMeaning": "child" },
+      "Կ": { "hint": "Like 'k' in 'kite'.", "exampleMeaning": "cat" },
+      "Զ": { "hint": "Like 'z' in 'zoo'.", "exampleMeaning": "bell" },
+      "Է": { "hint": "A clear 'e', like 'e' in 'bed'.", "exampleMeaning": "" },
+      "Ի": { "hint": "Like 'ee' in 'see'.", "exampleMeaning": "airplane" },
+      "Լ": { "hint": "Like 'l' in 'love'.", "exampleMeaning": "moon" },
+      "Հ": { "hint": "Like 'h' in 'house'.", "exampleMeaning": "bread" },
+      "Մ": { "hint": "Like 'm' in 'mom'.", "exampleMeaning": "mother" },
+      "Ն": { "hint": "Like 'n' in 'no'.", "exampleMeaning": "orange" },
+      "Ս": { "hint": "Like 's' in 'sun'.", "exampleMeaning": "heart" },
+      "Վ": { "hint": "Like 'v' in 'van'.", "exampleMeaning": "rose" },
+      "Շ": { "hint": "Like 'sh' in 'shoe'.", "exampleMeaning": "dog" },
+      "Ժ": { "hint": "Like the 's' in 'measure'.", "exampleMeaning": "hour/clock" },
+      "Ր": { "hint": "A single light tongue-tap, like the 'tt' in American 'butter'.", "exampleMeaning": "sun" },
+      "Տ": { "hint": "A crisp, unaspirated 't' — no puff of air, like 't' in 'stop'.", "exampleMeaning": "house" },
+      "Թ": { "hint": "A puffed-out 't', like 't' in 'top' said with a burst of air.", "exampleMeaning": "number" },
+      "Պ": { "hint": "A crisp, unaspirated 'p' — no puff of air, like 'p' in 'spin'.", "exampleMeaning": "grandpa" },
+      "Փ": { "hint": "A puffed-out 'p', like 'p' in 'pat' with a strong burst of air.", "exampleMeaning": "elephant" },
+      "Ք": { "hint": "A puffed-out 'k', like 'k' in 'kite' with a strong burst of air.", "exampleMeaning": "nose" },
+      "Ծ": { "hint": "A crisp, unaspirated 'ts' — no puff of air, like 'ts' in 'cats'.", "exampleMeaning": "tree" },
+      "Ց": { "hint": "A puffed-out 'ts', like the previous sound but with extra breath.", "exampleMeaning": "cold" },
+      "Ձ": { "hint": "Like 'dz' in 'adze'.", "exampleMeaning": "horse" },
+      "Ճ": { "hint": "A crisp, unaspirated 'ch' — tenser than English 'ch', no puff of air.", "exampleMeaning": "road" },
+      "Չ": { "hint": "A puffed-out 'ch', like 'ch' in 'chip' with extra breath.", "exampleMeaning": "angry/evil" },
+      "Ջ": { "hint": "Like 'j' in 'jam'.", "exampleMeaning": "water" },
+      "Ղ": { "hint": "A soft, gargled 'g', like the French 'r' in 'Paris'.", "exampleMeaning": "salt" },
+      "Խ": { "hint": "A rasping sound from the throat, like the 'ch' in Scottish 'loch'.", "exampleMeaning": "pig" },
+      "Ռ": { "hint": "A strongly rolled/trilled 'r' — the tongue taps rapidly.", "exampleMeaning": "lion" },
+      "Ը": { "hint": "A quick neutral vowel, like the 'a' in 'sofa'. Rarely starts a word.", "exampleMeaning": "friend" },
+      "Ո": { "hint": "Like 'vo' — a light 'v' glide before 'o' at the start of a word.", "exampleMeaning": "gold" },
+      "Յ": { "hint": "Like 'y' in 'yes'.", "exampleMeaning": "seven" },
+      "ՈՒ": { "hint": "Like 'oo' in 'moon'. Written with two letters (Ո+Ւ) but is one sound.", "exampleMeaning": "student" },
+      "և": { "hint": "Means 'and' — a special ligature letter used only in this one word.", "exampleMeaning": "" },
+      "Օ": { "hint": "Like 'o' in 'more'. Starts words; mid-word 'o' is usually written ո.", "exampleMeaning": "day" },
+      "Ֆ": { "hint": "Like 'f' in 'fun'.", "exampleMeaning": "film" }
+    }
+  },
+
+  "learnArmenianOnline": {
+    "meta": {
+      "title": "Learn Armenian Online — Free Interactive Course",
+      "description": "Learn Armenian online with Haylingua: interactive lessons, real audio on every word, pronunciation practice, vocabulary, and gamified exercises. Start free, no card required."
+    },
+    "breadcrumb": { "home": "Home", "current": "Learn Armenian Online" },
+    "hero": {
+      "title": "Learn Armenian Online",
+      "subtitle": "Haylingua is a free, interactive course that takes you from your first Armenian letter to real conversation — bite-sized lessons, audio on every word, and a habit-building structure so learning actually sticks.",
+      "cta": "Start learning free"
+    },
+    "steps": [
+      { "title": "Start with the alphabet", "text": "39 letters, each with its own sound, transliteration, and example word — no prior knowledge assumed." },
+      { "title": "Build words and sentences", "text": "Real text-to-speech audio on every word, so you're training your ear from the very first lesson, not just memorizing spelling." },
+      { "title": "Practice a little every day", "text": "Short, bite-sized lessons with streaks and XP make daily practice something you actually want to keep up." },
+      { "title": "Add friends, stay motivated", "text": "A friends leaderboard and light competition go a long way when you're building a new habit." }
+    ],
+    "why": {
+      "heading": "Why learn Armenian with Haylingua",
+      "items": [
+        "Audio on every single word — not just a sample lesson",
+        "Built specifically for Armenian, not adapted from a generic language-app template",
+        "Covers reading, listening, typing, and grammar from your first lesson",
+        "Free to start — no credit card required"
+      ]
+    },
+    "whereToStart": {
+      "heading": "Where to start",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Pronunciation", "text": "The sounds that trip up beginners." },
+        { "title": "Armenian Vocabulary", "text": "Core words by category." }
+      ]
+    },
+    "cta": {
+      "heading": "Your first Armenian lesson is free",
+      "subtext": "Join now and finish your first lesson in minutes — no card required.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "armenianPronunciation": {
+    "meta": {
+      "title": "Armenian Pronunciation — How Armenian Actually Sounds",
+      "description": "Learn how to pronounce Armenian correctly with real audio examples — aspirated vs. unaspirated consonants, the two Armenian R sounds, and sounds with no English equivalent."
+    },
+    "breadcrumb": { "home": "Home", "current": "Armenian Pronunciation" },
+    "hero": {
+      "title": "Armenian Pronunciation",
+      "subtitle": "Armenian is almost entirely phonetic — once you know a letter's sound, it's the same in every word. The hard part isn't the rules, it's a handful of sounds English speakers haven't trained their mouths to make. Here's what to listen for, with real audio."
+    },
+    "trickyPairs": [
+      {
+        "title": "Unaspirated vs. aspirated stops",
+        "text": "Armenian distinguishes a plain, no-breath consonant from the same consonant said with a burst of air — a contrast English doesn't make. Compare a crisp «տ» (t) with a puffed-out «թ» (t').",
+        "examples": [
+          { "label": "house — plain t" },
+          { "label": "number — puffed t" }
+        ]
+      },
+      {
+        "title": "Two kinds of R",
+        "text": "Eastern Armenian has a light single tongue-tap «ր» (close to the American 'tt' in 'butter') and a strongly rolled/trilled «ռ» — mixing them up is one of the most common beginner errors.",
+        "examples": [
+          { "label": "sun — light r" },
+          { "label": "lion — rolled r" }
+        ]
+      },
+      {
+        "title": "Sounds with no English equivalent",
+        "text": "A few Armenian consonants don't map onto anything in English at all — «խ» is a rasping throat sound like the Scottish 'ch' in loch, and «ղ» is a soft, gargled sound close to a French 'r'.",
+        "examples": [
+          { "label": "pig — throat rasp" },
+          { "label": "salt — soft gargle" }
+        ]
+      }
+    ],
+    "alphabetNote": "Every one of the 39 Armenian letters has its own audio, transliteration, and example word on the {{link}}.",
+    "alphabetNoteLinkText": "Armenian alphabet page",
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start speaking." },
+        { "title": "Eastern Armenian", "text": "The dialect Haylingua teaches." }
+      ]
+    },
+    "cta": {
+      "heading": "Practice pronunciation with instant feedback",
+      "subtext": "Haylingua's lessons put real audio on every word, from your first letter to full sentences.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "armenianVocabulary": {
+    "meta": {
+      "title": "Armenian Vocabulary — Essential Words by Category",
+      "description": "Core Armenian vocabulary organized by category: greetings, numbers, family, food, colors, and days of the week — with pronunciation for every word."
+    },
+    "breadcrumb": { "home": "Home", "current": "Armenian Vocabulary" },
+    "hero": {
+      "title": "Armenian Vocabulary",
+      "subtitle": "The core words you'll reach for constantly — greetings, numbers, family, food, colors, and the days of the week — with transliteration for every word so you can start using them before you've mastered reading Armenian script."
+    },
+    "categoryTitles": {
+      "greetings": "Greetings",
+      "numbers": "Numbers 1–10",
+      "family": "Family",
+      "food": "Food & drink",
+      "colors": "Colors",
+      "days": "Days of the week"
+    },
+    "alphabetNote": "Want to hear every one of these words pronounced? Haylingua's full course puts real audio on every word — start with the {{link}} if you're not reading Armenian script yet.",
+    "alphabetNoteLinkText": "Armenian alphabet",
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Pronunciation", "text": "The sounds that trip up beginners." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Build real vocabulary, not just a word list",
+      "subtext": "Haylingua turns words like these into lessons, exercises, and real sentences you'll remember.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "easternArmenian": {
+    "meta": {
+      "title": "Eastern Armenian — What It Is & How to Learn It",
+      "description": "Eastern Armenian is the official language of Armenia, spoken by the majority of Armenian speakers worldwide. Learn what makes it different from Western Armenian and how to start learning it."
+    },
+    "breadcrumb": { "home": "Home", "current": "Eastern Armenian" },
+    "hero": {
+      "title": "Eastern Armenian",
+      "subtitle": "Armenian has two living literary standards — Eastern and Western. Eastern Armenian is the official language of the Republic of Armenia today, and it's what Haylingua teaches."
+    },
+    "comparison": {
+      "heading": "Eastern vs. Western Armenian, at a glance",
+      "eastern": {
+        "label": "Eastern Armenian",
+        "items": [
+          "Official language of Armenia",
+          "Spoken by the majority of Armenian speakers",
+          "Used in Armenia, and by many diaspora communities with roots in the Russian Empire/Iran",
+          "What Haylingua teaches"
+        ]
+      },
+      "western": {
+        "label": "Western Armenian",
+        "items": [
+          "Historically spoken in the Ottoman Empire",
+          "Common in diaspora communities (U.S., France, Middle East)",
+          "Different pronunciation of several consonant pairs",
+          "Not yet covered by Haylingua's course"
+        ]
+      }
+    },
+    "note": "The two share the same 39-letter alphabet and a large amount of vocabulary and grammar — the biggest practical difference for a beginner is pronunciation, especially of the plain vs. puffed-out consonant pairs (see the {{link}}).",
+    "noteLinkText": "pronunciation guide",
+    "faqHeading": "Questions about Eastern Armenian",
+    "faq": [
+      {
+        "q": "Is Eastern or Western Armenian more useful to learn?",
+        "a": "It depends on who you'll speak with. Eastern Armenian is the official language of the Republic of Armenia and is spoken by the majority of Armenian speakers worldwide. Western Armenian is more common among diaspora communities with roots in the Ottoman Empire — parts of the U.S., France, and the Middle East."
+      },
+      {
+        "q": "Can an Eastern Armenian speaker understand Western Armenian?",
+        "a": "Largely yes, with practice — the two are close enough that speakers can often follow each other, similar to the relationship between some closely related Romance languages. Vocabulary, some grammar, and especially pronunciation differ enough to cause real confusion at first."
+      },
+      {
+        "q": "Does Haylingua teach Western Armenian too?",
+        "a": "Not yet — Haylingua's course teaches Standard Eastern Armenian. It's a natural foundation even if your family speaks Western Armenian, since the alphabet and a large share of vocabulary and grammar overlap."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Pronunciation", "text": "The sounds that trip up beginners." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Start learning Eastern Armenian today",
+      "subtext": "Free, bite-sized lessons from your first letter to real conversation.",
+      "button": "Start learning — free"
+    }
+  }
+}

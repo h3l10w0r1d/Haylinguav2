@@ -1,0 +1,286 @@
+{
+  "armenianAlphabet": {
+    "meta": {
+      "title": "Alphabet arménien — Apprends les 39 lettres avec audio",
+      "description": "Apprends l'alphabet arménien avec un audio de prononciation réel pour chaque lettre, la translittération et des mots d'exemple — les 39 lettres, gratuit, sans inscription pour parcourir."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Alphabet arménien" },
+    "hero": {
+      "title": "L'alphabet arménien",
+      "subtitle": "Les 39 lettres de l'alphabet arménien — touche n'importe quelle lettre pour l'entendre prononcée, avec sa translittération et un vrai mot d'exemple pour chacune. C'est exactement le même audio et le même contenu que le cours pour débutants de Haylingua.",
+      "ctaStart": "Commence gratuitement",
+      "ctaEasternLink": "C'est quoi l'arménien oriental ? →"
+    },
+    "loading": "Chargement de l'alphabet…",
+    "loadError": "Impossible de charger l'alphabet pour le moment — actualise la page.",
+    "keepGoing": {
+      "heading": "Continue sur ta lancée",
+      "cards": [
+        { "title": "Prononciation arménienne", "text": "Maîtrise les sons qui n'existent pas en français." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à lire et à parler." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "faqHeading": "Questions sur l'alphabet arménien",
+    "faq": [
+      {
+        "q": "L'alphabet arménien est-il difficile à apprendre ?",
+        "a": "Pas vraiment — il compte 39 lettres et, contrairement au français, chaque lettre produit presque toujours un seul et même son. Une fois que tu as bien travaillé les sons, lire l'arménien devient bien plus prévisible que lire le français."
+      },
+      {
+        "q": "Combien de temps faut-il pour apprendre l'alphabet arménien ?",
+        "a": "La plupart des apprenants arrivent à reconnaître et à prononcer toutes les lettres en une à deux semaines de courtes séances quotidiennes — le cours d'alphabet de Haylingua est justement découpé en 11 leçons courtes pour suivre ce rythme."
+      },
+      {
+        "q": "Quelle est la différence entre les lettres arméniennes orientales et occidentales ?",
+        "a": "Les formes des lettres et l'ordre alphabétique sont identiques — la différence se situe dans la prononciation de certaines paires de lettres. Haylingua enseigne l'arménien oriental standard, la forme utilisée en Arménie aujourd'hui."
+      },
+      {
+        "q": "Dois-je apprendre l'écriture cursive arménienne ?",
+        "a": "Pas pour lire ou taper de l'arménien — les formes imprimées présentées sur cette page sont celles que tu verras partout en ligne et dans la plupart des imprimés. L'écriture manuscrite est une compétence à part, facultative, que tu pourras acquérir plus tard."
+      }
+    ],
+    "structuredData": {
+      "learningResourceName": "L'alphabet arménien",
+      "learningResourceDescription": "Les 39 lettres de l'alphabet arménien avec audio de prononciation, translittération et mots d'exemple."
+    },
+    "cta": {
+      "heading": "Prêt à aller au-delà de l'alphabet ?",
+      "subtext": "Commence le cours gratuit de Haylingua et construis de vrais mots, de la grammaire et des conversations à partir de ce que tu viens d'apprendre.",
+      "button": "Commencer gratuitement"
+    },
+    "letterOverrides": {
+      "Ա": { "hint": "Comme le 'a' dans 'papa'.", "exampleMeaning": "soleil" },
+      "Բ": { "hint": "Comme le 'b' dans 'bonjour'.", "exampleMeaning": "bonjour" },
+      "Գ": { "hint": "Comme le 'g' dans 'gare'.", "exampleMeaning": "livre" },
+      "Դ": { "hint": "Comme le 'd' dans 'dos'.", "exampleMeaning": "porte" },
+      "Ե": { "hint": "Comme 'ye' au début d'un mot.", "exampleMeaning": "enfant" },
+      "Կ": { "hint": "Comme le 'k' dans 'kilo'.", "exampleMeaning": "chat" },
+      "Զ": { "hint": "Comme le 'z' dans 'zoo'.", "exampleMeaning": "cloche" },
+      "Է": { "hint": "Un 'é' net, comme dans 'été'.", "exampleMeaning": "" },
+      "Ի": { "hint": "Comme le 'i' dans 'ici'.", "exampleMeaning": "avion" },
+      "Լ": { "hint": "Comme le 'l' dans 'lune'.", "exampleMeaning": "lune" },
+      "Հ": { "hint": "Un 'h' aspiré, comme le 'h' anglais dans 'house' (le h français est muet, ici il se prononce).", "exampleMeaning": "pain" },
+      "Մ": { "hint": "Comme le 'm' dans 'maman'.", "exampleMeaning": "mère" },
+      "Ն": { "hint": "Comme le 'n' dans 'non'.", "exampleMeaning": "orange" },
+      "Ս": { "hint": "Comme le 's' dans 'soleil'.", "exampleMeaning": "cœur" },
+      "Վ": { "hint": "Comme le 'v' dans 'vélo'.", "exampleMeaning": "rose" },
+      "Շ": { "hint": "Comme le 'ch' dans 'chat'.", "exampleMeaning": "chien" },
+      "Ժ": { "hint": "Comme le 'j' dans 'jamais'.", "exampleMeaning": "heure/horloge" },
+      "Ր": { "hint": "Un léger battement de langue, proche du 'r' roulé très bref, comme le 'tt' anglais dans 'butter'.", "exampleMeaning": "soleil" },
+      "Տ": { "hint": "Un 't' net, non aspiré — sans souffle d'air, comme le 't' français dans 'stop'.", "exampleMeaning": "maison" },
+      "Թ": { "hint": "Un 't' soufflé, comme un 't' prononcé avec une bouffée d'air, un peu comme le 't' anglais dans 'top'.", "exampleMeaning": "nombre" },
+      "Պ": { "hint": "Un 'p' net, non aspiré — sans souffle d'air, comme le 'p' français dans 'spin'.", "exampleMeaning": "papi" },
+      "Փ": { "hint": "Un 'p' soufflé, avec une forte bouffée d'air, un peu comme le 'p' anglais dans 'pat'.", "exampleMeaning": "éléphant" },
+      "Ք": { "hint": "Un 'k' soufflé, avec une forte bouffée d'air, un peu comme le 'k' anglais dans 'kite'.", "exampleMeaning": "nez" },
+      "Ծ": { "hint": "Un 'ts' net, non aspiré — sans souffle d'air, comme 'ts' dans 'tsar'.", "exampleMeaning": "arbre" },
+      "Ց": { "hint": "Un 'ts' soufflé, comme le son précédent mais avec un souffle d'air supplémentaire.", "exampleMeaning": "froid" },
+      "Ձ": { "hint": "Comme 'dz', un mélange de 'd' et 'z' prononcés ensemble.", "exampleMeaning": "cheval" },
+      "Ճ": { "hint": "Un 'tch' net, non aspiré — plus tendu que le 'tch' français, sans souffle d'air.", "exampleMeaning": "route" },
+      "Չ": { "hint": "Un 'tch' soufflé, avec un souffle d'air supplémentaire.", "exampleMeaning": "fâché/méchant" },
+      "Ջ": { "hint": "Comme le 'dj' dans 'jazz'.", "exampleMeaning": "eau" },
+      "Ղ": { "hint": "Un 'g' doux et grasseyé, comme le 'r' français dans 'Paris'.", "exampleMeaning": "sel" },
+      "Խ": { "hint": "Un son râpeux venu du fond de la gorge, comme le 'ch' allemand dans 'Bach' ou le 'j' espagnol.", "exampleMeaning": "cochon" },
+      "Ռ": { "hint": "Un 'r' fortement roulé — la langue vibre rapidement, comme le 'r' roulé espagnol ou italien.", "exampleMeaning": "lion" },
+      "Ը": { "hint": "Une voyelle neutre et brève, comme le 'e' dans 'le'. Commence rarement un mot.", "exampleMeaning": "ami" },
+      "Ո": { "hint": "Comme 'vo' — un léger glissement du 'v' avant le 'o' en début de mot.", "exampleMeaning": "or" },
+      "Յ": { "hint": "Comme le 'y' dans 'yaourt'.", "exampleMeaning": "sept" },
+      "ՈՒ": { "hint": "Comme le 'ou' dans 'amour'. S'écrit avec deux lettres (Ո+Ւ) mais forme un seul son.", "exampleMeaning": "étudiant" },
+      "և": { "hint": "Signifie 'et' — une lettre-ligature spéciale utilisée uniquement pour ce mot.", "exampleMeaning": "" },
+      "Օ": { "hint": "Comme le 'o' dans 'rose'. Commence les mots ; au milieu d'un mot, le son 'o' s'écrit généralement ո.", "exampleMeaning": "jour" },
+      "Ֆ": { "hint": "Comme le 'f' dans 'fête'.", "exampleMeaning": "film" }
+    }
+  },
+
+  "learnArmenianOnline": {
+    "meta": {
+      "title": "Apprendre l'arménien en ligne — Cours interactif gratuit",
+      "description": "Apprends l'arménien en ligne avec Haylingua : leçons interactives, audio réel sur chaque mot, exercices de prononciation, vocabulaire et exercices ludiques. Commence gratuitement, sans carte bancaire."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Apprendre l'arménien en ligne" },
+    "hero": {
+      "title": "Apprendre l'arménien en ligne",
+      "subtitle": "Haylingua est un cours gratuit et interactif qui t'emmène de ta toute première lettre arménienne jusqu'à de vraies conversations — des leçons courtes, de l'audio sur chaque mot et une structure qui installe une vraie habitude, pour que ça reste vraiment ancré.",
+      "cta": "Commence gratuitement"
+    },
+    "steps": [
+      { "title": "Commence par l'alphabet", "text": "39 lettres, chacune avec son propre son, sa translittération et un mot d'exemple — aucune connaissance préalable requise." },
+      { "title": "Construis des mots et des phrases", "text": "Un vrai audio de synthèse vocale sur chaque mot, pour entraîner ton oreille dès la première leçon, pas seulement mémoriser l'orthographe." },
+      { "title": "Pratique un peu chaque jour", "text": "Des leçons courtes, avec des séries et des points d'XP, qui donnent vraiment envie de pratiquer tous les jours." },
+      { "title": "Ajoute des amis, reste motivé", "text": "Un classement entre amis et une petite dose de compétition font vraiment la différence quand on construit une nouvelle habitude." }
+    ],
+    "why": {
+      "heading": "Pourquoi apprendre l'arménien avec Haylingua",
+      "items": [
+        "De l'audio sur chaque mot, pas seulement sur une leçon d'exemple",
+        "Conçu spécifiquement pour l'arménien, pas adapté d'un modèle d'appli générique",
+        "Couvre la lecture, l'écoute, la saisie au clavier et la grammaire dès ta première leçon",
+        "Gratuit pour commencer — aucune carte bancaire requise"
+      ]
+    },
+    "whereToStart": {
+      "heading": "Par où commencer",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Prononciation arménienne", "text": "Les sons qui posent problème aux débutants." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels par catégorie." }
+      ]
+    },
+    "cta": {
+      "heading": "Ta première leçon d'arménien est gratuite",
+      "subtext": "Inscris-toi maintenant et termine ta première leçon en quelques minutes — sans carte bancaire.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "armenianPronunciation": {
+    "meta": {
+      "title": "Prononciation arménienne — Comment sonne vraiment l'arménien",
+      "description": "Apprends à prononcer correctement l'arménien avec de vrais exemples audio — consonnes aspirées et non aspirées, les deux sons R de l'arménien, et des sons sans équivalent en français."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Prononciation arménienne" },
+    "hero": {
+      "title": "Prononciation arménienne",
+      "subtitle": "L'arménien est presque entièrement phonétique — une fois que tu connais le son d'une lettre, il reste le même dans chaque mot. La difficulté n'est pas dans les règles, mais dans une poignée de sons que la bouche des francophones n'a pas l'habitude de faire. Voici ce qu'il faut écouter, avec un vrai audio."
+    },
+    "trickyPairs": [
+      {
+        "title": "Occlusives non aspirées et aspirées",
+        "text": "L'arménien distingue une consonne simple, sans souffle, de la même consonne prononcée avec une bouffée d'air — une différence que le français ne fait pas. Compare un «տ» (t) net avec un «թ» (t') soufflé.",
+        "examples": [
+          { "label": "maison — t simple" },
+          { "label": "nombre — t soufflé" }
+        ]
+      },
+      {
+        "title": "Deux sortes de R",
+        "text": "L'arménien oriental possède un léger battement de langue unique «ր» (proche du 'tt' américain dans 'butter') et un «ռ» fortement roulé — les confondre est l'une des erreurs les plus courantes chez les débutants.",
+        "examples": [
+          { "label": "soleil — r léger" },
+          { "label": "lion — r roulé" }
+        ]
+      },
+      {
+        "title": "Des sons sans équivalent en français",
+        "text": "Quelques consonnes arméniennes ne correspondent à rien en français — «խ» est un son râpeux venu de la gorge, proche du 'ch' allemand dans 'Bach', et «ղ» est un son doux et grasseyé, proche du 'r' français.",
+        "examples": [
+          { "label": "cochon — râpe de gorge" },
+          { "label": "sel — grasseyement doux" }
+        ]
+      }
+    ],
+    "alphabetNote": "Chacune des 39 lettres arméniennes a son propre audio, sa translittération et un mot d'exemple sur la {{link}}.",
+    "alphabetNoteLinkText": "page de l'alphabet arménien",
+    "keepGoing": {
+      "heading": "Continue sur ta lancée",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à parler." },
+        { "title": "Arménien oriental", "text": "Le dialecte enseigné par Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Entraîne ta prononciation avec un retour instantané",
+      "subtext": "Les leçons de Haylingua mettent un vrai audio sur chaque mot, de ta première lettre jusqu'aux phrases complètes.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "armenianVocabulary": {
+    "meta": {
+      "title": "Vocabulaire arménien — Mots essentiels par catégorie",
+      "description": "Vocabulaire arménien essentiel organisé par catégorie : salutations, nombres, famille, nourriture, couleurs et jours de la semaine — avec la prononciation de chaque mot."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Vocabulaire arménien" },
+    "hero": {
+      "title": "Vocabulaire arménien",
+      "subtitle": "Les mots essentiels que tu utiliseras sans arrêt — salutations, nombres, famille, nourriture, couleurs et jours de la semaine — avec la translittération de chaque mot pour que tu puisses commencer à les utiliser avant même de maîtriser la lecture de l'écriture arménienne."
+    },
+    "categoryTitles": {
+      "greetings": "Salutations",
+      "numbers": "Nombres de 1 à 10",
+      "family": "Famille",
+      "food": "Nourriture et boissons",
+      "colors": "Couleurs",
+      "days": "Jours de la semaine"
+    },
+    "alphabetNote": "Tu veux entendre chacun de ces mots prononcé ? Le cours complet de Haylingua met un vrai audio sur chaque mot — commence par l'{{link}} si tu ne lis pas encore l'écriture arménienne.",
+    "alphabetNoteLinkText": "alphabet arménien",
+    "keepGoing": {
+      "heading": "Continue sur ta lancée",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Prononciation arménienne", "text": "Les sons qui posent problème aux débutants." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Construis un vrai vocabulaire, pas juste une liste de mots",
+      "subtext": "Haylingua transforme des mots comme ceux-ci en leçons, en exercices et en vraies phrases que tu retiendras.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "easternArmenian": {
+    "meta": {
+      "title": "Arménien oriental — Ce que c'est et comment l'apprendre",
+      "description": "L'arménien oriental est la langue officielle de l'Arménie, parlée par la majorité des locuteurs arméniens dans le monde. Découvre ce qui le distingue de l'arménien occidental et comment commencer à l'apprendre."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Arménien oriental" },
+    "hero": {
+      "title": "Arménien oriental",
+      "subtitle": "L'arménien possède deux standards littéraires vivants — oriental et occidental. L'arménien oriental est aujourd'hui la langue officielle de la République d'Arménie, et c'est celui que Haylingua enseigne."
+    },
+    "comparison": {
+      "heading": "Arménien oriental et occidental, en un coup d'œil",
+      "eastern": {
+        "label": "Arménien oriental",
+        "items": [
+          "Langue officielle de l'Arménie",
+          "Parlé par la majorité des locuteurs arméniens",
+          "Utilisé en Arménie, et par de nombreuses communautés de la diaspora avec des racines dans l'Empire russe/l'Iran",
+          "Ce que Haylingua enseigne"
+        ]
+      },
+      "western": {
+        "label": "Arménien occidental",
+        "items": [
+          "Historiquement parlé dans l'Empire ottoman",
+          "Courant dans les communautés de la diaspora (États-Unis, France, Moyen-Orient)",
+          "Prononciation différente de plusieurs paires de consonnes",
+          "Pas encore couvert par le cours de Haylingua"
+        ]
+      }
+    },
+    "note": "Les deux partagent le même alphabet de 39 lettres ainsi qu'une grande partie du vocabulaire et de la grammaire — la plus grande différence pratique pour un débutant est la prononciation, en particulier des paires de consonnes simples et soufflées (voir le {{link}}).",
+    "noteLinkText": "guide de prononciation",
+    "faqHeading": "Questions sur l'arménien oriental",
+    "faq": [
+      {
+        "q": "L'arménien oriental ou occidental est-il plus utile à apprendre ?",
+        "a": "Cela dépend de qui tu vas parler avec. L'arménien oriental est la langue officielle de la République d'Arménie et est parlé par la majorité des locuteurs arméniens dans le monde. L'arménien occidental est plus courant dans les communautés de la diaspora ayant des racines dans l'Empire ottoman — certaines régions des États-Unis, de France et du Moyen-Orient."
+      },
+      {
+        "q": "Un locuteur d'arménien oriental peut-il comprendre l'arménien occidental ?",
+        "a": "Globalement oui, avec un peu de pratique — les deux sont assez proches pour que les locuteurs puissent souvent se comprendre, un peu comme certaines langues romanes proches entre elles. Le vocabulaire, une partie de la grammaire, et surtout la prononciation, diffèrent assez pour créer une vraie confusion au début."
+      },
+      {
+        "q": "Haylingua enseigne-t-il aussi l'arménien occidental ?",
+        "a": "Pas encore — le cours de Haylingua enseigne l'arménien oriental standard. C'est une base naturelle même si ta famille parle arménien occidental, puisque l'alphabet et une grande partie du vocabulaire et de la grammaire se recoupent."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Continue sur ta lancée",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Prononciation arménienne", "text": "Les sons qui posent problème aux débutants." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Commence à apprendre l'arménien oriental dès aujourd'hui",
+      "subtext": "Des leçons gratuites et courtes, de ta première lettre jusqu'à de vraies conversations.",
+      "button": "Commencer gratuitement"
+    }
+  }
+}

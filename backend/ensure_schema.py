@@ -1616,6 +1616,34 @@ def ensure_schema() -> None:
             "CREATE INDEX IF NOT EXISTS blog_posts_published_idx ON blog_posts (is_published, published_at DESC)"
         ))
         add_col_if_missing("blog_posts", "cover_image_alt TEXT")
+
+        # Locale support: each post row is one language variant. `slug` is
+        # reused across locales for the same conceptual post (simpler than
+        # per-locale keyword slugs), so uniqueness moves from slug alone to
+        # (slug, locale). `translation_group` links variants together —
+        # keyed by the post's English slug — so hreflang alternates and the
+        # CMS can find "the other language versions of this post."
+        add_col_if_missing("blog_posts", "locale TEXT NOT NULL DEFAULT 'en'")
+        add_col_if_missing("blog_posts", "translation_group TEXT")
+        conn.execute(text("""
+            DO $$ BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'blog_posts_slug_key' AND conrelid = 'blog_posts'::regclass
+                ) THEN
+                    ALTER TABLE blog_posts DROP CONSTRAINT blog_posts_slug_key;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'blog_posts_slug_locale_unique' AND conrelid = 'blog_posts'::regclass
+                ) THEN
+                    ALTER TABLE blog_posts ADD CONSTRAINT blog_posts_slug_locale_unique UNIQUE (slug, locale);
+                END IF;
+            END $$;
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS blog_posts_translation_group_idx ON blog_posts (translation_group)"
+        ))
         print("[ensure_schema] ensured blog_posts table")
 
     print("[ensure_schema] done")

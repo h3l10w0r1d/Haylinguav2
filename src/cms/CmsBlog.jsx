@@ -19,10 +19,18 @@ const inputCls =
   "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 const textareaCls = inputCls + " resize-y";
 
+const LOCALES = [
+  { value: "en", label: "English" },
+  { value: "ru", label: "Русский" },
+  { value: "fr", label: "Français" },
+  { value: "es", label: "Español" },
+];
+
 const emptyFields = () => ({
   slug: "", title: "", meta_description: "", excerpt: "", body_markdown: "",
   cover_image_url: "", cover_image_alt: "", author_name: "Haylingua", tagsText: "", is_published: false,
   scheduledAt: "", // datetime-local string; blank = publish immediately when is_published is checked
+  locale: "en", translation_group: "", // translation_group links locale variants of the same post (keyed by the English slug)
 });
 
 // datetime-local wants "YYYY-MM-DDTHH:mm" in the browser's local time; the
@@ -166,6 +174,24 @@ function PostEditor({ fields, onChange, api, onUploadError }) {
           <input value={fields.title} onChange={(e) => patch({ title: e.target.value })} placeholder="Title" className={cx(inputCls, "font-bold")} />
           <input value={fields.slug} onChange={(e) => patch({ slug: e.target.value })} placeholder="Slug (auto from title if blank)" className={inputCls} />
         </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <select
+            value={fields.locale || "en"}
+            onChange={(e) => patch({ locale: e.target.value })}
+            className={inputCls}
+            title="Language this post is written in"
+          >
+            {LOCALES.map((l) => (
+              <option key={l.value} value={l.value}>{l.label}</option>
+            ))}
+          </select>
+          <input
+            value={fields.translation_group || ""}
+            onChange={(e) => patch({ translation_group: e.target.value })}
+            placeholder="Translation group (English slug — links language variants together)"
+            className={inputCls}
+          />
+        </div>
         <input value={fields.meta_description} onChange={(e) => patch({ meta_description: e.target.value })} placeholder="Meta description (for search results)" className={inputCls} />
         <input value={fields.excerpt} onChange={(e) => patch({ excerpt: e.target.value })} placeholder="Excerpt (shown on the blog listing)" className={inputCls} />
 
@@ -263,6 +289,7 @@ export default function CmsBlog() {
   const [seeding, setSeeding] = useState(false);
   const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState(emptyFields());
+  const [localeFilter, setLocaleFilter] = useState("");
 
   function showToast(msg, kind = "ok") {
     setToast({ msg, kind });
@@ -270,7 +297,7 @@ export default function CmsBlog() {
   }
 
   async function refresh() {
-    const res = await api.listBlogPosts();
+    const res = await api.listBlogPosts(localeFilter);
     const list = Array.isArray(res?.posts) ? res.posts : [];
     setPosts(list);
     const e = {};
@@ -283,6 +310,7 @@ export default function CmsBlog() {
         is_published: !!p.is_published,
         body_markdown: p.body_markdown || "",
         scheduledAt: isoToLocalInput(p.published_at),
+        locale: p.locale || "en", translation_group: p.translation_group || "",
       };
     });
     setEdits(e);
@@ -300,7 +328,7 @@ export default function CmsBlog() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, localeFilter]);
 
   if (!token) return <Navigate to="/cms/login" replace />;
 
@@ -334,6 +362,8 @@ export default function CmsBlog() {
         tags: draft.tagsText.split(",").map((t) => t.trim()).filter(Boolean),
         is_published: draft.is_published,
         published_at: localInputToIso(draft.scheduledAt),
+        locale: draft.locale || "en",
+        translation_group: draft.translation_group.trim() || null,
       });
       setDraft(emptyFields());
       await refresh();
@@ -357,6 +387,8 @@ export default function CmsBlog() {
         tags: (e.tagsText || "").split(",").map((t) => t.trim()).filter(Boolean),
         is_published: !!e.is_published,
         published_at: localInputToIso(e.scheduledAt),
+        locale: e.locale || "en",
+        translation_group: (e.translation_group || "").trim() || null,
       });
       await refresh();
       showToast("Saved");
@@ -402,16 +434,29 @@ export default function CmsBlog() {
             blog.haylingua.am (Ghost). Body is Markdown. Publishing sets the article's
             publish date once and never resets it on later edits.
           </div>
-          <button
-            type="button"
-            onClick={importPlannedPosts}
-            disabled={seeding}
-            title="Publishes the planned SEO content batch (greetings, alphabet, dialects, numbers, travel phrases, FAQs) — safe to click more than once, already-imported posts are skipped."
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-brand-700 ring-1 ring-brand-300 hover:bg-brand-100 disabled:opacity-60 dark:bg-[#18181b]"
-          >
-            {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-            Import planned posts
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <select
+              value={localeFilter}
+              onChange={(e) => setLocaleFilter(e.target.value)}
+              className="rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-brand-700 ring-1 ring-brand-300 dark:bg-[#18181b]"
+              title="Filter posts by language"
+            >
+              <option value="">All languages</option>
+              {LOCALES.map((l) => (
+                <option key={l.value} value={l.value}>{l.label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={importPlannedPosts}
+              disabled={seeding}
+              title="Publishes the planned SEO content batch (greetings, alphabet, dialects, numbers, travel phrases, FAQs) — safe to click more than once, already-imported posts are skipped."
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-brand-700 ring-1 ring-brand-300 hover:bg-brand-100 disabled:opacity-60 dark:bg-[#18181b]"
+            >
+              {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              Import planned posts
+            </button>
+          </div>
         </div>
 
         <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
@@ -469,6 +514,9 @@ export default function CmsBlog() {
                         {isLive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                         {isLive ? "Published" : isScheduled ? `Scheduled · ${new Date(p.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Draft"}
                       </button>
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold uppercase text-slate-500 ring-1 ring-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:ring-white/[0.08]">
+                        {p.locale || "en"}
+                      </span>
                       {isLive && (
                         <a href={`/blog/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:underline">
                           <ExternalLink className="h-3.5 w-3.5" /> View live

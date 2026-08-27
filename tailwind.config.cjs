@@ -71,8 +71,10 @@ module.exports = {
         },
       },
       fontFamily: {
-        display: ['"Baloo 2"', '"Nunito"', "ui-rounded", "system-ui", "sans-serif"],
-        sans: ['"Nunito"', "ui-sans-serif", "system-ui", "sans-serif"],
+        // "Noto Sans" covers Cyrillic (Russian) — Baloo 2/Nunito don't, so
+        // without it Russian text silently falls back to a system font.
+        display: ['"Baloo 2"', '"Nunito"', '"Noto Sans"', "ui-rounded", "system-ui", "sans-serif"],
+        sans: ['"Nunito"', '"Noto Sans"', "ui-sans-serif", "system-ui", "sans-serif"],
       },
       boxShadow: {
         // 3D "pressable" button edges.

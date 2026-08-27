@@ -1,0 +1,76 @@
+{
+  "hero": {
+    "title1": "Aprende armenio.",
+    "title2": "Y de verdad no lo dejes a medias.",
+    "subtitle": "Lecciones cortas, retroalimentación instantánea, audio en cada palabra y rachas que te dan ganas de volver mañana.",
+    "ctaStart": "Empieza a aprender — gratis",
+    "ctaLogin": "Ya tengo una cuenta",
+    "freeToStart": "Gratis para empezar",
+    "noCard": "No necesitas tarjeta",
+    "premiumDays": "14 días de Premium gratis"
+  },
+  "features": [
+    { "title": "El alfabeto desde cero", "text": "Domina las 39 letras armenias con ejercicios cortos de introducción, reconocimiento y escritura." },
+    { "title": "Escucha y habla", "text": "Audio real de texto a voz en cada ejercicio, para que aprendas cómo suena el armenio de verdad." },
+    { "title": "Repaso de errores", "text": "Cada respuesta incorrecta queda registrada, para que puedas volver y dominar justo lo que te costó." },
+    { "title": "Rachas y XP", "text": "Gana XP, mantén viva tu racha diaria y crea un hábito que perdure." },
+    { "title": "Corazones", "text": "Pierde un corazón con una respuesta incorrecta — un empujoncito para ir más despacio y acertar." },
+    { "title": "Clasificación y amigos", "text": "Agrega amigos y sube en la clasificación. Un poco de competencia siempre ayuda." }
+  ],
+  "steps": [
+    { "title": "Elige una lección", "text": "Empieza en el camino — desde tu primera letra hasta frases completas." },
+    { "title": "Practica y recibe retroalimentación", "text": "Toca, escribe, escucha y empareja. Cada respuesta se corrige al instante." },
+    { "title": "Mantén tu racha", "text": "Gana XP, desbloquea el siguiente nodo y vuelve mañana." }
+  ],
+  "testimonials": [
+    { "quote": "Aprendí todo el alfabeto armenio en menos de una semana. Los ejercicios se sienten como un juego, no como una tarea.", "name": "Ani M.", "role": "Diáspora armenia · Los Ángeles" },
+    { "quote": "Se siente como Duolingo, pero hecho para el armenio. El audio en cada palabra cambia por completo la pronunciación.", "name": "James K.", "role": "Entusiasta de idiomas · Londres" },
+    { "quote": "Como hablante de herencia que por fin intenta leer y escribir, Haylingua llenó justo los vacíos que tenía. Me encantan las rachas.", "name": "Narine H.", "role": "Aprendiz de herencia · Ereván" }
+  ],
+  "faqs": [
+    { "q": "¿Haylingua es gratis?", "a": "Sí — puedes crear una cuenta y empezar a aprender el alfabeto armenio y tus primeras lecciones gratis." },
+    { "q": "No sé nada del alfabeto armenio. ¿Está bien?", "a": "Perfecto, justo por ahí empezamos. Las primeras lecciones presentan cada letra con su sonido, ejemplos y práctica de escritura antes de que formes una palabra." },
+    { "q": "¿Necesito un teclado especial?", "a": "No. Los ejercicios se hacen tocando las opciones o siguiendo las indicaciones en pantalla, y los ejercicios de escritura aceptan las letras armenias que se te muestran." },
+    { "q": "¿Funciona en mi teléfono?", "a": "Sí. Haylingua está diseñada mobile-first y funciona en cualquier navegador moderno, en teléfono, tablet o computadora." },
+    { "q": "¿Cómo funcionan las rachas y los corazones?", "a": "Ganas XP por respuestas correctas y mantienes una racha diaria practicando cada día. Los corazones te dan varios intentos por sesión para que los errores no pesen tanto." }
+  ],
+  "ctaBanner": { "heading": "¿Listo para aprender armenio?" },
+  "demo": {
+    "header": {
+      "tapWhatYouHear": "Toca lo que escuchas",
+      "playTheWord": "Reproducir la palabra",
+      "trueOrFalse": "¿Verdadero o falso?",
+      "selectMatching": "Selecciona la palabra correcta",
+      "traceTheLetter": "Traza la letra",
+      "selectTranslation": "Selecciona la traducción correcta",
+      "means": "significa…",
+      "meansQuoted": "significa «{{claim}}»"
+    },
+    "questions": [
+      { "meaning": "Hola", "options": ["Hola", "Adiós", "Gracias"], "hook": "Es la palabra con la que empiezas cuando conoces a alguien.", "wrong": { "1": {}, "2": {} } },
+      { "meaning": "Agua", "options": ["Հաց", "Ջուր", "Կաթ"], "hook": "Presta atención al sonido suave «ջ» al principio.", "wrong": { "0": { "meaning": "Pan" }, "2": { "meaning": "Leche" } } },
+      { "meaning": "Amigo", "statementClaim": "Enemigo", "options": ["Verdadero", "Falso"], "hook": "Lo escucharás todo el tiempo — los armenios llaman a un amigo cercano ընկեր." },
+      { "meaning": "Gracias", "englishPrompt": "Gracias", "options": ["Խնդրեմ", "Ներողություն", "Շնորհակալություն"], "hook": "Es una palabra larga, pero la dirás todos los días.", "wrong": { "0": { "meaning": "Por favor" }, "1": { "meaning": "Perdón" } } },
+      { "meaning": "la letra A", "hook": "Es la primerísima letra del alfabeto armenio — quedan 38." }
+    ],
+    "frames": {
+      "translate_mcq": [
+        "Casi — pero «{{prompt}}» significa \"{{meaning}}\", no \"{{picked}}\". La palabra para \"{{picked}}\" es «{{arm}}» ({{rom}}). {{hook}}",
+        "Veo la confusión: \"{{picked}}\" en armenio es «{{arm}}» ({{rom}}). «{{prompt}}» ({{promptRom}}) en realidad significa \"{{meaning}}\". {{hook}}",
+        "Esta vez no. «{{prompt}}» = \"{{meaning}}\". Elegiste \"{{picked}}\", que es «{{arm}}» ({{rom}}) — fácil de confundir. {{hook}}"
+      ],
+      "listening": [
+        "Eso es «{{picked}}» — \"{{wrongMeaning}}\". Escucha de nuevo: el audio decía «{{prompt}}» (\"{{meaning}}\"). {{hook}}",
+        "No exactamente — «{{picked}}» significa \"{{wrongMeaning}}\". Lo que sonó fue «{{prompt}}», que significa \"{{meaning}}\". {{hook}}"
+      ],
+      "true_false": [
+        "En realidad, «{{prompt}}» significa \"{{meaning}}\" — no \"{{statementClaim}}\". {{hook}}",
+        "No exactamente. «{{prompt}}» ({{promptRom}}) se traduce como \"{{meaning}}\", así que esa afirmación es falsa. {{hook}}"
+      ],
+      "word_match": [
+        "«{{picked}}» en realidad significa \"{{wrongMeaning}}\" — la palabra para \"{{englishPrompt}}\" es «{{prompt}}» ({{promptRom}}). {{hook}}",
+        "Esta no — «{{picked}}» es \"{{wrongMeaning}}\". Buscas «{{prompt}}» ({{promptRom}}), que significa \"{{englishPrompt}}\". {{hook}}"
+      ]
+    }
+  }
+}

@@ -9,11 +9,17 @@
 // landing page is the only place with a login/signup modal.
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Sun, Moon, Menu, X, Volume2, VolumeX } from "lucide-react";
 import { getTheme, toggleTheme } from "./lib/theme";
 import { isMuted, toggleMuted } from "./lib/muteAudio";
+import { useLocale, localizedPath } from "./i18n";
+import LanguageSwitcher from "./lib/LanguageSwitcher";
 
 export default function SiteNav({ inPage = false, onLogin, onSignup }) {
+  const { t } = useTranslation("common");
+  const locale = useLocale();
+  const lp = (path) => localizedPath(path, locale);
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState(getTheme);
   const [muted, setMutedState] = useState(isMuted);
@@ -43,19 +49,20 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
   return (
     <nav className="sticky top-0 z-40 border-b border-slate-100 bg-white/85 backdrop-blur dark:border-white/[0.06] dark:bg-[#151517]/90">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-        <Link to="/" className="flex items-center gap-2">
+        <Link to={lp("/")} className="flex items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 font-display text-lg font-extrabold text-white shadow-btn-brand">Հ</span>
           <span className="font-display text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">Haylingua</span>
         </Link>
 
         <div className="hidden items-center gap-7 md:flex">
-          <NavLink to="/about" className={navLinkCls}>About us</NavLink>
-          <NavLink to="/careers" className={navLinkCls}>Careers</NavLink>
-          <NavLink to="/pricing" className={navLinkCls}>Pricing</NavLink>
-          <NavLink to="/contact" className={navLinkCls}>Contact</NavLink>
+          <NavLink to={lp("/about")} className={navLinkCls}>{t("nav.about")}</NavLink>
+          <NavLink to={lp("/careers")} className={navLinkCls}>{t("nav.careers")}</NavLink>
+          <NavLink to={lp("/pricing")} className={navLinkCls}>{t("nav.pricing")}</NavLink>
+          <NavLink to={lp("/contact")} className={navLinkCls}>{t("nav.contact")}</NavLink>
         </div>
 
         <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           {/* Mute only matters where sound actually plays — the landing
               page's hero demo (sfx + VoiceChip TTS). About/Careers/Pricing/
               Contact have no audio, so the icon was pure clutter there. */}
@@ -63,8 +70,8 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
             <button
               type="button"
               onClick={() => toggleMuted()}
-              title={muted ? "Unmute sound" : "Mute sound"}
-              aria-label="Toggle sound"
+              title={t("nav.toggleSound")}
+              aria-label={t("nav.toggleSound")}
               className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.08]"
             >
               {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
@@ -73,30 +80,30 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
           <button
             type="button"
             onClick={() => toggleTheme()}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            aria-label="Toggle theme"
+            title={theme === "dark" ? t("nav.switchToLight") : t("nav.switchToDark")}
+            aria-label={theme === "dark" ? t("nav.switchToLight") : t("nav.switchToDark")}
             className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.08]"
           >
             {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
           </button>
           {inPage && (
             <button onClick={() => onLogin?.()} className="hidden rounded-xl px-4 py-2 text-sm font-extrabold text-slate-600 hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.06] sm:block">
-              Log in
+              {t("nav.login")}
             </button>
           )}
           {inPage ? (
             <button onClick={() => onSignup?.()} className="btn3d btn3d-brand !py-2.5 text-sm">
-              Get started
+              {t("nav.getStarted")}
             </button>
           ) : (
-            <Link to="/" className="btn3d btn3d-brand hidden !py-2.5 text-sm sm:inline-flex">
-              Start learning <ArrowRight className="h-4 w-4" />
+            <Link to={lp("/")} className="btn3d btn3d-brand hidden !py-2.5 text-sm sm:inline-flex">
+              {t("nav.startLearning")} <ArrowRight className="h-4 w-4" />
             </Link>
           )}
           <button
             onClick={() => setMenuOpen((o) => !o)}
             className="grid h-9 w-9 place-items-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.06] md:hidden"
-            aria-label="Toggle menu"
+            aria-label={t("nav.toggleMenu")}
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -106,17 +113,17 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
       {menuOpen && (
         <div className="border-t border-slate-100 bg-white px-5 pb-4 pt-2 dark:border-white/[0.06] dark:bg-[#18181b] md:hidden">
           <div className="flex flex-col gap-1">
-            <NavLink to="/about" onClick={closeMenu} className={mobileNavLinkCls}>About us</NavLink>
-            <NavLink to="/careers" onClick={closeMenu} className={mobileNavLinkCls}>Careers</NavLink>
-            <NavLink to="/pricing" onClick={closeMenu} className={mobileNavLinkCls}>Pricing</NavLink>
-            <NavLink to="/contact" onClick={closeMenu} className={mobileNavLinkCls}>Contact</NavLink>
+            <NavLink to={lp("/about")} onClick={closeMenu} className={mobileNavLinkCls}>{t("nav.about")}</NavLink>
+            <NavLink to={lp("/careers")} onClick={closeMenu} className={mobileNavLinkCls}>{t("nav.careers")}</NavLink>
+            <NavLink to={lp("/pricing")} onClick={closeMenu} className={mobileNavLinkCls}>{t("nav.pricing")}</NavLink>
+            <NavLink to={lp("/contact")} onClick={closeMenu} className={mobileNavLinkCls}>{t("nav.contact")}</NavLink>
             {inPage ? (
               <div className="mt-1 flex gap-2">
-                <button onClick={() => { closeMenu(); onLogin?.(); }} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-extrabold text-slate-700 dark:bg-white/[0.06] dark:text-stone-200">Log in</button>
-                <button onClick={() => { closeMenu(); onSignup?.(); }} className="flex-1 btn3d btn3d-brand !py-2.5 text-sm">Sign up free</button>
+                <button onClick={() => { closeMenu(); onLogin?.(); }} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-extrabold text-slate-700 dark:bg-white/[0.06] dark:text-stone-200">{t("nav.login")}</button>
+                <button onClick={() => { closeMenu(); onSignup?.(); }} className="flex-1 btn3d btn3d-brand !py-2.5 text-sm">{t("nav.signUpFree")}</button>
               </div>
             ) : (
-              <Link to="/" onClick={closeMenu} className="mt-1 btn3d btn3d-brand !py-2.5 text-sm justify-center">Start learning</Link>
+              <Link to={lp("/")} onClick={closeMenu} className="mt-1 btn3d btn3d-brand !py-2.5 text-sm justify-center">{t("nav.startLearning")}</Link>
             )}
           </div>
         </div>

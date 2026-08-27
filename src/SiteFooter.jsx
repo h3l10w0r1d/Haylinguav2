@@ -12,7 +12,9 @@
 // recreations of their well-known public marks — standard practice for a
 // merchant's "accepted payment methods" strip.
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Instagram, Facebook, Send, Mail, ShieldCheck } from "lucide-react";
+import { useLocale, localizedPath } from "./i18n";
 
 /* ── Payment marks — simplified, functional "accepted here" indicators ── */
 function VisaMark() {
@@ -120,7 +122,7 @@ function SocialLink({ href, label, icon: Icon }) {
   );
 }
 
-function FooterCol({ title, links }) {
+function FooterCol({ title, links, locale }) {
   const linkCls = "text-sm font-semibold text-slate-600 transition hover:text-brand-600 dark:text-stone-300 dark:hover:text-brand-400";
   return (
     <div>
@@ -133,7 +135,7 @@ function FooterCol({ title, links }) {
                 {label}
               </a>
             ) : (
-              <Link to={href} className={linkCls}>{label}</Link>
+              <Link to={localizedPath(href, locale)} className={linkCls}>{label}</Link>
             )}
           </li>
         ))}
@@ -143,6 +145,8 @@ function FooterCol({ title, links }) {
 }
 
 export default function SiteFooter() {
+  const { t } = useTranslation("common");
+  const locale = useLocale();
   const year = new Date().getFullYear();
   return (
     <footer className="border-t border-slate-100 bg-slate-50 dark:border-white/[0.07] dark:bg-[#0d0d0f]">
@@ -155,7 +159,7 @@ export default function SiteFooter() {
               <span className="font-display text-lg font-extrabold text-slate-800 dark:text-white">Haylingua</span>
             </div>
             <p className="mt-3 max-w-xs text-sm font-medium leading-relaxed text-slate-500 dark:text-stone-400">
-              Learn Armenian the playful way — bite-sized lessons, real audio, and streaks that keep you coming back.
+              {t("footer.tagline")}
             </p>
             <div className="mt-4 flex items-center gap-2">
               <SocialLink href="https://www.instagram.com/haylingua" label="Instagram" icon={Instagram} />
@@ -167,21 +171,24 @@ export default function SiteFooter() {
 
           {/* Link columns */}
           <FooterCol
-            title="Product"
-            links={[["Pricing", "/pricing"], ["How it works", "/#how"], ["Features", "/#features"], ["FAQ", "/#faq"]]}
+            locale={locale}
+            title={t("footer.product")}
+            links={[[t("footer.linkPricing"), "/pricing"], [t("footer.linkHowItWorks"), "/#how"], [t("footer.linkFeatures"), "/#features"], [t("footer.linkFaq"), "/#faq"]]}
           />
           <FooterCol
-            title="Company"
-            links={[["About us", "/about"], ["Careers", "/careers"], ["Affiliates", "/affiliates"], ["Community", "/community"], ["Blog", "https://blog.haylingua.am"], ["Contact", "/contact"]]}
+            locale={locale}
+            title={t("footer.company")}
+            links={[[t("footer.linkAbout"), "/about"], [t("footer.linkCareers"), "/careers"], [t("footer.linkAffiliates"), "/affiliates"], [t("footer.linkCommunity"), "/community"], [t("footer.linkBlog"), "https://blog.haylingua.am"], [t("footer.linkContact"), "/contact"]]}
           />
           <FooterCol
-            title="Legal"
-            links={[["Terms & Conditions", "/terms"], ["Privacy Policy", "/privacy"], ["Refund Policy", "/refund-policy"], ["Cookie Policy", "/cookie-policy"]]}
+            locale={locale}
+            title={t("footer.legal")}
+            links={[[t("footer.linkTerms"), "/terms"], [t("footer.linkPrivacy"), "/privacy"], [t("footer.linkRefund"), "/refund-policy"], [t("footer.linkCookie"), "/cookie-policy"]]}
           />
 
           {/* Payments / trust */}
           <div className="col-span-2 md:col-span-1">
-            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400 dark:text-stone-500">We accept</div>
+            <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400 dark:text-stone-500">{t("footer.weAccept")}</div>
             <div className="mt-3 flex flex-wrap gap-2">
               <PayChip label="Visa"><VisaMark /></PayChip>
               <PayChip label="Mastercard"><MastercardMark /></PayChip>
@@ -192,7 +199,7 @@ export default function SiteFooter() {
               <PayChip label="Telcell"><TelcellMark /></PayChip>
             </div>
             <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-stone-500">
-              <ShieldCheck className="h-3.5 w-3.5" /> Secure, encrypted checkout
+              <ShieldCheck className="h-3.5 w-3.5" /> {t("footer.secureCheckout")}
             </div>
           </div>
         </div>
@@ -200,12 +207,12 @@ export default function SiteFooter() {
         {/* Bottom bar */}
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-slate-200/70 pt-6 dark:border-white/[0.06] sm:flex-row">
           <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">
-            © {year} Haylingua. All rights reserved.
+            {t("footer.copyright", { year })}
           </div>
           <div className="flex items-center gap-4 text-sm font-semibold text-slate-400 dark:text-stone-500">
-            <a href="mailto:info@haylingua.am" className="transition hover:text-slate-700 dark:hover:text-stone-200">Contact</a>
+            <a href="mailto:info@haylingua.am" className="transition hover:text-slate-700 dark:hover:text-stone-200">{t("footer.linkContact")}</a>
             <span className="text-slate-300 dark:text-stone-700">·</span>
-            <span>Made with ❤️ in Armenia</span>
+            <span>{t("footer.madeIn")}</span>
           </div>
         </div>
       </div>

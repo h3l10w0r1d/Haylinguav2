@@ -4630,7 +4630,7 @@ def cms_account_2fa_disable(payload: Dict[str, Any] = Body(...), u: dict = Depen
 
 _BLOG_LIST_COLS = (
     "id, slug, title, meta_description, excerpt, body_markdown, cover_image_url, cover_image_alt, "
-    "author_name, tags, is_published, published_at, created_at, updated_at"
+    "author_name, tags, is_published, published_at, created_at, updated_at, locale, translation_group"
 )
 
 _BLOG_UPLOAD_MAX_DIM = 1600  # article body/cover images render up to full article width
@@ -4668,11 +4668,17 @@ def cms_upload_blog_image(request: Request, file: UploadFile = File(...), db=Dep
     return {"url": f"/static/blog/{filename}"}
 
 @router.get("/cms/blog")
-def cms_list_blog_posts(request: Request, db=Depends(get_db)):
+def cms_list_blog_posts(request: Request, locale: str | None = None, db=Depends(get_db)):
     require_cms(request, db)
-    rows = db.execute(text(f"""
-        SELECT {_BLOG_LIST_COLS} FROM blog_posts ORDER BY updated_at DESC
-    """)).mappings().all()
+    if locale:
+        rows = db.execute(
+            text(f"SELECT {_BLOG_LIST_COLS} FROM blog_posts WHERE locale = :locale ORDER BY updated_at DESC"),
+            {"locale": locale},
+        ).mappings().all()
+    else:
+        rows = db.execute(text(f"""
+            SELECT {_BLOG_LIST_COLS} FROM blog_posts ORDER BY updated_at DESC
+        """)).mappings().all()
     return {"posts": [dict(r) for r in rows]}
 
 @router.get("/cms/blog/{post_id}")
@@ -4708,12 +4714,13 @@ async def cms_create_blog_post(request: Request, db=Depends(get_db)):
             text("""
                 INSERT INTO blog_posts
                     (slug, title, meta_description, excerpt, body_markdown, cover_image_url,
-                     cover_image_alt, author_name, tags, is_published, published_at)
+                     cover_image_alt, author_name, tags, is_published, published_at, locale, translation_group)
                 VALUES
                     (:slug, :title, :meta, :excerpt, :body, :cover, :cover_alt, :author,
                      CAST(:tags AS jsonb), :pub,
                      CASE WHEN :explicit_at IS NOT NULL THEN CAST(:explicit_at AS timestamptz)
-                          WHEN :pub THEN NOW() ELSE NULL END)
+                          WHEN :pub THEN NOW() ELSE NULL END,
+                     :locale, :translation_group)
                 RETURNING id
             """),
             {
@@ -4726,6 +4733,8 @@ async def cms_create_blog_post(request: Request, db=Depends(get_db)):
                 "author": (body.get("author_name") or "Haylingua").strip() or "Haylingua",
                 "tags": json.dumps(tags), "pub": is_published,
                 "explicit_at": explicit_published_at,
+                "locale": (body.get("locale") or "en").strip() or "en",
+                "translation_group": (body.get("translation_group") or "").strip() or None,
             },
         ).scalar_one()
     except Exception as e:
@@ -4739,7 +4748,7 @@ async def cms_update_blog_post(post_id: int, request: Request, db=Depends(get_db
     require_cms(request, db)
     body = await request.json()
     set_parts, params = [], {"id": post_id}
-    for f in ("slug", "title", "meta_description", "excerpt", "body_markdown", "cover_image_url", "cover_image_alt", "author_name"):
+    for f in ("slug", "title", "meta_description", "excerpt", "body_markdown", "cover_image_url", "cover_image_alt", "author_name", "locale", "translation_group"):
         if f in body:
             set_parts.append(f"{f} = :{f}")
             params[f] = body[f]

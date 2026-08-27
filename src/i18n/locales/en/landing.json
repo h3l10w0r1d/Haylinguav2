@@ -1,0 +1,76 @@
+{
+  "hero": {
+    "title1": "Learn Armenian.",
+    "title2": "Actually stick with it.",
+    "subtitle": "Bite-sized lessons, instant feedback, audio on every word, and streaks that make you want to come back tomorrow.",
+    "ctaStart": "Start learning — free",
+    "ctaLogin": "I have an account",
+    "freeToStart": "Free to start",
+    "noCard": "No card needed",
+    "premiumDays": "14 days of Premium free"
+  },
+  "features": [
+    { "title": "Alphabet from scratch", "text": "Master all 39 Armenian letters with bite-sized intro, recognition, and typing drills." },
+    { "title": "Listen & speak", "text": "Real text-to-speech audio on every prompt so you learn how Armenian actually sounds." },
+    { "title": "Mistake review", "text": "Every wrong answer gets tracked, so you can circle back and re-master exactly what tripped you up." },
+    { "title": "Streaks & XP", "text": "Earn XP, keep your daily streak alive, and build a habit that sticks." },
+    { "title": "Hearts", "text": "Lose a heart on a wrong answer — a gentle nudge to slow down and get it right." },
+    { "title": "Leaderboard & friends", "text": "Add friends and climb the leaderboard. A little competition goes a long way." }
+  ],
+  "steps": [
+    { "title": "Pick a lesson", "text": "Start on the path — from your very first letter to full phrases." },
+    { "title": "Practice & get feedback", "text": "Tap, type, listen, and match. Every answer is checked instantly." },
+    { "title": "Keep your streak", "text": "Earn XP, unlock the next node, and come back tomorrow." }
+  ],
+  "testimonials": [
+    { "quote": "I learned the entire Armenian alphabet in under a week. The exercises make it feel like a game, not a chore.", "name": "Ani M.", "role": "Armenian diaspora · Los Angeles" },
+    { "quote": "This feels like Duolingo but made for Armenian. The audio on every word is a total game-changer for pronunciation.", "name": "James K.", "role": "Language enthusiast · London" },
+    { "quote": "As a heritage speaker trying to finally read and write, Haylingua filled the exact gaps I had. Loving the streaks.", "name": "Narine H.", "role": "Heritage learner · Yerevan" }
+  ],
+  "faqs": [
+    { "q": "Is Haylingua free?", "a": "Yes — you can create an account and start learning the Armenian alphabet and your first lessons for free." },
+    { "q": "I don't know the Armenian alphabet at all. Is that okay?", "a": "Perfect, that's exactly where we begin. The first lessons introduce each letter with its sound, examples, and typing practice before you ever build a word." },
+    { "q": "Do I need a special keyboard?", "a": "No. Exercises are tap-and-choose or use on-screen prompts, and typing exercises accept the Armenian letters shown to you." },
+    { "q": "Does it work on my phone?", "a": "Yes. Haylingua is built mobile-first and works in any modern browser on phone, tablet, or desktop." },
+    { "q": "How do streaks and hearts work?", "a": "You earn XP for correct answers and keep a daily streak by practicing each day. Hearts give you a few tries per session so mistakes feel low-stakes." }
+  ],
+  "ctaBanner": { "heading": "Ready to learn Armenian?" },
+  "demo": {
+    "header": {
+      "tapWhatYouHear": "Tap what you hear",
+      "playTheWord": "Play the word",
+      "trueOrFalse": "True or false?",
+      "selectMatching": "Select the matching word",
+      "traceTheLetter": "Trace the letter",
+      "selectTranslation": "Select the correct translation",
+      "means": "means…",
+      "meansQuoted": "means \"{{claim}}\""
+    },
+    "questions": [
+      { "meaning": "Hello", "options": ["Hello", "Goodbye", "Thank you"], "hook": "It's the word you lead with when you meet someone.", "wrong": { "1": {}, "2": {} } },
+      { "meaning": "Water", "options": ["Հաց", "Ջուր", "Կաթ"], "hook": "Listen for the soft «ջ» sound at the start.", "wrong": { "0": { "meaning": "Bread" }, "2": { "meaning": "Milk" } } },
+      { "meaning": "Friend", "statementClaim": "Enemy", "options": ["True", "False"], "hook": "You'll hear it constantly — Armenians call a close friend ընկեր." },
+      { "meaning": "Thank you", "englishPrompt": "Thank you", "options": ["Խնդրեմ", "Ներողություն", "Շնորհակալություն"], "hook": "It's a long one, but you'll say it every day.", "wrong": { "0": { "meaning": "Please" }, "1": { "meaning": "Sorry" } } },
+      { "meaning": "the letter A", "hook": "It's the very first letter of the Armenian alphabet — 38 to go." }
+    ],
+    "frames": {
+      "translate_mcq": [
+        "Close — but «{{prompt}}» means \"{{meaning}}\", not \"{{picked}}\". The word for \"{{picked}}\" is «{{arm}}» ({{rom}}). {{hook}}",
+        "I see the mix-up: \"{{picked}}\" in Armenian is «{{arm}}» ({{rom}}). «{{prompt}}» ({{promptRom}}) actually means \"{{meaning}}\". {{hook}}",
+        "Not this time. «{{prompt}}» = \"{{meaning}}\". You went with \"{{picked}}\", which is «{{arm}}» ({{rom}}) — an easy pair to confuse. {{hook}}"
+      ],
+      "listening": [
+        "That's «{{picked}}» — \"{{wrongMeaning}}\". Listen again: the audio said «{{prompt}}» (\"{{meaning}}\"). {{hook}}",
+        "Not quite — «{{picked}}» means \"{{wrongMeaning}}\". What played was «{{prompt}}», which means \"{{meaning}}\". {{hook}}"
+      ],
+      "true_false": [
+        "Actually, «{{prompt}}» means \"{{meaning}}\" — not \"{{statementClaim}}\". {{hook}}",
+        "Not quite. «{{prompt}}» ({{promptRom}}) translates to \"{{meaning}}\", so that statement is false. {{hook}}"
+      ],
+      "word_match": [
+        "«{{picked}}» actually means \"{{wrongMeaning}}\" — the word for \"{{englishPrompt}}\" is «{{prompt}}» ({{promptRom}}). {{hook}}",
+        "Not this one — «{{picked}}» is \"{{wrongMeaning}}\". You're looking for «{{prompt}}» ({{promptRom}}), which means \"{{englishPrompt}}\". {{hook}}"
+      ]
+    }
+  }
+}

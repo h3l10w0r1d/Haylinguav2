@@ -7,6 +7,7 @@
 // defaults back on unmount, so leaving a page (including via back-button)
 // never leaves stale tags behind.
 import { useEffect } from "react";
+import { localizedPath } from "../i18n";
 
 const SITE_ORIGIN = "https://www.haylingua.am";
 const DEFAULT_TITLE = "Haylingua — Learn Armenian with modern, gamified lessons";
@@ -68,6 +69,39 @@ function removeJsonLdScripts(els) {
   els.forEach((el) => el.remove());
 }
 
+// hreflang alternates — one <link rel="alternate"> per supported locale plus
+// an x-default pointing at the unprefixed (English) URL, so search engines
+// know these are the same page in different languages rather than duplicate
+// content. Tracked-and-removed the same way as the JSON-LD scripts above,
+// since a page can have zero, one, or several of these and they aren't
+// singleton tags like canonical/meta.
+function addAlternateLinks(alternates) {
+  if (!alternates || alternates.length === 0) return [];
+  const bcp47 = (locale) => (locale ? locale : "en");
+  const els = alternates.map(({ locale, path }) => {
+    const el = document.createElement("link");
+    el.setAttribute("rel", "alternate");
+    el.setAttribute("hreflang", bcp47(locale));
+    el.setAttribute("href", `${SITE_ORIGIN}${localizedPath(path, locale)}`);
+    document.head.appendChild(el);
+    return el;
+  });
+
+  const defaultEntry = alternates.find((a) => !a.locale) || alternates[0];
+  const defaultEl = document.createElement("link");
+  defaultEl.setAttribute("rel", "alternate");
+  defaultEl.setAttribute("hreflang", "x-default");
+  defaultEl.setAttribute("href", `${SITE_ORIGIN}${localizedPath(defaultEntry.path, "")}`);
+  document.head.appendChild(defaultEl);
+  els.push(defaultEl);
+
+  return els;
+}
+
+function removeAlternateLinks(els) {
+  els.forEach((el) => el.remove());
+}
+
 /**
  * @param {string} title - page title (without the " — Haylingua" suffix); falsy uses DEFAULT_TITLE verbatim
  * @param {string} description
@@ -75,9 +109,10 @@ function removeJsonLdScripts(els) {
  * @param {string} [options.path] - path for canonical/og:url, defaults to window.location.pathname
  * @param {string} [options.image] - absolute image URL for og:image/twitter:image, defaults to DEFAULT_IMAGE
  * @param {object|object[]} [options.structuredData] - one JSON-LD object, or an array of them
+ * @param {{locale: string, path: string}[]} [options.alternates] - hreflang alternates; locale "" means English/default (unprefixed)
  */
 export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, options = {}) {
-  const { path, image, structuredData } = options;
+  const { path, image, structuredData, alternates } = options;
 
   useEffect(() => {
     const fullTitle = title ? `${title} — Haylingua` : DEFAULT_TITLE;
@@ -99,6 +134,7 @@ export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, op
     setMetaTag("twitter:image", resolvedImage);
 
     const jsonLdEls = addJsonLdScripts(structuredData);
+    const alternateEls = addAlternateLinks(alternates);
 
     return () => {
       document.title = DEFAULT_TITLE;
@@ -115,7 +151,8 @@ export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, op
       setMetaTag("twitter:image", DEFAULT_IMAGE);
 
       removeJsonLdScripts(jsonLdEls);
+      removeAlternateLinks(alternateEls);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, description, path, image, structuredData]);
+  }, [title, description, path, image, structuredData, alternates]);
 }

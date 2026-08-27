@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "about": "О нас",
+    "careers": "Вакансии",
+    "pricing": "Цены",
+    "contact": "Контакты",
+    "login": "Войти",
+    "getStarted": "Начать",
+    "startLearning": "Начать учиться",
+    "signUpFree": "Зарегистрироваться бесплатно",
+    "toggleSound": "Включить/выключить звук",
+    "switchToLight": "Светлая тема",
+    "switchToDark": "Тёмная тема",
+    "toggleMenu": "Меню",
+    "language": "Язык"
+  },
+  "footer": {
+    "tagline": "Учите армянский в игровой форме — короткие уроки, настоящее произношение и серии дней, к которым хочется возвращаться.",
+    "product": "Продукт",
+    "company": "Компания",
+    "legal": "Документы",
+    "linkPricing": "Цены",
+    "linkHowItWorks": "Как это работает",
+    "linkFeatures": "Возможности",
+    "linkFaq": "Вопросы и ответы",
+    "linkAbout": "О нас",
+    "linkCareers": "Вакансии",
+    "linkAffiliates": "Партнёрская программа",
+    "linkCommunity": "Сообщество",
+    "linkBlog": "Блог",
+    "linkContact": "Контакты",
+    "linkTerms": "Условия использования",
+    "linkPrivacy": "Политика конфиденциальности",
+    "linkRefund": "Политика возврата",
+    "linkCookie": "Политика cookie",
+    "weAccept": "Мы принимаем",
+    "secureCheckout": "Безопасная, зашифрованная оплата",
+    "copyright": "© {{year}} Haylingua. Все права защищены.",
+    "madeIn": "Сделано с ❤️ в Армении"
+  }
+}

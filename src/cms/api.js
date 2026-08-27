@@ -130,7 +130,7 @@ export function createCmsApi(accessToken) {
     return data;
   };
   const seedBlogPosts = () => req("/cms/seed/blog-posts", { method: "POST" });
-  const listBlogPosts = () => req("/cms/blog");
+  const listBlogPosts = (locale) => req(locale ? `/cms/blog?locale=${encodeURIComponent(locale)}` : "/cms/blog");
   const getBlogPost = (id) => req(`/cms/blog/${id}`);
   const createBlogPost = (payload) => req("/cms/blog", { method: "POST", body: JSON.stringify(payload) });
   const updateBlogPost = (id, payload) => req(`/cms/blog/${id}`, { method: "PUT", body: JSON.stringify(payload) });

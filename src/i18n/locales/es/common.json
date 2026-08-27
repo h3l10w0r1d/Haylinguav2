@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "about": "Sobre nosotros",
+    "careers": "Empleo",
+    "pricing": "Precios",
+    "contact": "Contacto",
+    "login": "Iniciar sesión",
+    "getStarted": "Empezar",
+    "startLearning": "Empezar a aprender",
+    "signUpFree": "Regístrate gratis",
+    "toggleSound": "Activar/desactivar sonido",
+    "switchToLight": "Cambiar a modo claro",
+    "switchToDark": "Cambiar a modo oscuro",
+    "toggleMenu": "Menú",
+    "language": "Idioma"
+  },
+  "footer": {
+    "tagline": "Aprende armenio de forma divertida — lecciones cortas, audio real y rachas que te hacen volver.",
+    "product": "Producto",
+    "company": "Empresa",
+    "legal": "Legal",
+    "linkPricing": "Precios",
+    "linkHowItWorks": "Cómo funciona",
+    "linkFeatures": "Funciones",
+    "linkFaq": "Preguntas frecuentes",
+    "linkAbout": "Sobre nosotros",
+    "linkCareers": "Empleo",
+    "linkAffiliates": "Afiliados",
+    "linkCommunity": "Comunidad",
+    "linkBlog": "Blog",
+    "linkContact": "Contacto",
+    "linkTerms": "Términos y condiciones",
+    "linkPrivacy": "Política de privacidad",
+    "linkRefund": "Política de reembolso",
+    "linkCookie": "Política de cookies",
+    "weAccept": "Aceptamos",
+    "secureCheckout": "Pago seguro y cifrado",
+    "copyright": "© {{year}} Haylingua. Todos los derechos reservados.",
+    "madeIn": "Hecho con ❤️ en Armenia"
+  }
+}

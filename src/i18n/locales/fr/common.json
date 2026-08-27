@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "about": "À propos",
+    "careers": "Carrières",
+    "pricing": "Tarifs",
+    "contact": "Contact",
+    "login": "Connexion",
+    "getStarted": "Commencer",
+    "startLearning": "Commencer à apprendre",
+    "signUpFree": "S'inscrire gratuitement",
+    "toggleSound": "Activer/désactiver le son",
+    "switchToLight": "Passer au mode clair",
+    "switchToDark": "Passer au mode sombre",
+    "toggleMenu": "Menu",
+    "language": "Langue"
+  },
+  "footer": {
+    "tagline": "Apprenez l'arménien de façon ludique — des leçons courtes, de l'audio authentique et des séries qui donnent envie de revenir.",
+    "product": "Produit",
+    "company": "Entreprise",
+    "legal": "Mentions légales",
+    "linkPricing": "Tarifs",
+    "linkHowItWorks": "Comment ça marche",
+    "linkFeatures": "Fonctionnalités",
+    "linkFaq": "FAQ",
+    "linkAbout": "À propos",
+    "linkCareers": "Carrières",
+    "linkAffiliates": "Programme d'affiliation",
+    "linkCommunity": "Communauté",
+    "linkBlog": "Blog",
+    "linkContact": "Contact",
+    "linkTerms": "Conditions d'utilisation",
+    "linkPrivacy": "Politique de confidentialité",
+    "linkRefund": "Politique de remboursement",
+    "linkCookie": "Politique de cookies",
+    "weAccept": "Nous acceptons",
+    "secureCheckout": "Paiement sécurisé et chiffré",
+    "copyright": "© {{year}} Haylingua. Tous droits réservés.",
+    "madeIn": "Fait avec ❤️ en Arménie"
+  }
+}

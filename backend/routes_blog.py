@@ -16,10 +16,10 @@ from database import get_db
 
 router = APIRouter(tags=["blog"])
 
-_LIST_COLS = "id, slug, title, excerpt, cover_image_url, cover_image_alt, author_name, tags, published_at"
+_LIST_COLS = "id, slug, title, excerpt, cover_image_url, cover_image_alt, author_name, tags, published_at, locale, translation_group"
 _DETAIL_COLS = (
     "id, slug, title, meta_description, excerpt, body_markdown, cover_image_url, cover_image_alt, "
-    "author_name, tags, published_at, updated_at"
+    "author_name, tags, published_at, updated_at, locale, translation_group"
 )
 
 
@@ -27,6 +27,7 @@ _DETAIL_COLS = (
 def list_blog_posts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=12, ge=1, le=50),
+    locale: str = Query(default="en"),
     db: Connection = Depends(get_db),
 ):
     offset = (page - 1) * page_size
@@ -36,16 +37,17 @@ def list_blog_posts(
     # scheduling model is deliberately "lazy" — no cron/worker needed, a
     # scheduled post just becomes query-visible the moment NOW() passes it.
     total = db.execute(
-        text("SELECT COUNT(*) FROM blog_posts WHERE is_published = true AND published_at <= NOW()")
+        text("SELECT COUNT(*) FROM blog_posts WHERE is_published = true AND published_at <= NOW() AND locale = :locale"),
+        {"locale": locale},
     ).scalar() or 0
     rows = db.execute(
         text(f"""
             SELECT {_LIST_COLS} FROM blog_posts
-            WHERE is_published = true AND published_at <= NOW()
+            WHERE is_published = true AND published_at <= NOW() AND locale = :locale
             ORDER BY published_at DESC
             LIMIT :limit OFFSET :offset
         """),
-        {"limit": page_size, "offset": offset},
+        {"limit": page_size, "offset": offset, "locale": locale},
     ).mappings().all()
     return {
         "posts": [dict(r) for r in rows],
@@ -56,10 +58,10 @@ def list_blog_posts(
 
 
 @router.get("/blog/{slug}")
-def get_blog_post(slug: str, db: Connection = Depends(get_db)):
+def get_blog_post(slug: str, locale: str = Query(default="en"), db: Connection = Depends(get_db)):
     row = db.execute(
-        text(f"SELECT {_DETAIL_COLS} FROM blog_posts WHERE slug = :slug AND is_published = true AND published_at <= NOW()"),
-        {"slug": slug},
+        text(f"SELECT {_DETAIL_COLS} FROM blog_posts WHERE slug = :slug AND locale = :locale AND is_published = true AND published_at <= NOW()"),
+        {"slug": slug, "locale": locale},
     ).mappings().first()
     # 404 for missing, draft, OR not-yet-due (scheduled for the future) —
     # don't leak that a post with this slug exists before its scheduled date.

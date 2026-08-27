@@ -4,12 +4,14 @@
 // on the landing page's own demo — see src/LandingPage.jsx's VoiceChip).
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Volume2, Loader2 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import { ttsFetch } from "./exercises/tts";
 import { newTrackedAudio } from "./lib/audioRegistry";
+import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -44,35 +46,30 @@ function AudioChip({ text, label }) {
   );
 }
 
-const TRICKY_PAIRS = [
-  {
-    title: "Unaspirated vs. aspirated stops",
-    text: "Armenian distinguishes a plain, no-breath consonant from the same consonant said with a burst of air — a contrast English doesn't make. Compare a crisp «տ» (t) with a puffed-out «թ» (t').",
-    examples: [
-      { arm: "տուն", label: "house — plain t" },
-      { arm: "թիվ", label: "number — puffed t" },
-    ],
-  },
-  {
-    title: "Two kinds of R",
-    text: "Eastern Armenian has a light single tongue-tap «ր» (close to the American 'tt' in 'butter') and a strongly rolled/trilled «ռ» — mixing them up is one of the most common beginner errors.",
-    examples: [
-      { arm: "արև", label: "sun — light r" },
-      { arm: "առյուծ", label: "lion — rolled r" },
-    ],
-  },
-  {
-    title: "Sounds with no English equivalent",
-    text: "A few Armenian consonants don't map onto anything in English at all — «խ» is a rasping throat sound like the Scottish 'ch' in loch, and «ղ» is a soft, gargled sound close to a French 'r'.",
-    examples: [
-      { arm: "խոզ", label: "pig — throat rasp" },
-      { arm: "աղ", label: "salt — soft gargle" },
-    ],
-  },
+// The Armenian words themselves are locale-invariant target-language content
+// (not UI copy), so they stay here in code; only each example's English
+// gloss ("house — plain t") is translated, via seo-pages.json's
+// armenianPronunciation.trickyPairs[i].examples[j].label, zipped in below.
+const TRICKY_PAIRS_ARM = [
+  { examples: ["տուն", "թիվ"] },
+  { examples: ["արև", "առյուծ"] },
+  { examples: ["խոզ", "աղ"] },
 ];
 
 export default function ArmenianPronunciationPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation("seoPages");
+  const locale = useLocale();
+  const lp = (path) => localizedPath(path, locale);
+
+  const trickyPairsCopy = t("armenianPronunciation.trickyPairs", { returnObjects: true });
+  const TRICKY_PAIRS = trickyPairsCopy.map((p, i) => ({
+    title: p.title,
+    text: p.text,
+    examples: p.examples.map((e, j) => ({ arm: TRICKY_PAIRS_ARM[i].examples[j], label: e.label })),
+  }));
+  const keepGoingCards = t("armenianPronunciation.keepGoing.cards", { returnObjects: true });
+  const [alphabetNoteBefore, alphabetNoteAfter] = t("armenianPronunciation.alphabetNote").split("{{link}}");
 
   const structuredData = useMemo(
     () => [
@@ -80,18 +77,24 @@ export default function ArmenianPronunciationPage() {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: "https://www.haylingua.am/" },
-          { "@type": "ListItem", position: 2, name: "Armenian Pronunciation", item: "https://www.haylingua.am/armenian-pronunciation" },
+          { "@type": "ListItem", position: 1, name: t("armenianPronunciation.breadcrumb.home"), item: "https://www.haylingua.am/" },
+          { "@type": "ListItem", position: 2, name: t("armenianPronunciation.breadcrumb.current"), item: "https://www.haylingua.am/armenian-pronunciation" },
         ],
       },
     ],
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale]
   );
 
   usePageMeta(
-    "Armenian Pronunciation — How Armenian Actually Sounds",
-    "Learn how to pronounce Armenian correctly with real audio examples — aspirated vs. unaspirated consonants, the two Armenian R sounds, and sounds with no English equivalent.",
-    { structuredData }
+    t("armenianPronunciation.meta.title"),
+    t("armenianPronunciation.meta.description"),
+    {
+      structuredData,
+      alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/armenian-pronunciation" })).concat([
+        { locale: "", path: "/armenian-pronunciation" },
+      ]),
+    }
   );
 
   return (
@@ -101,12 +104,10 @@ export default function ArmenianPronunciationPage() {
       <main>
         <header className="mx-auto max-w-3xl px-5 pb-8 pt-14 text-center">
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-5xl">
-            Armenian Pronunciation
+            {t("armenianPronunciation.hero.title")}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg font-semibold text-slate-500 dark:text-stone-400">
-            Armenian is almost entirely phonetic — once you know a letter's sound, it's the same in
-            every word. The hard part isn't the rules, it's a handful of sounds English speakers
-            haven't trained their mouths to make. Here's what to listen for, with real audio.
+            {t("armenianPronunciation.hero.subtitle")}
           </p>
         </header>
 
@@ -127,8 +128,9 @@ export default function ArmenianPronunciationPage() {
 
           <div className="mt-10 rounded-2xl bg-brand-50 p-6 text-center dark:bg-brand-500/10">
             <p className="font-semibold text-slate-600 dark:text-stone-300">
-              Every one of the 39 Armenian letters has its own audio, transliteration, and example word on the{" "}
-              <Link to="/armenian-alphabet" className="font-extrabold text-brand-700 hover:underline dark:text-brand-400">Armenian alphabet page</Link>.
+              {alphabetNoteBefore}
+              <Link to={lp("/armenian-alphabet")} className="font-extrabold text-brand-700 hover:underline dark:text-brand-400">{t("armenianPronunciation.alphabetNoteLinkText")}</Link>
+              {alphabetNoteAfter}
             </p>
           </div>
         </section>
@@ -136,20 +138,20 @@ export default function ArmenianPronunciationPage() {
         <section className="border-t border-slate-100 bg-slate-50 px-5 py-14 dark:border-white/[0.06] dark:bg-white/[0.04]">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-center font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white">
-              Keep going
+              {t("armenianPronunciation.keepGoing.heading")}
             </h2>
             <div className="mt-7 grid gap-4 sm:grid-cols-3">
-              <Link to="/armenian-alphabet" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-[#18181b] dark:ring-white/[0.08]">
-                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">Armenian Alphabet</div>
-                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">All 39 letters with audio.</p>
+              <Link to={lp("/armenian-alphabet")} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-[#18181b] dark:ring-white/[0.08]">
+                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{keepGoingCards[0].title}</div>
+                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">{keepGoingCards[0].text}</p>
               </Link>
-              <Link to="/armenian-vocabulary" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-[#18181b] dark:ring-white/[0.08]">
-                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">Armenian Vocabulary</div>
-                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">Core words to start speaking.</p>
+              <Link to={lp("/armenian-vocabulary")} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-[#18181b] dark:ring-white/[0.08]">
+                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{keepGoingCards[1].title}</div>
+                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">{keepGoingCards[1].text}</p>
               </Link>
-              <Link to="/eastern-armenian" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-[#18181b] dark:ring-white/[0.08]">
-                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">Eastern Armenian</div>
-                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">The dialect Haylingua teaches.</p>
+              <Link to={lp("/eastern-armenian")} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-[#18181b] dark:ring-white/[0.08]">
+                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{keepGoingCards[2].title}</div>
+                <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">{keepGoingCards[2].text}</p>
               </Link>
             </div>
           </div>
@@ -157,12 +159,12 @@ export default function ArmenianPronunciationPage() {
 
         <section className="px-5 py-16">
           <div className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
-            <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Practice pronunciation with instant feedback</h2>
+            <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{t("armenianPronunciation.cta.heading")}</h2>
             <p className="mt-3 max-w-md text-lg font-semibold text-white/90">
-              Haylingua's lessons put real audio on every word, from your first letter to full sentences.
+              {t("armenianPronunciation.cta.subtext")}
             </p>
-            <button onClick={() => navigate("/")} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              Start learning — free <ArrowRight className="h-5 w-5" />
+            <button onClick={() => navigate(lp("/"))} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
+              {t("armenianPronunciation.cta.button")} <ArrowRight className="h-5 w-5" />
             </button>
           </div>
         </section>

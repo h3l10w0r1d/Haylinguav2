@@ -13,6 +13,8 @@ import {
 import LandingPage from './LandingPage';
 import HeaderLayout from './HeaderLayout';
 import LoadingScreen from './lib/LoadingScreen';
+import LocaleLayout from './lib/LocaleLayout';
+import './i18n';
 import ErrorBoundary from './lib/ErrorBoundary';
 import NotifyPrompt from './lib/NotifyPrompt';
 import ConsentBanner from './ConsentBanner';
@@ -95,6 +97,27 @@ const ProgressPage    = lazy(() => import('./ProgressPage'));
 function RouteFallback() {
   return <LoadingScreen />;
 }
+
+// Public marketing/SEO/blog pages — registered once here as relative paths
+// (no leading "/") and rendered twice in AppShell's <Routes>: unprefixed at
+// the top level (English, today's existing URLs) and again nested under
+// /:locale for each translated locale. Excludes /careers/apply/:vacancyId
+// and /community/thread|:slug — those are deep-linked utility routes, not
+// SEO-targeted pages, so they stay English-only/unprefixed.
+const PUBLIC_ROUTE_DEFS = [
+  { path: 'about', element: <AboutPage /> },
+  { path: 'armenian-alphabet', element: <ArmenianAlphabetPage /> },
+  { path: 'learn-armenian-online', element: <LearnArmenianOnlinePage /> },
+  { path: 'armenian-pronunciation', element: <ArmenianPronunciationPage /> },
+  { path: 'armenian-vocabulary', element: <ArmenianVocabularyPage /> },
+  { path: 'eastern-armenian', element: <EasternArmenianPage /> },
+  { path: 'blog', element: <BlogPage /> },
+  { path: 'blog/:slug', element: <BlogPostPage /> },
+  { path: 'contact', element: <ContactPage /> },
+  { path: 'pricing', element: <PricingPage /> },
+  { path: 'careers', element: <CareersPage /> },
+  { path: 'affiliates', element: <AffiliatesPage /> },
+];
 
 const API_BASE = 'https://haylinguav2.onrender.com';
 
@@ -414,24 +437,25 @@ function AppShell() {
       />
 
       {/* Marketing page — standalone (own nav/footer, like LandingPage), no
-          auth required and accessible even when logged in. */}
-      <Route path="/about" element={<AboutPage />} />
-      <Route path="/armenian-alphabet" element={<ArmenianAlphabetPage />} />
-      <Route path="/learn-armenian-online" element={<LearnArmenianOnlinePage />} />
-      <Route path="/armenian-pronunciation" element={<ArmenianPronunciationPage />} />
-      <Route path="/armenian-vocabulary" element={<ArmenianVocabularyPage />} />
-      <Route path="/eastern-armenian" element={<EasternArmenianPage />} />
-      <Route path="/blog" element={<BlogPage />} />
-      <Route path="/blog/:slug" element={<BlogPostPage />} />
-      <Route path="/contact" element={<ContactPage />} />
+          auth required and accessible even when logged in. Defined once as
+          relative paths (no leading "/") and rendered twice below: at the
+          top level (unprefixed = English, today's existing URLs, untouched)
+          and again nested under /:locale for the translated locales — see
+          SUPPORTED_LOCALES in src/i18n/index.js. Each page component reads
+          its own locale via useLocale()/useTranslation() internally, so
+          nothing extra needs to be threaded through here. */}
+      {PUBLIC_ROUTE_DEFS.map((r) => (
+        <Route key={r.path} path={`/${r.path}`} element={r.element} />
+      ))}
+
+      {/* Not translated this pass (legal/community/deep-link utility routes
+          — see PUBLIC_ROUTE_DEFS' comment) — English-only, unprefixed, same
+          as before this change. */}
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/refund-policy" element={<RefundPolicyPage />} />
       <Route path="/cookie-policy" element={<CookiePolicyPage />} />
-      <Route path="/pricing" element={<PricingPage />} />
-      <Route path="/careers" element={<CareersPage />} />
       <Route path="/careers/apply/:vacancyId" element={<CareersApplyPage />} />
-      <Route path="/affiliates" element={<AffiliatesPage />} />
       <Route path="/community" element={<ForumPage />} />
       <Route path="/community/thread/:id" element={<ForumThreadPage />} />
       <Route path="/community/:slug" element={<ForumCategoryPage />} />
@@ -446,6 +470,22 @@ function AppShell() {
           )
         }
       />
+
+      <Route path="/:locale" element={<LocaleLayout />}>
+        <Route
+          index
+          element={
+            user?.email_verified === true ? (
+              onboardingCompleted ? <Navigate to="/dashboard" replace /> : <Navigate to="/onboarding" replace />
+            ) : (
+              <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
+            )
+          }
+        />
+        {PUBLIC_ROUTE_DEFS.map((r) => (
+          <Route key={r.path} path={r.path} element={r.element} />
+        ))}
+      </Route>
 
       {/* Authenticated app routes share the same header/nav (HeaderLayout) */}
       <Route

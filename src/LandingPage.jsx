@@ -3,6 +3,8 @@
 import Turnstile from "./lib/Turnstile";
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { renderTemplate, useLocale, localizedPath } from "./i18n";
 import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
@@ -34,49 +36,27 @@ const ARMENIAN_WORDS = [
   { arm: "Սիրում եմ քեզ", rom: "si·rum em kez", eng: "I love you" },
 ];
 
-const FEATURES = [
-  { icon: Languages, title: "Alphabet from scratch", text: "Master all 39 Armenian letters with bite-sized intro, recognition, and typing drills.", tone: "brand" },
-  { icon: Headphones, title: "Listen & speak", text: "Real text-to-speech audio on every prompt so you learn how Armenian actually sounds.", tone: "feather" },
-  { icon: Repeat2, title: "Mistake review", text: "Every wrong answer gets tracked, so you can circle back and re-master exactly what tripped you up.", tone: "grass" },
-  { icon: Flame, title: "Streaks & XP", text: "Earn XP, keep your daily streak alive, and build a habit that sticks.", tone: "brand" },
-  { icon: Heart, title: "Hearts", text: "Lose a heart on a wrong answer — a gentle nudge to slow down and get it right.", tone: "cardinal" },
-  { icon: Trophy, title: "Leaderboard & friends", text: "Add friends and climb the leaderboard. A little competition goes a long way.", tone: "gold" },
+// Non-text metadata only (icons, tone/color, ordinal, star count) — the
+// title/text/quote/name/role/q/a strings themselves come from
+// src/i18n/locales/{locale}/landing.json (features/steps/testimonials/faqs),
+// zipped onto these by index at each render site so the section works for
+// every locale without duplicating the icon wiring per language.
+const FEATURES_META = [
+  { icon: Languages, tone: "brand" },
+  { icon: Headphones, tone: "feather" },
+  { icon: Repeat2, tone: "grass" },
+  { icon: Flame, tone: "brand" },
+  { icon: Heart, tone: "cardinal" },
+  { icon: Trophy, tone: "gold" },
 ];
 
-const STEPS = [
-  { n: 1, title: "Pick a lesson", text: "Start on the path — from your very first letter to full phrases.", icon: Crown },
-  { n: 2, title: "Practice & get feedback", text: "Tap, type, listen, and match. Every answer is checked instantly.", icon: Check },
-  { n: 3, title: "Keep your streak", text: "Earn XP, unlock the next node, and come back tomorrow.", icon: Flame },
+const STEPS_META = [
+  { n: 1, icon: Crown },
+  { n: 2, icon: Check },
+  { n: 3, icon: Flame },
 ];
 
-const TESTIMONIALS = [
-  {
-    quote: "I learned the entire Armenian alphabet in under a week. The exercises make it feel like a game, not a chore.",
-    name: "Ani M.",
-    role: "Armenian diaspora · Los Angeles",
-    stars: 5,
-  },
-  {
-    quote: "This feels like Duolingo but made for Armenian. The audio on every word is a total game-changer for pronunciation.",
-    name: "James K.",
-    role: "Language enthusiast · London",
-    stars: 5,
-  },
-  {
-    quote: "As a heritage speaker trying to finally read and write, Haylingua filled the exact gaps I had. Loving the streaks.",
-    name: "Narine H.",
-    role: "Heritage learner · Yerevan",
-    stars: 5,
-  },
-];
-
-const FAQS = [
-  { q: "Is Haylingua free?", a: "Yes — you can create an account and start learning the Armenian alphabet and your first lessons for free." },
-  { q: "I don't know the Armenian alphabet at all. Is that okay?", a: "Perfect, that's exactly where we begin. The first lessons introduce each letter with its sound, examples, and typing practice before you ever build a word." },
-  { q: "Do I need a special keyboard?", a: "No. Exercises are tap-and-choose or use on-screen prompts, and typing exercises accept the Armenian letters shown to you." },
-  { q: "Does it work on my phone?", a: "Yes. Haylingua is built mobile-first and works in any modern browser on phone, tablet, or desktop." },
-  { q: "How do streaks and hearts work?", a: "You earn XP for correct answers and keep a daily streak by practicing each day. Hearts give you a few tries per session so mistakes feel low-stakes." },
-];
+const TESTIMONIALS_META = [{ stars: 5 }, { stars: 5 }, { stars: 5 }];
 
 const TONES = {
   brand: "bg-brand-50 text-brand-500",
@@ -200,95 +180,69 @@ function SignupPromoPanel({ mode }) {
 // exercise formats back to back (read→pick-meaning, listen→pick-word,
 // true/false judgment, meaning→pick-word) instead of one MCQ type repeated
 // with different vocab — matching the variety the real lesson player has.
-const DEMO_QUESTIONS = [
-  {
-    kind: "translate_mcq",
-    prompt: "Բարև", rom: "ba-rev", meaning: "Hello", correct: 0,
-    options: ["Hello", "Goodbye", "Thank you"],
-    hook: "It's the word you lead with when you meet someone.",
-    wrong: {
-      1: { arm: "Ցտեսություն", rom: "tse-te-su-tyun" },
-      2: { arm: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun" },
-    },
-  },
-  {
-    kind: "listening",
-    prompt: "Ջուր", rom: "jur", meaning: "Water", correct: 1,
-    options: ["Հաց", "Ջուր", "Կաթ"],
-    hook: "Listen for the soft «ջ» sound at the start.",
-    wrong: {
-      0: { meaning: "Bread" },
-      2: { meaning: "Milk" },
-    },
-  },
-  {
-    kind: "true_false",
-    prompt: "Ընկեր", rom: "ən-ker", meaning: "Friend", correct: 1,
-    statementClaim: "Enemy",
-    options: ["True", "False"],
-    hook: "You'll hear it constantly — Armenians call a close friend ընկեր.",
-    wrong: { 0: {} },
-  },
-  {
-    kind: "word_match",
-    prompt: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun", meaning: "Thank you", correct: 2,
-    englishPrompt: "Thank you",
-    options: ["Խնդրեմ", "Ներողություն", "Շնորհակալություն"],
-    hook: "It's a long one, but you'll say it every day.",
-    wrong: {
-      0: { meaning: "Please" },
-      1: { meaning: "Sorry" },
-    },
-  },
-  {
-    // No MCQ options — the learner draws instead, so `correct` is just the
-    // sentinel index onCheck() forces `selected` to once a stroke is drawn.
-    // See TraceLetterPad + the onCheck/DemoPromptHeader kind branches below.
-    kind: "trace_letter",
-    prompt: "Ա", rom: "a", meaning: "the letter A", correct: 0,
-    hook: "It's the very first letter of the Armenian alphabet — 38 to go.",
-  },
+// Armenian script/romanization/correct-index only — locale-invariant, stays
+// identical across every language. The meaning/options/hook/tutor-frame text
+// (what actually needs translating) lives in src/i18n/locales/{locale}/
+// landing.json's demo.questions/demo.frames, merged onto this at render time
+// by useLocalizedDemo() below — see that hook for why it's split this way.
+const DEMO_QUESTIONS_BASE = [
+  { kind: "translate_mcq", prompt: "Բարև", rom: "ba-rev", correct: 0, wrong: { 1: { arm: "Ցտեսություն", rom: "tse-te-su-tyun" }, 2: { arm: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun" } } },
+  { kind: "listening", prompt: "Ջուր", rom: "jur", correct: 1, options: ["Հաց", "Ջուր", "Կաթ"], wrong: { 0: {}, 2: {} } },
+  { kind: "true_false", prompt: "Ընկեր", rom: "ən-ker", correct: 1, wrong: { 0: {} } },
+  { kind: "word_match", prompt: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun", correct: 2, options: ["Խնդրեմ", "Ներողություն", "Շնորհակալություն"], wrong: { 0: {}, 1: {} } },
+  { kind: "trace_letter", prompt: "Ա", rom: "a", correct: 0 },
 ];
 
-// Explanation phrasings the simulated "AI tutor" picks from, keyed by exercise
-// kind since what "picked" means differs per kind (an English word for
-// translate_mcq, an Armenian word already on screen for listening/word_match,
-// nothing at all for true_false). Multiple frames per kind + the "explain it
-// differently" button let a visitor regenerate the reply and see it's
-// genuinely reasoning about their mistake, not replaying one fixed string.
-const KIND_FRAMES = {
-  translate_mcq: [
-    (q, w, picked) => `Close — but «${q.prompt}» means "${q.meaning}", not "${picked}". The word for "${picked}" is «${w.arm}» (${w.rom}). ${q.hook}`,
-    (q, w, picked) => `I see the mix-up: "${picked}" in Armenian is «${w.arm}» (${w.rom}). «${q.prompt}» (${q.rom}) actually means "${q.meaning}". ${q.hook}`,
-    (q, w, picked) => `Not this time. «${q.prompt}» = "${q.meaning}". You went with "${picked}", which is «${w.arm}» (${w.rom}) — an easy pair to confuse. ${q.hook}`,
-  ],
-  listening: [
-    (q, w, picked) => `That's «${picked}» — "${w.meaning}". Listen again: the audio said «${q.prompt}» ("${q.meaning}"). ${q.hook}`,
-    (q, w, picked) => `Not quite — «${picked}» means "${w.meaning}". What played was «${q.prompt}», which means "${q.meaning}". ${q.hook}`,
-  ],
-  true_false: [
-    (q) => `Actually, «${q.prompt}» means "${q.meaning}" — not "${q.statementClaim}". ${q.hook}`,
-    (q) => `Not quite. «${q.prompt}» (${q.rom}) translates to "${q.meaning}", so that statement is false. ${q.hook}`,
-  ],
-  word_match: [
-    (q, w, picked) => `«${picked}» actually means "${w.meaning}" — the word for "${q.englishPrompt}" is «${q.prompt}» (${q.rom}). ${q.hook}`,
-    (q, w, picked) => `Not this one — «${picked}» is "${w.meaning}". You're looking for «${q.prompt}» (${q.rom}), which means "${q.englishPrompt}". ${q.hook}`,
-  ],
-};
+// Merges DEMO_QUESTIONS_BASE (Armenian, fixed) with the current locale's
+// demo.questions overrides (meaning/options/hook/statementClaim/
+// englishPrompt/wrong[i].meaning) and builds locale-aware KIND_FRAMES
+// functions out of demo.frames' {{token}} template strings (functions can't
+// survive JSON — see renderTemplate in src/i18n/index.js).
+function useLocalizedDemo() {
+  const { t } = useTranslation("landing");
+  const overrides = t("demo.questions", { returnObjects: true });
+  const frameTemplates = t("demo.frames", { returnObjects: true });
+
+  const questions = DEMO_QUESTIONS_BASE.map((base, i) => {
+    const o = overrides[i] || {};
+    const wrong = {};
+    for (const key of Object.keys(base.wrong || {})) {
+      wrong[key] = { ...base.wrong[key], ...(o.wrong?.[key] || {}) };
+    }
+    return {
+      ...base,
+      ...o,
+      options: o.options || base.options,
+      wrong,
+    };
+  });
+
+  const makeFrames = (tpls, vars) => tpls.map((tpl) => (q, w, picked) => renderTemplate(tpl, vars(q, w, picked)));
+  const frames = {
+    translate_mcq: makeFrames(frameTemplates.translate_mcq, (q, w, picked) => ({ prompt: q.prompt, meaning: q.meaning, picked, arm: w.arm, rom: w.rom, promptRom: q.rom, hook: q.hook })),
+    listening: makeFrames(frameTemplates.listening, (q, w, picked) => ({ picked, wrongMeaning: w.meaning, prompt: q.prompt, meaning: q.meaning, hook: q.hook })),
+    true_false: makeFrames(frameTemplates.true_false, (q) => ({ prompt: q.prompt, meaning: q.meaning, statementClaim: q.statementClaim, promptRom: q.rom, hook: q.hook })),
+    word_match: makeFrames(frameTemplates.word_match, (q, w, picked) => ({ picked, wrongMeaning: w.meaning, englishPrompt: q.englishPrompt, prompt: q.prompt, promptRom: q.rom, hook: q.hook })),
+  };
+
+  return { questions, frames };
+}
 
 // The instruction + prompt row varies by kind: translate_mcq shows the
 // Armenian word to translate, listening hides the text and leads with audio,
 // true_false shows a claim to judge, word_match starts from English instead
 // of Armenian.
 function DemoPromptHeader({ q }) {
+  const { t: tt } = useTranslation("landing");
+  const h = tt("demo.header", { returnObjects: true });
   const label = "mt-5 text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-stone-300";
   const big = "max-w-full font-display text-2xl font-extrabold text-slate-800 [overflow-wrap:anywhere] dark:text-white";
   if (q.kind === "listening") {
     return (
       <>
-        <div className={label}>Tap what you hear</div>
+        <div className={label}>{h.tapWhatYouHear}</div>
         <div className="mt-4 flex justify-center">
-          <VoiceChip text={q.prompt} displayText="Play the word" />
+          <VoiceChip text={q.prompt} displayText={h.playTheWord} />
         </div>
       </>
     );
@@ -296,9 +250,9 @@ function DemoPromptHeader({ q }) {
   if (q.kind === "true_false") {
     return (
       <>
-        <div className={label}>True or false?</div>
+        <div className={label}>{h.trueOrFalse}</div>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <div className={big}>«{q.prompt}» means "{q.statementClaim}"</div>
+          <div className={big}>«{q.prompt}» {renderTemplate(h.meansQuoted, { claim: q.statementClaim })}</div>
           <VoiceChip text={q.prompt} tone="slate" />
         </div>
       </>
@@ -307,7 +261,7 @@ function DemoPromptHeader({ q }) {
   if (q.kind === "word_match") {
     return (
       <>
-        <div className={label}>Select the matching word</div>
+        <div className={label}>{h.selectMatching}</div>
         <div className={big + " mt-1"}>"{q.englishPrompt}" in Armenian is…</div>
       </>
     );
@@ -315,7 +269,7 @@ function DemoPromptHeader({ q }) {
   if (q.kind === "trace_letter") {
     return (
       <>
-        <div className={label}>Trace the letter</div>
+        <div className={label}>{h.traceTheLetter}</div>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <div className={big}>
             {q.prompt} <span className="text-base font-semibold text-slate-400 dark:text-stone-500">— {q.meaning}</span>
@@ -327,9 +281,9 @@ function DemoPromptHeader({ q }) {
   }
   return (
     <>
-      <div className={label}>Select the correct translation</div>
+      <div className={label}>{h.selectTranslation}</div>
       <div className="mt-1 flex flex-wrap items-center gap-2">
-        <div className={big}>"{q.prompt}" means…</div>
+        <div className={big}>"{q.prompt}" {h.means}</div>
         <VoiceChip text={q.prompt} tone="slate" />
       </div>
     </>
@@ -675,6 +629,7 @@ function VoiceChip({ text, label, tone = "brand", displayText }) {
 }
 
 function LandingExerciseDemo({ onSignup }) {
+  const { questions: DEMO_QUESTIONS, frames: KIND_FRAMES } = useLocalizedDemo();
   const [qi, setQi] = useState(0);
   const [selected, setSelected] = useState(null);
   const [checked, setChecked] = useState(false);
@@ -1392,6 +1347,11 @@ function LiveStatsStrip() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onLogin, onSignup }) {
+  const { t: tt } = useTranslation("landing");
+  const features = tt("features", { returnObjects: true });
+  const steps = tt("steps", { returnObjects: true });
+  const testimonials = tt("testimonials", { returnObjects: true });
+  const faqs = tt("faqs", { returnObjects: true });
   const [mode, setMode] = useState("login"); // login | signup | forgot | verify
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -1982,12 +1942,12 @@ export default function LandingPage({ onLogin, onSignup }) {
               <Sparkles className="h-3.5 w-3.5" /> Armenian made playful
             </div>
             <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-6xl">
-              Learn Armenian.
+              {tt("hero.title1")}
               <br />
-              <span className="text-brand-500">Actually stick with it.</span>
+              <span className="text-brand-500">{tt("hero.title2")}</span>
             </h1>
             <p className="mt-5 max-w-md text-lg font-semibold text-slate-500 dark:text-stone-400">
-              Bite-sized lessons, instant feedback, audio on every word, and streaks that make you want to come back tomorrow.
+              {tt("hero.subtitle")}
             </p>
 
             {/* Armenian word showcase */}
@@ -2020,14 +1980,14 @@ export default function LandingPage({ onLogin, onSignup }) {
                 so the hero reads as fewer, calmer chunks. */}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand text-base">
-                Start learning — free <ArrowRight className="h-5 w-5" />
+                {tt("hero.ctaStart")} <ArrowRight className="h-5 w-5" />
               </button>
-              <button onClick={() => goAuth("login")} className="btn3d btn3d-neutral text-base">I have an account</button>
+              <button onClick={() => goAuth("login")} className="btn3d btn3d-neutral text-base">{tt("hero.ctaLogin")}</button>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm font-bold text-slate-600 dark:text-stone-300">
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> Free to start</span>
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> No card needed</span>
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> 14 days of Premium free</span>
+              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> {tt("hero.freeToStart")}</span>
+              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> {tt("hero.noCard")}</span>
+              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> {tt("hero.premiumDays")}</span>
             </div>
           </div>
 
@@ -2071,15 +2031,15 @@ export default function LandingPage({ onLogin, onSignup }) {
         </Reveal>
         <div className="relative mt-10 grid gap-5 md:grid-cols-3">
           <StepsConnector />
-          {STEPS.map((s, i) => (
+          {STEPS_META.map((s, i) => (
             <Reveal key={s.n} delay={i * 100}>
               <div className="relative rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm h-full">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white shadow-btn-brand">
                   <s.icon className="h-6 w-6" />
                 </div>
                 <div className="mt-4 font-display text-xs font-extrabold uppercase tracking-wide text-brand-500">Step {s.n}</div>
-                <div className="mt-1 font-display text-xl font-extrabold text-slate-800 dark:text-white">{s.title}</div>
-                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{s.text}</p>
+                <div className="mt-1 font-display text-xl font-extrabold text-slate-800 dark:text-white">{steps[i].title}</div>
+                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{steps[i].text}</p>
               </div>
             </Reveal>
           ))}
@@ -2119,14 +2079,14 @@ export default function LandingPage({ onLogin, onSignup }) {
           <SectionHeading eyebrow="Features" title="Everything you need to go from zero to conversation" />
         </Reveal>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f, i) => (
-            <Reveal key={f.title} delay={i * 80}>
+          {FEATURES_META.map((f, i) => (
+            <Reveal key={features[i].title} delay={i * 80}>
               <div className="rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm transition hover:-translate-y-1 hover:shadow-md h-full">
                 <div className={"grid h-12 w-12 place-items-center rounded-2xl " + TONES[f.tone]}>
                   <f.icon className="h-6 w-6" />
                 </div>
-                <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">{f.title}</div>
-                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{f.text}</p>
+                <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">{features[i].title}</div>
+                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{features[i].text}</p>
               </div>
             </Reveal>
           ))}
@@ -2140,22 +2100,22 @@ export default function LandingPage({ onLogin, onSignup }) {
             <SectionHeading eyebrow="Learners love it" title="Real words from real learners" />
           </Reveal>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {TESTIMONIALS.map((t, i) => (
-              <Reveal key={t.name} delay={i * 100}>
+            {TESTIMONIALS_META.map((m, i) => (
+              <Reveal key={testimonials[i].name} delay={i * 100}>
                 <div className="flex h-full flex-col rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm">
                   <div className="flex gap-0.5 mb-4">
-                    {Array.from({ length: t.stars }).map((_, j) => (
+                    {Array.from({ length: m.stars }).map((_, j) => (
                       <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <p className="flex-1 text-sm font-semibold leading-relaxed text-slate-600 dark:text-stone-300">"{t.quote}"</p>
+                  <p className="flex-1 text-sm font-semibold leading-relaxed text-slate-600 dark:text-stone-300">"{testimonials[i].quote}"</p>
                   <div className="mt-5 flex items-center gap-3">
                     <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-100 font-display text-sm font-extrabold text-brand-600">
-                      {t.name[0]}
+                      {testimonials[i].name[0]}
                     </div>
                     <div>
-                      <div className="text-sm font-extrabold text-slate-800 dark:text-white">{t.name}</div>
-                      <div className="text-xs font-semibold text-slate-400 dark:text-stone-500">{t.role}</div>
+                      <div className="text-sm font-extrabold text-slate-800 dark:text-white">{testimonials[i].name}</div>
+                      <div className="text-xs font-semibold text-slate-400 dark:text-stone-500">{testimonials[i].role}</div>
                     </div>
                   </div>
                 </div>
@@ -2253,7 +2213,7 @@ export default function LandingPage({ onLogin, onSignup }) {
             <SectionHeading eyebrow="FAQ" title="Questions, answered" />
           </Reveal>
           <div className="mt-8 space-y-3">
-            {FAQS.map((f, i) => {
+            {faqs.map((f, i) => {
               const open = faqOpen === i;
               return (
                 <Reveal key={i} delay={i * 60}>
@@ -2282,7 +2242,7 @@ export default function LandingPage({ onLogin, onSignup }) {
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide">
               <Sparkles className="h-3.5 w-3.5" /> 14 days of Premium, free — no card
             </div>
-            <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Ready to learn Armenian?</h2>
+            <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{tt("ctaBanner.heading")}</h2>
             <p className="mt-3 max-w-md text-lg font-semibold text-white/90">
               Join now and finish your first lesson in minutes. Բարի՜ ճանապարհ — good luck!
             </p>

@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "about": "About us",
+    "careers": "Careers",
+    "pricing": "Pricing",
+    "contact": "Contact",
+    "login": "Log in",
+    "getStarted": "Get started",
+    "startLearning": "Start learning",
+    "signUpFree": "Sign up free",
+    "toggleSound": "Toggle sound",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode",
+    "toggleMenu": "Toggle menu",
+    "language": "Language"
+  },
+  "footer": {
+    "tagline": "Learn Armenian the playful way — bite-sized lessons, real audio, and streaks that keep you coming back.",
+    "product": "Product",
+    "company": "Company",
+    "legal": "Legal",
+    "linkPricing": "Pricing",
+    "linkHowItWorks": "How it works",
+    "linkFeatures": "Features",
+    "linkFaq": "FAQ",
+    "linkAbout": "About us",
+    "linkCareers": "Careers",
+    "linkAffiliates": "Affiliates",
+    "linkCommunity": "Community",
+    "linkBlog": "Blog",
+    "linkContact": "Contact",
+    "linkTerms": "Terms & Conditions",
+    "linkPrivacy": "Privacy Policy",
+    "linkRefund": "Refund Policy",
+    "linkCookie": "Cookie Policy",
+    "weAccept": "We accept",
+    "secureCheckout": "Secure, encrypted checkout",
+    "copyright": "© {{year}} Haylingua. All rights reserved.",
+    "madeIn": "Made with ❤️ in Armenia"
+  }
+}

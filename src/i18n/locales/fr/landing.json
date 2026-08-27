@@ -1,0 +1,76 @@
+{
+  "hero": {
+    "title1": "Apprends l'arménien.",
+    "title2": "Et tiens le coup, pour de vrai.",
+    "subtitle": "Des leçons courtes, un retour instantané, l'audio sur chaque mot, et des séries qui donnent envie de revenir demain.",
+    "ctaStart": "Commencer — gratuit",
+    "ctaLogin": "J'ai déjà un compte",
+    "freeToStart": "Gratuit pour commencer",
+    "noCard": "Aucune carte requise",
+    "premiumDays": "14 jours de Premium offerts"
+  },
+  "features": [
+    { "title": "L'alphabet depuis le début", "text": "Maîtrise les 39 lettres arméniennes avec des exercices courts d'introduction, de reconnaissance et de frappe." },
+    { "title": "Écoute et parle", "text": "De vrais audios de synthèse vocale sur chaque question, pour apprendre à quoi ressemble vraiment l'arménien." },
+    { "title": "Révision des erreurs", "text": "Chaque mauvaise réponse est enregistrée, pour que tu puisses revenir dessus et maîtriser exactement ce qui t'a fait trébucher." },
+    { "title": "Séries et XP", "text": "Gagne de l'XP, garde ta série quotidienne active, et crée une habitude qui dure." },
+    { "title": "Cœurs", "text": "Perds un cœur en cas d'erreur — un petit rappel de ralentir et de bien faire les choses." },
+    { "title": "Classement et amis", "text": "Ajoute des amis et grimpe dans le classement. Un peu de compétition, ça motive." }
+  ],
+  "steps": [
+    { "title": "Choisis une leçon", "text": "Démarre sur le parcours — de ta toute première lettre jusqu'aux phrases complètes." },
+    { "title": "Entraîne-toi et reçois un retour", "text": "Touche, tape, écoute et associe. Chaque réponse est vérifiée instantanément." },
+    { "title": "Garde ta série", "text": "Gagne de l'XP, débloque le nœud suivant, et reviens demain." }
+  ],
+  "testimonials": [
+    { "quote": "J'ai appris tout l'alphabet arménien en moins d'une semaine. Les exercices donnent l'impression de jouer, pas de bosser.", "name": "Ani M.", "role": "Diaspora arménienne · Los Angeles" },
+    { "quote": "On dirait Duolingo, mais pensé pour l'arménien. L'audio sur chaque mot change vraiment la donne pour la prononciation.", "name": "James K.", "role": "Passionné de langues · Londres" },
+    { "quote": "En tant que locutrice de cœur qui essaie enfin de lire et d'écrire, Haylingua a comblé exactement les lacunes que j'avais. J'adore les séries.", "name": "Narine H.", "role": "Apprenante de patrimoine · Erevan" }
+  ],
+  "faqs": [
+    { "q": "Haylingua est-elle gratuite ?", "a": "Oui — tu peux créer un compte et commencer à apprendre l'alphabet arménien et tes premières leçons gratuitement." },
+    { "q": "Je ne connais pas du tout l'alphabet arménien. C'est grave ?", "a": "Parfait, c'est exactement là qu'on commence. Les premières leçons présentent chaque lettre avec son son, des exemples et de la pratique d'écriture avant même de former un mot." },
+    { "q": "Ai-je besoin d'un clavier spécial ?", "a": "Non. Les exercices se font en touchant les bonnes réponses ou via les indications à l'écran, et les exercices de frappe acceptent les lettres arméniennes qui te sont montrées." },
+    { "q": "Est-ce que ça marche sur mon téléphone ?", "a": "Oui. Haylingua est conçue mobile-first et fonctionne sur n'importe quel navigateur moderne, sur téléphone, tablette ou ordinateur." },
+    { "q": "Comment fonctionnent les séries et les cœurs ?", "a": "Tu gagnes de l'XP pour les bonnes réponses et gardes une série quotidienne en pratiquant chaque jour. Les cœurs te donnent plusieurs essais par session pour que les erreurs restent sans conséquence." }
+  ],
+  "ctaBanner": { "heading": "Prêt à apprendre l'arménien ?" },
+  "demo": {
+    "header": {
+      "tapWhatYouHear": "Touche ce que tu entends",
+      "playTheWord": "Écouter le mot",
+      "trueOrFalse": "Vrai ou faux ?",
+      "selectMatching": "Sélectionne le mot correspondant",
+      "traceTheLetter": "Trace la lettre",
+      "selectTranslation": "Sélectionne la bonne traduction",
+      "means": "signifie…",
+      "meansQuoted": "signifie « {{claim}} »"
+    },
+    "questions": [
+      { "meaning": "Bonjour", "options": ["Bonjour", "Au revoir", "Merci"], "hook": "C'est le mot par lequel tu commences quand tu rencontres quelqu'un.", "wrong": { "1": {}, "2": {} } },
+      { "meaning": "Eau", "options": ["Հաց", "Ջուր", "Կաթ"], "hook": "Écoute bien le son doux « ջ » au début.", "wrong": { "0": { "meaning": "Pain" }, "2": { "meaning": "Lait" } } },
+      { "meaning": "Ami", "statementClaim": "Ennemi", "options": ["Vrai", "Faux"], "hook": "Tu l'entendras tout le temps — les Arméniens appellent un ami proche ընկեր." },
+      { "meaning": "Merci", "englishPrompt": "Merci", "options": ["Խնդրեմ", "Ներողություն", "Շնորհակալություն"], "hook": "C'est un mot long, mais tu le diras tous les jours.", "wrong": { "0": { "meaning": "S'il te plaît" }, "1": { "meaning": "Désolé" } } },
+      { "meaning": "la lettre A", "hook": "C'est la toute première lettre de l'alphabet arménien — il en reste 38." }
+    ],
+    "frames": {
+      "translate_mcq": [
+        "Presque — mais « {{prompt}} » signifie \"{{meaning}}\", pas \"{{picked}}\". Le mot pour \"{{picked}}\" est « {{arm}} » ({{rom}}). {{hook}}",
+        "Je vois la confusion : \"{{picked}}\" en arménien, c'est « {{arm}} » ({{rom}}). « {{prompt}} » ({{promptRom}}) signifie en fait \"{{meaning}}\". {{hook}}",
+        "Pas cette fois. « {{prompt}} » = \"{{meaning}}\". Tu as choisi \"{{picked}}\", qui est « {{arm}} » ({{rom}}) — facile à confondre. {{hook}}"
+      ],
+      "listening": [
+        "C'est « {{picked}} » — \"{{wrongMeaning}}\". Réécoute : l'audio disait « {{prompt}} » (\"{{meaning}}\"). {{hook}}",
+        "Pas tout à fait — « {{picked}} » signifie \"{{wrongMeaning}}\". Ce qui a été joué, c'est « {{prompt}} », qui signifie \"{{meaning}}\". {{hook}}"
+      ],
+      "true_false": [
+        "En fait, « {{prompt}} » signifie \"{{meaning}}\" — pas \"{{statementClaim}}\". {{hook}}",
+        "Pas tout à fait. « {{prompt}} » ({{promptRom}}) se traduit par \"{{meaning}}\", donc cette affirmation est fausse. {{hook}}"
+      ],
+      "word_match": [
+        "« {{picked}} » signifie en fait \"{{wrongMeaning}}\" — le mot pour \"{{englishPrompt}}\" est « {{prompt}} » ({{promptRom}}). {{hook}}",
+        "Pas celui-ci — « {{picked}} » veut dire \"{{wrongMeaning}}\". Tu cherches « {{prompt}} » ({{promptRom}}), qui signifie \"{{englishPrompt}}\". {{hook}}"
+      ]
+    }
+  }
+}
