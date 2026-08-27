@@ -772,9 +772,21 @@ const PATH_NODE = 64; // node diameter, px
 const PATH_ROW_H = 92; // vertical spacing between node centers, px
 const PATH_OFFSETS = [0, 64, 96, 64, 0, -64, -96, -64]; // horizontal offset cycle, px
 const PATH_HALF_W = 96 + PATH_NODE / 2 + 8; // half the widest offset + node radius + margin
+// The checkpoint row is pulled closer to the lesson row above it than a
+// normal PATH_ROW_H step would allow — at full spacing, a completed unit's
+// checkpoint reads as one more full lesson-row of empty travel below the
+// last lesson, which (combined with ordinary card padding/margin to the
+// next unit) made the checkpoint look like an isolated dot floating in a
+// big blank gap. Still comfortably more than PATH_NODE so it never
+// visually overlaps the node above it.
+const CHECKPOINT_PULL = 28;
 
-function pathNodeCenter(i) {
-  return { x: PATH_HALF_W + PATH_OFFSETS[i % PATH_OFFSETS.length], y: PATH_ROW_H / 2 + i * PATH_ROW_H };
+// `totalNodes` lets the LAST node (the checkpoint) pull closer to the row
+// above it — every other node keeps the normal, unchanged rhythm.
+function pathNodeCenter(i, totalNodes) {
+  const isCheckpoint = totalNodes != null && i === totalNodes - 1;
+  const y = PATH_ROW_H / 2 + i * PATH_ROW_H - (isCheckpoint ? CHECKPOINT_PULL : 0);
+  return { x: PATH_HALF_W + PATH_OFFSETS[i % PATH_OFFSETS.length], y };
 }
 
 // Interleaves a decorative chest milestone into the path on an alternating
@@ -900,8 +912,8 @@ function LearningPathChest({ index, unlocked }) {
   );
 }
 
-function LearningPathCheckpoint({ unit, complete, onCheckpoint, index }) {
-  const { x, y } = pathNodeCenter(index);
+function LearningPathCheckpoint({ unit, complete, onCheckpoint, index, totalNodes }) {
+  const { x, y } = pathNodeCenter(index, totalNodes);
   return (
     <div className="absolute flex flex-col items-center" style={{ left: x - PATH_NODE / 2, top: y - PATH_NODE / 2, width: PATH_NODE }}>
       <button
@@ -930,13 +942,13 @@ function LearningPath({ unit, onStart, onCheckpoint, complete }) {
   const pathItems = useMemo(() => buildPathItems(unit.items), [unit.items]);
   const nodeCount = pathItems.length + 1; // + checkpoint node
   const width = PATH_HALF_W * 2;
-  const height = PATH_ROW_H * (nodeCount - 1) + PATH_ROW_H;
+  const height = PATH_ROW_H * (nodeCount - 1) + PATH_ROW_H - CHECKPOINT_PULL;
 
   // Smooth curve through every node center, one cubic-bezier segment per
   // consecutive pair — control points offset vertically so the line eases
   // into each turn instead of kinking at it.
   const d = useMemo(() => {
-    const pts = Array.from({ length: nodeCount }, (_, i) => pathNodeCenter(i));
+    const pts = Array.from({ length: nodeCount }, (_, i) => pathNodeCenter(i, nodeCount));
     let path = `M ${pts[0].x} ${pts[0].y}`;
     for (let i = 1; i < pts.length; i++) {
       const prev = pts[i - 1];
@@ -968,7 +980,7 @@ function LearningPath({ unit, onStart, onCheckpoint, complete }) {
           <LearningPathNode key={item.lesson.id ?? item.lesson.slug} lesson={item.lesson} index={i} onStart={onStart} />
         )
       )}
-      <LearningPathCheckpoint unit={unit} complete={complete} onCheckpoint={onCheckpoint} index={pathItems.length} />
+      <LearningPathCheckpoint unit={unit} complete={complete} onCheckpoint={onCheckpoint} index={pathItems.length} totalNodes={nodeCount} />
     </div>
   );
 }
