@@ -107,7 +107,15 @@ export default function middleware(request) {
 
   const url = new URL(request.url);
   url.pathname = localizedPath(url.pathname, locale);
-  const redirect = Response.redirect(url, 307);
-  redirect.headers.append("Set-Cookie", setCookie);
-  return redirect;
+  // NOT Response.redirect(url, 307): the Fetch spec marks a Response built
+  // that way as having immutable headers, so appending Set-Cookie to it
+  // throws at runtime (MIDDLEWARE_INVOCATION_FAILED) — every visitor whose
+  // geolocated country actually matched a locale hit this, while requests
+  // from unmapped countries (e.g. Armenia) never took this branch at all,
+  // which is why it looked fine locally. Building the Response directly
+  // keeps normal, mutable headers.
+  return new Response(null, {
+    status: 307,
+    headers: { Location: url.toString(), "Set-Cookie": setCookie },
+  });
 }
