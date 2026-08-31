@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Learn Armenian Online Free — Interactive Lessons",
-    "description": "Learn Armenian online with free, interactive lessons — real native audio on every word, bite-sized exercises, and gamified progress tracking. Start speaking Armenian today, no credit card required."
+    "description": "Learn Armenian online with free, interactive lessons, real native audio on every word, and a daily habit that actually sticks. Start speaking Armenian today — no credit card required."
   },
   "hero": {
     "title1": "Learn Armenian.",
@@ -48,7 +48,8 @@
       "traceTheLetter": "Trace the letter",
       "selectTranslation": "Select the correct translation",
       "means": "means…",
-      "meansQuoted": "means \"{{claim}}\""
+      "meansQuoted": "means \"{{claim}}\"",
+      "inArmenianIs": "\"{{englishPrompt}}\" in Armenian is…"
     },
     "questions": [
       { "meaning": "Hello", "options": ["Hello", "Goodbye", "Thank you"], "hook": "It's the word you lead with when you meet someone.", "wrong": { "1": {}, "2": {} } },
@@ -75,6 +76,180 @@
         "«{{picked}}» actually means \"{{wrongMeaning}}\" — the word for \"{{englishPrompt}}\" is «{{prompt}}» ({{promptRom}}). {{hook}}",
         "Not this one — «{{picked}}» is \"{{wrongMeaning}}\". You're looking for «{{prompt}}» ({{promptRom}}), which means \"{{englishPrompt}}\". {{hook}}"
       ]
+    },
+    "ui": {
+      "continue": "Continue",
+      "check": "Check",
+      "tutorLabel": "Aram · AI tutor",
+      "thinking": "Aram is looking at your answer…",
+      "explainDifferently": "Explain differently",
+      "explainDifferentlyTitle": "See the explanation phrased another way",
+      "correctFeedback": "Ապրե՛ս! (Nice!)"
+    },
+    "trace": {
+      "clear": "Clear"
+    },
+    "completion": {
+      "triedExercises": "You just tried {{count}} Armenian exercises!",
+      "body": "Create a free account to save this progress and keep going — the real course picks up right where this demo leaves off.",
+      "createAccount": "Create free account",
+      "practiceAgain": "Practice again"
     }
+  },
+  "wordShowcase": {
+    "meanings": ["Hello", "Thank you", "Armenia", "Friend", "I love you"]
+  },
+  "mascotBubble": "Armenian made playful",
+  "signupPromo": {
+    "badge": "Welcome bonus",
+    "heading": "14 days of Premium — free",
+    "subtitle": "Unlimited hearts for your first two weeks. No card, no subscription — it just expires.",
+    "perks": ["Unlimited hearts", "A wrong answer never stops you", "Nothing to cancel"]
+  },
+  "quickFeatures": [
+    { "title": "AI tutor", "text": "Explains every mistake" },
+    { "title": "Real audio", "text": "Hear every word" },
+    { "title": "Mistake review", "text": "Re-master what you missed" },
+    { "title": "Leagues", "text": "Climb the leaderboard" }
+  ],
+  "howItWorks": {
+    "eyebrow": "How it works",
+    "title": "Three steps to your first Armenian words",
+    "stepLabel": "Step {{n}}"
+  },
+  "seeItInAction": {
+    "eyebrow": "See it in action",
+    "title": "A path you'll actually want to finish",
+    "subtitle": "Follow a winding path of lessons — tap through letters, listen and repeat, build words, and watch your streak grow. Just like the apps you already love, but for Armenian.",
+    "bullets": [
+      "Instant right/wrong feedback",
+      "Audio you can replay any time",
+      "Hearts keep mistakes low-stakes",
+      "XP, streaks, and a friends leaderboard"
+    ]
+  },
+  "featuresSection": {
+    "eyebrow": "Features",
+    "title": "Everything you need to go from zero to conversation"
+  },
+  "testimonialsSection": {
+    "eyebrow": "Learners love it",
+    "title": "Real words from real learners"
+  },
+  "faqSection": {
+    "eyebrow": "FAQ",
+    "title": "Questions, answered"
+  },
+  "yourPath": {
+    "label": "Your path",
+    "streakLabel": "{{days}}-day streak",
+    "startBadge": "Start",
+    "statusCompleted": "Completed",
+    "statusHere": "You are here",
+    "statusLocked": "Locked",
+    "units": [
+      { "title": "Greetings" },
+      { "title": "Numbers 1–10" },
+      { "title": "Family" },
+      { "title": "Food & Drink" },
+      { "title": "Colors" }
+    ]
+  },
+  "mobileTeaser": {
+    "badge": "Coming soon",
+    "title": "Haylingua is coming to mobile.",
+    "subtitle": "Same bite-sized lessons, streaks, and native Armenian audio — built for your pocket so you can practice on the bus, in line, or anywhere the moment strikes. iOS and Android, launching soon.",
+    "appStoreComingSoon": "Coming soon on the",
+    "appStoreName": "App Store",
+    "googlePlayComingSoon": "Coming soon on",
+    "googlePlayName": "Google Play",
+    "previewWords": ["Hello", "Goodbye", "Thank you"],
+    "checkButton": "Check"
+  },
+  "stickyCta": {
+    "startFree": "Start free"
+  },
+  "liveStats": {
+    "exercises": "Exercises completed",
+    "users": "Learners joined",
+    "achievements": "Achievements unlocked",
+    "chapters": "Chapters completed"
+  },
+  "authModal": {
+    "close": "Close",
+    "tabs": { "login": "Log in", "signup": "Sign up" },
+    "errors": {
+      "usernameRequired": "Username is required",
+      "usernameLength": "Username must be 3–20 characters",
+      "usernameChars": "Username can only contain letters, numbers, '_' and '.'",
+      "passwordLength": "Password must be at least 8 characters",
+      "generic": "Error",
+      "need2fa": "Enter your 2FA or recovery code.",
+      "needCaptcha": "Please complete the security check.",
+      "tooManyAttemptsLogin": "Too many attempts. Try again later.",
+      "somethingWrong": "Something went wrong",
+      "signupFailed": "Signup failed",
+      "signupNoToken": "Signup succeeded but no token returned.",
+      "invalidVerifyCode": "Please enter a valid 6-digit code",
+      "invalidCode": "Invalid code.",
+      "codeExpired": "Code expired. Request a new one.",
+      "noCodeFound": "No code found. Request a new one.",
+      "tooManyAttemptsCode": "Too many attempts. Request a new code.",
+      "verificationFailed": "Verification failed",
+      "networkErrorRetry": "Network error. Please try again.",
+      "networkError": "Network error.",
+      "resendFailed": "Resend failed",
+      "resendWait": "Wait {{s}}s before resending."
+    },
+    "verify": {
+      "checkInbox": "Check your inbox",
+      "codeSentTo": "We sent a 6-digit code to {{email}}",
+      "devModeLabel": "Dev mode — use this code",
+      "useThisCode": "Use this code",
+      "digitLabel": "Digit {{n}} of 6",
+      "verifying": "Verifying…",
+      "verifyEmail": "Verify email",
+      "resendIn": "Resend in {{s}}s",
+      "resendCode": "Resend code",
+      "codeExpiresNote": "Code expires in 10 minutes"
+    },
+    "forgot": {
+      "intro": "Enter your email and we'll send a reset link.",
+      "sentBody": "If that email has an account, we sent a reset link. Check spam too.",
+      "backToLogin": "Back to log in",
+      "sending": "Sending…",
+      "sendResetLink": "Send reset link"
+    },
+    "fields": {
+      "email": "Email",
+      "emailOrUsername": "Email or username",
+      "username": "Username",
+      "password": "Password",
+      "twoFaCode": "2FA code",
+      "emailPlaceholder": "you@example.com",
+      "emailOrUsernamePlaceholder": "you@example.com or username",
+      "usernamePlaceholder": "armen_g",
+      "twoFaPlaceholder": "6-digit code or recovery",
+      "forgotPasswordLink": "Forgot password?"
+    },
+    "securityCheck": "Security check",
+    "submit": {
+      "pleaseWait": "Please wait…",
+      "verifyAndLogIn": "Verify & log in",
+      "logIn": "Log in",
+      "createAccount": "Create account"
+    },
+    "orDivider": "or",
+    "legal": {
+      "agreePrefix": "By signing up you agree to our",
+      "terms": "terms",
+      "and": "and",
+      "privacyPolicy": "privacy policy"
+    }
+  },
+  "ctaBannerExtra": {
+    "badge": "14 days of Premium, free — no card",
+    "subtitle": "Join now and finish your first lesson in minutes. Բարի՜ ճանապարհ — good luck!",
+    "cta": "Create your free account"
   }
 }

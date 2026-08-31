@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Apprendre l'Arménien en Ligne Gratuit — Cours Interactif",
-    "description": "Apprends l'arménien en ligne : leçons interactives gratuites, audio natif sur chaque mot, exercices ludiques et suivi de progression. Sans carte bancaire."
+    "description": "Apprends l'arménien en ligne : leçons interactives gratuites, audio natif sur chaque mot, et une habitude quotidienne qui tient vraiment. Sans carte bancaire."
   },
   "hero": {
     "title1": "Apprends l'arménien.",
@@ -48,7 +48,8 @@
       "traceTheLetter": "Trace la lettre",
       "selectTranslation": "Sélectionne la bonne traduction",
       "means": "signifie…",
-      "meansQuoted": "signifie « {{claim}} »"
+      "meansQuoted": "signifie « {{claim}} »",
+      "inArmenianIs": "« {{englishPrompt}} » en arménien, c'est…"
     },
     "questions": [
       { "meaning": "Bonjour", "options": ["Bonjour", "Au revoir", "Merci"], "hook": "C'est le mot par lequel tu commences quand tu rencontres quelqu'un.", "wrong": { "1": {}, "2": {} } },
@@ -75,6 +76,180 @@
         "« {{picked}} » signifie en fait \"{{wrongMeaning}}\" — le mot pour \"{{englishPrompt}}\" est « {{prompt}} » ({{promptRom}}). {{hook}}",
         "Pas celui-ci — « {{picked}} » veut dire \"{{wrongMeaning}}\". Tu cherches « {{prompt}} » ({{promptRom}}), qui signifie \"{{englishPrompt}}\". {{hook}}"
       ]
+    },
+    "ui": {
+      "continue": "Continuer",
+      "check": "Vérifier",
+      "tutorLabel": "Aram · tuteur IA",
+      "thinking": "Aram regarde ta réponse…",
+      "explainDifferently": "Expliquer autrement",
+      "explainDifferentlyTitle": "Voir l'explication formulée différemment",
+      "correctFeedback": "Ապրե՛ս! (Super !)"
+    },
+    "trace": {
+      "clear": "Effacer"
+    },
+    "completion": {
+      "triedExercises": "Tu viens d'essayer {{count}} exercices arméniens !",
+      "body": "Crée un compte gratuit pour sauvegarder cette progression et continuer — le vrai cours reprend exactement là où cette démo s'arrête.",
+      "createAccount": "Créer un compte gratuit",
+      "practiceAgain": "Recommencer"
     }
+  },
+  "wordShowcase": {
+    "meanings": ["Bonjour", "Merci", "Arménie", "Ami", "Je t'aime"]
+  },
+  "mascotBubble": "L'arménien en mode ludique",
+  "signupPromo": {
+    "badge": "Bonus de bienvenue",
+    "heading": "14 jours de Premium — offerts",
+    "subtitle": "Cœurs illimités pendant tes deux premières semaines. Sans carte, sans abonnement — ça expire, c'est tout.",
+    "perks": ["Cœurs illimités", "Une mauvaise réponse ne t'arrête jamais", "Rien à annuler"]
+  },
+  "quickFeatures": [
+    { "title": "Tuteur IA", "text": "Explique chaque erreur" },
+    { "title": "Audio réel", "text": "Entends chaque mot" },
+    { "title": "Révision des erreurs", "text": "Remaîtrise ce que tu as manqué" },
+    { "title": "Ligues", "text": "Grimpe dans le classement" }
+  ],
+  "howItWorks": {
+    "eyebrow": "Comment ça marche",
+    "title": "Trois étapes vers tes premiers mots arméniens",
+    "stepLabel": "Étape {{n}}"
+  },
+  "seeItInAction": {
+    "eyebrow": "Vois-le en action",
+    "title": "Un parcours que tu auras vraiment envie de terminer",
+    "subtitle": "Suis un parcours sinueux de leçons — touche les lettres, écoute et répète, construis des mots, et regarde ta série grandir. Comme les applis que tu adores déjà, mais pour l'arménien.",
+    "bullets": [
+      "Retour instantané juste/faux",
+      "Un audio que tu peux réécouter à tout moment",
+      "Les cœurs rendent les erreurs sans conséquence",
+      "XP, séries, et un classement entre amis"
+    ]
+  },
+  "featuresSection": {
+    "eyebrow": "Fonctionnalités",
+    "title": "Tout ce qu'il te faut pour passer de zéro à la conversation"
+  },
+  "testimonialsSection": {
+    "eyebrow": "Les apprenants adorent",
+    "title": "De vrais mots de vrais apprenants"
+  },
+  "faqSection": {
+    "eyebrow": "FAQ",
+    "title": "Des questions, des réponses"
+  },
+  "yourPath": {
+    "label": "Ton parcours",
+    "streakLabel": "Série de {{days}} jours",
+    "startBadge": "Départ",
+    "statusCompleted": "Terminé",
+    "statusHere": "Tu es ici",
+    "statusLocked": "Verrouillé",
+    "units": [
+      { "title": "Salutations" },
+      { "title": "Nombres 1–10" },
+      { "title": "Famille" },
+      { "title": "Nourriture et boissons" },
+      { "title": "Couleurs" }
+    ]
+  },
+  "mobileTeaser": {
+    "badge": "Bientôt disponible",
+    "title": "Haylingua arrive bientôt sur mobile.",
+    "subtitle": "Les mêmes leçons courtes, séries et audio arménien natif — conçus pour ta poche, pour t'entraîner dans le bus, en file d'attente, ou n'importe où l'envie te prend. iOS et Android, bientôt disponibles.",
+    "appStoreComingSoon": "Bientôt sur l'",
+    "appStoreName": "App Store",
+    "googlePlayComingSoon": "Bientôt sur",
+    "googlePlayName": "Google Play",
+    "previewWords": ["Bonjour", "Au revoir", "Merci"],
+    "checkButton": "Vérifier"
+  },
+  "stickyCta": {
+    "startFree": "Commencer gratuitement"
+  },
+  "liveStats": {
+    "exercises": "Exercices complétés",
+    "users": "Apprenants inscrits",
+    "achievements": "Succès débloqués",
+    "chapters": "Chapitres terminés"
+  },
+  "authModal": {
+    "close": "Fermer",
+    "tabs": { "login": "Se connecter", "signup": "S'inscrire" },
+    "errors": {
+      "usernameRequired": "Le nom d'utilisateur est requis",
+      "usernameLength": "Le nom d'utilisateur doit contenir entre 3 et 20 caractères",
+      "usernameChars": "Le nom d'utilisateur ne peut contenir que des lettres, des chiffres, '_' et '.'",
+      "passwordLength": "Le mot de passe doit contenir au moins 8 caractères",
+      "generic": "Erreur",
+      "need2fa": "Entre ton code 2FA ou ton code de récupération.",
+      "needCaptcha": "Merci de compléter la vérification de sécurité.",
+      "tooManyAttemptsLogin": "Trop de tentatives. Réessaie plus tard.",
+      "somethingWrong": "Une erreur s'est produite",
+      "signupFailed": "L'inscription a échoué",
+      "signupNoToken": "L'inscription a réussi, mais aucun jeton n'a été renvoyé.",
+      "invalidVerifyCode": "Merci d'entrer un code à 6 chiffres valide",
+      "invalidCode": "Code invalide.",
+      "codeExpired": "Code expiré. Demande un nouveau code.",
+      "noCodeFound": "Aucun code trouvé. Demande un nouveau code.",
+      "tooManyAttemptsCode": "Trop de tentatives. Demande un nouveau code.",
+      "verificationFailed": "La vérification a échoué",
+      "networkErrorRetry": "Erreur réseau. Merci de réessayer.",
+      "networkError": "Erreur réseau.",
+      "resendFailed": "Le renvoi a échoué",
+      "resendWait": "Attends {{s}}s avant de renvoyer."
+    },
+    "verify": {
+      "checkInbox": "Vérifie ta boîte mail",
+      "codeSentTo": "Nous avons envoyé un code à 6 chiffres à {{email}}",
+      "devModeLabel": "Mode dev — utilise ce code",
+      "useThisCode": "Utiliser ce code",
+      "digitLabel": "Chiffre {{n}} sur 6",
+      "verifying": "Vérification…",
+      "verifyEmail": "Vérifier l'e-mail",
+      "resendIn": "Renvoyer dans {{s}}s",
+      "resendCode": "Renvoyer le code",
+      "codeExpiresNote": "Le code expire dans 10 minutes"
+    },
+    "forgot": {
+      "intro": "Entre ton e-mail et on t'enverra un lien de réinitialisation.",
+      "sentBody": "Si un compte est associé à cet e-mail, nous avons envoyé un lien de réinitialisation. Vérifie aussi tes spams.",
+      "backToLogin": "Retour à la connexion",
+      "sending": "Envoi en cours…",
+      "sendResetLink": "Envoyer le lien de réinitialisation"
+    },
+    "fields": {
+      "email": "E-mail",
+      "emailOrUsername": "E-mail ou nom d'utilisateur",
+      "username": "Nom d'utilisateur",
+      "password": "Mot de passe",
+      "twoFaCode": "Code 2FA",
+      "emailPlaceholder": "you@example.com",
+      "emailOrUsernamePlaceholder": "you@example.com ou nom d'utilisateur",
+      "usernamePlaceholder": "armen_g",
+      "twoFaPlaceholder": "Code à 6 chiffres ou récupération",
+      "forgotPasswordLink": "Mot de passe oublié ?"
+    },
+    "securityCheck": "Vérification de sécurité",
+    "submit": {
+      "pleaseWait": "Merci de patienter…",
+      "verifyAndLogIn": "Vérifier et se connecter",
+      "logIn": "Se connecter",
+      "createAccount": "Créer un compte"
+    },
+    "orDivider": "ou",
+    "legal": {
+      "agreePrefix": "En t'inscrivant, tu acceptes nos",
+      "terms": "conditions",
+      "and": "et",
+      "privacyPolicy": "politique de confidentialité"
+    }
+  },
+  "ctaBannerExtra": {
+    "badge": "14 jours de Premium offerts — sans carte",
+    "subtitle": "Inscris-toi maintenant et termine ta première leçon en quelques minutes. Բարի՜ ճանապարհ — bonne chance !",
+    "cta": "Crée ton compte gratuit"
   }
 }

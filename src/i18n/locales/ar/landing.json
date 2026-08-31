@@ -48,7 +48,8 @@
       "traceTheLetter": "تتبّع الحرف",
       "selectTranslation": "اختر الترجمة الصحيحة",
       "means": "تعني…",
-      "meansQuoted": "تعني \"{{claim}}\""
+      "meansQuoted": "تعني \"{{claim}}\"",
+      "inArmenianIs": "«{{englishPrompt}}» بالأرمينية تعني…"
     },
     "questions": [
       { "meaning": "مرحبًا", "options": ["مرحبًا", "وداعًا", "شكرًا"], "hook": "هذه هي الكلمة التي تبدأ بها عند لقاء أحدهم.", "wrong": { "1": {}, "2": {} } },
@@ -75,6 +76,180 @@
         "«{{picked}}» تعني في الواقع \"{{wrongMeaning}}\" — كلمة \"{{englishPrompt}}\" هي «{{prompt}}» ({{promptRom}}). {{hook}}",
         "ليست هذه — «{{picked}}» تعني \"{{wrongMeaning}}\". أنت تبحث عن «{{prompt}}» ({{promptRom}})، والتي تعني \"{{englishPrompt}}\". {{hook}}"
       ]
+    },
+    "ui": {
+      "continue": "متابعة",
+      "check": "تحقّق",
+      "tutorLabel": "آرام · مدرّس ذكاء اصطناعي",
+      "thinking": "آرام ينظر إلى إجابتك…",
+      "explainDifferently": "اشرح بطريقة مختلفة",
+      "explainDifferentlyTitle": "شاهد الشرح بصياغة أخرى",
+      "correctFeedback": "Ապրե՛ս! (رائع!)"
+    },
+    "trace": {
+      "clear": "مسح"
+    },
+    "completion": {
+      "triedExercises": "لقد جرّبت للتو {{count}} تمارين أرمينية!",
+      "body": "أنشئ حسابًا مجانيًا لحفظ هذا التقدّم والمتابعة — الدورة الحقيقية تبدأ من حيث ينتهي هذا العرض التجريبي.",
+      "createAccount": "إنشاء حساب مجاني",
+      "practiceAgain": "التدرّب مجددًا"
     }
+  },
+  "wordShowcase": {
+    "meanings": ["مرحبًا", "شكرًا", "أرمينيا", "صديق", "أحبك"]
+  },
+  "mascotBubble": "الأرمينية بروح مرحة",
+  "signupPromo": {
+    "badge": "هدية ترحيبية",
+    "heading": "14 يومًا من Premium — مجانًا",
+    "subtitle": "قلوب غير محدودة لأول أسبوعين لك. بلا بطاقة، بلا اشتراك — تنتهي فقط من تلقاء نفسها.",
+    "perks": ["قلوب غير محدودة", "الإجابة الخاطئة لا توقفك أبدًا", "لا شيء لإلغائه"]
+  },
+  "quickFeatures": [
+    { "title": "مدرّس ذكاء اصطناعي", "text": "يشرح كل خطأ" },
+    { "title": "صوت حقيقي", "text": "استمع لكل كلمة" },
+    { "title": "مراجعة الأخطاء", "text": "أتقن ما فاتك" },
+    { "title": "الدوريات", "text": "تسلّق لوحة المتصدرين" }
+  ],
+  "howItWorks": {
+    "eyebrow": "كيف يعمل",
+    "title": "ثلاث خطوات نحو أولى كلماتك الأرمينية",
+    "stepLabel": "الخطوة {{n}}"
+  },
+  "seeItInAction": {
+    "eyebrow": "شاهده أثناء العمل",
+    "title": "مسار سترغب فعلاً في إكماله",
+    "subtitle": "اتبع مسارًا متعرجًا من الدروس — اضغط على الحروف، استمع وكرّر، كوّن الكلمات، وشاهد سلسلتك تنمو. تمامًا مثل التطبيقات التي تحبها بالفعل، لكن للغة الأرمينية.",
+    "bullets": [
+      "ملاحظات فورية بالصح والخطأ",
+      "صوت يمكنك إعادة تشغيله في أي وقت",
+      "القلوب تجعل الأخطاء غير مكلفة",
+      "نقاط خبرة، سلاسل، ولوحة متصدرين مع الأصدقاء"
+    ]
+  },
+  "featuresSection": {
+    "eyebrow": "المزايا",
+    "title": "كل ما تحتاجه للانتقال من الصفر إلى المحادثة"
+  },
+  "testimonialsSection": {
+    "eyebrow": "يحبّه المتعلمون",
+    "title": "كلمات حقيقية من متعلمين حقيقيين"
+  },
+  "faqSection": {
+    "eyebrow": "الأسئلة الشائعة",
+    "title": "أسئلتك، مُجابة"
+  },
+  "yourPath": {
+    "label": "مسارك",
+    "streakLabel": "سلسلة {{days}} يوم",
+    "startBadge": "ابدأ",
+    "statusCompleted": "مكتمل",
+    "statusHere": "أنت هنا",
+    "statusLocked": "مقفل",
+    "units": [
+      { "title": "التحيات" },
+      { "title": "الأرقام 1–10" },
+      { "title": "العائلة" },
+      { "title": "الطعام والشراب" },
+      { "title": "الألوان" }
+    ]
+  },
+  "mobileTeaser": {
+    "badge": "قريبًا",
+    "title": "Haylingua قادم قريبًا إلى هاتفك.",
+    "subtitle": "الدروس القصيرة نفسها، والسلاسل، والصوت الأرميني الأصلي — مصمم ليناسب جيبك حتى تتمرن في الحافلة، أو أثناء الانتظار في الطابور، أو في أي مكان تسنح فيه اللحظة. لنظامي iOS وAndroid، قريبًا.",
+    "appStoreComingSoon": "قريبًا على",
+    "appStoreName": "App Store",
+    "googlePlayComingSoon": "قريبًا على",
+    "googlePlayName": "Google Play",
+    "previewWords": ["مرحبًا", "وداعًا", "شكرًا"],
+    "checkButton": "تحقّق"
+  },
+  "stickyCta": {
+    "startFree": "ابدأ مجانًا"
+  },
+  "liveStats": {
+    "exercises": "تمارين مكتملة",
+    "users": "متعلمون انضموا",
+    "achievements": "إنجازات مُحقَّقة",
+    "chapters": "فصول مكتملة"
+  },
+  "authModal": {
+    "close": "إغلاق",
+    "tabs": { "login": "تسجيل الدخول", "signup": "إنشاء حساب" },
+    "errors": {
+      "usernameRequired": "اسم المستخدم مطلوب",
+      "usernameLength": "يجب أن يتكوّن اسم المستخدم من 3 إلى 20 حرفًا",
+      "usernameChars": "يمكن أن يحتوي اسم المستخدم على أحرف وأرقام و'_' و'.' فقط",
+      "passwordLength": "يجب أن تتكوّن كلمة المرور من 8 أحرف على الأقل",
+      "generic": "خطأ",
+      "need2fa": "أدخل رمز المصادقة الثنائية أو رمز الاسترداد.",
+      "needCaptcha": "يرجى إكمال فحص الأمان.",
+      "tooManyAttemptsLogin": "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.",
+      "somethingWrong": "حدث خطأ ما",
+      "signupFailed": "فشل إنشاء الحساب",
+      "signupNoToken": "تم إنشاء الحساب بنجاح لكن لم يتم إرجاع رمز الدخول.",
+      "invalidVerifyCode": "يرجى إدخال رمز صالح مكوّن من 6 أرقام",
+      "invalidCode": "رمز غير صحيح.",
+      "codeExpired": "انتهت صلاحية الرمز. اطلب رمزًا جديدًا.",
+      "noCodeFound": "لم يُعثر على رمز. اطلب رمزًا جديدًا.",
+      "tooManyAttemptsCode": "محاولات كثيرة جدًا. اطلب رمزًا جديدًا.",
+      "verificationFailed": "فشل التحقق",
+      "networkErrorRetry": "خطأ في الشبكة. يرجى المحاولة مرة أخرى.",
+      "networkError": "خطأ في الشبكة.",
+      "resendFailed": "فشلت إعادة الإرسال",
+      "resendWait": "انتظر {{s}} ثانية قبل إعادة الإرسال."
+    },
+    "verify": {
+      "checkInbox": "تحقّق من بريدك الوارد",
+      "codeSentTo": "أرسلنا رمزًا مكوّنًا من 6 أرقام إلى {{email}}",
+      "devModeLabel": "وضع المطوّر — استخدم هذا الرمز",
+      "useThisCode": "استخدم هذا الرمز",
+      "digitLabel": "الرقم {{n}} من 6",
+      "verifying": "جارٍ التحقق…",
+      "verifyEmail": "تحقّق من البريد الإلكتروني",
+      "resendIn": "إعادة الإرسال خلال {{s}} ثانية",
+      "resendCode": "إعادة إرسال الرمز",
+      "codeExpiresNote": "تنتهي صلاحية الرمز خلال 10 دقائق"
+    },
+    "forgot": {
+      "intro": "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين.",
+      "sentBody": "إذا كان هذا البريد مرتبطًا بحساب، فقد أرسلنا رابط إعادة تعيين. تحقّق من مجلد الرسائل غير المرغوب فيها أيضًا.",
+      "backToLogin": "العودة إلى تسجيل الدخول",
+      "sending": "جارٍ الإرسال…",
+      "sendResetLink": "إرسال رابط إعادة التعيين"
+    },
+    "fields": {
+      "email": "البريد الإلكتروني",
+      "emailOrUsername": "البريد الإلكتروني أو اسم المستخدم",
+      "username": "اسم المستخدم",
+      "password": "كلمة المرور",
+      "twoFaCode": "رمز المصادقة الثنائية",
+      "emailPlaceholder": "you@example.com",
+      "emailOrUsernamePlaceholder": "you@example.com أو اسم المستخدم",
+      "usernamePlaceholder": "armen_g",
+      "twoFaPlaceholder": "رمز مكوّن من 6 أرقام أو رمز الاسترداد",
+      "forgotPasswordLink": "نسيت كلمة المرور؟"
+    },
+    "securityCheck": "فحص الأمان",
+    "submit": {
+      "pleaseWait": "يرجى الانتظار…",
+      "verifyAndLogIn": "تحقّق وسجّل الدخول",
+      "logIn": "تسجيل الدخول",
+      "createAccount": "إنشاء حساب"
+    },
+    "orDivider": "أو",
+    "legal": {
+      "agreePrefix": "بالتسجيل، فإنك توافق على",
+      "terms": "الشروط",
+      "and": "و",
+      "privacyPolicy": "سياسة الخصوصية"
+    }
+  },
+  "ctaBannerExtra": {
+    "badge": "14 يومًا من Premium مجانًا — بلا بطاقة",
+    "subtitle": "انضم الآن وأنهِ درسك الأول خلال دقائق. Բարի՜ ճանապարհ — بالتوفيق!",
+    "cta": "أنشئ حسابك المجاني"
   }
 }

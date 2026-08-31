@@ -127,6 +127,8 @@ const SIGNUP_BANNER_SRC = "/banners/Welcome_banner_5.png";
 const LOGIN_BANNER_SRC = "/banners/Login_banner1.png";
 
 function SignupPromoPanel({ mode }) {
+  const { t: tt } = useTranslation("landing");
+  const locale = useLocale();
   const [imgOk, setImgOk] = useState(true);
   const src = mode === "login" ? LOGIN_BANNER_SRC : SIGNUP_BANNER_SRC;
   // Reset the error flag when the banner swaps (login ↔ signup) so a fresh
@@ -134,28 +136,32 @@ function SignupPromoPanel({ mode }) {
   useEffect(() => {
     setImgOk(true);
   }, [src]);
+  // The banner images have English text baked into the pixels (not
+  // translatable) — only use them on the default English locale. Every
+  // other locale always renders the translated text fallback below instead.
+  const showImage = imgOk && !locale;
   return (
     <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-500 via-brand-600 to-pom-600 md:block">
       <img
         src={src}
         alt=""
         onError={() => setImgOk(false)}
-        className={"absolute inset-0 h-full w-full object-cover object-top " + (imgOk ? "" : "hidden")}
+        className={"absolute inset-0 h-full w-full object-cover object-top " + (showImage ? "" : "hidden")}
       />
-      {!imgOk && (
+      {!showImage && (
         <div className="relative flex h-full flex-col justify-between p-7 text-white">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-extrabold uppercase tracking-wide">
-              <Sparkles className="h-3.5 w-3.5" /> Welcome bonus
+              <Sparkles className="h-3.5 w-3.5" /> {tt("signupPromo.badge")}
             </div>
             <h3 className="mt-4 font-display text-3xl font-extrabold leading-tight">
-              14 days of Premium — free
+              {tt("signupPromo.heading")}
             </h3>
             <p className="mt-2 text-sm font-semibold text-white/85">
-              Unlimited hearts for your first two weeks. No card, no subscription — it just expires.
+              {tt("signupPromo.subtitle")}
             </p>
             <ul className="mt-5 space-y-2.5 text-sm font-bold">
-              {["Unlimited hearts", "A wrong answer never stops you", "Nothing to cancel"].map((t) => (
+              {tt("signupPromo.perks", { returnObjects: true }).map((t) => (
                 <li key={t} className="flex items-center gap-2.5">
                   <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/20"><Check className="h-3.5 w-3.5" /></span>
                   {t}
@@ -263,7 +269,7 @@ function DemoPromptHeader({ q }) {
     return (
       <>
         <div className={label}>{h.selectMatching}</div>
-        <div className={big + " mt-1"}>"{q.englishPrompt}" in Armenian is…</div>
+        <div className={big + " mt-1"}>{renderTemplate(h.inArmenianIs, { englishPrompt: q.englishPrompt })}</div>
       </>
     );
   }
@@ -445,6 +451,7 @@ function computeGlyphStrokePath(letter, size, fontString) {
 }
 
 const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChange, onInteractStart }, ref) {
+  const { t: tt } = useTranslation("landing");
   const SIZE = 180;
   const drawRef = useRef(null);
   const ghostRef = useRef(null);
@@ -566,7 +573,7 @@ const TraceLetterPad = forwardRef(function TraceLetterPad({ letter, onDirtyChang
       </div>
       <div className="mt-2 text-center">
         <button type="button" onClick={clear} className="text-sm font-bold text-slate-400 hover:text-slate-600 dark:text-stone-500 dark:hover:text-stone-300">
-          Clear
+          {tt("demo.trace.clear")}
         </button>
       </div>
     </div>
@@ -630,6 +637,7 @@ function VoiceChip({ text, label, tone = "brand", displayText }) {
 }
 
 function LandingExerciseDemo({ onSignup }) {
+  const { t: tt } = useTranslation("landing");
   const { questions: DEMO_QUESTIONS, frames: KIND_FRAMES } = useLocalizedDemo();
   const [qi, setQi] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -893,11 +901,10 @@ function LandingExerciseDemo({ onSignup }) {
           <Trophy className="h-7 w-7" />
         </div>
         <div className="mt-4 font-display text-xl font-extrabold text-slate-800 dark:text-white">
-          You just tried {DEMO_QUESTIONS.length} Armenian exercises!
+          {renderTemplate(tt("demo.completion.triedExercises"), { count: DEMO_QUESTIONS.length })}
         </div>
         <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">
-          Create a free account to save this progress and keep going — the real
-          course picks up right where this demo leaves off.
+          {tt("demo.completion.body")}
         </p>
         <div className="mt-3 flex flex-wrap justify-center gap-2">
           {DEMO_QUESTIONS.map((dq) => (
@@ -907,10 +914,10 @@ function LandingExerciseDemo({ onSignup }) {
           ))}
         </div>
         <button type="button" onClick={() => { stopAutoplay(); onSignup(); }} className="btn3d btn3d-brand mt-6 w-full text-base uppercase">
-          Create free account <ArrowRight className="h-5 w-5 rtl:rotate-180" />
+          {tt("demo.completion.createAccount")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
         </button>
         <button type="button" onClick={() => { stopAutoplay(); practiceAgain(); }} className="mt-3 text-sm font-bold text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300">
-          Practice again
+          {tt("demo.completion.practiceAgain")}
         </button>
       </div>
     );
@@ -995,10 +1002,10 @@ function LandingExerciseDemo({ onSignup }) {
           <div className="mt-5 -mx-5 -mb-5 rounded-b-3xl bg-grass-50 px-5 py-4 dark:bg-grass-500/10">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="font-display text-base font-extrabold text-grass-700 dark:text-grass-300">Ապրե՛ս! (Nice!)</div>
+                <div className="font-display text-base font-extrabold text-grass-700 dark:text-grass-300">{tt("demo.ui.correctFeedback")}</div>
                 <div className="mt-2"><VoiceChip text={q.prompt} label={q.meaning} /></div>
               </div>
-              <button ref={continueRef} type="button" onClick={() => { stopAutoplay(); onContinue(); }} className="btn3d btn3d-grass uppercase">Continue</button>
+              <button ref={continueRef} type="button" onClick={() => { stopAutoplay(); onContinue(); }} className="btn3d btn3d-grass uppercase">{tt("demo.ui.continue")}</button>
             </div>
           </div>
         ) : (
@@ -1007,15 +1014,15 @@ function LandingExerciseDemo({ onSignup }) {
                 flashing the right answer, so a visitor sees why they were wrong. */}
             <div className="flex items-center justify-between">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-cardinal-500/10 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-cardinal-700 dark:bg-cardinal-500/20 dark:text-cardinal-300">
-                <Sparkles className="h-3.5 w-3.5" /> Aram · AI tutor
+                <Sparkles className="h-3.5 w-3.5" /> {tt("demo.ui.tutorLabel")}
               </div>
               <button
                 type="button"
                 onClick={() => { stopAutoplay(); regenerate(); }}
                 className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-cardinal-600 hover:bg-cardinal-500/10 dark:text-cardinal-400 dark:hover:bg-cardinal-500/15"
-                title="See the explanation phrased another way"
+                title={tt("demo.ui.explainDifferentlyTitle")}
               >
-                <RotateCw className="h-3.5 w-3.5" /> Explain differently
+                <RotateCw className="h-3.5 w-3.5" /> {tt("demo.ui.explainDifferently")}
               </button>
             </div>
 
@@ -1027,7 +1034,7 @@ function LandingExerciseDemo({ onSignup }) {
                     <span className="h-2 w-2 animate-bounce rounded-full bg-cardinal-400 [animation-delay:-0.1s]" />
                     <span className="h-2 w-2 animate-bounce rounded-full bg-cardinal-400" />
                   </span>
-                  Aram is looking at your answer…
+                  {tt("demo.ui.thinking")}
                 </span>
               ) : (
                 <span>
@@ -1050,7 +1057,7 @@ function LandingExerciseDemo({ onSignup }) {
             )}
 
             <div className="mt-3 flex justify-end">
-              <button type="button" onClick={() => { stopAutoplay(); onContinue(); }} className="btn3d btn3d-cardinal uppercase">Continue</button>
+              <button type="button" onClick={() => { stopAutoplay(); onContinue(); }} className="btn3d btn3d-cardinal uppercase">{tt("demo.ui.continue")}</button>
             </div>
           </div>
         )
@@ -1063,7 +1070,7 @@ function LandingExerciseDemo({ onSignup }) {
             disabled={q.kind === "trace_letter" ? !traceDirty : selected == null}
             className="btn3d btn3d-grass uppercase disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Check
+            {tt("demo.ui.check")}
           </button>
         </div>
       )}
@@ -1100,13 +1107,7 @@ function StepsConnector() {
 }
 
 // ── Learning path preview (product preview section) ─────────────────────────
-const PATH_PREVIEW_LESSONS = [
-  { title: "Greetings", status: "done" },
-  { title: "Numbers 1–10", status: "done" },
-  { title: "Family", status: "current" },
-  { title: "Food & Drink", status: "locked" },
-  { title: "Colors", status: "locked" },
-];
+const PATH_PREVIEW_STATUSES = ["done", "done", "current", "locked", "locked"];
 
 // x = % across the card (viewBox is 0–100 wide, so these double as percentages),
 // y = px down the track. Zigzag pattern mirrors the real in-app lesson path.
@@ -1131,13 +1132,16 @@ function pathTrackD() {
 }
 
 function PathPreview() {
+  const { t: tt } = useTranslation("landing");
   const [ref, visible] = useReveal(0.25);
+  const units = tt("yourPath.units", { returnObjects: true });
+  const PATH_PREVIEW_LESSONS = PATH_PREVIEW_STATUSES.map((status, i) => ({ title: units[i].title, status }));
   return (
     <div ref={ref} className="relative overflow-hidden rounded-3xl bg-white dark:bg-[#18181b] p-6 shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08] sm:p-7">
       <div className="flex items-center justify-between">
-        <div className="font-display text-sm font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">Your path</div>
+        <div className="font-display text-sm font-extrabold uppercase tracking-wide text-slate-400 dark:text-stone-500">{tt("yourPath.label")}</div>
         <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold text-brand-600 dark:bg-brand-500/15">
-          <Flame className="h-3.5 w-3.5 fill-brand-500 text-brand-500" /> 487-day streak
+          <Flame className="h-3.5 w-3.5 fill-brand-500 text-brand-500" /> {tt("yourPath.streakLabel", { days: 487 })}
         </div>
       </div>
 
@@ -1183,7 +1187,7 @@ function PathPreview() {
             >
               {isCurrent && (
                 <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-xl bg-brand-500 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-btn-brand">
-                  Start
+                  {tt("yourPath.startBadge")}
                   <span className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2 border-4 border-transparent border-t-brand-500" />
                 </span>
               )}
@@ -1215,7 +1219,7 @@ function PathPreview() {
                   {lesson.title}
                 </div>
                 <div className={"text-[11px] font-bold " + (isDone ? "text-grass-600" : isCurrent ? "text-brand-500" : "text-slate-300 dark:text-stone-600")}>
-                  {isDone ? "Completed" : isCurrent ? "You are here" : "Locked"}
+                  {isDone ? tt("yourPath.statusCompleted") : isCurrent ? tt("yourPath.statusHere") : tt("yourPath.statusLocked")}
                 </div>
               </div>
             </div>
@@ -1248,10 +1252,10 @@ const MINUTES_PER_DAY = 24 * 60;
 const DAY_MS = 86_400_000;
 
 const STAT_CONFIGS = [
-  { key: "exercises", label: "Exercises completed", icon: Zap, base: 118_000, perMinDay: 60, perMinNight: 30, tone: "text-brand-600", bg: "bg-brand-50" },
-  { key: "users", label: "Learners joined", icon: Users, base: 6_400, perMinDay: 5, perMinNight: 3, tone: "text-feather-600", bg: "bg-feather-50" },
-  { key: "achievements", label: "Achievements unlocked", icon: Trophy, base: 31_500, perMinDay: 15, perMinNight: 8, tone: "text-gold-600", bg: "bg-amber-50" },
-  { key: "chapters", label: "Chapters completed", icon: Languages, base: 9_800, perMinDay: 4, perMinNight: 2, tone: "text-grass-600", bg: "bg-grass-50" },
+  { key: "exercises", icon: Zap, base: 118_000, perMinDay: 60, perMinNight: 30, tone: "text-brand-600", bg: "bg-brand-50" },
+  { key: "users", icon: Users, base: 6_400, perMinDay: 5, perMinNight: 3, tone: "text-feather-600", bg: "bg-feather-50" },
+  { key: "achievements", icon: Trophy, base: 31_500, perMinDay: 15, perMinNight: 8, tone: "text-gold-600", bg: "bg-amber-50" },
+  { key: "chapters", icon: Languages, base: 9_800, perMinDay: 4, perMinNight: 2, tone: "text-grass-600", bg: "bg-grass-50" },
 ];
 
 // Armenia has used a fixed UTC+4 offset (no DST) since 2012.
@@ -1300,6 +1304,7 @@ function useLiveStat(cfg) {
 }
 
 function StatCard({ cfg, delay }) {
+  const { t: tt } = useTranslation("landing");
   const value = useLiveStat(cfg);
   const [bump, setBump] = useState(false);
   const prevRef = useRef(value);
@@ -1327,7 +1332,7 @@ function StatCard({ cfg, delay }) {
         >
           {value.toLocaleString()}
         </div>
-        <div className="mt-1 text-xs font-bold text-slate-500 dark:text-stone-400">{cfg.label}</div>
+        <div className="mt-1 text-xs font-bold text-slate-500 dark:text-stone-400">{tt(`liveStats.${cfg.key}`)}</div>
       </div>
     </Reveal>
   );
@@ -1483,14 +1488,14 @@ export default function LandingPage({ onLogin, onSignup }) {
     setError("");
 
     if (mode === "signup") {
-      if (!username.trim()) { setError("Username is required"); return; }
+      if (!username.trim()) { setError(tt("authModal.errors.usernameRequired")); return; }
       const u = username.trim();
-      if (u.length < 3 || u.length > 20) { setError("Username must be 3–20 characters"); return; }
+      if (u.length < 3 || u.length > 20) { setError(tt("authModal.errors.usernameLength")); return; }
       for (const ch of u) {
         const ok = /[a-zA-Z0-9_.]/.test(ch);
-        if (!ok) { setError("Username can only contain letters, numbers, '_' and '.'"); return; }
+        if (!ok) { setError(tt("authModal.errors.usernameChars")); return; }
       }
-      if (!password || password.length < 8) { setError("Password must be at least 8 characters"); return; }
+      if (!password || password.length < 8) { setError(tt("authModal.errors.passwordLength")); return; }
     }
 
     setLoading(true);
@@ -1501,7 +1506,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.trim() }),
         });
-        if (!res.ok) { const d = await res.json(); throw new Error(d?.detail || "Error"); }
+        if (!res.ok) { const d = await res.json(); throw new Error(d?.detail || tt("authModal.errors.generic")); }
         setForgotSent(true);
         setLoading(false);
         return;
@@ -1514,16 +1519,16 @@ export default function LandingPage({ onLogin, onSignup }) {
     } catch (err) {
       if (mode === "login" && err?.requires2fa) {
         setNeeds2FA(true);
-        setError("Enter your 2FA or recovery code.");
+        setError(tt("authModal.errors.need2fa"));
       } else if (mode === "login" && err?.requiresCaptcha) {
         setNeedsCaptcha(true);
         setCaptchaToken(null);
         setCaptchaKey((k) => k + 1);
-        setError("Please complete the security check.");
+        setError(tt("authModal.errors.needCaptcha"));
       } else if (mode === "login" && err?.locked) {
-        setError(err?.message || "Too many attempts. Try again later.");
+        setError(err?.message || tt("authModal.errors.tooManyAttemptsLogin"));
       } else {
-        setError(err?.message || "Something went wrong");
+        setError(err?.message || tt("authModal.errors.somethingWrong"));
       }
     } finally {
       if ((mode === "login" && needsCaptcha) || mode === "signup") {
@@ -1559,11 +1564,11 @@ export default function LandingPage({ onLogin, onSignup }) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       if (data?.detail?.field) throw new Error((data.detail.errors || []).join(". "));
-      const msg = data?.detail || data?.message || "Signup failed";
+      const msg = data?.detail || data?.message || tt("authModal.errors.signupFailed");
       throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
     }
     const accessToken = data?.access_token;
-    if (!accessToken) throw new Error("Signup succeeded but no token returned.");
+    if (!accessToken) throw new Error(tt("authModal.errors.signupNoToken"));
     setToken(accessToken);
     localStorage.setItem("hay_token", accessToken);
     localStorage.setItem("access_token", accessToken);
@@ -1588,7 +1593,7 @@ export default function LandingPage({ onLogin, onSignup }) {
     setLoading(true);
     const trimmedCode = code.trim();
     if (trimmedCode.length !== 6 || !/^\d{6}$/.test(trimmedCode)) {
-      setError("Please enter a valid 6-digit code");
+      setError(tt("authModal.errors.invalidVerifyCode"));
       setLoading(false);
       return;
     }
@@ -1600,8 +1605,13 @@ export default function LandingPage({ onLogin, onSignup }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const detail = data?.detail || "Verification failed";
-        const msgs = { INVALID_CODE: "Invalid code.", CODE_EXPIRED: "Code expired. Request a new one.", NO_CODE: "No code found. Request a new one.", TOO_MANY_ATTEMPTS: "Too many attempts. Request a new code." };
+        const detail = data?.detail || tt("authModal.errors.verificationFailed");
+        const msgs = {
+          INVALID_CODE: tt("authModal.errors.invalidCode"),
+          CODE_EXPIRED: tt("authModal.errors.codeExpired"),
+          NO_CODE: tt("authModal.errors.noCodeFound"),
+          TOO_MANY_ATTEMPTS: tt("authModal.errors.tooManyAttemptsCode"),
+        };
         setError(msgs[detail] || (typeof detail === "string" ? detail : JSON.stringify(detail)));
         setLoading(false);
         return;
@@ -1614,7 +1624,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       }
       window.location.href = "/onboarding";
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(tt("authModal.errors.networkErrorRetry"));
       setLoading(false);
     }
   };
@@ -1633,16 +1643,16 @@ export default function LandingPage({ onLogin, onSignup }) {
         const detail = data?.detail;
         if (res.status === 429 && detail?.retry_after_s) {
           setCooldown(Number(detail.retry_after_s) || 60);
-          setError(`Wait ${detail.retry_after_s}s before resending.`);
+          setError(tt("authModal.errors.resendWait", { s: detail.retry_after_s }));
           return;
         }
         if (detail === "ALREADY_VERIFIED") { window.location.href = "/dashboard"; return; }
-        setError(typeof detail === "string" ? detail : "Resend failed");
+        setError(typeof detail === "string" ? detail : tt("authModal.errors.resendFailed"));
         return;
       }
       if (data.verification_code) setDevCode(data.verification_code);
       setCooldown(Number(data?.retry_after_s) || 60);
-    } catch { setError("Network error."); }
+    } catch { setError(tt("authModal.errors.networkError")); }
     finally { setLoading(false); }
   };
 
@@ -1678,21 +1688,21 @@ export default function LandingPage({ onLogin, onSignup }) {
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-brand-50/60 to-white dark:from-[#0d0d0f] dark:to-[#0d0d0f] px-4">
         <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#18181b] p-8 text-center shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
           <img src={grandma} alt="" className="mx-auto h-20 w-20 animate-floaty rounded-2xl object-cover" />
-          <h2 className="mt-4 font-display text-2xl font-extrabold text-slate-800 dark:text-white">Check your inbox</h2>
+          <h2 className="mt-4 font-display text-2xl font-extrabold text-slate-800 dark:text-white">{tt("authModal.verify.checkInbox")}</h2>
           <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">
-            We sent a 6-digit code to <span className="text-slate-700 dark:text-stone-200">{email}</span>
+            {tt("authModal.verify.codeSentTo").split("{{email}}")[0]}<span className="text-slate-700 dark:text-stone-200">{email}</span>{tt("authModal.verify.codeSentTo").split("{{email}}")[1]}
           </p>
 
           {devCode && (
             <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-start ring-1 ring-amber-200">
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase text-amber-700">
-                <AlertTriangle className="h-3.5 w-3.5" /> Dev mode — use this code
+                <AlertTriangle className="h-3.5 w-3.5" /> {tt("authModal.verify.devModeLabel")}
               </div>
               <div className="mt-2 rounded-xl bg-white py-2.5 text-center font-display text-2xl font-extrabold tracking-[0.3em] text-amber-900 ring-1 ring-amber-200">
                 {devCode}
               </div>
               <button onClick={() => { setCode(devCode); setError(""); }} className="btn3d btn3d-brand mt-2.5 w-full !py-2.5 text-sm">
-                Use this code
+                {tt("authModal.verify.useThisCode")}
               </button>
             </div>
           )}
@@ -1717,7 +1727,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                   inputMode="numeric"
                   maxLength={1}
                   autoFocus={i === 0}
-                  aria-label={`Digit ${i + 1} of 6`}
+                  aria-label={tt("authModal.verify.digitLabel", { n: i + 1 })}
                   className={
                     "h-14 w-11 rounded-2xl bg-slate-50 text-center font-display text-2xl font-extrabold text-slate-800 ring-2 transition focus:bg-white focus:outline-none focus:ring-brand-400 dark:bg-white/[0.04] dark:text-white dark:focus:bg-white/[0.06] " +
                     (error ? "ring-cardinal-400" : "ring-slate-200 dark:ring-white/[0.08]")
@@ -1728,14 +1738,14 @@ export default function LandingPage({ onLogin, onSignup }) {
             {error && <div className="mt-4 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
             <button type="submit" disabled={loading || code.trim().length !== 6} className="btn3d btn3d-grass mt-4 w-full uppercase">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {loading ? "Verifying…" : "Verify email"}
+              {loading ? tt("authModal.verify.verifying") : tt("authModal.verify.verifyEmail")}
             </button>
           </form>
 
           <button onClick={handleResend} disabled={loading || cooldown > 0} className="mt-4 text-sm font-bold text-slate-500 dark:text-stone-400 hover:text-slate-700 dark:hover:text-stone-200 disabled:opacity-50">
-            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+            {cooldown > 0 ? tt("authModal.verify.resendIn", { s: cooldown }) : tt("authModal.verify.resendCode")}
           </button>
-          <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-stone-500">Code expires in 10 minutes</p>
+          <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-stone-500">{tt("authModal.verify.codeExpiresNote")}</p>
         </div>
       </div>
     );
@@ -1747,7 +1757,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       <button
         type="button"
         onClick={() => setAuthOpen(false)}
-        aria-label="Close"
+        aria-label={tt("authModal.close")}
         className="absolute end-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-stone-400 transition hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-stone-200"
       >
         <X className="h-4 w-4" />
@@ -1762,7 +1772,7 @@ export default function LandingPage({ onLogin, onSignup }) {
               (mode === m ? "bg-white dark:bg-white/10 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-stone-400 hover:text-slate-700 dark:hover:text-stone-200")
             }
           >
-            {m === "login" ? "Log in" : "Sign up"}
+            {m === "login" ? tt("authModal.tabs.login") : tt("authModal.tabs.signup")}
           </button>
         ))}
       </div>
@@ -1772,10 +1782,10 @@ export default function LandingPage({ onLogin, onSignup }) {
         {mode === "forgot" && forgotSent ? (
           <div className="rounded-2xl bg-grass-50 px-4 py-5 text-center">
             <div className="text-2xl mb-1">📬</div>
-            <p className="font-bold text-grass-700">Check your inbox</p>
-            <p className="mt-1 text-sm text-grass-600">If that email has an account, we sent a reset link. Check spam too.</p>
+            <p className="font-bold text-grass-700">{tt("authModal.verify.checkInbox")}</p>
+            <p className="mt-1 text-sm text-grass-600">{tt("authModal.forgot.sentBody")}</p>
             <button type="button" onClick={() => { setMode("login"); setForgotSent(false); setEmail(""); setError(""); }} className="mt-4 text-sm font-bold text-brand-500 hover:underline">
-              Back to log in
+              {tt("authModal.forgot.backToLogin")}
             </button>
           </div>
         ) : mode === "forgot" ? (
@@ -1784,12 +1794,12 @@ export default function LandingPage({ onLogin, onSignup }) {
               <button type="button" onClick={() => { setMode("login"); setError(""); }} className="text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300 transition">
                 ←
               </button>
-              <p className="text-sm font-semibold text-slate-600 dark:text-stone-300">Enter your email and we'll send a reset link.</p>
+              <p className="text-sm font-semibold text-slate-600 dark:text-stone-300">{tt("authModal.forgot.intro")}</p>
             </div>
-            <Field label="Email" icon={Mail} name="email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" />
+            <Field label={tt("authModal.fields.email")} icon={Mail} name="email" type="email" value={email} onChange={setEmail} placeholder={tt("authModal.fields.emailPlaceholder")} autoComplete="email" />
             {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
             <button type="submit" disabled={loading || !email} className="btn3d btn3d-brand w-full uppercase disabled:opacity-60">
-              {loading ? "Sending…" : "Send reset link"}
+              {loading ? tt("authModal.forgot.sending") : tt("authModal.forgot.sendResetLink")}
               {!loading && <ArrowRight className="h-4 w-4 rtl:rotate-180" />}
             </button>
           </>
@@ -1797,15 +1807,15 @@ export default function LandingPage({ onLogin, onSignup }) {
           <>
             {mode === "signup" && (
               // Name is collected during onboarding, not here.
-              <Field label="Username" icon={Fingerprint} name="username" value={username} onChange={setUsername} placeholder="armen_g" autoComplete="username" />
+              <Field label={tt("authModal.fields.username")} icon={Fingerprint} name="username" value={username} onChange={setUsername} placeholder={tt("authModal.fields.usernamePlaceholder")} autoComplete="username" />
             )}
 
             <Field
-              label={mode === "login" ? "Email or username" : "Email"}
+              label={mode === "login" ? tt("authModal.fields.emailOrUsername") : tt("authModal.fields.email")}
               icon={Mail}
               value={email}
               onChange={setEmail}
-              placeholder={mode === "login" ? "you@example.com or username" : "you@example.com"}
+              placeholder={mode === "login" ? tt("authModal.fields.emailOrUsernamePlaceholder") : tt("authModal.fields.emailPlaceholder")}
               // Login: this IS the credential identifier, so mark it as the
               // "username" field (autocomplete="email" would make browsers treat
               // it as a contact/address field and skip password-manager fill).
@@ -1816,25 +1826,25 @@ export default function LandingPage({ onLogin, onSignup }) {
             />
 
             <div>
-              <Field label="Password" icon={Lock} name="password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+              <Field label={tt("authModal.fields.password")} icon={Lock} name="password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
               {mode === "login" && (
                 <button
                   type="button"
                   onClick={() => { setMode("forgot"); setError(""); setForgotSent(false); }}
                   className="mt-1.5 block text-xs font-semibold text-brand-500 hover:underline"
                 >
-                  Forgot password?
+                  {tt("authModal.fields.forgotPasswordLink")}
                 </button>
               )}
             </div>
 
             {mode === "login" && needs2FA && (
-              <Field label="2FA code" value={otp} onChange={setOtp} placeholder="6-digit code or recovery" autoComplete="one-time-code" />
+              <Field label={tt("authModal.fields.twoFaCode")} value={otp} onChange={setOtp} placeholder={tt("authModal.fields.twoFaPlaceholder")} autoComplete="one-time-code" />
             )}
 
             {((mode === "login" && needsCaptcha) || mode === "signup") && (
               <div className="rounded-2xl bg-slate-50 dark:bg-white/[0.04] p-3 ring-1 ring-slate-200 dark:ring-white/[0.08]">
-                <div className="mb-2 text-xs font-bold text-slate-600 dark:text-stone-300">Security check</div>
+                <div className="mb-2 text-xs font-bold text-slate-600 dark:text-stone-300">{tt("authModal.securityCheck")}</div>
                 <Turnstile key={captchaKey} onVerify={(t) => { setCaptchaToken(t); if (t) setError(""); }} />
               </div>
             )}
@@ -1842,7 +1852,7 @@ export default function LandingPage({ onLogin, onSignup }) {
             {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
 
             <button type="submit" disabled={loading || (mode === "signup" && !captchaToken)} className="btn3d btn3d-brand w-full uppercase">
-              {loading ? "Please wait…" : mode === "login" ? (needs2FA ? "Verify & log in" : "Log in") : "Create account"}
+              {loading ? tt("authModal.submit.pleaseWait") : mode === "login" ? (needs2FA ? tt("authModal.submit.verifyAndLogIn") : tt("authModal.submit.logIn")) : tt("authModal.submit.createAccount")}
               {!loading && <ArrowRight className="h-4 w-4 rtl:rotate-180" />}
             </button>
           </>
@@ -1854,7 +1864,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="mt-5">
           <div className="relative mb-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
-            <span className="text-xs font-semibold text-slate-400 dark:text-stone-500">or</span>
+            <span className="text-xs font-semibold text-slate-400 dark:text-stone-500">{tt("authModal.orDivider")}</span>
             <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1919,10 +1929,10 @@ export default function LandingPage({ onLogin, onSignup }) {
 
       {mode === "signup" && (
         <p className="mt-4 text-center text-xs font-medium text-slate-400 dark:text-stone-500">
-          By signing up you agree to our{" "}
-          <Link to="/terms" className="font-bold text-slate-500 underline hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200">terms</Link>{" "}
-          and{" "}
-          <Link to="/privacy" className="font-bold text-slate-500 underline hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200">privacy policy</Link>.
+          {tt("authModal.legal.agreePrefix")}{" "}
+          <Link to="/terms" className="font-bold text-slate-500 underline hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200">{tt("authModal.legal.terms")}</Link>{" "}
+          {tt("authModal.legal.and")}{" "}
+          <Link to="/privacy" className="font-bold text-slate-500 underline hover:text-slate-700 dark:text-stone-400 dark:hover:text-stone-200">{tt("authModal.legal.privacyPolicy")}</Link>.
         </p>
       )}
     </div>
@@ -1946,7 +1956,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-12 lg:grid-cols-2 lg:py-20">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100">
-              <Sparkles className="h-3.5 w-3.5" /> Armenian made playful
+              <Sparkles className="h-3.5 w-3.5" /> {tt("mascotBubble")}
             </div>
             <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-6xl">
               {tt("hero.title1")}
@@ -1978,7 +1988,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                 }}
                 className="text-base font-bold text-slate-600 dark:text-stone-300"
               >
-                {word.eng}
+                {tt("wordShowcase.meanings", { returnObjects: true })[wordIdx]}
               </div>
             </div>
 
@@ -2008,21 +2018,24 @@ export default function LandingPage({ onLogin, onSignup }) {
       <section className="border-y border-slate-100 dark:border-white/[0.06] bg-slate-50 dark:bg-white/[0.04]">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-5 py-8 md:grid-cols-4">
           {[
-            { icon: Sparkles, label: "AI tutor", sub: "Explains every mistake" },
-            { icon: Volume2, label: "Real audio", sub: "Hear every word" },
-            { icon: Repeat2, label: "Mistake review", sub: "Re-master what you missed" },
-            { icon: Trophy, label: "Leagues", sub: "Climb the leaderboard" },
-          ].map((v) => (
-            <div key={v.label} className="flex items-center gap-3">
+            { icon: Sparkles },
+            { icon: Volume2 },
+            { icon: Repeat2 },
+            { icon: Trophy },
+          ].map((v, i) => {
+            const qf = tt("quickFeatures", { returnObjects: true })[i];
+            return (
+            <div key={qf.title} className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white dark:bg-[#18181b] text-brand-500 ring-1 ring-slate-200 dark:ring-white/[0.08]">
                 <v.icon className="h-5 w-5" />
               </div>
               <div>
-                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{v.label}</div>
-                <div className="text-xs font-bold text-slate-600 dark:text-stone-300">{v.sub}</div>
+                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{qf.title}</div>
+                <div className="text-xs font-bold text-slate-600 dark:text-stone-300">{qf.text}</div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -2034,7 +2047,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       {/* How it works */}
       <section id="how" className="mx-auto max-w-6xl px-5 py-16">
         <Reveal>
-          <SectionHeading eyebrow="How it works" title="Three steps to your first Armenian words" />
+          <SectionHeading eyebrow={tt("howItWorks.eyebrow")} title={tt("howItWorks.title")} />
         </Reveal>
         <div className="relative mt-10 grid gap-5 md:grid-cols-3">
           <StepsConnector />
@@ -2044,7 +2057,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white shadow-btn-brand">
                   <s.icon className="h-6 w-6" />
                 </div>
-                <div className="mt-4 font-display text-xs font-extrabold uppercase tracking-wide text-brand-500">Step {s.n}</div>
+                <div className="mt-4 font-display text-xs font-extrabold uppercase tracking-wide text-brand-500">{tt("howItWorks.stepLabel", { n: s.n })}</div>
                 <div className="mt-1 font-display text-xl font-extrabold text-slate-800 dark:text-white">{steps[i].title}</div>
                 <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{steps[i].text}</p>
               </div>
@@ -2058,12 +2071,12 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 lg:grid-cols-2">
           <Reveal>
             <div>
-              <SectionHeading align="left" eyebrow="See it in action" title="A path you'll actually want to finish" />
+              <SectionHeading align="left" eyebrow={tt("seeItInAction.eyebrow")} title={tt("seeItInAction.title")} />
               <p className="mt-4 max-w-md text-base font-semibold text-slate-500 dark:text-stone-400">
-                Follow a winding path of lessons — tap through letters, listen and repeat, build words, and watch your streak grow. Just like the apps you already love, but for Armenian.
+                {tt("seeItInAction.subtitle")}
               </p>
               <ul className="mt-6 space-y-3">
-                {["Instant right/wrong feedback", "Audio you can replay any time", "Hearts keep mistakes low-stakes", "XP, streaks, and a friends leaderboard"].map((t) => (
+                {tt("seeItInAction.bullets", { returnObjects: true }).map((t) => (
                   <li key={t} className="flex items-center gap-3 font-bold text-slate-700 dark:text-stone-200">
                     <span className="grid h-6 w-6 place-items-center rounded-lg bg-grass-100 text-grass-600"><Check className="h-4 w-4" /></span>
                     {t}
@@ -2083,7 +2096,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       {/* Features */}
       <section id="features" className="mx-auto max-w-6xl px-5 py-16">
         <Reveal>
-          <SectionHeading eyebrow="Features" title="Everything you need to go from zero to conversation" />
+          <SectionHeading eyebrow={tt("featuresSection.eyebrow")} title={tt("featuresSection.title")} />
         </Reveal>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES_META.map((f, i) => (
@@ -2104,7 +2117,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       <section className="bg-slate-50 dark:bg-white/[0.04]">
         <div className="mx-auto max-w-6xl px-5 py-16">
           <Reveal>
-            <SectionHeading eyebrow="Learners love it" title="Real words from real learners" />
+            <SectionHeading eyebrow={tt("testimonialsSection.eyebrow")} title={tt("testimonialsSection.title")} />
           </Reveal>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {TESTIMONIALS_META.map((m, i) => (
@@ -2137,29 +2150,27 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-2 md:gap-8">
           <Reveal className="order-2 md:order-1">
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
-              <Bell className="h-3.5 w-3.5" /> Coming soon
+              <Bell className="h-3.5 w-3.5" /> {tt("mobileTeaser.badge")}
             </div>
             <h2 className="mt-4 text-balance font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-              Haylingua is coming to mobile.
+              {tt("mobileTeaser.title")}
             </h2>
             <p className="mt-4 max-w-md text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">
-              Same bite-sized lessons, streaks, and native Armenian audio —
-              built for your pocket so you can practice on the bus, in line,
-              or anywhere the moment strikes. iOS and Android, launching soon.
+              {tt("mobileTeaser.subtitle")}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <div className="flex cursor-not-allowed items-center gap-2.5 rounded-2xl bg-slate-800 px-4 py-2.5 text-white opacity-60 dark:bg-white/10">
                 <AppleGlyph className="h-6 w-6 shrink-0" />
                 <div className="text-start leading-none">
-                  <div className="text-[10px] font-semibold">Coming soon on the</div>
-                  <div className="text-sm font-extrabold">App Store</div>
+                  <div className="text-[10px] font-semibold">{tt("mobileTeaser.appStoreComingSoon")}</div>
+                  <div className="text-sm font-extrabold">{tt("mobileTeaser.appStoreName")}</div>
                 </div>
               </div>
               <div className="flex cursor-not-allowed items-center gap-2.5 rounded-2xl bg-slate-800 px-4 py-2.5 text-white opacity-60 dark:bg-white/10">
                 <GooglePlayGlyph className="h-6 w-6 shrink-0" />
                 <div className="text-start leading-none">
-                  <div className="text-[10px] font-semibold">Coming soon on</div>
-                  <div className="text-sm font-extrabold">Google Play</div>
+                  <div className="text-[10px] font-semibold">{tt("mobileTeaser.googlePlayComingSoon")}</div>
+                  <div className="text-sm font-extrabold">{tt("mobileTeaser.googlePlayName")}</div>
                 </div>
               </div>
             </div>
@@ -2189,7 +2200,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                     <div className="mt-0.5 text-[11px] font-bold text-slate-400 dark:text-stone-500">ba·rev · Hello</div>
                   </div>
                   <div className="mt-3 space-y-2">
-                    {["Hello", "Goodbye", "Thank you"].map((w, i) => (
+                    {tt("mobileTeaser.previewWords", { returnObjects: true }).map((w, i) => (
                       <div
                         key={w}
                         className={
@@ -2205,7 +2216,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                   </div>
                 </div>
                 <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-grass-500 px-4 py-3 text-center text-xs font-extrabold text-white shadow-btn-brand">
-                  Check
+                  {tt("mobileTeaser.checkButton")}
                 </div>
               </div>
             </div>
@@ -2217,7 +2228,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       <section id="faq" className="bg-white dark:bg-[#0d0d0f]">
         <div className="mx-auto max-w-3xl px-5 py-16">
           <Reveal>
-            <SectionHeading eyebrow="FAQ" title="Questions, answered" />
+            <SectionHeading eyebrow={tt("faqSection.eyebrow")} title={tt("faqSection.title")} />
           </Reveal>
           <div className="mt-8 space-y-3">
             {faqs.map((f, i) => {
@@ -2247,14 +2258,14 @@ export default function LandingPage({ onLogin, onSignup }) {
           <div className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
             <img src={student} alt="" className="pointer-events-none absolute -bottom-6 -end-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide">
-              <Sparkles className="h-3.5 w-3.5" /> 14 days of Premium, free — no card
+              <Sparkles className="h-3.5 w-3.5" /> {tt("ctaBannerExtra.badge")}
             </div>
             <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{tt("ctaBanner.heading")}</h2>
             <p className="mt-3 max-w-md text-lg font-semibold text-white/90">
-              Join now and finish your first lesson in minutes. Բարի՜ ճանապարհ — good luck!
+              {tt("ctaBannerExtra.subtitle")}
             </p>
             <button onClick={() => goAuth("signup")} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              Create your free account <ArrowRight className="h-5 w-5 rtl:rotate-180" />
+              {tt("ctaBannerExtra.cta")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </button>
           </div>
         </Reveal>
@@ -2270,14 +2281,14 @@ export default function LandingPage({ onLogin, onSignup }) {
       {showStickyCta && !authOpen && (
         <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-brand-600/20 bg-brand-500 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.12)] sm:hidden">
           <div className="min-w-0 text-white">
-            <div className="truncate text-sm font-extrabold">14 days of Premium free</div>
-            <div className="text-xs font-semibold text-white/80">No card needed</div>
+            <div className="truncate text-sm font-extrabold">{tt("hero.premiumDays")}</div>
+            <div className="text-xs font-semibold text-white/80">{tt("hero.noCard")}</div>
           </div>
           <button
             onClick={() => goAuth("signup")}
             className="btn3d shrink-0 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-sm uppercase hover:brightness-100"
           >
-            Start free
+            {tt("stickyCta.startFree")}
           </button>
         </div>
       )}

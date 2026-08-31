@@ -10,8 +10,8 @@ import { useEffect } from "react";
 import { localizedPath } from "../i18n";
 
 const SITE_ORIGIN = "https://www.haylingua.am";
-const DEFAULT_TITLE = "Haylingua — Learn Armenian with modern, gamified lessons";
-const DEFAULT_DESCRIPTION = "Haylingua helps you learn Armenian with bite‑sized lessons, listening practice, and gamified progress tracking. Start free — log in or sign up in seconds.";
+const DEFAULT_TITLE = "Learn Armenian Online Free — Haylingua";
+const DEFAULT_DESCRIPTION = "Learn Armenian online with free, interactive lessons, real native audio on every word, and a habit that actually sticks. Start speaking Armenian today — no credit card required.";
 const DEFAULT_IMAGE = `${SITE_ORIGIN}/og.png`;
 const DEFAULT_CANONICAL = `${SITE_ORIGIN}/`;
 
