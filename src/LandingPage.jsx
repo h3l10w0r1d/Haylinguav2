@@ -1362,6 +1362,7 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   usePageMeta(tt("meta.title"), tt("meta.description"), {
     path: "/",
+    keywords: tt("meta.keywords", { returnObjects: true }),
     alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/" })).concat([{ locale: "", path: "/" }]),
   });
   const [mode, setMode] = useState("login"); // login | signup | forgot | verify

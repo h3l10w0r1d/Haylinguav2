@@ -14,6 +14,7 @@ const DEFAULT_TITLE = "Learn Armenian Online Free — Haylingua";
 const DEFAULT_DESCRIPTION = "Learn Armenian online with free, interactive lessons, real native audio on every word, and a habit that actually sticks. Start speaking Armenian today — no credit card required.";
 const DEFAULT_IMAGE = `${SITE_ORIGIN}/og.png`;
 const DEFAULT_CANONICAL = `${SITE_ORIGIN}/`;
+const DEFAULT_KEYWORDS = "learn Armenian, Armenian language app, Armenian alphabet, Armenian pronunciation, Armenian lessons, Haylingua";
 
 function setMetaTag(name, content) {
   let el = document.querySelector(`meta[name="${name}"]`);
@@ -110,18 +111,21 @@ function removeAlternateLinks(els) {
  * @param {string} [options.image] - absolute image URL for og:image/twitter:image, defaults to DEFAULT_IMAGE
  * @param {object|object[]} [options.structuredData] - one JSON-LD object, or an array of them
  * @param {{locale: string, path: string}[]} [options.alternates] - hreflang alternates; locale "" means English/default (unprefixed)
+ * @param {string[]} [options.keywords] - localized keyword phrases for <meta name="keywords">; defaults to the English set (index.html never updates this tag itself, so every locale silently kept the same English list until a page passes its own)
  */
 export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, options = {}) {
-  const { path, image, structuredData, alternates } = options;
+  const { path, image, structuredData, alternates, keywords } = options;
 
   useEffect(() => {
     const fullTitle = title ? `${title} — Haylingua` : DEFAULT_TITLE;
     const resolvedPath = path || window.location.pathname;
     const canonicalUrl = `${SITE_ORIGIN}${resolvedPath}`;
     const resolvedImage = image || DEFAULT_IMAGE;
+    const resolvedKeywords = keywords && keywords.length ? keywords.join(", ") : DEFAULT_KEYWORDS;
 
     document.title = fullTitle;
     setMetaTag("description", description);
+    setMetaTag("keywords", resolvedKeywords);
     setCanonicalLink(canonicalUrl);
 
     setMetaProperty("og:title", fullTitle);
@@ -139,6 +143,7 @@ export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, op
     return () => {
       document.title = DEFAULT_TITLE;
       setMetaTag("description", DEFAULT_DESCRIPTION);
+      setMetaTag("keywords", DEFAULT_KEYWORDS);
       setCanonicalLink(DEFAULT_CANONICAL);
 
       setMetaProperty("og:title", DEFAULT_TITLE);
@@ -154,5 +159,5 @@ export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, op
       removeAlternateLinks(alternateEls);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, description, path, image, structuredData, alternates]);
+  }, [title, description, path, image, structuredData, alternates, keywords]);
 }
