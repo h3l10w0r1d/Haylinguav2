@@ -12,7 +12,7 @@
    ========================================================================= */
 @layer base {
   html {
-    font-family: "Nunito", "Noto Sans Armenian", ui-sans-serif, system-ui, sans-serif;
+    font-family: "Nunito", "Noto Sans Armenian", "Noto Sans", "Noto Sans Arabic", "Noto Sans Georgian", ui-sans-serif, system-ui, sans-serif;
     /* Some in-app browsers (Instagram/TikTok/Facebook's embedded WebView)
        mis-report the layout viewport width, which can leave a blank gutter
        or trigger horizontal scroll. Pinning width and clipping overflow-x
@@ -27,7 +27,7 @@
     overflow-x: hidden;
   }
   h1, h2, h3, .font-display {
-    font-family: "Baloo 2", "Nunito", "Noto Sans Armenian", ui-rounded, system-ui, sans-serif;
+    font-family: "Baloo 2", "Nunito", "Noto Sans Armenian", "Noto Sans", "Noto Sans Arabic", "Noto Sans Georgian", ui-rounded, system-ui, sans-serif;
   }
 }
 
@@ -37,7 +37,7 @@
     @apply relative inline-flex items-center justify-center gap-2 select-none
            rounded-2xl px-5 py-3.5 font-extrabold tracking-tight
            transition-all duration-100 active:translate-y-1;
-    font-family: "Baloo 2", "Nunito", "Noto Sans Armenian", sans-serif;
+    font-family: "Baloo 2", "Nunito", "Noto Sans Armenian", "Noto Sans", "Noto Sans Arabic", "Noto Sans Georgian", sans-serif;
   }
   .btn3d:active { box-shadow: none !important; }
   .btn3d:disabled {

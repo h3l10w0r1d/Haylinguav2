@@ -148,8 +148,8 @@ export default function ArmenianVocabularyPage() {
                   {cat.words.map(([arm, rom, en]) => (
                     <li key={arm} className="flex items-baseline justify-between gap-3 text-sm">
                       <span className="font-display font-extrabold text-slate-800 dark:text-white">{arm}</span>
-                      <span className="flex-1 text-right font-semibold text-slate-400 dark:text-stone-500">{rom}</span>
-                      <span className="w-24 shrink-0 text-right font-semibold text-slate-600 dark:text-stone-300">{en}</span>
+                      <span className="flex-1 text-end font-semibold text-slate-400 dark:text-stone-500">{rom}</span>
+                      <span className="w-24 shrink-0 text-end font-semibold text-slate-600 dark:text-stone-300">{en}</span>
                     </li>
                   ))}
                 </ul>
@@ -195,7 +195,7 @@ export default function ArmenianVocabularyPage() {
               {t("armenianVocabulary.cta.subtext")}
             </p>
             <button onClick={() => navigate(lp("/"))} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              {t("armenianVocabulary.cta.button")} <ArrowRight className="h-5 w-5" />
+              {t("armenianVocabulary.cta.button")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </button>
           </div>
         </section>

@@ -6,7 +6,7 @@
 // reused here verbatim (see App.jsx) instead of duplicating them by hand.
 import { useEffect } from "react";
 import { Outlet, useParams, Navigate } from "react-router-dom";
-import i18next, { SUPPORTED_LOCALES } from "../i18n";
+import i18next, { SUPPORTED_LOCALES, RTL_LOCALES } from "../i18n";
 
 export default function LocaleLayout() {
   const { locale } = useParams();
@@ -15,8 +15,10 @@ export default function LocaleLayout() {
     if (!SUPPORTED_LOCALES.includes(locale)) return;
     i18next.changeLanguage(locale);
     document.documentElement.lang = locale;
+    document.documentElement.dir = RTL_LOCALES.includes(locale) ? "rtl" : "ltr";
     return () => {
       document.documentElement.lang = "en";
+      document.documentElement.dir = "ltr";
     };
   }, [locale]);
 

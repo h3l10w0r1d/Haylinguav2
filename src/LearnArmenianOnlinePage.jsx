@@ -61,7 +61,7 @@ export default function LearnArmenianOnlinePage() {
             {t("learnArmenianOnline.hero.subtitle")}
           </p>
           <button onClick={() => navigate(lp("/"))} className="btn3d btn3d-brand mt-6 text-sm uppercase">
-            {t("learnArmenianOnline.hero.cta")} <ArrowRight className="h-4 w-4" />
+            {t("learnArmenianOnline.hero.cta")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
           </button>
         </header>
 
@@ -127,7 +127,7 @@ export default function LearnArmenianOnlinePage() {
               {t("learnArmenianOnline.cta.subtext")}
             </p>
             <button onClick={() => navigate(lp("/"))} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              {t("learnArmenianOnline.cta.button")} <ArrowRight className="h-5 w-5" />
+              {t("learnArmenianOnline.cta.button")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </button>
           </div>
         </section>

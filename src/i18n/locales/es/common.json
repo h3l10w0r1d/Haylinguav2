@@ -37,5 +37,21 @@
     "secureCheckout": "Pago seguro y cifrado",
     "copyright": "© {{year}} Haylingua. Todos los derechos reservados.",
     "madeIn": "Hecho con ❤️ en Armenia"
+  },
+  "blog": {
+    "heading": "El blog de Haylingua",
+    "subtitle": "Guías, artículos a fondo y respuestas a las preguntas que más nos hacen sobre aprender armenio.",
+    "metaTitle": "Aprender Armenio — Blog con Consejos, Guías y Vocabulario",
+    "metaDescription": "Guías y artículos para aprender armenio — alfabeto, pronunciación, vocabulario y mucho más — del equipo de Haylingua.",
+    "loading": "Cargando artículos…",
+    "empty": "Todavía no hay artículos — vuelve pronto.",
+    "newer": "Más recientes",
+    "older": "Más antiguos",
+    "notFoundTitle": "Artículo no encontrado",
+    "notFoundText": "Puede que este artículo se haya movido o despublicado.",
+    "backToBlog": "← Volver al blog",
+    "loadingPost": "Cargando…",
+    "ctaHeading": "¿Listo para aprender armenio?",
+    "ctaButton": "Empieza a aprender — gratis"
   }
 }

@@ -16,7 +16,7 @@ router = APIRouter(tags=["seo"])
 # Mirrors src/i18n/index.js's SUPPORTED_LOCALES — kept in sync manually since
 # the frontend and backend are separate deploys. English is the implicit
 # default and stays unprefixed.
-SUPPORTED_LOCALES = ["ru", "fr", "es"]
+SUPPORTED_LOCALES = ["ru", "fr", "es", "ar", "fa", "ka"]
 ALL_LOCALES = ["en", *SUPPORTED_LOCALES]
 
 

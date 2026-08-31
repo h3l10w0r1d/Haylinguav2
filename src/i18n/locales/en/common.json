@@ -37,5 +37,21 @@
     "secureCheckout": "Secure, encrypted checkout",
     "copyright": "© {{year}} Haylingua. All rights reserved.",
     "madeIn": "Made with ❤️ in Armenia"
+  },
+  "blog": {
+    "heading": "The Haylingua Blog",
+    "subtitle": "Guides, deep dives, and answers to the questions we hear most about learning Armenian.",
+    "metaTitle": "Armenian Learning Blog — Tips, Guides & Vocabulary",
+    "metaDescription": "Guides and articles about learning Armenian — alphabet, pronunciation, vocabulary, and more, from the Haylingua team.",
+    "loading": "Loading posts…",
+    "empty": "No posts yet — check back soon.",
+    "newer": "Newer",
+    "older": "Older",
+    "notFoundTitle": "Post not found",
+    "notFoundText": "This post may have been moved or unpublished.",
+    "backToBlog": "← Back to the blog",
+    "loadingPost": "Loading…",
+    "ctaHeading": "Ready to start learning Armenian?",
+    "ctaButton": "Start learning — free"
   }
 }

@@ -148,7 +148,7 @@ export default function EasternArmenianPage() {
               {t("easternArmenian.cta.subtext")}
             </p>
             <button onClick={() => navigate(lp("/"))} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              {t("easternArmenian.cta.button")} <ArrowRight className="h-5 w-5" />
+              {t("easternArmenian.cta.button")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </button>
           </div>
         </section>

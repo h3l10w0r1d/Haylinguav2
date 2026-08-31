@@ -164,7 +164,7 @@ export default function ArmenianPronunciationPage() {
               {t("armenianPronunciation.cta.subtext")}
             </p>
             <button onClick={() => navigate(lp("/"))} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              {t("armenianPronunciation.cta.button")} <ArrowRight className="h-5 w-5" />
+              {t("armenianPronunciation.cta.button")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </button>
           </div>
         </section>

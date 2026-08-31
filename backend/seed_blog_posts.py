@@ -34,6 +34,9 @@ from database import engine
 from _translated_posts_ru import POSTS_RU
 from _translated_posts_fr import POSTS_FR
 from _translated_posts_es import POSTS_ES
+from _translated_posts_ar import POSTS_AR
+from _translated_posts_fa import POSTS_FA
+from _translated_posts_ka import POSTS_KA
 
 _POSTS = [
     {
@@ -930,6 +933,9 @@ _TRANSLATED_POSTS = {
     "ru": POSTS_RU,
     "fr": POSTS_FR,
     "es": POSTS_ES,
+    "ar": POSTS_AR,
+    "fa": POSTS_FA,
+    "ka": POSTS_KA,
 }
 
 

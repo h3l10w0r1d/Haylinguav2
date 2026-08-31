@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Globe, Check } from "lucide-react";
-import { ALL_LOCALES, LOCALE_LABELS, useLocale } from "../i18n";
+import { ALL_LOCALES, LOCALE_LABELS, LOCALE_FLAGS, useLocale } from "../i18n";
 
 const LANG_KEY = "hay_lang";
 
@@ -39,6 +39,14 @@ export default function LanguageSwitcher() {
     try {
       localStorage.setItem(LANG_KEY, target);
     } catch {}
+    // Also written as a cookie (not just localStorage) so the Vercel edge
+    // middleware that does IP-based geo redirection on a visitor's very
+    // first hit sees this explicit choice and never overrides it again —
+    // see /middleware.js. The URL itself still wins for the CURRENT page;
+    // this only affects future cookie-less-check redirects.
+    try {
+      document.cookie = `${LANG_KEY}=${target}; path=/; max-age=31536000; samesite=lax`;
+    } catch {}
     const targetPath = target === "en" ? barePath : `/${target}${barePath === "/" ? "" : barePath}`;
     navigate(targetPath + location.search);
   }
@@ -61,9 +69,13 @@ export default function LanguageSwitcher() {
               key={code}
               type="button"
               onClick={() => go(code)}
+              dir="ltr"
               className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-stone-200 dark:hover:bg-white/[0.06]"
             >
-              {LOCALE_LABELS[code]}
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true">{LOCALE_FLAGS[code]}</span>
+                {LOCALE_LABELS[code]}
+              </span>
               {(code === locale || (code === "en" && !locale)) && <Check className="h-3.5 w-3.5 text-brand-500" />}
             </button>
           ))}

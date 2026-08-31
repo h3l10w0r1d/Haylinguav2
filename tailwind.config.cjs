@@ -71,10 +71,14 @@ module.exports = {
         },
       },
       fontFamily: {
-        // "Noto Sans" covers Cyrillic (Russian) — Baloo 2/Nunito don't, so
-        // without it Russian text silently falls back to a system font.
-        display: ['"Baloo 2"', '"Nunito"', '"Noto Sans"', "ui-rounded", "system-ui", "sans-serif"],
-        sans: ['"Nunito"', '"Noto Sans"', "ui-sans-serif", "system-ui", "sans-serif"],
+        // "Noto Sans" covers Cyrillic (Russian); "Noto Sans Arabic" covers
+        // Arabic + Persian (a superset of Arabic script); "Noto Sans
+        // Georgian" covers Georgian — Baloo 2/Nunito don't cover any of
+        // these, so without them that text silently falls back to a system
+        // font. The browser picks whichever font in the stack actually has
+        // the glyph, so listing all of these is safe for every locale.
+        display: ['"Baloo 2"', '"Nunito"', '"Noto Sans"', '"Noto Sans Arabic"', '"Noto Sans Georgian"', "ui-rounded", "system-ui", "sans-serif"],
+        sans: ['"Nunito"', '"Noto Sans"', '"Noto Sans Arabic"', '"Noto Sans Georgian"', "ui-sans-serif", "system-ui", "sans-serif"],
       },
       boxShadow: {
         // 3D "pressable" button edges.

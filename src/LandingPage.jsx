@@ -4,7 +4,8 @@ import Turnstile from "./lib/Turnstile";
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { renderTemplate, useLocale, localizedPath } from "./i18n";
+import { renderTemplate, useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
+import usePageMeta from "./lib/usePageMeta";
 import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
@@ -906,7 +907,7 @@ function LandingExerciseDemo({ onSignup }) {
           ))}
         </div>
         <button type="button" onClick={() => { stopAutoplay(); onSignup(); }} className="btn3d btn3d-brand mt-6 w-full text-base uppercase">
-          Create free account <ArrowRight className="h-5 w-5" />
+          Create free account <ArrowRight className="h-5 w-5 rtl:rotate-180" />
         </button>
         <button type="button" onClick={() => { stopAutoplay(); practiceAgain(); }} className="mt-3 text-sm font-bold text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300">
           Practice again
@@ -964,7 +965,7 @@ function LandingExerciseDemo({ onSignup }) {
               type="button"
               onClick={() => { stopAutoplay(); pick(i); }}
               disabled={checked}
-              className={"tile text-left " + tone}
+              className={"tile text-start " + tone}
             >
               <span className="flex items-center gap-3">
                 <span
@@ -1031,7 +1032,7 @@ function LandingExerciseDemo({ onSignup }) {
               ) : (
                 <span>
                   {feedbackText.slice(0, typed)}
-                  {typing && <span className="ml-0.5 inline-block h-4 w-0.5 -translate-y-0.5 animate-pulse bg-slate-400 align-middle" />}
+                  {typing && <span className="ms-0.5 inline-block h-4 w-0.5 -translate-y-0.5 animate-pulse bg-slate-400 align-middle" />}
                 </span>
               )}
             </div>
@@ -1348,10 +1349,16 @@ function LiveStatsStrip() {
 
 export default function LandingPage({ onLogin, onSignup }) {
   const { t: tt } = useTranslation("landing");
+  const locale = useLocale();
   const features = tt("features", { returnObjects: true });
   const steps = tt("steps", { returnObjects: true });
   const testimonials = tt("testimonials", { returnObjects: true });
   const faqs = tt("faqs", { returnObjects: true });
+
+  usePageMeta(tt("meta.title"), tt("meta.description"), {
+    path: "/",
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/" })).concat([{ locale: "", path: "/" }]),
+  });
   const [mode, setMode] = useState("login"); // login | signup | forgot | verify
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -1677,7 +1684,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           </p>
 
           {devCode && (
-            <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-left ring-1 ring-amber-200">
+            <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-start ring-1 ring-amber-200">
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase text-amber-700">
                 <AlertTriangle className="h-3.5 w-3.5" /> Dev mode — use this code
               </div>
@@ -1741,7 +1748,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         type="button"
         onClick={() => setAuthOpen(false)}
         aria-label="Close"
-        className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-stone-400 transition hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-stone-200"
+        className="absolute end-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-stone-400 transition hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-stone-200"
       >
         <X className="h-4 w-4" />
       </button>
@@ -1783,7 +1790,7 @@ export default function LandingPage({ onLogin, onSignup }) {
             {error && <div className="rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600">{error}</div>}
             <button type="submit" disabled={loading || !email} className="btn3d btn3d-brand w-full uppercase disabled:opacity-60">
               {loading ? "Sending…" : "Send reset link"}
-              {!loading && <ArrowRight className="h-4 w-4" />}
+              {!loading && <ArrowRight className="h-4 w-4 rtl:rotate-180" />}
             </button>
           </>
         ) : (
@@ -1836,7 +1843,7 @@ export default function LandingPage({ onLogin, onSignup }) {
 
             <button type="submit" disabled={loading || (mode === "signup" && !captchaToken)} className="btn3d btn3d-brand w-full uppercase">
               {loading ? "Please wait…" : mode === "login" ? (needs2FA ? "Verify & log in" : "Log in") : "Create account"}
-              {!loading && <ArrowRight className="h-4 w-4" />}
+              {!loading && <ArrowRight className="h-4 w-4 rtl:rotate-180" />}
             </button>
           </>
         )}
@@ -1934,8 +1941,8 @@ export default function LandingPage({ onLogin, onSignup }) {
       <main>
       {/* Hero */}
       <header className="relative overflow-hidden">
-        <div className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
-        <div className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
+        <div className="pointer-events-none absolute -end-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
+        <div className="pointer-events-none absolute -start-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-12 lg:grid-cols-2 lg:py-20">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100">
@@ -1980,7 +1987,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                 so the hero reads as fewer, calmer chunks. */}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand text-base">
-                {tt("hero.ctaStart")} <ArrowRight className="h-5 w-5" />
+                {tt("hero.ctaStart")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
               </button>
               <button onClick={() => goAuth("login")} className="btn3d btn3d-neutral text-base">{tt("hero.ctaLogin")}</button>
             </div>
@@ -2143,14 +2150,14 @@ export default function LandingPage({ onLogin, onSignup }) {
             <div className="mt-6 flex flex-wrap gap-3">
               <div className="flex cursor-not-allowed items-center gap-2.5 rounded-2xl bg-slate-800 px-4 py-2.5 text-white opacity-60 dark:bg-white/10">
                 <AppleGlyph className="h-6 w-6 shrink-0" />
-                <div className="text-left leading-none">
+                <div className="text-start leading-none">
                   <div className="text-[10px] font-semibold">Coming soon on the</div>
                   <div className="text-sm font-extrabold">App Store</div>
                 </div>
               </div>
               <div className="flex cursor-not-allowed items-center gap-2.5 rounded-2xl bg-slate-800 px-4 py-2.5 text-white opacity-60 dark:bg-white/10">
                 <GooglePlayGlyph className="h-6 w-6 shrink-0" />
-                <div className="text-left leading-none">
+                <div className="text-start leading-none">
                   <div className="text-[10px] font-semibold">Coming soon on</div>
                   <div className="text-sm font-extrabold">Google Play</div>
                 </div>
@@ -2220,7 +2227,7 @@ export default function LandingPage({ onLogin, onSignup }) {
                   <div className="overflow-hidden rounded-2xl bg-white dark:bg-[#18181b] ring-1 ring-slate-200 dark:ring-white/[0.08]">
                     <button
                       onClick={() => setFaqOpen(open ? -1 : i)}
-                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start"
                     >
                       <span className="font-display text-base font-extrabold text-slate-800 dark:text-white">{f.q}</span>
                       <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 dark:text-stone-500 transition " + (open ? "rotate-180" : "")} />
@@ -2238,7 +2245,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       <section className="px-5 py-16">
         <Reveal>
           <div className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
-            <img src={student} alt="" className="pointer-events-none absolute -bottom-6 -right-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
+            <img src={student} alt="" className="pointer-events-none absolute -bottom-6 -end-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide">
               <Sparkles className="h-3.5 w-3.5" /> 14 days of Premium, free — no card
             </div>
@@ -2247,7 +2254,7 @@ export default function LandingPage({ onLogin, onSignup }) {
               Join now and finish your first lesson in minutes. Բարի՜ ճանապարհ — good luck!
             </p>
             <button onClick={() => goAuth("signup")} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              Create your free account <ArrowRight className="h-5 w-5" />
+              Create your free account <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </button>
           </div>
         </Reveal>
@@ -2303,9 +2310,9 @@ function Field({ label, optional, icon: Icon, value, onChange, placeholder, type
         {label} {optional && <span className="font-semibold text-slate-400 dark:text-stone-500">(optional)</span>}
       </label>
       <div className="relative">
-        {Icon && <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-stone-500" />}
+        {Icon && <Icon className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-stone-500" />}
         <input
-          className={"w-full rounded-2xl bg-slate-50 dark:bg-white/[0.04] py-3 font-semibold text-slate-800 dark:text-white ring-2 ring-slate-200 dark:ring-white/[0.08] transition focus:bg-white dark:focus:bg-white/[0.06] focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 dark:placeholder:text-stone-500 " + (Icon ? "pl-10" : "px-3.5") + (isPassword ? " pr-10" : " pr-3.5")}
+          className={"w-full rounded-2xl bg-slate-50 dark:bg-white/[0.04] py-3 font-semibold text-slate-800 dark:text-white ring-2 ring-slate-200 dark:ring-white/[0.08] transition focus:bg-white dark:focus:bg-white/[0.06] focus:outline-none focus:ring-brand-400 placeholder:text-slate-400 dark:placeholder:text-stone-500 " + (Icon ? "ps-10" : "px-3.5") + (isPassword ? " pe-10" : " pe-3.5")}
           type={inputType}
           name={name}
           id={name}
@@ -2318,7 +2325,7 @@ function Field({ label, optional, icon: Icon, value, onChange, placeholder, type
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300 transition"
+            className="absolute end-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-stone-500 hover:text-slate-600 dark:hover:text-stone-300 transition"
             tabIndex={-1}
             aria-label={showPw ? "Hide password" : "Show password"}
           >
@@ -2332,7 +2339,7 @@ function Field({ label, optional, icon: Icon, value, onChange, placeholder, type
 
 function SectionHeading({ eyebrow, title, align = "center" }) {
   return (
-    <div className={align === "center" ? "text-center" : "text-left"}>
+    <div className={align === "center" ? "text-center" : "text-start"}>
       <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{eyebrow}</div>
       <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">{title}</h2>
     </div>

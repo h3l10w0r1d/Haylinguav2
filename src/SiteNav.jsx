@@ -97,7 +97,7 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
             </button>
           ) : (
             <Link to={lp("/")} className="btn3d btn3d-brand hidden !py-2.5 text-sm sm:inline-flex">
-              {t("nav.startLearning")} <ArrowRight className="h-4 w-4" />
+              {t("nav.startLearning")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
             </Link>
           )}
           <button

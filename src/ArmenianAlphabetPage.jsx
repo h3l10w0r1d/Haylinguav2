@@ -183,7 +183,7 @@ export default function ArmenianAlphabetPage() {
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <button onClick={() => navigate(lp("/"))} className="btn3d btn3d-brand text-sm uppercase">
-              {t("armenianAlphabet.hero.ctaStart")} <ArrowRight className="h-4 w-4" />
+              {t("armenianAlphabet.hero.ctaStart")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
             </button>
             <Link to={lp("/eastern-armenian")} className="text-sm font-bold text-brand-600 hover:underline dark:text-brand-400">
               {t("armenianAlphabet.hero.ctaEasternLink")}
@@ -259,7 +259,7 @@ export default function ArmenianAlphabetPage() {
               {t("armenianAlphabet.cta.subtext")}
             </p>
             <button onClick={() => navigate(lp("/"))} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              {t("armenianAlphabet.cta.button")} <ArrowRight className="h-5 w-5" />
+              {t("armenianAlphabet.cta.button")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </button>
           </div>
         </section>

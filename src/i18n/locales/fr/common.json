@@ -37,5 +37,21 @@
     "secureCheckout": "Paiement sécurisé et chiffré",
     "copyright": "© {{year}} Haylingua. Tous droits réservés.",
     "madeIn": "Fait avec ❤️ en Arménie"
+  },
+  "blog": {
+    "heading": "Le blog Haylingua",
+    "subtitle": "Des guides, des analyses approfondies et des réponses aux questions qu'on nous pose le plus sur l'apprentissage de l'arménien.",
+    "metaTitle": "Blog Arménien : Conseils, Guides et Vocabulaire",
+    "metaDescription": "Guides et articles pour apprendre l'arménien — alphabet, prononciation, vocabulaire et bien plus, par l'équipe Haylingua.",
+    "loading": "Chargement des articles…",
+    "empty": "Pas encore d'articles — reviens bientôt.",
+    "newer": "Plus récent",
+    "older": "Plus ancien",
+    "notFoundTitle": "Article introuvable",
+    "notFoundText": "Cet article a peut-être été déplacé ou dépublié.",
+    "backToBlog": "← Retour au blog",
+    "loadingPost": "Chargement…",
+    "ctaHeading": "Prêt à apprendre l'arménien ?",
+    "ctaButton": "Commence à apprendre — gratuit"
   }
 }
