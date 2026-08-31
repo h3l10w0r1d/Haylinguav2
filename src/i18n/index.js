@@ -40,6 +40,14 @@ import arSitePages from "./locales/ar/site-pages.json";
 import faSitePages from "./locales/fa/site-pages.json";
 import kaSitePages from "./locales/ka/site-pages.json";
 
+import enDiasporaPages from "./locales/en/diaspora-pages.json";
+import ruDiasporaPages from "./locales/ru/diaspora-pages.json";
+import frDiasporaPages from "./locales/fr/diaspora-pages.json";
+import esDiasporaPages from "./locales/es/diaspora-pages.json";
+import arDiasporaPages from "./locales/ar/diaspora-pages.json";
+import faDiasporaPages from "./locales/fa/diaspora-pages.json";
+import kaDiasporaPages from "./locales/ka/diaspora-pages.json";
+
 export const SUPPORTED_LOCALES = ["ru", "fr", "es", "ar", "fa", "ka"];
 export const DEFAULT_LOCALE = "en";
 export const ALL_LOCALES = [DEFAULT_LOCALE, ...SUPPORTED_LOCALES];
@@ -73,17 +81,17 @@ export const LOCALE_FLAGS = {
 
 i18next.use(initReactI18next).init({
   resources: {
-    en: { common: enCommon, landing: enLanding, seoPages: enSeoPages, sitePages: enSitePages },
-    ru: { common: ruCommon, landing: ruLanding, seoPages: ruSeoPages, sitePages: ruSitePages },
-    fr: { common: frCommon, landing: frLanding, seoPages: frSeoPages, sitePages: frSitePages },
-    es: { common: esCommon, landing: esLanding, seoPages: esSeoPages, sitePages: esSitePages },
-    ar: { common: arCommon, landing: arLanding, seoPages: arSeoPages, sitePages: arSitePages },
-    fa: { common: faCommon, landing: faLanding, seoPages: faSeoPages, sitePages: faSitePages },
-    ka: { common: kaCommon, landing: kaLanding, seoPages: kaSeoPages, sitePages: kaSitePages },
+    en: { common: enCommon, landing: enLanding, seoPages: enSeoPages, sitePages: enSitePages, diasporaPages: enDiasporaPages },
+    ru: { common: ruCommon, landing: ruLanding, seoPages: ruSeoPages, sitePages: ruSitePages, diasporaPages: ruDiasporaPages },
+    fr: { common: frCommon, landing: frLanding, seoPages: frSeoPages, sitePages: frSitePages, diasporaPages: frDiasporaPages },
+    es: { common: esCommon, landing: esLanding, seoPages: esSeoPages, sitePages: esSitePages, diasporaPages: esDiasporaPages },
+    ar: { common: arCommon, landing: arLanding, seoPages: arSeoPages, sitePages: arSitePages, diasporaPages: arDiasporaPages },
+    fa: { common: faCommon, landing: faLanding, seoPages: faSeoPages, sitePages: faSitePages, diasporaPages: faDiasporaPages },
+    ka: { common: kaCommon, landing: kaLanding, seoPages: kaSeoPages, sitePages: kaSitePages, diasporaPages: kaDiasporaPages },
   },
   lng: DEFAULT_LOCALE,
   fallbackLng: DEFAULT_LOCALE,
-  ns: ["common", "landing", "seoPages", "sitePages"],
+  ns: ["common", "landing", "seoPages", "sitePages", "diasporaPages"],
   defaultNS: "common",
   interpolation: { escapeValue: false },
   returnObjects: true,

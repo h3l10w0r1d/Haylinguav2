@@ -39,6 +39,7 @@ const LearnArmenianOnlinePage = lazy(() => import('./LearnArmenianOnlinePage'));
 const ArmenianPronunciationPage = lazy(() => import('./ArmenianPronunciationPage'));
 const ArmenianVocabularyPage = lazy(() => import('./ArmenianVocabularyPage'));
 const EasternArmenianPage = lazy(() => import('./EasternArmenianPage'));
+const DiasporaCityPage = lazy(() => import('./DiasporaCityPage'));
 const BlogPage = lazy(() => import('./BlogPage'));
 const BlogPostPage = lazy(() => import('./BlogPostPage'));
 const ContactPage = lazy(() => import('./ContactPage'));
@@ -117,6 +118,20 @@ const PUBLIC_ROUTE_DEFS = [
   { path: 'pricing', element: <PricingPage /> },
   { path: 'careers', element: <CareersPage /> },
   { path: 'affiliates', element: <AffiliatesPage /> },
+  // Diaspora-hub SEO pages — one per major Armenian diaspora city, each
+  // mapped onto the language actually spoken there (still fully translated
+  // into all 7 locales like every other page, per the standard pattern —
+  // the mapped language just happens to be the "home" one for that city).
+  // Slugs stay English across every locale prefix, matching every other
+  // page on the site — localizedPath() only prepends a locale segment
+  // (/fr/learn-armenian-in-paris), it doesn't translate the slug itself.
+  { path: 'learn-armenian-in-los-angeles', element: <DiasporaCityPage city="losAngeles" path="/learn-armenian-in-los-angeles" /> },
+  { path: 'learn-armenian-in-paris', element: <DiasporaCityPage city="paris" path="/learn-armenian-in-paris" /> },
+  { path: 'learn-armenian-in-moscow', element: <DiasporaCityPage city="moscow" path="/learn-armenian-in-moscow" /> },
+  { path: 'learn-armenian-in-buenos-aires', element: <DiasporaCityPage city="buenosAires" path="/learn-armenian-in-buenos-aires" /> },
+  { path: 'learn-armenian-in-beirut', element: <DiasporaCityPage city="beirut" path="/learn-armenian-in-beirut" /> },
+  { path: 'learn-armenian-in-tehran', element: <DiasporaCityPage city="tehran" path="/learn-armenian-in-tehran" /> },
+  { path: 'learn-armenian-in-tbilisi', element: <DiasporaCityPage city="tbilisi" path="/learn-armenian-in-tbilisi" /> },
 ];
 
 const API_BASE = 'https://haylinguav2.onrender.com';

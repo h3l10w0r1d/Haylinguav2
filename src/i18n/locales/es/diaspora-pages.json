@@ -1,0 +1,330 @@
+{
+  "losAngeles": {
+    "meta": {
+      "title": "Aprende Armenio en Los Ángeles: Curso Online Gratis",
+      "description": "Aprende armenio en Los Ángeles y Glendale con un curso online gratuito e interactivo — audio nativo real, hecho para la diáspora. Empieza a hablar armenio hoy."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Aprende armenio en Los Ángeles" },
+    "hero": {
+      "eyebrow": "Los Ángeles y Glendale",
+      "title": "Aprende armenio en Los Ángeles",
+      "subtitle": "El área metropolitana de Los Ángeles alberga la mayor población armenia fuera de Armenia. Ya sea que estés reconectando con tu familia, criando hijos que escuchan armenio en casa, o simplemente vivas cerca de Little Armenia, Haylingua te da una forma real de aprender — gratis, en línea, a tu propio ritmo.",
+      "cta": "Empieza a aprender gratis"
+    },
+    "community": {
+      "heading": "Una comunidad que se escucha en la calle",
+      "intro": "De Glendale al distrito de Little Armenia, en East Hollywood, el armenio no es un idioma extranjero en Los Ángeles — está en los letreros de las tiendas, los boletines de las iglesias y los menús de los restaurantes. Eso hace que sea uno de los lugares más fáciles del mundo para pasar de las lecciones a una conversación real.",
+      "landmarks": [
+        { "title": "Glendale", "text": "A menudo llamada el corazón de la comunidad armenia de Los Ángeles, con panaderías, librerías y centros comunitarios de propietarios armenios por toda la ciudad." },
+        { "title": "Little Armenia, East Hollywood", "text": "Un distrito cultural oficial de la ciudad de Los Ángeles, lleno de restaurantes, mercados y tiendas armenias." },
+        { "title": "Catedral Armenia de San León", "text": "La sede de la Diócesis Occidental de la Iglesia Armenia, en Burbank, en el centro de la vida comunitaria de generaciones de angelinos." },
+        { "title": "Librería Abril", "text": "Una institución histórica de Glendale para libros, música y cine en armenio — un gran lugar para encontrar material de lectura una vez que domines lo básico." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Por qué ahora es el momento indicado",
+      "text": "Si creciste escuchando armenio en casa pero nunca aprendiste a leerlo o escribirlo, o te uniste a la comunidad por matrimonio, o eres un hablante de herencia cuyo armenio es más fuerte al hablar que al leer el alfabeto — Los Ángeles te da oportunidades constantes y sin presión para practicar todo lo que Haylingua te enseña, desde pedir algo en una panadería hasta seguir un servicio religioso."
+    },
+    "faqHeading": "Preguntas de estudiantes de armenio en Los Ángeles",
+    "faq": [
+      { "q": "¿La gente en Los Ángeles habla armenio occidental u oriental?", "a": "Mayormente armenio occidental — la comunidad de Los Ángeles desciende en gran parte de sobrevivientes del Genocidio Armenio y refugiados del Imperio otomano y del Medio Oriente en general. Haylingua enseña actualmente armenio oriental estándar (la forma que se habla hoy en Armenia), que comparte el mismo alfabeto y buena parte de la gramática y el vocabulario, pero difiere en la pronunciación de ciertas letras. Sigue siendo una excelente base, y muchos hablantes de herencia en Los Ángeles la usan para aprender formalmente a leer y escribir por primera vez." },
+      { "q": "Ya entiendo el armenio hablado por mi familia — ¿Haylingua igual me puede ayudar?", "a": "Sí — los hablantes de herencia suelen tener una buena comprensión auditiva pero nunca aprendieron a leer o escribir. El curso de alfabeto y los ejercicios de escritura de Haylingua están hechos exactamente para llenar ese vacío específico." },
+      { "q": "¿Hay alguna forma de practicar con personas reales, no solo con una app?", "a": "Por supuesto — la densidad de iglesias, centros culturales y negocios armenios en Los Ángeles significa que tendrás oportunidades reales de usar lo que aprendes casi de inmediato, que es una de las mejores formas de que se te quede." }
+    ],
+    "keepGoing": {
+      "heading": "Empieza donde empieza todo estudiante",
+      "cards": [
+        { "title": "Alfabeto armenio", "text": "Las 39 letras con audio." },
+        { "title": "Vocabulario armenio", "text": "Palabras esenciales para empezar a leer y hablar." },
+        { "title": "Aprende armenio en línea", "text": "Cómo funciona el curso completo de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Únete a los angelinos que aprenden armenio con Haylingua",
+      "subtext": "Lecciones gratuitas y breves con audio real — desde tu primera letra hasta una conversación real.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+
+  "paris": {
+    "meta": {
+      "title": "Aprende Armenio en París: Curso Online Gratis",
+      "description": "Aprende armenio en París con un curso online gratuito e interactivo — audio nativo real, hecho para la diáspora. Empieza a hablar armenio hoy."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Aprende armenio en París" },
+    "hero": {
+      "eyebrow": "París e Isla de Francia",
+      "title": "Aprende armenio en París",
+      "subtitle": "Francia alberga una de las diásporas armenias más antiguas y numerosas de Europa. Ya sea que quieras reconectar con las raíces de tu familia o simplemente descubrir el idioma que hablaban tus abuelos, Haylingua te da una forma real de aprender — gratis, en línea, a tu propio ritmo.",
+      "cta": "Empieza a aprender gratis"
+    },
+    "community": {
+      "heading": "Una comunidad profundamente arraigada",
+      "intro": "De París a Alfortville, y más al sur en Marsella, la comunidad armenia de Francia se remonta a varias oleadas de inmigración a lo largo de más de un siglo. Asociaciones, iglesias y escuelas armenias mantienen vivos el idioma y la cultura cada día.",
+      "landmarks": [
+        { "title": "Catedral Saint-Jean-Baptiste des Arméniens", "text": "La catedral armenia de París, en la rue Jean-Goujon, en el centro de la vida religiosa y comunitaria desde 1904." },
+        { "title": "Alfortville", "text": "Una localidad de Val-de-Marne con una fuerte presencia armenia, sede de escuelas, asociaciones y negocios comunitarios." },
+        { "title": "UGAB Francia (AGBU)", "text": "La Unión General Armenia de Beneficencia organiza actividades culturales y educativas en toda Francia." },
+        { "title": "Marsella", "text": "Otro gran centro histórico de la diáspora armenia en Francia, con una vida comunitaria propia y rica." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Por qué aprender armenio ahora",
+      "text": "Si creciste escuchando armenio en casa pero nunca aprendiste a leerlo o escribirlo, o simplemente quieres transmitirles el idioma a tus hijos, Haylingua te da una base sólida y estructurada — desde el alfabeto hasta conversaciones reales."
+    },
+    "faqHeading": "Preguntas de estudiantes de armenio en Francia",
+    "faq": [
+      { "q": "¿La gente en Francia habla armenio occidental u oriental?", "a": "La diáspora de Francia ha hablado históricamente armenio occidental, traído por las oleadas de inmigración tras el Genocidio Armenio. Haylingua enseña armenio oriental estándar (la forma que se habla hoy en Armenia), que comparte el mismo alfabeto y buena parte de la gramática y el vocabulario, con diferencias en la pronunciación de ciertas letras. Sigue siendo una excelente base, incluso para hablantes de herencia familiarizados con el armenio occidental." },
+      { "q": "Entiendo el armenio pero no lo puedo leer — ¿Haylingua puede ayudar?", "a": "Sí — muchos hablantes de herencia entienden bien el armenio hablado pero nunca aprendieron a leerlo o escribirlo. El curso de alfabeto y los ejercicios de escritura de Haylingua están hechos exactamente para llenar ese vacío específico." },
+      { "q": "¿Puedo practicar con personas reales, no solo con una app?", "a": "Por supuesto — la riqueza de la vida comunitaria armenia en Francia, desde iglesias hasta asociaciones y escuelas, te da oportunidades reales de usar lo que aprendes." }
+    ],
+    "keepGoing": {
+      "heading": "Empieza donde empieza todo estudiante",
+      "cards": [
+        { "title": "Alfabeto armenio", "text": "Las 39 letras con audio." },
+        { "title": "Vocabulario armenio", "text": "Palabras esenciales para empezar a leer y hablar." },
+        { "title": "Aprende armenio en línea", "text": "Cómo funciona el curso completo de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Únete a los franceses que estudian armenio con Haylingua",
+      "subtext": "Lecciones gratuitas y breves con audio nativo real — desde tu primera letra hasta una conversación real.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+
+  "moscow": {
+    "meta": {
+      "title": "Aprende Armenio en Moscú: Curso Online Gratis",
+      "description": "Aprende armenio en Moscú con un curso online gratuito e interactivo — audio nativo real, hecho para la diáspora. Empieza a hablar armenio hoy."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Aprende armenio en Moscú" },
+    "hero": {
+      "eyebrow": "Moscú",
+      "title": "Aprende armenio en Moscú",
+      "subtitle": "Rusia alberga una de las diásporas armenias más grandes del mundo, y Moscú es su centro cultural y social. Ya sea que quieras reconectar con el idioma de tu familia o simplemente te atraiga la cultura armenia, Haylingua te da una forma real de aprender — gratis, en línea, a tu propio ritmo.",
+      "cta": "Empieza a aprender gratis"
+    },
+    "community": {
+      "heading": "Una comunidad con raíces profundas",
+      "intro": "La comunidad armenia de Moscú es una de las más antiguas y numerosas de Rusia, con sus propias iglesias, centros culturales y organizaciones que han mantenido vivos el idioma y las tradiciones a lo largo de generaciones.",
+      "landmarks": [
+        { "title": "Catedral de la Transfiguración del Salvador", "text": "La principal catedral armenia de Moscú — el centro espiritual y social de la comunidad armenia de la ciudad." },
+        { "title": "Unión de Armenios de Rusia", "text": "La organización comunitaria armenia más grande del país, que conecta a la diáspora en todo el territorio y organiza eventos culturales." },
+        { "title": "Centros culturales armenios", "text": "Escuelas y clubes en toda Moscú enseñan idioma, danza y música armenia a niños y adultos por igual." },
+        { "title": "Sur de Rusia", "text": "Más allá de Moscú, grandes comunidades armenias se han formado históricamente en el sur de Rusia, incluida la región de Krasnodar." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Por qué ahora es el momento indicado",
+      "text": "Si creciste escuchando armenio en casa pero nunca aprendiste a leerlo o escribirlo, o simplemente quieres una comprensión más profunda de la cultura de tu familia, Haylingua te da una base estructurada — desde el alfabeto hasta conversaciones reales."
+    },
+    "faqHeading": "Preguntas de estudiantes de armenio en Moscú",
+    "faq": [
+      { "q": "¿El armenio que enseña Haylingua es el mismo que se habla en Moscú?", "a": "Haylingua enseña armenio oriental estándar — la misma forma que es el idioma oficial de la República de Armenia y la que habla la mayoría de la población armenia en Rusia. Eso hace que el curso sea especialmente adecuado para la diáspora armenia en Moscú." },
+      { "q": "Entiendo el armenio pero no lo puedo leer — ¿Haylingua puede ayudar?", "a": "Sí — muchos hablantes de herencia entienden bien el armenio hablado pero nunca aprendieron a leerlo o escribirlo. El curso de alfabeto y los ejercicios de escritura de Haylingua están hechos exactamente para llenar ese vacío específico." },
+      { "q": "¿Puedo practicar con personas reales, no solo con una app?", "a": "Por supuesto — la comunidad armenia activa de Moscú, con sus iglesias, centros culturales y organizaciones, te da oportunidades reales de usar lo que aprendes." }
+    ],
+    "keepGoing": {
+      "heading": "Empieza donde empieza todo estudiante",
+      "cards": [
+        { "title": "Alfabeto armenio", "text": "Las 39 letras con audio." },
+        { "title": "Vocabulario armenio", "text": "Palabras esenciales para empezar a leer y hablar." },
+        { "title": "Aprende armenio en línea", "text": "Cómo funciona el curso completo de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Únete a los estudiantes en Rusia que aprenden armenio con Haylingua",
+      "subtext": "Lecciones gratuitas y breves con audio nativo real — desde tu primera letra hasta una conversación real.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+
+  "buenosAires": {
+    "meta": {
+      "title": "Aprende Armenio en Buenos Aires: Curso Online Gratis",
+      "description": "Aprende armenio en Buenos Aires con un curso online gratuito e interactivo — audio nativo real, hecho para la diáspora. Empieza a hablar armenio hoy."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Aprende armenio en Buenos Aires" },
+    "hero": {
+      "eyebrow": "Buenos Aires",
+      "title": "Aprende armenio en Buenos Aires",
+      "subtitle": "Argentina alberga una de las comunidades armenias más grandes de Sudamérica, con más de un siglo de historia en Buenos Aires. Ya sea que quieras reconectar con las raíces de tu familia o simplemente te interese el idioma que hablaban tus abuelos, Haylingua te da una forma real de aprender — gratis, en línea, a tu propio ritmo.",
+      "cta": "Empieza a aprender gratis"
+    },
+    "community": {
+      "heading": "Una comunidad con historia propia",
+      "intro": "El barrio de Palermo incluso tiene una calle llamada Armenia, en el corazón de una zona con una fuerte concentración de instituciones armenias — desde escuelas hasta clubes y la catedral de la comunidad.",
+      "landmarks": [
+        { "title": "Calle Armenia, Palermo", "text": "Una calle que le da su nombre a la zona con mayor concentración de instituciones armenias de la ciudad." },
+        { "title": "Catedral San Gregorio el Iluminador", "text": "La catedral armenia de Buenos Aires, centro religioso y comunitario desde hace décadas." },
+        { "title": "Instituto Educativo Armenio", "text": "Una de varias escuelas armenias de la ciudad que mantienen vivo el idioma entre las nuevas generaciones." },
+        { "title": "Clubes y asociaciones armenias", "text": "Buenos Aires tiene una red activa de clubes deportivos y culturales fundados por la comunidad armenia." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Por qué aprender armenio ahora",
+      "text": "Si creciste escuchando armenio en casa pero nunca aprendiste a leerlo o escribirlo, o simplemente quieres entender mejor la historia de tu propia familia, Haylingua te da una base sólida y estructurada — desde el alfabeto hasta conversaciones reales."
+    },
+    "faqHeading": "Preguntas de estudiantes de armenio en Buenos Aires",
+    "faq": [
+      { "q": "¿El armenio que enseña Haylingua es el mismo que se habla en Buenos Aires?", "a": "La diáspora de Argentina ha hablado históricamente armenio occidental, traído por las oleadas de inmigración tras el Genocidio Armenio. Haylingua enseña armenio oriental estándar (la forma que se habla hoy en Armenia), que comparte el mismo alfabeto y buena parte de la gramática y el vocabulario, con diferencias en la pronunciación de ciertas letras. Sigue siendo una excelente base, incluso para hablantes de herencia familiarizados con el armenio occidental." },
+      { "q": "Entiendo el armenio pero no lo puedo leer — ¿Haylingua puede ayudar?", "a": "Sí — muchos hablantes de herencia entienden bien el armenio hablado pero nunca aprendieron a leerlo o escribirlo. El curso de alfabeto y los ejercicios de escritura de Haylingua están hechos exactamente para llenar ese vacío específico." },
+      { "q": "¿Puedo practicar con personas reales, no solo con una app?", "a": "Por supuesto — la vibrante vida comunitaria armenia de Buenos Aires, con sus escuelas, clubes e iglesia, te da oportunidades reales de usar lo que aprendes." }
+    ],
+    "keepGoing": {
+      "heading": "Empieza donde empieza todo estudiante",
+      "cards": [
+        { "title": "Alfabeto armenio", "text": "Las 39 letras con audio." },
+        { "title": "Vocabulario armenio", "text": "Palabras esenciales para empezar a leer y hablar." },
+        { "title": "Aprende armenio en línea", "text": "Cómo funciona el curso completo de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Únete a los estudiantes en Argentina que aprenden armenio con Haylingua",
+      "subtext": "Lecciones gratuitas y breves con audio nativo real — desde tu primera letra hasta una conversación real.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+
+  "beirut": {
+    "meta": {
+      "title": "Aprende Armenio en Beirut: Curso Online Gratis",
+      "description": "Aprende armenio en Beirut con un curso online gratuito e interactivo — audio nativo real, hecho para la diáspora. Empieza a hablar armenio hoy."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Aprende armenio en Beirut" },
+    "hero": {
+      "eyebrow": "Beirut",
+      "title": "Aprende armenio en Beirut",
+      "subtitle": "Líbano alberga una de las comunidades armenias más antiguas y organizadas del mundo, con escaños reservados en su propio parlamento. Ya sea que quieras reconectar con las raíces de tu familia o simplemente aprender el idioma de tus antepasados, Haylingua te da una forma real de aprender — gratis, en línea, a tu propio ritmo.",
+      "cta": "Empieza a aprender gratis"
+    },
+    "community": {
+      "heading": "Una comunidad con una presencia profundamente arraigada",
+      "intro": "Desde que los refugiados armenios se asentaron en Beirut tras el Genocidio Armenio, barrios como Bourj Hammoud se han convertido en un vibrante centro de vida armenia — desde iglesias y escuelas hasta mercados y talleres de artesanía.",
+      "landmarks": [
+        { "title": "Bourj Hammoud", "text": "El histórico distrito armenio de Beirut, conocido por sus mercados, talleres de artesanía y una vida comunitaria muy activa." },
+        { "title": "Escuelas armenias", "text": "Decenas de escuelas armenias en todo el Líbano mantienen vivos el idioma y la cultura entre las nuevas generaciones." },
+        { "title": "Representación política", "text": "El Líbano reserva escaños parlamentarios para la comunidad armenia, lo que refleja su peso cívico histórico." },
+        { "title": "Iglesias armenias", "text": "Beirut y sus alrededores albergan varias iglesias armenias apostólicas y católicas que son el centro de la vida religiosa de la comunidad." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Por qué ahora es el momento indicado",
+      "text": "Si creciste escuchando armenio en casa pero nunca aprendiste a leerlo o escribirlo, o simplemente quieres una comprensión más profunda de la herencia de tu familia, Haylingua te da una base estructurada y real — desde el alfabeto hasta conversaciones reales."
+    },
+    "faqHeading": "Preguntas de estudiantes de armenio en Beirut",
+    "faq": [
+      { "q": "¿El armenio que enseña Haylingua es el mismo que se habla en Beirut?", "a": "La comunidad armenia del Líbano ha hablado históricamente armenio occidental, traído por las oleadas de refugiados tras el Genocidio Armenio. Haylingua enseña armenio oriental estándar (la forma que se usa oficialmente hoy en Armenia), que comparte el mismo alfabeto y buena parte de la gramática y el vocabulario, con diferencias en la pronunciación de ciertas letras. Sigue siendo una excelente base, incluso para quienes están acostumbrados al armenio occidental." },
+      { "q": "Entiendo el armenio pero no lo puedo leer — ¿Haylingua puede ayudar?", "a": "Sí — muchos hablantes de herencia entienden bien el armenio hablado pero nunca aprendieron a leerlo o escribirlo. El curso de alfabeto y los ejercicios de escritura de Haylingua están hechos exactamente para llenar ese vacío específico." },
+      { "q": "¿Puedo practicar con personas reales, no solo con una app?", "a": "Por supuesto — la vibrante vida comunitaria armenia de Beirut, con sus escuelas, iglesias e instituciones, te da oportunidades reales de usar lo que aprendes." }
+    ],
+    "keepGoing": {
+      "heading": "Empieza donde empieza todo estudiante",
+      "cards": [
+        { "title": "Alfabeto armenio", "text": "Las 39 letras con audio." },
+        { "title": "Vocabulario armenio", "text": "Palabras esenciales para empezar a leer y hablar." },
+        { "title": "Aprende armenio en línea", "text": "Cómo funciona el curso completo de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Únete a los estudiantes en Líbano que aprenden armenio con Haylingua",
+      "subtext": "Lecciones gratuitas y breves con audio nativo real — desde tu primera letra hasta una conversación real.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+
+  "tehran": {
+    "meta": {
+      "title": "Aprende Armenio en Teherán: Curso Online Gratis",
+      "description": "Aprende armenio en Teherán con un curso online gratuito e interactivo — audio nativo real, hecho para la comunidad. Empieza a hablar armenio hoy."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Aprende armenio en Teherán" },
+    "hero": {
+      "eyebrow": "Teherán",
+      "title": "Aprende armenio en Teherán",
+      "subtitle": "Irán alberga una de las comunidades armenias más antiguas del mundo, con raíces que se remontan a más de cuatro siglos. Ya sea que quieras reconectar con las raíces de tu familia o simplemente te interese el idioma de tus antepasados, Haylingua te da una forma real de aprender — gratis, en línea, a tu propio ritmo.",
+      "cta": "Empieza a aprender gratis"
+    },
+    "community": {
+      "heading": "Una comunidad con una historia profunda",
+      "intro": "La comunidad armenia de Irán es una de las más antiguas del mundo. Aunque hoy Teherán alberga la mayor población armenia del país, el histórico barrio de Nueva Julfa, en Isfahán, sigue siendo un símbolo vivo de esta herencia de cuatro siglos.",
+      "landmarks": [
+        { "title": "Catedral de San Sarkis", "text": "La catedral armenia de Teherán, centro religioso y social de la comunidad armenia de la capital." },
+        { "title": "Nueva Julfa, Isfahán", "text": "Un distrito histórico fundado en 1604, cuando el sah Abás I reasentó allí a armenios de la antigua Julfa — sigue siendo hoy un gran centro cultural." },
+        { "title": "Catedral de Vank", "text": "La Catedral del Santo Salvador en Nueva Julfa, una de las iglesias armenias más famosas y hermosas del mundo, conocida por sus impresionantes murales." },
+        { "title": "Escuelas y asociaciones armenias", "text": "Teherán e Isfahán albergan varias escuelas y asociaciones culturales armenias que mantienen vivos el idioma y las tradiciones entre las nuevas generaciones." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Por qué ahora es el momento indicado",
+      "text": "Si creciste escuchando armenio en casa pero nunca aprendiste a leerlo o escribirlo, o simplemente quieres entender más a fondo la herencia de tu familia, Haylingua te da una base estructurada y real — desde el alfabeto hasta conversaciones reales."
+    },
+    "faqHeading": "Preguntas de estudiantes de armenio en Teherán",
+    "faq": [
+      { "q": "¿El armenio que enseña Haylingua es el mismo que se habla en Irán?", "a": "Haylingua enseña armenio oriental estándar — la misma forma que es el idioma oficial de la República de Armenia y la que habla la mayoría de la comunidad armenia de Irán, lo que hace que el curso sea especialmente adecuado para los estudiantes de armenio en Irán." },
+      { "q": "Entiendo el armenio pero no lo puedo leer — ¿Haylingua puede ayudar?", "a": "Sí — muchos hablantes de herencia entienden bien el armenio hablado pero nunca aprendieron a leerlo o escribirlo. El curso de alfabeto y los ejercicios de escritura de Haylingua están hechos exactamente para llenar ese vacío específico." },
+      { "q": "¿Puedo practicar con personas reales, no solo con una app?", "a": "Por supuesto — la comunidad armenia activa de Teherán e Isfahán, con sus iglesias, escuelas y asociaciones culturales, te da oportunidades reales de usar lo que aprendes." }
+    ],
+    "keepGoing": {
+      "heading": "Empieza donde empieza todo estudiante",
+      "cards": [
+        { "title": "Alfabeto armenio", "text": "Las 39 letras con audio." },
+        { "title": "Vocabulario armenio", "text": "Palabras esenciales para empezar a leer y hablar." },
+        { "title": "Aprende armenio en línea", "text": "Cómo funciona el curso completo de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Únete a los estudiantes armenios en Irán con Haylingua",
+      "subtext": "Lecciones gratuitas y breves con audio nativo real — desde tu primera letra hasta una conversación real.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+
+  "tbilisi": {
+    "meta": {
+      "title": "Aprende Armenio en Tiflis: Curso Online Gratis",
+      "description": "Aprende armenio en Tiflis con un curso online gratuito e interactivo — audio nativo real, hecho para la diáspora. Empieza a hablar armenio hoy."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Aprende armenio en Tiflis" },
+    "hero": {
+      "eyebrow": "Tiflis",
+      "title": "Aprende armenio en Tiflis",
+      "subtitle": "La capital de Georgia tiene siglos de historia compartida con la comunidad armenia, especialmente en el histórico barrio de Avlabari. Ya sea que quieras aprender armenio por las raíces de tu familia o simplemente para sentirte más cerca de la comunidad, Haylingua te da una forma real de aprender — gratis, en línea, a tu propio ritmo.",
+      "cta": "Empieza a aprender gratis"
+    },
+    "community": {
+      "heading": "Una comunidad con historia profunda",
+      "intro": "El barrio de Avlabari, en la orilla derecha del río Kurá, ha sido durante siglos el corazón de la comunidad armenia de Tiflis — con sus iglesias, su vida comercial y su herencia cultural.",
+      "landmarks": [
+        { "title": "Avlabari", "text": "El histórico distrito armenio de Tiflis, durante siglos centro de la vida comunitaria armenia." },
+        { "title": "Iglesia de Surb Gevorg (San Jorge)", "text": "Una iglesia apostólica armenia en Avlabari, todavía un lugar de culto activo para la comunidad." },
+        { "title": "Organizaciones culturales armenias", "text": "Tiflis alberga varias organizaciones culturales y educativas armenias que mantienen vivos el idioma y las tradiciones." },
+        { "title": "Historia compartida armenio-georgiana", "text": "Los armenios jugaron un papel importante en la vida comercial y cultural de Tiflis durante siglos." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Por qué ahora es el momento indicado",
+      "text": "Si creciste escuchando armenio en casa pero nunca aprendiste a leerlo o escribirlo, o simplemente quieres una conexión más profunda con la comunidad, Haylingua te da una base estructurada — desde el alfabeto hasta conversaciones reales."
+    },
+    "faqHeading": "Preguntas de estudiantes de armenio en Tiflis",
+    "faq": [
+      { "q": "¿El armenio que enseña Haylingua es el mismo que se habla en Tiflis?", "a": "Haylingua enseña armenio oriental estándar — la misma forma que es el idioma oficial de la República de Armenia. Para la comunidad armenia de Georgia, esta es una base especialmente adecuada dadas las raíces históricas de la comunidad." },
+      { "q": "Entiendo el armenio pero no lo puedo leer — ¿Haylingua puede ayudar?", "a": "Sí — muchos hablantes de herencia entienden bien el armenio hablado pero nunca aprendieron a leerlo o escribirlo. El curso de alfabeto y los ejercicios de escritura de Haylingua están hechos exactamente para llenar ese vacío específico." },
+      { "q": "¿Puedo practicar con personas reales, no solo con una app?", "a": "Por supuesto — la histórica comunidad armenia de Avlabari, con su iglesia y sus organizaciones, te da oportunidades reales de usar lo que aprendes." }
+    ],
+    "keepGoing": {
+      "heading": "Empieza donde empieza todo estudiante",
+      "cards": [
+        { "title": "Alfabeto armenio", "text": "Las 39 letras con audio." },
+        { "title": "Vocabulario armenio", "text": "Palabras esenciales para empezar a leer y hablar." },
+        { "title": "Aprende armenio en línea", "text": "Cómo funciona el curso completo de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Únete a los estudiantes en Georgia que aprenden armenio con Haylingua",
+      "subtext": "Lecciones gratuitas y breves con audio nativo real — desde tu primera letra hasta una conversación real.",
+      "button": "Empieza a aprender — gratis"
+    }
+  }
+}

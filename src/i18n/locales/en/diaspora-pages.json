@@ -1,0 +1,330 @@
+{
+  "losAngeles": {
+    "meta": {
+      "title": "Learn Armenian in Los Angeles: Free Online Course",
+      "description": "Learn Armenian in Los Angeles and Glendale with a free, interactive online course — real native audio, built for the diaspora. Start speaking Armenian today."
+    },
+    "breadcrumb": { "home": "Home", "current": "Learn Armenian in Los Angeles" },
+    "hero": {
+      "eyebrow": "Los Angeles & Glendale",
+      "title": "Learn Armenian in Los Angeles",
+      "subtitle": "Greater LA is home to the largest Armenian population outside Armenia itself. Whether you're reconnecting with family, raising kids who hear Armenian at home, or just live down the street from Little Armenia, Haylingua gives you a real way to learn — free, online, at your own pace.",
+      "cta": "Start learning free"
+    },
+    "community": {
+      "heading": "A community you can hear on the street",
+      "intro": "From Glendale to East Hollywood's officially designated Little Armenia, Armenian isn't a foreign language in LA — it's on storefront signs, church bulletins, and restaurant menus. That makes it one of the easiest places in the world to go from lessons to real conversation.",
+      "landmarks": [
+        { "title": "Glendale", "text": "Often called the heart of the LA Armenian community, with Armenian-owned bakeries, bookstores, and community centers throughout the city." },
+        { "title": "Little Armenia, East Hollywood", "text": "An official City of Los Angeles cultural district, packed with Armenian restaurants, markets, and shops." },
+        { "title": "St. Leon Armenian Cathedral", "text": "The seat of the Western Diocese of the Armenian Church, in Burbank, at the center of community life for generations of Angelenos." },
+        { "title": "Abril Bookstore", "text": "A longtime Glendale institution for Armenian-language books, music, and film — a great place to find reading material once you've built your basics." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Why now is the right time",
+      "text": "If you grew up hearing Armenian at home but never quite learned to read or write it, or you married into the community, or you're a heritage speaker whose Armenian is stronger in conversation than in the alphabet — LA gives you constant, low-pressure chances to practice everything Haylingua teaches you, from ordering at a bakery to following a church service."
+    },
+    "faqHeading": "Questions from Armenian learners in LA",
+    "faq": [
+      { "q": "Do people in LA speak Western or Eastern Armenian?", "a": "Mostly Western Armenian — LA's community largely descends from Genocide survivors and refugees from the Ottoman Empire and the broader Middle East. Haylingua currently teaches Standard Eastern Armenian (the form spoken in Armenia today), which shares the same alphabet and much of the grammar and vocabulary, but differs in pronunciation of certain letters. It's still an excellent foundation, and many LA heritage speakers use it to formally learn to read and write for the first time." },
+      { "q": "I already understand spoken Armenian from my family — can Haylingua still help?", "a": "Yes — heritage speakers often have strong listening comprehension but never learned to read or write. Haylingua's alphabet course and typing exercises are built exactly for filling that specific gap." },
+      { "q": "Is there a way to practice with real people, not just an app?", "a": "Absolutely — LA's density of Armenian churches, cultural centers, and businesses means you'll have real chances to use what you learn almost immediately, which is one of the best ways to make it stick." }
+    ],
+    "keepGoing": {
+      "heading": "Start where every learner starts",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start reading and speaking." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Join Angelenos learning Armenian with Haylingua",
+      "subtext": "Free, bite-sized lessons with real audio — from your first letter to real conversation.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "paris": {
+    "meta": {
+      "title": "Learn Armenian in Paris: Free Online Course",
+      "description": "Learn Armenian in Paris with a free, interactive online course — real native audio, built for the diaspora. Start speaking Armenian today."
+    },
+    "breadcrumb": { "home": "Home", "current": "Learn Armenian in Paris" },
+    "hero": {
+      "eyebrow": "Paris & Île-de-France",
+      "title": "Learn Armenian in Paris",
+      "subtitle": "France is home to one of Europe's oldest and largest Armenian diasporas. Whether you want to reconnect with your family's roots or simply discover the language your grandparents spoke, Haylingua gives you a real way to learn — free, online, at your own pace.",
+      "cta": "Start learning free"
+    },
+    "community": {
+      "heading": "A deeply rooted community",
+      "intro": "From Paris to Alfortville, and further south in Marseille, France's Armenian community traces back through several waves of immigration over more than a century. Associations, churches, and Armenian schools keep the language and culture alive every day.",
+      "landmarks": [
+        { "title": "Cathédrale Saint-Jean-Baptiste des Arméniens", "text": "Paris's Armenian cathedral, on rue Jean-Goujon, at the heart of religious and community life since 1904." },
+        { "title": "Alfortville", "text": "A commune in Val-de-Marne with a strong Armenian presence, home to schools, associations, and community businesses." },
+        { "title": "UGAB France (AGBU)", "text": "The Armenian General Benevolent Union organizes cultural and educational activities across France." },
+        { "title": "Marseille", "text": "Another major historic hub of the Armenian diaspora in France, with its own rich community life." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Why learn Armenian now",
+      "text": "If you grew up hearing Armenian at home but never quite learned to read or write it, or you simply want to pass the language on to your children, Haylingua gives you a solid, structured foundation — from the alphabet to real conversations."
+    },
+    "faqHeading": "Questions from Armenian learners in France",
+    "faq": [
+      { "q": "Do people in France speak Western or Eastern Armenian?", "a": "France's diaspora has historically spoken Western Armenian, brought by waves of immigration following the Armenian Genocide. Haylingua teaches Standard Eastern Armenian (the form spoken in Armenia today), which shares the same alphabet and much of the grammar and vocabulary, with differences in pronunciation of certain letters. It's still an excellent foundation, even for heritage speakers familiar with Western Armenian." },
+      { "q": "I understand Armenian but can't read it — can Haylingua help?", "a": "Yes — many heritage speakers understand spoken Armenian well but never learned to read or write it. Haylingua's alphabet course and typing exercises are built exactly for filling that specific gap." },
+      { "q": "Can I practice with real people, not just an app?", "a": "Absolutely — the richness of Armenian community life in France, from churches to associations and schools, gives you real chances to use what you learn." }
+    ],
+    "keepGoing": {
+      "heading": "Start where every learner starts",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start reading and speaking." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Join French learners studying Armenian with Haylingua",
+      "subtext": "Free, bite-sized lessons with real native audio — from your first letter to real conversation.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "moscow": {
+    "meta": {
+      "title": "Learn Armenian in Moscow: Free Online Course",
+      "description": "Learn Armenian in Moscow with a free, interactive online course — real native audio, built for the diaspora. Start speaking Armenian today."
+    },
+    "breadcrumb": { "home": "Home", "current": "Learn Armenian in Moscow" },
+    "hero": {
+      "eyebrow": "Moscow",
+      "title": "Learn Armenian in Moscow",
+      "subtitle": "Russia is home to one of the largest Armenian diasporas in the world, and Moscow is its cultural and social center. Whether you want to reconnect with your family's language or you're simply drawn to Armenian culture, Haylingua gives you a real way to learn — free, online, at your own pace.",
+      "cta": "Start learning free"
+    },
+    "community": {
+      "heading": "A community with deep roots",
+      "intro": "Moscow's Armenian community is one of the oldest and largest in Russia, with its own churches, cultural centers, and organizations that have kept the language and traditions alive across generations.",
+      "landmarks": [
+        { "title": "Cathedral of the Transfiguration of the Savior", "text": "Moscow's main Armenian cathedral — the spiritual and social center of the city's Armenian community." },
+        { "title": "Union of Armenians of Russia", "text": "The country's largest Armenian community organization, connecting the diaspora nationwide and organizing cultural events." },
+        { "title": "Armenian cultural centers", "text": "Schools and clubs across Moscow teach the Armenian language, dance, and music to children and adults alike." },
+        { "title": "Southern Russia", "text": "Beyond Moscow, large Armenian communities have historically formed in southern Russia, including the Krasnodar region." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Why now is the right time",
+      "text": "If you grew up hearing Armenian at home but never learned to read or write it, or you simply want a deeper understanding of your family's culture, Haylingua gives you a structured foundation — from the alphabet to real conversations."
+    },
+    "faqHeading": "Questions from Armenian learners in Moscow",
+    "faq": [
+      { "q": "Is the Armenian Haylingua teaches the same as what's spoken in Moscow?", "a": "Haylingua teaches Standard Eastern Armenian — the same form that is the official language of the Republic of Armenia and spoken by most of the Armenian-speaking population in Russia. That makes the course especially well-suited to the Armenian diaspora in Moscow." },
+      { "q": "I understand Armenian but can't read it — can Haylingua help?", "a": "Yes — many heritage speakers understand spoken Armenian well but never learned to read or write it. Haylingua's alphabet course and typing exercises are built exactly for filling that specific gap." },
+      { "q": "Can I practice with real people, not just an app?", "a": "Absolutely — Moscow's active Armenian community, with its churches, cultural centers, and organizations, gives you real chances to use what you learn." }
+    ],
+    "keepGoing": {
+      "heading": "Start where every learner starts",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start reading and speaking." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Join learners in Russia studying Armenian with Haylingua",
+      "subtext": "Free, bite-sized lessons with real native audio — from your first letter to real conversation.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "buenosAires": {
+    "meta": {
+      "title": "Learn Armenian in Buenos Aires: Free Online Course",
+      "description": "Learn Armenian in Buenos Aires with a free, interactive online course — real native audio, built for the diaspora. Start speaking Armenian today."
+    },
+    "breadcrumb": { "home": "Home", "current": "Learn Armenian in Buenos Aires" },
+    "hero": {
+      "eyebrow": "Buenos Aires",
+      "title": "Learn Armenian in Buenos Aires",
+      "subtitle": "Argentina is home to one of the largest Armenian communities in South America, with over a century of history in Buenos Aires. Whether you want to reconnect with your family's roots or you're simply interested in the language your grandparents spoke, Haylingua gives you a real way to learn — free, online, at your own pace.",
+      "cta": "Start learning free"
+    },
+    "community": {
+      "heading": "A community with its own history",
+      "intro": "The Palermo neighborhood is even home to a street named Armenia, at the heart of an area with a strong concentration of Armenian institutions — from schools to clubs and the community's cathedral.",
+      "landmarks": [
+        { "title": "Armenia Street, Palermo", "text": "A street that gives its name to the area with the city's highest concentration of Armenian institutions." },
+        { "title": "San Gregorio el Iluminador Cathedral", "text": "Buenos Aires's Armenian cathedral, a religious and community center for decades." },
+        { "title": "Instituto Educativo Armenio", "text": "One of several Armenian schools in the city that keep the language alive among new generations." },
+        { "title": "Armenian clubs and associations", "text": "Buenos Aires has an active network of sports and cultural clubs founded by the Armenian community." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Why learn Armenian now",
+      "text": "If you grew up hearing Armenian at home but never learned to read or write it, or you simply want to better understand your own family history, Haylingua gives you a solid, structured foundation — from the alphabet to real conversations."
+    },
+    "faqHeading": "Questions from Armenian learners in Buenos Aires",
+    "faq": [
+      { "q": "Is the Armenian Haylingua teaches the same as what's spoken in Buenos Aires?", "a": "Argentina's diaspora has historically spoken Western Armenian, brought by waves of immigration following the Armenian Genocide. Haylingua teaches Standard Eastern Armenian (the form spoken in Armenia today), which shares the same alphabet and much of the grammar and vocabulary, with differences in pronunciation of certain letters. It's still an excellent foundation, even for heritage speakers familiar with Western Armenian." },
+      { "q": "I understand Armenian but can't read it — can Haylingua help?", "a": "Yes — many heritage speakers understand spoken Armenian well but never learned to read or write it. Haylingua's alphabet course and typing exercises are built exactly for filling that specific gap." },
+      { "q": "Can I practice with real people, not just an app?", "a": "Absolutely — Buenos Aires's vibrant Armenian community life, with its schools, clubs, and church, gives you real chances to use what you learn." }
+    ],
+    "keepGoing": {
+      "heading": "Start where every learner starts",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start reading and speaking." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Join learners in Argentina studying Armenian with Haylingua",
+      "subtext": "Free, bite-sized lessons with real native audio — from your first letter to real conversation.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "beirut": {
+    "meta": {
+      "title": "Learn Armenian in Beirut: Free Online Course",
+      "description": "Learn Armenian in Beirut with a free, interactive online course — real native audio, built for the diaspora. Start speaking Armenian today."
+    },
+    "breadcrumb": { "home": "Home", "current": "Learn Armenian in Beirut" },
+    "hero": {
+      "eyebrow": "Beirut",
+      "title": "Learn Armenian in Beirut",
+      "subtitle": "Lebanon is home to one of the world's oldest and most organized Armenian communities, with dedicated seats in Lebanon's own parliament. Whether you want to reconnect with your family's roots or simply learn the language of your ancestors, Haylingua gives you a real way to learn — free, online, at your own pace.",
+      "cta": "Start learning free"
+    },
+    "community": {
+      "heading": "A community with a deep-rooted presence",
+      "intro": "Since Armenian refugees settled in Beirut following the Armenian Genocide, neighborhoods like Bourj Hammoud have become a vibrant hub of Armenian life — from churches and schools to markets and craft workshops.",
+      "landmarks": [
+        { "title": "Bourj Hammoud", "text": "Beirut's historic Armenian district, known for its markets, craft workshops, and dense community life." },
+        { "title": "Armenian schools", "text": "Dozens of Armenian schools across Lebanon keep the language and culture alive among new generations." },
+        { "title": "Political representation", "text": "Lebanon reserves parliamentary seats for the Armenian community, reflecting its historic civic weight." },
+        { "title": "Armenian churches", "text": "Beirut and its suburbs are home to several Armenian Orthodox and Catholic churches that form the center of the community's religious life." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Why now is the right time",
+      "text": "If you grew up hearing Armenian at home but never learned to read or write it, or you simply want a deeper understanding of your family's heritage, Haylingua gives you a structured, real foundation — from the alphabet to real conversations."
+    },
+    "faqHeading": "Questions from Armenian learners in Beirut",
+    "faq": [
+      { "q": "Is the Armenian Haylingua teaches the same as what's spoken in Beirut?", "a": "Lebanon's Armenian community has historically spoken Western Armenian, brought by waves of refugees following the Armenian Genocide. Haylingua teaches Standard Eastern Armenian (the form used officially in Armenia today), which shares the same alphabet and much of the grammar and vocabulary, with differences in pronunciation of certain letters. It's still an excellent foundation, even for those used to Western Armenian." },
+      { "q": "I understand Armenian but can't read it — can Haylingua help?", "a": "Yes — many heritage speakers understand spoken Armenian well but never learned to read or write it. Haylingua's alphabet course and typing exercises are built exactly for filling that specific gap." },
+      { "q": "Can I practice with real people, not just an app?", "a": "Absolutely — Beirut's vibrant Armenian community life, with its schools, churches, and institutions, gives you real chances to use what you learn." }
+    ],
+    "keepGoing": {
+      "heading": "Start where every learner starts",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start reading and speaking." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Join learners in Lebanon studying Armenian with Haylingua",
+      "subtext": "Free, bite-sized lessons with real native audio — from your first letter to real conversation.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "tehran": {
+    "meta": {
+      "title": "Learn Armenian in Tehran: Free Online Course",
+      "description": "Learn Armenian in Tehran with a free, interactive online course — real native audio, built for the community. Start speaking Armenian today."
+    },
+    "breadcrumb": { "home": "Home", "current": "Learn Armenian in Tehran" },
+    "hero": {
+      "eyebrow": "Tehran",
+      "title": "Learn Armenian in Tehran",
+      "subtitle": "Iran is home to one of the oldest Armenian communities in the world, with roots stretching back over four centuries. Whether you want to reconnect with your family's roots or you're simply interested in the language of your ancestors, Haylingua gives you a real way to learn — free, online, at your own pace.",
+      "cta": "Start learning free"
+    },
+    "community": {
+      "heading": "A community with a deep history",
+      "intro": "Iran's Armenian community is one of the oldest Armenian communities in the world. While Tehran today is home to the largest population of Armenians in Iran, the historic New Julfa district of Isfahan remains a living symbol of this four-century-old heritage.",
+      "landmarks": [
+        { "title": "St. Sarkis Cathedral", "text": "Tehran's Armenian cathedral, the religious and social center of the capital's Armenian community." },
+        { "title": "New Julfa, Isfahan", "text": "A historic district founded in 1604 when Shah Abbas I resettled Armenians from Old Julfa — still a major cultural center today." },
+        { "title": "Vank Cathedral", "text": "The Holy Savior Cathedral in New Julfa, one of the most famous and beautiful Armenian churches in the world, known for its striking murals." },
+        { "title": "Armenian schools and associations", "text": "Tehran and Isfahan are home to several Armenian schools and cultural associations that keep the language and traditions alive among new generations." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Why now is the right time",
+      "text": "If you grew up hearing Armenian at home but never learned to read or write it, or you simply want to understand your family's heritage more deeply, Haylingua gives you a structured, real foundation — from the alphabet to real conversations."
+    },
+    "faqHeading": "Questions from Armenian learners in Tehran",
+    "faq": [
+      { "q": "Is the Armenian Haylingua teaches the same as what's spoken in Iran?", "a": "Haylingua teaches Standard Eastern Armenian — the same form that is the official language of the Republic of Armenia and the form most spoken by Iran's Armenian community, which makes the course especially well-suited to Armenian learners in Iran." },
+      { "q": "I understand Armenian but can't read it — can Haylingua help?", "a": "Yes — many heritage speakers understand spoken Armenian well but never learned to read or write it. Haylingua's alphabet course and typing exercises are built exactly for filling that specific gap." },
+      { "q": "Can I practice with real people, not just an app?", "a": "Absolutely — the active Armenian community in Tehran and Isfahan, with its churches, schools, and cultural associations, gives you real chances to use what you learn." }
+    ],
+    "keepGoing": {
+      "heading": "Start where every learner starts",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start reading and speaking." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Join Armenian learners in Iran with Haylingua",
+      "subtext": "Free, bite-sized lessons with real native audio — from your first letter to real conversation.",
+      "button": "Start learning — free"
+    }
+  },
+
+  "tbilisi": {
+    "meta": {
+      "title": "Learn Armenian in Tbilisi: Free Online Course",
+      "description": "Learn Armenian in Tbilisi with a free, interactive online course — real native audio, built for the diaspora. Start speaking Armenian today."
+    },
+    "breadcrumb": { "home": "Home", "current": "Learn Armenian in Tbilisi" },
+    "hero": {
+      "eyebrow": "Tbilisi",
+      "title": "Learn Armenian in Tbilisi",
+      "subtitle": "Georgia's capital has centuries of shared history with the Armenian community, especially in the historic Avlabari district. Whether you want to learn Armenian for family roots or simply to feel closer to the community, Haylingua gives you a real way to learn — free, online, at your own pace.",
+      "cta": "Start learning free"
+    },
+    "community": {
+      "heading": "A community with deep history",
+      "intro": "The Avlabari district, on the right bank of the Kura river, has for centuries been the heart of Tbilisi's Armenian community — with its churches, trading life, and cultural heritage.",
+      "landmarks": [
+        { "title": "Avlabari", "text": "Tbilisi's historic Armenian district, for centuries the center of Armenian community life." },
+        { "title": "Surb Gevorg (St. George) Church", "text": "An Armenian Apostolic church in Avlabari, still an active place of worship for the community." },
+        { "title": "Armenian cultural organizations", "text": "Tbilisi is home to several Armenian cultural and educational organizations that keep the language and traditions alive." },
+        { "title": "Shared Armenian-Georgian history", "text": "Armenians played a significant role in Tbilisi's trading and cultural life for centuries." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Why now is the right time",
+      "text": "If you grew up hearing Armenian at home but never learned to read or write it, or you simply want a deeper connection to the community, Haylingua gives you a structured foundation — from the alphabet to real conversations."
+    },
+    "faqHeading": "Questions from Armenian learners in Tbilisi",
+    "faq": [
+      { "q": "Is the Armenian Haylingua teaches the same as what's spoken in Tbilisi?", "a": "Haylingua teaches Standard Eastern Armenian — the same form that is the official language of the Republic of Armenia. For the Armenian community in Georgia, this is an especially fitting foundation given the community's historic ties." },
+      { "q": "I understand Armenian but can't read it — can Haylingua help?", "a": "Yes — many heritage speakers understand spoken Armenian well but never learned to read or write it. Haylingua's alphabet course and typing exercises are built exactly for filling that specific gap." },
+      { "q": "Can I practice with real people, not just an app?", "a": "Absolutely — Avlabari's historic Armenian community, with its church and organizations, gives you real chances to use what you learn." }
+    ],
+    "keepGoing": {
+      "heading": "Start where every learner starts",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Core words to start reading and speaking." },
+        { "title": "Learn Armenian Online", "text": "How Haylingua's full course works." }
+      ]
+    },
+    "cta": {
+      "heading": "Join learners in Georgia studying Armenian with Haylingua",
+      "subtext": "Free, bite-sized lessons with real native audio — from your first letter to real conversation.",
+      "button": "Start learning — free"
+    }
+  }
+}

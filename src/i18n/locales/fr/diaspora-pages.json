@@ -1,0 +1,330 @@
+{
+  "losAngeles": {
+    "meta": {
+      "title": "Apprendre l'Arménien à Los Angeles : Cours Gratuit",
+      "description": "Apprends l'arménien à Los Angeles et Glendale avec un cours en ligne gratuit et interactif — audio natif, pensé pour la diaspora. Commence à parler arménien dès aujourd'hui."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Apprendre l'arménien à Los Angeles" },
+    "hero": {
+      "eyebrow": "Los Angeles & Glendale",
+      "title": "Apprendre l'arménien à Los Angeles",
+      "subtitle": "Le Grand Los Angeles abrite la plus grande population arménienne en dehors de l'Arménie elle-même. Que tu cherches à renouer avec ta famille, que tu élèves des enfants qui entendent l'arménien à la maison, ou que tu habites simplement à deux pas de Little Armenia, Haylingua te donne un vrai moyen d'apprendre — gratuit, en ligne, à ton rythme.",
+      "cta": "Commence gratuitement"
+    },
+    "community": {
+      "heading": "Une communauté qu'on entend dans la rue",
+      "intro": "De Glendale au quartier officiellement désigné de Little Armenia, à East Hollywood, l'arménien n'est pas une langue étrangère à Los Angeles — on le retrouve sur les enseignes des commerces, dans les bulletins paroissiaux et sur les menus des restaurants. C'est l'un des endroits au monde où il est le plus facile de passer des leçons à une vraie conversation.",
+      "landmarks": [
+        { "title": "Glendale", "text": "Souvent considérée comme le cœur de la communauté arménienne de Los Angeles, avec des boulangeries, librairies et centres communautaires arméniens dans toute la ville." },
+        { "title": "Little Armenia, East Hollywood", "text": "Un district culturel officiel de la ville de Los Angeles, rempli de restaurants, marchés et boutiques arméniens." },
+        { "title": "Cathédrale arménienne Saint-Léon", "text": "Le siège du diocèse occidental de l'Église arménienne, à Burbank, au centre de la vie communautaire depuis des générations d'habitants de la région." },
+        { "title": "Librairie Abril", "text": "Une institution de longue date à Glendale pour les livres, la musique et les films en arménien — un excellent endroit pour trouver de la lecture une fois les bases acquises." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Pourquoi c'est le bon moment",
+      "text": "Si tu as grandi en entendant l'arménien à la maison sans jamais vraiment apprendre à le lire ou à l'écrire, si tu t'es marié·e dans la communauté, ou si tu es un·e locuteur·rice de cœur plus à l'aise à l'oral qu'à l'écrit — Los Angeles t'offre sans cesse des occasions simples de pratiquer tout ce que Haylingua t'enseigne, de commander à la boulangerie à suivre un office religieux."
+    },
+    "faqHeading": "Questions des apprenants d'arménien à Los Angeles",
+    "faq": [
+      { "q": "À Los Angeles, on parle plutôt arménien occidental ou oriental ?", "a": "Surtout de l'arménien occidental — la communauté de Los Angeles descend en grande partie de survivants du Génocide et de réfugiés de l'Empire ottoman et du Moyen-Orient au sens large. Haylingua enseigne actuellement l'arménien oriental standard (la forme parlée en Arménie aujourd'hui), qui partage le même alphabet et une grande partie de la grammaire et du vocabulaire, mais diffère dans la prononciation de certaines lettres. C'est tout de même une excellente base, et beaucoup de locuteurs de cœur à Los Angeles s'en servent pour apprendre à lire et à écrire pour la première fois." },
+      { "q": "Je comprends déjà l'arménien parlé grâce à ma famille — Haylingua peut-il quand même m'aider ?", "a": "Oui — les locuteurs de cœur ont souvent une bonne compréhension orale mais n'ont jamais appris à lire ou à écrire. Le cours d'alphabet et les exercices de saisie de Haylingua sont conçus exactement pour combler ce manque précis." },
+      { "q": "Y a-t-il un moyen de pratiquer avec de vraies personnes, pas seulement une appli ?", "a": "Absolument — la densité d'églises, de centres culturels et de commerces arméniens à Los Angeles te donne de vraies occasions d'utiliser ce que tu apprends presque immédiatement, ce qui est l'une des meilleures façons de le retenir." }
+    ],
+    "keepGoing": {
+      "heading": "Commence là où commence chaque apprenant",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à lire et à parler." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Rejoins les habitants de Los Angeles qui apprennent l'arménien avec Haylingua",
+      "subtext": "Des leçons gratuites et courtes avec un vrai audio — de ta première lettre à une vraie conversation.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "paris": {
+    "meta": {
+      "title": "Apprendre l'Arménien à Paris : Cours Gratuit en Ligne",
+      "description": "Apprends l'arménien à Paris avec un cours en ligne gratuit et interactif — audio natif, pensé pour la diaspora. Commence à parler arménien dès aujourd'hui."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Apprendre l'arménien à Paris" },
+    "hero": {
+      "eyebrow": "Paris & Île-de-France",
+      "title": "Apprendre l'arménien à Paris",
+      "subtitle": "La France abrite l'une des diasporas arméniennes les plus anciennes et les plus importantes d'Europe. Que tu veuilles renouer avec les racines de ta famille ou simplement découvrir la langue de tes grands-parents, Haylingua te donne un vrai moyen d'apprendre — gratuit, en ligne, à ton rythme.",
+      "cta": "Commence gratuitement"
+    },
+    "community": {
+      "heading": "Une communauté profondément enracinée",
+      "intro": "De Paris à Alfortville, et plus au sud à Marseille, la communauté arménienne de France remonte à plusieurs vagues d'immigration sur plus d'un siècle. Associations, églises et écoles arméniennes font vivre la langue et la culture au quotidien.",
+      "landmarks": [
+        { "title": "Cathédrale Saint-Jean-Baptiste des Arméniens", "text": "La cathédrale arménienne de Paris, rue Jean-Goujon, au cœur de la vie religieuse et communautaire depuis 1904." },
+        { "title": "Alfortville", "text": "Une commune du Val-de-Marne à forte présence arménienne, qui abrite des écoles, des associations et des commerces communautaires." },
+        { "title": "UGAB France (AGBU)", "text": "L'Union Générale Arménienne de Bienfaisance organise des activités culturelles et éducatives à travers toute la France." },
+        { "title": "Marseille", "text": "Un autre grand foyer historique de la diaspora arménienne en France, avec sa propre vie communautaire riche." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Pourquoi apprendre l'arménien maintenant",
+      "text": "Si tu as grandi en entendant l'arménien à la maison sans jamais vraiment apprendre à le lire ou à l'écrire, ou si tu veux simplement transmettre la langue à tes enfants, Haylingua te donne une base solide et structurée — de l'alphabet à de vraies conversations."
+    },
+    "faqHeading": "Questions des apprenants d'arménien en France",
+    "faq": [
+      { "q": "En France, parle-t-on plutôt arménien occidental ou oriental ?", "a": "La diaspora de France a historiquement parlé arménien occidental, apporté par les vagues d'immigration qui ont suivi le Génocide arménien. Haylingua enseigne l'arménien oriental standard (la forme parlée en Arménie aujourd'hui), qui partage le même alphabet et une grande partie de la grammaire et du vocabulaire, avec des différences de prononciation sur certaines lettres. C'est tout de même une excellente base, même pour les locuteurs de cœur familiers de l'arménien occidental." },
+      { "q": "Je comprends l'arménien mais je ne sais pas le lire — Haylingua peut-il m'aider ?", "a": "Oui — beaucoup de locuteurs de cœur comprennent bien l'arménien parlé mais n'ont jamais appris à le lire ou à l'écrire. Le cours d'alphabet et les exercices de saisie de Haylingua sont conçus exactement pour combler ce manque précis." },
+      { "q": "Puis-je pratiquer avec de vraies personnes, pas seulement une appli ?", "a": "Absolument — la richesse de la vie communautaire arménienne en France, des églises aux associations en passant par les écoles, te donne de vraies occasions d'utiliser ce que tu apprends." }
+    ],
+    "keepGoing": {
+      "heading": "Commence là où commence chaque apprenant",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à lire et à parler." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Rejoins les apprenants français qui étudient l'arménien avec Haylingua",
+      "subtext": "Des leçons gratuites et courtes avec un vrai audio natif — de ta première lettre à une vraie conversation.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "moscow": {
+    "meta": {
+      "title": "Apprendre l'Arménien à Moscou : Cours Gratuit en Ligne",
+      "description": "Apprends l'arménien à Moscou avec un cours en ligne gratuit et interactif — audio natif, pensé pour la diaspora. Commence à parler arménien dès aujourd'hui."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Apprendre l'arménien à Moscou" },
+    "hero": {
+      "eyebrow": "Moscou",
+      "title": "Apprendre l'arménien à Moscou",
+      "subtitle": "La Russie abrite l'une des plus grandes diasporas arméniennes au monde, et Moscou en est le centre culturel et social. Que tu veuilles renouer avec la langue de ta famille ou que tu sois simplement attiré·e par la culture arménienne, Haylingua te donne un vrai moyen d'apprendre — gratuit, en ligne, à ton rythme.",
+      "cta": "Commence gratuitement"
+    },
+    "community": {
+      "heading": "Une communauté aux racines profondes",
+      "intro": "La communauté arménienne de Moscou est l'une des plus anciennes et des plus importantes de Russie, avec ses propres églises, centres culturels et organisations qui font vivre la langue et les traditions de génération en génération.",
+      "landmarks": [
+        { "title": "Cathédrale de la Transfiguration du Sauveur", "text": "La principale cathédrale arménienne de Moscou — le centre spirituel et social de la communauté arménienne de la ville." },
+        { "title": "Union des Arméniens de Russie", "text": "La plus grande organisation communautaire arménienne du pays, qui relie la diaspora à l'échelle nationale et organise des événements culturels." },
+        { "title": "Centres culturels arméniens", "text": "Des écoles et clubs à travers Moscou enseignent la langue, la danse et la musique arméniennes, aux enfants comme aux adultes." },
+        { "title": "Le sud de la Russie", "text": "Au-delà de Moscou, d'importantes communautés arméniennes se sont historiquement formées dans le sud de la Russie, notamment dans la région de Krasnodar." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Pourquoi c'est le bon moment",
+      "text": "Si tu as grandi en entendant l'arménien à la maison sans jamais apprendre à le lire ou à l'écrire, ou si tu veux simplement mieux comprendre la culture de ta famille, Haylingua te donne une base structurée — de l'alphabet à de vraies conversations."
+    },
+    "faqHeading": "Questions des apprenants d'arménien à Moscou",
+    "faq": [
+      { "q": "L'arménien enseigné par Haylingua est-il le même que celui parlé à Moscou ?", "a": "Haylingua enseigne l'arménien oriental standard — la même forme qui est la langue officielle de la République d'Arménie et parlée par la majorité de la population arménophone de Russie. Le cours est donc particulièrement bien adapté à la diaspora arménienne de Moscou." },
+      { "q": "Je comprends l'arménien mais je ne sais pas le lire — Haylingua peut-il m'aider ?", "a": "Oui — beaucoup de locuteurs de cœur comprennent bien l'arménien parlé mais n'ont jamais appris à le lire ou à l'écrire. Le cours d'alphabet et les exercices de saisie de Haylingua sont conçus exactement pour combler ce manque précis." },
+      { "q": "Puis-je pratiquer avec de vraies personnes, pas seulement une appli ?", "a": "Absolument — la communauté arménienne active de Moscou, avec ses églises, ses centres culturels et ses organisations, te donne de vraies occasions d'utiliser ce que tu apprends." }
+    ],
+    "keepGoing": {
+      "heading": "Commence là où commence chaque apprenant",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à lire et à parler." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Rejoins les apprenants de Russie qui étudient l'arménien avec Haylingua",
+      "subtext": "Des leçons gratuites et courtes avec un vrai audio natif — de ta première lettre à une vraie conversation.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "buenosAires": {
+    "meta": {
+      "title": "Apprendre l'Arménien à Buenos Aires : Cours Gratuit",
+      "description": "Apprends l'arménien à Buenos Aires avec un cours en ligne gratuit et interactif — audio natif, pensé pour la diaspora. Commence à parler arménien dès aujourd'hui."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Apprendre l'arménien à Buenos Aires" },
+    "hero": {
+      "eyebrow": "Buenos Aires",
+      "title": "Apprendre l'arménien à Buenos Aires",
+      "subtitle": "L'Argentine abrite l'une des plus grandes communautés arméniennes d'Amérique du Sud, avec plus d'un siècle d'histoire à Buenos Aires. Que tu veuilles renouer avec les racines de ta famille ou que tu sois simplement curieux·se de la langue de tes grands-parents, Haylingua te donne un vrai moyen d'apprendre — gratuit, en ligne, à ton rythme.",
+      "cta": "Commence gratuitement"
+    },
+    "community": {
+      "heading": "Une communauté avec sa propre histoire",
+      "intro": "Le quartier de Palerme abrite même une rue nommée Armenia, au cœur d'un secteur où se concentrent le plus fortement les institutions arméniennes — des écoles aux clubs, en passant par la cathédrale de la communauté.",
+      "landmarks": [
+        { "title": "Rue Armenia, Palerme", "text": "Une rue qui donne son nom au secteur où se concentrent le plus les institutions arméniennes de la ville." },
+        { "title": "Cathédrale Saint-Grégoire-l'Illuminateur", "text": "La cathédrale arménienne de Buenos Aires, un centre religieux et communautaire depuis des décennies." },
+        { "title": "Instituto Educativo Armenio", "text": "L'une des nombreuses écoles arméniennes de la ville qui font vivre la langue auprès des nouvelles générations." },
+        { "title": "Clubs et associations arméniens", "text": "Buenos Aires compte un réseau actif de clubs sportifs et culturels fondés par la communauté arménienne." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Pourquoi apprendre l'arménien maintenant",
+      "text": "Si tu as grandi en entendant l'arménien à la maison sans jamais apprendre à le lire ou à l'écrire, ou si tu veux simplement mieux comprendre l'histoire de ta propre famille, Haylingua te donne une base solide et structurée — de l'alphabet à de vraies conversations."
+    },
+    "faqHeading": "Questions des apprenants d'arménien à Buenos Aires",
+    "faq": [
+      { "q": "L'arménien enseigné par Haylingua est-il le même que celui parlé à Buenos Aires ?", "a": "La diaspora argentine a historiquement parlé arménien occidental, apporté par les vagues d'immigration qui ont suivi le Génocide arménien. Haylingua enseigne l'arménien oriental standard (la forme parlée en Arménie aujourd'hui), qui partage le même alphabet et une grande partie de la grammaire et du vocabulaire, avec des différences de prononciation sur certaines lettres. C'est tout de même une excellente base, même pour les locuteurs de cœur familiers de l'arménien occidental." },
+      { "q": "Je comprends l'arménien mais je ne sais pas le lire — Haylingua peut-il m'aider ?", "a": "Oui — beaucoup de locuteurs de cœur comprennent bien l'arménien parlé mais n'ont jamais appris à le lire ou à l'écrire. Le cours d'alphabet et les exercices de saisie de Haylingua sont conçus exactement pour combler ce manque précis." },
+      { "q": "Puis-je pratiquer avec de vraies personnes, pas seulement une appli ?", "a": "Absolument — la vie communautaire arménienne dynamique de Buenos Aires, avec ses écoles, ses clubs et son église, te donne de vraies occasions d'utiliser ce que tu apprends." }
+    ],
+    "keepGoing": {
+      "heading": "Commence là où commence chaque apprenant",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à lire et à parler." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Rejoins les apprenants d'Argentine qui étudient l'arménien avec Haylingua",
+      "subtext": "Des leçons gratuites et courtes avec un vrai audio natif — de ta première lettre à une vraie conversation.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "beirut": {
+    "meta": {
+      "title": "Apprendre l'Arménien à Beyrouth : Cours Gratuit",
+      "description": "Apprends l'arménien à Beyrouth avec un cours en ligne gratuit et interactif — audio natif, pensé pour la diaspora. Commence à parler arménien dès aujourd'hui."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Apprendre l'arménien à Beyrouth" },
+    "hero": {
+      "eyebrow": "Beyrouth",
+      "title": "Apprendre l'arménien à Beyrouth",
+      "subtitle": "Le Liban abrite l'une des communautés arméniennes les plus anciennes et les plus organisées au monde, avec des sièges réservés au sein même du parlement libanais. Que tu veuilles renouer avec les racines de ta famille ou simplement apprendre la langue de tes ancêtres, Haylingua te donne un vrai moyen d'apprendre — gratuit, en ligne, à ton rythme.",
+      "cta": "Commence gratuitement"
+    },
+    "community": {
+      "heading": "Une communauté profondément enracinée",
+      "intro": "Depuis que des réfugiés arméniens se sont installés à Beyrouth après le Génocide arménien, des quartiers comme Bourj Hammoud sont devenus un foyer vibrant de la vie arménienne — entre églises, écoles, marchés et ateliers d'artisanat.",
+      "landmarks": [
+        { "title": "Bourj Hammoud", "text": "Le quartier arménien historique de Beyrouth, connu pour ses marchés, ses ateliers d'artisanat et sa vie communautaire dense." },
+        { "title": "Écoles arméniennes", "text": "Des dizaines d'écoles arméniennes à travers le Liban font vivre la langue et la culture auprès des nouvelles générations." },
+        { "title": "Représentation politique", "text": "Le Liban réserve des sièges parlementaires à la communauté arménienne, reflet de son poids civique historique." },
+        { "title": "Églises arméniennes", "text": "Beyrouth et sa banlieue abritent plusieurs églises arméniennes orthodoxes et catholiques qui forment le centre de la vie religieuse de la communauté." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Pourquoi c'est le bon moment",
+      "text": "Si tu as grandi en entendant l'arménien à la maison sans jamais apprendre à le lire ou à l'écrire, ou si tu veux simplement mieux comprendre l'héritage de ta famille, Haylingua te donne une base structurée et concrète — de l'alphabet à de vraies conversations."
+    },
+    "faqHeading": "Questions des apprenants d'arménien à Beyrouth",
+    "faq": [
+      { "q": "L'arménien enseigné par Haylingua est-il le même que celui parlé à Beyrouth ?", "a": "La communauté arménienne du Liban a historiquement parlé arménien occidental, apporté par les vagues de réfugiés après le Génocide arménien. Haylingua enseigne l'arménien oriental standard (la forme utilisée officiellement en Arménie aujourd'hui), qui partage le même alphabet et une grande partie de la grammaire et du vocabulaire, avec des différences de prononciation sur certaines lettres. C'est tout de même une excellente base, même pour celles et ceux habitués à l'arménien occidental." },
+      { "q": "Je comprends l'arménien mais je ne sais pas le lire — Haylingua peut-il m'aider ?", "a": "Oui — beaucoup de locuteurs de cœur comprennent bien l'arménien parlé mais n'ont jamais appris à le lire ou à l'écrire. Le cours d'alphabet et les exercices de saisie de Haylingua sont conçus exactement pour combler ce manque précis." },
+      { "q": "Puis-je pratiquer avec de vraies personnes, pas seulement une appli ?", "a": "Absolument — la vie communautaire arménienne dynamique de Beyrouth, avec ses écoles, ses églises et ses institutions, te donne de vraies occasions d'utiliser ce que tu apprends." }
+    ],
+    "keepGoing": {
+      "heading": "Commence là où commence chaque apprenant",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à lire et à parler." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Rejoins les apprenants du Liban qui étudient l'arménien avec Haylingua",
+      "subtext": "Des leçons gratuites et courtes avec un vrai audio natif — de ta première lettre à une vraie conversation.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "tehran": {
+    "meta": {
+      "title": "Apprendre l'Arménien à Téhéran : Cours Gratuit",
+      "description": "Apprends l'arménien à Téhéran avec un cours en ligne gratuit et interactif — audio natif, pensé pour la communauté. Commence à parler arménien dès aujourd'hui."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Apprendre l'arménien à Téhéran" },
+    "hero": {
+      "eyebrow": "Téhéran",
+      "title": "Apprendre l'arménien à Téhéran",
+      "subtitle": "L'Iran abrite l'une des communautés arméniennes les plus anciennes au monde, avec des racines remontant à plus de quatre siècles. Que tu veuilles renouer avec les racines de ta famille ou que tu sois simplement curieux·se de la langue de tes ancêtres, Haylingua te donne un vrai moyen d'apprendre — gratuit, en ligne, à ton rythme.",
+      "cta": "Commence gratuitement"
+    },
+    "community": {
+      "heading": "Une communauté à l'histoire profonde",
+      "intro": "La communauté arménienne d'Iran est l'une des plus anciennes communautés arméniennes au monde. Si Téhéran abrite aujourd'hui la plus grande population arménienne du pays, le quartier historique de la Nouvelle-Djoulfa, à Ispahan, reste un symbole vivant de cet héritage vieux de quatre siècles.",
+      "landmarks": [
+        { "title": "Cathédrale Saint-Sarkis", "text": "La cathédrale arménienne de Téhéran, centre religieux et social de la communauté arménienne de la capitale." },
+        { "title": "Nouvelle-Djoulfa, Ispahan", "text": "Un quartier historique fondé en 1604 lorsque le shah Abbas Ier y a réinstallé des Arméniens venus de l'ancienne Djoulfa — toujours un grand centre culturel aujourd'hui." },
+        { "title": "Cathédrale de Vank", "text": "La cathédrale du Saint-Sauveur, dans la Nouvelle-Djoulfa, l'une des églises arméniennes les plus célèbres et les plus belles au monde, réputée pour ses fresques saisissantes." },
+        { "title": "Écoles et associations arméniennes", "text": "Téhéran et Ispahan abritent plusieurs écoles et associations culturelles arméniennes qui font vivre la langue et les traditions auprès des nouvelles générations." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Pourquoi c'est le bon moment",
+      "text": "Si tu as grandi en entendant l'arménien à la maison sans jamais apprendre à le lire ou à l'écrire, ou si tu veux simplement mieux comprendre l'héritage de ta famille, Haylingua te donne une base structurée et concrète — de l'alphabet à de vraies conversations."
+    },
+    "faqHeading": "Questions des apprenants d'arménien à Téhéran",
+    "faq": [
+      { "q": "L'arménien enseigné par Haylingua est-il le même que celui parlé en Iran ?", "a": "Haylingua enseigne l'arménien oriental standard — la même forme qui est la langue officielle de la République d'Arménie et la plus parlée par la communauté arménienne d'Iran, ce qui rend le cours particulièrement adapté aux apprenants arméniens en Iran." },
+      { "q": "Je comprends l'arménien mais je ne sais pas le lire — Haylingua peut-il m'aider ?", "a": "Oui — beaucoup de locuteurs de cœur comprennent bien l'arménien parlé mais n'ont jamais appris à le lire ou à l'écrire. Le cours d'alphabet et les exercices de saisie de Haylingua sont conçus exactement pour combler ce manque précis." },
+      { "q": "Puis-je pratiquer avec de vraies personnes, pas seulement une appli ?", "a": "Absolument — la communauté arménienne active de Téhéran et d'Ispahan, avec ses églises, ses écoles et ses associations culturelles, te donne de vraies occasions d'utiliser ce que tu apprends." }
+    ],
+    "keepGoing": {
+      "heading": "Commence là où commence chaque apprenant",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à lire et à parler." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Rejoins les apprenants d'arménien en Iran avec Haylingua",
+      "subtext": "Des leçons gratuites et courtes avec un vrai audio natif — de ta première lettre à une vraie conversation.",
+      "button": "Commencer gratuitement"
+    }
+  },
+
+  "tbilisi": {
+    "meta": {
+      "title": "Apprendre l'Arménien à Tbilissi : Cours Gratuit",
+      "description": "Apprends l'arménien à Tbilissi avec un cours en ligne gratuit et interactif — audio natif, pensé pour la diaspora. Commence à parler arménien dès aujourd'hui."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Apprendre l'arménien à Tbilissi" },
+    "hero": {
+      "eyebrow": "Tbilissi",
+      "title": "Apprendre l'arménien à Tbilissi",
+      "subtitle": "La capitale de la Géorgie partage des siècles d'histoire commune avec la communauté arménienne, notamment dans le quartier historique d'Avlabari. Que tu veuilles apprendre l'arménien pour tes racines familiales ou simplement te sentir plus proche de la communauté, Haylingua te donne un vrai moyen d'apprendre — gratuit, en ligne, à ton rythme.",
+      "cta": "Commence gratuitement"
+    },
+    "community": {
+      "heading": "Une communauté à l'histoire profonde",
+      "intro": "Le quartier d'Avlabari, sur la rive droite de la Koura, a pendant des siècles été le cœur de la communauté arménienne de Tbilissi — avec ses églises, sa vie commerçante et son patrimoine culturel.",
+      "landmarks": [
+        { "title": "Avlabari", "text": "Le quartier arménien historique de Tbilissi, pendant des siècles le centre de la vie communautaire arménienne." },
+        { "title": "Église Sourp Guévork (Saint-Georges)", "text": "Une église apostolique arménienne à Avlabari, toujours un lieu de culte actif pour la communauté." },
+        { "title": "Organisations culturelles arméniennes", "text": "Tbilissi abrite plusieurs organisations culturelles et éducatives arméniennes qui font vivre la langue et les traditions." },
+        { "title": "Une histoire arméno-géorgienne partagée", "text": "Les Arméniens ont joué un rôle important dans la vie commerçante et culturelle de Tbilissi pendant des siècles." }
+      ]
+    },
+    "whyLearn": {
+      "heading": "Pourquoi c'est le bon moment",
+      "text": "Si tu as grandi en entendant l'arménien à la maison sans jamais apprendre à le lire ou à l'écrire, ou si tu veux simplement te sentir plus proche de la communauté, Haylingua te donne une base structurée — de l'alphabet à de vraies conversations."
+    },
+    "faqHeading": "Questions des apprenants d'arménien à Tbilissi",
+    "faq": [
+      { "q": "L'arménien enseigné par Haylingua est-il le même que celui parlé à Tbilissi ?", "a": "Haylingua enseigne l'arménien oriental standard — la même forme qui est la langue officielle de la République d'Arménie. Pour la communauté arménienne de Géorgie, c'est une base particulièrement adaptée compte tenu des liens historiques de la communauté." },
+      { "q": "Je comprends l'arménien mais je ne sais pas le lire — Haylingua peut-il m'aider ?", "a": "Oui — beaucoup de locuteurs de cœur comprennent bien l'arménien parlé mais n'ont jamais appris à le lire ou à l'écrire. Le cours d'alphabet et les exercices de saisie de Haylingua sont conçus exactement pour combler ce manque précis." },
+      { "q": "Puis-je pratiquer avec de vraies personnes, pas seulement une appli ?", "a": "Absolument — la communauté arménienne historique d'Avlabari, avec son église et ses organisations, te donne de vraies occasions d'utiliser ce que tu apprends." }
+    ],
+    "keepGoing": {
+      "heading": "Commence là où commence chaque apprenant",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec audio." },
+        { "title": "Vocabulaire arménien", "text": "Les mots essentiels pour commencer à lire et à parler." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne le cours complet de Haylingua." }
+      ]
+    },
+    "cta": {
+      "heading": "Rejoins les apprenants de Géorgie qui étudient l'arménien avec Haylingua",
+      "subtext": "Des leçons gratuites et courtes avec un vrai audio natif — de ta première lettre à une vraie conversation.",
+      "button": "Commencer gratuitement"
+    }
+  }
+}

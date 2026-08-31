@@ -53,6 +53,13 @@ STATIC_PAGES: list[tuple[str, str, str]] = [
     ("/armenian-pronunciation", "monthly", "0.8"),
     ("/armenian-vocabulary", "monthly", "0.8"),
     ("/eastern-armenian", "monthly", "0.8"),
+    ("/learn-armenian-in-los-angeles", "monthly", "0.7"),
+    ("/learn-armenian-in-paris", "monthly", "0.7"),
+    ("/learn-armenian-in-moscow", "monthly", "0.7"),
+    ("/learn-armenian-in-buenos-aires", "monthly", "0.7"),
+    ("/learn-armenian-in-beirut", "monthly", "0.7"),
+    ("/learn-armenian-in-tehran", "monthly", "0.7"),
+    ("/learn-armenian-in-tbilisi", "monthly", "0.7"),
     ("/about", "monthly", "0.5"),
     ("/pricing", "monthly", "0.5"),
     ("/careers", "weekly", "0.4"),
@@ -72,6 +79,9 @@ TRANSLATED_STATIC_PATHS = {
     "/", "/learn-armenian-online", "/armenian-alphabet", "/armenian-pronunciation",
     "/armenian-vocabulary", "/eastern-armenian", "/about", "/pricing",
     "/careers", "/affiliates", "/contact",
+    "/learn-armenian-in-los-angeles", "/learn-armenian-in-paris", "/learn-armenian-in-moscow",
+    "/learn-armenian-in-buenos-aires", "/learn-armenian-in-beirut", "/learn-armenian-in-tehran",
+    "/learn-armenian-in-tbilisi",
 }
 
 
