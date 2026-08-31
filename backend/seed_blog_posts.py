@@ -37,6 +37,9 @@ from _translated_posts_es import POSTS_ES
 from _translated_posts_ar import POSTS_AR
 from _translated_posts_fa import POSTS_FA
 from _translated_posts_ka import POSTS_KA
+from _scheduled_batch2_a import BATCH2_A
+from _scheduled_batch2_b import BATCH2_B
+from _scheduled_batch2_c import BATCH2_C
 
 _POSTS = [
     {
@@ -918,7 +921,7 @@ Idioms are a strong signal that you've moved from "translating a language" to ac
 
 Language and culture are inseparable — the more Armenian you learn, the more of these expressions will start to click into place on their own, not just as vocabulary but as a genuine way of seeing the world.""",
     },
-]
+] + BATCH2_A + BATCH2_B + BATCH2_C
 
 
 # Russian/French/Spanish translations of the original 8 _POSTS (not

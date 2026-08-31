@@ -2,15 +2,15 @@
 // backend POST /contact (Turnstile-protected, emails the support inbox via
 // Brevo with reply-to set to the visitor). Public, unauthenticated page.
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Mail, Send, MapPin, Clock, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import Turnstile from "./lib/Turnstile";
 import usePageMeta from "./lib/usePageMeta";
+import { SUPPORTED_LOCALES, renderTemplate } from "./i18n";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
-
-const TOPICS = ["General question", "Billing / Premium", "Bug report", "Partnership", "Something else"];
 
 function Field({ label, children }) {
   return (
@@ -27,7 +27,12 @@ const inputCls =
   "dark:bg-white/[0.04] dark:text-white dark:ring-white/[0.08] dark:focus:bg-white/[0.06] dark:placeholder:text-stone-500";
 
 export default function ContactPage() {
-  usePageMeta("Contact us", "Question about your account, a bug, or just want to say hello? Get in touch with the Haylingua team.");
+  const { t } = useTranslation("sitePages");
+  const TOPICS = t("contact.form.topics", { returnObjects: true });
+
+  usePageMeta(t("contact.meta.title"), t("contact.meta.description"), {
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/contact" })).concat([{ locale: "", path: "/contact" }]),
+  });
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -42,12 +47,12 @@ export default function ContactPage() {
     if (status === "sending") return;
     if (!name.trim() || !email.trim() || !message.trim()) {
       setStatus("error");
-      setErrorMsg("Please fill in your name, email, and message.");
+      setErrorMsg(t("contact.errors.missingFields"));
       return;
     }
     if (!turnstileToken) {
       setStatus("error");
-      setErrorMsg("Please complete the security check below.");
+      setErrorMsg(t("contact.errors.missingTurnstile"));
       return;
     }
     setStatus("sending");
@@ -59,11 +64,11 @@ export default function ContactPage() {
         body: JSON.stringify({ name, email, topic, message, turnstile_token: turnstileToken }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.detail || "Something went wrong — please try again.");
+      if (!res.ok) throw new Error(data?.detail || t("contact.errors.generic"));
       setStatus("sent");
     } catch (err) {
       setStatus("error");
-      setErrorMsg(err.message || "Something went wrong — please try again.");
+      setErrorMsg(err.message || t("contact.errors.generic"));
     }
   }
 
@@ -72,12 +77,12 @@ export default function ContactPage() {
       <SiteNav />
 
       <main className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
-        <div className="text-xs font-extrabold uppercase tracking-wider text-brand-500">Get in touch</div>
+        <div className="text-xs font-extrabold uppercase tracking-wider text-brand-500">{t("contact.eyebrow")}</div>
         <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-          Contact us
+          {t("contact.heading")}
         </h1>
         <p className="mt-4 max-w-xl text-lg font-semibold text-slate-500 dark:text-stone-400">
-          Question about your account, a bug, or just want to say բարև? We read every message ourselves.
+          {t("contact.subtitle")}
         </p>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_1.3fr]">
@@ -89,7 +94,7 @@ export default function ContactPage() {
                   <Mail className="h-4.5 w-4.5" />
                 </span>
                 <div>
-                  <div className="text-sm font-extrabold text-slate-800 dark:text-white">Email</div>
+                  <div className="text-sm font-extrabold text-slate-800 dark:text-white">{t("contact.info.emailLabel")}</div>
                   <a href="mailto:info@haylingua.am" className="text-sm font-semibold text-brand-600 hover:underline dark:text-brand-400">
                     info@haylingua.am
                   </a>
@@ -102,8 +107,8 @@ export default function ContactPage() {
                   <Clock className="h-4.5 w-4.5" />
                 </span>
                 <div>
-                  <div className="text-sm font-extrabold text-slate-800 dark:text-white">Response time</div>
-                  <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">Usually within 1–2 business days</div>
+                  <div className="text-sm font-extrabold text-slate-800 dark:text-white">{t("contact.info.responseLabel")}</div>
+                  <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">{t("contact.info.responseValue")}</div>
                 </div>
               </div>
             </div>
@@ -113,8 +118,8 @@ export default function ContactPage() {
                   <MapPin className="h-4.5 w-4.5" />
                 </span>
                 <div>
-                  <div className="text-sm font-extrabold text-slate-800 dark:text-white">Based in</div>
-                  <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">Yerevan, Armenia</div>
+                  <div className="text-sm font-extrabold text-slate-800 dark:text-white">{t("contact.info.basedLabel")}</div>
+                  <div className="text-sm font-semibold text-slate-500 dark:text-stone-400">{t("contact.info.basedValue")}</div>
                 </div>
               </div>
             </div>
@@ -127,39 +132,39 @@ export default function ContactPage() {
                 <span className="grid h-14 w-14 place-items-center rounded-full bg-grass-50 text-grass-600 dark:bg-grass-500/15 dark:text-grass-400">
                   <CheckCircle2 className="h-7 w-7" />
                 </span>
-                <h2 className="mt-4 font-display text-xl font-extrabold text-slate-800 dark:text-white">Message sent</h2>
+                <h2 className="mt-4 font-display text-xl font-extrabold text-slate-800 dark:text-white">{t("contact.success.heading")}</h2>
                 <p className="mt-1.5 max-w-sm text-sm font-semibold text-slate-500 dark:text-stone-400">
-                  Thanks — we'll get back to you at {email}, usually within 1–2 business days.
+                  {renderTemplate(t("contact.success.text"), { email })}
                 </p>
                 <button
                   type="button"
                   onClick={() => { setStatus("idle"); setName(""); setEmail(""); setMessage(""); setTopic(TOPICS[0]); setTurnstileToken(null); }}
                   className="btn3d btn3d-neutral mt-6 text-sm"
                 >
-                  Send another message
+                  {t("contact.success.sendAnother")}
                 </button>
               </div>
             ) : (
               <form onSubmit={onSubmit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Your name">
-                    <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Anahit Petrosyan" autoComplete="name" />
+                  <Field label={t("contact.form.nameLabel")}>
+                    <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("contact.form.namePlaceholder")} autoComplete="name" />
                   </Field>
-                  <Field label="Email">
-                    <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+                  <Field label={t("contact.form.emailLabel")}>
+                    <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("contact.form.emailPlaceholder")} autoComplete="email" />
                   </Field>
                 </div>
-                <Field label="Topic">
+                <Field label={t("contact.form.topicLabel")}>
                   <select className={inputCls} value={topic} onChange={(e) => setTopic(e.target.value)}>
-                    {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    {TOPICS.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
                   </select>
                 </Field>
-                <Field label="Message">
+                <Field label={t("contact.form.messageLabel")}>
                   <textarea
                     className={inputCls + " min-h-[140px] resize-y"}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="How can we help?"
+                    placeholder={t("contact.form.messagePlaceholder")}
                   />
                 </Field>
 
@@ -175,9 +180,9 @@ export default function ContactPage() {
 
                 <button type="submit" disabled={status === "sending"} className="btn3d btn3d-brand w-full text-sm uppercase disabled:opacity-70">
                   {status === "sending" ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                    <><Loader2 className="h-4 w-4 animate-spin" /> {t("contact.form.sending")}</>
                   ) : (
-                    <><Send className="h-4 w-4" /> Send message</>
+                    <><Send className="h-4 w-4" /> {t("contact.form.submit")}</>
                   )}
                 </button>
               </form>

@@ -2,6 +2,7 @@
 // founders, and milestones. Public, unauthenticated marketing page.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -16,70 +17,31 @@ import { StarMotif, CarpetBorder } from "./lib/motifs";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
+import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const FOUNDERS = [
-  {
-    name: "Armen Ghazaryan",
-    role: "Co-founder & Developer",
-    photo: armenPhoto,
-    bio: "An IB Diploma Programme graduate of Quantum College, Armen built the first version of Haylingua as a school project — and kept building once it was clear how badly diaspora Armenians needed it.",
-  },
-  {
-    name: "Lilit Hakobyan",
-    role: "Co-founder & Armenian Language Lead",
-    photo: lilitPhoto,
-    photoPosition: "center 0%",
-    bio: "An Armenian language teacher across the IB programme and several other institutions, Lilit is the one who set Haylingua in motion — and shapes how the app actually teaches the language.",
-  },
-];
-
-const TIMELINE = [
-  { year: "Oct 2024", title: "The idea", text: "Armen's IB teacher, Lilit Hakobyan, sets him a project: build something that could actually teach Armenian to the diaspora." },
-  { year: "Nov 2024", title: "First prototype", text: "A month later, the first working version of Haylingua exists." },
-  { year: "Sep 2025", title: "Back to it", text: "Armen finishes the rest of the IB Diploma — the prototype's been sitting for a year, but the idea never really left." },
-  { year: "Jan 2026", title: "The real build begins", text: "Armen starts rebuilding Haylingua as a full product — real backend, real curriculum — with Lilit shaping how it teaches Armenian." },
-  { year: "May 2026", title: "Curriculum takes shape", text: "The alphabet-to-conversation path comes together — every letter, every word, real audio on all of it." },
-  { year: "Aug 2026", title: "Public launch", text: "Haylingua opens up to everyone. Coming soon." },
-];
-
-const VALUES = [
-  {
-    icon: Languages,
-    title: "Armenian deserves better tools",
-    text: "Most language apps treat Armenian as an afterthought, if they teach it at all. We built Haylingua because a language spoken by millions across a global diaspora deserves the same care as any of the world's biggest languages.",
-  },
-  {
-    icon: Heart,
-    title: "Heritage, not just vocabulary",
-    text: "For a lot of our learners, this isn't a new hobby — it's reconnecting with a grandparent, a hometown, a part of themselves. We design every lesson with that weight in mind.",
-  },
-  {
-    icon: Flame,
-    title: "Built to actually stick",
-    text: "Streaks, hearts, instant feedback, mistake review — the same habit-forming mechanics that make other language apps work, tuned specifically for how Armenian sounds and reads.",
-  },
-  {
-    icon: Users,
-    title: "A community, not just an app",
-    text: "Friends, leaderboards, and a growing group of learners going through the exact same alphabet-to-conversation journey together.",
-  },
-];
-
-// Real product facts — safe to state as-is. `count`/`suffix` on a stat means
-// its number counts up on scroll instead of just appearing; omit them for a
-// value like "0 → 1" that isn't a number to animate.
-const BY_THE_NUMBERS = [
-  { value: "39", count: 39, suffix: "", label: "Armenian letters taught from scratch" },
-  { value: "100%", count: 100, suffix: "%", label: "Audio on every word, real text-to-speech" },
-  { value: "0 → 1", label: "No prior Armenian needed to start" },
+const VALUE_ICONS = [Languages, Heart, Flame, Users];
+const FOUNDER_PHOTOS = [
+  { photo: armenPhoto },
+  { photo: lilitPhoto, photoPosition: "center 0%" },
 ];
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function AboutPage() {
-  usePageMeta("About us", "The story behind Haylingua — why we built it, our milestones, and the two-person team teaching Armenian to the diaspora.");
+  const { t } = useTranslation("sitePages");
+  const locale = useLocale();
+  const lp = (path) => localizedPath(path, locale);
+
+  const FOUNDERS = t("about.team.founders", { returnObjects: true }).map((f, i) => ({ ...f, ...FOUNDER_PHOTOS[i] }));
+  const TIMELINE = t("about.timeline.items", { returnObjects: true });
+  const VALUES = t("about.values.cards", { returnObjects: true }).map((v, i) => ({ ...v, icon: VALUE_ICONS[i] }));
+  const BY_THE_NUMBERS = t("about.byTheNumbers", { returnObjects: true });
+
+  usePageMeta(t("about.meta.title"), t("about.meta.description"), {
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/about" })).concat([{ locale: "", path: "/about" }]),
+  });
 
   const rootRef = useRef(null);
   const heroRef = useRef(null);
@@ -360,22 +322,21 @@ export default function AboutPage() {
           <div className="relative mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-6 px-5 py-8 lg:grid-cols-2 lg:gap-10 lg:py-20">
             <div>
               <div data-hero-item className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/25">
-                <Sparkles className="h-3.5 w-3.5" /> Our story
+                <Sparkles className="h-3.5 w-3.5" /> {t("about.hero.badge")}
               </div>
               <h1 data-hero-item className="mt-5 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-6xl">
-                We built Haylingua so
+                {t("about.hero.titleLine1")}
                 <br />
-                <span className="text-brand-500">Armenian isn't left behind.</span>
+                <span className="text-brand-500">{t("about.hero.titleHighlight")}</span>
               </h1>
               <p data-hero-item className="mt-5 max-w-lg text-lg font-semibold text-slate-500 dark:text-stone-400">
-                A language spoken by millions across a worldwide diaspora, with almost
-                nowhere good to learn it. This is why — and how — we're changing that.
+                {t("about.hero.subtitle")}
               </p>
               <div data-hero-item className="mt-7 flex flex-wrap items-center gap-3">
-                <Link to="/" className="btn3d btn3d-brand text-base">
-                  Start learning — free <ArrowRight className="h-5 w-5" />
+                <Link to={lp("/")} className="btn3d btn3d-brand text-base">
+                  {t("about.hero.ctaStart")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
                 </Link>
-                <a href="#story" className="btn3d btn3d-neutral text-base">Read our story</a>
+                <a href="#story" className="btn3d btn3d-neutral text-base">{t("about.hero.ctaStory")}</a>
               </div>
             </div>
 
@@ -395,8 +356,8 @@ export default function AboutPage() {
                 alt="The Haylingua community, together with our owl mascot"
                 className="relative hidden w-full max-w-md rounded-3xl object-cover shadow-2xl sm:block"
               />
-              <StarMotif data-parallax-fast className="absolute -right-2 top-4 h-8 w-8 text-gold-400 dark:text-gold-400/80" />
-              <StarMotif data-parallax-fast className="absolute -left-4 bottom-8 h-6 w-6 text-feather-400 dark:text-feather-400/80" />
+              <StarMotif data-parallax-fast className="absolute -right-2 top-4 h-8 w-8 text-gold-400 dark:text-gold-400/80 rtl:-left-2 rtl:right-auto" />
+              <StarMotif data-parallax-fast className="absolute -left-4 bottom-8 h-6 w-6 text-feather-400 dark:text-feather-400/80 rtl:-right-4 rtl:left-auto" />
             </div>
           </div>
 
@@ -404,7 +365,7 @@ export default function AboutPage() {
               existing Tailwind `animate-bouncey` keyframe (no GSAP needed). */}
           <a
             href="#story"
-            aria-label="Scroll to read our story"
+            aria-label={t("about.hero.scrollAria")}
             className="relative mx-auto hidden w-fit animate-bouncey items-center justify-center pb-6 text-slate-300 transition hover:text-brand-400 dark:text-white/15 dark:hover:text-brand-400 sm:flex"
           >
             <ChevronDown className="h-6 w-6" />
@@ -430,29 +391,15 @@ export default function AboutPage() {
 
             <div className="min-w-0 flex-1">
               <div data-reveal>
-                <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">How it started</div>
+                <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("about.story.eyebrow")}</div>
                 <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-                  It started as a school assignment
+                  {t("about.story.heading")}
                 </h2>
               </div>
 
               <div data-reveal className="prose prose-slate mt-6 max-w-none text-base font-semibold leading-relaxed text-slate-600 dark:text-stone-300">
-                <p>
-                  In October 2024, Armen's IB teacher — Lilit Hakobyan, who has taught
-                  Armenian across the IB Diploma Programme and several other institutions —
-                  set him a project: build something that could actually teach Armenian to
-                  the diaspora, to the people growing up without easy access to the
-                  language of their grandparents. A month later, the first version of
-                  Haylingua existed.
-                </p>
-                <p className="mt-4">
-                  That prototype sat for over a year while Armen finished the rest of the
-                  IB Diploma. In January 2026, with the idea still nagging at him, he
-                  started rebuilding Haylingua from scratch — a real backend, a real
-                  curriculum, real lesson content — with Lilit shaping how the app
-                  actually teaches the language. Haylingua is set to launch publicly in
-                  August 2026.
-                </p>
+                <p>{t("about.story.paragraph1")}</p>
+                <p className="mt-4">{t("about.story.paragraph2")}</p>
               </div>
             </div>
           </div>
@@ -478,9 +425,9 @@ export default function AboutPage() {
         {/* ── Values / mission ── */}
         <section id="values" className="mx-auto max-w-6xl px-5 py-16">
           <div data-reveal className="text-center">
-            <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">What we believe</div>
+            <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("about.values.eyebrow")}</div>
             <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-              Why we do it this way
+              {t("about.values.heading")}
             </h2>
           </div>
 
@@ -510,19 +457,19 @@ export default function AboutPage() {
         <section className="bg-slate-50 dark:bg-white/[0.04]">
           <div className={`mx-auto max-w-3xl px-5 py-16 ${reduceMotion ? "" : "lg:hidden"}`}>
             <div data-reveal className="text-center">
-              <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Milestones</div>
+              <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("about.timeline.eyebrow")}</div>
               <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-                The road so far
+                {t("about.timeline.heading")}
               </h2>
             </div>
 
             <div data-timeline className="relative mt-12">
-              <div className="absolute left-[19px] top-0 h-full w-0.5 bg-slate-200 dark:bg-white/10" />
-              <div ref={timelineLineRef} className="absolute left-[19px] top-0 h-full w-0.5 origin-top bg-brand-500" />
+              <div className="absolute start-[19px] top-0 h-full w-0.5 bg-slate-200 dark:bg-white/10" />
+              <div ref={timelineLineRef} className="absolute start-[19px] top-0 h-full w-0.5 origin-top bg-brand-500" />
 
               <div className="space-y-10">
-                {TIMELINE.map((t) => (
-                  <div key={t.title} className="relative flex gap-5 pl-0">
+                {TIMELINE.map((tl) => (
+                  <div key={tl.title} className="relative flex gap-5 ps-0">
                     <div
                       data-timeline-node
                       className="relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-500 text-white shadow-btn-brand"
@@ -530,9 +477,9 @@ export default function AboutPage() {
                       <Calendar className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1 pt-1">
-                      <div className="text-xs font-extrabold uppercase tracking-wide text-brand-500">{t.year}</div>
-                      <div className="mt-0.5 font-display text-lg font-extrabold text-slate-800 dark:text-white">{t.title}</div>
-                      <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{t.text}</p>
+                      <div className="text-xs font-extrabold uppercase tracking-wide text-brand-500">{tl.year}</div>
+                      <div className="mt-0.5 font-display text-lg font-extrabold text-slate-800 dark:text-white">{tl.title}</div>
+                      <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{tl.text}</p>
                     </div>
                   </div>
                 ))}
@@ -544,11 +491,11 @@ export default function AboutPage() {
             <div ref={timelinePinRef} className="relative hidden lg:block">
               <div className="mx-auto max-w-6xl px-5 pt-16 text-center">
                 <div data-reveal>
-                  <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Milestones</div>
+                  <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("about.timeline.eyebrow")}</div>
                   <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-                    The road so far
+                    {t("about.timeline.heading")}
                   </h2>
-                  <p className="mt-2 text-sm font-semibold text-slate-400 dark:text-stone-500">Keep scrolling →</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-400 dark:text-stone-500">{t("about.timeline.scrollHint")}</p>
                 </div>
               </div>
 
@@ -558,15 +505,15 @@ export default function AboutPage() {
                   ref={timelineTrackRef}
                   className="absolute left-0 top-1/2 flex -translate-y-1/2 items-center gap-16 px-[8vw] will-change-transform"
                 >
-                  {TIMELINE.map((t) => (
-                    <div key={t.title} className="relative z-10 w-[340px] shrink-0">
+                  {TIMELINE.map((tl) => (
+                    <div key={tl.title} className="relative z-10 w-[340px] shrink-0">
                       <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-500 text-white shadow-btn-brand">
                         <Calendar className="h-5 w-5" />
                       </div>
                       <div className="mt-5 rounded-3xl bg-white p-6 text-center ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
-                        <div className="text-xs font-extrabold uppercase tracking-wide text-brand-500">{t.year}</div>
-                        <div className="mt-1 font-display text-lg font-extrabold text-slate-800 dark:text-white">{t.title}</div>
-                        <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{t.text}</p>
+                        <div className="text-xs font-extrabold uppercase tracking-wide text-brand-500">{tl.year}</div>
+                        <div className="mt-1 font-display text-lg font-extrabold text-slate-800 dark:text-white">{tl.title}</div>
+                        <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{tl.text}</p>
                       </div>
                     </div>
                   ))}
@@ -579,19 +526,19 @@ export default function AboutPage() {
         {/* ── Founders ── */}
         <section id="team" className="mx-auto max-w-6xl px-5 py-16">
           <div data-reveal className="text-center">
-            <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Who's behind it</div>
+            <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("about.team.eyebrow")}</div>
             <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-              Meet the team
+              {t("about.team.heading")}
             </h2>
             <p className="mx-auto mt-3 max-w-md text-sm font-semibold text-slate-500 dark:text-stone-400">
-              A student developer and the teacher who started it all — building Haylingua one lesson at a time.
+              {t("about.team.subtitle")}
             </p>
           </div>
 
           <div data-reveal-group className="mt-10 grid gap-6 sm:grid-cols-2 lg:mx-auto lg:max-w-3xl">
             {FOUNDERS.map((f, i) => (
               <div
-                key={f.role + i}
+                key={i}
                 data-reveal-item
                 className="rounded-3xl bg-white p-6 text-center ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]"
               >
@@ -622,15 +569,15 @@ export default function AboutPage() {
           <div data-reveal className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
             <CarpetBorder className="absolute inset-x-0 top-0 h-2 opacity-60" />
             <MapPin className="h-6 w-6 opacity-80" />
-            <h2 className="mt-3 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Come learn Armenian with us</h2>
+            <h2 className="mt-3 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{t("about.cta.heading")}</h2>
             <p className="mt-3 max-w-md text-lg font-semibold text-white/90">
-              Free to start, no card required — pick up your first Armenian words in minutes.
+              {t("about.cta.subtext")}
             </p>
-            <Link to="/" className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
-              Start learning free <ArrowRight className="h-5 w-5" />
+            <Link to={lp("/")} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
+              {t("about.cta.button")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </Link>
-            <Link to="/" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-white/80 hover:text-white">
-              <ArrowLeft className="h-4 w-4" /> Back to home
+            <Link to={lp("/")} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-white/80 hover:text-white">
+              <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {t("about.cta.back")}
             </Link>
           </div>
         </section>

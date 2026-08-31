@@ -32,6 +32,14 @@ import arSeoPages from "./locales/ar/seo-pages.json";
 import faSeoPages from "./locales/fa/seo-pages.json";
 import kaSeoPages from "./locales/ka/seo-pages.json";
 
+import enSitePages from "./locales/en/site-pages.json";
+import ruSitePages from "./locales/ru/site-pages.json";
+import frSitePages from "./locales/fr/site-pages.json";
+import esSitePages from "./locales/es/site-pages.json";
+import arSitePages from "./locales/ar/site-pages.json";
+import faSitePages from "./locales/fa/site-pages.json";
+import kaSitePages from "./locales/ka/site-pages.json";
+
 export const SUPPORTED_LOCALES = ["ru", "fr", "es", "ar", "fa", "ka"];
 export const DEFAULT_LOCALE = "en";
 export const ALL_LOCALES = [DEFAULT_LOCALE, ...SUPPORTED_LOCALES];
@@ -65,17 +73,17 @@ export const LOCALE_FLAGS = {
 
 i18next.use(initReactI18next).init({
   resources: {
-    en: { common: enCommon, landing: enLanding, seoPages: enSeoPages },
-    ru: { common: ruCommon, landing: ruLanding, seoPages: ruSeoPages },
-    fr: { common: frCommon, landing: frLanding, seoPages: frSeoPages },
-    es: { common: esCommon, landing: esLanding, seoPages: esSeoPages },
-    ar: { common: arCommon, landing: arLanding, seoPages: arSeoPages },
-    fa: { common: faCommon, landing: faLanding, seoPages: faSeoPages },
-    ka: { common: kaCommon, landing: kaLanding, seoPages: kaSeoPages },
+    en: { common: enCommon, landing: enLanding, seoPages: enSeoPages, sitePages: enSitePages },
+    ru: { common: ruCommon, landing: ruLanding, seoPages: ruSeoPages, sitePages: ruSitePages },
+    fr: { common: frCommon, landing: frLanding, seoPages: frSeoPages, sitePages: frSitePages },
+    es: { common: esCommon, landing: esLanding, seoPages: esSeoPages, sitePages: esSitePages },
+    ar: { common: arCommon, landing: arLanding, seoPages: arSeoPages, sitePages: arSitePages },
+    fa: { common: faCommon, landing: faLanding, seoPages: faSeoPages, sitePages: faSitePages },
+    ka: { common: kaCommon, landing: kaLanding, seoPages: kaSeoPages, sitePages: kaSitePages },
   },
   lng: DEFAULT_LOCALE,
   fallbackLng: DEFAULT_LOCALE,
-  ns: ["common", "landing", "seoPages"],
+  ns: ["common", "landing", "seoPages", "sitePages"],
   defaultNS: "common",
   interpolation: { escapeValue: false },
   returnObjects: true,

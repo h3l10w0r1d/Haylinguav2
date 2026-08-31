@@ -17,6 +17,12 @@ export default function LocaleLayout() {
     document.documentElement.lang = locale;
     document.documentElement.dir = RTL_LOCALES.includes(locale) ? "rtl" : "ltr";
     return () => {
+      // Navigating away to an unprefixed (English) route unmounts this
+      // layout, but nothing else ever tells i18next to switch back — its
+      // active language would otherwise stay stuck on the locale you just
+      // left, so every useTranslation() hook in the app (SiteNav, SiteFooter,
+      // etc.) keeps rendering that language's text even on the English URL.
+      i18next.changeLanguage("en");
       document.documentElement.lang = "en";
       document.documentElement.dir = "ltr";
     };

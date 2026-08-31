@@ -3,6 +3,7 @@
 // open invitation. Public, unauthenticated marketing page.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -12,31 +13,25 @@ import owl from "./assets/character-owl.png";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
+import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 gsap.registerPlugin(ScrollTrigger);
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
-const EMPLOYMENT_LABELS = { "full-time": "Full-time", "part-time": "Part-time", contract: "Contract", internship: "Internship" };
-
-const VALUES = [
-  { icon: Languages, title: "The mission comes first", text: "We started this because Armenian deserved better tools — every decision gets weighed against that, not against a roadmap." },
-  { icon: Rocket, title: "Ship small, ship often", text: "Two people building fast beats a big team building slowly. If you like moving quick and owning what you build end to end, you'll feel at home." },
-  { icon: Feather, title: "Craft over speed-running", text: "We'd rather ship one lesson type that feels right than five that feel generic. Care shows, especially to a diaspora audience that's used to being an afterthought." },
-  { icon: Heart, title: "It's personal for us", text: "This isn't a market-sizing exercise. Grandparents, hometowns, a language slipping away a generation at a time — that's who we're building for." },
-];
-
-// Horizontal "what building this actually looks like" panels — pinned +
-// scrubbed on desktop for a real scrollytelling moment; a plain
-// horizontally-scrollable row everywhere else (mobile, reduced motion).
-const GLIMPSES = [
-  { tag: "The stack", title: "Real backend, real curriculum", text: "FastAPI + Postgres backend, React frontend, a CMS we built ourselves to author every lesson, exercise, and achievement in the app." },
-  { tag: "The content", title: "Every exercise is hand-built", text: "No AI-generated filler — Lilit designs how each concept is taught, Armen builds the exercise types to teach it well." },
-  { tag: "The pace", title: "Weekly, sometimes daily, ships", text: "New lesson content, features, and fixes go out constantly. You'll see your work live within days, not quarters." },
-  { tag: "The team", title: "Just the two of us, for now", text: "A developer and a language teacher. Small enough that your work is never lost in a queue — you'll talk directly to whoever built the thing you're touching." },
-];
+const VALUE_ICONS = [Languages, Rocket, Feather, Heart];
 
 export default function CareersPage() {
-  usePageMeta("Careers", "Join the two-person team building Haylingua — open roles, and what it's actually like to work with us.");
+  const { t } = useTranslation("sitePages");
+  const locale = useLocale();
+  const lp = (path) => localizedPath(path, locale);
+
+  const EMPLOYMENT_LABELS = t("careers.employmentLabels", { returnObjects: true });
+  const VALUES = t("careers.values.cards", { returnObjects: true }).map((v, i) => ({ ...v, icon: VALUE_ICONS[i] }));
+  const GLIMPSES = t("careers.glimpses.cards", { returnObjects: true });
+
+  usePageMeta(t("careers.meta.title"), t("careers.meta.description"), {
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/careers" })).concat([{ locale: "", path: "/careers" }]),
+  });
 
   const rootRef = useRef(null);
   const pinRef = useRef(null);
@@ -119,32 +114,30 @@ export default function CareersPage() {
 
       {/* Hero */}
       <header className="relative overflow-hidden">
-        <div className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
-        <div className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
+        <div className="pointer-events-none absolute -end-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
+        <div className="pointer-events-none absolute -start-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 lg:grid-cols-2 lg:py-20">
           <div>
             <div data-hero-item className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/25">
-              <Sparkles className="h-3.5 w-3.5" /> Careers
+              <Sparkles className="h-3.5 w-3.5" /> {t("careers.hero.badge")}
             </div>
             <h1 data-hero-item className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-5xl">
-              We're a team of two,<br /><span className="text-brand-500">building something we love.</span>
+              {t("careers.hero.titleLine1")}<br /><span className="text-brand-500">{t("careers.hero.titleHighlight")}</span>
             </h1>
             <p data-hero-item className="mt-5 max-w-md text-lg font-semibold text-slate-500 dark:text-stone-400">
-              {vacancies.length > 0
-                ? "We're hiring — see the open roles below. We're always glad to hear from people who care about Armenian, language learning, or building products with real craft."
-                : "We're not hiring for a specific role right now — but we're always glad to hear from people who care about Armenian, language learning, or building products with real craft."}
+              {vacancies.length > 0 ? t("careers.hero.subtitleHiring") : t("careers.hero.subtitleNotHiring")}
             </p>
             <div data-hero-item className="mt-7 flex flex-wrap items-center gap-3">
               {vacancies.length > 0 ? (
                 <a href="#open-roles" className="btn3d btn3d-brand text-base">
-                  See open roles <ArrowRight className="h-5 w-5" />
+                  {t("careers.hero.ctaOpenRoles")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
                 </a>
               ) : (
                 <a href="mailto:info@haylingua.am?subject=Interested%20in%20Haylingua" className="btn3d btn3d-brand text-base">
-                  Say hello <Mail className="h-5 w-5" />
+                  {t("careers.hero.ctaSayHello")} <Mail className="h-5 w-5" />
                 </a>
               )}
-              <Link to="/about" className="btn3d btn3d-neutral text-base">Meet the team</Link>
+              <Link to={lp("/about")} className="btn3d btn3d-neutral text-base">{t("careers.hero.ctaMeetTeam")}</Link>
             </div>
           </div>
           <div data-hero-art className="relative flex items-center justify-center">
@@ -157,9 +150,9 @@ export default function CareersPage() {
       {/* Values */}
       <section className="mx-auto max-w-6xl px-5 py-16">
         <div data-reveal className="text-center">
-          <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">How we work</div>
+          <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("careers.values.eyebrow")}</div>
           <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-            What it's actually like
+            {t("careers.values.heading")}
           </h2>
         </div>
         <div data-reveal-group className="mt-10 grid gap-5 sm:grid-cols-2">
@@ -190,9 +183,9 @@ export default function CareersPage() {
         {vacancies.length > 0 && (
           <>
             <div data-reveal className="text-center">
-              <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Open roles</div>
+              <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("careers.openRoles.eyebrow")}</div>
               <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-                Come build with us
+                {t("careers.openRoles.heading")}
               </h2>
             </div>
             <div data-reveal-group className="mt-10 space-y-4">
@@ -207,8 +200,8 @@ export default function CareersPage() {
                       </div>
                       {v.summary && <p className="mt-3 max-w-xl text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{v.summary}</p>}
                     </div>
-                    <Link to={`/careers/apply/${v.id}`} className="btn3d btn3d-brand shrink-0 text-sm">
-                      Apply <ArrowRight className="h-4 w-4" />
+                    <Link to={lp(`/careers/apply/${v.id}`)} className="btn3d btn3d-brand shrink-0 text-sm">
+                      {t("careers.openRoles.apply")} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
                     </Link>
                   </div>
                   {v.description && <p className="mt-4 whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-500 dark:text-stone-400">{v.description}</p>}
@@ -222,9 +215,9 @@ export default function CareersPage() {
       {/* Pinned horizontal scroll — "what building this looks like" */}
       <section ref={pinRef} className="relative overflow-hidden border-y border-slate-100 bg-slate-50 dark:border-white/[0.06] dark:bg-white/[0.04]">
         <div className="mx-auto max-w-6xl px-5 pt-14">
-          <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Behind the scenes</div>
+          <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("careers.glimpses.eyebrow")}</div>
           <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-            What building Haylingua looks like
+            {t("careers.glimpses.heading")}
           </h2>
         </div>
         <div className="mt-10 overflow-x-auto pb-14 lg:overflow-visible">
@@ -250,14 +243,13 @@ export default function CareersPage() {
             <Users className="h-7 w-7" />
           </span>
           <h2 className="mt-4 font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-3xl">
-            {vacancies.length > 0 ? "Don't see the right role?" : "Nothing open right now — but that changes fast"}
+            {vacancies.length > 0 ? t("careers.invitation.headingOpen") : t("careers.invitation.headingClosed")}
           </h2>
           <p className="mt-3 text-base font-semibold leading-relaxed text-slate-500 dark:text-stone-400">
-            If you're an Armenian speaker, a designer, an engineer, or just someone who's obsessed
-            with language-learning products, send us a note. We read everything ourselves.
+            {t("careers.invitation.text")}
           </p>
           <a href="mailto:info@haylingua.am?subject=Interested%20in%20Haylingua" className="btn3d btn3d-brand mt-7 text-base">
-            Get in touch <ArrowRight className="h-5 w-5" />
+            {t("careers.invitation.cta")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
           </a>
         </div>
       </section>

@@ -1,0 +1,277 @@
+{
+  "about": {
+    "meta": {
+      "title": "Quiénes Somos — La Historia y el Equipo de Haylingua",
+      "description": "La historia de Haylingua: por qué la creamos, nuestros hitos, y el equipo de dos personas que enseña armenio a la diáspora con audio real y un plan gamificado."
+    },
+    "hero": {
+      "badge": "Nuestra historia",
+      "titleLine1": "Creamos Haylingua para que",
+      "titleHighlight": "el armenio no se quede atrás.",
+      "subtitle": "Un idioma que hablan millones de personas en una diáspora repartida por todo el mundo, y casi ningún buen lugar para aprenderlo. Por eso — y cómo — estamos cambiando eso.",
+      "ctaStart": "Empieza a aprender — gratis",
+      "ctaStory": "Lee nuestra historia",
+      "scrollAria": "Desplázate para leer nuestra historia"
+    },
+    "story": {
+      "eyebrow": "Cómo empezó",
+      "heading": "Empezó como una tarea escolar",
+      "paragraph1": "En octubre de 2024, la profesora de IB de Armen — Lilit Hakobyan, quien ha enseñado armenio en el Programa del Diploma del IB y en varias otras instituciones — le encargó un proyecto: crear algo que pudiera enseñar armenio de verdad a la diáspora, a las personas que crecen sin acceso fácil al idioma de sus abuelos. Un mes después, ya existía la primera versión de Haylingua.",
+      "paragraph2": "Ese prototipo quedó guardado más de un año mientras Armen terminaba el resto del Diploma del IB. En enero de 2026, con la idea todavía rondándole en la cabeza, empezó a reconstruir Haylingua desde cero — un backend real, un plan de estudios real, contenido de lecciones real — con Lilit definiendo cómo enseña la app el idioma. Haylingua está listo para lanzarse al público en agosto de 2026."
+    },
+    "byTheNumbers": [
+      { "value": "39", "count": 39, "suffix": "", "label": "Letras armenias enseñadas desde cero" },
+      { "value": "100%", "count": 100, "suffix": "%", "label": "Audio en cada palabra, texto a voz real" },
+      { "value": "0 → 1", "label": "No necesitas saber armenio para empezar" }
+    ],
+    "values": {
+      "eyebrow": "En qué creemos",
+      "heading": "Por qué lo hacemos así",
+      "cards": [
+        {
+          "title": "El armenio merece mejores herramientas",
+          "text": "La mayoría de las apps de idiomas tratan el armenio como algo secundario, si es que lo enseñan. Creamos Haylingua porque un idioma hablado por millones de personas en una diáspora global merece el mismo cuidado que cualquiera de los idiomas más grandes del mundo."
+        },
+        {
+          "title": "Herencia, no solo vocabulario",
+          "text": "Para muchos de nuestros estudiantes, esto no es un nuevo pasatiempo — es reconectar con un abuelo, un pueblo natal, una parte de sí mismos. Diseñamos cada lección teniendo presente ese peso."
+        },
+        {
+          "title": "Hecho para que de verdad se quede",
+          "text": "Rachas, vidas, retroalimentación instantánea, repaso de errores — las mismas mecánicas que crean el hábito y hacen que funcionen otras apps de idiomas, ajustadas específicamente a cómo suena y se lee el armenio."
+        },
+        {
+          "title": "Una comunidad, no solo una app",
+          "text": "Amigos, tablas de clasificación y un grupo cada vez más grande de estudiantes recorriendo juntos el mismo camino, del alfabeto a la conversación."
+        }
+      ]
+    },
+    "timeline": {
+      "eyebrow": "Hitos",
+      "heading": "El camino hasta ahora",
+      "scrollHint": "Sigue desplazándote →",
+      "items": [
+        { "year": "Oct 2024", "title": "La idea", "text": "La profesora de IB de Armen, Lilit Hakobyan, le encarga un proyecto: crear algo que pudiera enseñar armenio de verdad a la diáspora." },
+        { "year": "Nov 2024", "title": "Primer prototipo", "text": "Un mes después, existe la primera versión funcional de Haylingua." },
+        { "year": "Sep 2025", "title": "De vuelta a ello", "text": "Armen termina el resto del Diploma del IB — el prototipo llevaba un año guardado, pero la idea nunca se le fue de la cabeza." },
+        { "year": "Ene 2026", "title": "Empieza la construcción real", "text": "Armen empieza a reconstruir Haylingua como un producto completo — backend real, plan de estudios real — con Lilit definiendo cómo enseña armenio." },
+        { "year": "May 2026", "title": "El plan de estudios toma forma", "text": "El recorrido del alfabeto a la conversación queda armado — cada letra, cada palabra, con audio real en todo." },
+        { "year": "Ago 2026", "title": "Lanzamiento al público", "text": "Haylingua se abre para todos. Muy pronto." }
+      ]
+    },
+    "team": {
+      "eyebrow": "Quién está detrás",
+      "heading": "Conoce al equipo",
+      "subtitle": "Un desarrollador estudiante y la profesora que lo empezó todo — construyendo Haylingua lección a lección.",
+      "founders": [
+        {
+          "name": "Armen Ghazaryan",
+          "role": "Cofundador y desarrollador",
+          "bio": "Graduado del Programa del Diploma del IB en Quantum College, Armen construyó la primera versión de Haylingua como un proyecto escolar — y siguió construyendo en cuanto quedó claro cuánto la necesitaban los armenios de la diáspora."
+        },
+        {
+          "name": "Lilit Hakobyan",
+          "role": "Cofundadora y responsable de idioma armenio",
+          "bio": "Profesora de armenio en el programa del IB y en varias otras instituciones, Lilit es quien puso a Haylingua en marcha — y define cómo la app enseña el idioma de verdad."
+        }
+      ]
+    },
+    "cta": {
+      "heading": "Ven a aprender armenio con nosotros",
+      "subtext": "Gratis para empezar, sin tarjeta — aprende tus primeras palabras en armenio en minutos.",
+      "button": "Empieza a aprender gratis",
+      "back": "Volver al inicio"
+    }
+  },
+  "contact": {
+    "meta": {
+      "title": "Contacto — Escríbele Directamente al Equipo de Haylingua",
+      "description": "¿Tienes una pregunta sobre tu cuenta, un error que reportar o solo quieres saludar? Escríbenos hoy mismo — leemos y respondemos cada mensaje personalmente."
+    },
+    "eyebrow": "Ponte en contacto",
+    "heading": "Contáctanos",
+    "subtitle": "¿Pregunta sobre tu cuenta, un error, o solo quieres decir բարև? Leemos cada mensaje nosotros mismos.",
+    "info": {
+      "emailLabel": "Correo",
+      "responseLabel": "Tiempo de respuesta",
+      "responseValue": "Normalmente en 1–2 días hábiles",
+      "basedLabel": "Ubicados en",
+      "basedValue": "Ereván, Armenia"
+    },
+    "form": {
+      "nameLabel": "Tu nombre",
+      "namePlaceholder": "Anahit Petrosyan",
+      "emailLabel": "Correo",
+      "emailPlaceholder": "tu@ejemplo.com",
+      "topicLabel": "Tema",
+      "topics": ["Pregunta general", "Facturación / Premium", "Reportar un error", "Colaboración", "Otra cosa"],
+      "messageLabel": "Mensaje",
+      "messagePlaceholder": "¿Cómo podemos ayudarte?",
+      "submit": "Enviar mensaje",
+      "sending": "Enviando…"
+    },
+    "errors": {
+      "missingFields": "Por favor completa tu nombre, correo y mensaje.",
+      "missingTurnstile": "Por favor completa la verificación de seguridad de abajo.",
+      "generic": "Algo salió mal — por favor inténtalo de nuevo."
+    },
+    "success": {
+      "heading": "Mensaje enviado",
+      "text": "Gracias — te responderemos a {{email}}, normalmente en 1–2 días hábiles.",
+      "sendAnother": "Enviar otro mensaje"
+    }
+  },
+  "pricing": {
+    "meta": {
+      "title": "Precios de Haylingua — Curso Gratis y Plan Premium",
+      "description": "Conoce los precios de Haylingua: el curso completo de armenio es gratis para siempre, y Premium solo elimina las vidas para que los errores no te detengan."
+    },
+    "hero": {
+      "badge": "Precios simples",
+      "titleLine1": "Gratis para empezar.",
+      "titleHighlight": "Premium cuando ya no puedas parar.",
+      "subtitle": "Cada lección, cada letra, el plan de estudios completo — gratis, para siempre. Premium solo elimina lo único que puede frenarte: las vidas."
+    },
+    "free": {
+      "title": "Gratis",
+      "subtitle": "Para siempre",
+      "price": "֏0",
+      "cta": "Empieza gratis",
+      "perks": ["Plan de estudios completo", "Rachas y tabla de clasificación", "5 vidas, se regeneran con el tiempo"]
+    },
+    "premiumCta": "Consigue Premium",
+    "intervalLabels": { "month": "mes", "year": "año", "lifetime": "único" },
+    "footnote": "Precios mostrados en dram armenio (֏). Cancela cuando quieras — consulta nuestra {{link}}.",
+    "footnoteLinkText": "política de reembolsos y cancelaciones",
+    "compare": {
+      "eyebrow": "Comparar",
+      "heading": "Lo que realmente obtienes",
+      "calloutHeading": "Premium elimina las vidas por completo",
+      "calloutText": "Una respuesta equivocada ya nunca detiene tu lección. Todo lo demás ya es gratis.",
+      "tableHeaders": { "feature": "Función", "free": "Gratis", "premium": "Premium" },
+      "matrix": [
+        { "label": "Vidas", "free": "5, se regeneran con el tiempo", "premium": "Ilimitadas" },
+        { "label": "Lecciones y ejercicios", "free": "Plan de estudios completo", "premium": "Plan de estudios completo" },
+        { "label": "Repaso de errores", "free": true, "premium": true },
+        { "label": "Rachas, XP, tabla de clasificación", "free": true, "premium": true },
+        { "label": "Los errores no detienen tu lección", "free": false, "premium": true },
+        { "label": "Apoya el desarrollo futuro", "free": false, "premium": true }
+      ]
+    },
+    "faq": {
+      "heading": "Preguntas sobre precios",
+      "items": [
+        { "q": "¿El plan gratis es de verdad gratis para siempre?", "a": "Sí — el plan de estudios completo, las rachas y la tabla de clasificación son gratis sin límite de tiempo. Premium solo elimina las vidas como limitante." },
+        { "q": "¿Puedo cancelar cuando quiera?", "a": "Sí, desde Perfil → Premium, o {{link}}. Conservas el acceso hasta que termine el periodo que pagaste." },
+        { "q": "¿Qué métodos de pago aceptan?", "a": "Visa, Mastercard, ArCa y Telcell." }
+      ]
+    },
+    "faqContactLinkText": "contactándonos",
+    "cta": {
+      "heading": "Empieza gratis, mejora cuando quieras",
+      "subtext": "No necesitas tarjeta para empezar a aprender armenio hoy.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+  "careers": {
+    "meta": {
+      "title": "Empleo en Haylingua — Únete a Nuestro Pequeño Equipo",
+      "description": "Únete al equipo de dos personas que construye Haylingua: mira las vacantes abiertas y cómo es construir un producto de aprendizaje de armenio con cuidado real."
+    },
+    "hero": {
+      "badge": "Empleo",
+      "titleLine1": "Somos un equipo de dos,",
+      "titleHighlight": "construyendo algo que amamos.",
+      "subtitleHiring": "Estamos contratando — mira las vacantes abiertas más abajo. Siempre nos alegra saber de personas a las que les importe el armenio, el aprendizaje de idiomas o construir productos con cuidado real.",
+      "subtitleNotHiring": "Ahora mismo no estamos contratando para ningún puesto en concreto — pero siempre nos alegra saber de personas a las que les importe el armenio, el aprendizaje de idiomas o construir productos con cuidado real.",
+      "ctaOpenRoles": "Ver vacantes abiertas",
+      "ctaSayHello": "Saluda",
+      "ctaMeetTeam": "Conoce al equipo"
+    },
+    "values": {
+      "eyebrow": "Cómo trabajamos",
+      "heading": "Cómo es de verdad",
+      "cards": [
+        { "title": "La misión va primero", "text": "Empezamos esto porque el armenio merecía mejores herramientas — cada decisión se sopesa contra eso, no contra un roadmap." },
+        { "title": "Lanza poco, lanza seguido", "text": "Dos personas construyendo rápido le gana a un equipo grande construyendo despacio. Si te gusta moverte rápido y ser dueño de lo que construyes de principio a fin, aquí te vas a sentir en casa." },
+        { "title": "Cuidado antes que velocidad", "text": "Preferimos lanzar un tipo de lección que se sienta bien hecho a cinco que se sientan genéricos. El cuidado se nota, sobre todo para una audiencia de la diáspora acostumbrada a que la dejen en segundo plano." },
+        { "title": "Es algo personal para nosotros", "text": "Esto no es un ejercicio de dimensionar un mercado. Abuelos, pueblos natales, un idioma que se va perdiendo generación tras generación — para eso estamos construyendo." }
+      ]
+    },
+    "employmentLabels": { "full-time": "Tiempo completo", "part-time": "Medio tiempo", "contract": "Por contrato", "internship": "Prácticas" },
+    "openRoles": {
+      "eyebrow": "Vacantes abiertas",
+      "heading": "Ven a construir con nosotros",
+      "apply": "Postularme"
+    },
+    "glimpses": {
+      "eyebrow": "Detrás de escena",
+      "heading": "Cómo es construir Haylingua",
+      "cards": [
+        { "tag": "La tecnología", "title": "Backend real, plan de estudios real", "text": "Backend con FastAPI + Postgres, frontend en React, y un CMS que construimos nosotros mismos para crear cada lección, ejercicio y logro de la app." },
+        { "tag": "El contenido", "title": "Cada ejercicio está hecho a mano", "text": "Nada de relleno generado por IA — Lilit diseña cómo se enseña cada concepto, Armen construye los tipos de ejercicio para enseñarlo bien." },
+        { "tag": "El ritmo", "title": "Lanzamientos semanales, a veces diarios", "text": "Constantemente sale contenido nuevo de lecciones, funciones y correcciones. Verás tu trabajo en producción en cuestión de días, no de trimestres." },
+        { "tag": "El equipo", "title": "Solo nosotros dos, por ahora", "text": "Un desarrollador y una profesora de idiomas. Lo bastante pequeño como para que tu trabajo nunca se pierda en una cola — vas a hablar directamente con quien construyó lo que estás tocando." }
+      ]
+    },
+    "invitation": {
+      "headingOpen": "¿No ves el puesto que buscas?",
+      "headingClosed": "Ahora mismo no hay nada abierto — pero eso cambia rápido",
+      "text": "Si hablas armenio, eres diseñador, ingeniero, o simplemente alguien obsesionado con los productos de aprendizaje de idiomas, escríbenos. Lo leemos todo nosotros mismos.",
+      "cta": "Ponte en contacto"
+    }
+  },
+  "affiliates": {
+    "meta": {
+      "title": "Programa de Afiliados — Gana Comisión por Referidos",
+      "description": "Únete al programa de afiliados de Haylingua y gana 20% de comisión por cada suscriptor de pago que refieras. Sin audiencia mínima, gratis, con pagos mensuales."
+    },
+    "hero": {
+      "badge": "Programa de afiliados",
+      "titleLine1": "Mándanos estudiantes.",
+      "titleHighlight": "Te mandamos tu parte.",
+      "subtitle": "Si tu audiencia está aprendiendo — o quiere aprender — armenio, asóciate con nosotros y gana comisión real por cada suscriptor que traigas.",
+      "cta": "Aplica ahora"
+    },
+    "stats": [
+      { "count": 20, "suffix": "%", "label": "Comisión por cada referido de pago" },
+      { "count": 30, "suffix": " días", "label": "Ventana de cookie en tu enlace" },
+      { "count": 0, "suffix": "", "label": "Audiencia mínima — ninguna" }
+    ],
+    "steps": [
+      { "title": "Aplica", "text": "Cuéntanos dónde le hablas a estudiantes de armenio — un canal, un blog, una clase, una comunidad. Toma dos minutos." },
+      { "title": "Obtén tu enlace", "text": "Una vez aprobado, recibes un enlace de referido personal y un código listo para tu panel, vinculado a tu cuenta." },
+      { "title": "Gana con cada suscriptor", "text": "Cada suscripción Premium que empiece a través de tu enlace te genera una comisión — pagada mensualmente." }
+    ],
+    "stepLabel": "Paso {{n}}",
+    "apply": {
+      "eyebrow": "¿Listo?",
+      "heading": "Aplica al programa",
+      "subtitle": "Revisamos cada solicitud nosotros mismos — normalmente en un par de días.",
+      "dashboardLink": "¿Ya te aprobaron? Ve a tu panel"
+    },
+    "form": {
+      "nameLabel": "Tu nombre",
+      "namePlaceholder": "Anahit Petrosyan",
+      "emailLabel": "Correo",
+      "emailPlaceholder": "tu@ejemplo.com",
+      "platformLabel": "Plataforma / canal",
+      "platformPlaceholder": "YouTube, blog, clase…",
+      "audienceLabel": "Tamaño de audiencia (opcional)",
+      "audiencePlaceholder": "ej. 5,000 suscriptores",
+      "messageLabel": "Cuéntanos un poco más (opcional)",
+      "messagePlaceholder": "¿Quién es tu audiencia y cómo promocionarías Haylingua?",
+      "submit": "Enviar solicitud",
+      "sending": "Enviando…"
+    },
+    "errors": {
+      "missingFields": "Por favor completa tu nombre, correo y plataforma/canal.",
+      "missingTurnstile": "Por favor completa la verificación de seguridad de abajo.",
+      "generic": "Algo salió mal — por favor inténtalo de nuevo."
+    },
+    "success": {
+      "heading": "Solicitud enviada",
+      "text": "Gracias — te responderemos a {{email}} pronto."
+    }
+  }
+}

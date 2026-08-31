@@ -8,6 +8,7 @@
 // marketing page.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -19,22 +20,13 @@ import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import Turnstile from "./lib/Turnstile";
 import { track } from "./lib/analytics";
+import { useLocale, localizedPath, SUPPORTED_LOCALES, renderTemplate } from "./i18n";
 
 gsap.registerPlugin(ScrollTrigger);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
-
-const STEPS = [
-  { icon: Send, title: "Apply", text: "Tell us where you talk to Armenian learners — a channel, a blog, a classroom, a community. Takes two minutes." },
-  { icon: Link2, title: "Get your link", text: "Once approved, you get a personal referral link and a dashboard-ready code tied to your account." },
-  { icon: Wallet, title: "Earn on every subscriber", text: "Every Premium subscription that starts through your link earns you a commission — paid out monthly." },
-];
-
-const STATS = [
-  { icon: Percent, count: 20, suffix: "%", label: "Commission per paid referral" },
-  { icon: TrendingUp, count: 30, suffix: "-day", label: "Cookie window on your link" },
-  { icon: Users2, count: 0, suffix: "", label: "Minimum audience size — none" },
-];
+const STEP_ICONS = [Send, Link2, Wallet];
+const STAT_ICONS = [Percent, TrendingUp, Users2];
 
 const inputCls =
   "w-full rounded-2xl bg-slate-50 px-3.5 py-3 font-semibold text-slate-800 ring-2 ring-slate-200 transition " +
@@ -51,7 +43,16 @@ function Field({ label, children }) {
 }
 
 export default function AffiliatesPage() {
-  usePageMeta("Affiliates", "Earn commission recommending Haylingua — join the affiliate program and start sharing your link.");
+  const { t } = useTranslation("sitePages");
+  const locale = useLocale();
+  const lp = (path) => localizedPath(path, locale);
+
+  const STEPS = t("affiliates.steps", { returnObjects: true }).map((s, i) => ({ ...s, icon: STEP_ICONS[i] }));
+  const STATS = t("affiliates.stats", { returnObjects: true }).map((s, i) => ({ ...s, icon: STAT_ICONS[i] }));
+
+  usePageMeta(t("affiliates.meta.title"), t("affiliates.meta.description"), {
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/affiliates" })).concat([{ locale: "", path: "/affiliates" }]),
+  });
 
   const rootRef = useRef(null);
   const pinRef = useRef(null);
@@ -141,12 +142,12 @@ export default function AffiliatesPage() {
     if (status === "sending") return;
     if (!name.trim() || !email.trim() || !platform.trim()) {
       setStatus("error");
-      setErrorMsg("Please fill in your name, email, and platform/channel.");
+      setErrorMsg(t("affiliates.errors.missingFields"));
       return;
     }
     if (!turnstileToken) {
       setStatus("error");
-      setErrorMsg("Please complete the security check below.");
+      setErrorMsg(t("affiliates.errors.missingTurnstile"));
       return;
     }
     setStatus("sending");
@@ -158,12 +159,12 @@ export default function AffiliatesPage() {
         body: JSON.stringify({ name, email, platform, audience, message, turnstile_token: turnstileToken }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.detail || "Something went wrong — please try again.");
+      if (!res.ok) throw new Error(data?.detail || t("affiliates.errors.generic"));
       setStatus("sent");
       track("affiliate_application_submitted");
     } catch (err) {
       setStatus("error");
-      setErrorMsg(err.message || "Something went wrong — please try again.");
+      setErrorMsg(err.message || t("affiliates.errors.generic"));
       track("affiliate_application_failed");
     }
   }
@@ -174,20 +175,19 @@ export default function AffiliatesPage() {
 
       {/* Hero */}
       <header className="relative overflow-hidden">
-        <div className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
+        <div className="pointer-events-none absolute -end-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
         <div className="relative mx-auto max-w-3xl px-5 py-16 text-center sm:py-20">
           <div data-hero-item className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:ring-brand-500/25">
-            <Sparkles className="h-3.5 w-3.5" /> Affiliate program
+            <Sparkles className="h-3.5 w-3.5" /> {t("affiliates.hero.badge")}
           </div>
           <h1 data-hero-item className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-5xl">
-            Send us learners.<br /><span className="text-brand-500">We'll send you a cut.</span>
+            {t("affiliates.hero.titleLine1")}<br /><span className="text-brand-500">{t("affiliates.hero.titleHighlight")}</span>
           </h1>
           <p data-hero-item className="mx-auto mt-5 max-w-lg text-lg font-semibold text-slate-500 dark:text-stone-400">
-            If your audience is learning — or wants to learn — Armenian, partner with us and earn
-            real commission on every subscriber you bring in.
+            {t("affiliates.hero.subtitle")}
           </p>
           <div data-hero-item className="mt-7">
-            <a href="#apply" className="btn3d btn3d-brand text-base">Apply now <ArrowRight className="h-5 w-5" /></a>
+            <a href="#apply" className="btn3d btn3d-brand text-base">{t("affiliates.hero.cta")} <ArrowRight className="h-5 w-5 rtl:rotate-180" /></a>
           </div>
         </div>
       </header>
@@ -225,7 +225,7 @@ export default function AffiliatesPage() {
                 <span className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-brand-500 to-pom-500 text-white shadow-btn-brand">
                   {(() => { const Icon = STEPS[i].icon; return <Icon className="h-8 w-8" />; })()}
                 </span>
-                <div className="mt-2 text-xs font-extrabold uppercase tracking-wide text-brand-500">Step {i + 1}</div>
+                <div className="mt-2 text-xs font-extrabold uppercase tracking-wide text-brand-500">{renderTemplate(t("affiliates.stepLabel"), { n: i + 1 })}</div>
                 <div className="mt-1 font-display text-2xl font-extrabold text-slate-800 dark:text-white sm:text-3xl">{STEPS[i].title}</div>
                 <p className="mx-auto mt-3 max-w-md text-base font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{STEPS[i].text}</p>
               </div>
@@ -237,15 +237,15 @@ export default function AffiliatesPage() {
       {/* Application form */}
       <section id="apply" className="mx-auto max-w-2xl px-5 py-16">
         <div data-reveal className="text-center">
-          <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">Ready?</div>
+          <div className="font-display text-sm font-extrabold uppercase tracking-wide text-brand-500">{t("affiliates.apply.eyebrow")}</div>
           <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
-            Apply to the program
+            {t("affiliates.apply.heading")}
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm font-semibold text-slate-500 dark:text-stone-400">
-            We review every application ourselves — usually within a couple of days.
+            {t("affiliates.apply.subtitle")}
           </p>
-          <Link to="/affiliate-dashboard" className="mt-3 inline-block text-sm font-bold text-brand-600 hover:underline dark:text-brand-400">
-            Already approved? View your dashboard
+          <Link to={lp("/affiliate-dashboard")} className="mt-3 inline-block text-sm font-bold text-brand-600 hover:underline dark:text-brand-400">
+            {t("affiliates.apply.dashboardLink")}
           </Link>
         </div>
 
@@ -255,31 +255,31 @@ export default function AffiliatesPage() {
               <span className="grid h-14 w-14 place-items-center rounded-full bg-grass-50 text-grass-600 dark:bg-grass-500/15 dark:text-grass-400">
                 <CheckCircle2 className="h-7 w-7" />
               </span>
-              <h3 className="mt-4 font-display text-xl font-extrabold text-slate-800 dark:text-white">Application sent</h3>
+              <h3 className="mt-4 font-display text-xl font-extrabold text-slate-800 dark:text-white">{t("affiliates.success.heading")}</h3>
               <p className="mt-1.5 max-w-sm text-sm font-semibold text-slate-500 dark:text-stone-400">
-                Thanks — we'll get back to you at {email} soon.
+                {renderTemplate(t("affiliates.success.text"), { email })}
               </p>
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Your name">
-                  <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Anahit Petrosyan" autoComplete="name" />
+                <Field label={t("affiliates.form.nameLabel")}>
+                  <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("affiliates.form.namePlaceholder")} autoComplete="name" />
                 </Field>
-                <Field label="Email">
-                  <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+                <Field label={t("affiliates.form.emailLabel")}>
+                  <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("affiliates.form.emailPlaceholder")} autoComplete="email" />
                 </Field>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Platform / channel">
-                  <input className={inputCls} value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="YouTube, blog, classroom…" />
+                <Field label={t("affiliates.form.platformLabel")}>
+                  <input className={inputCls} value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder={t("affiliates.form.platformPlaceholder")} />
                 </Field>
-                <Field label="Audience size (optional)">
-                  <input className={inputCls} value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="e.g. 5,000 subscribers" />
+                <Field label={t("affiliates.form.audienceLabel")}>
+                  <input className={inputCls} value={audience} onChange={(e) => setAudience(e.target.value)} placeholder={t("affiliates.form.audiencePlaceholder")} />
                 </Field>
               </div>
-              <Field label="Tell us a bit more (optional)">
-                <textarea className={inputCls + " min-h-[110px] resize-y"} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Who's your audience, and how would you promote Haylingua?" />
+              <Field label={t("affiliates.form.messageLabel")}>
+                <textarea className={inputCls + " min-h-[110px] resize-y"} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("affiliates.form.messagePlaceholder")} />
               </Field>
 
               <div className="pt-1"><Turnstile onVerify={setTurnstileToken} /></div>
@@ -291,7 +291,7 @@ export default function AffiliatesPage() {
               )}
 
               <button type="submit" disabled={status === "sending"} className="btn3d btn3d-brand w-full text-sm uppercase disabled:opacity-70">
-                {status === "sending" ? (<><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>) : (<><Send className="h-4 w-4" /> Submit application</>)}
+                {status === "sending" ? (<><Loader2 className="h-4 w-4 animate-spin" /> {t("affiliates.form.sending")}</>) : (<><Send className="h-4 w-4" /> {t("affiliates.form.submit")}</>)}
               </button>
             </form>
           )}
