@@ -7,6 +7,7 @@ import { getTheme, toggleTheme } from "./lib/theme";
 import { isMuted, toggleMuted } from "./lib/muteAudio";
 import { identify } from "./lib/analytics";
 import AvatarFrame from "./lib/avatarFrame";
+import { WalletContext } from "./WalletContext";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -121,6 +122,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
   useEffect(() => { if (user?.streak != null) setStreak(Number(user.streak) || 0); }, [user?.streak]);
 
   const [gems, setGems] = useState(null);
+  const [chests, setChests] = useState(0);
   const [activeFrameStyle, setActiveFrameStyle] = useState(null);
   const [activeFrameRarity, setActiveFrameRarity] = useState(null);
   useEffect(() => {
@@ -133,6 +135,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
         .then((d) => {
           if (!d || cancelled) return;
           setGems(Number(d.gems ?? 0));
+          setChests(Number(d.chests ?? 0));
           setActiveFrameStyle(d.active_frame_style || null);
           setActiveFrameRarity(d.active_frame_rarity || null);
         })
@@ -578,7 +581,9 @@ export default function HeaderLayout({ user, onLogout, children }) {
           )}
           <div key={location.pathname} className="page-in">
             {/* ✅ If used as wrapper, render children. Otherwise fallback to Outlet for nested routing. */}
-            {children ?? <Outlet />}
+            <WalletContext.Provider value={{ gems, chests, hearts }}>
+              {children ?? <Outlet />}
+            </WalletContext.Provider>
           </div>
         </main>
 

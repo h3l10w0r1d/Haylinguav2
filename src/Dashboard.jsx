@@ -12,6 +12,7 @@ import ChestOpening, { ChestIcon } from "./lib/ChestOpening";
 import { preloadLesson } from "./lib/lessonPreload";
 import { LucideGlyph } from "./lib/lucideIcons";
 import { useCountUp } from "./lib/useCountUp";
+import { useWallet } from "./WalletContext";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -185,17 +186,15 @@ export function DailyQuestsCard({ token }) {
 }
 
 function ChestCard({ token }) {
+  const { chests: contextChests } = useWallet();
   const [chests, setChests] = useState(0);
   const [opening, setOpening] = useState(false);
   const [openErr, setOpenErr] = useState(false);
   const [overlayReward, setOverlayReward] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/me/wallet`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setChests(Number(d.chests || 0)))
-      .catch(() => {});
-  }, [token]);
+    if (Number.isFinite(contextChests)) setChests(Number(contextChests));
+  }, [contextChests]);
 
   async function open() {
     if (opening) return;
@@ -593,40 +592,16 @@ function KpiValue({ value, numeric }) {
   return isNum ? counted : value;
 }
 
-function KpiStrip({ token, streak, xp, onPremiumChange }) {
-  const [hearts, setHearts] = useState(null);
-  const [gems, setGems] = useState(null);
+function KpiStrip({ streak, xp, onPremiumChange }) {
+  // gems/hearts come from HeaderLayout (WalletContext), which already owns
+  // the single canonical /me/wallet + /me/hearts fetch (plus SSE/live
+  // updates) for the whole authenticated app — this used to fetch both
+  // again independently, duplicating both requests on every dashboard load.
+  const { gems, hearts } = useWallet();
 
   useEffect(() => {
-    const h = token ? { Authorization: `Bearer ${token}` } : {};
-    const loadHearts = () =>
-      fetch(`${API_BASE_URL}/me/hearts`, { headers: h })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => {
-          if (!d) return;
-          setHearts(d);
-          onPremiumChange?.(!!d.is_premium);
-        })
-        .catch(() => {});
-    const loadWallet = () =>
-      fetch(`${API_BASE_URL}/me/wallet`, { headers: h })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => d && setGems(Number(d.gems || 0)))
-        .catch(() => {});
-    loadHearts();
-    loadWallet();
-    const onHearts = () => loadHearts();
-    const onWallet = (e) =>
-      Number.isFinite(e?.detail?.gems) ? setGems(Number(e.detail.gems)) : loadWallet();
-    window.addEventListener("hay_hearts", onHearts);
-    window.addEventListener("haylingua:hearts", onHearts);
-    window.addEventListener("hay_wallet", onWallet);
-    return () => {
-      window.removeEventListener("hay_hearts", onHearts);
-      window.removeEventListener("haylingua:hearts", onHearts);
-      window.removeEventListener("hay_wallet", onWallet);
-    };
-  }, [token]);
+    if (hearts) onPremiumChange?.(!!hearts.is_premium);
+  }, [hearts, onPremiumChange]);
 
   const heartLabel = hearts
     ? hearts.is_premium
@@ -1374,7 +1349,7 @@ export default function Dashboard({ user }) {
               anything). A cast shadow is enough to signal elevation without
               changing the flat/minimal color language. */}
           <div className="sticky top-2 z-30 -mt-2 bg-[#f5f4f1]/95 pb-3 pt-2 backdrop-blur shadow-[0_8px_12px_-6px_rgba(28,25,23,0.12)] dark:bg-[#0d0d0f]/95 dark:shadow-[0_8px_12px_-6px_rgba(0,0,0,0.45)]">
-            <KpiStrip token={token} streak={stats.streak} xp={stats.total_xp} onPremiumChange={setIsPremium} />
+            <KpiStrip streak={stats.streak} xp={stats.total_xp} onPremiumChange={setIsPremium} />
           </div>
 
           <HeroCard
