@@ -42,6 +42,7 @@ const EasternArmenianPage = lazy(() => import('./EasternArmenianPage'));
 const DiasporaCityPage = lazy(() => import('./DiasporaCityPage'));
 const BlogPage = lazy(() => import('./BlogPage'));
 const BlogPostPage = lazy(() => import('./BlogPostPage'));
+const SoroBlogPage = lazy(() => import('./SoroBlogPage'));
 const ContactPage = lazy(() => import('./ContactPage'));
 const TermsPage = lazy(() => import('./TermsPage'));
 const PrivacyPolicyPage = lazy(() => import('./PrivacyPolicyPage'));
@@ -470,6 +471,10 @@ function AppShell() {
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/refund-policy" element={<RefundPolicyPage />} />
       <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+      {/* Third-party embedded blog widget (Soro) — separate from the
+          first-party /blog system, English-only/unprefixed like the legal
+          pages above (not part of our i18n content, nothing to translate). */}
+      <Route path="/soro-blog" element={<SoroBlogPage />} />
       <Route path="/careers/apply/:vacancyId" element={<CareersApplyPage />} />
       <Route path="/community" element={<ForumPage />} />
       <Route path="/community/thread/:id" element={<ForumThreadPage />} />
