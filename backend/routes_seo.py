@@ -66,6 +66,7 @@ STATIC_PAGES: list[tuple[str, str, str]] = [
     ("/affiliates", "monthly", "0.4"),
     ("/contact", "yearly", "0.3"),
     ("/community", "weekly", "0.5"),
+    ("/soro-blog", "weekly", "0.3"),
     ("/terms", "yearly", "0.2"),
     ("/privacy", "yearly", "0.2"),
     ("/refund-policy", "yearly", "0.2"),
