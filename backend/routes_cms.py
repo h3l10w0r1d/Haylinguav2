@@ -421,7 +421,7 @@ def support_user_detail(
 @router.get("/cms/support/users/{uid}/notes")
 def get_user_notes(
     uid: int,
-    _cms: dict = Depends(require_cms),
+    _cms: dict = Depends(require_cms_admin),
     db: Connection = Depends(get_db),
 ):
     rows = db.execute(
@@ -434,7 +434,7 @@ def get_user_notes(
 def add_user_note(
     uid: int,
     payload: Dict[str, Any] = Body(default=None),
-    cms_user: dict = Depends(require_cms),
+    cms_user: dict = Depends(require_cms_admin),
     db: Connection = Depends(get_db),
 ):
     body = ((payload or {}).get("body") or "").strip()
