@@ -178,7 +178,7 @@ export default function SiteFooter() {
           <FooterCol
             locale={locale}
             title={t("footer.company")}
-            links={[[t("footer.linkAbout"), "/about"], [t("footer.linkCareers"), "/careers"], [t("footer.linkAffiliates"), "/affiliates"], [t("footer.linkCommunity"), "/community"], [t("footer.linkBlog"), "https://blog.haylingua.am"], [t("footer.linkContact"), "/contact"]]}
+            links={[[t("footer.linkAbout"), "/about"], [t("footer.linkCareers"), "/careers"], [t("footer.linkAffiliates"), "/affiliates"], [t("footer.linkCommunity"), "/community"], [t("footer.linkBlog"), "https://blog.haylingua.am"], [t("footer.linkTips"), "/soro-blog"], [t("footer.linkContact"), "/contact"]]}
           />
           <FooterCol
             locale={locale}
