@@ -124,7 +124,7 @@ function GooglePlayGlyph({ className }) {
 // popup. If it ever fails to load, the on-brand fallback below advertises the
 // same 14-day free-trial bonus. Swap the file to change the banner.
 const SIGNUP_BANNER_SRC = "/banners/Welcome_banner_5.png";
-const LOGIN_BANNER_SRC = "/banners/Login_banner1.png";
+const LOGIN_BANNER_SRC = "/banners/Login_banner1.jpg";
 
 function SignupPromoPanel({ mode }) {
   const { t: tt } = useTranslation("landing");
@@ -145,6 +145,7 @@ function SignupPromoPanel({ mode }) {
       <img
         src={src}
         alt=""
+        loading="lazy"
         onError={() => setImgOk(false)}
         className={"absolute inset-0 h-full w-full object-cover object-top " + (showImage ? "" : "hidden")}
       />
@@ -169,7 +170,7 @@ function SignupPromoPanel({ mode }) {
               ))}
             </ul>
           </div>
-          <img src={grandma} alt="" className="mt-6 h-24 w-24 self-start rounded-2xl object-cover ring-4 ring-white/20" />
+          <img src={grandma} alt="" loading="lazy" className="mt-6 h-24 w-24 self-start rounded-2xl object-cover ring-4 ring-white/20" />
         </div>
       )}
     </div>
@@ -1688,7 +1689,7 @@ export default function LandingPage({ onLogin, onSignup }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-brand-50/60 to-white dark:from-[#0d0d0f] dark:to-[#0d0d0f] px-4">
         <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#18181b] p-8 text-center shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]">
-          <img src={grandma} alt="" className="mx-auto h-20 w-20 animate-floaty rounded-2xl object-cover" />
+          <img src={grandma} alt="" loading="lazy" className="mx-auto h-20 w-20 animate-floaty rounded-2xl object-cover" />
           <h2 className="mt-4 font-display text-2xl font-extrabold text-slate-800 dark:text-white">{tt("authModal.verify.checkInbox")}</h2>
           <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-stone-400">
             {tt("authModal.verify.codeSentTo").split("{{email}}")[0]}<span className="text-slate-700 dark:text-stone-200">{email}</span>{tt("authModal.verify.codeSentTo").split("{{email}}")[1]}
@@ -2257,7 +2258,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       <section className="px-5 py-16">
         <Reveal>
           <div className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
-            <img src={student} alt="" className="pointer-events-none absolute -bottom-6 -end-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
+            <img src={student} alt="" loading="lazy" className="pointer-events-none absolute -bottom-6 -end-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide">
               <Sparkles className="h-3.5 w-3.5" /> {tt("ctaBannerExtra.badge")}
             </div>
