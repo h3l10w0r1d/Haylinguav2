@@ -637,6 +637,38 @@ function VoiceChip({ text, label, tone = "brand", displayText }) {
   );
 }
 
+// Defers mounting the full LandingExerciseDemo (a dozen+ hooks/effects/refs,
+// the localized-question merge, the whole first-question render tree) until
+// its container is actually near the viewport. On desktop it sits beside
+// the hero (lg:grid-cols-2 below) so the observer fires within a frame —
+// no visible difference. On mobile it's stacked BELOW the hero text, so
+// this genuinely skips that render cost during initial page load, which is
+// what mobile PageSpeed's Total Blocking Time / long-main-thread-tasks
+// audits actually measure (mobile's simulated CPU throttling makes this
+// component's mount cost matter far more than it does on desktop).
+// rootMargin starts mounting 500px early so a normal scroll never shows a
+// pop-in. The placeholder mirrors the real card's rounded/ring/shadow
+// styling at a plausible height so there's no layout shift once it swaps in.
+function LazyLandingDemo({ onSignup }) {
+  const ref = useRef(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    if (mounted) return;
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) { setMounted(true); obs.disconnect(); }
+      },
+      { rootMargin: "500px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [mounted]);
+  if (mounted) return <LandingExerciseDemo onSignup={onSignup} />;
+  return <div ref={ref} className="h-[420px] rounded-3xl bg-white dark:bg-[#18181b] shadow-xl ring-1 ring-slate-200 dark:ring-white/[0.08]" />;
+}
+
 function LandingExerciseDemo({ onSignup }) {
   const { t: tt } = useTranslation("landing");
   const { questions: DEMO_QUESTIONS, frames: KIND_FRAMES } = useLocalizedDemo();
@@ -2011,7 +2043,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
 
           <div className="relative">
-            <LandingExerciseDemo onSignup={() => goAuth("signup")} />
+            <LazyLandingDemo onSignup={() => goAuth("signup")} />
           </div>
         </div>
       </header>
