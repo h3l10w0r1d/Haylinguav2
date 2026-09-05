@@ -11,6 +11,8 @@ import { ArrowRight, Volume2, Loader2 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
+import RelatedBlogPosts from "./lib/RelatedBlogPosts";
+import { PATH_TO_TAGS } from "./lib/blogTopics";
 import { ttsFetch } from "./exercises/tts";
 import { newTrackedAudio } from "./lib/audioRegistry";
 import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
@@ -263,6 +265,8 @@ export default function ArmenianAlphabetPage() {
             </button>
           </div>
         </section>
+
+        <RelatedBlogPosts tags={PATH_TO_TAGS["/armenian-alphabet"]} />
       </main>
 
       <SiteFooter />

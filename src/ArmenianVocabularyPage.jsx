@@ -8,6 +8,8 @@ import { ArrowRight } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
+import RelatedBlogPosts from "./lib/RelatedBlogPosts";
+import { PATH_TO_TAGS } from "./lib/blogTopics";
 import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 // Category titles are translated (seo-pages.json's
@@ -199,6 +201,8 @@ export default function ArmenianVocabularyPage() {
             </button>
           </div>
         </section>
+
+        <RelatedBlogPosts tags={PATH_TO_TAGS["/armenian-vocabulary"]} />
       </main>
 
       <SiteFooter />

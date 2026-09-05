@@ -53,6 +53,15 @@
     "backToBlog": "← بازگشت به وبلاگ",
     "loadingPost": "در حال بارگذاری…",
     "ctaHeading": "آماده‌اید یادگیری زبان ارمنی را شروع کنید؟",
-    "ctaButton": "شروع یادگیری — رایگان"
+    "ctaButton": "شروع یادگیری — رایگان",
+    "fromBlogHeading": "از وبلاگ",
+    "keepLearningHeading": "به یادگیری ادامه دهید",
+    "relatedTopics": {
+      "alphabet": "الفبا را یاد بگیرید",
+      "pronunciation": "بر تلفظ مسلط شوید",
+      "vocabulary": "دایره لغات خود را گسترش دهید",
+      "online": "مسیر کامل را ببینید",
+      "eastern": "ارمنی شرقی در برابر غربی"
+    }
   }
 }

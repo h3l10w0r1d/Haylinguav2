@@ -7,6 +7,8 @@ import { ArrowRight, Check, X } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
+import RelatedBlogPosts from "./lib/RelatedBlogPosts";
+import { PATH_TO_TAGS } from "./lib/blogTopics";
 import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 export default function EasternArmenianPage() {
@@ -152,6 +154,8 @@ export default function EasternArmenianPage() {
             </button>
           </div>
         </section>
+
+        <RelatedBlogPosts tags={PATH_TO_TAGS["/eastern-armenian"]} />
       </main>
 
       <SiteFooter />

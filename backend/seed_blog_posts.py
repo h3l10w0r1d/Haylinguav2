@@ -942,6 +942,31 @@ _TRANSLATED_POSTS = {
 }
 
 
+# Real-author attribution (E-E-A-T signal for educational content) instead
+# of the generic brand name "Haylingua" — see src/lib/authors.js for the
+# matching bio/credentials shown on the article itself. A post's tags decide
+# who gets credit: actual language-teaching content (grammar, vocabulary,
+# pronunciation, culture, …) goes to Lilit, Haylingua's language lead;
+# meta/product topics (getting-started, FAQ, app comparisons, study tips)
+# go to Armen, who builds the product. Translated posts share the SAME
+# tags as their English original (verified — see e.g. _translated_posts_ru.py),
+# so this heuristic naturally keeps a translated article attributed to the
+# same person as its English source without needing a separate lookup.
+_LANGUAGE_CONTENT_TAGS = {
+    "alphabet", "pronunciation", "vocabulary", "numbers", "colors", "family",
+    "food", "days-of-the-week", "months", "seasons", "travel", "phrases",
+    "dialects", "reading", "writing", "grammar", "verbs", "adjectives",
+    "pronouns", "culture", "idioms", "expressions", "proverbs", "traditions",
+    "greetings", "language-facts", "history", "animals", "body",
+}
+
+
+def _default_author(tags):
+    if any(tag in _LANGUAGE_CONTENT_TAGS for tag in tags or []):
+        return "Lilit Hakobyan"
+    return "Armen Ghazaryan"
+
+
 def _insert_post(conn, post, days_from_now, locale="en", translation_group=None):
     result = conn.execute(
         text(
@@ -950,7 +975,7 @@ def _insert_post(conn, post, days_from_now, locale="en", translation_group=None)
                 (slug, title, meta_description, excerpt, body_markdown, author_name, tags, is_published, published_at,
                  locale, translation_group)
             VALUES
-                (:slug, :title, :meta, :excerpt, :body, 'Haylingua', CAST(:tags AS jsonb), TRUE,
+                (:slug, :title, :meta, :excerpt, :body, :author, CAST(:tags AS jsonb), TRUE,
                  NOW() + (:days || ' days')::interval, :locale, :translation_group)
             ON CONFLICT (slug, locale) DO NOTHING
             RETURNING id
@@ -962,6 +987,7 @@ def _insert_post(conn, post, days_from_now, locale="en", translation_group=None)
             "meta": post["meta_description"],
             "excerpt": post["excerpt"],
             "body": post["body"],
+            "author": post.get("author_name") or _default_author(post["tags"]),
             "tags": json.dumps(post["tags"]),
             "days": days_from_now,
             "locale": locale,

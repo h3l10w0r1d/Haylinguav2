@@ -28,6 +28,7 @@ def list_blog_posts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=12, ge=1, le=50),
     locale: str = Query(default="en"),
+    tag: Optional[str] = Query(default=None),
     db: Connection = Depends(get_db),
 ):
     offset = (page - 1) * page_size
@@ -36,18 +37,26 @@ def list_blog_posts(
     # and must stay invisible here until that date actually arrives. The
     # scheduling model is deliberately "lazy" — no cron/worker needed, a
     # scheduled post just becomes query-visible the moment NOW() passes it.
+    #
+    # `tag` powers the SEO landing pages' "From the blog" section (see
+    # src/lib/RelatedBlogPosts.jsx) — `tags ? :tag` is Postgres jsonb's
+    # "does this top-level array contain this string element" operator.
+    tag_clause = "AND tags ? :tag" if tag else ""
+    params = {"locale": locale}
+    if tag:
+        params["tag"] = tag
     total = db.execute(
-        text("SELECT COUNT(*) FROM blog_posts WHERE is_published = true AND published_at <= NOW() AND locale = :locale"),
-        {"locale": locale},
+        text(f"SELECT COUNT(*) FROM blog_posts WHERE is_published = true AND published_at <= NOW() AND locale = :locale {tag_clause}"),
+        params,
     ).scalar() or 0
     rows = db.execute(
         text(f"""
             SELECT {_LIST_COLS} FROM blog_posts
-            WHERE is_published = true AND published_at <= NOW() AND locale = :locale
+            WHERE is_published = true AND published_at <= NOW() AND locale = :locale {tag_clause}
             ORDER BY published_at DESC
             LIMIT :limit OFFSET :offset
         """),
-        {"limit": page_size, "offset": offset, "locale": locale},
+        {**params, "limit": page_size, "offset": offset},
     ).mappings().all()
     return {
         "posts": [dict(r) for r in rows],

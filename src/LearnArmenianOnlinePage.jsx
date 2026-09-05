@@ -8,6 +8,8 @@ import { ArrowRight, BookOpen, Volume2, Flame, Users, CheckCircle2 } from "lucid
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
+import RelatedBlogPosts from "./lib/RelatedBlogPosts";
+import { PATH_TO_TAGS } from "./lib/blogTopics";
 import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 const STEP_ICONS = [BookOpen, Volume2, Flame, Users];
@@ -131,6 +133,8 @@ export default function LearnArmenianOnlinePage() {
             </button>
           </div>
         </section>
+
+        <RelatedBlogPosts tags={PATH_TO_TAGS["/learn-armenian-online"]} />
       </main>
 
       <SiteFooter />

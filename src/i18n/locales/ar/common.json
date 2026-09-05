@@ -53,6 +53,15 @@
     "backToBlog": "← العودة إلى المدونة",
     "loadingPost": "جارٍ التحميل…",
     "ctaHeading": "هل أنت مستعد لتبدأ تعلّم اللغة الأرمينية؟",
-    "ctaButton": "ابدأ التعلم — مجانًا"
+    "ctaButton": "ابدأ التعلم — مجانًا",
+    "fromBlogHeading": "من المدونة",
+    "keepLearningHeading": "واصل التعلم",
+    "relatedTopics": {
+      "alphabet": "تعلّم الأبجدية",
+      "pronunciation": "أتقن النطق",
+      "vocabulary": "وسّع مفرداتك",
+      "online": "شاهد المسار الكامل",
+      "eastern": "الأرمينية الشرقية مقابل الغربية"
+    }
   }
 }

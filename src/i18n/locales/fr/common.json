@@ -53,6 +53,15 @@
     "backToBlog": "← Retour au blog",
     "loadingPost": "Chargement…",
     "ctaHeading": "Prêt à apprendre l'arménien ?",
-    "ctaButton": "Commence à apprendre — gratuit"
+    "ctaButton": "Commence à apprendre — gratuit",
+    "fromBlogHeading": "Depuis le blog",
+    "keepLearningHeading": "Continuez à apprendre",
+    "relatedTopics": {
+      "alphabet": "Apprenez l'alphabet",
+      "pronunciation": "Maîtrisez la prononciation",
+      "vocabulary": "Enrichissez votre vocabulaire",
+      "online": "Voir le parcours complet",
+      "eastern": "Arménien oriental vs occidental"
+    }
   }
 }

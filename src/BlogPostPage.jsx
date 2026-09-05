@@ -12,6 +12,8 @@ import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import { useLocale, localizedPath } from "./i18n";
+import { relatedLandingPaths, PATH_TO_LABEL_KEY } from "./lib/blogTopics";
+import { AUTHOR_PROFILES } from "./lib/authors";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 const SITE_ORIGIN = "https://www.haylingua.am";
@@ -48,10 +50,14 @@ export default function BlogPostPage() {
     };
   }, [slug, locale]);
 
+  const authorProfile = post ? AUTHOR_PROFILES[post.author_name] : undefined;
+  const relatedPaths = useMemo(() => relatedLandingPaths(post?.tags), [post]);
+
   const metaOptions = useMemo(() => {
     if (!post) return {};
     const path = lp(`/blog/${post.slug}`);
     const url = `${SITE_ORIGIN}${path}`;
+    const authorInfo = AUTHOR_PROFILES[post.author_name];
     return {
       path,
       image: post.cover_image_url || undefined,
@@ -64,7 +70,15 @@ export default function BlogPostPage() {
           image: post.cover_image_url || undefined,
           datePublished: post.published_at || undefined,
           dateModified: post.updated_at || post.published_at || undefined,
-          author: { "@type": "Person", name: post.author_name || "Haylingua" },
+          // Real name + jobTitle/description when the author is a known,
+          // credentialed person (see authors.js) — a stronger E-E-A-T
+          // signal than a bare name string, which is all "Haylingua" (the
+          // legacy generic byline) gets.
+          author: {
+            "@type": "Person",
+            name: post.author_name || "Haylingua",
+            ...(authorInfo ? { jobTitle: authorInfo.role, description: authorInfo.bio, url: `${SITE_ORIGIN}${lp("/about")}` } : {}),
+          },
           publisher: {
             "@type": "Organization",
             name: "Haylingua",
@@ -153,6 +167,40 @@ export default function BlogPostPage() {
               >
                 <Markdown>{post.body_markdown || ""}</Markdown>
               </div>
+
+              {authorProfile && (
+                <div className="mt-10 flex items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-5 dark:border-white/[0.07] dark:bg-white/[0.04]">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-500 to-pom-500 font-display text-lg font-extrabold text-white">
+                    {post.author_name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">
+                      <Link to={lp("/about#team")} className="hover:underline">{post.author_name}</Link>
+                    </div>
+                    <div className="text-xs font-extrabold uppercase tracking-wide text-brand-600 dark:text-brand-400">{authorProfile.role}</div>
+                    <p className="mt-1.5 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{authorProfile.bio}</p>
+                  </div>
+                </div>
+              )}
+
+              {relatedPaths.length > 0 && (
+                <div className="mt-10">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-slate-400 dark:text-stone-500">
+                    {t("blog.keepLearningHeading")}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {relatedPaths.map((path) => (
+                      <Link
+                        key={path}
+                        to={lp(path)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20"
+                      >
+                        {t(`blog.relatedTopics.${PATH_TO_LABEL_KEY[path]}`)} <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </article>
 
             <section className="px-5 py-16">

@@ -53,6 +53,15 @@
     "backToBlog": "← უკან ბლოგში",
     "loadingPost": "იტვირთება…",
     "ctaHeading": "მზად ხართ სომხურის სწავლის დასაწყებად?",
-    "ctaButton": "დაწყება — უფასოდ"
+    "ctaButton": "დაწყება — უფასოდ",
+    "fromBlogHeading": "ბლოგიდან",
+    "keepLearningHeading": "გააგრძელეთ სწავლა",
+    "relatedTopics": {
+      "alphabet": "ისწავლეთ ანბანი",
+      "pronunciation": "დაეუფლეთ გამოთქმას",
+      "vocabulary": "გაიმდიდრეთ ლექსიკა",
+      "online": "იხილეთ სრული კურსი",
+      "eastern": "აღმოსავლური და დასავლური სომხური"
+    }
   }
 }

@@ -53,6 +53,15 @@
     "backToBlog": "← Back to the blog",
     "loadingPost": "Loading…",
     "ctaHeading": "Ready to start learning Armenian?",
-    "ctaButton": "Start learning — free"
+    "ctaButton": "Start learning — free",
+    "fromBlogHeading": "From the blog",
+    "keepLearningHeading": "Keep learning",
+    "relatedTopics": {
+      "alphabet": "Learn the alphabet",
+      "pronunciation": "Master pronunciation",
+      "vocabulary": "Build vocabulary",
+      "online": "See the full course",
+      "eastern": "Eastern vs Western Armenian"
+    }
   }
 }
