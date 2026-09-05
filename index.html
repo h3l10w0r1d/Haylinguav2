@@ -57,22 +57,28 @@
          downloads and parses — an extra serial round-trip on the critical
          path. media="print" + onload swap keeps this non-render-blocking;
          first paint uses the system-font fallback (font-display=swap in
-         the URL) and swaps in Baloo 2 / Nunito once they arrive. -->
+         the URL) and swaps in Baloo 2 / Nunito once they arrive.
+
+         Noto Sans Arabic and Noto Sans Georgian are deliberately NOT here —
+         they were costing every visitor (English, Russian, French, Spanish —
+         5 of 7 locales) 10 extra font-weight downloads for a script that
+         never appears on their page. src/lib/LocaleLayout.jsx injects those
+         two on demand, only for /ar and /ka routes. -->
     <link
       rel="preload"
       as="style"
-      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+Armenian:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&family=Noto+Sans+Arabic:wght@400;600;700;800;900&family=Noto+Sans+Georgian:wght@400;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+Armenian:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&display=swap"
     />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+Armenian:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&family=Noto+Sans+Arabic:wght@400;600;700;800;900&family=Noto+Sans+Georgian:wght@400;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+Armenian:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&display=swap"
       media="print"
       onload="this.media='all'"
     />
     <noscript>
       <link
         rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+Armenian:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&family=Noto+Sans+Arabic:wght@400;600;700;800;900&family=Noto+Sans+Georgian:wght@400;600;700;800;900&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+Armenian:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&display=swap"
       />
     </noscript>
 

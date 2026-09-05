@@ -11,6 +11,27 @@ import { Outlet, useParams, Navigate } from "react-router-dom";
 import i18next, { SUPPORTED_LOCALES, RTL_LOCALES, loadLocaleResources } from "../i18n";
 import LoadingScreen from "./LoadingScreen";
 
+// Noto Sans Arabic / Georgian aren't in index.html's eager font link — see
+// the comment there — because they're only ever needed on /ar and /ka
+// pages, and index.html has no way to know the route ahead of time. Loaded
+// once per locale, never removed (a cached <link> costs nothing to leave
+// in <head>, and removing it would force a re-fetch flash on the next
+// visit to that locale in the same session).
+const LOCALE_FONT_URLS = {
+  ar: "https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700;800;900&display=swap",
+  ka: "https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;600;700;800;900&display=swap",
+};
+const loadedFontLocales = new Set();
+function loadLocaleFont(locale) {
+  const url = LOCALE_FONT_URLS[locale];
+  if (!url || loadedFontLocales.has(locale)) return;
+  loadedFontLocales.add(locale);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = url;
+  document.head.appendChild(link);
+}
+
 export default function LocaleLayout() {
   const { locale } = useParams();
   // Starts false on every locale change so a second locale's page render
@@ -23,6 +44,7 @@ export default function LocaleLayout() {
     if (!SUPPORTED_LOCALES.includes(locale)) return;
     let cancelled = false;
     setReady(false);
+    loadLocaleFont(locale);
     loadLocaleResources(locale).then(() => {
       if (cancelled) return;
       i18next.changeLanguage(locale);
