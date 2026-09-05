@@ -182,6 +182,28 @@
       }
     </script>
 
+    <!-- Structured data: Course — a dedicated schema.org type for exactly
+         what Haylingua is, separate from the generic SoftwareApplication
+         block above; eligible for course-specific rich results (provider,
+         rating, price) that SoftwareApplication alone doesn't cover. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Course",
+        "name": "Learn Armenian with Haylingua",
+        "description": "An interactive Armenian course covering the alphabet, pronunciation, vocabulary, and grammar, with real native audio on every word and bite-sized, gamified lessons.",
+        "url": "https://www.haylingua.am/",
+        "provider": { "@type": "Organization", "name": "Haylingua", "sameAs": "https://www.haylingua.am/" },
+        "inLanguage": "hy",
+        "hasCourseInstance": {
+          "@type": "CourseInstance",
+          "courseMode": "online",
+          "courseWorkload": "PT10M"
+        },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "category": "Free" }
+      }
+    </script>
+
     <!-- Structured data: FAQPage -->
     <script type="application/ld+json">
       {
