@@ -22,12 +22,16 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        // IMPORTANT: React and every library that consumes it must live in the
-        // SAME chunk. Splitting React into its own chunk lets a consumer chunk
-        // (recharts, @dnd-kit, react-smooth, …) evaluate first and read
-        // `React.useLayoutEffect` while React is still undefined — crashing the
-        // whole app before it mounts (blank screen). Keeping them together makes
-        // Rollup order module init correctly within the chunk.
+        // IMPORTANT: React and every library the APP SHELL loads eagerly must
+        // live in the SAME chunk. Splitting React out of the chunk that a
+        // synchronously/eagerly-loaded consumer lives in lets that consumer
+        // evaluate first and read `React.useLayoutEffect` while React is
+        // still undefined — crashing the whole app before it mounts (blank
+        // screen). This only bites eager chunks though: a package reachable
+        // *only* through a dynamic import() behind React.lazy() (see
+        // LAZY_ONLY_PACKAGES below) always evaluates after the app has
+        // already mounted and the vendor chunk has long since initialized,
+        // so it's safe to let those live in their own async chunk.
         //
         // Sentry stays split because it's loaded lazily via dynamic import in
         // main.jsx (only when VITE_SENTRY_DSN is set), so it must not be pulled
@@ -48,6 +52,44 @@ export default defineConfig({
           // match) before landing this. Don't reintroduce a forced chunk
           // name for it without re-verifying that check.
           if (id.includes("node_modules/phaser")) return;
+          // Same class of bug, applied to every other library that was
+          // getting force-grouped into "vendor" even though it's only used
+          // behind a React.lazy() route (recharts on AffiliateDashboardPage
+          // /CmsAffiliates, @dnd-kit on the CMS analytics builder, @dicebear
+          // on AvatarBuilder/Shop, canvas-confetti on AdventurePlayer/
+          // ChestOpening, blobs on BannerBuilder, markdown-to-jsx on
+          // BlogPostPage, gsap on About/Affiliates/Careers/Forum/Pricing) —
+          // verified via `grep -rl "from ['\"]<pkg>" src` that none of these
+          // roots are imported by App.jsx, LandingPage.jsx, SiteNav.jsx, or
+          // SiteFooter.jsx (the only eagerly-rendered code). This full list
+          // is that root set's complete transitive dependency closure
+          // (walked via each package's own package.json "dependencies"),
+          // so e.g. recharts' hidden pull of @reduxjs/toolkit/react-redux/
+          // immer doesn't silently stay stuck in vendor. Regenerate this
+          // list (see the walk script noted in the PR/commit that added it)
+          // if any of the seven root packages' own dependencies change.
+          const LAZY_ONLY_PACKAGES = [
+            "@dicebear/adventurer", "@dicebear/adventurer-neutral", "@dicebear/avataaars",
+            "@dicebear/avataaars-neutral", "@dicebear/big-ears", "@dicebear/big-ears-neutral",
+            "@dicebear/big-smile", "@dicebear/bottts", "@dicebear/bottts-neutral",
+            "@dicebear/collection", "@dicebear/core", "@dicebear/croodles",
+            "@dicebear/croodles-neutral", "@dicebear/dylan", "@dicebear/fun-emoji",
+            "@dicebear/glass", "@dicebear/icons", "@dicebear/identicon", "@dicebear/initials",
+            "@dicebear/lorelei", "@dicebear/lorelei-neutral", "@dicebear/micah",
+            "@dicebear/miniavs", "@dicebear/notionists", "@dicebear/notionists-neutral",
+            "@dicebear/open-peeps", "@dicebear/personas", "@dicebear/pixel-art",
+            "@dicebear/pixel-art-neutral", "@dicebear/rings", "@dicebear/shapes",
+            "@dicebear/thumbs", "@dicebear/toon-head",
+            "@dnd-kit/accessibility", "@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities",
+            "@reduxjs/toolkit", "@standard-schema/spec", "@standard-schema/utils",
+            "blobs", "canvas-confetti", "clsx", "decimal.js-light",
+            "d3-array", "d3-color", "d3-ease", "d3-format", "d3-interpolate", "d3-path",
+            "d3-scale", "d3-shape", "d3-time", "d3-time-format", "d3-timer",
+            "es-toolkit", "eventemitter3", "gsap", "immer", "internmap",
+            "markdown-to-jsx", "react-redux", "recharts", "redux", "redux-thunk",
+            "reselect", "tiny-invariant", "use-sync-external-store", "victory-vendor",
+          ];
+          if (LAZY_ONLY_PACKAGES.some((pkg) => id.includes(`node_modules/${pkg}/`))) return;
           return "vendor";
         },
       },
