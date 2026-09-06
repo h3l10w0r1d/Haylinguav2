@@ -62,7 +62,13 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <LanguageSwitcher />
+          {/* Language + mute move into the mobile menu below sm — with the
+              logo, theme toggle, CTA, and hamburger all fighting for the
+              same row, a phone-width screen doesn't have room for two more
+              icon buttons here (see the mobile-menu copies further down). */}
+          <div className="hidden sm:block">
+            <LanguageSwitcher />
+          </div>
           {/* Mute only matters where sound actually plays — the landing
               page's hero demo (sfx + VoiceChip TTS). About/Careers/Pricing/
               Contact have no audio, so the icon was pure clutter there. */}
@@ -72,7 +78,7 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
               onClick={() => toggleMuted()}
               title={t("nav.toggleSound")}
               aria-label={t("nav.toggleSound")}
-              className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.08]"
+              className="hidden h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-stone-300 dark:hover:bg-white/[0.08] sm:grid"
             >
               {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
             </button>
@@ -113,6 +119,21 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
       {menuOpen && (
         <div className="border-t border-slate-100 bg-white px-5 pb-4 pt-2 dark:border-white/[0.06] dark:bg-[#18181b] md:hidden">
           <div className="flex flex-col gap-1">
+            {/* Language + mute live here (not the top bar) below sm — see
+                the comment by their hidden top-bar counterparts. */}
+            <div className="mb-1 flex items-center gap-2 sm:hidden">
+              <LanguageSwitcher />
+              {inPage && (
+                <button
+                  type="button"
+                  onClick={() => toggleMuted()}
+                  className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:text-stone-300 dark:hover:bg-white/[0.04]"
+                >
+                  {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
+                  {t("nav.toggleSound")}
+                </button>
+              )}
+            </div>
             <NavLink to={lp("/about")} onClick={closeMenu} className={mobileNavLinkCls}>{t("nav.about")}</NavLink>
             <NavLink to={lp("/careers")} onClick={closeMenu} className={mobileNavLinkCls}>{t("nav.careers")}</NavLink>
             <NavLink to={lp("/pricing")} onClick={closeMenu} className={mobileNavLinkCls}>{t("nav.pricing")}</NavLink>
