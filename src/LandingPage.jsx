@@ -260,7 +260,9 @@ function DemoPromptHeader({ q }) {
       <>
         <div className={label}>{h.trueOrFalse}</div>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <div className={big}>«{q.prompt}» {renderTemplate(h.meansQuoted, { claim: q.statementClaim })}</div>
+          <div className={big}>
+            «{q.prompt}» <span className="text-base font-semibold text-slate-400 dark:text-stone-500">({q.rom})</span> {renderTemplate(h.meansQuoted, { claim: q.statementClaim })}
+          </div>
           <VoiceChip text={q.prompt} tone="slate" />
         </div>
       </>
@@ -291,7 +293,9 @@ function DemoPromptHeader({ q }) {
     <>
       <div className={label}>{h.selectTranslation}</div>
       <div className="mt-1 flex flex-wrap items-center gap-2">
-        <div className={big}>"{q.prompt}" {h.means}</div>
+        <div className={big}>
+          "{q.prompt}" <span className="text-base font-semibold text-slate-400 dark:text-stone-500">({q.rom})</span> {h.means}
+        </div>
         <VoiceChip text={q.prompt} tone="slate" />
       </div>
     </>
