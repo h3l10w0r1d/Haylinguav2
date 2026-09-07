@@ -2,12 +2,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Gem, Snowflake, Heart, Zap, Loader2, Check, Shield, ShieldCheck,
-  TrendingUp, Award, Image as ImageIcon, Sparkles, X,
+  TrendingUp, Award, Image as ImageIcon, Sparkles, X, Shirt, Smile, LayoutGrid,
 } from "lucide-react";
 import { createAvatar } from "@dicebear/core";
 import { avataaars } from "@dicebear/collection";
 import AvatarFrame from "./lib/avatarFrame";
 import NameTag from "./lib/nameTag";
+
+// Mirrors Dashboard.jsx's card/chip tokens — not shared via import since
+// Dashboard doesn't export them, but this keeps Shop visually on the same
+// "minimal dark" language as Dashboard/Leaderboard/the avatar builder
+// instead of the heavier ring-1 ring-slate-200 card look it had before.
+const CARD =
+  "rounded-2xl bg-white shadow-[0_2px_10px_-2px_rgba(28,25,23,0.08)] ring-1 ring-black/[0.03] " +
+  "dark:bg-[#18181b] dark:shadow-none dark:ring-white/[0.07]";
 
 // Minimal fixed base avatar for previewing one marketplace-gated trait value
 // at a time (clothing graphic, hairstyle, eyebrows) — same DiceBear call as
@@ -65,14 +73,25 @@ const TONE = {
   image: "bg-pom-50 text-pom-500 dark:bg-pom-500/15 dark:text-pom-400",
 };
 
-// Group items into sections by their effect.
+// Group items into sections by their effect. `tabIcon` drives the category
+// tab strip below — a shorter label than `title` since tabs have less room.
 const SECTIONS = [
-  { key: "power", title: "Power-ups", effects: ["xp_boost", "xp_multiplier", "hearts_refill", "heart_shield"] },
-  { key: "streak", title: "Streak protection", effects: ["streak_freeze", "streak_repair"] },
-  { key: "cosmetic", title: "Cosmetics", effects: ["avatar_frame", "profile_theme", "name_tag_effect"] },
-  { key: "avatar_unlocks", title: "Avatar builder unlocks", effects: ["avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"] },
-  { key: "emotes", title: "Emotes", effects: ["emote"] },
+  { key: "power", title: "Power-ups", tabLabel: "Power-ups", tabIcon: Zap, effects: ["xp_boost", "xp_multiplier", "hearts_refill", "heart_shield"] },
+  { key: "streak", title: "Streak protection", tabLabel: "Streak", tabIcon: Snowflake, effects: ["streak_freeze", "streak_repair"] },
+  { key: "cosmetic", title: "Cosmetics", tabLabel: "Cosmetics", tabIcon: Sparkles, effects: ["avatar_frame", "profile_theme", "name_tag_effect"] },
+  { key: "avatar_unlocks", title: "Avatar builder unlocks", tabLabel: "Avatar", tabIcon: Shirt, effects: ["avatar_clothing_graphic", "avatar_hairstyle", "avatar_eyebrows"] },
+  { key: "emotes", title: "Emotes", tabLabel: "Emotes", tabIcon: Smile, effects: ["emote"] },
 ];
+
+// A colored tinted circle behind an icon — same "energy" unit Dashboard's
+// stat/quest chips use, in place of Shop's old plain rounded-square icon box.
+function IconChip({ icon: Icon, cls, size = "h-12 w-12", ic = "h-6 w-6" }) {
+  return (
+    <span className={`grid shrink-0 place-items-center rounded-full ${size} ${cls}`}>
+      <Icon className={ic} />
+    </span>
+  );
+}
 
 function emoteIconUrl(renderKey) {
   return `/emotes/kenney/emotes-pack/${renderKey}.png`;
@@ -106,7 +125,7 @@ function ItemCard({ item, onBuy }) {
     [traitField, item.render_key]
   );
   return (
-    <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
+    <div className={"p-5 " + CARD}>
       <div className="flex items-center gap-3">
         {item.effect === "avatar_frame" && item.frame_style ? (
           <AvatarFrame frameStyle={item.frame_style} rarity={item.rarity} size={48} radius="9999px" thickness={3} className="shrink-0">
@@ -115,21 +134,19 @@ function ItemCard({ item, onBuy }) {
             </div>
           </AvatarFrame>
         ) : item.effect === "name_tag_effect" && item.render_key ? (
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-slate-100 dark:bg-white/[0.06]">
             <NameTag renderKey={item.render_key} rarity={item.rarity} className="font-display text-lg font-extrabold">Aa</NameTag>
-          </div>
+          </span>
         ) : traitPreviewUri ? (
-          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-slate-100 dark:bg-white/[0.06]">
+          <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-100 dark:bg-white/[0.06]">
             <img src={traitPreviewUri} alt={item.title} className="h-full w-full object-cover" />
-          </div>
+          </span>
         ) : item.effect === "emote" && item.render_key ? (
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-100 p-2 dark:bg-white/[0.06]">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-slate-100 p-2 dark:bg-white/[0.06]">
             <img src={emoteIconUrl(item.render_key)} alt={item.title} className="h-full w-full object-contain" />
-          </div>
+          </span>
         ) : (
-          <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-2xl " + (TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400")}>
-            <Icon className="h-6 w-6" />
-          </div>
+          <IconChip icon={Icon} cls={TONE[item.icon] || "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-stone-400"} />
         )}
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
@@ -147,12 +164,7 @@ function ItemCard({ item, onBuy }) {
         <button
           onClick={() => onBuy(item)}
           disabled={!item.affordable}
-          className={
-            "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl py-2.5 font-display text-sm font-extrabold uppercase transition " +
-            (item.affordable
-              ? "bg-feather-500 text-white shadow-btn-feather active:translate-y-0.5"
-              : "bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-white/[0.06] dark:text-stone-500")
-          }
+          className="btn3d btn3d-feather mt-4 w-full text-sm uppercase"
         >
           <Gem className="h-4 w-4" /> {item.price}
         </button>
@@ -260,6 +272,7 @@ export default function Shop() {
   const [confirmItem, setConfirmItem] = useState(null);
   const [successItem, setSuccessItem] = useState(null);
   const [err, setErr] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
 
   const load = () => {
     const t = getToken();
@@ -313,6 +326,18 @@ export default function Shop() {
   const known = new Set(SECTIONS.flatMap((s) => s.effects));
   const misc = items.filter((it) => !known.has(it.effect));
 
+  const tabs = [
+    { key: "all", tabLabel: "All", tabIcon: LayoutGrid, count: items.length },
+    ...sections.map((s) => ({ key: s.key, tabLabel: s.tabLabel, tabIcon: s.tabIcon, count: s.items.length })),
+    ...(misc.length > 0 ? [{ key: "more", tabLabel: "More", tabIcon: LayoutGrid, count: misc.length }] : []),
+  ];
+  const visibleSections =
+    activeTab === "all"
+      ? [...sections, ...(misc.length > 0 ? [{ key: "misc", title: "More", items: misc }] : [])]
+      : activeTab === "more"
+      ? [{ key: "misc", title: "More", items: misc }]
+      : sections.filter((s) => s.key === activeTab);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <div className="mx-auto max-w-3xl px-4 py-8">
@@ -339,10 +364,38 @@ export default function Shop() {
             <span className="font-semibold">Loading shop…</span>
           </div>
         ) : (
-          <div className="space-y-8">
-            {sections.map((s) => (
+          <>
+            {/* Category tabs — same icon+label pill pattern as the rest of
+                the app's nav (sidebar, CMS) rather than one long scrolling
+                page of stacked sections. */}
+            <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+              {tabs.map((t) => {
+                const TabIcon = t.tabIcon;
+                const on = activeTab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setActiveTab(t.key)}
+                    className={
+                      "flex shrink-0 items-center gap-1.5 rounded-2xl px-3.5 py-2 font-display text-sm font-extrabold transition " +
+                      (on
+                        ? "bg-brand-500 text-white"
+                        : "bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-stone-400 dark:ring-white/[0.08] dark:hover:bg-white/[0.04]")
+                    }
+                  >
+                    <TabIcon className="h-4 w-4" />
+                    {t.tabLabel}
+                    <span className={"text-xs " + (on ? "text-white/70" : "text-slate-400 dark:text-stone-500")}>{t.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="space-y-8">
+            {visibleSections.map((s) => (
               <section key={s.key}>
-                <h2 className="mb-3 font-display text-lg font-extrabold text-slate-700 dark:text-stone-200">{s.title}</h2>
+                {activeTab === "all" && <h2 className="mb-3 font-display text-lg font-extrabold text-slate-700 dark:text-stone-200">{s.title}</h2>}
                 <div className="grid gap-4 sm:grid-cols-2">
                   {s.items.map((item) => (
                     <ItemCard key={item.id} item={item} onBuy={setConfirmItem} />
@@ -350,17 +403,8 @@ export default function Shop() {
                 </div>
               </section>
             ))}
-            {misc.length > 0 && (
-              <section>
-                <h2 className="mb-3 font-display text-lg font-extrabold text-slate-700 dark:text-stone-200">More</h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {misc.map((item) => (
-                    <ItemCard key={item.id} item={item} onBuy={setConfirmItem} />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
