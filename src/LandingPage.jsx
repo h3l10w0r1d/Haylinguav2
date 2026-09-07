@@ -195,9 +195,9 @@ function SignupPromoPanel({ mode }) {
 // by useLocalizedDemo() below — see that hook for why it's split this way.
 const DEMO_QUESTIONS_BASE = [
   { kind: "translate_mcq", prompt: "Բարև", rom: "ba-rev", correct: 0, wrong: { 1: { arm: "Ցտեսություն", rom: "tse-te-su-tyun" }, 2: { arm: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun" } } },
-  { kind: "listening", prompt: "Ջուր", rom: "jur", correct: 1, options: ["Հաց", "Ջուր", "Կաթ"], wrong: { 0: {}, 2: {} } },
+  { kind: "listening", prompt: "Ջուր", rom: "jur", correct: 1, options: ["Հաց", "Ջուր", "Կաթ"], optionsRom: ["hats", "jur", "kat"], wrong: { 0: {}, 2: {} } },
   { kind: "true_false", prompt: "Ընկեր", rom: "ən-ker", correct: 1, wrong: { 0: {} } },
-  { kind: "word_match", prompt: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun", correct: 2, options: ["Խնդրեմ", "Ներողություն", "Շնորհակալություն"], wrong: { 0: {}, 1: {} } },
+  { kind: "word_match", prompt: "Շնորհակալություն", rom: "shnor-ha-ka-lu-tyun", correct: 2, options: ["Խնդրեմ", "Ներողություն", "Շնորհակալություն"], optionsRom: ["khn-drem", "ne-ro-ghu-tyun", "shnor-ha-ka-lu-tyun"], wrong: { 0: {}, 1: {} } },
   { kind: "trace_letter", prompt: "Ա", rom: "a", correct: 0 },
 ];
 
@@ -221,6 +221,7 @@ function useLocalizedDemo() {
       ...base,
       ...o,
       options: o.options || base.options,
+      optionsRom: base.optionsRom,
       wrong,
     };
   });
@@ -1026,7 +1027,12 @@ function LandingExerciseDemo({ onSignup }) {
                 >
                   {i + 1}
                 </span>
-                {t}
+                <span>
+                  {t}
+                  {q.optionsRom?.[i] && (
+                    <span className="ms-1.5 font-semibold text-slate-400 dark:text-stone-500">({q.optionsRom[i]})</span>
+                  )}
+                </span>
               </span>
             </button>
           );
