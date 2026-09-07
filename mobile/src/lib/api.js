@@ -7,7 +7,7 @@ export const API_BASE_URL = 'https://haylinguav2.onrender.com';
 // The web app's own static-asset host — preset banner images (e.g.
 // "/banners/banner-1.png") are shipped as web frontend assets, not backend
 // uploads, so they need a different base than API_BASE_URL to resolve.
-const WEB_BASE_URL = 'https://haylingua.am';
+export const WEB_BASE_URL = 'https://haylingua.am';
 
 export class ApiError extends Error {
   constructor(status, detail) {

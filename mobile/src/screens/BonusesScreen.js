@@ -9,7 +9,7 @@ import { View, Text, ActivityIndicator, ScrollView, ActivityIndicator as Spinner
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ArrowLeft, Target, Crown, Zap, Flame, Star, CheckCircle2, Dumbbell, TrendingUp, Award, AlertCircle, ChevronRight, Snowflake } from 'lucide-react-native';
+import { ArrowLeft, Target, Crown, Zap, Flame, Star, CheckCircle2, Dumbbell, TrendingUp, Award, AlertCircle, ChevronRight, Snowflake, BookText, ShoppingBag, Compass, MessageCircle } from 'lucide-react-native';
 import { api } from '../lib/api';
 import Pressable3D from '../components/Pressable3D';
 import ClaimPulse from '../components/ClaimPulse';
@@ -218,7 +218,7 @@ export default function BonusesScreen({ navigation }) {
         </Card>
 
         {/* Nav tiles */}
-        <View className="flex-row" style={{ gap: 10 }}>
+        <View className="mb-3 flex-row" style={{ gap: 10 }}>
           <View className="flex-1">
             <Pressable3D onPress={() => navigation.navigate('Practice')} className="items-center rounded-2xl bg-white py-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
               <Dumbbell size={20} color="#58CC02" />
@@ -235,6 +235,34 @@ export default function BonusesScreen({ navigation }) {
             <Pressable3D onPress={() => navigation.navigate('Achievements')} className="items-center rounded-2xl bg-white py-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
               <Award size={20} color="#E0A800" />
               <Text className="mt-1.5 text-xs font-extrabold text-stone-900">Achievements</Text>
+            </Pressable3D>
+          </View>
+        </View>
+        <View className="flex-row" style={{ gap: 10 }}>
+          <View className="flex-1">
+            <Pressable3D onPress={() => navigation.navigate('Vocabulary')} className="items-center rounded-2xl bg-white py-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
+              <BookText size={20} color="#E11D48" />
+              <Text className="mt-1.5 text-xs font-extrabold text-stone-900">Vocabulary</Text>
+            </Pressable3D>
+          </View>
+          <View className="flex-1">
+            <Pressable3D onPress={() => navigation.navigate('Shop')} className="items-center rounded-2xl bg-white py-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
+              <ShoppingBag size={20} color="#8B5CF6" />
+              <Text className="mt-1.5 text-xs font-extrabold text-stone-900">Shop</Text>
+            </Pressable3D>
+          </View>
+          <View className="flex-1">
+            <Pressable3D onPress={() => navigation.navigate('AdventuresHome')} className="items-center rounded-2xl bg-white py-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
+              <Compass size={20} color="#FF7A1A" />
+              <Text className="mt-1.5 text-xs font-extrabold text-stone-900">Adventures</Text>
+            </Pressable3D>
+          </View>
+        </View>
+        <View className="mt-2.5 flex-row">
+          <View style={{ width: '32%' }}>
+            <Pressable3D onPress={() => navigation.navigate('Conversation')} className="items-center rounded-2xl bg-white py-4" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 }}>
+              <MessageCircle size={20} color="#58CC02" />
+              <Text className="mt-1.5 text-xs font-extrabold text-stone-900">Conversation</Text>
             </Pressable3D>
           </View>
         </View>

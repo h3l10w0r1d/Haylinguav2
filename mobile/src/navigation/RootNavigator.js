@@ -27,6 +27,10 @@ import ProgressScreen from '../screens/ProgressScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 import BonusesScreen from '../screens/BonusesScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import ShopScreen from '../screens/ShopScreen';
+import VocabularyScreen from '../screens/VocabularyScreen';
+import AdventuresScreen from '../screens/AdventuresScreen';
+import ConversationScreen from '../screens/ConversationScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -78,6 +82,10 @@ export default function RootNavigator() {
             <Stack.Screen name="Achievements" component={AchievementsScreen} />
             <Stack.Screen name="Bonuses" component={BonusesScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Shop" component={ShopScreen} />
+            <Stack.Screen name="Vocabulary" component={VocabularyScreen} />
+            <Stack.Screen name="AdventuresHome" component={AdventuresScreen} options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="Conversation" component={ConversationScreen} options={{ presentation: 'fullScreenModal' }} />
           </>
         )}
       </Stack.Navigator>

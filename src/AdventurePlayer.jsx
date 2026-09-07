@@ -211,7 +211,16 @@ export default function AdventurePlayer() {
       body: JSON.stringify({ stars: earned, score }),
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setXpAwarded(d.awarded_xp); })
+      .then((d) => {
+        if (d) setXpAwarded(d.awarded_xp);
+        // Mobile embeds this page in a WebView (Phaser has no RN-native
+        // equivalent) and needs a completion signal to know when to close
+        // it / refresh its own dashboard — a no-op on a real browser where
+        // window.ReactNativeWebView is never defined.
+        window.ReactNativeWebView?.postMessage(
+          JSON.stringify({ type: 'adventure_complete', id: base.id, stars: earned, score, awardedXp: d?.awarded_xp ?? 0 })
+        );
+      })
       .catch(() => {});
   }
 
