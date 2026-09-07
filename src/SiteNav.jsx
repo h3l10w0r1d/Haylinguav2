@@ -122,7 +122,7 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
             {/* Language + mute live here (not the top bar) below sm — see
                 the comment by their hidden top-bar counterparts. */}
             <div className="mb-1 flex items-center gap-2 sm:hidden">
-              <LanguageSwitcher />
+              <LanguageSwitcher align="left" />
               {inPage && (
                 <button
                   type="button"

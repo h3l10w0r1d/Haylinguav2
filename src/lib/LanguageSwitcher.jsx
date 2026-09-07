@@ -12,7 +12,7 @@ import { ALL_LOCALES, LOCALE_LABELS, LOCALE_FLAGS, useLocale } from "../i18n";
 
 const LANG_KEY = "hay_lang";
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({ align = "right" }) {
   const locale = useLocale();
   const location = useLocation();
   const navigate = useNavigate();
@@ -63,7 +63,7 @@ export default function LanguageSwitcher() {
         <Globe className="h-[18px] w-[18px]" />
       </button>
       {open && (
-        <div className="absolute right-0 top-11 z-50 min-w-[9rem] rounded-2xl bg-white p-1.5 shadow-xl ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
+        <div className={`absolute top-11 z-50 min-w-[9rem] rounded-2xl bg-white p-1.5 shadow-xl ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08] ${align === "left" ? "left-0" : "right-0"}`}>
           {ALL_LOCALES.map((code) => (
             <button
               key={code}
