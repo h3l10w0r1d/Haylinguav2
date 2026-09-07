@@ -23,9 +23,12 @@ import {
   Award,
   Crown,
   Wand2,
+  Volume2,
+  Loader2,
 } from "lucide-react";
 
 import { StarMotif } from "./lib/motifs";
+import { ttsFetch } from "./exercises/tts";
 import ActivityChart from "./lib/ActivityChart";
 import AccountDangerZone from "./AccountDangerZone";
 import AvatarBuilder, { generateRandomAvatarFile } from "./AvatarBuilder";
@@ -213,6 +216,28 @@ export default function ProfilePage() {
   const [voiceRandom, setVoiceRandom] = useState(true);
   const [voiceMale, setVoiceMale] = useState(true);
   const [voiceFemale, setVoiceFemale] = useState(true);
+  const [previewingVoice, setPreviewingVoice] = useState(null); // "male" | "female" | null
+  const previewAudioRef = useRef(null);
+
+  // Lets a learner hear what a voice sounds like before picking it — the
+  // tiles below only had a name and a description, no way to actually
+  // audition "Male voice" vs "Female voice" against each other.
+  async function playVoicePreview(voice, e) {
+    e.stopPropagation();
+    if (previewingVoice) return;
+    setPreviewingVoice(voice);
+    try {
+      previewAudioRef.current?.pause();
+      const url = await ttsFetch(API_BASE, { text: "Բարև ձեզ", voice });
+      const audio = new Audio(url);
+      previewAudioRef.current = audio;
+      audio.onended = () => setPreviewingVoice(null);
+      audio.onerror = () => setPreviewingVoice(null);
+      await audio.play();
+    } catch {
+      setPreviewingVoice(null);
+    }
+  }
 
   // Telegram linking
   const [telegramId, setTelegramId] = useState(null);
@@ -1259,13 +1284,30 @@ export default function ProfilePage() {
                   type="button"
                   onClick={onSelect}
                   className={
-                    "flex flex-col items-start gap-1 rounded-2xl p-3 ring-2 text-left transition " +
+                    "relative flex flex-col items-start gap-1 rounded-2xl p-3 ring-2 text-left transition " +
                     (active
                       ? "bg-brand-50 ring-brand-400 text-brand-700 dark:bg-brand-500/15 dark:ring-brand-500/30 dark:text-brand-400"
                       : "bg-slate-50 ring-slate-200 text-slate-700 hover:ring-brand-300 dark:bg-white/[0.04] dark:ring-white/[0.08] dark:text-stone-200")
                   }
                 >
-                  <span className="font-display text-sm font-extrabold">{label}</span>
+                  {(key === "male" || key === "female") && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => playVoicePreview(key, e)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); playVoicePreview(key, e); } }}
+                      title={`Preview the ${label.toLowerCase()}`}
+                      aria-label={`Preview the ${label.toLowerCase()}`}
+                      className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white text-brand-500 shadow ring-1 ring-slate-200 transition hover:bg-brand-50 dark:bg-[#18181b] dark:ring-white/[0.1]"
+                    >
+                      {previewingVoice === key ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Volume2 className="h-3.5 w-3.5" />
+                      )}
+                    </span>
+                  )}
+                  <span className="font-display text-sm font-extrabold pr-6">{label}</span>
                   <span className="text-xs font-semibold opacity-70">{sub}</span>
                   {active && <Check className="mt-1 h-4 w-4 text-brand-500" strokeWidth={3} />}
                 </button>

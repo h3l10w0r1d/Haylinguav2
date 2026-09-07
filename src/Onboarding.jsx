@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, ChevronDown, Search, Sun, Moon, Coffee, BellOff, Volume2, Shuffle, User, Users } from "lucide-react";
+import { Check, ChevronDown, Search, Sun, Moon, Coffee, BellOff, Volume2, Shuffle, User, Users, Loader2 } from "lucide-react";
 import grandma from "./assets/character-grandma.png";
 import { track } from "./lib/analytics";
+import { ttsFetch } from "./exercises/tts";
 
 const API_BASE = "https://haylinguav2.onrender.com";
 
@@ -230,6 +231,28 @@ export default function Onboarding({ token, onCompleted }) {
   const [voiceRandom, setVoiceRandom] = useState(false);
   const [voiceMale, setVoiceMale] = useState(false);
   const [voiceFemale, setVoiceFemale] = useState(false);
+  const [previewingVoice, setPreviewingVoice] = useState(null); // "male" | "female" | null
+  const previewAudioRef = useRef(null);
+
+  // Lets a learner hear the difference before committing to a voice —
+  // otherwise "Male voice" vs "Female voice" is just a guess at this point
+  // in signup, before any lesson audio has played.
+  async function playVoicePreview(voice, e) {
+    e.stopPropagation();
+    if (previewingVoice) return;
+    setPreviewingVoice(voice);
+    try {
+      previewAudioRef.current?.pause();
+      const url = await ttsFetch(API_BASE, { text: "Բարև ձեզ", voice });
+      const audio = new Audio(url);
+      previewAudioRef.current = audio;
+      audio.onended = () => setPreviewingVoice(null);
+      audio.onerror = () => setPreviewingVoice(null);
+      await audio.play();
+    } catch {
+      setPreviewingVoice(null);
+    }
+  }
 
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -608,6 +631,28 @@ export default function Onboarding({ token, onCompleted }) {
                           <div className={"font-display font-extrabold text-sm " + (active ? "text-white" : "text-slate-900 dark:text-white")}>{label}</div>
                           <div className={"text-xs " + (active ? "text-brand-100" : "text-slate-500 dark:text-stone-400")}>{sub}</div>
                         </div>
+                        {(key === "male" || key === "female") && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => playVoicePreview(key, e)}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); playVoicePreview(key, e); } }}
+                            title={`Preview the ${label.toLowerCase()}`}
+                            aria-label={`Preview the ${label.toLowerCase()}`}
+                            className={
+                              "grid h-8 w-8 shrink-0 place-items-center rounded-full ring-1 transition " +
+                              (active
+                                ? "bg-white/20 ring-white/30 text-white hover:bg-white/30"
+                                : "bg-slate-100 ring-slate-200 text-slate-500 hover:bg-brand-50 hover:text-brand-500 dark:bg-white/[0.06] dark:ring-white/[0.08] dark:text-stone-400")
+                            }
+                          >
+                            {previewingVoice === key ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Volume2 className="h-3.5 w-3.5" />
+                            )}
+                          </span>
+                        )}
                         {active && <Check className="h-4 w-4 shrink-0 text-white" />}
                       </button>
                     ))}
