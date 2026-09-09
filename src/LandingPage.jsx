@@ -1340,16 +1340,22 @@ export default function LandingPage({ onLogin, onSignup }) {
     });
   }, []);
 
-  // Auth modal: lock background scroll, close on Escape.
+  // Auth modal: lock background scroll, close on Escape, move focus in on
+  // open and back to whatever opened it on close — without this a keyboard
+  // or screen-reader user has no idea the modal appeared at all (focus was
+  // previously left sitting on <body>).
   useEffect(() => {
     if (!authOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e) => { if (e.key === "Escape") setAuthOpen(false); };
+    const previouslyFocused = document.activeElement;
+    authRef.current?.focus();
+    const onKey = (e) => { if (e.key === "Escape") closeAuth(); };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
   }, [authOpen]);
 
@@ -1389,6 +1395,30 @@ export default function LandingPage({ onLogin, onSignup }) {
       navigate(".", { replace: true, state: {} });
     }
   }, [location.state]);
+
+  // /signup and /login are real, linkable routes (App.jsx renders this same
+  // LandingPage at both) — previously login/signup existed only as modal
+  // state with no URL of their own, so nobody could link straight to the
+  // signup screen, a paid ad couldn't land on it, browser back didn't close
+  // it, and every signup attempt showed up in analytics as a homepage
+  // pageview with no way to measure funnel drop-off. Opening here from the
+  // URL (rather than only from a click) needed its own effect since goAuth
+  // above only fires from in-page interactions.
+  useEffect(() => {
+    if (location.pathname === localizedPath("/signup", locale)) goAuth("signup");
+    else if (location.pathname === localizedPath("/login", locale)) goAuth("login");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // Closing the modal when it was opened via /signup or /login navigates
+  // back to "/" — otherwise the URL would keep claiming "you are on the
+  // signup screen" after the visitor has closed it.
+  const closeAuth = () => {
+    setAuthOpen(false);
+    if (location.pathname === localizedPath("/signup", locale) || location.pathname === localizedPath("/login", locale)) {
+      navigate(localizedPath("/", locale), { replace: true });
+    }
+  };
 
   // Affiliate attribution — a `?ref=CODE` visit is remembered for 30 days
   // (matches the cookie-window promise on /affiliates) so signup can credit
@@ -1677,10 +1707,17 @@ export default function LandingPage({ onLogin, onSignup }) {
 
   // ── Auth card ────────────────────────────────────────────────────────────────
   const authCard = (
-    <div ref={authRef} className="relative w-full bg-white dark:bg-[#18181b] px-6 pb-6 pt-12 sm:px-7 sm:pb-7 sm:pt-12">
+    <div
+      ref={authRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={mode === "login" ? tt("authModal.tabs.login") : mode === "signup" ? tt("authModal.tabs.signup") : tt("authModal.forgot.sendResetLink")}
+      className="relative w-full bg-white dark:bg-[#18181b] px-6 pb-6 pt-12 outline-none sm:px-7 sm:pb-7 sm:pt-12"
+    >
       <button
         type="button"
-        onClick={() => setAuthOpen(false)}
+        onClick={closeAuth}
         aria-label={tt("authModal.close")}
         className="absolute end-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-stone-400 transition hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-stone-200"
       >
@@ -1750,7 +1787,10 @@ export default function LandingPage({ onLogin, onSignup }) {
             />
 
             <div>
-              <Field label={tt("authModal.fields.password")} icon={Lock} name="password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} />
+              <Field label={tt("authModal.fields.password")} icon={Lock} name="password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "signup" ? 8 : undefined} />
+              {mode === "signup" && (
+                <p className="mt-1.5 text-xs font-semibold text-slate-400 dark:text-stone-500">{tt("authModal.fields.passwordHint")}</p>
+              )}
               {mode === "login" && (
                 <button
                   type="button"
@@ -2216,7 +2256,7 @@ export default function LandingPage({ onLogin, onSignup }) {
       {authOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) setAuthOpen(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeAuth(); }}
         >
           <div className="max-h-[92vh] w-full max-w-md overflow-hidden rounded-3xl bg-white dark:bg-[#18181b] shadow-2xl md:max-w-4xl md:grid md:grid-cols-[44%_56%]">
             <SignupPromoPanel mode={mode} />
@@ -2230,13 +2270,13 @@ export default function LandingPage({ onLogin, onSignup }) {
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
-function Field({ label, optional, icon: Icon, value, onChange, placeholder, type = "text", autoComplete, name }) {
+function Field({ label, optional, icon: Icon, value, onChange, placeholder, type = "text", autoComplete, name, minLength }) {
   const [showPw, setShowPw] = useState(false);
   const isPassword = type === "password";
   const inputType = isPassword ? (showPw ? "text" : "password") : type;
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-extrabold text-slate-700 dark:text-stone-200">
+      <label htmlFor={name} className="mb-1.5 block text-sm font-extrabold text-slate-700 dark:text-stone-200">
         {label} {optional && <span className="font-semibold text-slate-400 dark:text-stone-500">(optional)</span>}
       </label>
       <div className="relative">
@@ -2250,6 +2290,8 @@ function Field({ label, optional, icon: Icon, value, onChange, placeholder, type
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          required={!optional}
+          minLength={minLength}
         />
         {isPassword && (
           <button

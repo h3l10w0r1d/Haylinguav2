@@ -495,6 +495,33 @@ function AppShell() {
           )
         }
       />
+      {/* /signup and /login: real, linkable URLs for the same LandingPage
+          auth modal (previously login/signup existed only as in-page modal
+          state, so nothing could deep-link to them and every attempt showed
+          up in analytics as an anonymous homepage pageview). LandingPage
+          itself reads the pathname to auto-open the right tab — see its
+          "/signup and /login are real, linkable routes" comment. English-
+          only/unprefixed for now, like /terms, /privacy, etc. above. */}
+      <Route
+        path="/signup"
+        element={
+          user?.email_verified === true ? (
+            onboardingCompleted ? <Navigate to="/dashboard" replace /> : <Navigate to="/onboarding" replace />
+          ) : (
+            <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
+          )
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          user?.email_verified === true ? (
+            onboardingCompleted ? <Navigate to="/dashboard" replace /> : <Navigate to="/onboarding" replace />
+          ) : (
+            <LandingPage onLogin={handleLogin} onSignup={handleSignup} />
+          )
+        }
+      />
 
       <Route path="/:locale" element={<LocaleLayout />}>
         <Route

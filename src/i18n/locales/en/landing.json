@@ -231,7 +231,8 @@
       "emailOrUsernamePlaceholder": "you@example.com or username",
       "usernamePlaceholder": "armen_g",
       "twoFaPlaceholder": "6-digit code or recovery",
-      "forgotPasswordLink": "Forgot password?"
+      "forgotPasswordLink": "Forgot password?",
+      "passwordHint": "At least 8 characters."
     },
     "securityCheck": "Security check",
     "submit": {
