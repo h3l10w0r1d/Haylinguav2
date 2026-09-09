@@ -91,15 +91,7 @@
     box-shadow: 0 4px 0 0 #CBD5E1 !important;
   }
 
-  /* White text on brand-500 (#FF7A1A) measures ~2.6:1 — well under WCAG AA's
-     4.5:1 for normal text, and this class is reused at font sizes across
-     the site that don't reliably qualify for the relaxed 3:1 "large text"
-     threshold either. brand-700 (#B84B00, already the token used for this
-     button's own pressed-shadow edge) gets white text to ~5.2:1. Shifted
-     the shadow down to brand-900 to keep the same two-step face/shadow gap
-     the original 500/700 pairing had, so the pressed-3D depth still reads
-     — otherwise the face and shadow would sit too close in value. */
-  .btn3d-brand   { @apply bg-brand-700 text-white shadow-[0_4px_0_0_theme(colors.brand.900)] hover:bg-brand-600; }
+  .btn3d-brand   { @apply bg-brand-500 text-white shadow-btn-brand hover:bg-brand-400; }
   .btn3d-grass   { @apply bg-grass-500 text-white shadow-btn-grass hover:brightness-105; }
   .btn3d-cardinal{ @apply bg-cardinal-500 text-white shadow-btn-cardinal hover:brightness-105; }
   .btn3d-feather { @apply bg-feather-500 text-white shadow-btn-feather hover:brightness-105; }
