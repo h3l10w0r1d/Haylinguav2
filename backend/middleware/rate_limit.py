@@ -42,6 +42,14 @@ def _compile_rules() -> Tuple[Rule, ...]:
         # cache handles steady-state cost; this caps the worst case of scripted
         # spam hitting many distinct wrong answers to force fresh GPT-4o calls).
         Rule("POST", re.compile(r"^/me/exercises/\d+/explain$"), limit=30, window_seconds=3600),
+        # /tts synthesises through a paid per-character API and is public by
+        # design (landing page, pronunciation page, typing tool all need
+        # audio while logged out). The global 300/min is far too generous for
+        # a metered endpoint; per-day character quotas live in tts_limits.py,
+        # this just caps burst. Lesson playback is a handful of calls a
+        # minute, so 40 leaves ordinary use untouched.
+        Rule("POST", re.compile(r"^/tts$"), limit=40, window_seconds=60),
+        Rule("GET", re.compile(r"^/tts$"), limit=40, window_seconds=60),
     ]
     return tuple(rules)
 

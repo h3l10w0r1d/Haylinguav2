@@ -1669,4 +1669,21 @@ def ensure_schema() -> None:
         ))
         print("[ensure_schema] ensured typing_results table")
 
+        # ---------- TTS spend guard (see tts_limits.py) ----------
+        # Daily synthesised-character count per subject ("u:<id>" signed in,
+        # "ip:<addr>" otherwise). In Postgres rather than memory so a deploy
+        # or restart can't be used to reset someone's quota.
+        ensure_table("tts_usage", """
+            CREATE TABLE tts_usage (
+                day     DATE NOT NULL,
+                subject TEXT NOT NULL,
+                chars   INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (day, subject)
+            )
+        """)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS tts_usage_day_idx ON tts_usage (day)"
+        ))
+        print("[ensure_schema] ensured tts_usage table")
+
     print("[ensure_schema] done")

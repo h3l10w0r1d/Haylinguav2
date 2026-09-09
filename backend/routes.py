@@ -24,6 +24,7 @@ import hashlib, hmac, traceback, datetime as dt
 from database import engine
 
 from database import get_db
+import tts_limits
 from auth import (
     hash_password,
     verify_password,
@@ -9724,10 +9725,23 @@ _DEFAULT_TTS_VOICE_SETTINGS = {
 
 
 @router.post("/tts", response_class=Response)
-async def tts_speak(payload: TTSPayload):
+async def tts_speak(payload: TTSPayload, request: Request, authorization: Optional[str] = Header(default=None)):
     text_value = (payload.text or "").strip()
     if not text_value:
         raise HTTPException(status_code=400, detail="Text is empty")
+
+    # Cost guard. /tts bills per character and is public on purpose, so it
+    # carries its own limits — see tts_limits.py. An invalid token degrades
+    # to anonymous rather than erroring: audio must keep working logged out.
+    try:
+        _tts_user_id = _get_user_id_from_bearer(authorization)
+    except Exception:
+        _tts_user_id = None
+    # Anything that routes away from the cheap default provider is the
+    # expensive path; pinning "azure" explicitly is not (Adventures does it).
+    _tts_premium = bool(payload.voice_id or payload.model_id or payload.voice_settings
+                        or payload.provider == "elevenlabs")
+    _tts_subject = tts_limits.enforce(text_value, _tts_user_id, _client_ip(request), _tts_premium)
 
     # An explicit provider wins (Adventures pins "azure" so ElevenLabs — poor at
     # Armenian — can never voice a line). Otherwise a custom voice_id/model_id
@@ -9752,7 +9766,9 @@ async def tts_speak(payload: TTSPayload):
     # calls pass their own voice_settings and should always hit the API live.
     cacheable = not payload.voice_settings and not payload.model_id
 
-    return await _tts_generate(text_value, provider, voice_id, model_id, voice_settings, cacheable)
+    resp = await _tts_generate(text_value, provider, voice_id, model_id, voice_settings, cacheable)
+    tts_limits.record_usage(_tts_subject, len(text_value))
+    return resp
 
 
 # GET variant of the same endpoint, query-string only. Exists purely so
@@ -9763,10 +9779,18 @@ async def tts_speak(payload: TTSPayload):
 # narrower than the POST route: no voice_settings override, since that's
 # only used by the CMS's internal voice-preview/comparison tool.
 @router.get("/tts", response_class=Response)
-async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | None = None, voice: str | None = None, provider: str | None = None):
+async def tts_speak_get(text: str, request: Request, voice_id: str | None = None, model_id: str | None = None, voice: str | None = None, provider: str | None = None, authorization: Optional[str] = Header(default=None)):
     text_value = (text or "").strip()
     if not text_value:
         raise HTTPException(status_code=400, detail="Text is empty")
+
+    # Same cost guard as the POST route — see tts_limits.py.
+    try:
+        _tts_user_id = _get_user_id_from_bearer(authorization)
+    except Exception:
+        _tts_user_id = None
+    _tts_premium = bool(voice_id or model_id or provider == "elevenlabs")
+    _tts_subject = tts_limits.enforce(text_value, _tts_user_id, _client_ip(request), _tts_premium)
 
     if provider in ("azure", "elevenlabs"):
         pass  # explicit provider honored as-is
@@ -9783,7 +9807,9 @@ async def tts_speak_get(text: str, voice_id: str | None = None, model_id: str | 
     resolved_model_id = model_id or ELEVEN_MODEL_ID
     cacheable = not model_id
 
-    return await _tts_generate(text_value, provider, resolved_voice_id, resolved_model_id, _DEFAULT_TTS_VOICE_SETTINGS, cacheable)
+    resp = await _tts_generate(text_value, provider, resolved_voice_id, resolved_model_id, _DEFAULT_TTS_VOICE_SETTINGS, cacheable)
+    tts_limits.record_usage(_tts_subject, len(text_value))
+    return resp
 
 
 async def _tts_generate(text_value: str, provider: str, voice_id: str, model_id: str, voice_settings: dict, cacheable: bool) -> Response:
