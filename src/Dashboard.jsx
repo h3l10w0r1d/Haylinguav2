@@ -13,6 +13,7 @@ import { preloadLesson } from "./lib/lessonPreload";
 import { LucideGlyph } from "./lib/lucideIcons";
 import { useCountUp } from "./lib/useCountUp";
 import { useWallet } from "./WalletContext";
+import { SkeletonBlock } from "./lib/Skeleton";
 
 const QICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 
@@ -640,9 +641,9 @@ function KpiStrip({ streak, xp, onPremiumChange }) {
 // The hero: a warm apricot→pomegranate gradient with the mascot, the greeting,
 // and the single next action on a white button. Identical in both themes — the
 // signature colorful anchor.
-function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, isNewUser, onStart, navigate, isPremium }) {
+function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, hasError, isNewUser, onStart, navigate, isPremium }) {
   const pct = unitTotal ? Math.round((unitDone / unitTotal) * 100) : 0;
-  const complete = !loading && !lesson;
+  const complete = !loading && !lesson && !hasError;
   return (
     <section
       className={
@@ -669,7 +670,13 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
             )}
           </div>
           <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight drop-shadow-sm sm:text-[30px]">
-            {loading ? "Loading your journey…" : lesson ? "Ready for today's lesson?" : "You've reached the summit!"}
+            {loading
+              ? "Loading your journey…"
+              : hasError
+              ? "Couldn't load your lesson"
+              : lesson
+              ? "Ready for today's lesson?"
+              : "You've reached the summit!"}
           </h1>
         </div>
         <img src={owl} alt="" className="hidden h-20 w-auto shrink-0 animate-floaty object-contain drop-shadow-[0_12px_18px_rgba(0,0,0,0.3)] sm:block" />
@@ -693,6 +700,21 @@ function HeroCard({ firstName, lesson, unitTitle, unitDone, unitTotal, loading, 
             <span className="block truncate text-lg font-extrabold">{lesson.title}</span>
           </span>
           <ArrowRight className="h-5 w-5 shrink-0 text-brand-500" />
+        </button>
+      ) : hasError ? (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="relative mt-6 flex w-full items-center gap-4 rounded-2xl bg-white px-5 py-4 text-left text-stone-900 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.4)] transition hover:-translate-y-0.5 active:translate-y-0"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-cardinal-500 text-white shadow-[0_6px_14px_-4px_rgba(220,38,38,0.5)]">
+            <Zap className="h-5 w-5" strokeWidth={2.5} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-extrabold uppercase tracking-wide text-cardinal-600">Connection issue</span>
+            <span className="block text-lg font-extrabold">Tap to retry</span>
+          </span>
+          <ArrowRight className="h-5 w-5 shrink-0 text-cardinal-600" />
         </button>
       ) : (
         <button
@@ -1359,22 +1381,44 @@ export default function Dashboard({ user }) {
             unitDone={unitDone}
             unitTotal={unitTotal}
             loading={loadingLessons}
+            hasError={!loadingLessons && !!error}
             isNewUser={!loadingLessons && doneLessons === 0 && totalLessons > 0}
             onStart={handleStart}
             navigate={navigate}
             isPremium={isPremium}
           />
 
-          {error && (
-            <div className="mb-4 rounded-xl border border-cardinal-200 bg-cardinal-50 px-4 py-3 text-sm font-medium text-cardinal-600 dark:border-cardinal-500/30 dark:bg-cardinal-500/10 dark:text-cardinal-300">
-              {error}
-            </div>
-          )}
-
           {loadingLessons ? (
-            <div className="flex items-center justify-center gap-2 py-20 text-stone-400 dark:text-stone-500">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span className="font-medium">Mapping your journey…</span>
+            <>
+              {[0, 1].map((i) => (
+                <section key={i} className={"mb-3 p-5 " + CARD}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <SkeletonBlock className="h-10 w-10 shrink-0 rounded-2xl" />
+                      <div className="min-w-0 space-y-1.5">
+                        <SkeletonBlock className="h-2.5 w-16" />
+                        <SkeletonBlock className="h-3.5 w-36" />
+                      </div>
+                    </div>
+                    <SkeletonBlock className="h-5 w-10 shrink-0 rounded-full" />
+                  </div>
+                  <SkeletonBlock className="mt-3 h-1.5 w-full rounded-full" />
+                  <div className="mt-4 flex items-center gap-3">
+                    <SkeletonBlock className="h-14 w-14 shrink-0 rounded-full" />
+                    <SkeletonBlock className="h-14 w-14 shrink-0 rounded-full" />
+                    <SkeletonBlock className="h-14 w-14 shrink-0 rounded-full" />
+                  </div>
+                </section>
+              ))}
+            </>
+          ) : error ? (
+            <div className={"flex flex-col items-center p-10 text-center " + CARD}>
+              <div className="grid h-16 w-16 place-items-center rounded-2xl bg-cardinal-50 dark:bg-cardinal-500/15">
+                <Zap className="h-8 w-8 text-cardinal-500" />
+              </div>
+              <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">Couldn't load your lessons</div>
+              <p className="mt-1.5 text-sm font-semibold text-stone-500 dark:text-stone-400">Check your connection and try again.</p>
+              <button onClick={() => window.location.reload()} className="btn3d btn3d-brand mt-5 uppercase">Retry</button>
             </div>
           ) : units.length === 0 ? (
             <div className={"p-8 text-center font-medium text-stone-500 dark:text-stone-400 " + CARD}>
