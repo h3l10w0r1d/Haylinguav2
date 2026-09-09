@@ -2960,6 +2960,21 @@ async def cms_reorder_item_definitions(request: Request, db=Depends(get_db)):
 
 EMPLOYMENT_TYPES = {"full-time", "part-time", "contract", "internship"}
 
+# A vacancy that's live (is_active) is public-facing — the careers page is
+# linked from the main nav on every page. Below this length a summary/
+# description is almost certainly placeholder/test content (e.g. "DHhdhdhd",
+# "dfsfsf" — both well under 20 chars) rather than a real job listing, so
+# activating a vacancy with either field too short is rejected outright
+# instead of silently publishing it.
+_MIN_VACANCY_TEXT_LEN = 30
+
+def _require_publishable_vacancy_text(summary: str, description: str) -> None:
+    if len(summary.strip()) < _MIN_VACANCY_TEXT_LEN or len(description.strip()) < _MIN_VACANCY_TEXT_LEN:
+        raise HTTPException(
+            status_code=400,
+            detail=f"An active vacancy needs a summary and description of at least {_MIN_VACANCY_TEXT_LEN} characters each.",
+        )
+
 @router.get("/cms/vacancies")
 def cms_list_vacancies(request: Request, db=Depends(get_db)):
     require_cms(request, db)
@@ -2979,6 +2994,11 @@ async def cms_create_vacancy(request: Request, db=Depends(get_db)):
     employment_type = (body.get("employment_type") or "full-time").strip()
     if employment_type not in EMPLOYMENT_TYPES:
         raise HTTPException(status_code=400, detail=f"employment_type must be one of {sorted(EMPLOYMENT_TYPES)}")
+    summary = (body.get("summary") or "").strip()
+    description = (body.get("description") or "").strip()
+    is_active = bool(body.get("is_active", False))
+    if is_active:
+        _require_publishable_vacancy_text(summary, description)
     pos = db.execute(text("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM job_vacancies")).scalar() or 1
     new_id = db.execute(
         text("""
@@ -2987,8 +3007,8 @@ async def cms_create_vacancy(request: Request, db=Depends(get_db)):
         """),
         {
             "t": title, "loc": (body.get("location") or "").strip(), "et": employment_type,
-            "sum": (body.get("summary") or "").strip(), "desc": (body.get("description") or "").strip(),
-            "so": int(pos), "act": bool(body.get("is_active", False)),
+            "sum": summary, "desc": description,
+            "so": int(pos), "act": is_active,
         },
     ).scalar_one()
     return {"id": int(new_id)}
@@ -3009,6 +3029,22 @@ async def cms_update_vacancy(vacancy_id: int, request: Request, db=Depends(get_d
         params["employment_type"] = body["employment_type"]
     if not set_parts:
         return {"ok": True}
+
+    # Validate the row's *resulting* state, not just the fields in this
+    # request — e.g. PUT {is_active: true} alone must still be checked
+    # against whatever summary/description the row already has.
+    current = db.execute(
+        text("SELECT summary, description, is_active FROM job_vacancies WHERE id = :id"),
+        {"id": vacancy_id},
+    ).mappings().first()
+    if current is None:
+        raise HTTPException(status_code=404, detail="vacancy not found")
+    resulting_active = bool(body["is_active"]) if "is_active" in body else current["is_active"]
+    if resulting_active:
+        resulting_summary = body["summary"] if "summary" in body else current["summary"]
+        resulting_description = body["description"] if "description" in body else current["description"]
+        _require_publishable_vacancy_text(resulting_summary or "", resulting_description or "")
+
     db.execute(text(f"UPDATE job_vacancies SET {', '.join(set_parts)} WHERE id = :id"), params)
     return {"ok": True}
 

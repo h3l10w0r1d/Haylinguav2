@@ -112,28 +112,51 @@
 <!-- Umami: only load on the real production domain — without this, every
      local dev session and preview build counts as real traffic in the
      dashboard, and session-replay would record test data nobody wants
-     stored. -->
+     stored. script.js (plain pageview counts, cookieless) loads unconditionally;
+     recorder.js (session replay — records what a visitor does on screen) is
+     consent-gated the same way GTM/GA4/Clarity are below, since replay is
+     squarely "non-essential tracking" under GDPR/ePrivacy regardless of which
+     vendor runs it. -->
 <script>
   (function () {
     if (!/(^|\.)haylingua\.am$/.test(location.hostname)) return;
     var ids = "805c891c-79e8-474e-8414-668887e66554";
-    ["script.js", "recorder.js"].forEach(function (src) {
+    function inject(src) {
       var s = document.createElement("script");
       s.defer = true;
       s.src = "https://analytics.haylingua.am/" + src;
       s.setAttribute("data-website-id", ids);
       document.head.appendChild(s);
-    });
+    }
+    inject("script.js");
+    function loadRecorder() {
+      if (window.__umamiRecorderLoaded) return;
+      window.__umamiRecorderLoaded = true;
+      inject("recorder.js");
+    }
+    try {
+      if (localStorage.getItem("hay_consent") === "accepted") loadRecorder();
+    } catch (e) {}
+    window.__loadUmamiRecorderIfConsented = loadRecorder;
   })();
 </script>
 
-<!-- GTM (web container): consent-gated, hard gate — never injected until the
-     visitor has explicitly accepted via src/ConsentBanner.jsx, which writes
+<!-- GTM (web container), GA4, and Microsoft Clarity: consent-gated, hard
+     gate — none of these are injected until the visitor has explicitly
+     accepted via src/ConsentBanner.jsx, which writes
      localStorage["hay_consent"] = "accepted" and calls
-     window.__loadGTMIfConsented() to start it immediately without a reload.
+     window.__loadGTMIfConsented() / __loadGA4IfConsented() /
+     __loadClarityIfConsented() to start them immediately without a reload.
      No Consent Mode ping-then-adjust here on purpose — see the marketing
      integration plan: a script that's simply never loaded pre-consent is a
-     strictly stronger privacy posture than one that loads and queues. -->
+     strictly stronger privacy posture than one that loads and queues.
+
+     Previously GA4 and Clarity loaded unconditionally (GA4 eagerly, Clarity
+     on first interaction/idle) regardless of consent — the banner's Reject
+     button changed nothing about either. That's fixed here: all three now
+     share one gate, and ConsentBanner.jsx's reject path clears any cookies
+     they already set before this fix (or from a session that later
+     rejects after previously accepting). -->
 <script>
   (function () {
     function loadGTM() {
@@ -151,10 +174,40 @@
       s.src = "https://www.googletagmanager.com/gtm.js?id=" + containerId;
       document.head.appendChild(s);
     }
+
+    function loadGA4() {
+      if (window.__ga4Loaded) return;
+      window.__ga4Loaded = true;
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+      var s = document.createElement("script");
+      s.async = true;
+      s.src = "https://www.googletagmanager.com/gtag/js?id=G-0R074HBXE4";
+      document.head.appendChild(s);
+      window.gtag("js", new Date());
+      window.gtag("config", "G-0R074HBXE4");
+    }
+
+    function loadClarity() {
+      if (window.__clarityLoaded) return;
+      window.__clarityLoaded = true;
+      (function (c, l, a, r, i, t, y) {
+        c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+        t = l.createElement(r); t.async = 1; t.src = "https://www.clarity.ms/tag/" + i;
+        y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+      })(window, document, "clarity", "script", "xjq5hmtyh2");
+    }
+
     try {
-      if (localStorage.getItem("hay_consent") === "accepted") loadGTM();
+      if (localStorage.getItem("hay_consent") === "accepted") {
+        loadGTM();
+        loadGA4();
+        loadClarity();
+      }
     } catch (e) {}
     window.__loadGTMIfConsented = loadGTM;
+    window.__loadGA4IfConsented = loadGA4;
+    window.__loadClarityIfConsented = loadClarity;
   })();
 </script>
 
@@ -262,28 +315,8 @@
 
 
 
-<!-- Microsoft Clarity -->
-<!-- Deferred like the Brevo widget below: session recording doesn't need to
-     start at the very first millisecond, and loading it eagerly means its
-     ~25KB script competes with hero content for bandwidth during the LCP
-     window on slow connections. Idle (or first interaction) is soon enough. -->
-<script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        function loadClarity() {
-            if (loadClarity._done) return;
-            loadClarity._done = true;
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-        }
-        var events = ['scroll', 'mousemove', 'keydown', 'touchstart', 'click'];
-        events.forEach(function(evt) {
-            window.addEventListener(evt, loadClarity, { once: true, passive: true });
-        });
-        var idle = window.requestIdleCallback || function(fn) { setTimeout(fn, 3000); };
-        window.addEventListener('load', function() { idle(loadClarity, { timeout: 6000 }); });
-    })(window, document, "clarity", "script", "xjq5hmtyh2");
-</script>
+<!-- Microsoft Clarity is loaded above, consent-gated alongside GTM/GA4 —
+     see window.__loadClarityIfConsented. -->
 
 <!-- Brevo Conversations {literal} -->
 <!-- Deferred: the chat widget isn't needed for first paint, and loading it
@@ -316,16 +349,9 @@
 <!-- /Brevo Conversations {/literal} -->
 
 
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-0R074HBXE4"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <!-- Google tag (gtag.js) is loaded above, consent-gated alongside
+         GTM/Clarity — see window.__loadGA4IfConsented. -->
 
-  gtag('config', 'G-0R074HBXE4');
-</script>
-    
   </head>
   <body>
     <div id="root"></div>

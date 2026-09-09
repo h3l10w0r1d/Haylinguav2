@@ -8,8 +8,8 @@ import { renderTemplate, useLocale, localizedPath, SUPPORTED_LOCALES } from "./i
 import usePageMeta from "./lib/usePageMeta";
 import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
-  Flame, Trophy, Headphones, Volume2, Users, Heart, Repeat2,
-  Check, ChevronDown, Star, Zap, Languages, ShieldCheck, Crown,
+  Flame, Trophy, Headphones, Volume2, Heart, Repeat2,
+  Check, ChevronDown, Star, Languages, ShieldCheck, Crown,
   X, Eye, EyeOff, Play, RotateCw, Loader2, Bell, AlertTriangle,
 } from "lucide-react";
 import SiteNav from "./SiteNav";
@@ -1273,126 +1273,6 @@ function PathPreview() {
   );
 }
 
-// ── Live community stats (simulated) ────────────────────────────────────────
-// Illustrative counters for social proof — NOT wired to the real backend.
-// Every visitor must see the SAME number at the same real moment, and a
-// reload must never show a lower number than before. Both of those rule out
-// any client-side randomness in the value itself: the number is a pure,
-// deterministic function of (config, wall-clock time) — same inputs always
-// produce the same output, for every browser, everywhere. "Live ticking" is
-// just re-evaluating that function every second or two as time moves on; the
-// growth itself comes from the formula, not from random bumps.
-//
-// Growth rates loosely track Armenia's day/night cycle (faster ~08:00–23:00
-// AMT, slower overnight). STATS_EPOCH is a fixed reference point — the
-// "base" counts are the totals as of that moment, and every full day past
-// it adds one day's worth of growth at the blended average rate, plus a
-// smooth partial-day contribution using whichever rate applies right now.
-const STATS_EPOCH = new Date("2026-07-12T00:00:00Z").getTime();
-const DAY_START_AMT = 8;   // 08:00 Armenia time
-const DAY_END_AMT = 23;    // 23:00 Armenia time
-const MINUTES_PER_DAY = 24 * 60;
-const DAY_MS = 86_400_000;
-
-const STAT_CONFIGS = [
-  { key: "exercises", icon: Zap, base: 118_000, perMinDay: 60, perMinNight: 30, tone: "text-brand-600", bg: "bg-brand-50" },
-  { key: "users", icon: Users, base: 6_400, perMinDay: 5, perMinNight: 3, tone: "text-feather-600", bg: "bg-feather-50" },
-  { key: "achievements", icon: Trophy, base: 31_500, perMinDay: 15, perMinNight: 8, tone: "text-gold-600", bg: "bg-amber-50" },
-  { key: "chapters", icon: Languages, base: 9_800, perMinDay: 4, perMinNight: 2, tone: "text-grass-600", bg: "bg-grass-50" },
-];
-
-// Armenia has used a fixed UTC+4 offset (no DST) since 2012.
-function isArmeniaDaytime(date) {
-  const amtHour = (date.getUTCHours() + 4) % 24;
-  return amtHour >= DAY_START_AMT && amtHour < DAY_END_AMT;
-}
-
-function averagePerMinute(cfg) {
-  const dayHours = DAY_END_AMT - DAY_START_AMT;
-  const nightHours = 24 - dayHours;
-  return (cfg.perMinDay * dayHours + cfg.perMinNight * nightHours) / 24;
-}
-
-// Pure function: (config, time) → displayed number. No Math.random() here —
-// this is the whole fix. Two visitors calling this with clocks a second
-// apart get numbers a second apart, never two unrelated random values.
-function computeStatValue(cfg, now) {
-  const nowMs = now.getTime();
-  const daysSinceEpoch = Math.max(0, Math.floor((nowMs - STATS_EPOCH) / DAY_MS));
-  const startOfToday = STATS_EPOCH + daysSinceEpoch * DAY_MS;
-  const minutesIntoToday = (nowMs - startOfToday) / 60000;
-
-  const wholeDaysGrowth = daysSinceEpoch * averagePerMinute(cfg) * MINUTES_PER_DAY;
-  const perMinNow = isArmeniaDaytime(now) ? cfg.perMinDay : cfg.perMinNight;
-  const todayGrowth = minutesIntoToday * perMinNow;
-
-  return Math.round(cfg.base + wholeDaysGrowth + todayGrowth);
-}
-
-function useLiveStat(cfg) {
-  const [value, setValue] = useState(() => computeStatValue(cfg, new Date()));
-
-  useEffect(() => {
-    // Randomizing only the poll cadence (not the value) keeps four counters
-    // from visibly updating in perfect lockstep, without reintroducing any
-    // per-client randomness into the number itself.
-    const id = setInterval(() => {
-      setValue(computeStatValue(cfg, new Date()));
-    }, 1000 + Math.random() * 1200);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return value;
-}
-
-function StatCard({ cfg, delay }) {
-  const { t: tt } = useTranslation("landing");
-  const value = useLiveStat(cfg);
-  const [bump, setBump] = useState(false);
-  const prevRef = useRef(value);
-
-  useEffect(() => {
-    if (value !== prevRef.current) {
-      prevRef.current = value;
-      setBump(true);
-      const t = setTimeout(() => setBump(false), 260);
-      return () => clearTimeout(t);
-    }
-  }, [value]);
-
-  return (
-    <Reveal delay={delay}>
-      <div className="rounded-3xl bg-white dark:bg-[#18181b] p-5 text-center ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm">
-        <div className={"mx-auto grid h-11 w-11 place-items-center rounded-2xl " + cfg.bg}>
-          <cfg.icon className={"h-5 w-5 " + cfg.tone} />
-        </div>
-        <div
-          className={
-            "mt-3 font-display text-2xl font-extrabold tabular-nums text-slate-800 dark:text-white transition-transform duration-200 sm:text-3xl " +
-            (bump ? "scale-110" : "scale-100")
-          }
-        >
-          {value.toLocaleString()}
-        </div>
-        <div className="mt-1 text-xs font-bold text-slate-500 dark:text-stone-400">{tt(`liveStats.${cfg.key}`)}</div>
-      </div>
-    </Reveal>
-  );
-}
-
-function LiveStatsStrip() {
-  return (
-    <section className="mx-auto max-w-6xl px-5 pb-16">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {STAT_CONFIGS.map((cfg, i) => (
-          <StatCard key={cfg.key} cfg={cfg} delay={i * 80} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function LandingPage({ onLogin, onSignup }) {
@@ -2082,11 +1962,6 @@ export default function LandingPage({ onLogin, onSignup }) {
           })}
         </div>
       </section>
-
-      {/* Live community stats */}
-      <div className="pt-10">
-        <LiveStatsStrip />
-      </div>
 
       {/* How it works */}
       <section id="how" className="mx-auto max-w-6xl px-5 py-16">

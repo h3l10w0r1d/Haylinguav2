@@ -22,6 +22,29 @@ function readConsent() {
   }
 }
 
+// Every cookie name GA4, Clarity, and Umami's session-replay add-on are
+// known to set. Deleted across every plausible domain/path combination a
+// third-party or first-party-proxied script might have used, since document.cookie
+// deletion is a no-op unless the domain/path match exactly.
+const TRACKING_COOKIE_NAMES = [
+  "_ga", "_ga_0R074HBXE4", "_gid", "_gat",
+  "_clck", "_clsk", "CLID", "ANONCHK", "MUID", "MR", "SM",
+];
+function clearTrackingCookies() {
+  try {
+    const host = window.location.hostname;
+    const domains = [host, "." + host, host.replace(/^www\./, ""), "." + host.replace(/^www\./, "")];
+    for (const name of TRACKING_COOKIE_NAMES) {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+      for (const domain of domains) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${domain}`;
+      }
+    }
+  } catch {
+    // best-effort cleanup — never block the app on it
+  }
+}
+
 export default function ConsentBanner() {
   const [visible, setVisible] = useState(() => readConsent() == null);
 
@@ -32,13 +55,30 @@ export default function ConsentBanner() {
   }, []);
 
   function set(value) {
+    const previous = readConsent();
     try {
       localStorage.setItem(CONSENT_KEY, value);
     } catch {
       // if storage is unavailable, the banner just re-prompts every visit —
       // acceptable degradation, never block the app on it
     }
-    if (value === "accepted") window.__loadGTMIfConsented?.();
+    if (value === "accepted") {
+      window.__loadGTMIfConsented?.();
+      window.__loadGA4IfConsented?.();
+      window.__loadClarityIfConsented?.();
+      window.__loadUmamiRecorderIfConsented?.();
+    } else {
+      clearTrackingCookies();
+      // GTM/GA4/Clarity/the recorder can't be un-injected once running —
+      // a page reload is the only way to actually stop a tracker that was
+      // already loaded (either earlier this fix landed pre-consent, or from
+      // a previous "accepted" choice this banner is now reversing).
+      if (previous === "accepted") {
+        setVisible(false);
+        window.location.reload();
+        return;
+      }
+    }
     setVisible(false);
   }
 
