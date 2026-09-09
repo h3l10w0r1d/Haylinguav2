@@ -1872,7 +1872,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           the auth buttons into this page's own login/signup modal. */}
       <SiteNav inPage onLogin={() => goAuth("login")} onSignup={() => goAuth("signup")} />
 
-      <main>
+      <main id="main-content">
       {/* Hero */}
       <header className="relative overflow-hidden">
         <div className="pointer-events-none absolute -end-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />

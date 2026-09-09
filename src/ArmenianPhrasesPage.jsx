@@ -129,7 +129,7 @@ export default function ArmenianPhrasesPage() {
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <SiteNav />
 
-      <main>
+      <main id="main-content">
         <header className="mx-auto max-w-3xl px-5 pb-8 pt-14 text-center">
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-5xl">
             {t("armenianPhrases.hero.title")}

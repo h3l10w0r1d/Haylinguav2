@@ -42,7 +42,7 @@ export default function SoroBlogPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-[#0d0d0f]">
       <SiteNav />
-      <main className="mx-auto max-w-5xl px-5 py-14">
+      <main id="main-content" className="mx-auto max-w-5xl px-5 py-14">
         <div id="soro-blog" ref={containerRef} />
       </main>
       <SiteFooter />

@@ -500,6 +500,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
   return (
     <div className="app-shell flex overflow-hidden bg-orange-50 dark:bg-[#0d0d0f]">
+      <a href="#main-content" className="skip-to-content">Skip to content</a>
       {/* ---------- Sidebar (desktop, lg+) ---------- */}
       <aside className="hidden h-full w-60 shrink-0 flex-col border-r border-orange-100 bg-white px-3 py-4 lg:flex dark:bg-[#151517] dark:border-white/[0.06]">
         <button
@@ -556,7 +557,7 @@ export default function HeaderLayout({ user, onLogout, children }) {
 
         {/* Scrollable content. Keyed by route so each page fades/slides in
             on navigation. */}
-        <main className="flex-1 overflow-y-auto">
+        <main id="main-content" className="flex-1 overflow-y-auto">
           {notifications.length > 0 && (
             <div className="mx-auto max-w-2xl space-y-2 px-4 pt-4">
               {notifications.map((n) => (

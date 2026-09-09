@@ -32,7 +32,7 @@ export default function StaticPageShell({ eyebrow, title, updated, intro, childr
   return (
     <div className="min-h-screen bg-white text-slate-800 dark:bg-[#0d0d0f] dark:text-white">
       <SiteNav />
-      <main className="mx-auto max-w-3xl px-5 py-14 sm:py-20">
+      <main id="main-content" className="mx-auto max-w-3xl px-5 py-14 sm:py-20">
         {eyebrow && (
           <div className="text-xs font-extrabold uppercase tracking-wider text-brand-500">{eyebrow}</div>
         )}

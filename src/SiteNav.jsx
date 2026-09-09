@@ -47,6 +47,8 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
   const mobileNavLinkCls = ({ isActive }) => (isActive ? activeMobileLinkCls : mobileLinkCls);
 
   return (
+    <>
+    <a href="#main-content" className="skip-to-content">Skip to content</a>
     <nav className="sticky top-0 z-40 border-b border-slate-100 bg-white/85 backdrop-blur dark:border-white/[0.06] dark:bg-[#151517]/90">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
         <Link to={lp("/")} className="flex items-center gap-2">
@@ -150,5 +152,6 @@ export default function SiteNav({ inPage = false, onLogin, onSignup }) {
         </div>
       )}
     </nav>
+    </>
   );
 }

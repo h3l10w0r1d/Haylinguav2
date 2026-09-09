@@ -300,7 +300,7 @@ export default function AboutPage() {
     <div ref={rootRef} className="min-h-screen bg-white text-slate-800 dark:bg-[#0d0d0f] dark:text-white">
       <SiteNav />
 
-      <main>
+      <main id="main-content">
         {/* ── Hero ── */}
         <header ref={heroRef} className="relative flex flex-col overflow-hidden lg:min-h-screen">
           <div data-parallax-slow className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />

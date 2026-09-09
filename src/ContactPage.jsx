@@ -76,7 +76,7 @@ export default function ContactPage() {
     <div className="min-h-screen bg-white text-slate-800 dark:bg-[#0d0d0f] dark:text-white">
       <SiteNav />
 
-      <main className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
+      <main id="main-content" className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
         <div className="text-xs font-extrabold uppercase tracking-wider text-brand-500">{t("contact.eyebrow")}</div>
         <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
           {t("contact.heading")}

@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Globe, Check } from "lucide-react";
-import { ALL_LOCALES, LOCALE_LABELS, LOCALE_FLAGS, useLocale } from "../i18n";
+import { ALL_LOCALES, LOCALE_LABELS, useLocale } from "../i18n";
 
 const LANG_KEY = "hay_lang";
 
@@ -73,7 +73,6 @@ export default function LanguageSwitcher({ align = "right" }) {
               className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50 dark:text-stone-200 dark:hover:bg-white/[0.06]"
             >
               <span className="flex items-center gap-2">
-                <span aria-hidden="true">{LOCALE_FLAGS[code]}</span>
                 {LOCALE_LABELS[code]}
               </span>
               {(code === locale || (code === "en" && !locale)) && <Check className="h-3.5 w-3.5 text-brand-500" />}

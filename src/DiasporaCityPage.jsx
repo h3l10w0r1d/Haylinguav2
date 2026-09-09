@@ -64,7 +64,7 @@ export default function DiasporaCityPage({ city, path }) {
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <SiteNav />
 
-      <main>
+      <main id="main-content">
         <header className="mx-auto max-w-3xl px-5 pb-8 pt-14 text-center">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
             <MapPin className="h-3.5 w-3.5" /> {t(c("hero.eyebrow"))}

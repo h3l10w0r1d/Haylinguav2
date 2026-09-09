@@ -29,6 +29,52 @@
   h1, h2, h3, .font-display {
     font-family: "Baloo 2", "Nunito", "Noto Sans Armenian", "Noto Sans", "Noto Sans Arabic", "Noto Sans Georgian", ui-rounded, system-ui, sans-serif;
   }
+
+  /* Keyboard focus indicator. Nothing in this file removes the browser's
+     default outline, but plenty of components sit on colored/gradient
+     backgrounds where a 1px default outline is invisible in practice — so
+     rather than relying on the browser default, every focusable element
+     gets an explicit, visible ring. :focus-visible (not :focus) so mouse/
+     touch clicks stay silent and only keyboard/AT users see it. */
+  :focus-visible {
+    outline: 2px solid theme("colors.brand.500");
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+/* Skip-to-content link: visually hidden until focused, so the first Tab
+   press on any page gives keyboard users a way to jump past the header
+   nav straight to <main> instead of tabbing through every nav link first. */
+.skip-to-content {
+  position: fixed;
+  top: -100%;
+  left: 1rem;
+  z-index: 100;
+  background: theme("colors.brand.500");
+  color: white;
+  font-weight: 800;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 0.75rem 0.75rem;
+  transition: top 0.15s ease;
+}
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* Brevo's own widget config floats the chat launcher mid-viewport on mobile
+   (their "brevo-conversations--pos-middle" class, applied via an inline
+   transform: translateY(50%)) — on a 375×812 screen that sits directly on
+   top of the hero copy, the first thing a phone visitor sees. Pin it to the
+   bottom-right with a safe-area inset instead, like every other chat widget.
+   `!important` is required: Brevo's own stylesheet sets that transform
+   inline, and only an !important external rule outranks an inline style. */
+@media (max-width: 640px) {
+  .brevo-conversations--pos-middle {
+    top: auto !important;
+    bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+    transform: none !important;
+  }
 }
 
 @layer components {

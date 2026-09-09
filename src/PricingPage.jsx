@@ -24,6 +24,19 @@ function formatPrice(price, currency) {
   return `${prefix}${Number(price || 0).toLocaleString()}`;
 }
 
+// Prices are configured in Armenian dram, but most of Haylingua's stated
+// audience (the diaspora — LA, Paris, Moscow, Beirut, Buenos Aires) has no
+// intuition for what a dram figure means and has to leave the page to find
+// out. A rough, clearly-labeled USD approximation next to the dram price
+// answers that without needing IP geolocation or a live FX API — it doesn't
+// need to be exact, just in the right ballpark. Update this if AMD/USD
+// drifts meaningfully from ~390.
+const APPROX_AMD_PER_USD = 390;
+function approxUsd(price, currency) {
+  if (currency !== "AMD" || !price) return null;
+  return `$${(Number(price) / APPROX_AMD_PER_USD).toFixed(2)}`;
+}
+
 // The feature matrix — a fixed, honest comparison. Premium columns apply to
 // every fetched plan (Monthly/Annual/etc. all unlock the same feature set
 // today; only price/interval differ), so we render one "Premium" column.
@@ -44,8 +57,22 @@ function splitAroundToken(str, linkNode, token = "{{link}}") {
 }
 
 function Cell({ v }) {
-  if (v === true) return <Check className="mx-auto h-5 w-5 text-grass-500" />;
-  if (v === false) return <X className="mx-auto h-5 w-5 text-slate-300 dark:text-stone-700" />;
+  if (v === true) {
+    return (
+      <>
+        <Check aria-hidden="true" className="mx-auto h-5 w-5 text-grass-500" />
+        <span className="sr-only">Included</span>
+      </>
+    );
+  }
+  if (v === false) {
+    return (
+      <>
+        <X aria-hidden="true" className="mx-auto h-5 w-5 text-slate-400 dark:text-stone-500" />
+        <span className="sr-only">Not included</span>
+      </>
+    );
+  }
   return <span className="text-sm font-semibold text-slate-600 dark:text-stone-300">{v}</span>;
 }
 
@@ -127,6 +154,9 @@ export default function PricingPage() {
 
       {/* Plan cards */}
       <section className="mx-auto max-w-5xl px-5 pb-6">
+        <div data-hero-item className="mx-auto mb-6 flex max-w-lg items-center justify-center gap-2 rounded-2xl bg-grass-50 px-4 py-3 text-center text-sm font-bold text-grass-700 ring-1 ring-grass-200 dark:bg-grass-500/10 dark:text-grass-400 dark:ring-grass-500/25">
+          <Sparkles className="h-4 w-4 shrink-0" /> {t("pricing.trialBadge")}
+        </div>
         {loading ? (
           <div className="flex justify-center py-16 text-slate-400 dark:text-stone-500">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -169,6 +199,9 @@ export default function PricingPage() {
                   {formatPrice(p.price, p.currency)}
                   <span className="ms-1 text-sm font-bold text-slate-400 dark:text-stone-500">/ {INTERVAL_LABEL[p.interval] || p.interval}</span>
                 </div>
+                {approxUsd(p.price, p.currency) && (
+                  <div className="text-xs font-semibold text-slate-400 dark:text-stone-500">≈ {approxUsd(p.price, p.currency)} {t("pricing.approxUsdSuffix")}</div>
+                )}
                 <button onClick={goSignup} className="btn3d btn3d-brand mt-5 justify-center text-sm">{t("pricing.premiumCta")}</button>
                 <ul className="mt-5 space-y-2 text-sm font-semibold text-slate-600 dark:text-stone-300">
                   {(p.perks || []).map((perk, i) => (

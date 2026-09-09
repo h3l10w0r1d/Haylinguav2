@@ -17,7 +17,7 @@
       "eyebrow": "How it started",
       "heading": "It started as a school assignment",
       "paragraph1": "In October 2024, Armen's IB teacher — Lilit Hakobyan, who has taught Armenian across the IB Diploma Programme and several other institutions — set him a project: build something that could actually teach Armenian to the diaspora, to the people growing up without easy access to the language of their grandparents. A month later, the first version of Haylingua existed.",
-      "paragraph2": "That prototype sat for over a year while Armen finished the rest of the IB Diploma. In January 2026, with the idea still nagging at him, he started rebuilding Haylingua from scratch — a real backend, a real curriculum, real lesson content — with Lilit shaping how the app actually teaches the language. Haylingua is set to launch publicly in August 2026."
+      "paragraph2": "That prototype sat for over a year while Armen finished the rest of the IB Diploma. In January 2026, with the idea still nagging at him, he started rebuilding Haylingua from scratch — a real backend, a real curriculum, real lesson content — with Lilit shaping how the app actually teaches the language. Haylingua launched publicly in August 2026, and it's live today."
     },
     "byTheNumbers": [
       { "value": "39", "count": 39, "suffix": "", "label": "Armenian letters taught from scratch" },
@@ -56,7 +56,7 @@
         { "year": "Sep 2025", "title": "Back to it", "text": "Armen finishes the rest of the IB Diploma — the prototype's been sitting for a year, but the idea never really left." },
         { "year": "Jan 2026", "title": "The real build begins", "text": "Armen starts rebuilding Haylingua as a full product — real backend, real curriculum — with Lilit shaping how it teaches Armenian." },
         { "year": "May 2026", "title": "Curriculum takes shape", "text": "The alphabet-to-conversation path comes together — every letter, every word, real audio on all of it." },
-        { "year": "Aug 2026", "title": "Public launch", "text": "Haylingua opens up to everyone. Coming soon." }
+        { "year": "Aug 2026", "title": "Public launch", "text": "Haylingua opens up to everyone." }
       ]
     },
     "team": {
@@ -140,6 +140,8 @@
       "perks": ["Full curriculum", "Streaks & leaderboard", "5 hearts, regenerate over time"]
     },
     "premiumCta": "Get Premium",
+  "trialBadge": "New to Premium? Every plan starts with 14 days free — cancel anytime, no charge if you cancel before it ends.",
+  "approxUsdSuffix": "USD (approx.)",
     "intervalLabels": { "month": "mo", "year": "yr", "lifetime": "once" },
     "footnote": "Prices shown in Armenian dram (֏). Cancel anytime — see our {{link}}.",
     "footnoteLinkText": "refund & cancellation policy",
@@ -163,7 +165,7 @@
       "items": [
         { "q": "Is the free plan actually free forever?", "a": "Yes — the full curriculum, streaks, and leaderboard are free with no time limit. Premium only removes hearts as a limiter." },
         { "q": "Can I cancel anytime?", "a": "Yes, from Profile → Premium, or by {{link}}. You keep access until the period you paid for ends." },
-        { "q": "What payment methods do you accept?", "a": "Visa, Mastercard, ArCa, and Telcell." }
+        { "q": "What payment methods do you accept?", "a": "Visa, Mastercard, American Express, Google Pay, Apple Pay, ArCa, and Telcell." }
       ]
     },
     "faqContactLinkText": "contacting us",

@@ -107,7 +107,7 @@ export default function BlogPostPage() {
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
       <SiteNav />
 
-      <main>
+      <main id="main-content">
         {notFound ? (
           <div className="mx-auto max-w-xl px-5 py-24 text-center">
             <h1 className="font-display text-3xl font-extrabold text-slate-800 dark:text-white">{t("blog.notFoundTitle")}</h1>
