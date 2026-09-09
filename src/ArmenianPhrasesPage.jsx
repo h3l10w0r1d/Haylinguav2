@@ -11,7 +11,7 @@ import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import RelatedBlogPosts from "./lib/RelatedBlogPosts";
 import { PATH_TO_TAGS } from "./lib/blogTopics";
-import { useLocale, localizedPath } from "./i18n";
+import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 // [Armenian, romanization, English] — Standard Eastern Armenian, the variety
 // actually spoken in Armenia (which is where a traveler using this page is
@@ -123,7 +123,12 @@ export default function ArmenianPhrasesPage() {
     [locale]
   );
 
-  usePageMeta(t("armenianPhrases.meta.title"), t("armenianPhrases.meta.description"), { structuredData });
+  usePageMeta(t("armenianPhrases.meta.title"), t("armenianPhrases.meta.description"), {
+    structuredData,
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/armenian-phrases" })).concat([
+      { locale: "", path: "/armenian-phrases" },
+    ]),
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">

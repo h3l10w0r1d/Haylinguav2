@@ -16,7 +16,7 @@ import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import RelatedBlogPosts from "./lib/RelatedBlogPosts";
 import { PATH_TO_TAGS } from "./lib/blogTopics";
-import { useLocale, localizedPath } from "./i18n";
+import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 // [digit, Armenian, romanization] — Standard Eastern Armenian. Locale-invariant
 // reference content, so it lives in code rather than the translation files
@@ -129,7 +129,12 @@ export default function ArmenianNumbersPage() {
     [locale]
   );
 
-  usePageMeta(t("armenianNumbers.meta.title"), t("armenianNumbers.meta.description"), { structuredData });
+  usePageMeta(t("armenianNumbers.meta.title"), t("armenianNumbers.meta.description"), {
+    structuredData,
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/armenian-numbers" })).concat([
+      { locale: "", path: "/armenian-numbers" },
+    ]),
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">

@@ -23,7 +23,7 @@ import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import RelatedBlogPosts from "./lib/RelatedBlogPosts";
 import { PATH_TO_TAGS } from "./lib/blogTopics";
-import { useLocale, localizedPath } from "./i18n";
+import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 export default function ChoosingAnArmenianAppPage() {
   const navigate = useNavigate();
@@ -59,7 +59,12 @@ export default function ChoosingAnArmenianAppPage() {
     [locale]
   );
 
-  usePageMeta(t("choosingAnApp.meta.title"), t("choosingAnApp.meta.description"), { structuredData });
+  usePageMeta(t("choosingAnApp.meta.title"), t("choosingAnApp.meta.description"), {
+    structuredData,
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/best-armenian-learning-apps" })).concat([
+      { locale: "", path: "/best-armenian-learning-apps" },
+    ]),
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">

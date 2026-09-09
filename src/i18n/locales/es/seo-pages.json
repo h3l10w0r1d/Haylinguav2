@@ -282,5 +282,248 @@
       "subtext": "Lecciones gratuitas y cortas, desde tu primera letra hasta la conversación real.",
       "button": "Empieza a aprender — gratis"
     }
+  },
+  "armenianNumbers": {
+    "meta": {
+      "title": "Números armenios del 1 al 100: contar con pronunciación",
+      "description": "Los números armenios del 1 al 100 en escritura armenia con la pronunciación de cada uno, además de cómo se forman los números compuestos y los ordinales."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Números armenios" },
+    "hero": {
+      "title": "Números armenios del 1 al 100",
+      "subtitle": "Todos los números que necesitas para precios, edades, fechas y teléfonos — en escritura armenia y con la pronunciación de cada uno."
+    },
+    "sectionTitles": {
+      "ones": "1–10",
+      "teens": "11–20",
+      "tens": "Las decenas: 30–100",
+      "compounds": "Cómo se construye todo lo demás",
+      "ordinals": "Números ordinales (primero, segundo, tercero…)"
+    },
+    "compoundsNote": "A partir de veinte, el armenio une la decena y la unidad en una sola palabra, sin conector ni guion. Veinticinco es քսանհինգ (k'san-hing), literalmente «veinticinco» todo junto. Con las decenas de arriba y los dígitos del 1 al 9 ya puedes formar cualquier número hasta 99 sin aprender nada nuevo.",
+    "ordinalsNote": "Los ordinales se forman a partir de los cardinales, casi siempre con la terminación -երորդ (-erord). Los tres primeros son irregulares y conviene memorizarlos tal cual; del cuarto en adelante todo sigue el mismo patrón.",
+    "faqHeading": "Preguntas frecuentes",
+    "faq": [
+      {
+        "q": "¿Son difíciles los números armenios?",
+        "a": "Son una de las partes más fáciles del idioma. Del 1 al 10 son palabras cortas, del 11 al 19 son compuestos transparentes de «diez» más el dígito, y todo lo que pasa de veinte sigue una única regla predecible. La mayoría de los estudiantes cuentan hasta 100 con soltura en pocos días."
+      },
+      {
+        "q": "¿El armenio usa los mismos dígitos que el español?",
+        "a": "Sí — el armenio moderno escribe los números con los mismos dígitos arábigos 0–9, así que precios, teléfonos y fechas se leen de inmediato. También existe un sistema de numeración armenio histórico basado en las letras del alfabeto, pero solo lo encontrarás en manuscritos antiguos y monumentos."
+      },
+      {
+        "q": "¿Es armenio oriental u occidental?",
+        "a": "Las palabras de esta página son armenio oriental estándar, el que se habla hoy en Armenia. El armenio occidental usa los mismos numerales, pero pronuncia varias consonantes de otra manera: la misma grafía suena distinta. Consulta nuestra comparación entre armenio occidental y oriental."
+      },
+      {
+        "q": "¿Cómo se dice un año o un número de teléfono en armenio?",
+        "a": "Los años se leen como un número completo (հազար ինը հարյուր… para 19xx), mientras que los teléfonos suelen leerse dígito a dígito, igual que en español. Ambos solo requieren el vocabulario del 0 al 100 de esta página más հազար (ha-zar, mil)."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Sigue adelante",
+      "cards": [
+        { "title": "Vocabulario armenio", "text": "Colores, familia, comida y días de la semana." },
+        { "title": "Alfabeto armenio", "text": "Las 39 letras con audio." },
+        { "title": "Pronunciación armenia", "text": "Los sonidos que traban a los principiantes." }
+      ]
+    },
+    "cta": {
+      "heading": "Practica los números armenios de verdad",
+      "subtext": "Lecciones cortas y gratuitas con audio en cada palabra — con números desde el primer día.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+  "armenianPhrases": {
+    "meta": {
+      "title": "Frases en armenio para viajeros: más de 60 esenciales",
+      "description": "Las frases en armenio que de verdad usarás en Armenia — saludos, cómo moverte, restaurantes, compras y emergencias, con escritura armenia y pronunciación."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Frases en armenio" },
+    "hero": {
+      "title": "Frases en armenio para viajeros",
+      "subtitle": "Las frases que vale la pena saber antes de aterrizar en Ereván — agrupadas por situación y con pronunciación en cada una."
+    },
+    "categoryTitles": {
+      "essentials": "Lo imprescindible",
+      "gettingAround": "Para moverte",
+      "eatingOut": "En el restaurante",
+      "shopping": "Compras y dinero",
+      "emergencies": "Si algo sale mal",
+      "smallTalk": "Conversación"
+    },
+    "politenessNote": "El armenio distingue un «usted» formal de un «tú» informal, y a un viajero le conviene usar por defecto la forma formal (դուք, duk') con cualquier persona a la que no le hayan presentado. Las frases de arriba ya están en forma cortés, así que puedes decírselas a un desconocido sin dudarlo.",
+    "faqHeading": "Preguntas frecuentes",
+    "faq": [
+      {
+        "q": "¿Hace falta saber armenio para viajar a Armenia?",
+        "a": "Puedes arreglártelas sin él — el ruso se entiende ampliamente y el inglés es común entre los jóvenes y en las zonas turísticas de Ereván. Pero incluso unas pocas frases en armenio cambian cómo te responden, sobre todo fuera de la capital, y se agradecen de verdad en lugar de tomarse como una curiosidad."
+      },
+      {
+        "q": "¿Qué armenio debo aprender para viajar a Armenia?",
+        "a": "Armenio oriental. Es lo que se habla en la propia Armenia y es lo que usan todas las frases de esta página. El armenio occidental es la variedad de la diáspora: valiosísimo si te comunicas con familia en Líbano, Los Ángeles o Europa, pero no es lo que oirás en Ereván."
+      },
+      {
+        "q": "¿Me entenderán si mi pronunciación es imperfecta?",
+        "a": "Casi siempre, sí. Los sonidos más traicioneros son las consonantes aspiradas — la diferencia entre una p, t o k simple y una «soplada» puede cambiar una palabra, pero el contexto suele salvarte. Escuchar audio real mientras aprendes importa mucho más que repasar la escritura en silencio."
+      },
+      {
+        "q": "¿El armenio se escribe con su propio alfabeto?",
+        "a": "Sí — 39 letras, creadas hacia el año 405, sin relación con el latino ni el cirílico. Los carteles y menús en Armenia están en gran parte en escritura armenia, a menudo junto al inglés en zonas turísticas. Aprender a leerlo lleva unos días y facilita muchísimo moverse."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Sigue adelante",
+      "cards": [
+        { "title": "Vocabulario armenio", "text": "Las palabras cotidianas detrás de estas frases." },
+        { "title": "Pronunciación armenia", "text": "Afina los sonidos antes de viajar." },
+        { "title": "Alfabeto armenio", "text": "Lee carteles y menús por ti mismo." }
+      ]
+    },
+    "cta": {
+      "heading": "Ve más allá de un libro de frases",
+      "subtext": "Lecciones gratuitas con audio nativo en cada palabra, para recordarlas cuando de verdad importan.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+  "westernVsEastern": {
+    "meta": {
+      "title": "Armenio occidental vs oriental: diferencias y cuál aprender",
+      "description": "Comparación del armenio occidental y oriental — dónde se habla cada uno, diferencias de pronunciación y ortografía, inteligibilidad mutua y cuál deberías aprender."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Occidental vs oriental" },
+    "hero": {
+      "title": "Armenio occidental vs oriental",
+      "subtitle": "Dos formas estándar del mismo idioma, moldeadas por historias muy distintas. Esto es lo que de verdad las diferencia — y cómo decidir cuál aprender."
+    },
+    "introHeading": "Un idioma, dos estándares",
+    "intro": "El armenio se dividió en dos estándares escritos en el siglo XIX, a lo largo de la frontera entre los imperios otomano y ruso. El armenio oriental se convirtió en la lengua de lo que hoy es la República de Armenia; el occidental, en la de las comunidades dispersas por el mundo después de 1915. Comparten alfabeto, la mayor parte del vocabulario y la estructura de fondo de su gramática — los hablantes de uno suelen seguir al otro tras un breve ajuste, como un lisboeta y un paulista con el portugués.",
+    "tableHeading": "Lado a lado",
+    "tableHeaders": { "feature": "", "eastern": "Armenio oriental", "western": "Armenio occidental" },
+    "comparisonRows": [
+      { "feature": "Dónde se habla", "eastern": "Armenia, Artsaj, Irán, Rusia, Georgia", "western": "La diáspora global — Líbano, Siria, Francia, EE. UU., Argentina" },
+      { "feature": "Hablantes", "eastern": "Varios millones, con un Estado detrás", "western": "Menos, y clasificado en peligro por la UNESCO" },
+      { "feature": "Estatus oficial", "eastern": "Lengua oficial de la República de Armenia", "western": "Sin Estado; se sostiene en escuelas, iglesias y prensa de la diáspora" },
+      { "feature": "Ortografía", "eastern": "Ortografía reformada (reforma de época soviética)", "western": "Ortografía clásica, sin cambios" },
+      { "feature": "Formación verbal", "eastern": "Presente formado con el participio más el verbo «ser»", "western": "Presente marcado con el prefijo կը (gə)" },
+      { "feature": "Ideal para", "eastern": "Viajar a Armenia, trabajo, la mayoría de recursos en línea", "western": "Conectar con la familia de la diáspora y el patrimonio comunitario" }
+    ],
+    "soundShiftHeading": "El cambio consonántico, en una regla",
+    "soundShift": "La diferencia que primero se nota es un intercambio constante en la sonoridad de ciertas consonantes. Donde el armenio oriental pronuncia una b, d o g sonora, el occidental suele decir una p, t o k sorda — y viceversa. La ortografía es idéntica; solo se mueve la pronunciación. En cuanto interiorizas esta única correspondencia, una parte sorprendente de la otra variedad se te vuelve accesible de inmediato.",
+    "soundShiftTableHeaders": { "written": "Escrito", "eastern": "Oriental", "western": "Occidental", "meaning": "Significado" },
+    "whichToLearnHeading": "Entonces, ¿cuál aprender?",
+    "whichToLearnIntro": "No hay una respuesta mejor en términos absolutos: depende por completo de por qué estás aprendiendo. En la práctica:",
+    "whichToLearnPoints": [
+      "Aprende **oriental** si viajas a Armenia, trabajas con el país o te mudas allí, o si simplemente quieres la variedad con más material de estudio, medios y uso cotidiano en internet.",
+      "Aprende **occidental** si tu familia es de la diáspora y el occidental es lo que hablaban tus abuelos — esa conexión es justamente el objetivo, y es la variedad en riesgo real de perderse.",
+      "Si no tienes un vínculo particular, el oriental es el punto de partida más práctico, y buena parte de lo aprendido se transfiere si más adelante te pasas al occidental."
+    ],
+    "whatWeTeachHeading": "Qué enseña Haylingua",
+    "whatWeTeach": "Haylingua enseña armenio oriental estándar — la forma que se habla hoy en Armenia. Si tu objetivo es específicamente el armenio occidental, preferimos decírtelo claramente desde el principio antes de que lo descubras en la tercera lección. Buena parte del trabajo con el alfabeto y el vocabulario se transfiere igualmente, pero la pronunciación y las formas verbales que oirás aquí son orientales.",
+    "whatWeTeachLinkText": "Más sobre lo que enseñamos →",
+    "faqHeading": "Preguntas frecuentes",
+    "faq": [
+      {
+        "q": "¿Se entienden los hablantes de armenio occidental y oriental?",
+        "a": "En buena medida, sí. Los dos son mutuamente inteligibles para casi todo lo cotidiano, aunque la primera conversación requiere un ajuste: el cambio consonántico y un puñado de formas verbales muy frecuentes son lo que genera fricción al principio. El armenio escrito se cruza más fácilmente que el hablado, porque el alfabeto es común."
+      },
+      {
+        "q": "¿Usan el mismo alfabeto?",
+        "a": "Sí, el mismo alfabeto armenio de 39 letras. La diferencia está en la convención ortográfica: el armenio oriental adoptó una reforma de la ortografía en el periodo soviético, mientras que el occidental conservó la ortografía clásica. Por eso algunas palabras se escriben distinto aunque las letras sean idénticas."
+      },
+      {
+        "q": "¿Cuál es el armenio «real» u «original»?",
+        "a": "Ninguno, y conviene cuestionar la premisa. Ambos descienden del armenio clásico (grabar) y ambos son estándares modernos legítimos con su propia literatura. El occidental conserva la ortografía más antigua; el oriental tiene la base de hablantes viva más amplia. Ninguno es una corrupción del otro."
+      },
+      {
+        "q": "¿El armenio occidental está desapareciendo?",
+        "a": "Está realmente en peligro — la UNESCO lo clasifica así — porque no tiene un Estado que lo respalde y se transmite sobre todo a través de familias y escuelas de la diáspora. Precisamente por eso, los hablantes de herencia que eligen el occidental hacen algo valioso, aunque sea el camino más difícil para encontrar recursos."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Sigue adelante",
+      "cards": [
+        { "title": "Armenio oriental", "text": "Una mirada más cercana a lo que enseña Haylingua." },
+        { "title": "Alfabeto armenio", "text": "Las 39 letras que comparten ambas variedades." },
+        { "title": "Pronunciación armenia", "text": "Escucha los sonidos tú mismo." }
+      ]
+    },
+    "cta": {
+      "heading": "Empieza con el armenio oriental",
+      "subtext": "Lecciones cortas y gratuitas con audio real — del alfabeto a la conversación de verdad.",
+      "button": "Empieza a aprender — gratis"
+    }
+  },
+  "choosingAnApp": {
+    "meta": {
+      "title": "Cómo elegir una app para aprender armenio (guía 2026)",
+      "description": "Lo que de verdad importa al elegir una app de armenio — el alfabeto, el audio real, oriental u occidental, y las preguntas que conviene hacerse antes de empezar."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Elegir una app" },
+    "hero": {
+      "title": "Cómo elegir una app para aprender armenio",
+      "subtitle": "El armenio cuenta con muchas menos herramientas que el español o el francés, y las que existen se diferencian en aspectos que importan. Esto es lo que conviene comprobar antes de invertir tu tiempo."
+    },
+    "disclosure": "Con franqueza: Haylingua es nuestra propia app, así que tómate esto como un argumento informado y no como una reseña neutral. Hemos escrito los criterios de abajo para que te sirvan aunque acabes eligiendo otra cosa — y te diremos claramente dónde no somos la respuesta adecuada.",
+    "criteriaHeading": "Seis cosas que conviene comprobar",
+    "criteria": [
+      {
+        "title": "¿Enseña el alfabeto de verdad?",
+        "text": "El armenio tiene su propio alfabeto de 39 letras, sin relación con el latino ni el cirílico. Una app que lo transcribe todo a letras latinas te deja empezar más rápido, pero te deja incapaz de leer un menú, un cartel o un mensaje de un familiar. Comprueba que la escritura se enseña desde la primera lección y no se añade después como un extra opcional."
+      },
+      {
+        "title": "¿Hay audio real en cada palabra?",
+        "text": "El armenio distingue consonantes simples de aspiradas — la diferencia entre una p, t o k simple y una «soplada» es significativa, y es casi imposible de adquirir solo con texto. Unas pocas grabaciones de muestra no bastan: quieres audio asociado a cada elemento que te piden aprender."
+      },
+      {
+        "title": "¿Armenio oriental u occidental?",
+        "text": "Es la pregunta con más consecuencias, y muchas herramientas no la responden con claridad. El oriental se habla en Armenia; el occidental es la variedad de la diáspora. Aprender el que no corresponde a tu objetivo es un error realmente caro, así que averígualo antes de la primera lección — mira nuestra comparación si tienes dudas."
+      },
+      {
+        "title": "¿Está hecha para el armenio o adaptada a él?",
+        "text": "Las apps que cubren decenas de idiomas desde una misma plantilla suelen tratar las particularidades del armenio — su sistema de sonidos, su escritura, su formación verbal — como algo secundario. Una herramienta creada solo para el armenio puede estructurar todo el temario en torno a lo que de verdad lo hace difícil."
+      },
+      {
+        "title": "¿Podrás sostenerlo en el tiempo?",
+        "text": "La mejor app es la que sigues abriendo en la sexta semana. Lecciones cortas, una racha visible y feedback inmediato importan más que un temario exhaustivo que abandonas. Sé honesto sobre si la herramienta encaja en diez minutos de trayecto o presupone una hora de escritorio."
+      },
+      {
+        "title": "¿Cuánto cuesta averiguarlo?",
+        "text": "Las herramientas de armenio van de gratuitas a solo por suscripción. Un nivel gratuito con sustancia te deja pasar el alfabeto y juzgar la calidad de la enseñanza antes de pagar nada — que es la única forma fiable de evaluar todo esto."
+      }
+    ],
+    "faqHeading": "Preguntas que la gente hace de verdad",
+    "faq": [
+      {
+        "q": "¿Está el armenio en Duolingo?",
+        "a": "No — Duolingo nunca ha ofrecido un curso de armenio, y sigue siendo una de las decepciones más buscadas por quienes empiezan. Si has llegado aquí tras esa búsqueda, tendrás que mirar herramientas específicas de armenio o plataformas multilingües más pequeñas."
+      },
+      {
+        "q": "¿Se puede aprender armenio gratis?",
+        "a": "Sí, al menos hasta una base sólida. Haylingua es gratis para empezar y no pide tarjeta, y además existen recursos comunitarios gratuitos, canales de YouTube y mazos de Anki. Las clases particulares de pago cobran verdadero sentido más adelante, cuando ya tienes lengua suficiente para que la práctica conversacional valga la pena."
+      },
+      {
+        "q": "¿Cuánto se tarda en aprender armenio?",
+        "a": "El alfabeto lleva menos de una semana a la mayoría. Una base conversacional — saludos, números, pedir en un sitio, preguntas simples — es cuestión de unos meses de sesiones cortas y constantes. La fluidez, como en cualquier idioma, se mide en años y depende mucho más del contacto habitual con la lengua que de la app elegida."
+      },
+      {
+        "q": "¿Es difícil el armenio para hispanohablantes?",
+        "a": "Es moderadamente difícil: una escritura nueva, un sistema de casos y algunas distinciones consonánticas poco familiares. Pero la escritura es fonética y se aprende en días, y la ortografía armenia es mucho más regular que la del inglés. La dificultad se concentra sobre todo al principio, y por eso las dos primeras semanas importan tanto."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Sigue adelante",
+      "cards": [
+        { "title": "Aprender armenio en línea", "text": "Cómo funciona realmente el curso de Haylingua." },
+        { "title": "Occidental vs oriental", "text": "Decide primero qué variedad quieres." },
+        { "title": "Alfabeto armenio", "text": "Empieza donde debería empezar todo el mundo." }
+      ]
+    },
+    "cta": {
+      "heading": "Pruébalo antes de decidir",
+      "subtext": "Gratis para empezar, sin tarjeta — pasa el alfabeto y júzgalo tú mismo.",
+      "button": "Empieza a aprender — gratis"
+    }
   }
 }

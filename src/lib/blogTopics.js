@@ -65,20 +65,6 @@ export const PATH_TO_LABEL_KEY = {
   "/best-armenian-learning-apps": "apps",
 };
 
-// Landing pages that exist ONLY at their unprefixed English URL — they're
-// registered outside PUBLIC_ROUTE_DEFS in App.jsx because their copy hasn't
-// been translated yet, so /ru/armenian-numbers etc. genuinely don't exist.
-// Blog posts ARE translated, so a Russian post linking to one of these must
-// link to the unprefixed path rather than a locale-prefixed 404 — see
-// BlogPostPage.jsx's use of this set. Delete a path from here in the same
-// change that adds its translations and moves it into PUBLIC_ROUTE_DEFS.
-export const ENGLISH_ONLY_PATHS = new Set([
-  "/armenian-numbers",
-  "/armenian-phrases",
-  "/western-vs-eastern-armenian",
-  "/best-armenian-learning-apps",
-]);
-
 // Reverse of TAG_TO_PATH, deduped — which tags should each landing page's
 // "From the blog" section (see RelatedBlogPosts.jsx) query for.
 export const PATH_TO_TAGS = Object.entries(TAG_TO_PATH).reduce((acc, [tag, path]) => {

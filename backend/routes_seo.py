@@ -53,9 +53,6 @@ STATIC_PAGES: list[tuple[str, str, str]] = [
     ("/armenian-pronunciation", "monthly", "0.8"),
     ("/armenian-vocabulary", "monthly", "0.8"),
     ("/eastern-armenian", "monthly", "0.8"),
-    # Newer SEO landing pages — English-only for now, so deliberately absent
-    # from TRANSLATED_STATIC_PATHS below (no locale-prefixed routes exist for
-    # them yet; see the comment on their <Route>s in src/App.jsx).
     ("/armenian-numbers", "monthly", "0.8"),
     ("/armenian-phrases", "monthly", "0.8"),
     ("/western-vs-eastern-armenian", "monthly", "0.8"),
@@ -86,6 +83,8 @@ STATIC_PAGES: list[tuple[str, str, str]] = [
 TRANSLATED_STATIC_PATHS = {
     "/", "/learn-armenian-online", "/armenian-alphabet", "/armenian-pronunciation",
     "/armenian-vocabulary", "/eastern-armenian", "/about", "/pricing",
+    "/armenian-numbers", "/armenian-phrases", "/western-vs-eastern-armenian",
+    "/best-armenian-learning-apps",
     "/careers", "/affiliates", "/contact",
     "/learn-armenian-in-los-angeles", "/learn-armenian-in-paris", "/learn-armenian-in-moscow",
     "/learn-armenian-in-buenos-aires", "/learn-armenian-in-beirut", "/learn-armenian-in-tehran",

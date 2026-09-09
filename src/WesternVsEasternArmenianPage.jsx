@@ -15,7 +15,7 @@ import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import RelatedBlogPosts from "./lib/RelatedBlogPosts";
 import { PATH_TO_TAGS } from "./lib/blogTopics";
-import { useLocale, localizedPath } from "./i18n";
+import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 
 // [written form, Eastern pronunciation, Western pronunciation, English] —
 // the same spelling read aloud both ways, which is the clearest way to show
@@ -77,7 +77,12 @@ export default function WesternVsEasternArmenianPage() {
     [locale]
   );
 
-  usePageMeta(t("westernVsEastern.meta.title"), t("westernVsEastern.meta.description"), { structuredData });
+  usePageMeta(t("westernVsEastern.meta.title"), t("westernVsEastern.meta.description"), {
+    structuredData,
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/western-vs-eastern-armenian" })).concat([
+      { locale: "", path: "/western-vs-eastern-armenian" },
+    ]),
+  });
 
   const cellCls = "px-4 py-3 text-sm font-semibold text-slate-600 dark:text-stone-300";
   const headCls = "px-4 py-3 text-start font-display text-sm font-extrabold text-slate-700 dark:text-stone-200";

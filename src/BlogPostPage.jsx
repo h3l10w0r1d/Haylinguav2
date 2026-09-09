@@ -12,7 +12,7 @@ import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import usePageMeta from "./lib/usePageMeta";
 import { useLocale, localizedPath } from "./i18n";
-import { relatedLandingPaths, PATH_TO_LABEL_KEY, ENGLISH_ONLY_PATHS } from "./lib/blogTopics";
+import { relatedLandingPaths, PATH_TO_LABEL_KEY } from "./lib/blogTopics";
 import { AUTHOR_PROFILES } from "./lib/authors";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -192,9 +192,7 @@ export default function BlogPostPage() {
                     {relatedPaths.map((path) => (
                       <Link
                         key={path}
-                        // Pages with no translations yet only exist at their
-                        // unprefixed URL — locale-prefixing them would 404.
-                        to={ENGLISH_ONLY_PATHS.has(path) ? path : lp(path)}
+                        to={lp(path)}
                         className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20"
                       >
                         {t(`blog.relatedTopics.${PATH_TO_LABEL_KEY[path]}`)} <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />

@@ -282,5 +282,248 @@
       "subtext": "Des leçons gratuites et courtes, de ta première lettre jusqu'à de vraies conversations.",
       "button": "Commencer gratuitement"
     }
+  },
+  "armenianNumbers": {
+    "meta": {
+      "title": "Les nombres arméniens de 1 à 100 : compter avec la prononciation",
+      "description": "Les nombres arméniens de 1 à 100, en écriture arménienne avec la prononciation de chacun, ainsi que la formation des nombres composés et des ordinaux."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Nombres arméniens" },
+    "hero": {
+      "title": "Les nombres arméniens de 1 à 100",
+      "subtitle": "Tous les nombres utiles pour les prix, les âges, les dates et les numéros de téléphone — en écriture arménienne, avec la prononciation de chacun."
+    },
+    "sectionTitles": {
+      "ones": "1–10",
+      "teens": "11–20",
+      "tens": "Les dizaines : 30–100",
+      "compounds": "Construire tous les nombres intermédiaires",
+      "ordinals": "Les ordinaux (premier, deuxième, troisième…)"
+    },
+    "compoundsNote": "Au-delà de vingt, l'arménien accole la dizaine et l'unité en un seul mot — sans connecteur ni trait d'union. Vingt-cinq se dit քսանհինգ (k'san-hing), littéralement « vingt-cinq » collé. Une fois les dizaines ci-dessus et les chiffres de 1 à 9 connus, tu peux former tous les nombres jusqu'à 99 sans rien apprendre de nouveau.",
+    "ordinalsNote": "Les ordinaux se forment à partir des cardinaux, le plus souvent avec la terminaison -երորդ (-erord). Les trois premiers sont irréguliers et se retiennent tels quels ; à partir du quatrième, tout suit le même modèle.",
+    "faqHeading": "Questions fréquentes",
+    "faq": [
+      {
+        "q": "Les nombres arméniens sont-ils difficiles ?",
+        "a": "C'est l'une des parties les plus simples de la langue. Les chiffres de 1 à 10 sont courts, les nombres de 11 à 19 sont des composés transparents de « dix » et du chiffre, et tout ce qui dépasse vingt suit une seule règle prévisible. La plupart des apprenants comptent jusqu'à 100 avec aisance en quelques jours."
+      },
+      {
+        "q": "L'arménien utilise-t-il les mêmes chiffres que le français ?",
+        "a": "Oui — l'arménien moderne écrit les nombres avec les mêmes chiffres arabes 0–9, donc les prix, numéros de téléphone et dates sont lisibles immédiatement. Il existe aussi un système de numération arménien historique fondé sur les lettres de l'alphabet, mais tu ne le rencontreras que dans les manuscrits anciens et sur les monuments."
+      },
+      {
+        "q": "S'agit-il d'arménien oriental ou occidental ?",
+        "a": "Les mots de cette page relèvent de l'arménien oriental standard, celui parlé en Arménie aujourd'hui. L'arménien occidental emploie les mêmes numéraux, mais prononce plusieurs consonnes différemment : la même graphie se dit autrement. Voir notre comparaison entre arménien occidental et oriental."
+      },
+      {
+        "q": "Comment dire une année ou un numéro de téléphone en arménien ?",
+        "a": "Les années se lisent comme un nombre entier (հազար ինը հարյուր… pour 19xx), tandis que les numéros de téléphone s'énoncent généralement chiffre par chiffre, comme en français. Les deux ne demandent que le vocabulaire de 0 à 100 de cette page, plus հազար (ha-zar, mille)."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Continue",
+      "cards": [
+        { "title": "Vocabulaire arménien", "text": "Couleurs, famille, nourriture et jours de la semaine." },
+        { "title": "Alphabet arménien", "text": "Les 39 lettres avec l'audio." },
+        { "title": "Prononciation arménienne", "text": "Les sons qui font trébucher les débutants." }
+      ]
+    },
+    "cta": {
+      "heading": "Travaille vraiment les nombres arméniens",
+      "subtext": "Des leçons courtes et gratuites avec de l'audio sur chaque mot — les nombres dès le premier jour.",
+      "button": "Commencer gratuitement"
+    }
+  },
+  "armenianPhrases": {
+    "meta": {
+      "title": "Phrases arméniennes pour voyager : plus de 60 essentielles",
+      "description": "Les phrases arméniennes que tu utiliseras vraiment en Arménie — salutations, orientation, restaurants, achats et urgences, avec écriture arménienne et prononciation."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Phrases arméniennes" },
+    "hero": {
+      "title": "Phrases arméniennes pour voyager",
+      "subtitle": "Les phrases à connaître avant d'atterrir à Erevan — classées par situation, avec la prononciation de chacune."
+    },
+    "categoryTitles": {
+      "essentials": "L'essentiel absolu",
+      "gettingAround": "Se déplacer",
+      "eatingOut": "Au restaurant",
+      "shopping": "Achats et argent",
+      "emergencies": "En cas de problème",
+      "smallTalk": "Conversation"
+    },
+    "politenessNote": "L'arménien distingue un « vous » formel d'un « tu » informel, et un voyageur a tout intérêt à utiliser par défaut la forme formelle (դուք, duk') avec quiconque ne lui a pas été présenté. Les phrases ci-dessus emploient déjà les formes polies : tu peux les adresser à un inconnu sans hésiter.",
+    "faqHeading": "Questions fréquentes",
+    "faq": [
+      {
+        "q": "Faut-il parler arménien pour voyager en Arménie ?",
+        "a": "On peut s'en passer — le russe est très largement compris et l'anglais est courant chez les jeunes et dans les zones touristiques d'Erevan. Mais quelques phrases en arménien changent la façon dont on te répond, surtout hors de la capitale, et c'est sincèrement apprécié plutôt que perçu comme une curiosité."
+      },
+      {
+        "q": "Quel arménien apprendre pour un voyage en Arménie ?",
+        "a": "L'arménien oriental. C'est ce qui se parle en Arménie même, et c'est ce qu'emploient toutes les phrases de cette page. L'arménien occidental est la variété de la diaspora — précieux pour échanger avec la famille au Liban, à Los Angeles ou en Europe, mais ce n'est pas ce que tu entendras à Erevan."
+      },
+      {
+        "q": "Me comprendra-t-on si ma prononciation est imparfaite ?",
+        "a": "Presque toujours. Les sons les plus délicats sont les consonnes aspirées — la différence entre un p, t ou k simple et « soufflé » peut changer un mot, mais le contexte te sauve généralement. Écouter de l'audio réel pendant l'apprentissage compte bien plus que de réviser l'écrit en silence."
+      },
+      {
+        "q": "L'arménien s'écrit-il avec son propre alphabet ?",
+        "a": "Oui — 39 lettres, créées vers 405 après J.-C., sans lien avec le latin ni le cyrillique. Les panneaux et les menus en Arménie sont en grande partie en écriture arménienne, souvent doublés d'anglais dans les zones touristiques. Apprendre à le lire prend quelques jours et facilite énormément les déplacements."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Continue",
+      "cards": [
+        { "title": "Vocabulaire arménien", "text": "Les mots du quotidien derrière ces phrases." },
+        { "title": "Prononciation arménienne", "text": "Travaille les sons avant de partir." },
+        { "title": "Alphabet arménien", "text": "Lis les panneaux et les menus toi-même." }
+      ]
+    },
+    "cta": {
+      "heading": "Va plus loin qu'un guide de conversation",
+      "subtext": "Des leçons gratuites avec de l'audio natif sur chaque mot — pour t'en souvenir au bon moment.",
+      "button": "Commencer gratuitement"
+    }
+  },
+  "westernVsEastern": {
+    "meta": {
+      "title": "Arménien occidental vs oriental : différences et lequel apprendre",
+      "description": "Comparaison de l'arménien occidental et oriental — où on les parle, différences de prononciation et d'orthographe, intercompréhension, et lequel apprendre."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Occidental vs oriental" },
+    "hero": {
+      "title": "Arménien occidental vs oriental",
+      "subtitle": "Deux formes standard d'une même langue, façonnées par des histoires très différentes. Voici ce qui les distingue vraiment — et comment choisir."
+    },
+    "introHeading": "Une langue, deux standards",
+    "intro": "L'arménien s'est scindé en deux standards écrits au XIXe siècle, le long de la frontière entre les empires ottoman et russe. L'arménien oriental est devenu la langue de l'actuelle République d'Arménie ; l'arménien occidental, celle des communautés dispersées à travers le monde après 1915. Ils partagent un alphabet, l'essentiel du vocabulaire et la structure de leur grammaire — les locuteurs de l'un suivent généralement l'autre après un court temps d'adaptation, comme un Lisboète et un Pauliste avec le portugais.",
+    "tableHeading": "Côte à côte",
+    "tableHeaders": { "feature": "", "eastern": "Arménien oriental", "western": "Arménien occidental" },
+    "comparisonRows": [
+      { "feature": "Où on le parle", "eastern": "Arménie, Artsakh, Iran, Russie, Géorgie", "western": "La diaspora mondiale — Liban, Syrie, France, États-Unis, Argentine" },
+      { "feature": "Locuteurs", "eastern": "Plusieurs millions, avec un État derrière lui", "western": "Moins nombreux, classé en danger par l'UNESCO" },
+      { "feature": "Statut officiel", "eastern": "Langue officielle de la République d'Arménie", "western": "Sans État ; porté par les écoles, églises et la presse de la diaspora" },
+      { "feature": "Orthographe", "eastern": "Orthographe réformée (réforme de l'époque soviétique)", "western": "Orthographe classique, inchangée" },
+      { "feature": "Formation verbale", "eastern": "Présent formé du participe et du verbe « être »", "western": "Présent marqué par le préfixe կը (gə)" },
+      { "feature": "Idéal pour", "eastern": "Voyager en Arménie, le travail, la plupart des ressources en ligne", "western": "Renouer avec la famille de la diaspora et l'héritage communautaire" }
+    ],
+    "soundShiftHeading": "Le glissement consonantique en une règle",
+    "soundShift": "La différence qu'on remarque en premier est une permutation constante de la sonorité de certaines consonnes. Là où l'arménien oriental prononce un b, d ou g sonore, l'arménien occidental dit généralement un p, t ou k sourd — et inversement. L'orthographe reste identique ; seule la prononciation bouge. Une fois cette correspondance intégrée, une part surprenante de l'autre variété devient immédiatement accessible.",
+    "soundShiftTableHeaders": { "written": "Écrit", "eastern": "Oriental", "western": "Occidental", "meaning": "Sens" },
+    "whichToLearnHeading": "Alors, lequel apprendre ?",
+    "whichToLearnIntro": "Il n'y a pas de meilleure réponse universelle — tout dépend de ta raison d'apprendre. En pratique :",
+    "whichToLearnPoints": [
+      "Apprends l'**oriental** si tu voyages en Arménie, y travailles ou t'y installes, ou si tu veux simplement la variété qui offre le plus de ressources, de médias et d'usage quotidien en ligne.",
+      "Apprends l'**occidental** si ta famille vient de la diaspora et que c'est la langue de tes grands-parents — c'est tout l'enjeu, et c'est la variété réellement menacée de disparition.",
+      "Sans attache particulière, l'oriental est le point de départ le plus pratique, et une grande partie de ce que tu apprends se transfère si tu abordes ensuite l'occidental."
+    ],
+    "whatWeTeachHeading": "Ce qu'enseigne Haylingua",
+    "whatWeTeach": "Haylingua enseigne l'arménien oriental standard — la forme parlée en Arménie aujourd'hui. Si ton objectif est spécifiquement l'arménien occidental, nous préférons te le dire franchement dès le départ plutôt que te le laisser découvrir à la troisième leçon. L'essentiel du travail sur l'alphabet et le vocabulaire se transfère, mais la prononciation et les formes verbales que tu entendras ici sont orientales.",
+    "whatWeTeachLinkText": "En savoir plus sur ce que nous enseignons →",
+    "faqHeading": "Questions fréquentes",
+    "faq": [
+      {
+        "q": "Les locuteurs d'arménien occidental et oriental se comprennent-ils ?",
+        "a": "En grande partie, oui. Les deux sont intercompréhensibles pour l'essentiel du quotidien, même si la première conversation demande un ajustement — le glissement consonantique et quelques formes verbales très fréquentes créent la friction initiale. L'écrit passe plus facilement que l'oral, puisque l'alphabet est commun."
+      },
+      {
+        "q": "Utilisent-ils le même alphabet ?",
+        "a": "Oui, le même alphabet arménien de 39 lettres. La différence porte sur la convention orthographique : l'arménien oriental a adopté une réforme de l'orthographe à l'époque soviétique, tandis que l'occidental a conservé l'orthographe classique. Certains mots s'écrivent donc différemment malgré des lettres identiques."
+      },
+      {
+        "q": "Lequel est le « vrai » arménien d'origine ?",
+        "a": "Ni l'un ni l'autre, et la prémisse mérite d'être contestée. Tous deux descendent de l'arménien classique (le grabar) et sont des standards modernes légitimes, avec leur propre littérature. L'occidental conserve l'orthographe la plus ancienne ; l'oriental a la base de locuteurs vivante la plus large. Aucun n'est une corruption de l'autre."
+      },
+      {
+        "q": "L'arménien occidental est-il en train de disparaître ?",
+        "a": "Il est réellement en danger — l'UNESCO le classe ainsi — parce qu'aucun État ne le soutient et qu'il se transmet surtout par les familles et les écoles de la diaspora. C'est précisément pour cela que les apprenants d'origine qui choisissent l'occidental font quelque chose de précieux, même si c'est la voie la plus difficile côté ressources."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Continue",
+      "cards": [
+        { "title": "Arménien oriental", "text": "Ce que Haylingua enseigne, de plus près." },
+        { "title": "Alphabet arménien", "text": "Les 39 lettres communes aux deux variétés." },
+        { "title": "Prononciation arménienne", "text": "Écoute les sons par toi-même." }
+      ]
+    },
+    "cta": {
+      "heading": "Commence par l'arménien oriental",
+      "subtext": "Des leçons courtes et gratuites avec de l'audio réel — de l'alphabet à la vraie conversation.",
+      "button": "Commencer gratuitement"
+    }
+  },
+  "choosingAnApp": {
+    "meta": {
+      "title": "Comment choisir une application pour apprendre l'arménien (2026)",
+      "description": "Ce qui compte vraiment pour choisir une application d'arménien — l'alphabet, l'audio réel, oriental ou occidental, et les questions à poser avant de t'engager."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Choisir une application" },
+    "hero": {
+      "title": "Comment choisir une application pour apprendre l'arménien",
+      "subtitle": "L'arménien est bien moins servi que l'espagnol ou le français, et les outils existants diffèrent sur des points qui comptent. Voici quoi vérifier avant d'y investir ton temps."
+    },
+    "disclosure": "Soyons clairs : Haylingua est notre propre application, alors prends ce texte comme un argumentaire informé plutôt qu'un avis neutre. Nous avons écrit les critères ci-dessous pour qu'ils te servent même si tu choisis autre chose — et nous dirons franchement là où nous ne sommes pas la bonne réponse.",
+    "criteriaHeading": "Six choses à vérifier",
+    "criteria": [
+      {
+        "title": "L'alphabet est-il vraiment enseigné ?",
+        "text": "L'arménien a son propre alphabet de 39 lettres, sans lien avec le latin ni le cyrillique. Une application qui translittère tout en caractères latins te fait démarrer plus vite mais te laisse incapable de lire un menu, un panneau ou un message d'un proche. Vérifie que l'écriture est enseignée dès la première leçon, et non ajoutée plus tard en option."
+      },
+      {
+        "title": "Y a-t-il de l'audio réel sur chaque mot ?",
+        "text": "L'arménien distingue les consonnes simples des aspirées — l'écart entre un p, t ou k simple et « soufflé » est signifiant, et presque impossible à acquérir à partir du texte seul. Quelques enregistrements d'exemple ne suffisent pas : il faut de l'audio attaché à chaque élément à apprendre."
+      },
+      {
+        "title": "Arménien oriental ou occidental ?",
+        "text": "C'est la question la plus lourde de conséquences, et beaucoup d'outils n'y répondent pas clairement. L'oriental se parle en Arménie ; l'occidental est la variété de la diaspora. Apprendre le mauvais pour ton objectif est une erreur réellement coûteuse : trouve la réponse avant ta première leçon — vois notre comparaison en cas de doute."
+      },
+      {
+        "title": "Conçu pour l'arménien, ou adapté à lui ?",
+        "text": "Les applications qui couvrent des dizaines de langues à partir d'un même gabarit traitent souvent les spécificités de l'arménien — son système sonore, son écriture, sa formation verbale — comme un détail. Un outil bâti pour l'arménien seul peut structurer tout le programme autour de ce qui le rend réellement difficile."
+      },
+      {
+        "title": "Pourras-tu tenir dans la durée ?",
+        "text": "La meilleure application est celle que tu ouvres encore la sixième semaine. Des leçons courtes, une série visible et un retour immédiat comptent plus qu'un programme exhaustif que tu abandonnes. Sois honnête : l'outil tient-il en dix minutes de trajet, ou suppose-t-il une heure à un bureau ?"
+      },
+      {
+        "title": "Combien coûte le fait de vérifier ?",
+        "text": "Les outils pour l'arménien vont du gratuit à l'abonnement obligatoire. Une offre gratuite substantielle te permet de passer l'alphabet et de juger la qualité pédagogique avant de payer quoi que ce soit — c'est la seule façon fiable d'évaluer tout cela."
+      }
+    ],
+    "faqHeading": "Les questions qu'on pose vraiment",
+    "faq": [
+      {
+        "q": "L'arménien est-il sur Duolingo ?",
+        "a": "Non — Duolingo n'a jamais proposé de cours d'arménien, et c'est l'une des déceptions les plus recherchées par les nouveaux apprenants. Si tu arrives ici après cette recherche, il faudra te tourner vers des outils spécialisés en arménien ou des plateformes multilingues plus petites."
+      },
+      {
+        "q": "Peut-on apprendre l'arménien gratuitement ?",
+        "a": "Oui, au moins jusqu'à une vraie base. Haylingua est gratuit au démarrage, sans carte bancaire, et il existe aussi des ressources communautaires gratuites, des chaînes YouTube et des paquets Anki. Les cours particuliers payants deviennent vraiment utiles plus tard, quand tu as assez de langue pour que la pratique orale en vaille la peine."
+      },
+      {
+        "q": "Combien de temps faut-il pour apprendre l'arménien ?",
+        "a": "L'alphabet prend moins d'une semaine à la plupart des apprenants. Une base conversationnelle — salutations, nombres, commander, questions simples — se compte en quelques mois de séances courtes et régulières. La fluidité, comme dans toute langue, se mesure en années et dépend bien plus du contact régulier avec la langue que de l'application choisie."
+      },
+      {
+        "q": "L'arménien est-il difficile pour un francophone ?",
+        "a": "Modérément : une nouvelle écriture, un système de cas et des distinctions consonantiques inhabituelles. Mais l'écriture est phonétique et s'apprend en quelques jours, et l'orthographe arménienne est bien plus régulière que celle du français. La difficulté est surtout concentrée au début — d'où l'importance des deux premières semaines."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Continue",
+      "cards": [
+        { "title": "Apprendre l'arménien en ligne", "text": "Comment fonctionne vraiment le cours Haylingua." },
+        { "title": "Occidental vs oriental", "text": "Choisis d'abord ta variété." },
+        { "title": "Alphabet arménien", "text": "Commence là où tout le monde devrait." }
+      ]
+    },
+    "cta": {
+      "heading": "Essaie avant de décider",
+      "subtext": "Gratuit au démarrage, sans carte — passe l'alphabet et juge par toi-même.",
+      "button": "Commencer gratuitement"
+    }
   }
 }
