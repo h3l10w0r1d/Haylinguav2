@@ -75,12 +75,12 @@ def typing_texts():
     return {"race_texts": RACE_TEXTS, "levels": PRACTICE_LEVELS}
 
 
-def _display_name_for_token(authorization: Optional[str]) -> tuple[Optional[int], Optional[str]]:
-    """Best-effort identity from a Bearer token. Never raises: an invalid or
-    expired token just means 'anonymous', because this feature must keep
-    working for logged-out visitors."""
+def _display_name_for_token(authorization: Optional[str]) -> tuple[Optional[int], Optional[str], Optional[str]]:
+    """Best-effort (user_id, display name, avatar_url) from a Bearer token.
+    Never raises: an invalid or expired token just means 'anonymous', because
+    this feature must keep working for logged-out visitors."""
     if not authorization:
-        return None, None
+        return None, None, None
     try:
         # Imported lazily — routes.py is heavy and this module is imported at
         # app startup, before that import graph is warm.
@@ -89,17 +89,17 @@ def _display_name_for_token(authorization: Optional[str]) -> tuple[Optional[int]
         with engine.begin() as conn:
             user_id = _get_user_id_from_bearer(authorization, conn)
             if user_id is None:
-                return None, None
+                return None, None, None
             row = conn.execute(
-                text("SELECT display_name, username, name FROM users WHERE id = :id"),
+                text("SELECT display_name, username, name, avatar_url FROM users WHERE id = :id"),
                 {"id": user_id},
             ).mappings().first()
             if not row:
-                return None, None
+                return None, None, None
             name = (row.get("display_name") or row.get("username") or row.get("name") or "").strip()
-            return user_id, (name or None)
+            return user_id, (name or None), (row.get("avatar_url") or None)
     except Exception:
-        return None, None
+        return None, None, None
 
 
 def _record_result(user_id: Optional[int], name: str, wpm: float, accuracy: float, mode: str) -> None:
@@ -133,7 +133,7 @@ def submit_result(
     if not (0 < wpm < 300) or not (0 <= accuracy <= 100):
         return {"ok": False}
     name = str(payload.get("name") or "Anonymous")[:40]
-    user_id, real_name = _display_name_for_token(authorization)
+    user_id, real_name, _avatar = _display_name_for_token(authorization)
     _record_result(user_id, real_name or name, wpm, accuracy, "practice")
     return {"ok": True}
 
@@ -156,16 +156,30 @@ def leaderboard(range: str = Query(default="today"), db: Connection = Depends(ge
 
 # ── Live race engine ──────────────────────────────────────────────────────
 
+# Bots exist so a race is never a lonely progress bar — at this stage there
+# usually isn't a second human online. They are ALWAYS flagged is_bot and the
+# UI labels them as such: padding a lobby is fine, passing a script off as a
+# human opponent is not. Their pace is drawn from a beginner-to-decent band,
+# with per-tick jitter so they don't crawl at a machine-perfect constant.
+BOT_NAMES = ["Անի", "Արամ", "Նարե", "Վահե", "Լուսինե", "Տիգրան", "Մարիամ", "Դավիթ", "Սոնա", "Գոռ"]
+
+
 class Player:
-    def __init__(self, ws: WebSocket, name: str, user_id: Optional[int]):
+    def __init__(self, ws: Optional[WebSocket], name: str, user_id: Optional[int],
+                 avatar: Optional[str] = None, is_bot: bool = False):
         self.ws = ws
         self.id = uuid.uuid4().hex[:8]
         self.name = name
         self.user_id = user_id
-        self.progress = 0.0     # 0..1
+        self.avatar = avatar          # real avatar_url for signed-in racers
+        self.is_bot = is_bot
+        self.progress = 0.0           # 0..1
         self.wpm = 0.0
         self.accuracy = 100.0
         self.finished_at: Optional[float] = None
+        self.place: Optional[int] = None   # 1-based finishing position
+        # Bot-only pacing
+        self.target_wpm = 0.0
 
 
 class Room:
@@ -177,16 +191,56 @@ class Room:
         self.started_at: Optional[float] = None
         self.created_at = time.time()
         self._task: Optional[asyncio.Task] = None
+        self._finished_count = 0
+
+    @property
+    def humans(self) -> list[Player]:
+        return [p for p in self.players.values() if not p.is_bot]
+
+    def add_bots(self, count: int) -> None:
+        taken = {p.name for p in self.players.values()}
+        for name in random.sample([n for n in BOT_NAMES if n not in taken], k=count):
+            bot = Player(None, name, None, is_bot=True)
+            bot.target_wpm = random.uniform(22, 46)
+            bot.accuracy = round(random.uniform(93, 99), 1)
+            self.players[bot.id] = bot
+
+    def mark_finished(self, p: Player) -> None:
+        """Assign the next finishing place. Shared by humans and bots so the
+        placings stay in one sequence."""
+        if p.finished_at is not None:
+            return
+        p.finished_at = time.time()
+        p.progress = 1.0
+        self._finished_count += 1
+        p.place = self._finished_count
+
+    def advance_bots(self) -> None:
+        if not self.started_at:
+            return
+        elapsed = time.time() - self.started_at
+        for p in self.players.values():
+            if not p.is_bot or p.finished_at is not None:
+                continue
+            # 5 characters per "word", the same convention the client uses.
+            jitter = random.uniform(0.92, 1.08)
+            chars = (p.target_wpm * 5 / 60) * elapsed * jitter
+            p.progress = min(1.0, chars / max(1, len(self.text)))
+            p.wpm = p.target_wpm * jitter
+            if p.progress >= 1.0:
+                p.wpm = p.target_wpm
+                self.mark_finished(p)
 
     def snapshot(self) -> list[dict]:
         ordered = sorted(
             self.players.values(),
-            key=lambda p: (p.finished_at is None, p.finished_at or 0, -p.progress),
+            key=lambda p: (p.finished_at is None, p.place or 0, -p.progress),
         )
         return [
             {"id": p.id, "name": p.name, "progress": round(p.progress, 3),
              "wpm": round(p.wpm, 1), "accuracy": round(p.accuracy, 1),
-             "finished": p.finished_at is not None}
+             "finished": p.finished_at is not None, "place": p.place,
+             "avatar": p.avatar, "bot": p.is_bot}
             for p in ordered
         ]
 
@@ -199,6 +253,11 @@ async def _broadcast(room: Room, message: dict) -> None:
     dead = []
     payload = json.dumps(message)
     for p in list(room.players.values()):
+        # Bots have no socket. Without this guard the send raises, they get
+        # treated as a dropped connection, and every bot is evicted from the
+        # room on the very first broadcast.
+        if p.is_bot or p.ws is None:
+            continue
         try:
             await p.ws.send_text(payload)
         except Exception:
@@ -224,15 +283,20 @@ async def _run_race(room: Room) -> None:
         # Give a lone player a window for someone else to show up, then start
         # anyway so a quiet moment doesn't mean an empty screen forever.
         waited = 0
-        while room.status == "waiting" and len(room.players) < 2 and waited < _SOLO_START_AFTER:
+        while room.status == "waiting" and len(room.humans) < 2 and waited < _SOLO_START_AFTER:
             await asyncio.sleep(1)
             waited += 1
-            if not room.players:
+            if not room.humans:
                 room.status = "done"
                 return
-        if not room.players:
+        if not room.humans:
             room.status = "done"
             return
+
+        # Top the field up with bots so nobody races alone. Humans who found
+        # each other still get a mostly-human race.
+        if len(room.players) < 3:
+            room.add_bots(3 - len(room.players))
 
         room.status = "countdown"
         for n in range(_COUNTDOWN_SECONDS, 0, -1):
@@ -250,11 +314,14 @@ async def _run_race(room: Room) -> None:
         # Tick until everyone finishes or the race times out.
         while room.status == "racing":
             await asyncio.sleep(0.4)
-            if not room.players:
+            if not room.humans:
                 break
+            room.advance_bots()
             everyone_done = all(p.finished_at is not None for p in room.players.values())
             timed_out = time.time() - (room.started_at or 0) > 180
             await _broadcast(room, {"type": "progress", "players": room.snapshot()})
+            # Keep ticking until the humans are done: someone who has already
+            # finished still wants to watch the rest of the field come in.
             if everyone_done or timed_out:
                 break
 
@@ -279,13 +346,13 @@ async def typing_race(ws: WebSocket):
         hello = json.loads(raw)
         name = str(hello.get("name") or "").strip()[:24] or "Anonymous"
         token = hello.get("token")
-        user_id, real_name = _display_name_for_token(f"Bearer {token}" if token else None)
+        user_id, real_name, avatar = _display_name_for_token(f"Bearer {token}" if token else None)
         if real_name:
             name = real_name[:24]
 
         async with _lock:
             room = await _open_room()
-            me = Player(ws, name, user_id)
+            me = Player(ws, name, user_id, avatar=avatar)
             room.players[me.id] = me
             fresh = room._task is None
             if fresh:
@@ -308,14 +375,20 @@ async def typing_race(ws: WebSocket):
                 except (TypeError, ValueError):
                     pass
             elif kind == "finish" and me.finished_at is None:
-                me.finished_at = time.time()
-                me.progress = 1.0
                 try:
                     me.wpm = max(0.0, min(300.0, float(msg.get("wpm") or 0)))
                     me.accuracy = max(0.0, min(100.0, float(msg.get("accuracy") or 0)))
                 except (TypeError, ValueError):
                     pass
+                room.mark_finished(me)
                 _record_result(me.user_id, me.name, me.wpm, me.accuracy, "race")
+                # Tell the finisher their placing immediately rather than
+                # making them wait for the whole field to come in.
+                await ws.send_text(json.dumps({
+                    "type": "you_finished", "place": me.place,
+                    "wpm": round(me.wpm, 1), "accuracy": round(me.accuracy, 1),
+                    "players": room.snapshot(),
+                }))
                 await _broadcast(room, {"type": "progress", "players": room.snapshot()})
     except (WebSocketDisconnect, asyncio.TimeoutError):
         pass

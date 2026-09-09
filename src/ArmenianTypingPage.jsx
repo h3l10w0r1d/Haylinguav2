@@ -202,6 +202,42 @@ function TypingSurface({ target, run, disabled, showKeyboard }) {
   );
 }
 
+// Deterministic avatar: same name always yields the same colour and initial.
+// Generated locally rather than pulled from an avatar service — it costs no
+// request, no dependency and no third-party data sharing, and the flat
+// two-tone result suits this page better than a detailed illustration would.
+// Signed-in racers pass a real avatar_url and get their actual picture.
+const AVATAR_HUES = [18, 45, 145, 190, 265, 320, 350];
+function hueFor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_HUES[h % AVATAR_HUES.length];
+}
+
+function Avatar({ name, src, dim }) {
+  const [broken, setBroken] = useState(false);
+  if (src && !broken) {
+    return (
+      <img
+        src={src}
+        alt=""
+        onError={() => setBroken(true)}
+        className={"h-6 w-6 shrink-0 rounded-full object-cover " + (dim ? "opacity-60" : "")}
+      />
+    );
+  }
+  const hue = hueFor(name || "?");
+  return (
+    <span
+      aria-hidden
+      className={"grid h-6 w-6 shrink-0 place-items-center rounded-full font-mono text-[11px] " + (dim ? "opacity-60" : "")}
+      style={{ backgroundColor: `hsl(${hue} 55% 22%)`, color: `hsl(${hue} 85% 72%)` }}
+    >
+      {(name || "?").trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
 // Small, dim, monospace — never competes with the passage for attention.
 function LiveStats({ run, extra }) {
   return (
@@ -305,6 +341,7 @@ function RaceMode({ showKeyboard }) {
   const [youId, setYouId] = useState(null);
   const [authed, setAuthed] = useState(false);
   const [error, setError] = useState("");
+  const [myResult, setMyResult] = useState(null); // {place, wpm, accuracy}
   const wsRef = useRef(null);
 
   const run = useTypingRun(target);
@@ -329,6 +366,7 @@ function RaceMode({ showKeyboard }) {
     setError("");
     setPhase("connecting");
     finishedRef.current = false;
+    setMyResult(null);
     run.reset();
 
     const wsUrl = API_BASE.replace(/^http/, "ws") + "/ws/typing-race";
@@ -352,6 +390,7 @@ function RaceMode({ showKeyboard }) {
       else if (msg.type === "countdown") { setPhase("countdown"); setCountdown(msg.seconds); setTarget(msg.text || ""); setPlayers(msg.players || []); }
       else if (msg.type === "start") { setPhase("racing"); setTarget(msg.text || ""); setPlayers(msg.players || []); }
       else if (msg.type === "progress") setPlayers(msg.players || []);
+      else if (msg.type === "you_finished") { setMyResult({ place: msg.place, wpm: msg.wpm, accuracy: msg.accuracy }); setPlayers(msg.players || []); }
       else if (msg.type === "results") { setPhase("results"); setPlayers(msg.players || []); }
     };
   }
@@ -387,16 +426,24 @@ function RaceMode({ showKeyboard }) {
 
   return (
     <>
-      {/* Opponent progress — thin bars, no cards. */}
+      {/* Opponent progress — thin bars, no cards. Keeps updating after you
+          finish so you can watch the rest of the field come in. */}
       <div className="mb-14 space-y-2.5">
         {players.map((p) => (
           <div key={p.id}>
-            <div className="mb-1 flex items-center justify-between font-mono text-xs">
+            <div className="mb-1 flex items-center gap-2 font-mono text-xs">
+              <Avatar name={p.name} src={p.avatar} dim={p.bot} />
               <span className={p.id === youId ? "text-brand-500" : "text-stone-500"}>
-                {p.finished && <Trophy className="mr-1 inline h-3 w-3" />}
                 {p.name}{p.id === youId ? " (you)" : ""}
               </span>
-              <span className="tabular-nums text-stone-600">{p.wpm.toFixed(0)} wpm</span>
+              {/* Bots are labelled, never passed off as human opponents. */}
+              {p.bot && <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-stone-600">bot</span>}
+              {p.finished && (
+                <span className="inline-flex items-center gap-1 text-stone-500">
+                  <Trophy className="h-3 w-3" />{p.place ? `#${p.place}` : ""}
+                </span>
+              )}
+              <span className="ml-auto tabular-nums text-stone-600">{p.wpm.toFixed(0)} wpm</span>
             </div>
             <div className="h-0.5 overflow-hidden rounded-full bg-white/[0.06]">
               <div
@@ -428,8 +475,24 @@ function RaceMode({ showKeyboard }) {
         </>
       )}
 
+      {/* Your result lands the moment you finish — no waiting for the whole
+          field — and the standings above keep ticking behind it. */}
+      {myResult && phase !== "results" && (
+        <div className="mt-14 text-center">
+          <div className="font-mono text-sm text-stone-500">
+            you finished <span className="text-brand-500">#{myResult.place}</span> · {myResult.wpm.toFixed(0)} wpm · {myResult.accuracy.toFixed(0)}% acc
+          </div>
+          <div className="mt-2 font-mono text-xs text-stone-600">still racing — watching the others finish</div>
+        </div>
+      )}
+
       {phase === "results" && (
         <div className="mt-14 text-center">
+          {myResult && (
+            <div className="mb-3 font-mono text-sm text-stone-500">
+              finished <span className="text-brand-500">#{myResult.place}</span> of {players.length}
+            </div>
+          )}
           <div className="font-mono text-5xl text-brand-500">{run.wpm.toFixed(0)}<span className="ml-2 text-xl text-stone-500">wpm</span></div>
           <button
             onClick={() => { wsRef.current?.close(); setPhase("idle"); setTarget(""); setPlayers([]); }}
