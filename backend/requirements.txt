@@ -1,5 +1,10 @@
 fastapi
 uvicorn
+# Uvicorn ships no WebSocket implementation of its own — without this it
+# can't process an Upgrade request at all, so the /ws/typing-race route in
+# routes_typing.py silently falls through to HTTP routing and 404s while
+# every ordinary REST endpoint keeps working. Required for the typing races.
+websockets
 python-jose
 passlib[bcrypt]
 bcrypt<5.0.0
