@@ -8,8 +8,8 @@ import { renderTemplate, useLocale, localizedPath, SUPPORTED_LOCALES } from "./i
 import usePageMeta from "./lib/usePageMeta";
 import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
-  Flame, Trophy, Volume2, Heart,
-  Check, ChevronDown, Star, ShieldCheck,
+  Flame, Trophy, Volume2,
+  Check, ChevronDown, ShieldCheck,
   BookOpen, Hash, MessageCircle, Keyboard, AudioLines,
   X, Eye, EyeOff, Play, RotateCw, Loader2, Bell, AlertTriangle,
 } from "lucide-react";
@@ -2060,50 +2060,23 @@ export default function LandingPage({ onLogin, onSignup }) {
             </div>
           </Reveal>
 
+          {/* Real screenshots of the actual app (Shop + Learn screens on
+              phone frames, transparent PNG → WebP with alpha kept), in place
+              of the hand-built CSS phone mockup that used to be here. That
+              mockup showed made-up content and reintroduced the orange +
+              rose + amber + green pile-up the hero had just been cleaned of. */}
           <Reveal delay={120} className="order-1 flex justify-center md:order-2">
-            <div className="relative h-[420px] w-[210px] rounded-[2.25rem] border-[6px] border-slate-800 bg-slate-800 shadow-2xl dark:border-white/20">
-              <div className="absolute left-1/2 top-0 h-5 w-24 -translate-x-1/2 rounded-b-xl bg-slate-800 dark:bg-white/20" />
-              <div className="h-full w-full overflow-hidden rounded-[1.7rem] bg-white dark:bg-[#151517]">
-                <div className="flex items-center justify-between px-4 pb-2 pt-6">
-                  <div className="flex items-center gap-1.5 rounded-full bg-brand-50 px-2 py-1 dark:bg-brand-500/15">
-                    <Flame className="h-3.5 w-3.5 text-brand-500" />
-                    <span className="text-[11px] font-extrabold text-brand-600 dark:text-brand-400">7</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 rounded-full bg-rose-50 px-2 py-1 dark:bg-rose-500/15">
-                    <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" />
-                    <span className="text-[11px] font-extrabold text-rose-600 dark:text-rose-400">5</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-1 dark:bg-amber-500/15">
-                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                    <span className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400">120</span>
-                  </div>
-                </div>
-                <div className="px-4">
-                  <div className="rounded-2xl bg-slate-50 p-3 text-center dark:bg-white/[0.06]">
-                    <div className="font-display text-lg font-extrabold text-brand-600 dark:text-brand-400">Բարև</div>
-                    <div className="mt-0.5 text-[11px] font-bold text-slate-400 dark:text-stone-500">ba·rev · Hello</div>
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    {tt("mobileTeaser.previewWords", { returnObjects: true }).map((w, i) => (
-                      <div
-                        key={w}
-                        className={
-                          "rounded-xl border-2 px-3 py-2.5 text-[12px] font-extrabold " +
-                          (i === 0
-                            ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
-                            : "border-slate-100 text-slate-600 dark:border-white/10 dark:text-stone-300")
-                        }
-                      >
-                        {w}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-grass-500 px-4 py-3 text-center text-xs font-extrabold text-white shadow-btn-brand">
-                  {tt("mobileTeaser.checkButton")}
-                </div>
-              </div>
-            </div>
+            <picture>
+              <source srcSet="/banners/haylingua-phones.webp" type="image/webp" />
+              <img
+                src="/banners/haylingua-phones.png"
+                alt="The Haylingua mobile app: the Learn screen with today's lesson and unit path, and the Shop screen with power-ups"
+                loading="lazy"
+                width="832"
+                height="893"
+                className="h-auto w-full max-w-[420px] drop-shadow-2xl"
+              />
+            </picture>
           </Reveal>
         </div>
       </section>
