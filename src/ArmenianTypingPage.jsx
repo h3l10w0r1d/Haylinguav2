@@ -31,8 +31,10 @@
 // mode teaches finger positions, and only it uses the real layout.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { RotateCcw, Keyboard as KeyboardIcon, Users, Trophy } from "lucide-react";
 import usePageMeta from "./lib/usePageMeta";
+import { useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
 import { LAYOUT, ROW_ORDER, FINGERS, CHAR_INFO, LESSONS, fingerForChar } from "./lib/armenianKeyboard";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -826,25 +828,40 @@ function RaceMode({ showKeyboard }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function ArmenianTypingPage() {
+  const { t } = useTranslation("seoPages");
+  const locale = useLocale();
+  const lp = (path) => localizedPath(path, locale);
   const [mode, setMode] = useState("learn");
   const [levels, setLevels] = useState(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [board, setBoard] = useState([]);
 
-  usePageMeta(
-    "Armenian Typing Practice & Races — Free, No Signup",
-    "Learn to type in Armenian for free, then race other people in real time. No account required — practice the Armenian alphabet, build speed, and track your WPM.",
-    {
-      structuredData: [{
+  const faq = t("armenianTyping.faq", { returnObjects: true });
+
+  usePageMeta(t("armenianTyping.meta.title"), t("armenianTyping.meta.description"), {
+    structuredData: [
+      {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: "https://www.haylingua.am/" },
-          { "@type": "ListItem", position: 2, name: "Armenian Typing", item: "https://www.haylingua.am/armenian-typing" },
+          { "@type": "ListItem", position: 1, name: t("armenianTyping.breadcrumb.home"), item: "https://www.haylingua.am/" },
+          { "@type": "ListItem", position: 2, name: t("armenianTyping.breadcrumb.current"), item: "https://www.haylingua.am/armenian-typing" },
         ],
-      }],
-    }
-  );
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: (Array.isArray(faq) ? faq : []).map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
+    alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/armenian-typing" })).concat([
+      { locale: "", path: "/armenian-typing" },
+    ]),
+  });
 
   useEffect(() => {
     fetch(`${API_BASE}/typing/texts`)
@@ -909,11 +926,80 @@ export default function ArmenianTypingPage() {
           )}
 
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 font-mono text-xs text-stone-600">
-            <Link to="/armenian-alphabet" className="transition hover:text-stone-400">alphabet</Link>
-            <Link to="/armenian-vocabulary" className="transition hover:text-stone-400">vocabulary</Link>
-            <Link to="/" className="transition hover:text-stone-400">haylingua</Link>
+            <Link to={lp("/armenian-alphabet")} className="transition hover:text-stone-400">alphabet</Link>
+            <Link to={lp("/armenian-vocabulary")} className="transition hover:text-stone-400">vocabulary</Link>
+            <Link to={lp("/")} className="transition hover:text-stone-400">haylingua</Link>
           </div>
         </footer>
+
+        {/* Crawlable content. The tool above is almost entirely JS-rendered
+            widgets with no prose, so on its own this page gave search engines
+            nothing to rank for "armenian typing test" / "armenian keyboard
+            online" — the exact queries it should own. Kept below the tool so
+            it never delays what someone came here to use. */}
+        <article className="mx-auto mt-24 max-w-2xl border-t border-white/[0.06] pt-16 text-stone-400">
+          <h2 className="font-display text-2xl font-extrabold text-stone-100">{t("armenianTyping.intro.heading")}</h2>
+          <p className="mt-4 leading-relaxed">{t("armenianTyping.intro.body")}</p>
+
+          <h2 className="mt-14 font-display text-2xl font-extrabold text-stone-100">{t("armenianTyping.modes.heading")}</h2>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            {(t("armenianTyping.modes.items", { returnObjects: true }) || []).map((m) => (
+              <div key={m.title} className="rounded-xl bg-white/[0.03] p-4">
+                <div className="font-display text-sm font-extrabold text-brand-500">{m.title}</div>
+                <p className="mt-1.5 text-sm leading-relaxed text-stone-500">{m.text}</p>
+              </div>
+            ))}
+          </div>
+
+          <h2 className="mt-14 font-display text-2xl font-extrabold text-stone-100">{t("armenianTyping.setup.heading")}</h2>
+          <p className="mt-4 leading-relaxed">{t("armenianTyping.setup.body")}</p>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            {[["macTitle", "macSteps"], ["winTitle", "winSteps"]].map(([titleKey, stepsKey]) => (
+              <div key={titleKey} className="rounded-xl bg-white/[0.03] p-5">
+                <div className="font-display text-sm font-extrabold text-stone-200">{t(`armenianTyping.setup.${titleKey}`)}</div>
+                <ol className="mt-3 space-y-1.5 text-sm text-stone-500">
+                  {(t(`armenianTyping.setup.${stepsKey}`, { returnObjects: true }) || []).map((step, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="font-mono text-stone-600">{i + 1}.</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+
+          <h2 className="mt-14 font-display text-2xl font-extrabold text-stone-100">{t("armenianTyping.why.heading")}</h2>
+          <p className="mt-4 leading-relaxed">{t("armenianTyping.why.body")}</p>
+
+          <h2 className="mt-14 font-display text-2xl font-extrabold text-stone-100">{t("armenianTyping.faqHeading")}</h2>
+          <div className="mt-5 space-y-4">
+            {(Array.isArray(faq) ? faq : []).map((f) => (
+              <div key={f.q} className="rounded-xl bg-white/[0.03] p-5">
+                <div className="font-display text-sm font-extrabold text-stone-200">{f.q}</div>
+                <p className="mt-2 text-sm leading-relaxed text-stone-500">{f.a}</p>
+              </div>
+            ))}
+          </div>
+
+          <h2 className="mt-14 font-display text-2xl font-extrabold text-stone-100">{t("armenianTyping.keepGoing.heading")}</h2>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            {[
+              ["/armenian-alphabet", 0],
+              ["/armenian-vocabulary", 1],
+              ["/learn-armenian-online", 2],
+            ].map(([path, i]) => {
+              const card = (t("armenianTyping.keepGoing.cards", { returnObjects: true }) || [])[i];
+              if (!card) return null;
+              return (
+                <Link key={path} to={lp(path)} className="rounded-xl bg-white/[0.03] p-4 transition hover:bg-white/[0.06]">
+                  <div className="font-display text-sm font-extrabold text-stone-200">{card.title}</div>
+                  <p className="mt-1 text-sm text-stone-500">{card.text}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </article>
       </div>
     </div>
   );

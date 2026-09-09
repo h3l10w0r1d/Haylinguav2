@@ -123,6 +123,10 @@ const PUBLIC_ROUTE_DEFS = [
   { path: 'armenian-phrases', element: <ArmenianPhrasesPage /> },
   { path: 'western-vs-eastern-armenian', element: <WesternVsEasternArmenianPage /> },
   { path: 'best-armenian-learning-apps', element: <ChoosingAnArmenianAppPage /> },
+  // Typing trainer. Its own self-contained dark UI (no SiteNav/SiteFooter),
+  // but it carries real translated copy now, so it's locale-mounted like
+  // every other SEO page.
+  { path: 'armenian-typing', element: <ArmenianTypingPage /> },
   { path: 'blog', element: <BlogPage /> },
   { path: 'blog/:slug', element: <BlogPostPage /> },
   { path: 'contact', element: <ContactPage /> },
@@ -481,10 +485,6 @@ function AppShell() {
           first-party /blog system, English-only/unprefixed like the legal
           pages above (not part of our i18n content, nothing to translate). */}
       <Route path="/soro-blog" element={<SoroBlogPage />} />
-      {/* Typing trainer + live races. Its own self-contained dark UI
-          (no SiteNav/SiteFooter) and English-only for now, so it sits
-          outside PUBLIC_ROUTE_DEFS like the other standalone pages. */}
-      <Route path="/armenian-typing" element={<ArmenianTypingPage />} />
       <Route path="/careers/apply/:vacancyId" element={<CareersApplyPage />} />
       <Route path="/community" element={<ForumPage />} />
       <Route path="/community/thread/:id" element={<ForumThreadPage />} />

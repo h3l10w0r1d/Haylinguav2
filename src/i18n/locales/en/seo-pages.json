@@ -525,5 +525,77 @@
       "subtext": "Free to start, no card needed — get through the alphabet and judge for yourself.",
       "button": "Start learning — free"
     }
+  },
+  "armenianTyping": {
+    "meta": {
+      "title": "Armenian Typing Test & Keyboard Practice — Free, No Signup",
+      "description": "Learn to type in Armenian free: ten-finger lessons on the Armenian phonetic keyboard, a typing speed test, and live races against other people. No account needed."
+    },
+    "breadcrumb": { "home": "Home", "current": "Armenian Typing" },
+    "intro": {
+      "heading": "Type Armenian on any computer",
+      "body": "Armenian has its own 39-letter alphabet, and most people learning it are sitting at a keyboard printed with Latin letters. That's the real obstacle — not the script itself, but never knowing where the letters live. This trainer teaches the Armenian keyboard the way a touch-typing course does: one finger pair at a time, starting from the home row, with the next key and the finger that presses it shown on screen until you no longer need to look."
+    },
+    "setup": {
+      "heading": "Adding the Armenian keyboard to your computer",
+      "body": "You don't need one to start — the on-screen keyboard here works on its own. But once the layout feels familiar, switching your system input is what makes it usable everywhere else.",
+      "macTitle": "macOS",
+      "macSteps": [
+        "Open System Settings → Keyboard",
+        "Next to Input Sources, click Edit",
+        "Press +, choose Armenian, and pick the layout you want",
+        "Switch inputs with Control + Space"
+      ],
+      "winTitle": "Windows",
+      "winSteps": [
+        "Open Settings → Time & language → Language & region",
+        "Add a language and choose Armenian",
+        "Open its options and add the Armenian keyboard",
+        "Switch inputs with Windows + Space"
+      ]
+    },
+    "why": {
+      "heading": "Why touch typing is worth it in Armenian specifically",
+      "body": "Hunting for letters keeps your eyes on the keyboard, and in a script you're still learning that means you never read what you're writing. Touch typing frees your attention to go back to the words — which is why it tends to speed up reading and spelling alongside typing speed. Accuracy comes first here: every lesson gates on accuracy rather than speed, because speed built on sloppy fingering has to be unlearned later."
+    },
+    "modes": {
+      "heading": "Three ways to use it",
+      "items": [
+        { "title": "Lessons", "text": "Ten-finger touch-typing lessons on the Armenian phonetic layout, from the home keys up. Each lesson unlocks when you hit its accuracy target." },
+        { "title": "Practice", "text": "Free typing against Armenian words and sentences, with live speed and accuracy. Nothing gated — just type." },
+        { "title": "Races", "text": "Live races against other people online, with placings and a daily leaderboard. No account required." }
+      ]
+    },
+    "faqHeading": "Common questions",
+    "faq": [
+      {
+        "q": "Do I need an Armenian keyboard to use this?",
+        "a": "No. The on-screen keyboard shows every key and highlights the next one, so you can work through the whole course on a Latin keyboard. Adding the system layout (see the steps above) is what lets you type Armenian everywhere else once you're comfortable."
+      },
+      {
+        "q": "Which Armenian keyboard layout does this teach?",
+        "a": "The Armenian phonetic layout, where letters sit on the keys of the Latin letters they sound like — ա on A, ս on S, դ on D, and so on. It's the easiest starting point if you already type in a Latin alphabet, since most of the home row transfers directly."
+      },
+      {
+        "q": "Is it really free?",
+        "a": "Yes — the lessons, the typing test and the races are all free, with no account and no ads. Signing in to Haylingua just means your races run under your own name and your results are saved to your profile."
+      },
+      {
+        "q": "How long does it take to learn?",
+        "a": "Most people get through the home-row lessons in a few sittings and can type simple Armenian words without looking within a week or two of short daily practice. Speed keeps climbing for months after that, but the useful threshold — not hunting for letters — comes quickly."
+      },
+      {
+        "q": "How is typing speed measured?",
+        "a": "In words per minute, using the standard convention that five characters count as one word, alongside accuracy as a percentage of correct keystrokes. Both are shown live while you type."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Vocabulary", "text": "Words worth typing once you can." },
+        { "title": "Learn Armenian Online", "text": "The full course behind this tool." }
+      ]
+    }
   }
 }

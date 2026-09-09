@@ -525,5 +525,98 @@
       "subtext": "Gratuit au démarrage, sans carte — passe l'alphabet et juge par toi-même.",
       "button": "Commencer gratuitement"
     }
-  }
+  },
+    "armenianTyping": {
+      "meta": {
+        "title": "Test de frappe en arménien — gratuit, sans inscription",
+        "description": "Apprends à taper en arménien gratuitement : leçons de dactylographie sur le clavier phonétique arménien, test de vitesse et courses en direct. Sans compte."
+      },
+      "breadcrumb": {
+        "home": "Accueil",
+        "current": "Frappe en arménien"
+      },
+      "intro": {
+        "heading": "Taper l'arménien sur n'importe quel ordinateur",
+        "body": "L'arménien a son propre alphabet de 39 lettres, et la plupart de ceux qui l'apprennent sont assis devant un clavier imprimé en caractères latins. C'est là le véritable obstacle — pas l'écriture elle-même, mais le fait de ne jamais savoir où sont les lettres. Cet outil enseigne le clavier arménien comme le fait un cours de dactylographie : une paire de doigts à la fois, en partant de la rangée de repos, avec la touche suivante et le doigt qui l'actionne affichés à l'écran jusqu'à ce que tu n'aies plus besoin de regarder."
+      },
+      "setup": {
+        "heading": "Ajouter le clavier arménien à ton ordinateur",
+        "body": "Tu n'en as pas besoin pour commencer — le clavier à l'écran fonctionne seul. Mais une fois la disposition familière, changer la source de saisie du système est ce qui la rend utilisable partout ailleurs.",
+        "macTitle": "macOS",
+        "macSteps": [
+          "Ouvre Réglages Système → Clavier",
+          "À côté de Sources de saisie, clique sur Modifier",
+          "Appuie sur +, choisis Arménien et la disposition voulue",
+          "Change de source avec Contrôle + Espace"
+        ],
+        "winTitle": "Windows",
+        "winSteps": [
+          "Ouvre Paramètres → Heure et langue → Langue et région",
+          "Ajoute une langue et choisis l'arménien",
+          "Ouvre ses options et ajoute le clavier arménien",
+          "Change de source avec Windows + Espace"
+        ]
+      },
+      "why": {
+        "heading": "Pourquoi la dactylographie compte particulièrement en arménien",
+        "body": "Chercher les lettres garde les yeux sur le clavier, et dans une écriture que tu apprends encore, cela veut dire que tu ne lis jamais ce que tu écris. La dactylographie libère ton attention pour la ramener aux mots — c'est pourquoi elle tend à accélérer la lecture et l'orthographe en même temps que la vitesse de frappe. Ici la précision passe d'abord : chaque leçon se valide sur la précision et non la vitesse, car une vitesse bâtie sur un mauvais doigté devra être désapprise plus tard."
+      },
+      "modes": {
+        "heading": "Trois façons de l'utiliser",
+        "items": [
+          {
+            "title": "Leçons",
+            "text": "Leçons de dactylographie sur la disposition phonétique arménienne, à partir des touches de repos. Chaque leçon se débloque quand tu atteins son objectif de précision."
+          },
+          {
+            "title": "Entraînement",
+            "text": "Frappe libre sur des mots et phrases en arménien, avec vitesse et précision en direct. Rien n'est verrouillé — tape, c'est tout."
+          },
+          {
+            "title": "Courses",
+            "text": "Courses en direct contre d'autres personnes, avec classement et tableau du jour. Sans compte."
+          }
+        ]
+      },
+      "faqHeading": "Questions fréquentes",
+      "faq": [
+        {
+          "q": "Ai-je besoin d'un clavier arménien ?",
+          "a": "Non. Le clavier à l'écran montre chaque touche et met en évidence la suivante : tu peux suivre tout le cours sur un clavier latin. Ajouter la disposition système (voir les étapes ci-dessus) sert à taper l'arménien partout ailleurs une fois à l'aise."
+        },
+        {
+          "q": "Quelle disposition ce cours enseigne-t-il ?",
+          "a": "La disposition phonétique arménienne, où les lettres se placent sur les touches des lettres latines auxquelles elles ressemblent — ա sur A, ս sur S, դ sur D, etc. C'est le point de départ le plus simple si tu tapes déjà dans un alphabet latin, puisque l'essentiel de la rangée de repos se transfère directement."
+        },
+        {
+          "q": "C'est vraiment gratuit ?",
+          "a": "Oui — les leçons, le test de vitesse et les courses sont gratuits, sans compte et sans publicité. Se connecter à Haylingua sert seulement à courir sous ton propre nom et à enregistrer tes résultats sur ton profil."
+        },
+        {
+          "q": "Combien de temps faut-il ?",
+          "a": "La plupart des gens terminent les leçons de la rangée de repos en quelques séances et tapent des mots arméniens simples sans regarder après une ou deux semaines de pratique quotidienne courte. La vitesse continue de monter pendant des mois, mais le seuil utile — ne plus chercher les lettres — arrive vite."
+        },
+        {
+          "q": "Comment la vitesse est-elle mesurée ?",
+          "a": "En mots par minute, selon la convention standard où cinq caractères valent un mot, avec la précision en pourcentage de frappes correctes. Les deux s'affichent pendant que tu tapes."
+        }
+      ],
+      "keepGoing": {
+        "heading": "Continue",
+        "cards": [
+          {
+            "title": "Alphabet arménien",
+            "text": "Les 39 lettres avec l'audio."
+          },
+          {
+            "title": "Vocabulaire arménien",
+            "text": "Des mots à taper une fois prêt."
+          },
+          {
+            "title": "Apprendre l'arménien en ligne",
+            "text": "Le cours complet derrière cet outil."
+          }
+        ]
+      }
+    }
 }

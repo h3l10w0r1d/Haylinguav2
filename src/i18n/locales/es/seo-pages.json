@@ -525,5 +525,98 @@
       "subtext": "Gratis para empezar, sin tarjeta — pasa el alfabeto y júzgalo tú mismo.",
       "button": "Empieza a aprender — gratis"
     }
-  }
+  },
+    "armenianTyping": {
+      "meta": {
+        "title": "Test de mecanografía en armenio — gratis, sin registro",
+        "description": "Aprende a escribir en armenio gratis: lecciones de mecanografía en el teclado fonético armenio, test de velocidad y carreras en vivo. Sin cuenta."
+      },
+      "breadcrumb": {
+        "home": "Inicio",
+        "current": "Mecanografía en armenio"
+      },
+      "intro": {
+        "heading": "Escribe armenio en cualquier ordenador",
+        "body": "El armenio tiene su propio alfabeto de 39 letras, y la mayoría de quienes lo aprenden están ante un teclado impreso con letras latinas. Ese es el verdadero obstáculo — no la escritura en sí, sino no saber nunca dónde están las letras. Este entrenador enseña el teclado armenio como lo hace un curso de mecanografía: un par de dedos cada vez, empezando por la fila de reposo, mostrando la siguiente tecla y el dedo que la pulsa hasta que ya no necesites mirar."
+      },
+      "setup": {
+        "heading": "Añadir el teclado armenio a tu ordenador",
+        "body": "No lo necesitas para empezar — el teclado en pantalla funciona por sí solo. Pero cuando la distribución te resulte familiar, cambiar la entrada del sistema es lo que la hace utilizable en todo lo demás.",
+        "macTitle": "macOS",
+        "macSteps": [
+          "Abre Ajustes del Sistema → Teclado",
+          "Junto a Fuentes de entrada, pulsa Editar",
+          "Pulsa +, elige Armenio y la distribución que quieras",
+          "Cambia de entrada con Control + Espacio"
+        ],
+        "winTitle": "Windows",
+        "winSteps": [
+          "Abre Configuración → Hora e idioma → Idioma y región",
+          "Añade un idioma y elige armenio",
+          "Abre sus opciones y añade el teclado armenio",
+          "Cambia de entrada con Windows + Espacio"
+        ]
+      },
+      "why": {
+        "heading": "Por qué la mecanografía importa especialmente en armenio",
+        "body": "Buscar letras mantiene la vista en el teclado, y en una escritura que aún estás aprendiendo eso significa que nunca lees lo que escribes. La mecanografía libera tu atención para devolverla a las palabras — por eso suele acelerar la lectura y la ortografía junto con la velocidad. Aquí la precisión va primero: cada lección se supera por precisión y no por velocidad, porque la velocidad construida sobre una digitación descuidada hay que desaprenderla después."
+      },
+      "modes": {
+        "heading": "Tres formas de usarlo",
+        "items": [
+          {
+            "title": "Lecciones",
+            "text": "Lecciones de mecanografía en la distribución fonética armenia, desde la fila de reposo. Cada lección se desbloquea al alcanzar su objetivo de precisión."
+          },
+          {
+            "title": "Práctica",
+            "text": "Escritura libre con palabras y frases en armenio, con velocidad y precisión en vivo. Sin bloqueos — solo escribe."
+          },
+          {
+            "title": "Carreras",
+            "text": "Carreras en vivo contra otras personas, con puestos y tabla diaria. Sin cuenta."
+          }
+        ]
+      },
+      "faqHeading": "Preguntas frecuentes",
+      "faq": [
+        {
+          "q": "¿Necesito un teclado armenio?",
+          "a": "No. El teclado en pantalla muestra cada tecla y resalta la siguiente, así que puedes hacer todo el curso en un teclado latino. Añadir la distribución del sistema (pasos arriba) sirve para escribir armenio en todo lo demás cuando te sientas cómodo."
+        },
+        {
+          "q": "¿Qué distribución enseña?",
+          "a": "La fonética armenia, donde las letras se sitúan en las teclas de las letras latinas a las que suenan parecido — ա en A, ս en S, դ en D, etc. Es el punto de partida más fácil si ya escribes en alfabeto latino, porque casi toda la fila de reposo se transfiere directamente."
+        },
+        {
+          "q": "¿Es realmente gratis?",
+          "a": "Sí — las lecciones, el test de velocidad y las carreras son gratis, sin cuenta y sin anuncios. Iniciar sesión en Haylingua solo sirve para correr con tu propio nombre y guardar tus resultados en tu perfil."
+        },
+        {
+          "q": "¿Cuánto tiempo lleva?",
+          "a": "La mayoría completa las lecciones de la fila de reposo en unas pocas sesiones y escribe palabras armenias sencillas sin mirar tras una o dos semanas de práctica diaria corta. La velocidad sigue subiendo durante meses, pero el umbral útil — dejar de buscar letras — llega pronto."
+        },
+        {
+          "q": "¿Cómo se mide la velocidad?",
+          "a": "En palabras por minuto, con la convención estándar de que cinco caracteres equivalen a una palabra, junto con la precisión como porcentaje de pulsaciones correctas. Ambas se ven mientras escribes."
+        }
+      ],
+      "keepGoing": {
+        "heading": "Sigue adelante",
+        "cards": [
+          {
+            "title": "Alfabeto armenio",
+            "text": "Las 39 letras con audio."
+          },
+          {
+            "title": "Vocabulario armenio",
+            "text": "Palabras que vale la pena escribir."
+          },
+          {
+            "title": "Aprender armenio en línea",
+            "text": "El curso completo tras esta herramienta."
+          }
+        ]
+      }
+    }
 }

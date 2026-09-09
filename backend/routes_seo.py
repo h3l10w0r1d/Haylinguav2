@@ -57,8 +57,6 @@ STATIC_PAGES: list[tuple[str, str, str]] = [
     ("/armenian-phrases", "monthly", "0.8"),
     ("/western-vs-eastern-armenian", "monthly", "0.8"),
     ("/best-armenian-learning-apps", "monthly", "0.7"),
-    # Free typing trainer — a tool, not translated copy, so English-only for
-    # now (deliberately absent from TRANSLATED_STATIC_PATHS).
     ("/armenian-typing", "weekly", "0.8"),
     ("/learn-armenian-in-los-angeles", "monthly", "0.7"),
     ("/learn-armenian-in-paris", "monthly", "0.7"),
@@ -87,7 +85,7 @@ TRANSLATED_STATIC_PATHS = {
     "/", "/learn-armenian-online", "/armenian-alphabet", "/armenian-pronunciation",
     "/armenian-vocabulary", "/eastern-armenian", "/about", "/pricing",
     "/armenian-numbers", "/armenian-phrases", "/western-vs-eastern-armenian",
-    "/best-armenian-learning-apps",
+    "/best-armenian-learning-apps", "/armenian-typing",
     "/careers", "/affiliates", "/contact",
     "/learn-armenian-in-los-angeles", "/learn-armenian-in-paris", "/learn-armenian-in-moscow",
     "/learn-armenian-in-buenos-aires", "/learn-armenian-in-beirut", "/learn-armenian-in-tehran",
