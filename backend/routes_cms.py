@@ -1852,6 +1852,19 @@ def cms_seed_curriculum(request: Request, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
     return res or {"ok": True}
 
+@router.post("/cms/seed/forum-intros")
+def cms_seed_forum_intros(request: Request, db=Depends(get_db)):
+    """Post a handful of genuine starter threads under the real team's own
+    accounts (see seed_forum_intros.py) so the community forum isn't empty.
+    Idempotent — safe to re-run after adding more TEAM_EMAILS."""
+    require_cms(request, db)
+    from seed_forum_intros import seed_forum_intros
+    try:
+        res = seed_forum_intros()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Seed failed: {e}")
+    return res or {"ok": True}
+
 @router.post("/cms/seed/sounds")
 def cms_seed_sounds(request: Request, db=Depends(get_db)):
     """Populate Phase 0 (Sounds) — pure audio-in/audio-out content that
