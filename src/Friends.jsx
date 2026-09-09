@@ -26,6 +26,7 @@ import { CrownBadge } from "./lib/PremiumBadge";
 import AvatarFrame from "./lib/avatarFrame";
 import NameTag from "./lib/nameTag";
 import grandma from "./assets/character-grandma.png";
+import { SkeletonBlock } from "./lib/Skeleton";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -539,9 +540,8 @@ export default function Friends() {
           {!token ? (
             <EmptyState title="Log in to use Friends" text="You need to be logged in to send and accept friend requests." />
           ) : loading ? (
-            <div className="py-12 text-center">
-              <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
-              <p className="font-semibold text-slate-500 dark:text-stone-400">Loading…</p>
+            <div className="space-y-3">
+              {[0, 1, 2].map((i) => <PersonRowSkeleton key={i} />)}
             </div>
           ) : (
             <>
@@ -639,9 +639,8 @@ export default function Friends() {
               {/* ACTIVITY TAB */}
               {activeTab === "activity" ? (
                 activityLoading ? (
-                  <div className="flex flex-col items-center gap-3 py-16">
-                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
-                    <p className="font-semibold text-slate-400 dark:text-stone-500">Loading activity…</p>
+                  <div className="space-y-2">
+                    {[0, 1, 2, 3].map((i) => <PersonRowSkeleton key={i} />)}
                   </div>
                 ) : activity.length === 0 ? (
                   <EmptyState
@@ -792,8 +791,10 @@ function EmotePicker({ friend, items, busy, onPick, onClose }) {
         </div>
 
         {loading ? (
-          <div className="py-10 text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
+          <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-5">
+            {Array.from({ length: 10 }, (_, i) => (
+              <SkeletonBlock key={i} className="aspect-square w-full rounded-2xl" />
+            ))}
           </div>
         ) : items.length === 0 ? (
           <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-white/[0.04] dark:text-stone-400">
@@ -979,6 +980,22 @@ function EmptyState({ title, text, cta, onCta }) {
 }
 
 /* ---------- Person card ---------- */
+
+// Matches PersonCard's row shape so the loading state doesn't jump when the
+// real rows pop in.
+function PersonRowSkeleton() {
+  return (
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
+      <div className="flex items-center gap-3">
+        <SkeletonBlock className="h-12 w-12 shrink-0 rounded-2xl" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <SkeletonBlock className="h-4 w-1/3" />
+          <SkeletonBlock className="h-3 w-1/4" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PersonCard({
   person,

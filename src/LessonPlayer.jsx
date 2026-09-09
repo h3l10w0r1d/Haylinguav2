@@ -206,6 +206,7 @@ export default function LessonPlayer() {
   const [pendingNext, setPendingNext] = useState(null);
   const pendingNextRef = useRef(null);
   const [renderNonce, setRenderNonce] = useState(0);
+  const exerciseCardRef = useRef(null);
   const [hasFinishedAll, setHasFinishedAll] = useState(false);
   const [mistakes, setMistakes] = useState(0);
   const [heartsState, setHeartsState] = useState(readHearts);
@@ -257,6 +258,20 @@ export default function LessonPlayer() {
   }, [exerciseQueue]);
 
   const isReadingSection = String(currentExercise?.kind || "") === "reading_section";
+
+  // Small fade+nudge between exercises so the question swap doesn't feel like
+  // a hard cut. Restarting the class (rather than keying the card) avoids
+  // remounting ExerciseRenderer/Phase2Exercise on every question — those
+  // components already reset their own local state via `[exercise?.id]`
+  // effects, and a real remount would re-fire mount-time side effects
+  // (autoplay TTS, etc.) that are only meant to run once per exercise.
+  useEffect(() => {
+    const el = exerciseCardRef.current;
+    if (!el) return;
+    el.classList.remove("exercise-in");
+    void el.offsetWidth;
+    el.classList.add("exercise-in");
+  }, [currentExercise?.id, renderNonce]);
 
   const PHASE2_KINDS = useMemo(
     () =>
@@ -1025,7 +1040,8 @@ export default function LessonPlayer() {
 
         {/* Current exercise */}
         {!showDoneFooter && !outOfHearts && currentExercise ? (
-          isReadingSection ? (
+          <div ref={exerciseCardRef}>
+          {isReadingSection ? (
             <ReadingSectionCard
               section={currentExercise?.config?.section}
               userLevel={userLevel || lesson?.config?.reading_level}
@@ -1054,7 +1070,8 @@ export default function LessonPlayer() {
               combo={comboStreak}
               mascotCharacter={mascotCharacter}
             />
-          )
+          )}
+          </div>
         ) : null}
 
         {/* Completion screen */}

@@ -29,6 +29,7 @@ import {
 
 import { StarMotif } from "./lib/motifs";
 import { ttsFetch } from "./exercises/tts";
+import { SkeletonBlock } from "./lib/Skeleton";
 import ActivityChart from "./lib/ActivityChart";
 import AccountDangerZone from "./AccountDangerZone";
 import AvatarBuilder, { generateRandomAvatarFile } from "./AvatarBuilder";
@@ -921,7 +922,20 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-brand-50/40 to-white dark:bg-[#0d0d0f] dark:from-[#0d0d0f] dark:via-[#0d0d0f] dark:to-[#0d0d0f]">
-        <div className="max-w-5xl mx-auto px-4 py-10 font-display font-extrabold text-slate-500 dark:text-stone-400">Loading…</div>
+        <div className="max-w-5xl mx-auto px-4 py-10">
+          <div className="flex items-center gap-4">
+            <SkeletonBlock className="h-20 w-20 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <SkeletonBlock className="h-5 w-48" />
+              <SkeletonBlock className="h-3.5 w-32" />
+            </div>
+          </div>
+          <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {[0, 1, 2, 3].map((i) => (
+              <SkeletonBlock key={i} className="h-24 rounded-2xl" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

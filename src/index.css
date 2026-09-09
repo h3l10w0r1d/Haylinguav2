@@ -567,6 +567,13 @@
 .page-in { animation: pageIn 0.3s cubic-bezier(.2, .7, .2, 1) both; }
 @media (prefers-reduced-motion: reduce) { .page-in { animation: none; } }
 
+/* Lighter/quicker sibling of .page-in for the exercise-to-exercise swap
+   inside a lesson — that transition repeats every 10-20s, so a full 0.3s
+   slide reads as sluggish; this is a quick fade+nudge instead. */
+@keyframes exerciseIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.exercise-in { animation: exerciseIn 0.18s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .exercise-in { animation: none; } }
+
 /* ----- Branded loading screen ----- */
 @keyframes hlLoadPop {
   0%, 100% { transform: translateY(0) scale(1) rotate(-2deg); }

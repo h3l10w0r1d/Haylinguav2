@@ -432,11 +432,7 @@ function AppShell() {
   };
 
   if (loadingUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-orange-50">
-        <p className="text-gray-600">Loading your dashboard…</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (

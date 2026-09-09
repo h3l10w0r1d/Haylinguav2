@@ -8,6 +8,7 @@ import { createAvatar } from "@dicebear/core";
 import { avataaars } from "@dicebear/collection";
 import AvatarFrame from "./lib/avatarFrame";
 import NameTag from "./lib/nameTag";
+import { SkeletonBlock } from "./lib/Skeleton";
 
 // Mirrors Dashboard.jsx's card/chip tokens — not shared via import since
 // Dashboard doesn't export them, but this keeps Shop visually on the same
@@ -359,9 +360,19 @@ export default function Shop() {
         ) : null}
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-20 text-slate-500 dark:text-stone-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="font-semibold">Loading shop…</span>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className={"p-5 " + CARD}>
+                <div className="flex items-center gap-3">
+                  <SkeletonBlock className="h-12 w-12 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <SkeletonBlock className="h-4 w-2/3" />
+                    <SkeletonBlock className="h-3 w-1/2" />
+                  </div>
+                </div>
+                <SkeletonBlock className="mt-4 h-9 w-full rounded-xl" />
+              </div>
+            ))}
           </div>
         ) : (
           <>
