@@ -1646,4 +1646,27 @@ def ensure_schema() -> None:
         ))
         print("[ensure_schema] ensured blog_posts table")
 
+        # ---------- Typing trainer results (see routes_typing.py) ----------
+        # user_id is nullable on purpose: the typing tool is usable logged-out,
+        # and an anonymous run still belongs on the leaderboard under whatever
+        # nickname was entered.
+        ensure_table("typing_results", """
+            CREATE TABLE typing_results (
+                id           SERIAL PRIMARY KEY,
+                user_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                display_name TEXT NOT NULL,
+                wpm          NUMERIC(6,2) NOT NULL,
+                accuracy     NUMERIC(5,2) NOT NULL,
+                mode         TEXT NOT NULL DEFAULT 'practice',
+                created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS typing_results_wpm_idx ON typing_results (wpm DESC)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS typing_results_created_idx ON typing_results (created_at DESC)"
+        ))
+        print("[ensure_schema] ensured typing_results table")
+
     print("[ensure_schema] done")

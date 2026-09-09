@@ -43,6 +43,7 @@ const ArmenianNumbersPage = lazy(() => import('./ArmenianNumbersPage'));
 const ArmenianPhrasesPage = lazy(() => import('./ArmenianPhrasesPage'));
 const WesternVsEasternArmenianPage = lazy(() => import('./WesternVsEasternArmenianPage'));
 const ChoosingAnArmenianAppPage = lazy(() => import('./ChoosingAnArmenianAppPage'));
+const ArmenianTypingPage = lazy(() => import('./ArmenianTypingPage'));
 const DiasporaCityPage = lazy(() => import('./DiasporaCityPage'));
 const BlogPage = lazy(() => import('./BlogPage'));
 const BlogPostPage = lazy(() => import('./BlogPostPage'));
@@ -480,6 +481,10 @@ function AppShell() {
           first-party /blog system, English-only/unprefixed like the legal
           pages above (not part of our i18n content, nothing to translate). */}
       <Route path="/soro-blog" element={<SoroBlogPage />} />
+      {/* Typing trainer + live races. Its own self-contained dark UI
+          (no SiteNav/SiteFooter) and English-only for now, so it sits
+          outside PUBLIC_ROUTE_DEFS like the other standalone pages. */}
+      <Route path="/armenian-typing" element={<ArmenianTypingPage />} />
       <Route path="/careers/apply/:vacancyId" element={<CareersApplyPage />} />
       <Route path="/community" element={<ForumPage />} />
       <Route path="/community/thread/:id" element={<ForumThreadPage />} />

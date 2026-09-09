@@ -42,6 +42,7 @@ from seed_curriculum import seed_curriculum
 from ensure_schema import ensure_schema
 from lesson_analytics import router as lesson_analytics_router
 from routes_seo import router as seo_router
+from routes_typing import router as typing_router
 from routes_autofix import router as autofix_router
 from database import Base, engine
 from sqlalchemy import text
@@ -246,6 +247,10 @@ app.include_router(audio_router, prefix="/api")
 
 app.include_router(seo_router)
 app.include_router(seo_router, prefix="/api")
+
+# Typing trainer + live races. Mounted unprefixed only — it carries a
+# WebSocket route, which should have a single canonical URL.
+app.include_router(typing_router)
 
 app.include_router(conversation_router)
 app.include_router(conversation_router, prefix="/api")
