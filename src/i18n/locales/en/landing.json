@@ -8,11 +8,13 @@
     "title1": "Learn Armenian.",
     "title2": "Actually stick with it.",
     "subtitle": "Bite-sized lessons, instant feedback, audio on every word, and streaks that make you want to come back tomorrow.",
+    "audience": "Built for the diaspora — reconnect with the language of your grandparents, starting from zero.",
     "ctaStart": "Start learning — free",
     "ctaLogin": "I have an account",
     "freeToStart": "Free to start",
     "noCard": "No card needed",
-    "premiumDays": "14 days of Premium free"
+    "premiumDays": "14 days of Premium free",
+    "pricingLine": "Free forever, no card needed. Premium just removes hearts."
   },
   "features": [
     { "title": "Alphabet from scratch", "text": "Master all 39 Armenian letters with bite-sized intro, recognition, and typing drills." },
@@ -123,11 +125,24 @@
     "title": "A path you'll actually want to finish",
     "subtitle": "Follow a winding path of lessons — tap through letters, listen and repeat, build words, and watch your streak grow. Just like the apps you already love, but for Armenian.",
     "bullets": [
+      "A full A0 to B1 course — not a vocabulary app",
       "All 39 letters from scratch — intro, recognition, and typing drills",
       "Real audio on every prompt, replayable any time",
       "Mistake review — re-master exactly what tripped you up",
       "Hearts, streaks, XP, and a friends leaderboard"
     ]
+  },
+  "tools": {
+    "eyebrow": "Free, no account needed",
+    "title": "Start with a free tool or guide",
+    "items": {
+      "alphabet": "The Armenian alphabet",
+      "pronunciation": "Pronunciation guide",
+      "numbers": "Armenian numbers",
+      "phrases": "Essential phrases",
+      "typing": "Touch-typing trainer",
+      "reader": "Text-to-speech reader"
+    }
   },
   "featuresSection": {
     "eyebrow": "Features",

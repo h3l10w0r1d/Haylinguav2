@@ -10,6 +10,7 @@ import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
   Flame, Trophy, Volume2, Heart,
   Check, ChevronDown, Star, ShieldCheck,
+  BookOpen, Hash, MessageCircle, Keyboard, AudioLines,
   X, Eye, EyeOff, Play, RotateCw, Loader2, Bell, AlertTriangle,
 } from "lucide-react";
 import SiteNav from "./SiteNav";
@@ -33,6 +34,19 @@ const TELEGRAM_BOT_ID = import.meta.env.VITE_TELEGRAM_BOT_ID || "8694793218";
 // src/i18n/locales/{locale}/landing.json (features/steps/testimonials/faqs),
 // zipped onto these by index at each render site so the section works for
 // every locale without duplicating the icon wiring per language.
+// Free standalone pages linked from the "tools & guides" strip. Paths are
+// the unprefixed routes from App.jsx's PUBLIC_ROUTE_DEFS — localizedPath()
+// prepends the locale segment at render time. Labels live in landing.json
+// under tools.items, keyed by `key`.
+const TOOL_LINKS = [
+  { key: "alphabet", path: "/armenian-alphabet", icon: BookOpen },
+  { key: "pronunciation", path: "/armenian-pronunciation", icon: Volume2 },
+  { key: "numbers", path: "/armenian-numbers", icon: Hash },
+  { key: "phrases", path: "/armenian-phrases", icon: MessageCircle },
+  { key: "typing", path: "/armenian-typing", icon: Keyboard },
+  { key: "reader", path: "/armenian-text-to-speech", icon: AudioLines },
+];
+
 // ── Scroll reveal ─────────────────────────────────────────────────────────────
 
 function useReveal(threshold = 0.12) {
@@ -1918,6 +1932,11 @@ export default function LandingPage({ onLogin, onSignup }) {
             <p className="mt-5 max-w-md text-lg font-semibold text-slate-500 dark:text-stone-400">
               {tt("hero.subtitle")}
             </p>
+            {/* Who it's for. The whole brand is heritage/diaspora learners
+                (see the seven city pages) and the hero never said so. */}
+            <p className="mt-3 max-w-md text-sm font-bold text-brand-700 dark:text-brand-300">
+              {tt("hero.audience")}
+            </p>
 
             {/* One CTA row, one trust line underneath. The hero deliberately
                 stays at headline → subtitle → buttons → demo: the rotating
@@ -1931,8 +1950,10 @@ export default function LandingPage({ onLogin, onSignup }) {
               </button>
               <button onClick={() => goAuth("login")} className="btn3d btn3d-neutral text-base">{tt("hero.ctaLogin")}</button>
             </div>
+            {/* One honest pricing line at the button — answers "what's the
+                catch" right where the hesitation happens. */}
             <div className="mt-4 text-sm font-bold text-slate-500 dark:text-stone-400">
-              {tt("hero.noCard")}
+              {tt("hero.pricingLine")}
             </div>
           </div>
 
@@ -1969,6 +1990,35 @@ export default function LandingPage({ onLogin, onSignup }) {
           {/* Learning path preview */}
           <Reveal delay={120}>
             <PathPreview />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Free tools & guides — links to the standalone SEO/utility pages,
+          which the homepage previously didn't link to at all. A no-signup
+          way in, and internal links for pages that carry the SEO weight.
+          Kept visually quiet on purpose: this is a row of links to real
+          pages, not a feature grid (the 4-item claims band that used to sit
+          under the hero was cut for being exactly that). */}
+      <section className="border-t border-slate-100 dark:border-white/[0.06]">
+        <div className="mx-auto max-w-6xl px-5 py-14">
+          <Reveal>
+            <SectionHeading eyebrow={tt("tools.eyebrow")} title={tt("tools.title")} />
+            <div className="mx-auto mt-8 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {TOOL_LINKS.map((tool) => (
+                <Link
+                  key={tool.key}
+                  to={localizedPath(tool.path, locale)}
+                  className="group flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:ring-brand-300 dark:bg-[#18181b] dark:text-stone-200 dark:ring-white/[0.08] dark:hover:ring-brand-500/40"
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+                    <tool.icon className="h-4 w-4" />
+                  </span>
+                  <span className="flex-1">{tt(`tools.items.${tool.key}`)}</span>
+                  <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500 rtl:rotate-180 dark:text-stone-600" />
+                </Link>
+              ))}
+            </div>
           </Reveal>
         </div>
       </section>
