@@ -209,19 +209,69 @@ function TypingSurface({ target, run, disabled, showKeyboard }) {
   );
 }
 
-// Deterministic avatar: same name always yields the same colour and initial.
-// Generated locally rather than pulled from an avatar service — it costs no
-// request, no dependency and no third-party data sharing, and the flat
-// two-tone result suits this page better than a detailed illustration would.
-// Signed-in racers pass a real avatar_url and get their actual picture.
-const AVATAR_HUES = [18, 45, 145, 190, 265, 320, 350];
-function hueFor(name) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return AVATAR_HUES[h % AVATAR_HUES.length];
+// Deterministic "web3"-style identicon — the jazzicon/blockie idea: hash the
+// name, then lay coloured geometric shapes over a coloured disc at rotations
+// derived from that hash. Same name always yields the same avatar, and no
+// two names collide visually in practice.
+//
+// Generated inline as SVG rather than pulled from an avatar service: no
+// request, no dependency, no third-party data sharing, and it renders
+// instantly. Signed-in racers pass a real avatar_url and get their actual
+// picture instead.
+function hashOf(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
-function Avatar({ name, src, dim }) {
+// A wide, saturated spread so adjacent racers never read as the same colour.
+const IDENTICON_HUES = [8, 32, 52, 96, 150, 178, 200, 232, 268, 292, 320, 344];
+
+function Identicon({ name, size = 26, dim }) {
+  const { bg, shapes } = useMemo(() => {
+    const h = hashOf(name || "?");
+    const base = IDENTICON_HUES[h % IDENTICON_HUES.length];
+    const out = [];
+    for (let i = 0; i < 3; i++) {
+      const n = (h >>> (i * 5 + 3)) & 0xff;
+      out.push({
+        hue: IDENTICON_HUES[(h + (i + 1) * 5) % IDENTICON_HUES.length],
+        // Spread across the tile, rotated — the jazzicon look.
+        x: (n % 10) / 10, y: ((n >> 3) % 10) / 10,
+        rot: (n * 7) % 360,
+        w: 0.55 + ((n >> 2) % 5) / 10,
+      });
+    }
+    return { bg: base, shapes: out };
+  }, [name]);
+
+  return (
+    <span
+      aria-hidden
+      className={"inline-block shrink-0 overflow-hidden rounded-full " + (dim ? "opacity-60" : "")}
+      style={{ width: size, height: size }}
+    >
+      <svg viewBox="0 0 100 100" width={size} height={size}>
+        <rect width="100" height="100" fill={`hsl(${bg} 62% 42%)`} />
+        {shapes.map((s, i) => (
+          <rect
+            key={i}
+            x={s.x * 100 - 20} y={s.y * 100 - 20}
+            width={s.w * 100} height={s.w * 100}
+            fill={`hsl(${s.hue} 68% 55%)`}
+            transform={`rotate(${s.rot} 50 50)`}
+            opacity="0.85"
+          />
+        ))}
+      </svg>
+    </span>
+  );
+}
+
+function Avatar({ name, src, dim, size }) {
   const [broken, setBroken] = useState(false);
   if (src && !broken) {
     return (
@@ -229,20 +279,12 @@ function Avatar({ name, src, dim }) {
         src={src}
         alt=""
         onError={() => setBroken(true)}
-        className={"h-6 w-6 shrink-0 rounded-full object-cover " + (dim ? "opacity-60" : "")}
+        style={{ width: size || 26, height: size || 26 }}
+        className={"shrink-0 rounded-full object-cover " + (dim ? "opacity-60" : "")}
       />
     );
   }
-  const hue = hueFor(name || "?");
-  return (
-    <span
-      aria-hidden
-      className={"grid h-6 w-6 shrink-0 place-items-center rounded-full font-mono text-[11px] " + (dim ? "opacity-60" : "")}
-      style={{ backgroundColor: `hsl(${hue} 55% 22%)`, color: `hsl(${hue} 85% 72%)` }}
-    >
-      {(name || "?").trim().charAt(0).toUpperCase()}
-    </span>
-  );
+  return <Identicon name={name || "?"} size={size} dim={dim} />;
 }
 
 // Small, dim, monospace — never competes with the passage for attention.
@@ -280,51 +322,127 @@ const FINGER_BY_KEY_PUBLIC = Object.fromEntries(
 // Full keyboard, keys tinted by which finger owns them, next key lit. This
 // is the only mode that shows the whole board on purpose: the point is
 // learning where keys live, so hiding them would defeat it.
+// Hands seen from above, the way every typing course shows them. The finger
+// that should press the next key lights up in that finger's colour, so the
+// learner never has to decode a text label mid-drill.
+const HAND_FINGERS = {
+  left: [
+    { id: "lPinky", x: 6, y: 30, h: 40 },
+    { id: "lRing", x: 22, y: 17, h: 53 },
+    { id: "lMiddle", x: 38, y: 11, h: 59 },
+    { id: "lIndex", x: 54, y: 19, h: 51 },
+  ],
+  right: [
+    { id: "rIndex", x: 22, y: 19, h: 51 },
+    { id: "rMiddle", x: 38, y: 11, h: 59 },
+    { id: "rRing", x: 54, y: 17, h: 53 },
+    { id: "rPinky", x: 70, y: 30, h: 40 },
+  ],
+};
+
+function Hand({ side, activeFinger }) {
+  const fingers = HAND_FINGERS[side];
+  const thumbActive = false;
+  return (
+    <svg viewBox="0 0 92 118" className="h-28 w-auto" aria-hidden>
+      {fingers.map((f) => {
+        const on = f.id === activeFinger;
+        const hue = FINGERS[f.id].hue;
+        return (
+          <rect
+            key={f.id}
+            x={f.x} y={f.y} width={13} height={f.h} rx={6.5}
+            fill={on ? `hsl(${hue} 65% 52%)` : "rgba(255,255,255,0.05)"}
+            stroke={on ? `hsl(${hue} 70% 65%)` : "rgba(255,255,255,0.09)"}
+            strokeWidth="1"
+            className="transition-all duration-150"
+          />
+        );
+      })}
+      {/* palm */}
+      <rect x={6} y={66} width={77} height={40} rx={14}
+        fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
+      {/* thumb, angled outward on the side away from the other hand */}
+      <rect
+        x={side === "left" ? 70 : 6} y={70} width={13} height={30} rx={6.5}
+        transform={`rotate(${side === "left" ? 28 : -28} ${side === "left" ? 76 : 12} 76)`}
+        fill={thumbActive ? "hsl(0 0% 60%)" : "rgba(255,255,255,0.05)"}
+        stroke="rgba(255,255,255,0.09)" strokeWidth="1"
+      />
+    </svg>
+  );
+}
+
+function HandsPreview({ activeFinger }) {
+  const f = FINGERS[activeFinger];
+  return (
+    <div>
+      <div className="flex items-end justify-center gap-8">
+        <Hand side="left" activeFinger={activeFinger} />
+        <Hand side="right" activeFinger={activeFinger} />
+      </div>
+      <div className="mt-3 h-4 text-center font-mono text-xs">
+        {f ? <span style={{ color: `hsl(${f.hue} 60% 66%)` }}>{f.label.toLowerCase()}</span> : null}
+      </div>
+    </div>
+  );
+}
+
 function FingerKeyboard({ nextChar, activeKeys }) {
   const nextKey = nextChar ? CHAR_INFO[nextChar]?.key : null;
   const nextFinger = nextChar ? fingerForChar(nextChar) : null;
-  // Stagger each row slightly, the way a real keyboard is offset.
-  const indent = { number: 0, top: 14, home: 22, bottom: 38 };
+  const isSpace = nextChar === " ";
+  // Stagger each row, the way a real keyboard is offset.
+  const indent = { number: 0, top: 18, home: 28, bottom: 46 };
 
   return (
     <div className="mt-10">
-      {ROW_ORDER.map((row) => (
-        <div key={row} className="mb-1.5 flex justify-center gap-1.5" style={{ paddingLeft: indent[row] }}>
-          {LAYOUT[row].map(([key, ch]) => {
-            const finger = FINGER_BY_KEY_PUBLIC[key];
-            const hue = FINGERS[finger]?.hue;
-            const isNext = key === nextKey;
-            const inLesson = !activeKeys || activeKeys.includes(ch);
-            return (
-              <span
-                key={key}
-                className={
-                  "grid h-9 w-9 shrink-0 place-items-center rounded-md font-mono text-sm transition " +
-                  (isNext ? "scale-110 ring-2 ring-white " : "") +
-                  (inLesson ? "" : "opacity-25 ")
-                }
-                style={{
-                  backgroundColor: isNext ? `hsl(${hue} 70% 45%)` : `hsl(${hue} 45% 16%)`,
-                  color: isNext ? "#0d0d0f" : `hsl(${hue} 60% 65%)`,
-                }}
-                title={`${ch} — ${key.toUpperCase()} — ${FINGERS[finger]?.label || ""}`}
-              >
-                {ch}
-              </span>
-            );
-          })}
-        </div>
-      ))}
-      <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 font-mono text-[11px]">
-        {Object.entries(FINGERS).map(([id, f]) => (
-          <span
-            key={id}
-            className={"transition " + (nextFinger === id ? "font-bold" : "opacity-45")}
-            style={{ color: `hsl(${f.hue} 60% 65%)` }}
-          >
-            {f.label}
-          </span>
+      <div className="mx-auto w-fit rounded-2xl bg-black/40 p-3 ring-1 ring-white/[0.06]">
+        {ROW_ORDER.map((row) => (
+          <div key={row} className="mb-2 flex justify-center gap-2 last:mb-0" style={{ paddingLeft: indent[row] }}>
+            {LAYOUT[row].map(([key, ch]) => {
+              const finger = FINGER_BY_KEY_PUBLIC[key];
+              const hue = FINGERS[finger]?.hue;
+              const isNext = ch && key === nextKey;
+              const inLesson = !ch ? false : !activeKeys || activeKeys.includes(ch);
+              // The two home-row anchor keys carry the physical bump.
+              const isAnchor = key === "f" || key === "j";
+              return (
+                <span
+                  key={key}
+                  className={
+                    "relative grid h-10 w-10 shrink-0 place-items-center rounded-lg border font-mono text-base transition-all duration-100 " +
+                    (isNext ? "-translate-y-0.5 scale-110 shadow-lg " : "") +
+                    (inLesson || isNext ? "" : "opacity-30 ")
+                  }
+                  style={{
+                    background: isNext
+                      ? `linear-gradient(180deg, hsl(${hue} 72% 58%), hsl(${hue} 72% 46%))`
+                      : `linear-gradient(180deg, hsl(${hue} 40% 18%), hsl(${hue} 42% 13%))`,
+                    borderColor: isNext ? `hsl(${hue} 80% 70%)` : "rgba(255,255,255,0.07)",
+                    color: isNext ? "#0d0d0f" : `hsl(${hue} 55% 68%)`,
+                    boxShadow: isNext ? `0 0 22px hsl(${hue} 70% 45% / 0.55)` : "inset 0 -2px 0 rgba(0,0,0,0.35)",
+                  }}
+                  title={ch ? `${ch} — ${key.toUpperCase()} — ${FINGERS[finger]?.label || ""}` : "unread key"}
+                >
+                  {/* the physical key you actually press, as a corner hint */}
+                  <span className="absolute left-1 top-0.5 text-[8px] leading-none opacity-45">{key.toUpperCase()}</span>
+                  {ch || "·"}
+                  {isAnchor && <span className="absolute bottom-1 h-0.5 w-2.5 rounded-full bg-current opacity-60" />}
+                </span>
+              );
+            })}
+          </div>
         ))}
+        {/* spacebar — thumbs */}
+        <div className="mt-2 flex justify-center">
+          <span
+            className={
+              "h-8 w-56 rounded-lg border transition-all duration-100 " +
+              (isSpace ? "-translate-y-0.5 border-white/40 bg-white/25" : "border-white/[0.07] bg-white/[0.04]")
+            }
+          />
+        </div>
       </div>
     </div>
   );
@@ -354,6 +472,23 @@ function LearnMode() {
   }, [run.done, run.accuracy, lesson, passed]);
 
   const gateMet = run.done && run.accuracy >= lesson.accuracyGate;
+
+  const advance = useCallback(() => {
+    if (gateMet && idx < LESSONS.length - 1) { setIdx(idx + 1); setDrill(0); }
+    else setDrill((d) => d + 1);
+  }, [gateMet, idx]);
+
+  // Enter moves you on once the drill is complete. Ignored mid-drill so a
+  // stray Enter can't skip a line you're halfway through.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Enter" || !run.done) return;
+      e.preventDefault();
+      advance();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [run.done, advance]);
 
   return (
     <>
@@ -398,6 +533,10 @@ function LearnMode() {
 
       <TypingSurface target={target} run={run} showKeyboard={false} />
 
+      <div className="mt-12">
+        <HandsPreview activeFinger={fingerForChar(target[run.typed.length])} />
+      </div>
+
       <FingerKeyboard nextChar={target[run.typed.length]} activeKeys={lesson.keys} />
 
       {run.done && (
@@ -411,16 +550,20 @@ function LearnMode() {
               {run.accuracy.toFixed(0)}% — needs {lesson.accuracyGate}% to pass. Slow down and try again.
             </span>
           )}
+          <div className="mt-2 font-mono text-xs text-stone-600">
+            press <kbd className="rounded bg-white/[0.08] px-1.5 py-0.5 text-stone-400">enter</kbd>{" "}
+            {gateMet && idx < LESSONS.length - 1 ? "for the next lesson" : "for the next exercise"}
+          </div>
         </div>
       )}
 
       <div className="mt-10 flex items-center justify-center gap-6">
-        <button onClick={() => setDrill((d) => d + 1)} className="rounded-lg p-3 text-stone-600 transition hover:text-brand-500" aria-label="Next drill">
+        <button onClick={() => setDrill((d) => d + 1)} className="rounded-lg p-3 text-stone-600 transition hover:text-brand-500" aria-label="Next exercise">
           <RotateCcw className="h-5 w-5" />
         </button>
         {gateMet && idx < LESSONS.length - 1 && (
           <button
-            onClick={() => { setIdx(idx + 1); setDrill(0); }}
+            onClick={advance}
             className="rounded-lg bg-brand-500 px-4 py-2 font-mono text-sm text-[#0d0d0f] transition hover:bg-brand-400"
           >
             next lesson →
@@ -740,7 +883,7 @@ export default function ArmenianTypingPage() {
 
         {/* Footer hints — monkeytype-style: dim, mono, out of the way. */}
         <footer className="mt-20 space-y-4">
-          <div className="flex justify-center">
+          <div className={"flex justify-center " + (mode === "learn" ? "hidden" : "")}>
             <button
               onClick={() => setShowKeyboard((v) => !v)}
               className={

@@ -23,11 +23,11 @@
 export const LAYOUT = {
   number: [
     ["1", "է"], ["2", "թ"], ["3", "փ"], ["4", "ձ", true], ["5", "ջ"],
-    ["6", "ւ", true], ["7", "ն", true], ["8", "ր"], ["9", "չ"], ["0", "ճ"],
+    ["6", "ւ", true], ["7", null, true], ["8", "ր"], ["9", "չ"], ["0", "ճ"],
   ],
   top: [
     ["q", "ք"], ["w", "ո"], ["e", "ե"], ["r", "ռ"], ["t", "տ"],
-    ["y", "ը", true], ["u", "լ", true], ["i", "ի", true], ["o", "օ"], ["p", "պ"],
+    ["y", "ը", true], ["u", null, true], ["i", "ի", true], ["o", "օ"], ["p", "պ"],
   ],
   home: [
     ["a", "ա"], ["s", "ս"], ["d", "դ"], ["f", "ֆ"], ["g", "գ"],
@@ -73,6 +73,7 @@ export const CHAR_INFO = (() => {
   const out = {};
   for (const row of ROW_ORDER) {
     for (const [key, ch, unsure] of LAYOUT[row]) {
+      if (!ch) continue;   // key whose character we couldn't read reliably
       out[ch] = { key, row, finger: FINGER_BY_KEY[key], unsure: !!unsure };
       // Capitals are typed with shift but sit on the same physical key.
       const upper = ch.toUpperCase();
@@ -98,73 +99,108 @@ export const LESSONS = [
   {
     id: 1,
     name: "Home keys: ֆ յ",
-    teach: "Rest your index fingers on ֆ (f) and յ (j). These two keys have a raised bump — they're how your hands find the keyboard without looking.",
+    teach: "Rest your index fingers on ֆ (f) and յ (j). These two keys have a raised bump — they're how your hands find the keyboard without looking down.",
     keys: ["ֆ", "յ"],
-    drills: ["ֆֆֆ յյյ ֆֆֆ յյյ", "ֆյ ֆյ յֆ յֆ ֆյֆ", "ֆյյ յֆֆ ֆյֆ յֆյ"],
+    drills: [
+      "ֆֆֆ յյյ ֆֆֆ յյյ", "ֆյ ֆյ յֆ յֆ ֆյֆ", "ֆյյ յֆֆ ֆյֆ յֆյ",
+      "ֆֆ յյ ֆյ յֆ ֆֆ յյ", "յֆյ ֆյֆ յյֆ ֆֆյ", "ֆ յ ֆ յ ֆֆ յյ ֆյ",
+      "յյյ ֆֆֆ յֆյ ֆյֆ", "ֆյֆյ յֆյֆ ֆֆյյ",
+    ],
     accuracyGate: 90,
   },
   {
     id: 2,
     name: "Add դ կ",
-    teach: "Middle fingers now: դ (d) and կ (k). Keep your index fingers touching ֆ and յ the whole time — never let the hand drift.",
+    teach: "Middle fingers now: դ (d) and կ (k). Keep your index fingers touching ֆ and յ the whole time — the hand should never drift.",
     keys: ["ֆ", "յ", "դ", "կ"],
-    drills: ["դդդ կկկ դկ կդ", "ֆդ յկ դֆ կյ", "դկֆ կդյ ֆյդ կֆդ"],
+    drills: [
+      "դդդ կկկ դկ կդ", "ֆդ յկ դֆ կյ", "դկֆ կդյ ֆյդ կֆդ",
+      "դկ կդ դկ կդ ֆյ", "դֆկ յկդ ֆդյ կյֆ", "դդ կկ ֆֆ յյ դկ ֆյ",
+      "կդֆյ դկյֆ յֆկդ", "դկդ կդկ ֆդֆ յկյ",
+    ],
     accuracyGate: 90,
   },
   {
     id: 3,
     name: "Add ս լ",
-    teach: "Ring fingers: ս (s) and լ (l). These are weaker fingers — go slower and keep the movement small.",
+    teach: "Ring fingers: ս (s) and լ (l). These are your weakest fingers — go slower and keep the movement small.",
     keys: ["ֆ", "յ", "դ", "կ", "ս", "լ"],
-    drills: ["սսս լլլ սլ լս", "սդ լկ դս կլ", "սլֆ լսյ դկս լֆյ"],
+    drills: [
+      "սսս լլլ սլ լս", "սդ լկ դս կլ", "սլֆ լսյ դկս լֆյ",
+      "լս սլ լս սլ դկ", "սֆլ լյս կսդ ֆլկ", "սսլլ լլսս սլսլ",
+      "դսկլ լկսդ ֆսյլ", "լֆս սյլ կլդ սդլ",
+    ],
     accuracyGate: 90,
   },
   {
     id: 4,
-    name: "Add ա — the full home row",
-    teach: "Left pinky reaches ա (a), and your index fingers stretch inward for գ (g) and հ (h). That completes the home row.",
+    name: "Add ա գ հ — the full home row",
+    teach: "Left pinky takes ա (a), and your index fingers stretch inward for գ (g) and հ (h). That completes the home row — all nine keys under your resting hands.",
     keys: ["ա", "ս", "դ", "ֆ", "գ", "հ", "յ", "կ", "լ"],
-    drills: ["աաա գգգ հհհ", "ագ հա գահ հագ", "ասդ ֆգհ յկլ", "ալ կա սագ դահ"],
+    drills: [
+      "աաա գգգ հհհ", "ագ հա գահ հագ", "ասդ ֆգհ յկլ",
+      "ալ կա սագ դահ", "ահա գահ հագ սագ", "աս դա ֆա գա հա",
+      "լագ կահ սահ դագ", "ասա գագ հահ լալ կակ",
+    ],
     accuracyGate: 90,
   },
   {
     id: 5,
     name: "Home row words",
-    teach: "Real Armenian now — every one of these words uses only home-row keys. If a word feels slow, slow down further: accuracy first, speed follows.",
+    teach: "Real Armenian now — every word here is typed without leaving the home row. If a word feels slow, slow down further: accuracy first, speed follows on its own.",
     keys: ["ա", "ս", "դ", "ֆ", "գ", "հ", "յ", "կ", "լ"],
-    drills: ["գահ հաս կաս լաս", "աղ սագ դագ հագ", "կալ սալ հալ գալ", "ասա կակա լալա"],
+    drills: [
+      "դաս սագ գահ կալ", "հալ գալ սալ հաս", "ասա ալ դաս սագ",
+      "գահ կալ հալ գալ", "սալ հաս դաս ասա", "կալ սագ գահ ալ",
+      "հագ դաս գալ սալ", "ասա հաս կալ հալ",
+    ],
     accuracyGate: 92,
   },
   {
     id: 6,
     name: "Bottom row: զ ղ ց վ բ ն մ",
-    teach: "Reach down without moving your wrists. Each finger drops straight to the key below its home position and comes straight back.",
+    teach: "Reach down without moving your wrists. Each finger drops straight to the key below its home position, then comes straight back.",
     keys: ["զ", "ղ", "ց", "վ", "բ", "ն", "մ", "ա", "ս", "դ", "ֆ", "գ", "հ", "յ", "կ", "լ"],
-    drills: ["զզզ վվվ բբբ նննմ", "զա վս բդ նֆ մգ", "բան ման վազ նամ", "մամ բաց ղաս ցան"],
+    drills: [
+      "զզզ վվվ բբբ ննն մմմ", "զա վս բդ նֆ մգ", "բան ման վազ բաց",
+      "ցավ զանգ նման մաս", "բալ վան ցան զամ", "մամ նամ ղաս բան",
+      "վազ ցավ բաց զանգ", "նման մաս բալ ման",
+    ],
     accuracyGate: 92,
   },
   {
     id: 7,
     name: "Top row: ք ո ե ռ տ օ պ",
-    teach: "Now reach up. Same rule — the finger goes up and returns to its home key immediately. Don't let the whole hand travel.",
-    keys: ["ք", "ո", "ե", "ռ", "տ", "օ", "պ", "ա", "ս", "դ", "ֆ", "գ", "հ", "յ", "կ", "լ", "ն", "մ", "վ", "բ"],
-    drills: ["քքք ոոո եեե ռռռ տտտ", "որ տա պես քաղ", "երբ տես ոսկ պատ", "տոն սեր քար ոտք"],
+    teach: "Now reach up. Same rule — the finger travels up and returns to its home key immediately. Don't let the whole hand ride along with it.",
+    keys: ["ք", "ո", "ե", "ռ", "տ", "օ", "պ", "ա", "ս", "դ", "ֆ", "գ", "հ", "յ", "կ", "լ", "զ", "ղ", "ց", "վ", "բ", "ն", "մ"],
+    drills: [
+      "քքք ոոո եեե ռռռ տտտ", "օօօ պպպ քո եռ տօ", "ոտք տա պես քաղ",
+      "ետ տես պատ տոն", "տեղ կետ պետք ոտք", "ոսկ վեպ քեզ քաղ",
+      "պես տես տոն տեղ", "քաղ պատ վեպ կետ",
+    ],
     accuracyGate: 92,
   },
   {
     id: 8,
     name: "Everyday words",
-    teach: "Full sentences from the trusted keys. Aim for a steady rhythm rather than bursts — even pacing is what actually raises your speed.",
+    teach: "Real sentences from every key you've learned. Aim for a steady rhythm rather than bursts — even pacing is what actually raises your speed.",
     keys: null,
-    drills: ["բարև ձեզ", "շնորհակալ եմ", "ես սովորում եմ", "դպրոց ուսուցիչ գիրք"],
+    drills: [
+      "հայերեն սովորել", "դպրոց քաղաք մարդ", "առավոտ երեկո վաղ",
+      "կարող եմ գրել", "բարեկամ տարբեր վայր", "հայերեն դաս սովորել",
+      "գրել կարդալ լսել", "մարդ քաղաք դպրոց",
+    ],
     accuracyGate: 94,
   },
   {
     id: 9,
-    name: "Number row (needs checking)",
-    teach: "These keys are transcribed from a screenshot and a few are unverified — see the note under the keyboard. Skip this lesson until they're confirmed.",
-    keys: ["է", "թ", "փ", "ձ", "ջ", "ւ", "ն", "ր", "չ", "ճ"],
-    drills: ["էէէ թթթ փփփ", "էջ թիվ փակ ձայ", "րոպե չափ ճամ"],
+    name: "Number row (unverified)",
+    teach: "These key positions were transcribed from a screenshot and several couldn't be read reliably — they may be wrong. Skip this lesson until they're confirmed, so you don't learn a wrong position.",
+    keys: ["է", "թ", "փ", "ձ", "ջ", "ւ", "ր", "չ", "ճ"],
+    drills: [
+      "էէէ թթթ փփփ", "ձձձ ջջջ րրր", "չչչ ճճճ էթ փձ",
+      "ջր չճ էփ թձ", "էթփ ձջր չճէ", "րճ չջ ձփ թէ",
+    ],
     accuracyGate: 90,
     unverified: true,
   },
