@@ -66,9 +66,10 @@ function useTypingRun(target) {
   const [startedAt, setStartedAt] = useState(null);
   const [keystrokes, setKeystrokes] = useState(0);
   const [errors, setErrors] = useState(0);
+  const [endedAt, setEndedAt] = useState(null);
 
   const reset = useCallback(() => {
-    setTyped(""); setStartedAt(null); setKeystrokes(0); setErrors(0);
+    setTyped(""); setStartedAt(null); setKeystrokes(0); setErrors(0); setEndedAt(null);
   }, []);
 
   const onChange = useCallback((next) => {
@@ -86,7 +87,18 @@ function useTypingRun(target) {
   }, [target]);
 
   const done = !!target && typed.length === target.length;
-  const elapsed = startedAt ? Math.max(0.001, (Date.now() - startedAt) / 1000) : 0;
+
+  // The clock STOPS at completion. Without this, `elapsed` recomputed from
+  // Date.now() on every render while correctChars stayed fixed, so a
+  // finished run's wpm decayed as the component kept re-rendering — and in
+  // a race, progress broadcasts re-render every 0.4s, so the headline result
+  // visibly fell away from the (correct) figure the server had recorded at
+  // the finish. Freeze the end time once, and read from it thereafter.
+  useEffect(() => {
+    if (done) setEndedAt((t) => t ?? Date.now());
+  }, [done]);
+
+  const elapsed = startedAt ? Math.max(0.001, ((endedAt ?? Date.now()) - startedAt) / 1000) : 0;
   const correctChars = useMemo(() => {
     let n = 0;
     for (let i = 0; i < typed.length; i++) if (typed[i] === target?.[i]) n++;
