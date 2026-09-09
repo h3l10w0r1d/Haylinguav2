@@ -8,14 +8,13 @@ import { renderTemplate, useLocale, localizedPath, SUPPORTED_LOCALES } from "./i
 import usePageMeta from "./lib/usePageMeta";
 import {
   Lock, Mail, User, ArrowRight, Fingerprint, Sparkles,
-  Flame, Trophy, Headphones, Volume2, Heart, Repeat2,
-  Check, ChevronDown, Star, Languages, ShieldCheck, Crown,
+  Flame, Trophy, Volume2, Heart,
+  Check, ChevronDown, Star, ShieldCheck,
   X, Eye, EyeOff, Play, RotateCw, Loader2, Bell, AlertTriangle,
 } from "lucide-react";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import grandma from "./assets/character-grandma.png";
-import student from "./assets/character-student.png";
 import { ttsFetch } from "./exercises/tts";
 import { sfx } from "./lib/sfx";
 import { newTrackedAudio } from "./lib/audioRegistry";
@@ -34,31 +33,6 @@ const TELEGRAM_BOT_ID = import.meta.env.VITE_TELEGRAM_BOT_ID || "8694793218";
 // src/i18n/locales/{locale}/landing.json (features/steps/testimonials/faqs),
 // zipped onto these by index at each render site so the section works for
 // every locale without duplicating the icon wiring per language.
-const FEATURES_META = [
-  { icon: Languages, tone: "brand" },
-  { icon: Headphones, tone: "feather" },
-  { icon: Repeat2, tone: "grass" },
-  { icon: Flame, tone: "brand" },
-  { icon: Heart, tone: "cardinal" },
-  { icon: Trophy, tone: "gold" },
-];
-
-const STEPS_META = [
-  { n: 1, icon: Crown },
-  { n: 2, icon: Check },
-  { n: 3, icon: Flame },
-];
-
-const TESTIMONIALS_META = [{ stars: 5 }, { stars: 5 }, { stars: 5 }];
-
-const TONES = {
-  brand: "bg-brand-50 text-brand-500",
-  feather: "bg-feather-50 text-feather-600",
-  grass: "bg-grass-50 text-grass-600",
-  cardinal: "bg-cardinal-50 text-cardinal-500",
-  gold: "bg-amber-50 text-gold-600",
-};
-
 // ── Scroll reveal ─────────────────────────────────────────────────────────────
 
 function useReveal(threshold = 0.12) {
@@ -78,14 +52,25 @@ function useReveal(threshold = 0.12) {
 
 function Reveal({ children, delay = 0, className = "" }) {
   const [ref, visible] = useReveal();
+  // Honor prefers-reduced-motion: previously every card still faded/slid in
+  // for users who'd asked the OS for no motion. Read once — a live listener
+  // isn't worth it for a preference that essentially never changes mid-visit.
+  const [reduceMotion] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  );
+  const shown = visible || reduceMotion;
   return (
     <div
       ref={ref}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(2rem)",
-        transition: `opacity 0.65s ease-out ${delay}ms, transform 0.65s ease-out ${delay}ms`,
-      }}
+      style={
+        reduceMotion
+          ? undefined
+          : {
+              opacity: shown ? 1 : 0,
+              transform: shown ? "translateY(0)" : "translateY(2rem)",
+              transition: `opacity 0.65s ease-out ${delay}ms, transform 0.65s ease-out ${delay}ms`,
+            }
+      }
       className={className}
     >
       {children}
@@ -1111,31 +1096,6 @@ function LandingExerciseDemo({ onSignup }) {
 // Faint connector line behind the "How it works" step cards, echoing the
 // lesson-path metaphor. Runs behind the cards (painted first, same stacking
 // context) so it only shows in the gaps, like the cards sit along the path.
-function StepsConnector() {
-  const [ref, visible] = useReveal(0.4);
-  return (
-    <svg
-      ref={ref}
-      className="pointer-events-none absolute inset-x-0 top-12 hidden h-1 w-full md:block"
-      viewBox="0 0 100 4"
-      preserveAspectRatio="none"
-    >
-      <path
-        d="M16.67,2 L50,2 L83.33,2"
-        fill="none"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeDasharray="1.2 5"
-        pathLength="100"
-        strokeDashoffset={visible ? 0 : 100}
-        style={{ transition: "stroke-dashoffset 1.3s ease-out 200ms" }}
-        stroke="currentColor"
-        className="text-brand-300 dark:text-brand-500/40"
-      />
-    </svg>
-  );
-}
-
 // ── Learning path preview (product preview section) ─────────────────────────
 const PATH_PREVIEW_STATUSES = ["done", "done", "current", "locked", "locked"];
 
@@ -1265,9 +1225,6 @@ function PathPreview() {
 export default function LandingPage({ onLogin, onSignup }) {
   const { t: tt } = useTranslation("landing");
   const locale = useLocale();
-  const features = tt("features", { returnObjects: true });
-  const steps = tt("steps", { returnObjects: true });
-  const testimonials = tt("testimonials", { returnObjects: true });
   const faqs = tt("faqs", { returnObjects: true });
 
   // Homepage FAQ rich-result data. This used to live in index.html, which
@@ -1985,29 +1942,11 @@ export default function LandingPage({ onLogin, onSignup }) {
         </div>
       </header>
 
-      {/* How it works */}
-      <section id="how" className="mx-auto max-w-6xl px-5 py-16">
-        <Reveal>
-          <SectionHeading eyebrow={tt("howItWorks.eyebrow")} title={tt("howItWorks.title")} />
-        </Reveal>
-        <div className="relative mt-10 grid gap-5 md:grid-cols-3">
-          <StepsConnector />
-          {STEPS_META.map((s, i) => (
-            <Reveal key={s.n} delay={i * 100}>
-              <div className="relative rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm h-full">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white shadow-btn-brand">
-                  <s.icon className="h-6 w-6" />
-                </div>
-                <div className="mt-4 font-display text-xs font-extrabold uppercase tracking-wide text-brand-500">{tt("howItWorks.stepLabel", { n: s.n })}</div>
-                <div className="mt-1 font-display text-xl font-extrabold text-slate-800 dark:text-white">{steps[i].title}</div>
-                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{steps[i].text}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* Product preview */}
+      {/* Product preview. This is the one "what is it" section: the old
+          "How it works" (3 steps) and "Features" (6 cards) that used to
+          bracket it said the same things a second and third time — feedback,
+          audio, hearts, streaks — so their strongest points are folded into
+          the bullets here, next to the only real visual (the path preview). */}
       <section className="bg-gradient-to-b from-brand-50/60 to-white dark:from-[#0d0d0f] dark:to-[#0d0d0f]">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 lg:grid-cols-2">
           <Reveal>
@@ -2034,57 +1973,11 @@ export default function LandingPage({ onLogin, onSignup }) {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="mx-auto max-w-6xl px-5 py-16">
-        <Reveal>
-          <SectionHeading eyebrow={tt("featuresSection.eyebrow")} title={tt("featuresSection.title")} />
-        </Reveal>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES_META.map((f, i) => (
-            <Reveal key={features[i].title} delay={i * 80}>
-              <div className="rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm transition hover:-translate-y-1 hover:shadow-md h-full">
-                <div className={"grid h-12 w-12 place-items-center rounded-2xl " + TONES[f.tone]}>
-                  <f.icon className="h-6 w-6" />
-                </div>
-                <div className="mt-4 font-display text-lg font-extrabold text-slate-800 dark:text-white">{features[i].title}</div>
-                <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-stone-400">{features[i].text}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="bg-slate-50 dark:bg-white/[0.04]">
-        <div className="mx-auto max-w-6xl px-5 py-16">
-          <Reveal>
-            <SectionHeading eyebrow={tt("testimonialsSection.eyebrow")} title={tt("testimonialsSection.title")} />
-          </Reveal>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {TESTIMONIALS_META.map((m, i) => (
-              <Reveal key={testimonials[i].name} delay={i * 100}>
-                <div className="flex h-full flex-col rounded-3xl bg-white dark:bg-[#18181b] p-6 ring-1 ring-slate-200 dark:ring-white/[0.08] shadow-sm">
-                  <div className="flex gap-0.5 mb-4">
-                    {Array.from({ length: m.stars }).map((_, j) => (
-                      <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <p className="flex-1 text-sm font-semibold leading-relaxed text-slate-600 dark:text-stone-300">"{testimonials[i].quote}"</p>
-                  <div className="mt-5 flex items-center gap-3">
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-100 font-display text-sm font-extrabold text-brand-600">
-                      {testimonials[i].name[0]}
-                    </div>
-                    <div>
-                      <div className="text-sm font-extrabold text-slate-800 dark:text-white">{testimonials[i].name}</div>
-                      <div className="text-xs font-semibold text-slate-400 dark:text-stone-500">{testimonials[i].role}</div>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* No testimonials section: the quotes it carried ("Ani M. · Los
+          Angeles" etc.) weren't from identifiable learners, and in the EU a
+          testimonial that isn't real or clearly labeled illustrative is a
+          misleading-commercial-practice problem, not a taste call. Reinstate
+          only with real, consented quotes. */}
 
       {/* Mobile app teaser */}
       <section className="bg-slate-50 dark:bg-white/[0.04]">
@@ -2171,40 +2064,36 @@ export default function LandingPage({ onLogin, onSignup }) {
           <Reveal>
             <SectionHeading eyebrow={tt("faqSection.eyebrow")} title={tt("faqSection.title")} />
           </Reveal>
-          <div className="mt-8 space-y-3">
+          {/* One reveal for the whole list, not one per item — five cards
+              staggering in one after another was a lot of motion for a FAQ. */}
+          <Reveal className="mt-8 space-y-3">
             {faqs.map((f, i) => {
               const open = faqOpen === i;
               return (
-                <Reveal key={i} delay={i * 60}>
-                  <div className="overflow-hidden rounded-2xl bg-white dark:bg-[#18181b] ring-1 ring-slate-200 dark:ring-white/[0.08]">
-                    <button
-                      onClick={() => setFaqOpen(open ? -1 : i)}
-                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start"
-                    >
-                      <span className="font-display text-base font-extrabold text-slate-800 dark:text-white">{f.q}</span>
-                      <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 dark:text-stone-500 transition " + (open ? "rotate-180" : "")} />
-                    </button>
-                    {open && <div className="px-5 pb-5 text-sm font-semibold text-slate-500 dark:text-stone-400">{f.a}</div>}
-                  </div>
-                </Reveal>
+                <div key={i} className="overflow-hidden rounded-2xl bg-white dark:bg-[#18181b] ring-1 ring-slate-200 dark:ring-white/[0.08]">
+                  <button
+                    onClick={() => setFaqOpen(open ? -1 : i)}
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start"
+                  >
+                    <span className="font-display text-base font-extrabold text-slate-800 dark:text-white">{f.q}</span>
+                    <ChevronDown className={"h-5 w-5 shrink-0 text-slate-400 dark:text-stone-500 transition " + (open ? "rotate-180" : "")} />
+                  </button>
+                  {open && <div className="px-5 pb-5 text-sm font-semibold text-slate-500 dark:text-stone-400">{f.a}</div>}
+                </div>
               );
             })}
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* Final CTA */}
       <section className="px-5 py-16">
         <Reveal>
+          {/* Heading + one button. The "14 days free" badge, the subtitle,
+              and the rotated photo that used to sit here all repeated claims
+              already made on the signup modal and pricing page. */}
           <div className="relative mx-auto flex max-w-5xl flex-col items-center overflow-hidden rounded-[2rem] bg-brand-500 px-6 py-14 text-center text-white shadow-btn-brand">
-            <img src={student} alt="" loading="lazy" className="pointer-events-none absolute -bottom-6 -end-2 hidden h-44 w-44 rotate-6 rounded-3xl object-cover opacity-90 sm:block" />
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide">
-              <Sparkles className="h-3.5 w-3.5" /> {tt("ctaBannerExtra.badge")}
-            </div>
-            <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{tt("ctaBanner.heading")}</h2>
-            <p className="mt-3 max-w-md text-lg font-semibold text-white/90">
-              {tt("ctaBannerExtra.subtitle")}
-            </p>
+            <h2 className="font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{tt("ctaBanner.heading")}</h2>
             <button onClick={() => goAuth("signup")} className="btn3d mt-7 bg-white !text-brand-600 shadow-[0_4px_0_0_#B84B00] text-base uppercase hover:brightness-100">
               {tt("ctaBannerExtra.cta")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
             </button>
