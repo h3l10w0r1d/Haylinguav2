@@ -509,7 +509,17 @@ export default function ExerciseShell({
                       ? (
                         <>
                           <div className="flex items-center gap-1.5">
-                            <span>{`+${Number(result.xpEarned || 0)} XP earned`}</span>
+                            {result.xpEarned == null ? (
+                              // Correctness shows instantly; the exact XP number
+                              // (server-authoritative — no farming on exercises
+                              // already completed before) lands a beat later.
+                              <span className="inline-flex items-center gap-1">
+                                <span className="inline-block h-3.5 w-10 animate-pulse rounded bg-current opacity-20" />
+                                <span>XP earned</span>
+                              </span>
+                            ) : (
+                              <span>{`+${Number(result.xpEarned || 0)} XP earned`}</span>
+                            )}
                             {Number(result.comboBonusXp) > 0 ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-extrabold text-brand-700 dark:bg-brand-500/20 dark:text-brand-400">
                                 <Sparkles className="h-3 w-3" /> +{Number(result.comboBonusXp)} combo

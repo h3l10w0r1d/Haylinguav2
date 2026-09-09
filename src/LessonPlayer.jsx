@@ -683,12 +683,33 @@ export default function LessonPlayer() {
       userAnswer: payload?.userAnswer ?? null,
       kind: currentExercise?.kind ?? null,
       combo: isCorrect ? newCombo : 0,
+      _pendingXp: payload?._pendingXp === true,
     });
 
     const pn = { type: outcome, flag, exId };
     pendingNextRef.current = pn;
     setPendingNext(pn);
     setResultOpen(true);
+  };
+
+  // Patches in the server-authoritative XP/combo/hearts numbers that
+  // handleStepAnswer's optimistic fast path deferred. The learner may already
+  // be on the next exercise by the time this lands (result sheet auto-advances
+  // quickly on a streak) — the running lesson totals still apply either way,
+  // but the sheet itself and the history entry only get patched if they're
+  // still showing/tracking the same exercise's pending placeholder.
+  const handleXpResolved = ({ exerciseId, xpEarned, comboBonusXp, hearts }) => {
+    if (xpEarned > 0) setLessonXpEarned((prev) => prev + xpEarned);
+    if (comboBonusXp > 0) setLessonComboBonus((prev) => prev + comboBonusXp);
+    if (Number.isFinite(hearts)) {
+      setHeartsState((prev) => (prev ? { ...prev, current: hearts } : prev));
+    }
+    setHistory((h) => h.map((item) => (item.id === exerciseId ? { ...item, xpEarned } : item)));
+    setResultData((rd) =>
+      rd && rd._pendingXp && rd.exerciseId === exerciseId
+        ? { ...rd, xpEarned, comboBonusXp, hearts: Number.isFinite(hearts) ? hearts : rd.hearts, _pendingXp: false }
+        : rd
+    );
   };
 
   const proceedAfterResult = () => {
@@ -1067,6 +1088,8 @@ export default function LessonPlayer() {
               exercise={currentExercise}
               apiBaseUrl={API_BASE}
               onAnswer={handleStepAnswer}
+              onXpResolved={handleXpResolved}
+              optimisticXp
               combo={comboStreak}
               mascotCharacter={mascotCharacter}
             />

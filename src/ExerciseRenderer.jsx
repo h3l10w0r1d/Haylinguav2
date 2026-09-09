@@ -3541,6 +3541,7 @@ export default function ExerciseRenderer({
   onWrong,
   onSkip,
   onAnswer,
+  onXpResolved,
   apiBaseUrl,
   submit,
   combo = 0,
@@ -3550,6 +3551,14 @@ export default function ExerciseRenderer({
   // assessment, where re-answering already-learned material must not cost the
   // learner hearts or disturb their review schedule.
   persist = true,
+  // Opt-in: fires onAnswer immediately on a definite-correct answer instead
+  // of waiting for postAttempt, patching xp/combo/hearts via onXpResolved
+  // once the server responds. Off by default — several callers (PracticeMode
+  // especially) key off onAnswer's `_synced` flag and the payload's xpEarned
+  // to decide whether to post their own attempt, so only enable this where
+  // both `onXpResolved` is wired up and that consumer's own logic accounts
+  // for a payload with `xpEarned: null` arriving before the real number.
+  optimisticXp = false,
 }) {
   const cfg = useMemo(() => normalizeConfig(exercise?.config), [exercise?.config]);
   const kind = String(exercise?.kind || "").trim();
@@ -3572,6 +3581,65 @@ export default function ExerciseRenderer({
       null;
     const selectedIndices =
       payload?.selectedIndices ?? payload?.selected_indices ?? null;
+
+    // Optimistic fast path: the server only ever *upgrades* a client-graded
+    // wrong answer (typo forgiveness), never downgrades a client-graded
+    // correct one — so a definite correct can be shown immediately instead of
+    // blocking the whole feedback moment (SFX, combo, result sheet) on the
+    // network round-trip. The exact XP/combo-bonus numbers still come from
+    // the server (no XP farming on already-completed exercises), so those
+    // are patched in a beat later via onXpResolved rather than guessed.
+    if (optimisticXp && persist && isCorrect && !skipped) {
+      onAnswer?.({
+        isCorrect: true,
+        skipped: false,
+        xpEarned: null,
+        comboBonusXp: 0,
+        typo: false,
+        correctAnswer: null,
+        exerciseId: exercise.id,
+        userAnswer: answerText,
+        message: payload?.message ?? null,
+        hearts: undefined,
+        autoAdvance: payload?.autoAdvance === true,
+        // Already being persisted right here (persist === true in this
+        // branch) — tell callers like PracticeMode not to post their own
+        // attempt, regardless of whether that post has resolved yet.
+        _synced: true,
+        _pendingXp: true,
+      });
+
+      postExerciseLog({
+        exerciseId: exercise.id,
+        event: "answered",
+        payload: {
+          lesson_id: exercise.lesson_id,
+          kind: exercise.kind,
+          is_correct: isCorrect,
+          time_ms: timeSpentMs,
+        },
+      });
+
+      const attempt = await postAttempt({
+        exerciseId: exercise.id,
+        isCorrect,
+        answerText,
+        selectedIndices,
+        msSpent: timeSpentMs,
+        combo,
+      });
+      const earnedDelta = attempt != null
+        ? Math.max(0, Number(attempt.earned_xp_delta ?? 0))
+        : Number(exercise?.xp ?? 0);
+
+      onXpResolved?.({
+        exerciseId: exercise.id,
+        xpEarned: Math.max(0, Math.floor(earnedDelta)),
+        comboBonusXp: Math.max(0, Number(attempt?.combo_bonus_xp ?? 0)),
+        hearts: Number.isFinite(attempt?.hearts_current) ? attempt.hearts_current : undefined,
+      });
+      return;
+    }
 
     const attempt = persist
       ? await postAttempt({
