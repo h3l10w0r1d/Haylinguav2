@@ -39,6 +39,10 @@ const LearnArmenianOnlinePage = lazy(() => import('./LearnArmenianOnlinePage'));
 const ArmenianPronunciationPage = lazy(() => import('./ArmenianPronunciationPage'));
 const ArmenianVocabularyPage = lazy(() => import('./ArmenianVocabularyPage'));
 const EasternArmenianPage = lazy(() => import('./EasternArmenianPage'));
+const ArmenianNumbersPage = lazy(() => import('./ArmenianNumbersPage'));
+const ArmenianPhrasesPage = lazy(() => import('./ArmenianPhrasesPage'));
+const WesternVsEasternArmenianPage = lazy(() => import('./WesternVsEasternArmenianPage'));
+const ChoosingAnArmenianAppPage = lazy(() => import('./ChoosingAnArmenianAppPage'));
 const DiasporaCityPage = lazy(() => import('./DiasporaCityPage'));
 const BlogPage = lazy(() => import('./BlogPage'));
 const BlogPostPage = lazy(() => import('./BlogPostPage'));
@@ -471,6 +475,18 @@ function AppShell() {
           first-party /blog system, English-only/unprefixed like the legal
           pages above (not part of our i18n content, nothing to translate). */}
       <Route path="/soro-blog" element={<SoroBlogPage />} />
+      {/* Newer SEO landing pages. English-only for now — their copy exists
+          only in locales/en/seo-pages.json, so they're registered here
+          rather than in PUBLIC_ROUTE_DEFS: a /ru/armenian-numbers route
+          would render English text under a Russian URL and invite Google to
+          index it as thin duplicate content. When their translations land,
+          move these four into PUBLIC_ROUTE_DEFS, add them to
+          TRANSLATED_STATIC_PATHS in backend/routes_seo.py, and drop them
+          from ENGLISH_ONLY_PATHS in src/lib/blogTopics.js. */}
+      <Route path="/armenian-numbers" element={<ArmenianNumbersPage />} />
+      <Route path="/armenian-phrases" element={<ArmenianPhrasesPage />} />
+      <Route path="/western-vs-eastern-armenian" element={<WesternVsEasternArmenianPage />} />
+      <Route path="/best-armenian-learning-apps" element={<ChoosingAnArmenianAppPage />} />
       <Route path="/careers/apply/:vacancyId" element={<CareersApplyPage />} />
       <Route path="/community" element={<ForumPage />} />
       <Route path="/community/thread/:id" element={<ForumThreadPage />} />

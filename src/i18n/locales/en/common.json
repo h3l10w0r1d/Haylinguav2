@@ -61,7 +61,11 @@
       "pronunciation": "Master pronunciation",
       "vocabulary": "Build vocabulary",
       "online": "See the full course",
-      "eastern": "Eastern vs Western Armenian"
+      "eastern": "Eastern vs Western Armenian",
+      "numbers": "Armenian numbers",
+      "phrases": "Travel phrases",
+      "westernEastern": "Western vs Eastern",
+      "apps": "Choosing an app"
     }
   }
 }

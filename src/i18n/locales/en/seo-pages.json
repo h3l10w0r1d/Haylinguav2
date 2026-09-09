@@ -282,5 +282,248 @@
       "subtext": "Free, bite-sized lessons from your first letter to real conversation.",
       "button": "Start learning — free"
     }
+  },
+  "armenianNumbers": {
+    "meta": {
+      "title": "Armenian Numbers 1–100: Count in Armenian With Pronunciation",
+      "description": "Learn Armenian numbers from 1 to 100 with Armenian script and pronunciation for every number, plus how compound numbers and ordinals are built."
+    },
+    "breadcrumb": { "home": "Home", "current": "Armenian Numbers" },
+    "hero": {
+      "title": "Armenian Numbers 1–100",
+      "subtitle": "Every number you need for prices, ages, dates, and phone numbers — in Armenian script, with pronunciation for each one."
+    },
+    "sectionTitles": {
+      "ones": "1–10",
+      "teens": "11–20",
+      "tens": "The tens: 30–100",
+      "compounds": "Building every number in between",
+      "ordinals": "Ordinal numbers (first, second, third…)"
+    },
+    "compoundsNote": "Past twenty, Armenian stacks the ten and the ones digit into a single word — no extra connector, no hyphen. Twenty-five is քսանհինգ (k'san-hing), literally \"twenty-five\" run together. Once you know the ten words above and the digits 1–9, you can build every number up to 99 without learning anything new.",
+    "ordinalsNote": "Ordinals are formed from the cardinal number, mostly with the ending -երորդ (-erord). The first three are irregular and worth memorising as-is; everything from fourth onward follows the pattern.",
+    "faqHeading": "Common questions",
+    "faq": [
+      {
+        "q": "Are Armenian numbers hard to learn?",
+        "a": "They're one of the easier parts of the language. The digits 1–10 are short, the teens are transparent compounds of \"ten\" plus the digit, and everything above twenty follows one predictable stacking rule. Most learners are comfortable counting to 100 within a few days."
+      },
+      {
+        "q": "Does Armenian use the same digits as English?",
+        "a": "Yes — modern Armenian writes numerals with the same 0–9 Arabic digits you already use, so prices, phone numbers, and dates are readable straight away. There is also a historical Armenian numeral system that uses letters of the alphabet, but you'll only meet it in old manuscripts and on monuments, not in everyday life."
+      },
+      {
+        "q": "Are these numbers Eastern or Western Armenian?",
+        "a": "The words on this page are Standard Eastern Armenian, the form spoken in Armenia today. Western Armenian uses the same number words, but pronounces several consonants differently — for example the initial sounds shift, so the same spelling is voiced differently. See our Western vs Eastern Armenian comparison for the full picture."
+      },
+      {
+        "q": "How do I say a year or a phone number in Armenian?",
+        "a": "Years are read as a full number (հազար ինը հարյուր… for 19xx), while phone numbers are usually read digit by digit, exactly as in English. Both only require the 0–100 vocabulary on this page plus հազար (ha-zar, thousand)."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Armenian Vocabulary", "text": "Colors, family, food, and days of the week." },
+        { "title": "Armenian Alphabet", "text": "All 39 letters with audio." },
+        { "title": "Armenian Pronunciation", "text": "The sounds that trip up beginners." }
+      ]
+    },
+    "cta": {
+      "heading": "Practice Armenian numbers for real",
+      "subtext": "Free, bite-sized lessons with audio on every word — numbers included, from day one.",
+      "button": "Start learning — free"
+    }
+  },
+  "armenianPhrases": {
+    "meta": {
+      "title": "Armenian Phrases for Travelers: 60+ Essentials With Pronunciation",
+      "description": "The Armenian phrases you'll actually use in Armenia — greetings, directions, restaurants, shopping, and emergencies, each with Armenian script and pronunciation."
+    },
+    "breadcrumb": { "home": "Home", "current": "Armenian Phrases" },
+    "hero": {
+      "title": "Armenian Phrases for Travelers",
+      "subtitle": "The phrases worth knowing before you land in Yerevan — grouped by the situation you'll need them in, with pronunciation for every one."
+    },
+    "categoryTitles": {
+      "essentials": "The absolute essentials",
+      "gettingAround": "Getting around",
+      "eatingOut": "Eating out",
+      "shopping": "Shopping & money",
+      "emergencies": "If something goes wrong",
+      "smallTalk": "Small talk"
+    },
+    "politenessNote": "Armenian has a formal and an informal \"you\", and travelers are safest defaulting to the formal one (դուք, duk') with anyone they haven't been introduced to. The phrases above already use the polite forms, so you can say them to a stranger without a second thought.",
+    "faqHeading": "Common questions",
+    "faq": [
+      {
+        "q": "Do I need Armenian to travel in Armenia?",
+        "a": "You can get by without it — Russian is widely understood and English is common among younger people and in Yerevan's tourist areas. But even a handful of Armenian phrases changes how people respond to you, especially outside the capital, and it's genuinely appreciated rather than treated as a novelty."
+      },
+      {
+        "q": "Which Armenian should I learn for travel to Armenia?",
+        "a": "Eastern Armenian. That's what's spoken in Armenia itself, and it's what every phrase on this page uses. Western Armenian is the diaspora variety — invaluable if you're connecting with family in Lebanon, Los Angeles, or Europe, but not what you'll hear in Yerevan."
+      },
+      {
+        "q": "Will people understand me if my pronunciation is imperfect?",
+        "a": "Almost always, yes. The sounds most likely to trip you up are the aspirated consonants — the difference between a plain and a \"puffed\" p, t, or k can change a word, but context usually carries you through. Listening to real audio while you learn matters far more than drilling the script silently."
+      },
+      {
+        "q": "Is Armenian written in its own alphabet?",
+        "a": "Yes — 39 letters, created around 405 AD, unrelated to Latin or Cyrillic. Street signs and menus in Armenia are largely in Armenian script, often alongside English in tourist areas. Learning to read it takes a few days and makes navigating dramatically easier."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Armenian Vocabulary", "text": "The everyday words behind these phrases." },
+        { "title": "Armenian Pronunciation", "text": "Get the sounds right before you go." },
+        { "title": "Armenian Alphabet", "text": "Read signs and menus for yourself." }
+      ]
+    },
+    "cta": {
+      "heading": "Go beyond a phrasebook",
+      "subtext": "Free lessons with native audio on every word — so you actually remember these when it counts.",
+      "button": "Start learning — free"
+    }
+  },
+  "westernVsEastern": {
+    "meta": {
+      "title": "Western vs Eastern Armenian: Differences & Which to Learn",
+      "description": "Western and Eastern Armenian compared — where each is spoken, how pronunciation and spelling differ, how mutually intelligible they are, and which one you should learn."
+    },
+    "breadcrumb": { "home": "Home", "current": "Western vs Eastern Armenian" },
+    "hero": {
+      "title": "Western vs Eastern Armenian",
+      "subtitle": "Two standard forms of the same language, shaped by very different histories. Here's how they actually differ — and how to decide which one to learn."
+    },
+    "introHeading": "One language, two standards",
+    "intro": "Armenian split into two written standards in the nineteenth century, along the border between the Ottoman and Russian empires. Eastern Armenian became the language of what is now the Republic of Armenia; Western Armenian became the language of the communities that were scattered across the world after 1915. They share an alphabet, most of their vocabulary, and their grammar's underlying shape — speakers of one can generally follow the other after a short adjustment, the way a Lisbon and a São Paulo speaker manage Portuguese.",
+    "tableHeading": "Side by side",
+    "tableHeaders": { "feature": "", "eastern": "Eastern Armenian", "western": "Western Armenian" },
+    "comparisonRows": [
+      { "feature": "Where it's spoken", "eastern": "Armenia, Artsakh, Iran, Russia, Georgia", "western": "The global diaspora — Lebanon, Syria, France, the US, Argentina" },
+      { "feature": "Speakers", "eastern": "Several million, with a national state behind it", "western": "Fewer, and classified by UNESCO as endangered" },
+      { "feature": "Official status", "eastern": "Official language of the Republic of Armenia", "western": "No state; sustained by diaspora schools, churches, and press" },
+      { "feature": "Spelling", "eastern": "Reformed orthography (Soviet-era spelling reform)", "western": "Classical orthography, unchanged" },
+      { "feature": "Verb formation", "eastern": "Present tense built with the participle plus \"to be\"", "western": "Present tense marked with the prefix կը (gə)" },
+      { "feature": "Best for", "eastern": "Travel to Armenia, business, most online resources", "western": "Connecting with diaspora family and heritage communities" }
+    ],
+    "soundShiftHeading": "The sound shift, in one rule",
+    "soundShift": "The difference you'll notice first is a consistent swap in how certain consonants are voiced. Where Eastern Armenian says a voiced b, d, or g, Western Armenian typically says an unvoiced p, t, or k — and vice versa. The spelling stays identical; only the pronunciation moves. Once you internalise this single correspondence, a surprising amount of the other variety becomes readable to you immediately.",
+    "soundShiftTableHeaders": { "written": "Written", "eastern": "Eastern", "western": "Western", "meaning": "Meaning" },
+    "whichToLearnHeading": "So which one should you learn?",
+    "whichToLearnIntro": "There's no universally better answer — it depends entirely on why you're learning. In practice:",
+    "whichToLearnPoints": [
+      "Learn **Eastern** if you're travelling to, working with, or moving to Armenia, or if you simply want the variety with the most learning material, media, and everyday online use.",
+      "Learn **Western** if your family is from the diaspora and Western Armenian is what your grandparents spoke — that connection is the whole point, and it's the variety at genuine risk of being lost.",
+      "If you have no particular tie either way, Eastern is the more practical starting point, and what you learn transfers substantially if you later pick up Western."
+    ],
+    "whatWeTeachHeading": "What Haylingua teaches",
+    "whatWeTeach": "Haylingua teaches Standard Eastern Armenian — the form spoken in Armenia today. If your goal is Western Armenian specifically, we'd rather tell you that plainly up front than have you discover it three lessons in. Much of the alphabet and vocabulary work still transfers, but the pronunciation and verb forms you'll hear here are Eastern.",
+    "whatWeTeachLinkText": "More on what we teach →",
+    "faqHeading": "Common questions",
+    "faq": [
+      {
+        "q": "Can Eastern and Western Armenian speakers understand each other?",
+        "a": "Largely, yes. The two are mutually intelligible for most everyday purposes, though the first conversation takes some adjustment — the consonant shift and a handful of high-frequency verb forms are what cause the initial friction. Written Armenian is easier to cross over than spoken, since the alphabet is shared."
+      },
+      {
+        "q": "Do they use the same alphabet?",
+        "a": "Yes, the same 39-letter Armenian alphabet. The difference is spelling convention: Eastern Armenian adopted a spelling reform in the Soviet period, while Western Armenian kept the classical orthography. Some words are therefore spelled differently even though the letters are identical."
+      },
+      {
+        "q": "Which one is 'real' or 'original' Armenian?",
+        "a": "Neither, and it's worth pushing back on the premise. Both descend from Classical Armenian (Grabar) and both are legitimate modern standards with their own literature. Western Armenian preserves the older spelling; Eastern Armenian has the larger living speaker base. Neither is a corruption of the other."
+      },
+      {
+        "q": "Is Western Armenian dying out?",
+        "a": "It's genuinely endangered — UNESCO classifies it as such — because it has no state backing it and is transmitted mainly through diaspora families and schools. That's precisely why heritage learners choosing Western Armenian are doing something valuable, even though it's the harder path for finding resources."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Eastern Armenian", "text": "A closer look at what Haylingua teaches." },
+        { "title": "Armenian Alphabet", "text": "The 39 letters both varieties share." },
+        { "title": "Armenian Pronunciation", "text": "Hear the sounds for yourself." }
+      ]
+    },
+    "cta": {
+      "heading": "Start with Eastern Armenian",
+      "subtext": "Free, bite-sized lessons with real audio — from the alphabet to real conversation.",
+      "button": "Start learning — free"
+    }
+  },
+  "choosingAnApp": {
+    "meta": {
+      "title": "How to Choose an Armenian Learning App (2026 Guide)",
+      "description": "What actually matters when picking an app to learn Armenian — alphabet coverage, real audio, Eastern vs Western, and the questions worth asking before you commit."
+    },
+    "breadcrumb": { "home": "Home", "current": "Choosing an Armenian App" },
+    "hero": {
+      "title": "How to choose an Armenian learning app",
+      "subtitle": "Armenian is served by far fewer tools than Spanish or French, and the ones that exist differ in ways that matter. Here's what to check before you commit your time."
+    },
+    "disclosure": "Straight up: Haylingua is our own app, so treat this as an informed argument rather than a neutral review. We've written the criteria below to be useful even if you decide something else fits you better — and we'll tell you plainly where we're not the right answer.",
+    "criteriaHeading": "Six things worth checking",
+    "criteria": [
+      {
+        "title": "Does it teach the alphabet properly?",
+        "text": "Armenian has its own 39-letter script, unrelated to Latin or Cyrillic. An app that transliterates everything into Latin letters lets you start faster but leaves you unable to read a menu, a street sign, or a message from a relative. Check that the script is taught from the first lesson, not bolted on later as an optional extra."
+      },
+      {
+        "title": "Is there real audio on every word?",
+        "text": "Armenian distinguishes plain from aspirated consonants — the difference between a plain and a \"puffed\" p, t, or k is meaningful, and it's nearly impossible to acquire from text alone. A handful of sample recordings isn't enough. You want audio attached to every item you're asked to learn."
+      },
+      {
+        "title": "Eastern or Western Armenian?",
+        "text": "This is the single most consequential question, and many tools don't state it clearly. Eastern is spoken in Armenia; Western is the diaspora variety. Learning the wrong one for your goal is a genuinely costly mistake, so find the answer before your first lesson — see our full comparison if you're unsure which you want."
+      },
+      {
+        "title": "Was it built for Armenian, or ported to it?",
+        "text": "Apps that cover dozens of languages from one template tend to treat Armenian's specifics — its sound system, its script, its verb formation — as an afterthought. A tool built for Armenian alone can structure the whole curriculum around the things that actually make it hard."
+      },
+      {
+        "title": "Can you actually sustain it?",
+        "text": "The best app is the one you still open in week six. Short lessons, a visible streak, and immediate feedback matter more than an exhaustive syllabus you abandon. Be honest about whether a tool fits ten minutes on a commute or assumes an hour at a desk."
+      },
+      {
+        "title": "What does it cost to find out?",
+        "text": "Armenian tools vary from free to subscription-only. A meaningful free tier lets you get through the alphabet and judge the teaching quality before paying for anything — which is the only reliable way to evaluate any of this."
+      }
+    ],
+    "faqHeading": "Questions people actually ask",
+    "faq": [
+      {
+        "q": "Is Armenian on Duolingo?",
+        "a": "No — Duolingo has never offered an Armenian course, and it remains one of the most commonly searched disappointments for new Armenian learners. If you arrived here after searching for it, you'll need to look at Armenian-specific or smaller multi-language tools instead."
+      },
+      {
+        "q": "Can I learn Armenian free?",
+        "a": "Yes, at least to a real foundation. Haylingua is free to start with no card required, and there are also free community resources, YouTube channels, and Anki decks. Paid tutoring becomes genuinely valuable later, once you have enough language to make conversation practice worthwhile."
+      },
+      {
+        "q": "How long does it take to learn Armenian?",
+        "a": "The alphabet takes most learners under a week. Basic conversational footing — greetings, numbers, ordering, simple questions — is a matter of a few months of consistent short sessions. Fluency, as with any language, is measured in years, and depends far more on regular contact with the language than on which app you picked."
+      },
+      {
+        "q": "Is Armenian hard for English speakers?",
+        "a": "It's moderately hard: a new script, a case system, and some unfamiliar consonant distinctions. But the script is phonetic and learnable in days, and Armenian spelling is far more consistent than English. The difficulty is mostly front-loaded, which is why the first two weeks matter so much."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Learn Armenian Online", "text": "How Haylingua's course actually works." },
+        { "title": "Western vs Eastern", "text": "Decide which variety you want first." },
+        { "title": "Armenian Alphabet", "text": "Start where every learner should." }
+      ]
+    },
+    "cta": {
+      "heading": "Try it before you decide",
+      "subtext": "Free to start, no card needed — get through the alphabet and judge for yourself.",
+      "button": "Start learning — free"
+    }
   }
 }
