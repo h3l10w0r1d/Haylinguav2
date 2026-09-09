@@ -29,14 +29,6 @@ const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || "hay
 // navigation. Public information: it's embedded in every Telegram login widget.
 const TELEGRAM_BOT_ID = import.meta.env.VITE_TELEGRAM_BOT_ID || "8694793218";
 
-const ARMENIAN_WORDS = [
-  { arm: "Բարև", rom: "ba·rev", eng: "Hello" },
-  { arm: "Շնորհակալություն", rom: "shnor·ha·ka·lu·tyun", eng: "Thank you" },
-  { arm: "Հայաստան", rom: "ha·yas·tan", eng: "Armenia" },
-  { arm: "Ընկեր", rom: "ən·ker", eng: "Friend" },
-  { arm: "Սիրում եմ քեզ", rom: "si·rum em kez", eng: "I love you" },
-];
-
 // Non-text metadata only (icons, tone/color, ordinal, star count) — the
 // title/text/quote/name/role/q/a strings themselves come from
 // src/i18n/locales/{locale}/landing.json (features/steps/testimonials/faqs),
@@ -977,20 +969,9 @@ function LandingExerciseDemo({ onSignup }) {
           <span className={"block h-8 w-8 rounded-full border-2 border-white bg-brand-500/80 shadow-lg transition-transform duration-150 " + (tapping ? "scale-75" : "scale-100")} />
         </div>
       )}
-      <div className="flex items-center gap-3">
-        <span className="text-slate-300 dark:text-stone-600">✕</span>
-        <div className="h-3.5 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-          <div
-            className="h-full rounded-full bg-brand-500 transition-all duration-300"
-            style={{ width: `${((qi + (checked ? 1 : 0)) / DEMO_QUESTIONS.length) * 100}%` }}
-          />
-        </div>
-        <span className="flex items-center gap-1 font-display font-extrabold text-cardinal-500">
-          <Heart className={"h-5 w-5 " + (hearts > 0 ? "fill-cardinal-500" : "")} />
-          {hearts}
-        </span>
-      </div>
-
+      {/* No simulated lesson chrome (close ✕, progress bar, hearts) — on a
+          marketing hero those mean nothing to a first-time visitor and just
+          add elements to scan past. Prompt → play → tiles → check. */}
       <DemoPromptHeader q={q} />
 
       {q.kind === "trace_letter" ? (
@@ -1375,8 +1356,6 @@ export default function LandingPage({ onLogin, onSignup }) {
   // UI-only state
   const [faqOpen, setFaqOpen] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
-  const [wordIdx, setWordIdx] = useState(0);
-  const [wordFade, setWordFade] = useState(true);
   const [showStickyCta, setShowStickyCta] = useState(false);
   const authRef = useRef(null);
 
@@ -1427,18 +1406,6 @@ export default function LandingPage({ onLogin, onSignup }) {
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
   }, [authOpen]);
-
-  // Rotating Armenian word with fade transition
-  useEffect(() => {
-    const t = setInterval(() => {
-      setWordFade(false);
-      setTimeout(() => {
-        setWordIdx((i) => (i + 1) % ARMENIAN_WORDS.length);
-        setWordFade(true);
-      }, 300);
-    }, 3000);
-    return () => clearInterval(t);
-  }, []);
 
 
   useEffect(() => {
@@ -1972,8 +1939,6 @@ export default function LandingPage({ onLogin, onSignup }) {
   );
 
   // ── Main Landing ────────────────────────────────────────────────────────────
-  const word = ARMENIAN_WORDS[wordIdx];
-
   return (
     <div className="min-h-screen bg-white dark:bg-[#0d0d0f] text-slate-800 dark:text-white">
       {/* Nav — shared header (src/SiteNav.jsx), same on every marketing page.
@@ -1988,10 +1953,7 @@ export default function LandingPage({ onLogin, onSignup }) {
         <div className="pointer-events-none absolute -start-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-12 lg:grid-cols-2 lg:py-20">
           <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-extrabold text-brand-600 ring-1 ring-brand-100">
-              <Sparkles className="h-3.5 w-3.5" /> {tt("mascotBubble")}
-            </div>
-            <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-6xl">
+            <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-6xl">
               {tt("hero.title1")}
               <br />
               <span className="text-brand-500">{tt("hero.title2")}</span>
@@ -2000,44 +1962,20 @@ export default function LandingPage({ onLogin, onSignup }) {
               {tt("hero.subtitle")}
             </p>
 
-            {/* Armenian word showcase */}
-            <div className="mt-6 inline-flex items-center gap-4 rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#18181b] px-5 py-3 shadow-sm">
-              <div
-                style={{
-                  opacity: wordFade ? 1 : 0,
-                  transform: wordFade ? "translateY(0)" : "translateY(-6px)",
-                  transition: "opacity 0.3s ease, transform 0.3s ease",
-                  minWidth: "6rem",
-                }}
-              >
-                <div className="font-display text-2xl font-extrabold tracking-wide text-brand-600">{word.arm}</div>
-                <div className="mt-0.5 text-xs font-bold text-slate-400 dark:text-stone-500">{word.rom}</div>
-              </div>
-              <div className="h-8 w-px bg-slate-200 dark:bg-white/10" />
-              <div
-                style={{
-                  opacity: wordFade ? 1 : 0,
-                  transition: "opacity 0.3s ease 0.05s",
-                }}
-                className="text-base font-bold text-slate-600 dark:text-stone-300"
-              >
-                {tt("wordShowcase.meanings", { returnObjects: true })[wordIdx]}
-              </div>
-            </div>
-
-            {/* One CTA row, one trust line underneath — the trial offer used to
-                be its own boxed pill here; folded into the trust line instead
-                so the hero reads as fewer, calmer chunks. */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            {/* One CTA row, one trust line underneath. The hero deliberately
+                stays at headline → subtitle → buttons → demo: the rotating
+                word card, the "made playful" badge, and the 4-item value band
+                that used to sit here all competed with the demo for the same
+                "here's a taste of Armenian" job, and the eye had nowhere to
+                land. */}
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <button onClick={() => goAuth("signup")} className="btn3d btn3d-brand text-base">
                 {tt("hero.ctaStart")} <ArrowRight className="h-5 w-5 rtl:rotate-180" />
               </button>
               <button onClick={() => goAuth("login")} className="btn3d btn3d-neutral text-base">{tt("hero.ctaLogin")}</button>
             </div>
-            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm font-bold text-slate-600 dark:text-stone-300">
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> {tt("hero.freeToStart")}</span>
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> {tt("hero.noCard")}</span>
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-grass-500" /> {tt("hero.premiumDays")}</span>
+            <div className="mt-4 text-sm font-bold text-slate-500 dark:text-stone-400">
+              {tt("hero.noCard")}
             </div>
           </div>
 
@@ -2046,31 +1984,6 @@ export default function LandingPage({ onLogin, onSignup }) {
           </div>
         </div>
       </header>
-
-      {/* Value band */}
-      <section className="border-y border-slate-100 dark:border-white/[0.06] bg-slate-50 dark:bg-white/[0.04]">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 px-5 py-8 md:grid-cols-4">
-          {[
-            { icon: Sparkles },
-            { icon: Volume2 },
-            { icon: Repeat2 },
-            { icon: Trophy },
-          ].map((v, i) => {
-            const qf = tt("quickFeatures", { returnObjects: true })[i];
-            return (
-            <div key={qf.title} className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white dark:bg-[#18181b] text-brand-500 ring-1 ring-slate-200 dark:ring-white/[0.08]">
-                <v.icon className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{qf.title}</div>
-                <div className="text-xs font-bold text-slate-600 dark:text-stone-300">{qf.text}</div>
-              </div>
-            </div>
-            );
-          })}
-        </div>
-      </section>
 
       {/* How it works */}
       <section id="how" className="mx-auto max-w-6xl px-5 py-16">
