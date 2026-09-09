@@ -3,26 +3,29 @@
 // up automatically from the usual hay_token and races under their real name,
 // but nothing here requires an account.
 //
-// VISUAL NOTE: this page deliberately breaks from the site's light, rounded
-// marketing look and runs its own self-contained dark treatment (glow, glass
-// panels, gradient wash, mono type). It's a tool, not a marketing page, and
-// it sits at its own URL — so it opts out of SiteNav's theme rather than
-// fighting it. The palette is Haylingua's own, not a generic neon one:
-// apricot brand-* is the primary, pomegranate pom-* the secondary, gold-*
-// for highlights, and the design system's cardinal-* for typing errors.
-// Everything is scoped to this file; no global styles are touched.
+// UI MODEL (deliberately monkeytype-shaped): there is no visible input box
+// and almost no chrome. The passage IS the interface — a hidden input holds
+// focus, you just start typing, and clicking anywhere refocuses. Everything
+// that isn't the text (mode pills, stats, hints) is muted and small so the
+// only bright thing on screen is what you're typing.
 //
-// KEYBOARD-LAYOUT CAVEAT: the on-screen keyboard below reuses the
-// ALPHABETICAL letter grid from src/exercises/ArmenianKeyboard.jsx, which is
-// a character picker, not the physical Armenian keyboard layout. That means
-// this teaches "which letter comes next and how to type it" — it does NOT
-// yet build muscle memory for a real Armenian keyboard layout, because we
-// haven't confirmed which layout (standard Eastern vs a phonetic one)
-// Haylingua wants to teach. Swapping KEY_ROWS for a real layout map is the
-// only change needed once that's decided.
+// PALETTE: monkeytype leans on exactly one accent against a flat neutral
+// ground. Here that accent is Haylingua apricot (brand-500). Untyped text is
+// dim stone, correctly typed text goes bright, mistakes are cardinal-500 —
+// so the accent is reserved for the caret and live UI state rather than
+// being spent on the characters themselves. Dark ground matches the app's
+// own dark mode (#0d0d0f + stone-*), not a generic neon theme.
+//
+// KEYBOARD-LAYOUT CAVEAT: the on-screen keyboard reuses the ALPHABETICAL
+// letter grid from src/exercises/ArmenianKeyboard.jsx — a character picker,
+// not a physical Armenian layout. It teaches "which letter comes next", not
+// muscle memory for a hardware keyboard, because we haven't confirmed which
+// layout (standard Eastern vs phonetic) to teach. Swapping KEY_ROWS is the
+// only change needed once that's decided. It's off by default and toggled
+// on, since a learner who already knows the layout doesn't want it.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Keyboard, Zap, Trophy, Users, RotateCcw, ChevronRight, Wifi, WifiOff } from "lucide-react";
+import { RotateCcw, Keyboard as KeyboardIcon, Users, Trophy } from "lucide-react";
 import usePageMeta from "./lib/usePageMeta";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -61,7 +64,6 @@ function useTypingRun(target) {
 
   const onChange = useCallback((next) => {
     if (!target) return;
-    // Never let the learner type past the end of the passage.
     const clipped = next.slice(0, target.length);
     setTyped((prev) => {
       if (clipped.length > prev.length) {
@@ -87,7 +89,7 @@ function useTypingRun(target) {
   // Held at 0 for the first half-second and hard-capped at 300: elapsed time
   // is near zero on the very first keystroke, so an unguarded figure spikes
   // into the tens of thousands before settling. The cap also means a paste
-  // (blocked on the inputs, but belt-and-braces) can't post a nonsense score
+  // (blocked on the input, but belt-and-braces) can't post a nonsense score
   // to the race leaderboard — the server clamps to the same ceiling.
   const wpm = startedAt && elapsed > 0.5
     ? Math.min(300, (correctChars / 5) / (elapsed / 60))
@@ -98,85 +100,148 @@ function useTypingRun(target) {
   return { typed, onChange, reset, done, wpm, accuracy, progress, correctChars, startedAt };
 }
 
-// ── Passage renderer: per-character correctness colouring ─────────────────
-function Passage({ target, typed }) {
-  return (
-    <p className="select-none break-words font-mono text-2xl leading-relaxed tracking-wide sm:text-3xl">
-      {target.split("").map((ch, i) => {
-        const state = i >= typed.length ? "pending" : typed[i] === ch ? "ok" : "bad";
-        const isCursor = i === typed.length;
-        return (
-          <span
-            key={i}
-            className={
-              (state === "ok" ? "text-brand-300 " : state === "bad" ? "bg-cardinal-500/30 text-cardinal-300 " : "text-slate-500 ") +
-              (isCursor ? "border-b-2 border-gold-400 " : "")
-            }
-          >
-            {ch}
-          </span>
-        );
-      })}
-    </p>
-  );
-}
+// ── The typing surface ────────────────────────────────────────────────────
+// A hidden input carries focus and the real value; the rendered passage is
+// purely a view of it. That's what removes the input box from the UI while
+// keeping normal text-input behaviour (IME, mobile keyboards, backspace).
+function TypingSurface({ target, run, disabled, showKeyboard }) {
+  const inputRef = useRef(null);
+  const [focused, setFocused] = useState(true);
 
-function Stat({ label, value, accent = "text-brand-300" }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur">
-      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</div>
-      <div className={"font-mono text-2xl font-bold tabular-nums " + accent}>{value}</div>
-    </div>
-  );
-}
+  useEffect(() => { if (!disabled) inputRef.current?.focus(); }, [target, disabled]);
 
-function OnScreenKeyboard({ nextChar }) {
+  // Any keypress anywhere pulls focus back to the passage.
+  useEffect(() => {
+    const onKey = () => { if (!disabled) inputRef.current?.focus(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [disabled]);
+
+  const nextChar = target[run.typed.length];
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-      {KEY_ROWS.map((row, i) => (
-        <div key={i} className="mb-1.5 flex justify-center gap-1.5 last:mb-0">
-          {row.map((ch) => {
-            const isNext = ch === nextChar;
-            return (
-              <span
-                key={ch}
-                className={
-                  "grid h-8 w-8 shrink-0 place-items-center rounded-lg border font-mono text-sm transition " +
-                  (isNext
-                    ? "scale-110 border-brand-400 bg-brand-500/30 text-white shadow-[0_0_18px_rgba(255,122,26,0.7)]"
-                    : "border-white/10 bg-white/[0.04] text-slate-400")
-                }
-              >
-                {ch}
-              </span>
-            );
-          })}
+    <div onClick={() => !disabled && inputRef.current?.focus()}>
+      {/* The blur-and-prompt state must cover ONLY the passage — wrapping the
+          keyboard too would centre the prompt on top of the keys. */}
+      <div className="relative">
+      <input
+        ref={inputRef}
+        value={run.typed}
+        onChange={(e) => run.onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onPaste={(e) => e.preventDefault()}
+        disabled={disabled}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        aria-label="Type the passage"
+        // Visually hidden, still focusable and still a real text input.
+        className="absolute inset-0 h-full w-full cursor-default opacity-0"
+      />
+
+      <p
+        className={
+          "select-none break-words text-center font-mono text-3xl leading-[1.9] tracking-wide transition sm:text-4xl " +
+          (focused || disabled ? "" : "blur-[3px]")
+        }
+      >
+        {target.split("").map((ch, i) => {
+          const state = i >= run.typed.length ? "pending" : run.typed[i] === ch ? "ok" : "bad";
+          return (
+            <span
+              key={i}
+              className={
+                (i === run.typed.length ? "border-l-2 border-brand-500 " : "") +
+                (state === "ok"
+                  ? "text-stone-100 "
+                  : state === "bad"
+                  ? "text-cardinal-500 underline decoration-cardinal-500/70 decoration-2 underline-offset-4 "
+                  : "text-stone-600 ")
+              }
+            >
+              {ch}
+            </span>
+          );
+        })}
+      </p>
+
+      {!focused && !disabled && (
+        <div className="absolute inset-0 grid place-items-center">
+          <span className="font-mono text-sm text-stone-400">Click here or press any key to focus</span>
         </div>
-      ))}
-      <div className="mt-2 text-center text-[11px] font-semibold text-slate-500">
-        {nextChar === " " ? "next: space" : nextChar ? `next: ${nextChar}` : " "}
+      )}
       </div>
+
+      {showKeyboard && (
+        <div className="mt-10">
+          {KEY_ROWS.map((row, i) => (
+            <div key={i} className="mb-1.5 flex justify-center gap-1.5 last:mb-0">
+              {row.map((ch) => (
+                <span
+                  key={ch}
+                  className={
+                    "grid h-8 w-8 shrink-0 place-items-center rounded-md font-mono text-sm transition " +
+                    // Case-folded: the grid is lowercase but passages start
+                    // with a capital, so a strict match would leave the very
+                    // first keystroke of every drill unhighlighted.
+                    (nextChar && ch === nextChar.toLowerCase()
+                      ? "bg-brand-500 text-[#0d0d0f]"
+                      : "bg-white/[0.04] text-stone-600")
+                  }
+                >
+                  {ch}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+// Small, dim, monospace — never competes with the passage for attention.
+function LiveStats({ run, extra }) {
+  return (
+    <div className="flex items-center justify-center gap-8 font-mono text-sm text-stone-500">
+      <span><span className="text-brand-500">{run.wpm.toFixed(0)}</span> wpm</span>
+      <span><span className="text-brand-500">{run.accuracy.toFixed(0)}%</span> acc</span>
+      {extra}
+    </div>
+  );
+}
+
+function Pill({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "rounded-full px-3.5 py-1.5 font-mono text-xs transition " +
+        (active ? "bg-brand-500/15 text-brand-500" : "text-stone-500 hover:text-stone-300")
+      }
+    >
+      {children}
+    </button>
   );
 }
 
 // ── Practice mode ─────────────────────────────────────────────────────────
-function PracticeMode({ levels, texts }) {
+function PracticeMode({ levels, showKeyboard }) {
   const [levelIdx, setLevelIdx] = useState(0);
   const [drillIdx, setDrillIdx] = useState(0);
-  const inputRef = useRef(null);
 
   const level = levels[levelIdx];
-  const target = level ? level.drills[drillIdx % level.drills.length] : texts[0] || FALLBACK_TEXTS[0];
+  const target = level.drills[drillIdx % level.drills.length];
   const run = useTypingRun(target);
   const submitted = useRef(false);
 
-  useEffect(() => { run.reset(); submitted.current = false; inputRef.current?.focus(); }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { run.reset(); submitted.current = false; }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!run.done || submitted.current) return;
     submitted.current = true;
-    // Best-effort: a failed score post must never interrupt practice.
     fetch(`${API_BASE}/typing/result`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
@@ -184,76 +249,52 @@ function PracticeMode({ levels, texts }) {
     }).catch(() => {});
   }, [run.done, run.wpm, run.accuracy]);
 
+  const next = () => setDrillIdx((i) => i + 1);
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap gap-2">
+    <>
+      <div className="mb-16 flex flex-wrap items-center justify-center gap-1">
         {levels.map((l, i) => (
-          <button
-            key={l.id}
-            onClick={() => { setLevelIdx(i); setDrillIdx(0); }}
-            className={
-              "rounded-full border px-3.5 py-1.5 text-xs font-bold transition " +
-              (i === levelIdx
-                ? "border-brand-400 bg-brand-400/15 text-brand-200 shadow-[0_0_16px_rgba(255,122,26,0.35)]"
-                : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/25 hover:text-slate-200")
-            }
-          >
-            {l.name}
-          </button>
+          <Pill key={l.id} active={i === levelIdx} onClick={() => { setLevelIdx(i); setDrillIdx(0); }}>
+            {l.name.toLowerCase()}
+          </Pill>
         ))}
       </div>
 
-      {level?.letters && level.letters !== "all" && (
-        <div className="text-sm font-semibold text-slate-400">
-          New letters this level: <span className="font-mono text-lg text-pom-400">{level.letters}</span>
-        </div>
-      )}
-
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
-        <Passage target={target} typed={run.typed} />
+      <div className="mb-10 h-5">
+        {run.startedAt ? <LiveStats run={run} /> : (
+          level.letters && level.letters !== "all" ? (
+            <div className="text-center font-mono text-sm text-stone-500">
+              new letters <span className="text-brand-500">{level.letters}</span>
+            </div>
+          ) : null
+        )}
       </div>
 
-      <input
-        ref={inputRef}
-        value={run.typed}
-        onChange={(e) => run.onChange(e.target.value)}
-        dir="ltr"
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck={false}
-        onPaste={(e) => e.preventDefault()}
-        placeholder="Start typing here…"
-        aria-label="Typing input"
-        className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 font-mono text-lg text-white outline-none transition placeholder:text-slate-600 focus:border-brand-400/60 focus:shadow-[0_0_24px_rgba(255,122,26,0.25)]"
-      />
-
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="WPM" value={run.wpm.toFixed(0)} />
-        <Stat label="Accuracy" value={`${run.accuracy.toFixed(0)}%`} accent="text-gold-300" />
-        <Stat label="Progress" value={`${Math.round(run.progress * 100)}%`} accent="text-pom-400" />
-      </div>
-
-      <OnScreenKeyboard nextChar={target[run.typed.length]} />
+      <TypingSurface target={target} run={run} showKeyboard={showKeyboard} />
 
       {run.done && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-400/40 bg-brand-500/10 p-5">
-          <div className="font-bold text-brand-200">
-            Done — {run.wpm.toFixed(0)} WPM at {run.accuracy.toFixed(0)}% accuracy
-          </div>
-          <button
-            onClick={() => setDrillIdx((i) => i + 1)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-white transition hover:brightness-110"
-          >
-            Next drill <ChevronRight className="h-4 w-4" />
-          </button>
+        <div className="mt-14 text-center">
+          <div className="font-mono text-5xl text-brand-500">{run.wpm.toFixed(0)}<span className="ml-2 text-xl text-stone-500">wpm</span></div>
+          <div className="mt-1 font-mono text-sm text-stone-500">{run.accuracy.toFixed(0)}% accuracy</div>
         </div>
       )}
-    </div>
+
+      <div className="mt-14 flex justify-center">
+        <button
+          onClick={next}
+          aria-label="Next drill"
+          className="rounded-lg p-3 text-stone-600 transition hover:text-brand-500"
+        >
+          <RotateCcw className="h-5 w-5" />
+        </button>
+      </div>
+    </>
   );
 }
 
 // ── Race mode ─────────────────────────────────────────────────────────────
-function RaceMode() {
+function RaceMode({ showKeyboard }) {
   const [name, setName] = useState(() => {
     try { return localStorage.getItem("hay_typing_name") || ""; } catch { return ""; }
   });
@@ -265,12 +306,10 @@ function RaceMode() {
   const [authed, setAuthed] = useState(false);
   const [error, setError] = useState("");
   const wsRef = useRef(null);
-  const inputRef = useRef(null);
 
   const run = useTypingRun(target);
   const finishedRef = useRef(false);
 
-  // Stream progress to the room while racing.
   useEffect(() => {
     if (phase !== "racing" || !wsRef.current || wsRef.current.readyState !== 1) return;
     wsRef.current.send(JSON.stringify({
@@ -297,22 +336,21 @@ function RaceMode() {
     try {
       ws = new WebSocket(wsUrl);
     } catch {
-      setError("Could not open a connection.");
+      setError("could not connect");
       setPhase("idle");
       return;
     }
     wsRef.current = ws;
 
     ws.onopen = () => ws.send(JSON.stringify({ type: "join", name: nick, token: getToken() || undefined }));
-    ws.onerror = () => { setError("Connection failed — check you're online and try again."); setPhase("idle"); };
-    ws.onclose = () => { if (phase !== "results") wsRef.current = null; };
+    ws.onerror = () => { setError("connection failed — check you're online"); setPhase("idle"); };
     ws.onmessage = (ev) => {
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.type === "joined") { setYouId(msg.youId); setAuthed(!!msg.authed); setPlayers(msg.players || []); setPhase("lobby"); }
       else if (msg.type === "lobby") setPlayers(msg.players || []);
       else if (msg.type === "countdown") { setPhase("countdown"); setCountdown(msg.seconds); setTarget(msg.text || ""); setPlayers(msg.players || []); }
-      else if (msg.type === "start") { setPhase("racing"); setTarget(msg.text || ""); setPlayers(msg.players || []); setTimeout(() => inputRef.current?.focus(), 30); }
+      else if (msg.type === "start") { setPhase("racing"); setTarget(msg.text || ""); setPlayers(msg.players || []); }
       else if (msg.type === "progress") setPlayers(msg.players || []);
       else if (msg.type === "results") { setPhase("results"); setPlayers(msg.players || []); }
     };
@@ -322,57 +360,47 @@ function RaceMode() {
 
   if (phase === "idle" || phase === "connecting") {
     return (
-      <div className="mx-auto max-w-md space-y-4 rounded-3xl border border-white/10 bg-white/[0.03] p-7 text-center backdrop-blur">
-        <Users className="mx-auto h-8 w-8 text-pom-400" />
-        <h2 className="font-display text-2xl font-extrabold text-white">Race someone</h2>
-        <p className="text-sm font-semibold text-slate-400">
-          No account needed — pick a name and you'll be matched with whoever's online.
-          Logged in? You'll race under your Haylingua name automatically.
+      <div className="mx-auto max-w-sm text-center">
+        <Users className="mx-auto mb-5 h-6 w-6 text-stone-600" />
+        <p className="mb-6 font-mono text-sm leading-relaxed text-stone-500">
+          no account needed — pick a name and you'll be matched with whoever's online
         </p>
         <input
           value={name}
           onChange={(e) => setName(e.target.value.slice(0, 24))}
           onKeyDown={(e) => e.key === "Enter" && connect()}
-          placeholder="Your name"
+          placeholder="your name"
           aria-label="Your racing name"
-          className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center font-mono text-white outline-none focus:border-brand-400/60"
+          className="w-full rounded-lg bg-white/[0.04] px-4 py-3 text-center font-mono text-stone-200 outline-none transition placeholder:text-stone-600 focus:bg-white/[0.07]"
         />
-        {error && <div className="text-sm font-semibold text-cardinal-300">{error}</div>}
+        {error && <div className="mt-3 font-mono text-xs text-cardinal-500">{error}</div>}
         <button
           onClick={connect}
           disabled={phase === "connecting"}
-          className="w-full rounded-2xl bg-gradient-to-r from-brand-500 to-pom-500 px-5 py-3 font-extrabold text-white transition hover:brightness-110 disabled:opacity-60"
+          className="mt-4 w-full rounded-lg bg-brand-500 px-5 py-3 font-mono text-sm text-[#0d0d0f] transition hover:bg-brand-400 disabled:opacity-50"
         >
-          {phase === "connecting" ? "Connecting…" : "Find a race"}
+          {phase === "connecting" ? "connecting…" : "find a race"}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between text-xs font-bold">
-        <span className="inline-flex items-center gap-1.5 text-slate-400">
-          {wsRef.current?.readyState === 1 ? <Wifi className="h-3.5 w-3.5 text-brand-400" /> : <WifiOff className="h-3.5 w-3.5 text-cardinal-400" />}
-          {authed ? "Racing as your Haylingua account" : "Racing as a guest"}
-        </span>
-        <span className="text-slate-500">{players.length} in this race</span>
-      </div>
-
-      {/* Live standings */}
-      <div className="space-y-2">
-        {players.map((p, i) => (
-          <div key={p.id} className={"rounded-2xl border p-3 " + (p.id === youId ? "border-brand-400/50 bg-brand-400/[0.07]" : "border-white/10 bg-white/[0.03]")}>
-            <div className="mb-1.5 flex items-center justify-between text-xs font-bold">
-              <span className={p.id === youId ? "text-brand-200" : "text-slate-300"}>
-                {p.finished && <Trophy className="mr-1 inline h-3.5 w-3.5 text-gold-400" />}
-                {i + 1}. {p.name}{p.id === youId ? " (you)" : ""}
+    <>
+      {/* Opponent progress — thin bars, no cards. */}
+      <div className="mb-14 space-y-2.5">
+        {players.map((p) => (
+          <div key={p.id}>
+            <div className="mb-1 flex items-center justify-between font-mono text-xs">
+              <span className={p.id === youId ? "text-brand-500" : "text-stone-500"}>
+                {p.finished && <Trophy className="mr-1 inline h-3 w-3" />}
+                {p.name}{p.id === youId ? " (you)" : ""}
               </span>
-              <span className="font-mono tabular-nums text-slate-400">{p.wpm.toFixed(0)} wpm · {p.accuracy.toFixed(0)}%</span>
+              <span className="tabular-nums text-stone-600">{p.wpm.toFixed(0)} wpm</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-black/40">
+            <div className="h-0.5 overflow-hidden rounded-full bg-white/[0.06]">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-brand-500 to-pom-500 transition-[width] duration-200"
+                className={"h-full transition-[width] duration-200 " + (p.id === youId ? "bg-brand-500" : "bg-stone-600")}
                 style={{ width: `${Math.round((p.progress || 0) * 100)}%` }}
               />
             </div>
@@ -381,63 +409,52 @@ function RaceMode() {
       </div>
 
       {phase === "lobby" && (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center">
-          <div className="animate-pulse font-display text-xl font-extrabold text-white">Waiting for racers…</div>
-          <p className="mt-1 text-sm font-semibold text-slate-400">Starting shortly whether or not anyone else joins.</p>
-        </div>
+        <p className="animate-pulse text-center font-mono text-sm text-stone-500">waiting for racers…</p>
       )}
 
       {phase === "countdown" && (
-        <div className="rounded-3xl border border-brand-400/40 bg-brand-500/10 p-10 text-center">
-          <div className="font-mono text-6xl font-black text-brand-300">{countdown}</div>
-          <p className="mt-2 text-sm font-bold text-slate-300">Get ready…</p>
-        </div>
+        <div className="text-center font-mono text-7xl text-brand-500">{countdown}</div>
       )}
 
       {(phase === "racing" || phase === "results") && target && (
         <>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
-            <Passage target={target} typed={run.typed} />
-          </div>
-          <input
-            ref={inputRef}
-            value={run.typed}
-            onChange={(e) => run.onChange(e.target.value)}
+          <div className="mb-10 h-5">{run.startedAt && <LiveStats run={run} />}</div>
+          <TypingSurface
+            target={target}
+            run={run}
             disabled={phase === "results" || run.done}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-        onPaste={(e) => e.preventDefault()}
-            placeholder={phase === "results" ? "Race over" : "Type the passage…"}
-            aria-label="Race typing input"
-            className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 font-mono text-lg text-white outline-none transition placeholder:text-slate-600 focus:border-brand-400/60 disabled:opacity-50"
+            showKeyboard={showKeyboard && phase === "racing"}
           />
-          <div className="grid grid-cols-3 gap-3">
-            <Stat label="WPM" value={run.wpm.toFixed(0)} />
-            <Stat label="Accuracy" value={`${run.accuracy.toFixed(0)}%`} accent="text-gold-300" />
-            <Stat label="Progress" value={`${Math.round(run.progress * 100)}%`} accent="text-pom-400" />
-          </div>
-          {phase === "racing" && <OnScreenKeyboard nextChar={target[run.typed.length]} />}
         </>
       )}
 
       {phase === "results" && (
-        <button
-          onClick={() => { wsRef.current?.close(); setPhase("idle"); setTarget(""); setPlayers([]); }}
-          className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-500 to-pom-500 px-5 py-3 font-extrabold text-white transition hover:brightness-110"
-        >
-          <RotateCcw className="h-4 w-4" /> Race again
-        </button>
+        <div className="mt-14 text-center">
+          <div className="font-mono text-5xl text-brand-500">{run.wpm.toFixed(0)}<span className="ml-2 text-xl text-stone-500">wpm</span></div>
+          <button
+            onClick={() => { wsRef.current?.close(); setPhase("idle"); setTarget(""); setPlayers([]); }}
+            className="mt-8 rounded-lg p-3 text-stone-600 transition hover:text-brand-500"
+            aria-label="Race again"
+          >
+            <RotateCcw className="h-5 w-5" />
+          </button>
+        </div>
       )}
-    </div>
+
+      {phase !== "idle" && (
+        <div className="mt-10 text-center font-mono text-xs text-stone-600">
+          {authed ? "racing as your Haylingua account" : "racing as a guest"}
+        </div>
+      )}
+    </>
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function ArmenianTypingPage() {
   const [mode, setMode] = useState("practice");
-  const [levels, setLevels] = useState([]);
-  const [texts, setTexts] = useState(FALLBACK_TEXTS);
+  const [levels, setLevels] = useState(null);
+  const [showKeyboard, setShowKeyboard] = useState(false);
   const [board, setBoard] = useState([]);
 
   usePageMeta(
@@ -458,7 +475,7 @@ export default function ArmenianTypingPage() {
   useEffect(() => {
     fetch(`${API_BASE}/typing/texts`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) { setLevels(d.levels || []); setTexts(d.race_texts || FALLBACK_TEXTS); } })
+      .then((d) => d?.levels?.length && setLevels(d.levels))
       .catch(() => {});
     fetch(`${API_BASE}/typing/leaderboard?range=today`)
       .then((r) => (r.ok ? r.json() : null))
@@ -466,72 +483,62 @@ export default function ArmenianTypingPage() {
       .catch(() => {});
   }, []);
 
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[#07070c] text-white">
-      {/* Ambient gradient wash — decorative only. */}
-      <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-brand-500/20 blur-[120px]" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-40 -right-20 h-[30rem] w-[30rem] rounded-full bg-pom-500/20 blur-[120px]" />
+  const effectiveLevels = levels || [{ id: 0, name: "warm up", letters: "all", drills: FALLBACK_TEXTS }];
 
-      <div className="relative mx-auto max-w-3xl px-5 py-10">
-        <div className="mb-8 flex items-center justify-between">
-          <Link to="/" className="inline-flex items-center gap-2 font-display text-lg font-extrabold text-white/90 hover:text-white">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-pom-500 text-slate-900">Հ</span>
-            Haylingua
+  return (
+    <div className="flex min-h-screen flex-col bg-[#0d0d0f] text-stone-300">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-8">
+        {/* Header — wordmark left, one link right. Nothing else. */}
+        <div className="mb-20 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 font-display text-lg font-extrabold text-stone-400 transition hover:text-stone-200">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-500 text-[#0d0d0f]">Հ</span>
+            haylingua
           </Link>
-          <Link to="/armenian-alphabet" className="text-xs font-bold text-slate-400 hover:text-brand-300">
-            Learn the alphabet →
-          </Link>
+          <div className="flex items-center gap-1">
+            <Pill active={mode === "practice"} onClick={() => setMode("practice")}>practice</Pill>
+            <Pill active={mode === "race"} onClick={() => setMode("race")}>race</Pill>
+          </div>
         </div>
 
-        <header className="mb-8 text-center">
-          <h1 className="font-display text-4xl font-black tracking-tight sm:text-5xl">
-            <span className="bg-gradient-to-r from-brand-400 via-gold-300 to-pom-400 bg-clip-text text-transparent">
-              Armenian typing
-            </span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm font-semibold text-slate-400">
-            Learn the Armenian keyboard, then race real people. Free, no signup, no ads.
-          </p>
-        </header>
+        <main className="flex-1">
+          {mode === "practice"
+            ? <PracticeMode levels={effectiveLevels} showKeyboard={showKeyboard} />
+            : <RaceMode showKeyboard={showKeyboard} />}
+        </main>
 
-        <div className="mb-7 flex justify-center gap-2">
-          {[["practice", "Practice", Keyboard], ["race", "Race", Zap]].map(([key, label, Icon]) => (
+        {/* Footer hints — monkeytype-style: dim, mono, out of the way. */}
+        <footer className="mt-20 space-y-4">
+          <div className="flex justify-center">
             <button
-              key={key}
-              onClick={() => setMode(key)}
+              onClick={() => setShowKeyboard((v) => !v)}
               className={
-                "inline-flex items-center gap-2 rounded-2xl border px-5 py-2.5 text-sm font-extrabold transition " +
-                (mode === key
-                  ? "border-brand-400/60 bg-brand-400/15 text-brand-200 shadow-[0_0_20px_rgba(255,122,26,0.3)]"
-                  : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200")
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-xs transition " +
+                (showKeyboard ? "text-brand-500" : "text-stone-600 hover:text-stone-400")
               }
             >
-              <Icon className="h-4 w-4" /> {label}
+              <KeyboardIcon className="h-3.5 w-3.5" />
+              {showKeyboard ? "hide keyboard" : "show keyboard"}
             </button>
-          ))}
-        </div>
+          </div>
 
-        {mode === "practice"
-          ? <PracticeMode levels={levels.length ? levels : [{ id: 0, name: "Warm up", letters: "all", drills: texts }]} texts={texts} />
-          : <RaceMode />}
-
-        {board.length > 0 && (
-          <section className="mt-12">
-            <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-extrabold uppercase tracking-widest text-slate-400">
-              <Trophy className="h-4 w-4 text-gold-400" /> Fastest today
-            </h2>
-            <div className="overflow-hidden rounded-2xl border border-white/10">
-              {board.slice(0, 8).map((e, i) => (
-                <div key={i} className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-2.5 text-sm last:border-0">
-                  <span className="font-bold text-slate-300">{i + 1}. {e.display_name}</span>
-                  <span className="font-mono tabular-nums text-slate-400">
-                    {Number(e.wpm).toFixed(0)} wpm · {Number(e.accuracy).toFixed(0)}%
-                  </span>
+          {board.length > 0 && (
+            <div className="mx-auto max-w-sm">
+              <div className="mb-2 text-center font-mono text-[11px] uppercase tracking-widest text-stone-600">fastest today</div>
+              {board.slice(0, 5).map((e, i) => (
+                <div key={i} className="flex justify-between py-1 font-mono text-xs text-stone-500">
+                  <span>{i + 1}. {e.display_name}</span>
+                  <span className="tabular-nums">{Number(e.wpm).toFixed(0)} wpm</span>
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          )}
+
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 font-mono text-xs text-stone-600">
+            <Link to="/armenian-alphabet" className="transition hover:text-stone-400">alphabet</Link>
+            <Link to="/armenian-vocabulary" className="transition hover:text-stone-400">vocabulary</Link>
+            <Link to="/" className="transition hover:text-stone-400">haylingua</Link>
+          </div>
+        </footer>
       </div>
     </div>
   );
