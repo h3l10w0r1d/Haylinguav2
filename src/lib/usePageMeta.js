@@ -114,7 +114,7 @@ function removeAlternateLinks(els) {
  * @param {string[]} [options.keywords] - localized keyword phrases for <meta name="keywords">; defaults to the English set (index.html never updates this tag itself, so every locale silently kept the same English list until a page passes its own)
  */
 export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, options = {}) {
-  const { path, image, structuredData, alternates, keywords } = options;
+  const { path, image, structuredData, alternates, keywords, noindex } = options;
 
   useEffect(() => {
     const fullTitle = title ? `${title} — Haylingua` : DEFAULT_TITLE;
@@ -127,6 +127,10 @@ export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, op
     setMetaTag("description", description);
     setMetaTag("keywords", resolvedKeywords);
     setCanonicalLink(canonicalUrl);
+    // index.html ships a static "index,follow" — only pages that need the
+    // opposite (a 404, say) override it, and only for as long as they're
+    // mounted.
+    if (noindex) setMetaTag("robots", "noindex,follow");
 
     setMetaProperty("og:title", fullTitle);
     setMetaProperty("og:description", description);
@@ -145,6 +149,7 @@ export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, op
       setMetaTag("description", DEFAULT_DESCRIPTION);
       setMetaTag("keywords", DEFAULT_KEYWORDS);
       setCanonicalLink(DEFAULT_CANONICAL);
+      if (noindex) setMetaTag("robots", "index,follow");
 
       setMetaProperty("og:title", DEFAULT_TITLE);
       setMetaProperty("og:description", DEFAULT_DESCRIPTION);
@@ -159,5 +164,5 @@ export default function usePageMeta(title, description = DEFAULT_DESCRIPTION, op
       removeAlternateLinks(alternateEls);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, description, path, image, structuredData, alternates, keywords]);
+  }, [title, description, path, image, structuredData, alternates, keywords, noindex]);
 }

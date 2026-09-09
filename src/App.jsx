@@ -58,6 +58,7 @@ const CareersApplyPage = lazy(() => import('./CareersApplyPage'));
 const AffiliatesPage = lazy(() => import('./AffiliatesPage'));
 const AffiliateDashboardPage = lazy(() => import('./AffiliateDashboardPage'));
 const ForumPage = lazy(() => import('./ForumPage'));
+const NotFoundPage = lazy(() => import('./NotFoundPage'));
 const ForumCategoryPage = lazy(() => import('./ForumCategoryPage'));
 const ForumThreadPage = lazy(() => import('./ForumThreadPage'));
 const Onboarding = lazy(() => import('./Onboarding'));
@@ -117,6 +118,10 @@ const PUBLIC_ROUTE_DEFS = [
   { path: 'armenian-pronunciation', element: <ArmenianPronunciationPage /> },
   { path: 'armenian-vocabulary', element: <ArmenianVocabularyPage /> },
   { path: 'eastern-armenian', element: <EasternArmenianPage /> },
+  { path: 'armenian-numbers', element: <ArmenianNumbersPage /> },
+  { path: 'armenian-phrases', element: <ArmenianPhrasesPage /> },
+  { path: 'western-vs-eastern-armenian', element: <WesternVsEasternArmenianPage /> },
+  { path: 'best-armenian-learning-apps', element: <ChoosingAnArmenianAppPage /> },
   { path: 'blog', element: <BlogPage /> },
   { path: 'blog/:slug', element: <BlogPostPage /> },
   { path: 'contact', element: <ContactPage /> },
@@ -475,18 +480,6 @@ function AppShell() {
           first-party /blog system, English-only/unprefixed like the legal
           pages above (not part of our i18n content, nothing to translate). */}
       <Route path="/soro-blog" element={<SoroBlogPage />} />
-      {/* Newer SEO landing pages. English-only for now — their copy exists
-          only in locales/en/seo-pages.json, so they're registered here
-          rather than in PUBLIC_ROUTE_DEFS: a /ru/armenian-numbers route
-          would render English text under a Russian URL and invite Google to
-          index it as thin duplicate content. When their translations land,
-          move these four into PUBLIC_ROUTE_DEFS, add them to
-          TRANSLATED_STATIC_PATHS in backend/routes_seo.py, and drop them
-          from ENGLISH_ONLY_PATHS in src/lib/blogTopics.js. */}
-      <Route path="/armenian-numbers" element={<ArmenianNumbersPage />} />
-      <Route path="/armenian-phrases" element={<ArmenianPhrasesPage />} />
-      <Route path="/western-vs-eastern-armenian" element={<WesternVsEasternArmenianPage />} />
-      <Route path="/best-armenian-learning-apps" element={<ChoosingAnArmenianAppPage />} />
       <Route path="/careers/apply/:vacancyId" element={<CareersApplyPage />} />
       <Route path="/community" element={<ForumPage />} />
       <Route path="/community/thread/:id" element={<ForumThreadPage />} />
@@ -822,7 +815,7 @@ function AppShell() {
       <Route path="/auth/telegram/callback" element={<TelegramCallback />} />
       <Route path="/mobile/telegram-login" element={<MobileTelegramLogin />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </Suspense>
   );

@@ -6,10 +6,12 @@
 // ever changed it before this). Renders an <Outlet /> so the exact same
 // child <Route> elements used for the unprefixed English routes can be
 // reused here verbatim (see App.jsx) instead of duplicating them by hand.
-import { useEffect, useState } from "react";
-import { Outlet, useParams, Navigate } from "react-router-dom";
+import { lazy, useEffect, useState } from "react";
+import { Outlet, useParams } from "react-router-dom";
 import i18next, { SUPPORTED_LOCALES, RTL_LOCALES, loadLocaleResources } from "../i18n";
 import LoadingScreen from "./LoadingScreen";
+
+const NotFoundPage = lazy(() => import("../NotFoundPage"));
 
 // Noto Sans Arabic / Georgian aren't in index.html's eager font link — see
 // the comment there — because they're only ever needed on /ar and /ka
@@ -65,9 +67,16 @@ export default function LocaleLayout() {
     };
   }, [locale]);
 
-  // An unsupported segment (typo, old bookmark, crawler probing) falls back
-  // to the unprefixed English site rather than a dead end.
-  if (!SUPPORTED_LOCALES.includes(locale)) return <Navigate to="/" replace />;
+  // An unsupported segment matches here (React Router ranks this dynamic
+  // ":locale" route below any literal path — /about, /pricing, etc. — so
+  // this only ever catches single-segment paths that aren't a real route
+  // *and* aren't a real locale code). That's every single-segment 404 on
+  // the site (a typo, an old bookmark, a crawler probing), so it renders
+  // the same 404 the "*" catch-all in App.jsx renders for multi-segment
+  // unknown paths — previously this silently redirected to "/", which is
+  // exactly the "any dead link becomes an indexable homepage" bug a real
+  // 404 page exists to fix.
+  if (!SUPPORTED_LOCALES.includes(locale)) return <NotFoundPage />;
 
   // English's resources are always already loaded, so this only actually
   // shows a spinner for the OTHER 6 locales, and only on their first visit
