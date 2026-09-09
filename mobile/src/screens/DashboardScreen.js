@@ -132,14 +132,12 @@ export default function DashboardScreen({ navigation }) {
     }
   }, []);
 
-  const loadReviewStats = useCallback(async () => {
-    try {
-      const data = await api.get('/me/review/stats');
-      setReviewStats(data);
-    } catch {
-      setReviewStats(null);
-    }
-  }, []);
+  // Spaced-repetition review is disabled server-side (routes.py, commit
+  // d4e1ca2 "Disable spaced-repetition review") — the endpoint 404s, so this
+  // fired a doomed request on every dashboard focus and threw the result
+  // away. Re-enable alongside the backend routes if the feature comes back;
+  // the render below already no-ops while reviewStats is null.
+  const loadReviewStats = useCallback(async () => {}, []);
 
   const loadLevels = useCallback(async () => {
     try {

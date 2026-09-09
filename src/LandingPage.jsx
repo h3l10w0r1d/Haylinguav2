@@ -1,7 +1,7 @@
 // src/LandingPage.jsx — Full marketing landing in the Haylingua brand.
 // All auth logic preserved: login, signup, 2FA, captcha, email verification.
 import Turnstile from "./lib/Turnstile";
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { renderTemplate, useLocale, localizedPath, SUPPORTED_LOCALES } from "./i18n";
@@ -1289,8 +1289,61 @@ export default function LandingPage({ onLogin, onSignup }) {
   const testimonials = tt("testimonials", { returnObjects: true });
   const faqs = tt("faqs", { returnObjects: true });
 
+  // Homepage FAQ rich-result data. This used to live in index.html, which
+  // meant EVERY page shipped it — colliding with the page-level FAQPage on
+  // the SEO landing pages, and Google only honours one FAQPage per page. It
+  // belongs to the homepage's own FAQ section, so it lives with it and is
+  // torn down on unmount like the rest of usePageMeta's structured data.
+  const HOMEPAGE_FAQ = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+          {
+                "@type": "Question",
+                "name": "Is Haylingua free?",
+                "acceptedAnswer": {
+                      "@type": "Answer",
+                      "text": "Yes — you can create an account and start learning the Armenian alphabet and your first lessons for free."
+                }
+          },
+          {
+                "@type": "Question",
+                "name": "I don't know the Armenian alphabet at all. Is that okay?",
+                "acceptedAnswer": {
+                      "@type": "Answer",
+                      "text": "Perfect, that's exactly where we begin. The first lessons introduce each letter with its sound, examples, and typing practice before you ever build a word."
+                }
+          },
+          {
+                "@type": "Question",
+                "name": "Do I need a special keyboard?",
+                "acceptedAnswer": {
+                      "@type": "Answer",
+                      "text": "No. Exercises are tap-and-choose or use on-screen prompts, and typing exercises accept the Armenian letters shown to you."
+                }
+          },
+          {
+                "@type": "Question",
+                "name": "Does it work on my phone?",
+                "acceptedAnswer": {
+                      "@type": "Answer",
+                      "text": "Yes. Haylingua is built mobile-first and works in any modern browser on phone, tablet, or desktop."
+                }
+          },
+          {
+                "@type": "Question",
+                "name": "How do streaks and hearts work?",
+                "acceptedAnswer": {
+                      "@type": "Answer",
+                      "text": "You earn XP for correct answers and keep a daily streak by practicing each day. Hearts give you a few tries per session so mistakes feel low-stakes."
+                }
+          }
+  ],
+  }), []);
+
   usePageMeta(tt("meta.title"), tt("meta.description"), {
     path: "/",
+    structuredData: HOMEPAGE_FAQ,
     keywords: tt("meta.keywords", { returnObjects: true }),
     alternates: SUPPORTED_LOCALES.map((loc) => ({ locale: loc, path: "/" })).concat([{ locale: "", path: "/" }]),
   });

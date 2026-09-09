@@ -172,7 +172,6 @@ const ROUTES = [
   ["GET", "/me/quests", {}],
   ["GET", "/me/league", {}],
   ["GET", "/me/wallet", {}],
-  ["GET", "/me/review/stats", {}],
   ["GET", "/conversation/scenarios", { expect: [200] }],
   ["POST", "/conversation/turn", {}],
   // new: failure moment
@@ -245,7 +244,6 @@ if (health.status === 0) {
         ["GET", "/me/streak", (j) => "streak" in (j || {})],
         ["GET", "/me/quests", (j) => Array.isArray(j?.quests)],
         ["GET", "/me/wallet", (j) => j && typeof j === "object"],
-        ["GET", "/me/review/stats", (j) => "due_today" in (j || {})],
         ["GET", "/me/practice", (j) => Array.isArray(j?.exercises)],
         ["GET", "/me/mistakes", (j) => Array.isArray(j?.exercises)],
         ["GET", "/me/mistakes/count", (j) => Number.isFinite(j?.count)],
