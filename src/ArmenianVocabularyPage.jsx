@@ -24,7 +24,7 @@ const CATEGORIES = [
       ["Բարև", "ba-rev", "Hello"],
       ["Բարի լույս", "ba-ri luys", "Good morning"],
       ["Բարի երեկո", "ba-ri ye-re-ko", "Good evening"],
-      ["Ցտեսություն", "tse-te-su-tyun", "Goodbye"],
+      ["Ցտեսություն", "tsə-te-su-t'yun", "Goodbye"],
       ["Շնորհակալություն", "shnor-ha-ka-lu-tyun", "Thank you"],
       ["Խնդրեմ", "khən-drem", "Please / you're welcome"],
     ],
@@ -63,7 +63,7 @@ const CATEGORIES = [
       ["կաթ", "kat", "milk"],
       ["միս", "mis", "meat"],
       ["պանիր", "pa-nir", "cheese"],
-      ["մրգ", "mərg", "fruit"],
+      ["միրգ", "mirg", "fruit"],
     ],
   },
   {
