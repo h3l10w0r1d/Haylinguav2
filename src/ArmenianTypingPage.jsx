@@ -4,11 +4,13 @@
 // but nothing here requires an account.
 //
 // VISUAL NOTE: this page deliberately breaks from the site's light, rounded
-// marketing look and runs its own self-contained dark "web3" treatment
-// (neon glow, glass panels, animated gradient, mono type). It's a tool, not
-// a marketing page, and it sits at its own URL — so it opts out of SiteNav's
-// theme rather than fighting it. Everything is scoped to this file; no
-// global styles are touched.
+// marketing look and runs its own self-contained dark treatment (glow, glass
+// panels, gradient wash, mono type). It's a tool, not a marketing page, and
+// it sits at its own URL — so it opts out of SiteNav's theme rather than
+// fighting it. The palette is Haylingua's own, not a generic neon one:
+// apricot brand-* is the primary, pomegranate pom-* the secondary, gold-*
+// for highlights, and the design system's cardinal-* for typing errors.
+// Everything is scoped to this file; no global styles are touched.
 //
 // KEYBOARD-LAYOUT CAVEAT: the on-screen keyboard below reuses the
 // ALPHABETICAL letter grid from src/exercises/ArmenianKeyboard.jsx, which is
@@ -81,7 +83,15 @@ function useTypingRun(target) {
   }, [typed, target]);
 
   // Standard WPM convention: 5 characters = 1 word.
-  const wpm = startedAt ? (correctChars / 5) / (elapsed / 60) : 0;
+  //
+  // Held at 0 for the first half-second and hard-capped at 300: elapsed time
+  // is near zero on the very first keystroke, so an unguarded figure spikes
+  // into the tens of thousands before settling. The cap also means a paste
+  // (blocked on the inputs, but belt-and-braces) can't post a nonsense score
+  // to the race leaderboard — the server clamps to the same ceiling.
+  const wpm = startedAt && elapsed > 0.5
+    ? Math.min(300, (correctChars / 5) / (elapsed / 60))
+    : 0;
   const accuracy = keystrokes ? Math.max(0, ((keystrokes - errors) / keystrokes) * 100) : 100;
   const progress = target ? typed.length / target.length : 0;
 
@@ -99,8 +109,8 @@ function Passage({ target, typed }) {
           <span
             key={i}
             className={
-              (state === "ok" ? "text-cyan-300 " : state === "bad" ? "bg-rose-500/30 text-rose-300 " : "text-slate-500 ") +
-              (isCursor ? "border-b-2 border-fuchsia-400 " : "")
+              (state === "ok" ? "text-brand-300 " : state === "bad" ? "bg-cardinal-500/30 text-cardinal-300 " : "text-slate-500 ") +
+              (isCursor ? "border-b-2 border-gold-400 " : "")
             }
           >
             {ch}
@@ -111,7 +121,7 @@ function Passage({ target, typed }) {
   );
 }
 
-function Stat({ label, value, accent = "text-cyan-300" }) {
+function Stat({ label, value, accent = "text-brand-300" }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur">
       <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</div>
@@ -133,7 +143,7 @@ function OnScreenKeyboard({ nextChar }) {
                 className={
                   "grid h-8 w-8 shrink-0 place-items-center rounded-lg border font-mono text-sm transition " +
                   (isNext
-                    ? "scale-110 border-fuchsia-400 bg-fuchsia-500/30 text-white shadow-[0_0_18px_rgba(232,121,249,0.7)]"
+                    ? "scale-110 border-brand-400 bg-brand-500/30 text-white shadow-[0_0_18px_rgba(255,122,26,0.7)]"
                     : "border-white/10 bg-white/[0.04] text-slate-400")
                 }
               >
@@ -184,7 +194,7 @@ function PracticeMode({ levels, texts }) {
             className={
               "rounded-full border px-3.5 py-1.5 text-xs font-bold transition " +
               (i === levelIdx
-                ? "border-cyan-400 bg-cyan-400/15 text-cyan-200 shadow-[0_0_16px_rgba(34,211,238,0.35)]"
+                ? "border-brand-400 bg-brand-400/15 text-brand-200 shadow-[0_0_16px_rgba(255,122,26,0.35)]"
                 : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/25 hover:text-slate-200")
             }
           >
@@ -195,7 +205,7 @@ function PracticeMode({ levels, texts }) {
 
       {level?.letters && level.letters !== "all" && (
         <div className="text-sm font-semibold text-slate-400">
-          New letters this level: <span className="font-mono text-lg text-fuchsia-300">{level.letters}</span>
+          New letters this level: <span className="font-mono text-lg text-pom-400">{level.letters}</span>
         </div>
       )}
 
@@ -211,27 +221,28 @@ function PracticeMode({ levels, texts }) {
         autoComplete="off"
         autoCorrect="off"
         spellCheck={false}
+        onPaste={(e) => e.preventDefault()}
         placeholder="Start typing here…"
         aria-label="Typing input"
-        className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 font-mono text-lg text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/60 focus:shadow-[0_0_24px_rgba(34,211,238,0.25)]"
+        className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 font-mono text-lg text-white outline-none transition placeholder:text-slate-600 focus:border-brand-400/60 focus:shadow-[0_0_24px_rgba(255,122,26,0.25)]"
       />
 
       <div className="grid grid-cols-3 gap-3">
         <Stat label="WPM" value={run.wpm.toFixed(0)} />
-        <Stat label="Accuracy" value={`${run.accuracy.toFixed(0)}%`} accent="text-fuchsia-300" />
-        <Stat label="Progress" value={`${Math.round(run.progress * 100)}%`} accent="text-violet-300" />
+        <Stat label="Accuracy" value={`${run.accuracy.toFixed(0)}%`} accent="text-gold-300" />
+        <Stat label="Progress" value={`${Math.round(run.progress * 100)}%`} accent="text-pom-400" />
       </div>
 
       <OnScreenKeyboard nextChar={target[run.typed.length]} />
 
       {run.done && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-400/40 bg-cyan-400/10 p-5">
-          <div className="font-bold text-cyan-200">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-400/40 bg-brand-500/10 p-5">
+          <div className="font-bold text-brand-200">
             Done — {run.wpm.toFixed(0)} WPM at {run.accuracy.toFixed(0)}% accuracy
           </div>
           <button
             onClick={() => setDrillIdx((i) => i + 1)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-sm font-extrabold text-slate-900 transition hover:brightness-110"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-white transition hover:brightness-110"
           >
             Next drill <ChevronRight className="h-4 w-4" />
           </button>
@@ -312,7 +323,7 @@ function RaceMode() {
   if (phase === "idle" || phase === "connecting") {
     return (
       <div className="mx-auto max-w-md space-y-4 rounded-3xl border border-white/10 bg-white/[0.03] p-7 text-center backdrop-blur">
-        <Users className="mx-auto h-8 w-8 text-fuchsia-300" />
+        <Users className="mx-auto h-8 w-8 text-pom-400" />
         <h2 className="font-display text-2xl font-extrabold text-white">Race someone</h2>
         <p className="text-sm font-semibold text-slate-400">
           No account needed — pick a name and you'll be matched with whoever's online.
@@ -324,13 +335,13 @@ function RaceMode() {
           onKeyDown={(e) => e.key === "Enter" && connect()}
           placeholder="Your name"
           aria-label="Your racing name"
-          className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center font-mono text-white outline-none focus:border-fuchsia-400/60"
+          className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center font-mono text-white outline-none focus:border-brand-400/60"
         />
-        {error && <div className="text-sm font-semibold text-rose-300">{error}</div>}
+        {error && <div className="text-sm font-semibold text-cardinal-300">{error}</div>}
         <button
           onClick={connect}
           disabled={phase === "connecting"}
-          className="w-full rounded-2xl bg-gradient-to-r from-fuchsia-500 to-cyan-400 px-5 py-3 font-extrabold text-slate-900 transition hover:brightness-110 disabled:opacity-60"
+          className="w-full rounded-2xl bg-gradient-to-r from-brand-500 to-pom-500 px-5 py-3 font-extrabold text-white transition hover:brightness-110 disabled:opacity-60"
         >
           {phase === "connecting" ? "Connecting…" : "Find a race"}
         </button>
@@ -342,7 +353,7 @@ function RaceMode() {
     <div className="space-y-5">
       <div className="flex items-center justify-between text-xs font-bold">
         <span className="inline-flex items-center gap-1.5 text-slate-400">
-          {wsRef.current?.readyState === 1 ? <Wifi className="h-3.5 w-3.5 text-cyan-400" /> : <WifiOff className="h-3.5 w-3.5 text-rose-400" />}
+          {wsRef.current?.readyState === 1 ? <Wifi className="h-3.5 w-3.5 text-brand-400" /> : <WifiOff className="h-3.5 w-3.5 text-cardinal-400" />}
           {authed ? "Racing as your Haylingua account" : "Racing as a guest"}
         </span>
         <span className="text-slate-500">{players.length} in this race</span>
@@ -351,17 +362,17 @@ function RaceMode() {
       {/* Live standings */}
       <div className="space-y-2">
         {players.map((p, i) => (
-          <div key={p.id} className={"rounded-2xl border p-3 " + (p.id === youId ? "border-cyan-400/50 bg-cyan-400/[0.07]" : "border-white/10 bg-white/[0.03]")}>
+          <div key={p.id} className={"rounded-2xl border p-3 " + (p.id === youId ? "border-brand-400/50 bg-brand-400/[0.07]" : "border-white/10 bg-white/[0.03]")}>
             <div className="mb-1.5 flex items-center justify-between text-xs font-bold">
-              <span className={p.id === youId ? "text-cyan-200" : "text-slate-300"}>
-                {p.finished && <Trophy className="mr-1 inline h-3.5 w-3.5 text-amber-300" />}
+              <span className={p.id === youId ? "text-brand-200" : "text-slate-300"}>
+                {p.finished && <Trophy className="mr-1 inline h-3.5 w-3.5 text-gold-400" />}
                 {i + 1}. {p.name}{p.id === youId ? " (you)" : ""}
               </span>
               <span className="font-mono tabular-nums text-slate-400">{p.wpm.toFixed(0)} wpm · {p.accuracy.toFixed(0)}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-black/40">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-400 transition-[width] duration-200"
+                className="h-full rounded-full bg-gradient-to-r from-brand-500 to-pom-500 transition-[width] duration-200"
                 style={{ width: `${Math.round((p.progress || 0) * 100)}%` }}
               />
             </div>
@@ -377,8 +388,8 @@ function RaceMode() {
       )}
 
       {phase === "countdown" && (
-        <div className="rounded-3xl border border-fuchsia-400/40 bg-fuchsia-500/10 p-10 text-center">
-          <div className="font-mono text-6xl font-black text-fuchsia-300">{countdown}</div>
+        <div className="rounded-3xl border border-brand-400/40 bg-brand-500/10 p-10 text-center">
+          <div className="font-mono text-6xl font-black text-brand-300">{countdown}</div>
           <p className="mt-2 text-sm font-bold text-slate-300">Get ready…</p>
         </div>
       )}
@@ -396,14 +407,15 @@ function RaceMode() {
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
+        onPaste={(e) => e.preventDefault()}
             placeholder={phase === "results" ? "Race over" : "Type the passage…"}
             aria-label="Race typing input"
-            className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 font-mono text-lg text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/60 disabled:opacity-50"
+            className="w-full rounded-2xl border border-white/10 bg-black/40 px-5 py-4 font-mono text-lg text-white outline-none transition placeholder:text-slate-600 focus:border-brand-400/60 disabled:opacity-50"
           />
           <div className="grid grid-cols-3 gap-3">
             <Stat label="WPM" value={run.wpm.toFixed(0)} />
-            <Stat label="Accuracy" value={`${run.accuracy.toFixed(0)}%`} accent="text-fuchsia-300" />
-            <Stat label="Progress" value={`${Math.round(run.progress * 100)}%`} accent="text-violet-300" />
+            <Stat label="Accuracy" value={`${run.accuracy.toFixed(0)}%`} accent="text-gold-300" />
+            <Stat label="Progress" value={`${Math.round(run.progress * 100)}%`} accent="text-pom-400" />
           </div>
           {phase === "racing" && <OnScreenKeyboard nextChar={target[run.typed.length]} />}
         </>
@@ -412,7 +424,7 @@ function RaceMode() {
       {phase === "results" && (
         <button
           onClick={() => { wsRef.current?.close(); setPhase("idle"); setTarget(""); setPlayers([]); }}
-          className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-500 to-cyan-400 px-5 py-3 font-extrabold text-slate-900 transition hover:brightness-110"
+          className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-500 to-pom-500 px-5 py-3 font-extrabold text-white transition hover:brightness-110"
         >
           <RotateCcw className="h-4 w-4" /> Race again
         </button>
@@ -457,23 +469,23 @@ export default function ArmenianTypingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#07070c] text-white">
       {/* Ambient gradient wash — decorative only. */}
-      <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-40 -right-20 h-[30rem] w-[30rem] rounded-full bg-cyan-500/20 blur-[120px]" />
+      <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-brand-500/20 blur-[120px]" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-40 -right-20 h-[30rem] w-[30rem] rounded-full bg-pom-500/20 blur-[120px]" />
 
       <div className="relative mx-auto max-w-3xl px-5 py-10">
         <div className="mb-8 flex items-center justify-between">
           <Link to="/" className="inline-flex items-center gap-2 font-display text-lg font-extrabold text-white/90 hover:text-white">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-fuchsia-500 to-cyan-400 text-slate-900">Հ</span>
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-pom-500 text-slate-900">Հ</span>
             Haylingua
           </Link>
-          <Link to="/armenian-alphabet" className="text-xs font-bold text-slate-400 hover:text-cyan-300">
+          <Link to="/armenian-alphabet" className="text-xs font-bold text-slate-400 hover:text-brand-300">
             Learn the alphabet →
           </Link>
         </div>
 
         <header className="mb-8 text-center">
           <h1 className="font-display text-4xl font-black tracking-tight sm:text-5xl">
-            <span className="bg-gradient-to-r from-fuchsia-400 via-violet-300 to-cyan-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-brand-400 via-gold-300 to-pom-400 bg-clip-text text-transparent">
               Armenian typing
             </span>
           </h1>
@@ -490,7 +502,7 @@ export default function ArmenianTypingPage() {
               className={
                 "inline-flex items-center gap-2 rounded-2xl border px-5 py-2.5 text-sm font-extrabold transition " +
                 (mode === key
-                  ? "border-cyan-400/60 bg-cyan-400/15 text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+                  ? "border-brand-400/60 bg-brand-400/15 text-brand-200 shadow-[0_0_20px_rgba(255,122,26,0.3)]"
                   : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-slate-200")
               }
             >
@@ -506,7 +518,7 @@ export default function ArmenianTypingPage() {
         {board.length > 0 && (
           <section className="mt-12">
             <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-extrabold uppercase tracking-widest text-slate-400">
-              <Trophy className="h-4 w-4 text-amber-300" /> Fastest today
+              <Trophy className="h-4 w-4 text-gold-400" /> Fastest today
             </h2>
             <div className="overflow-hidden rounded-2xl border border-white/10">
               {board.slice(0, 8).map((e, i) => (
