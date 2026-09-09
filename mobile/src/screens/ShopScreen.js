@@ -3,13 +3,19 @@
 // effect exactly like web. Buying reuses the same wallet-snapshot pattern
 // ChestReveal.js already established (applyWallet patches the shared
 // statsStore directly instead of a full refetch).
+//
+// Category tabs (All/Power-ups/Streak/Cosmetics/Avatar/Emotes/More) mirror
+// web's 2026-09 "sidebar-era" redesign (commit 3a2eda8), which replaced the
+// old one-long-page-of-stacked-sections layout with the same icon+label tab
+// pattern the rest of this app's own screens (Friends/Forum/Vocabulary)
+// already use — the backend contract itself didn't change, only web's UI.
 import React, { useCallback, useState } from 'react';
 import { View, Text, ActivityIndicator, ScrollView, Modal, ActivityIndicator as Spinner } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ArrowLeft, Gem, Zap, Heart, Shield, Snowflake, Frame, Palette, Tag,
-  Shirt, Scissors, Smile, Gift, Check,
+  Shirt, Scissors, Smile, Gift, Check, LayoutGrid, Sparkles,
 } from 'lucide-react-native';
 import { api, ApiError } from '../lib/api';
 import { useStatsStore } from '../lib/statsStore';
@@ -28,16 +34,36 @@ const EFFECT_ICONS = {
 };
 
 const SECTIONS = [
-  { title: 'Power-ups', effects: ['xp_boost', 'xp_multiplier', 'hearts_refill', 'heart_shield'] },
-  { title: 'Streak protection', effects: ['streak_freeze', 'streak_repair'] },
-  { title: 'Cosmetics', effects: ['avatar_frame', 'profile_theme', 'name_tag_effect'] },
-  { title: 'Avatar builder unlocks', effects: ['avatar_clothing_graphic', 'avatar_hairstyle', 'avatar_eyebrows'] },
-  { title: 'Emotes', effects: ['emote'] },
+  { key: 'power', title: 'Power-ups', tabLabel: 'Power-ups', tabIcon: Zap, effects: ['xp_boost', 'xp_multiplier', 'hearts_refill', 'heart_shield'] },
+  { key: 'streak', title: 'Streak protection', tabLabel: 'Streak', tabIcon: Snowflake, effects: ['streak_freeze', 'streak_repair'] },
+  { key: 'cosmetic', title: 'Cosmetics', tabLabel: 'Cosmetics', tabIcon: Sparkles, effects: ['avatar_frame', 'profile_theme', 'name_tag_effect'] },
+  { key: 'avatar_unlocks', title: 'Avatar builder unlocks', tabLabel: 'Avatar', tabIcon: Shirt, effects: ['avatar_clothing_graphic', 'avatar_hairstyle', 'avatar_eyebrows'] },
+  { key: 'emotes', title: 'Emotes', tabLabel: 'Emotes', tabIcon: Smile, effects: ['emote'] },
 ];
 
 const STATUS_LABELS = {
   owned: 'Owned', active: 'Active', maxed: 'Max owned', full: 'Hearts full', not_needed: 'Premium ∞',
 };
+
+function TabPill({ active, onPress, icon: Icon, label, count }) {
+  return (
+    <Pressable3D
+      onPress={onPress}
+      pressDepth={1}
+      hapticOnPress={false}
+      className={'mr-2 flex-row items-center gap-1.5 rounded-xl px-3.5 py-2 ' + (active ? 'bg-brand-500' : 'bg-white')}
+      style={active ? undefined : { borderWidth: 1, borderColor: '#f0efec' }}
+    >
+      <Icon size={14} color={active ? '#fff' : '#78716c'} />
+      <Text className={'text-xs font-extrabold ' + (active ? 'text-white' : 'text-stone-600')}>{label}</Text>
+      {count > 0 && (
+        <View className={'rounded-full px-1.5 ' + (active ? 'bg-white/25' : 'bg-stone-100')}>
+          <Text className={'text-[10px] font-extrabold ' + (active ? 'text-white' : 'text-stone-500')}>{count}</Text>
+        </View>
+      )}
+    </Pressable3D>
+  );
+}
 
 function ItemCard({ item, onBuy, pulseKey }) {
   const Icon = EFFECT_ICONS[item.effect] || Gift;
@@ -45,7 +71,7 @@ function ItemCard({ item, onBuy, pulseKey }) {
   return (
     <ClaimPulse pulseKey={pulseKey} style={{ width: '48%', marginBottom: 12 }}>
       <View className="rounded-2xl bg-white p-3.5" style={{ shadowColor: '#1c1917', shadowOpacity: 0.05, shadowRadius: 6, elevation: 1, minHeight: 168 }}>
-        <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
+        <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-50">
           <Icon size={19} color="#FF7A1A" />
         </View>
         <Text className="mt-2 text-sm font-extrabold text-stone-900" numberOfLines={1}>{item.title}</Text>
@@ -116,6 +142,7 @@ function BuyConfirmModal({ item, gems, buying, onCancel, onConfirm }) {
 export default function ShopScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
   const [confirming, setConfirming] = useState(null);
   const [buying, setBuying] = useState(false);
   const [justBoughtId, setJustBoughtId] = useState(null);
@@ -152,9 +179,21 @@ export default function ShopScreen({ navigation }) {
   }
 
   const items = Array.isArray(data?.items) ? data.items : [];
-  const bySection = SECTIONS.map((s) => ({ ...s, items: items.filter((i) => s.effects.includes(i.effect)) })).filter((s) => s.items.length > 0);
   const knownEffects = SECTIONS.flatMap((s) => s.effects);
-  const more = items.filter((i) => !knownEffects.includes(i.effect));
+  const sections = SECTIONS.map((s) => ({ ...s, items: items.filter((i) => s.effects.includes(i.effect)) })).filter((s) => s.items.length > 0);
+  const misc = items.filter((i) => !knownEffects.includes(i.effect));
+
+  const tabs = [
+    { key: 'all', tabLabel: 'All', tabIcon: LayoutGrid, count: items.length },
+    ...sections.map((s) => ({ key: s.key, tabLabel: s.tabLabel, tabIcon: s.tabIcon, count: s.items.length })),
+    ...(misc.length > 0 ? [{ key: 'more', tabLabel: 'More', tabIcon: LayoutGrid, count: misc.length }] : []),
+  ];
+  const visibleSections =
+    activeTab === 'all'
+      ? [...sections, ...(misc.length > 0 ? [{ key: 'misc', title: 'More', items: misc }] : [])]
+      : activeTab === 'more'
+      ? [{ key: 'misc', title: 'More', items: misc }]
+      : sections.filter((s) => s.key === activeTab);
 
   return (
     <SafeAreaView className="flex-1 bg-[#f5f4f1]" edges={['top']}>
@@ -176,36 +215,45 @@ export default function ShopScreen({ navigation }) {
           <ActivityIndicator size="large" color="#FF7A1A" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
-          <ScreenFadeIn>
-            {!!error && (
-              <View className="mb-3 rounded-2xl bg-cardinal-50 px-4 py-3">
-                <Text className="text-sm font-semibold text-cardinal-700">{error}</Text>
-              </View>
-            )}
-            {bySection.concat(more.length ? [{ title: 'More', items: more }] : []).map((section) => (
-              <View key={section.title} className="mb-5">
-                <Text className="mb-2.5 text-xs font-extrabold uppercase tracking-wide text-stone-400">{section.title}</Text>
-                <View className="flex-row flex-wrap justify-between">
-                  {section.items.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      onBuy={setConfirming}
-                      pulseKey={justBoughtId === item.id ? pulseToken : 0}
-                    />
-                  ))}
+        <>
+          {tabs.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="pb-1" contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {tabs.map((t) => (
+                <TabPill key={t.key} active={activeTab === t.key} onPress={() => setActiveTab(t.key)} icon={t.tabIcon} label={t.tabLabel} count={t.count} />
+              ))}
+            </ScrollView>
+          )}
+          <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8 }}>
+            <ScreenFadeIn>
+              {!!error && (
+                <View className="mb-3 rounded-2xl bg-cardinal-50 px-4 py-3">
+                  <Text className="text-sm font-semibold text-cardinal-700">{error}</Text>
                 </View>
-              </View>
-            ))}
-            {items.length === 0 && (
-              <View className="items-center py-16">
-                <Gift size={28} color="#d6d3d1" />
-                <Text className="mt-2 text-base font-bold text-stone-400">Nothing in the shop right now.</Text>
-              </View>
-            )}
-          </ScreenFadeIn>
-        </ScrollView>
+              )}
+              {visibleSections.map((section) => (
+                <View key={section.key || section.title} className="mb-5">
+                  <Text className="mb-2.5 text-xs font-extrabold uppercase tracking-wide text-stone-400">{section.title}</Text>
+                  <View className="flex-row flex-wrap justify-between">
+                    {section.items.map((item) => (
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        onBuy={setConfirming}
+                        pulseKey={justBoughtId === item.id ? pulseToken : 0}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ))}
+              {items.length === 0 && (
+                <View className="items-center py-16">
+                  <Gift size={28} color="#d6d3d1" />
+                  <Text className="mt-2 text-base font-bold text-stone-400">Nothing in the shop right now.</Text>
+                </View>
+              )}
+            </ScreenFadeIn>
+          </ScrollView>
+        </>
       )}
 
       {confirming && (
