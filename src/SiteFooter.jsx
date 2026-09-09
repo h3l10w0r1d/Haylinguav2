@@ -173,7 +173,7 @@ export default function SiteFooter() {
           <FooterCol
             locale={locale}
             title={t("footer.product")}
-            links={[[t("footer.linkPricing"), "/pricing"], [t("footer.linkHowItWorks"), "/#how"], [t("footer.linkFeatures"), "/#features"], [t("footer.linkFaq"), "/#faq"]]}
+            links={[[t("footer.linkPricing"), "/pricing"], [t("footer.linkHowItWorks"), "/#how"], [t("footer.linkFeatures"), "/#features"], [t("footer.linkFaq"), "/#faq"], [t("footer.linkTypingTool"), "/armenian-typing"], [t("footer.linkReader"), "/armenian-text-to-speech"]]}
           />
           <FooterCol
             locale={locale}

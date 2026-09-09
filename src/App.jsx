@@ -44,6 +44,7 @@ const ArmenianPhrasesPage = lazy(() => import('./ArmenianPhrasesPage'));
 const WesternVsEasternArmenianPage = lazy(() => import('./WesternVsEasternArmenianPage'));
 const ChoosingAnArmenianAppPage = lazy(() => import('./ChoosingAnArmenianAppPage'));
 const ArmenianTypingPage = lazy(() => import('./ArmenianTypingPage'));
+const ArmenianReaderPage = lazy(() => import('./ArmenianReaderPage'));
 const DiasporaCityPage = lazy(() => import('./DiasporaCityPage'));
 const BlogPage = lazy(() => import('./BlogPage'));
 const BlogPostPage = lazy(() => import('./BlogPostPage'));
@@ -127,6 +128,9 @@ const PUBLIC_ROUTE_DEFS = [
   // but it carries real translated copy now, so it's locale-mounted like
   // every other SEO page.
   { path: 'armenian-typing', element: <ArmenianTypingPage /> },
+  // Free Armenian text-to-speech reader. Metered per character server-side
+  // (see backend/tts_limits.py) — the page itself is public like the rest.
+  { path: 'armenian-text-to-speech', element: <ArmenianReaderPage /> },
   { path: 'blog', element: <BlogPage /> },
   { path: 'blog/:slug', element: <BlogPostPage /> },
   { path: 'contact', element: <ContactPage /> },

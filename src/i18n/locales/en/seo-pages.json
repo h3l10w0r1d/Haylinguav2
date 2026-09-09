@@ -597,5 +597,100 @@
         { "title": "Learn Armenian Online", "text": "The full course behind this tool." }
       ]
     }
+  },
+  "armenianReader": {
+    "meta": {
+      "title": "Armenian Text to Speech — Free Armenian Voice Reader",
+      "description": "Paste any Armenian text and hear it read aloud in a native Armenian voice. Free, no signup, works with Eastern Armenian. Share what you made as a link."
+    },
+    "breadcrumb": {
+      "home": "Home",
+      "current": "Armenian text to speech"
+    },
+    "badge": "Free · No signup",
+    "hero": {
+      "heading": "Armenian text to speech",
+      "subtext": "Paste Armenian text, press listen, and hear it in a real Armenian voice. No account needed to start."
+    },
+    "tool": {
+      "label": "Armenian text to read aloud",
+      "placeholder": "Բարև ձեզ… paste or type Armenian text here",
+      "voice": {
+        "female": "Female voice",
+        "male": "Male voice"
+      },
+      "listen": "Listen",
+      "stop": "Stop",
+      "loading": "Generating…",
+      "share": "Copy link",
+      "copied": "Link copied",
+      "shareTooLong": "Too long to share as a link — shorten the text to 400 characters or fewer.",
+      "overLimitUser": "That's over the {{limit}}-character limit for one reading. Split it into shorter passages.",
+      "overLimitAnon": "That's over the {{limit}}-character limit for one reading. Sign in for longer passages.",
+      "signInCta": "Sign in for more"
+    },
+    "quota": {
+      "label": "Today's audio",
+      "signedIn": "Your daily allowance as a signed-in learner. It resets at midnight UTC.",
+      "anon": "Free daily allowance for visitors. Sign in for a much larger one — it resets at midnight UTC."
+    },
+    "samples": {
+      "label": "Try a sample",
+      "greeting": "Greeting",
+      "poem": "Poetry",
+      "news": "Weather"
+    },
+    "errors": {
+      "generic": "Couldn't generate the audio just now. Try again in a moment.",
+      "playback": "The audio couldn't be played in this browser.",
+      "clipboard": "Couldn't copy automatically — the link is in your address bar."
+    },
+    "about": {
+      "heading": "Hear Armenian the way it's actually spoken",
+      "p1": "Armenian spelling doesn't map onto English letters, and romanization only gets you so far — two words that look nearly identical written out can sound completely different. Hearing a passage read by a native Armenian voice is the fastest way to close that gap, whether you're checking a name, a message from family, or a line of poetry you can read but can't quite pronounce.",
+      "p2": "This reader uses Armenian neural voices trained on Armenian itself, not a foreign voice approximating the sounds. It handles Standard Eastern Armenian, including the letters and punctuation that generic text-to-speech tools usually mangle. Paste anything from a single word to a full paragraph, pick a male or female voice, and share the result as a link."
+    },
+    "faqHeading": "Questions about the Armenian reader",
+    "faq": [
+      {
+        "q": "Is the Armenian text-to-speech reader free?",
+        "a": "Yes. You can use it without an account, up to a daily character allowance shown under the text box. Signing in to Haylingua raises that allowance significantly and lets you read longer passages in one go."
+      },
+      {
+        "q": "Which Armenian does it speak?",
+        "a": "Standard Eastern Armenian, the variety used in Armenia, in native Armenian neural voices. Western Armenian text will still be read, but with Eastern pronunciation."
+      },
+      {
+        "q": "Why is there a limit?",
+        "a": "Generating speech costs money per character, so an open-ended free tool would be trivial to abuse. The limits are generous enough for real study and reading, and signing in gives you a much higher ceiling."
+      },
+      {
+        "q": "Can I share what I made?",
+        "a": "Yes. Copy link puts the text into the URL, so whoever opens it sees the same passage ready to play. Short passages only — up to 400 characters."
+      },
+      {
+        "q": "Can I download the audio?",
+        "a": "Not from this page yet. Replaying a passage you've already generated is free and instant, so you can loop a sentence as many times as you need while practising."
+      }
+    ],
+    "keepGoing": {
+      "pronunciation": {
+        "title": "Armenian pronunciation",
+        "text": "The sounds behind the letters, explained."
+      },
+      "alphabet": {
+        "title": "Armenian alphabet",
+        "text": "All 39 letters with audio for each."
+      },
+      "typing": {
+        "title": "Armenian typing",
+        "text": "Learn the Armenian keyboard, free."
+      }
+    },
+    "cta": {
+      "heading": "Go beyond listening",
+      "subtext": "Learn to read, speak and understand Armenian with structured lessons.",
+      "button": "Start learning free"
+    }
   }
 }

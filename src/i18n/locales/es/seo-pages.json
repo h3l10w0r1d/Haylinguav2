@@ -618,5 +618,100 @@
           }
         ]
       }
+    },
+  "armenianReader": {
+    "meta": {
+      "title": "Texto a voz en armenio — lector de voz armenio gratis",
+      "description": "Pega cualquier texto en armenio y escúchalo con una voz armenia real. Gratis, sin registro, armenio oriental. Comparte el resultado con un enlace."
+    },
+    "breadcrumb": {
+      "home": "Inicio",
+      "current": "Texto a voz en armenio"
+    },
+    "badge": "Gratis · Sin registro",
+    "hero": {
+      "heading": "Texto a voz en armenio",
+      "subtext": "Pega texto en armenio, pulsa Escuchar y óyelo con una voz armenia real. No hace falta cuenta para empezar."
+    },
+    "tool": {
+      "label": "Texto en armenio para leer en voz alta",
+      "placeholder": "Բարև ձեզ… pega o escribe texto en armenio",
+      "voice": {
+        "female": "Voz femenina",
+        "male": "Voz masculina"
+      },
+      "listen": "Escuchar",
+      "stop": "Parar",
+      "loading": "Generando…",
+      "share": "Copiar enlace",
+      "copied": "Enlace copiado",
+      "shareTooLong": "Demasiado largo para un enlace: reduce el texto a 400 caracteres o menos.",
+      "overLimitUser": "Eso supera el límite de {{limit}} caracteres por lectura. Divídelo en pasajes más cortos.",
+      "overLimitAnon": "Eso supera el límite de {{limit}} caracteres por lectura. Inicia sesión para pasajes más largos.",
+      "signInCta": "Inicia sesión para más"
+    },
+    "quota": {
+      "label": "Audio de hoy",
+      "signedIn": "Tu cuota diaria como estudiante con sesión iniciada. Se renueva a medianoche UTC.",
+      "anon": "Cuota diaria gratuita para visitantes. Inicia sesión para una mucho mayor: se renueva a medianoche UTC."
+    },
+    "samples": {
+      "label": "Prueba un ejemplo",
+      "greeting": "Saludo",
+      "poem": "Poesía",
+      "news": "El tiempo"
+    },
+    "errors": {
+      "generic": "No se pudo generar el audio ahora mismo. Inténtalo en un momento.",
+      "playback": "Este navegador no pudo reproducir el audio.",
+      "clipboard": "No se pudo copiar automáticamente: el enlace está en la barra de direcciones."
+    },
+    "about": {
+      "heading": "Escucha el armenio como se habla de verdad",
+      "p1": "La ortografía armenia no se traslada letra a letra al alfabeto latino, y la romanización solo llega hasta cierto punto: dos palabras casi idénticas por escrito pueden sonar completamente distintas. Oír un pasaje leído por una voz armenia nativa es la forma más rápida de cerrar esa brecha, ya sea un nombre, un mensaje de la familia o un verso que sabes leer pero no pronunciar.",
+      "p2": "Este lector usa voces neuronales armenias entrenadas en armenio, no una voz extranjera que aproxima los sonidos. Maneja el armenio oriental estándar, incluidas las letras y la puntuación que las herramientas genéricas de texto a voz suelen destrozar. Pega desde una sola palabra hasta un párrafo entero, elige voz masculina o femenina y comparte el resultado con un enlace."
+    },
+    "faqHeading": "Preguntas sobre el lector armenio",
+    "faq": [
+      {
+        "q": "¿El lector de texto a voz en armenio es gratis?",
+        "a": "Sí. Puedes usarlo sin cuenta, hasta una cuota diaria de caracteres que se muestra bajo el cuadro de texto. Iniciar sesión en Haylingua sube esa cuota notablemente y permite leer pasajes más largos de una vez."
+      },
+      {
+        "q": "¿Qué armenio habla?",
+        "a": "Armenio oriental estándar, la variedad usada en Armenia, con voces neuronales armenias reales. El texto en armenio occidental también se leerá, pero con pronunciación oriental."
+      },
+      {
+        "q": "¿Por qué hay un límite?",
+        "a": "Generar voz cuesta dinero por carácter, así que una herramienta gratuita e ilimitada sería trivial de abusar. Los límites son de sobra para estudiar y leer de verdad, e iniciar sesión da un techo mucho más alto."
+      },
+      {
+        "q": "¿Puedo compartir lo que hice?",
+        "a": "Sí. Copiar enlace pone el texto en la URL, así que quien lo abra verá el mismo pasaje listo para reproducir. Solo pasajes cortos: hasta 400 caracteres."
+      },
+      {
+        "q": "¿Puedo descargar el audio?",
+        "a": "Todavía no desde esta página. Volver a reproducir un pasaje ya generado es gratis e instantáneo, así que puedes repetir una frase tantas veces como necesites."
+      }
+    ],
+    "keepGoing": {
+      "pronunciation": {
+        "title": "Pronunciación armenia",
+        "text": "Los sonidos tras las letras, explicados."
+      },
+      "alphabet": {
+        "title": "Alfabeto armenio",
+        "text": "Las 39 letras, cada una con audio."
+      },
+      "typing": {
+        "title": "Escribir en armenio",
+        "text": "Aprende el teclado armenio, gratis."
+      }
+    },
+    "cta": {
+      "heading": "Ve más allá de escuchar",
+      "subtext": "Aprende a leer, hablar y entender armenio con lecciones estructuradas.",
+      "button": "Empezar gratis"
     }
+  }
 }

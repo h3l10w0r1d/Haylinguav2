@@ -9724,6 +9724,34 @@ _DEFAULT_TTS_VOICE_SETTINGS = {
 }
 
 
+@router.get("/tts/quota")
+def tts_quota(request: Request, authorization: Optional[str] = Header(default=None)):
+    """Today's remaining /tts character allowance for the caller.
+
+    Exists so the reader page can show a live meter and warn *before* a long
+    paragraph is rejected, rather than letting the user paste 2000 characters
+    and only then discover the cap. Read-only and cheap: it reports the same
+    numbers tts_limits.enforce() will apply, it doesn't reserve anything."""
+    from datetime import time as dtime, timezone
+    try:
+        uid = _get_user_id_from_bearer(authorization)
+    except Exception:
+        uid = None
+    per_request, per_day = tts_limits.limits_for(uid)
+    used = tts_limits.usage_today(tts_limits.subject_key(uid, _client_ip(request)))
+    return {
+        "signed_in": uid is not None,
+        "per_request": per_request,
+        "per_day": per_day,
+        "used": min(used, per_day),
+        "remaining": max(0, per_day - used),
+        # UTC, matching tts_limits._quota_day() — so the UI can say when the
+        # allowance comes back instead of a vague "tomorrow".
+        "resets_at": (datetime.combine(tts_limits._quota_day(), dtime.min, tzinfo=timezone.utc)
+                      + timedelta(days=1)).isoformat(),
+    }
+
+
 @router.post("/tts", response_class=Response)
 async def tts_speak(payload: TTSPayload, request: Request, authorization: Optional[str] = Header(default=None)):
     text_value = (payload.text or "").strip()

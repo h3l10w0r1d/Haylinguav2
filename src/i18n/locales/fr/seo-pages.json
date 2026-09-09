@@ -618,5 +618,100 @@
           }
         ]
       }
+    },
+  "armenianReader": {
+    "meta": {
+      "title": "Synthèse vocale arménienne — lecteur vocal gratuit",
+      "description": "Collez un texte arménien et écoutez-le lu par une vraie voix arménienne. Gratuit, sans inscription, arménien oriental. Partagez le résultat par lien."
+    },
+    "breadcrumb": {
+      "home": "Accueil",
+      "current": "Synthèse vocale arménienne"
+    },
+    "badge": "Gratuit · Sans inscription",
+    "hero": {
+      "heading": "Synthèse vocale arménienne",
+      "subtext": "Collez un texte arménien, appuyez sur Écouter, et entendez-le dans une vraie voix arménienne. Aucun compte requis."
+    },
+    "tool": {
+      "label": "Texte arménien à lire à voix haute",
+      "placeholder": "Բարև ձեզ… collez ou saisissez un texte arménien",
+      "voice": {
+        "female": "Voix féminine",
+        "male": "Voix masculine"
+      },
+      "listen": "Écouter",
+      "stop": "Arrêter",
+      "loading": "Génération…",
+      "share": "Copier le lien",
+      "copied": "Lien copié",
+      "shareTooLong": "Trop long pour un lien — réduisez le texte à 400 caractères maximum.",
+      "overLimitUser": "Cela dépasse la limite de {{limit}} caractères par lecture. Découpez le texte en passages plus courts.",
+      "overLimitAnon": "Cela dépasse la limite de {{limit}} caractères par lecture. Connectez-vous pour des passages plus longs.",
+      "signInCta": "Se connecter pour plus"
+    },
+    "quota": {
+      "label": "Audio du jour",
+      "signedIn": "Votre quota quotidien en tant qu'apprenant connecté. Réinitialisé à minuit UTC.",
+      "anon": "Quota quotidien gratuit pour les visiteurs. Connectez-vous pour un quota bien plus large — réinitialisé à minuit UTC."
+    },
+    "samples": {
+      "label": "Essayez un exemple",
+      "greeting": "Salutation",
+      "poem": "Poésie",
+      "news": "Météo"
+    },
+    "errors": {
+      "generic": "Impossible de générer l'audio pour l'instant. Réessayez dans un moment.",
+      "playback": "Ce navigateur n'a pas pu lire l'audio.",
+      "clipboard": "Copie automatique impossible — le lien est dans votre barre d'adresse."
+    },
+    "about": {
+      "heading": "Entendez l'arménien tel qu'il se parle vraiment",
+      "p1": "L'orthographe arménienne ne se transpose pas lettre à lettre en alphabet latin, et la romanisation ne mène pas très loin : deux mots presque identiques à l'écrit peuvent sonner de façon complètement différente. Écouter un passage lu par une voix arménienne native est le moyen le plus rapide de combler cet écart — un prénom, un message de la famille, ou un vers que vous savez lire sans savoir le prononcer.",
+      "p2": "Ce lecteur utilise des voix neuronales arméniennes entraînées sur l'arménien lui-même, et non une voix étrangère qui approxime les sons. Il gère l'arménien oriental standard, y compris les lettres et la ponctuation que les outils de synthèse vocale génériques déforment habituellement. Collez d'un simple mot à un paragraphe entier, choisissez une voix masculine ou féminine, et partagez le résultat par lien."
+    },
+    "faqHeading": "Questions sur le lecteur arménien",
+    "faq": [
+      {
+        "q": "Le lecteur vocal arménien est-il gratuit ?",
+        "a": "Oui. Vous pouvez l'utiliser sans compte, dans la limite d'un quota quotidien de caractères affiché sous la zone de texte. Se connecter à Haylingua augmente nettement ce quota et permet de lire des passages plus longs d'un coup."
+      },
+      {
+        "q": "Quel arménien est parlé ?",
+        "a": "L'arménien oriental standard, la variété utilisée en Arménie, avec de véritables voix neuronales arméniennes. Un texte en arménien occidental sera lu quand même, mais avec une prononciation orientale."
+      },
+      {
+        "q": "Pourquoi une limite ?",
+        "a": "La génération de parole coûte de l'argent par caractère : un outil gratuit et illimité serait trivial à détourner. Les limites suffisent largement pour étudier et lire réellement, et se connecter offre un plafond bien plus élevé."
+      },
+      {
+        "q": "Puis-je partager le résultat ?",
+        "a": "Oui. Copier le lien place le texte dans l'URL : la personne qui l'ouvre voit le même passage, prêt à écouter. Passages courts uniquement — jusqu'à 400 caractères."
+      },
+      {
+        "q": "Puis-je télécharger l'audio ?",
+        "a": "Pas encore depuis cette page. Réécouter un passage déjà généré est gratuit et instantané : vous pouvez répéter une phrase autant de fois que nécessaire."
+      }
+    ],
+    "keepGoing": {
+      "pronunciation": {
+        "title": "Prononciation arménienne",
+        "text": "Les sons derrière les lettres, expliqués."
+      },
+      "alphabet": {
+        "title": "Alphabet arménien",
+        "text": "Les 39 lettres, chacune avec son audio."
+      },
+      "typing": {
+        "title": "Taper en arménien",
+        "text": "Apprenez le clavier arménien, gratuitement."
+      }
+    },
+    "cta": {
+      "heading": "Allez plus loin que l'écoute",
+      "subtext": "Apprenez à lire, parler et comprendre l'arménien avec des leçons structurées.",
+      "button": "Commencer gratuitement"
     }
+  }
 }
