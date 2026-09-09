@@ -671,6 +671,22 @@
       {
         "q": "Can I download the audio?",
         "a": "Not from this page yet. Replaying a passage you've already generated is free and instant, so you can loop a sentence as many times as you need while practising."
+      },
+      {
+        "q": "Does it work with Armenian written in Latin letters?",
+        "a": "No — it needs the Armenian script. Text like \"barev dzez\" will be read as if it were a foreign word, because that is what it looks like to the voice. If you can't type Armenian yet, our free typing trainer teaches the Armenian keyboard from the home row up."
+      },
+      {
+        "q": "Is my text saved anywhere?",
+        "a": "The generated audio is cached by content so that identical text isn't paid for twice, and cached files are cleared out after 90 days. Nothing is attached to your account, shown to other people, or used to build a profile of you."
+      },
+      {
+        "q": "Can I use it on my phone?",
+        "a": "Yes. It runs in any modern mobile browser with no app to install — useful when the Armenian text you need to hear arrived in a message on that same phone."
+      },
+      {
+        "q": "How is this different from Google Translate's audio?",
+        "a": "General-purpose translation tools treat Armenian as one of a hundred languages and often route it through a voice that isn't native to it. These are Armenian neural voices, and the tool does one thing: read Armenian text properly, with the alphabet and punctuation handled correctly."
       }
     ],
     "keepGoing": {
@@ -686,6 +702,62 @@
         "title": "Armenian typing",
         "text": "Learn the Armenian keyboard, free."
       }
+    },
+    "useCases": {
+      "heading": "What people use the reader for",
+      "items": [
+        {
+          "title": "Messages from family",
+          "text": "A relative writes in Armenian and you can make out the letters but not the rhythm. Paste the message and hear where the stress actually falls."
+        },
+        {
+          "title": "Names and place names",
+          "text": "Armenian surnames and toponyms are where romanization fails hardest. Hear ղ, խ and ց as they really sound before you say a name out loud."
+        },
+        {
+          "title": "Homework and textbooks",
+          "text": "Check your own reading against a native voice line by line, instead of guessing at a passage you have only ever seen written down."
+        },
+        {
+          "title": "Poetry and song lyrics",
+          "text": "Armenian verse is built on sound. Hearing Charents or Sayat-Nova read aloud tells you things the printed page cannot."
+        },
+        {
+          "title": "Shadowing practice",
+          "text": "Play a sentence, repeat it, play it again. Replays are instant and do not count against your daily allowance."
+        },
+        {
+          "title": "Signs, menus and labels",
+          "text": "Type what you saw on a shopfront in Yerevan or on a jar in an Armenian grocery, and find out how it sounds."
+        }
+      ]
+    },
+    "how": {
+      "heading": "How the Armenian voice works",
+      "p1": "The reader uses neural text-to-speech voices built for Armenian specifically — hy-AM voices trained on Armenian speech, rather than an English or Russian voice bent into approximating Armenian sounds. That difference is audible immediately on the letters that have no close equivalent in either language.",
+      "p2": "It reads Standard Eastern Armenian, handles the full 39-letter alphabet, and respects Armenian punctuation: the full stop «։», the question mark «՞» and the emphasis mark «՛» all change how a sentence is delivered, the way a comma or a question mark does in English. Text that includes them will be read with the right intonation rather than as a flat string of words.",
+      "p3": "It is not perfect, and it is worth knowing where the edges are. Western Armenian text will be read with Eastern pronunciation, because that is the variety the voices speak. Rare proper nouns, heavy dialect, and words borrowed from other languages mid-sentence can come out approximate. For everyday Armenian — messages, lessons, articles, poetry — it is reliable enough to learn from."
+    },
+    "tips": {
+      "heading": "Getting more out of it",
+      "items": [
+        {
+          "title": "Work in short passages",
+          "text": "A sentence or two at a time is far more useful than a whole page. You can hold a short passage in your head and repeat it; a long one just washes over you."
+        },
+        {
+          "title": "Listen before you read aloud",
+          "text": "Hear the line first, then say it, then hear it again. Reading first locks in whatever pronunciation you already assumed, which is the thing you are trying to correct."
+        },
+        {
+          "title": "Try both voices",
+          "text": "The male and female voices differ in pace and pitch. Hearing the same sentence twice, voiced differently, separates what belongs to the language from what belongs to one speaker."
+        },
+        {
+          "title": "Keep the Armenian punctuation",
+          "text": "If you are copying text, keep «։» and «՞» rather than swapping in a full stop and a question mark. The Armenian marks are what tell the voice where a sentence ends and whether it is a question."
+        }
+      ]
     },
     "cta": {
       "heading": "Go beyond listening",

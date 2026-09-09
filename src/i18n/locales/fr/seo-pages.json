@@ -692,6 +692,22 @@
       {
         "q": "Puis-je télécharger l'audio ?",
         "a": "Pas encore depuis cette page. Réécouter un passage déjà généré est gratuit et instantané : vous pouvez répéter une phrase autant de fois que nécessaire."
+      },
+      {
+        "q": "Fonctionne-t-il avec de l'arménien écrit en lettres latines ?",
+        "a": "Non — il lui faut l'alphabet arménien. Un texte comme « barev dzez » sera lu comme un mot étranger, parce que c'est ce qu'il est aux yeux de la voix. Si vous ne savez pas encore taper en arménien, notre entraîneur de frappe gratuit enseigne le clavier arménien à partir de la rangée de repos."
+      },
+      {
+        "q": "Mon texte est-il conservé ?",
+        "a": "L'audio généré est mis en cache par contenu afin qu'un texte identique ne soit pas payé deux fois, et le cache est purgé au bout de 90 jours. Rien n'est rattaché à votre compte, montré à d'autres personnes ou utilisé pour constituer un profil."
+      },
+      {
+        "q": "Puis-je l'utiliser sur mon téléphone ?",
+        "a": "Oui. Il fonctionne dans n'importe quel navigateur mobile moderne, sans application à installer — pratique quand le texte arménien que vous devez entendre est arrivé par message sur ce même téléphone."
+      },
+      {
+        "q": "Quelle différence avec l'audio de Google Traduction ?",
+        "a": "Les outils de traduction généralistes traitent l'arménien comme une langue parmi cent et le font souvent prononcer par une voix qui ne lui est pas native. Ici, ce sont des voix neuronales arméniennes, et l'outil fait une seule chose : lire correctement l'arménien, alphabet et ponctuation compris."
       }
     ],
     "keepGoing": {
@@ -707,6 +723,62 @@
         "title": "Taper en arménien",
         "text": "Apprenez le clavier arménien, gratuitement."
       }
+    },
+    "useCases": {
+      "heading": "À quoi sert ce lecteur",
+      "items": [
+        {
+          "title": "Messages de la famille",
+          "text": "Un proche écrit en arménien : vous déchiffrez les lettres, pas le rythme. Collez le message et entendez où l'accent tombe réellement."
+        },
+        {
+          "title": "Noms propres et toponymes",
+          "text": "C'est là que la romanisation échoue le plus. Entendez ղ, խ et ց tels qu'ils sonnent vraiment avant de prononcer un nom à voix haute."
+        },
+        {
+          "title": "Devoirs et manuels",
+          "text": "Comparez votre lecture à une voix native, ligne par ligne, au lieu de deviner la sonorité d'un passage que vous n'avez jamais qu'écrit sous les yeux."
+        },
+        {
+          "title": "Poésie et paroles de chansons",
+          "text": "Le vers arménien repose sur le son. Entendre Tcharents ou Sayat-Nova lus à voix haute dit ce que la page imprimée ne dit pas."
+        },
+        {
+          "title": "Entraînement au shadowing",
+          "text": "Lancez une phrase, répétez-la, relancez-la. Les réécoutes sont instantanées et ne consomment pas votre quota quotidien."
+        },
+        {
+          "title": "Enseignes, menus, étiquettes",
+          "text": "Saisissez ce que vous avez vu sur une devanture à Erevan ou sur un bocal dans une épicerie arménienne, et découvrez comment cela se prononce."
+        }
+      ]
+    },
+    "how": {
+      "heading": "Comment fonctionne la voix arménienne",
+      "p1": "Le lecteur s'appuie sur des voix neuronales conçues spécifiquement pour l'arménien — des voix hy-AM entraînées sur de la parole arménienne, et non une voix anglaise ou russe forcée à approximer des sons arméniens. La différence s'entend immédiatement sur les lettres qui n'ont d'équivalent proche dans aucune de ces langues.",
+      "p2": "Il lit l'arménien oriental standard, gère les 39 lettres de l'alphabet et respecte la ponctuation arménienne : le point « ։ », le point d'interrogation « ՞ » et la marque d'emphase « ՛ » modifient la façon dont une phrase est dite, comme le font une virgule ou un point d'interrogation en français. Un texte qui les conserve sera lu avec la bonne intonation, et non comme une suite plate de mots.",
+      "p3": "Ce n'est pas parfait, et il vaut mieux connaître les limites. Un texte en arménien occidental sera lu avec une prononciation orientale, puisque c'est la variété que parlent les voix. Les noms propres rares, un dialecte marqué ou des emprunts insérés en pleine phrase peuvent sortir approximatifs. Pour l'arménien de tous les jours — messages, leçons, articles, poésie — la fidélité suffit largement pour apprendre."
+    },
+    "tips": {
+      "heading": "En tirer davantage",
+      "items": [
+        {
+          "title": "Travaillez par courts passages",
+          "text": "Une ou deux phrases à la fois valent bien mieux qu'une page entière. Un passage court, vous pouvez le garder en tête et le répéter ; un long vous glisse dessus."
+        },
+        {
+          "title": "Écoutez avant de lire à voix haute",
+          "text": "Entendez la phrase, dites-la, réentendez-la. Lire d'abord fixe la prononciation que vous supposiez déjà — précisément celle que vous cherchez à corriger."
+        },
+        {
+          "title": "Essayez les deux voix",
+          "text": "Les voix masculine et féminine diffèrent par le débit et la hauteur. La même phrase dite deux fois autrement sépare ce qui appartient à la langue de ce qui appartient à un locuteur."
+        },
+        {
+          "title": "Gardez la ponctuation arménienne",
+          "text": "Si vous copiez un texte, conservez « ։ » et « ՞ » plutôt que de les remplacer par un point et un point d'interrogation. Ce sont ces signes qui indiquent à la voix où finit la phrase et s'il s'agit d'une question."
+        }
+      ]
     },
     "cta": {
       "heading": "Allez plus loin que l'écoute",

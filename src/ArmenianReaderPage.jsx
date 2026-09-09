@@ -110,10 +110,15 @@ export default function ArmenianReaderPage() {
     };
   }, []);
 
-  const faq = useMemo(() => {
-    const rows = t("armenianReader.faq", { returnObjects: true });
-    return Array.isArray(rows) ? rows : [];
+  // i18next returns the raw value for object/array keys; guard the shape so a
+  // half-translated locale renders a shorter page rather than throwing.
+  const rows = useCallback((key) => {
+    const v = t(key, { returnObjects: true });
+    return Array.isArray(v) ? v : [];
   }, [t]);
+  const faq = useMemo(() => rows("armenianReader.faq"), [rows]);
+  const useCases = useMemo(() => rows("armenianReader.useCases.items"), [rows]);
+  const tips = useMemo(() => rows("armenianReader.tips.items"), [rows]);
 
   usePageMeta(t("armenianReader.meta.title"), t("armenianReader.meta.description"), {
     structuredData: [
@@ -410,6 +415,59 @@ export default function ArmenianReaderPage() {
             <p className="mt-4 text-base font-semibold leading-relaxed text-slate-600 dark:text-stone-300">
               {t("armenianReader.about.p2")}
             </p>
+          </div>
+        </section>
+
+        {/* ---------- Use cases ---------- */}
+        <section className="border-t border-slate-100 bg-slate-50 px-5 py-14 dark:border-white/[0.06] dark:bg-white/[0.04]">
+          <div className="mx-auto max-w-4xl">
+            <h2 className="text-center font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white">
+              {t("armenianReader.useCases.heading")}
+            </h2>
+            <div className="mt-7 grid gap-4 sm:grid-cols-2">
+              {useCases.map((c, i) => (
+                <div key={i} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-[#18181b] dark:ring-white/[0.08]">
+                  <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{c.title}</div>
+                  <p className="mt-1.5 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{c.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ---------- How it works ---------- */}
+        <section className="border-t border-slate-100 px-5 py-14 dark:border-white/[0.06]">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white">
+              {t("armenianReader.how.heading")}
+            </h2>
+            {["p1", "p2", "p3"].map((k) => (
+              <p key={k} className="mt-4 text-base font-semibold leading-relaxed text-slate-600 dark:text-stone-300">
+                {t(`armenianReader.how.${k}`)}
+              </p>
+            ))}
+          </div>
+        </section>
+
+        {/* ---------- Tips ---------- */}
+        <section className="border-t border-slate-100 bg-slate-50 px-5 py-14 dark:border-white/[0.06] dark:bg-white/[0.04]">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white">
+              {t("armenianReader.tips.heading")}
+            </h2>
+            <ol className="mt-7 space-y-4">
+              {tips.map((tip, i) => (
+                <li key={i} className="flex gap-4">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-500 text-sm font-extrabold text-white tabular-nums">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <div className="font-display text-base font-extrabold text-slate-800 dark:text-white">{tip.title}</div>
+                    <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500 dark:text-stone-400">{tip.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
         </section>
 

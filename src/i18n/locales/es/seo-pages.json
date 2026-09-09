@@ -692,6 +692,22 @@
       {
         "q": "¿Puedo descargar el audio?",
         "a": "Todavía no desde esta página. Volver a reproducir un pasaje ya generado es gratis e instantáneo, así que puedes repetir una frase tantas veces como necesites."
+      },
+      {
+        "q": "¿Funciona con armenio escrito en letras latinas?",
+        "a": "No: necesita el alfabeto armenio. Un texto como «barev dzez» se leerá como una palabra extranjera, porque eso es lo que parece para la voz. Si aún no sabes escribir en armenio, nuestro entrenador de mecanografía gratuito enseña el teclado armenio desde la fila de reposo."
+      },
+      {
+        "q": "¿Se guarda mi texto?",
+        "a": "El audio generado se almacena en caché por contenido para no pagar dos veces por un texto idéntico, y la caché se limpia a los 90 días. Nada se asocia a tu cuenta, se muestra a otras personas ni se usa para crear un perfil tuyo."
+      },
+      {
+        "q": "¿Puedo usarlo en el móvil?",
+        "a": "Sí. Funciona en cualquier navegador móvil moderno, sin instalar nada, algo práctico cuando el texto armenio que necesitas oír llegó por mensaje a ese mismo teléfono."
+      },
+      {
+        "q": "¿En qué se diferencia del audio de Google Traductor?",
+        "a": "Las herramientas de traducción generales tratan el armenio como un idioma más entre cien y a menudo lo pronuncian con una voz que no le es nativa. Aquí son voces neuronales armenias, y la herramienta hace una sola cosa: leer bien el armenio, con el alfabeto y la puntuación tratados correctamente."
       }
     ],
     "keepGoing": {
@@ -707,6 +723,62 @@
         "title": "Escribir en armenio",
         "text": "Aprende el teclado armenio, gratis."
       }
+    },
+    "useCases": {
+      "heading": "Para qué se usa el lector",
+      "items": [
+        {
+          "title": "Mensajes de la familia",
+          "text": "Un pariente escribe en armenio y distingues las letras, pero no el ritmo. Pega el mensaje y escucha dónde cae realmente el acento."
+        },
+        {
+          "title": "Nombres y topónimos",
+          "text": "Es donde más falla la romanización. Escucha ղ, խ y ց como suenan de verdad antes de decir un nombre en voz alta."
+        },
+        {
+          "title": "Deberes y libros de texto",
+          "text": "Compara tu propia lectura con una voz nativa, línea a línea, en lugar de adivinar cómo suena un pasaje que solo has visto escrito."
+        },
+        {
+          "title": "Poesía y letras de canciones",
+          "text": "El verso armenio se construye sobre el sonido. Oír a Charents o a Sayat-Nova leídos en voz alta dice cosas que la página impresa no."
+        },
+        {
+          "title": "Práctica de repetición",
+          "text": "Reproduce una frase, repítela, vuelve a reproducirla. Las repeticiones son instantáneas y no consumen tu cuota diaria."
+        },
+        {
+          "title": "Carteles, menús y etiquetas",
+          "text": "Escribe lo que viste en un escaparate de Ereván o en un tarro de una tienda armenia y descubre cómo suena."
+        }
+      ]
+    },
+    "how": {
+      "heading": "Cómo funciona la voz armenia",
+      "p1": "El lector usa voces neuronales creadas específicamente para el armenio: voces hy-AM entrenadas con habla armenia, no una voz inglesa o rusa forzada a aproximar sonidos armenios. La diferencia se oye de inmediato en las letras que no tienen equivalente cercano en ninguno de esos idiomas.",
+      "p2": "Lee armenio oriental estándar, maneja las 39 letras del alfabeto y respeta la puntuación armenia: el punto «։», el signo de interrogación «՞» y la marca de énfasis «՛» cambian cómo se dice una frase, igual que una coma o un signo de interrogación en español. Un texto que los conserva se leerá con la entonación correcta y no como una sucesión plana de palabras.",
+      "p3": "No es perfecto, y conviene saber dónde están los límites. El texto en armenio occidental se leerá con pronunciación oriental, porque esa es la variedad que hablan las voces. Los nombres propios raros, el dialecto marcado y los préstamos insertados a mitad de frase pueden salir aproximados. Para el armenio cotidiano —mensajes, lecciones, artículos, poesía— es fiable de sobra para aprender de él."
+    },
+    "tips": {
+      "heading": "Cómo sacarle más partido",
+      "items": [
+        {
+          "title": "Trabaja con pasajes cortos",
+          "text": "Una o dos frases cada vez sirven mucho más que una página entera. Un pasaje corto puedes retenerlo y repetirlo; uno largo simplemente te pasa por encima."
+        },
+        {
+          "title": "Escucha antes de leer en voz alta",
+          "text": "Oye la frase, dila, vuelve a oírla. Leer primero fija la pronunciación que ya dabas por supuesta, que es justo la que intentas corregir."
+        },
+        {
+          "title": "Prueba las dos voces",
+          "text": "La voz masculina y la femenina difieren en ritmo y tono. La misma frase dicha de dos formas separa lo que pertenece al idioma de lo que pertenece a un hablante."
+        },
+        {
+          "title": "Conserva la puntuación armenia",
+          "text": "Si copias un texto, mantén «։» y «՞» en lugar de sustituirlos por un punto y un signo de interrogación. Son esas marcas las que le dicen a la voz dónde acaba la frase y si es una pregunta."
+        }
+      ]
     },
     "cta": {
       "heading": "Ve más allá de escuchar",
