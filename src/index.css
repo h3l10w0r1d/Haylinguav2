@@ -96,6 +96,10 @@
   .btn3d-cardinal{ @apply bg-cardinal-500 text-white shadow-btn-cardinal hover:brightness-105; }
   .btn3d-feather { @apply bg-feather-500 text-white shadow-btn-feather hover:brightness-105; }
   .btn3d-neutral { @apply bg-white text-slate-600 shadow-btn-neutral ring-2 ring-slate-200 hover:bg-slate-50 dark:bg-[#1f1f23] dark:text-stone-300 dark:ring-white/10 dark:hover:bg-[#26262b]; }
+  /* Dark neutral action button — for a widget's own "do the thing" control
+     (e.g. the landing demo's CHECK) where an accent color would compete with
+     the page's real CTA. Green stays reserved for "correct" feedback. */
+  .btn3d-ink     { @apply bg-slate-800 text-white shadow-[0_4px_0_0_#0f172a] hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:shadow-[0_4px_0_0_#a8a29e] dark:hover:bg-stone-100; }
   .btn3d:disabled.btn3d-brand,
   .btn3d:disabled.btn3d-grass,
   .btn3d:disabled.btn3d-cardinal,
@@ -129,7 +133,15 @@
     @apply bg-cardinal-50 text-cardinal-700 ring-cardinal-400 dark:bg-cardinal-500/15 dark:text-cardinal-300;
     box-shadow: 0 3px 0 0 #FF6B6B;
   }
+  /* Landing-demo-only selection state: brand-tinted instead of blue, so the
+     hero shows one accent color rather than orange + blue side by side. The
+     in-app exercises keep .tile-selected (blue) unchanged. */
+  .tile-selected-brand {
+    @apply bg-brand-50 text-brand-700 ring-brand-400 dark:bg-brand-500/15 dark:text-brand-300;
+    box-shadow: 0 3px 0 0 #FFAB6B;
+  }
   .dark .tile-selected { box-shadow: 0 3px 0 0 rgba(28,176,246,0.5); }
+  .dark .tile-selected-brand { box-shadow: 0 3px 0 0 rgba(255,122,26,0.5); }
   .dark .tile-correct { box-shadow: 0 3px 0 0 rgba(88,204,2,0.5); }
   .dark .tile-wrong { box-shadow: 0 3px 0 0 rgba(255,75,75,0.5); }
 }

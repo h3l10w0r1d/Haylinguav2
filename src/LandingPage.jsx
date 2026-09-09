@@ -1007,7 +1007,7 @@ function LandingExerciseDemo({ onSignup }) {
               : checked && isSel && i !== q.correct
               ? "tile-wrong"
               : isSel
-              ? "tile-selected"
+              ? "tile-selected-brand"
               : "";
           return (
             <button
@@ -1027,7 +1027,7 @@ function LandingExerciseDemo({ onSignup }) {
                       : checked && isSel && i !== q.correct
                       ? "bg-cardinal-500 text-white ring-cardinal-500"
                       : isSel
-                      ? "bg-feather-500 text-white ring-feather-500"
+                      ? "bg-brand-500 text-white ring-brand-500"
                       : "text-slate-400 dark:text-stone-500 ring-slate-200 dark:ring-white/[0.08]")
                   }
                 >
@@ -1117,7 +1117,7 @@ function LandingExerciseDemo({ onSignup }) {
             type="button"
             onClick={() => { stopAutoplay(); onCheck(); }}
             disabled={q.kind === "trace_letter" ? !traceDirty : selected == null}
-            className="btn3d btn3d-grass uppercase disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn3d btn3d-ink uppercase disabled:cursor-not-allowed disabled:opacity-40"
           >
             {tt("demo.ui.check")}
           </button>
