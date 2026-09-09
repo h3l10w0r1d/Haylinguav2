@@ -16,17 +16,24 @@
 // being spent on the characters themselves. Dark ground matches the app's
 // own dark mode (#0d0d0f + stone-*), not a generic neon theme.
 //
-// KEYBOARD-LAYOUT CAVEAT: the on-screen keyboard reuses the ALPHABETICAL
-// letter grid from src/exercises/ArmenianKeyboard.jsx — a character picker,
-// not a physical Armenian layout. It teaches "which letter comes next", not
-// muscle memory for a hardware keyboard, because we haven't confirmed which
-// layout (standard Eastern vs phonetic) to teach. Swapping KEY_ROWS is the
-// only change needed once that's decided. It's off by default and toggled
-// on, since a learner who already knows the layout doesn't want it.
+// THREE MODES:
+//   learn    — ten-finger touch-typing lessons on the real Armenian PHONETIC
+//              layout, with finger-coloured keys and per-lesson accuracy
+//              gates. Layout + curriculum live in lib/armenianKeyboard.js;
+//              read the confidence note at the top of that file before
+//              changing any key.
+//   practice — free typing against drills/passages from the backend.
+//   race     — live multiplayer against other people and bots.
+//
+// The optional keyboard shown in practice/race is still the ALPHABETICAL
+// picker grid (KEY_ROWS below) rather than the physical layout — it's a
+// "which letter comes next" aid there, not a touch-typing tool. Only learn
+// mode teaches finger positions, and only it uses the real layout.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { RotateCcw, Keyboard as KeyboardIcon, Users, Trophy } from "lucide-react";
 import usePageMeta from "./lib/usePageMeta";
+import { LAYOUT, ROW_ORDER, FINGERS, CHAR_INFO, LESSONS, fingerForChar } from "./lib/armenianKeyboard";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -260,6 +267,167 @@ function Pill({ active, onClick, children }) {
     >
       {children}
     </button>
+  );
+}
+
+// Key -> finger, rebuilt from CHAR_INFO so the layout module stays the one
+// source of truth for both.
+const FINGER_BY_KEY_PUBLIC = Object.fromEntries(
+  Object.values(CHAR_INFO).map((i) => [i.key, i.finger])
+);
+
+// ── Learn mode: ten-finger touch typing ───────────────────────────────────
+// Full keyboard, keys tinted by which finger owns them, next key lit. This
+// is the only mode that shows the whole board on purpose: the point is
+// learning where keys live, so hiding them would defeat it.
+function FingerKeyboard({ nextChar, activeKeys }) {
+  const nextKey = nextChar ? CHAR_INFO[nextChar]?.key : null;
+  const nextFinger = nextChar ? fingerForChar(nextChar) : null;
+  // Stagger each row slightly, the way a real keyboard is offset.
+  const indent = { number: 0, top: 14, home: 22, bottom: 38 };
+
+  return (
+    <div className="mt-10">
+      {ROW_ORDER.map((row) => (
+        <div key={row} className="mb-1.5 flex justify-center gap-1.5" style={{ paddingLeft: indent[row] }}>
+          {LAYOUT[row].map(([key, ch]) => {
+            const finger = FINGER_BY_KEY_PUBLIC[key];
+            const hue = FINGERS[finger]?.hue;
+            const isNext = key === nextKey;
+            const inLesson = !activeKeys || activeKeys.includes(ch);
+            return (
+              <span
+                key={key}
+                className={
+                  "grid h-9 w-9 shrink-0 place-items-center rounded-md font-mono text-sm transition " +
+                  (isNext ? "scale-110 ring-2 ring-white " : "") +
+                  (inLesson ? "" : "opacity-25 ")
+                }
+                style={{
+                  backgroundColor: isNext ? `hsl(${hue} 70% 45%)` : `hsl(${hue} 45% 16%)`,
+                  color: isNext ? "#0d0d0f" : `hsl(${hue} 60% 65%)`,
+                }}
+                title={`${ch} — ${key.toUpperCase()} — ${FINGERS[finger]?.label || ""}`}
+              >
+                {ch}
+              </span>
+            );
+          })}
+        </div>
+      ))}
+      <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 font-mono text-[11px]">
+        {Object.entries(FINGERS).map(([id, f]) => (
+          <span
+            key={id}
+            className={"transition " + (nextFinger === id ? "font-bold" : "opacity-45")}
+            style={{ color: `hsl(${f.hue} 60% 65%)` }}
+          >
+            {f.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LearnMode() {
+  const [idx, setIdx] = useState(0);
+  const [drill, setDrill] = useState(0);
+  const [passed, setPassed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("hay_typing_passed") || "[]"); } catch { return []; }
+  });
+
+  const lesson = LESSONS[idx];
+  const target = lesson.drills[drill % lesson.drills.length];
+  const run = useTypingRun(target);
+
+  useEffect(() => { run.reset(); }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A lesson counts as passed once a drill is completed at or above its
+  // accuracy gate — speed deliberately isn't part of the gate, because
+  // chasing speed before accuracy is exactly how bad habits set in.
+  useEffect(() => {
+    if (!run.done || run.accuracy < lesson.accuracyGate || passed.includes(lesson.id)) return;
+    const next = [...passed, lesson.id];
+    setPassed(next);
+    try { localStorage.setItem("hay_typing_passed", JSON.stringify(next)); } catch { /* private mode */ }
+  }, [run.done, run.accuracy, lesson, passed]);
+
+  const gateMet = run.done && run.accuracy >= lesson.accuracyGate;
+
+  return (
+    <>
+      <div className="mb-8 flex flex-wrap items-center justify-center gap-1">
+        {LESSONS.map((l, i) => (
+          <button
+            key={l.id}
+            onClick={() => { setIdx(i); setDrill(0); }}
+            title={l.name}
+            className={
+              "h-7 w-7 rounded-full font-mono text-[11px] transition " +
+              (i === idx
+                ? "bg-brand-500/15 text-brand-500"
+                : passed.includes(l.id)
+                ? "text-brand-500/60 hover:text-brand-500"
+                : "text-stone-600 hover:text-stone-400")
+            }
+          >
+            {passed.includes(l.id) && i !== idx ? "✓" : l.id}
+          </button>
+        ))}
+      </div>
+
+      <div className="mx-auto mb-10 max-w-xl text-center">
+        <div className="font-display text-lg font-extrabold text-stone-200">{lesson.name}</div>
+        <p className="mt-2 font-mono text-xs leading-relaxed text-stone-500">{lesson.teach}</p>
+        {lesson.unverified && (
+          <p className="mt-3 font-mono text-xs text-cardinal-500">
+            ⚠ these key positions are unverified — see the note below
+          </p>
+        )}
+      </div>
+
+      <div className="mb-8 h-5">
+        {run.startedAt && (
+          <LiveStats
+            run={run}
+            extra={<span className="text-stone-600">target {lesson.accuracyGate}% acc</span>}
+          />
+        )}
+      </div>
+
+      <TypingSurface target={target} run={run} showKeyboard={false} />
+
+      <FingerKeyboard nextChar={target[run.typed.length]} activeKeys={lesson.keys} />
+
+      {run.done && (
+        <div className="mt-10 text-center font-mono text-sm">
+          {gateMet ? (
+            <span className="text-brand-500">
+              passed — {run.accuracy.toFixed(0)}% accuracy at {run.wpm.toFixed(0)} wpm
+            </span>
+          ) : (
+            <span className="text-cardinal-500">
+              {run.accuracy.toFixed(0)}% — needs {lesson.accuracyGate}% to pass. Slow down and try again.
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="mt-10 flex items-center justify-center gap-6">
+        <button onClick={() => setDrill((d) => d + 1)} className="rounded-lg p-3 text-stone-600 transition hover:text-brand-500" aria-label="Next drill">
+          <RotateCcw className="h-5 w-5" />
+        </button>
+        {gateMet && idx < LESSONS.length - 1 && (
+          <button
+            onClick={() => { setIdx(idx + 1); setDrill(0); }}
+            className="rounded-lg bg-brand-500 px-4 py-2 font-mono text-sm text-[#0d0d0f] transition hover:bg-brand-400"
+          >
+            next lesson →
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -515,7 +683,7 @@ function RaceMode({ showKeyboard }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function ArmenianTypingPage() {
-  const [mode, setMode] = useState("practice");
+  const [mode, setMode] = useState("learn");
   const [levels, setLevels] = useState(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [board, setBoard] = useState([]);
@@ -558,14 +726,15 @@ export default function ArmenianTypingPage() {
             haylingua
           </Link>
           <div className="flex items-center gap-1">
+            <Pill active={mode === "learn"} onClick={() => setMode("learn")}>learn</Pill>
             <Pill active={mode === "practice"} onClick={() => setMode("practice")}>practice</Pill>
             <Pill active={mode === "race"} onClick={() => setMode("race")}>race</Pill>
           </div>
         </div>
 
         <main className="flex-1">
-          {mode === "practice"
-            ? <PracticeMode levels={effectiveLevels} showKeyboard={showKeyboard} />
+          {mode === "learn" ? <LearnMode />
+            : mode === "practice" ? <PracticeMode levels={effectiveLevels} showKeyboard={showKeyboard} />
             : <RaceMode showKeyboard={showKeyboard} />}
         </main>
 
