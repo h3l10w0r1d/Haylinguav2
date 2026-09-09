@@ -124,13 +124,16 @@ function GooglePlayGlyph({ className }) {
 // popup. If it ever fails to load, the on-brand fallback below advertises the
 // same 14-day free-trial bonus. Swap the file to change the banner.
 const SIGNUP_BANNER_SRC = "/banners/Welcome_banner_5.png";
+const SIGNUP_BANNER_WEBP = "/banners/Welcome_banner_5.webp";
 const LOGIN_BANNER_SRC = "/banners/Login_banner1.jpg";
+const LOGIN_BANNER_WEBP = "/banners/Login_banner1.webp";
 
 function SignupPromoPanel({ mode }) {
   const { t: tt } = useTranslation("landing");
   const locale = useLocale();
   const [imgOk, setImgOk] = useState(true);
   const src = mode === "login" ? LOGIN_BANNER_SRC : SIGNUP_BANNER_SRC;
+  const webpSrc = mode === "login" ? LOGIN_BANNER_WEBP : SIGNUP_BANNER_WEBP;
   // Reset the error flag when the banner swaps (login ↔ signup) so a fresh
   // image gets a chance to load instead of staying on the fallback.
   useEffect(() => {
@@ -142,13 +145,16 @@ function SignupPromoPanel({ mode }) {
   const showImage = imgOk && !locale;
   return (
     <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-500 via-brand-600 to-pom-600 md:block">
-      <img
-        src={src}
-        alt=""
-        loading="lazy"
-        onError={() => setImgOk(false)}
-        className={"absolute inset-0 h-full w-full object-cover object-top " + (showImage ? "" : "hidden")}
-      />
+      <picture className={showImage ? "" : "hidden"}>
+        <source srcSet={webpSrc} type="image/webp" />
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          onError={() => setImgOk(false)}
+          className="absolute inset-0 h-full w-full object-cover object-top"
+        />
+      </picture>
       {!showImage && (
         <div className="relative flex h-full flex-col justify-between p-7 text-white">
           <div>
@@ -1330,14 +1336,24 @@ export default function LandingPage({ onLogin, onSignup }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Warm the browser cache with both auth banners on first paint, so the modal's
-  // promo image is already decoded and pops in instantly the moment it opens
-  // (instead of loading — and briefly flashing the fallback — on click).
+  // Warm the browser cache with both auth banners so the modal's promo image
+  // is already decoded and pops in instantly the moment it opens (instead of
+  // loading — and briefly flashing the fallback — on click). Deferred to
+  // idle rather than firing on first paint: these are two images (~460KB
+  // combined) nobody sees unless they open the modal, so fetching them
+  // immediately competes with the actual hero content for bandwidth during
+  // the LCP window on slow connections — same idle-load pattern index.html
+  // already uses for Clarity/Brevo.
   useEffect(() => {
-    [SIGNUP_BANNER_SRC, LOGIN_BANNER_SRC].forEach((s) => {
-      const img = new Image();
-      img.src = s;
-    });
+    const warm = () => {
+      [SIGNUP_BANNER_WEBP, LOGIN_BANNER_WEBP].forEach((s) => {
+        const img = new Image();
+        img.src = s;
+      });
+    };
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 2000));
+    const id = idle(warm, { timeout: 4000 });
+    return () => (window.cancelIdleCallback ? window.cancelIdleCallback(id) : clearTimeout(id));
   }, []);
 
   // Auth modal: lock background scroll, close on Escape, move focus in on

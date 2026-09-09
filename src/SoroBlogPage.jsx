@@ -43,7 +43,13 @@ export default function SoroBlogPage() {
     <div className="min-h-screen bg-white dark:bg-[#0d0d0f]">
       <SiteNav />
       <main id="main-content" className="mx-auto max-w-5xl px-5 py-14">
-        <div id="soro-blog" ref={containerRef} />
+        <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+          Blog
+        </h1>
+        <p className="mt-3 max-w-xl text-base font-medium leading-relaxed text-slate-500 dark:text-stone-400">
+          Armenian language tips, guides, and news.
+        </p>
+        <div id="soro-blog" ref={containerRef} className="mt-8" />
       </main>
       <SiteFooter />
     </div>
