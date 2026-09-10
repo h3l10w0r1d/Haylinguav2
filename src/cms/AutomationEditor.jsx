@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { ArrowLeft, Save, Plus, Trash2, ChevronUp, ChevronDown, Mail, PlayCircle } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, ChevronUp, ChevronDown, Mail, PlayCircle, Clock } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import FilterRuleBuilder from "./FilterRuleBuilder";
 import { EVENT_TYPES } from "./CmsAutomations";
@@ -21,6 +21,9 @@ const textareaCls = inputCls + " resize-y";
 
 function newEmailStep() {
   return { type: "action", action: "send_email", params: { subject: "", body: "" } };
+}
+function newWaitStep() {
+  return { type: "wait", duration_hours: 24 };
 }
 
 export default function AutomationEditor() {
@@ -242,7 +245,7 @@ export default function AutomationEditor() {
           <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
             <div className="mb-1 font-display text-base font-bold text-slate-900">Steps</div>
             <p className="mb-3 text-xs font-semibold text-slate-400">
-              M1: email steps only, run in order, no delay. Wait and condition steps are coming in a later pass.
+              Email + wait steps run in order. Branching (condition steps) is coming in a later pass.
             </p>
             <div className="space-y-3">
               {steps.map((step, i) => (
@@ -252,35 +255,65 @@ export default function AutomationEditor() {
                       <button type="button" onClick={() => moveStep(i, -1)} disabled={i === 0} className="grid h-7 w-7 place-items-center rounded-xl text-slate-500 ring-1 ring-slate-200 hover:bg-white disabled:opacity-40"><ChevronUp className="h-4 w-4" /></button>
                       <button type="button" onClick={() => moveStep(i, 1)} disabled={i === steps.length - 1} className="grid h-7 w-7 place-items-center rounded-xl text-slate-500 ring-1 ring-slate-200 hover:bg-white disabled:opacity-40"><ChevronDown className="h-4 w-4" /></button>
                     </div>
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-500"><Mail className="h-4 w-4" /></div>
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Step {i + 1} · Send email</div>
-                      <input
-                        value={step.params?.subject || ""}
-                        onChange={(e) => updateStepParams(i, { subject: e.target.value })}
-                        placeholder="Subject"
-                        className={cx(inputCls, "!bg-white !py-2")}
-                      />
-                      <textarea
-                        value={step.params?.body || ""}
-                        onChange={(e) => updateStepParams(i, { body: e.target.value })}
-                        placeholder={"Body — use {{name}} for the learner's name"}
-                        rows={3}
-                        className={cx(textareaCls, "!bg-white !py-2")}
-                      />
-                    </div>
+                    {step.type === "wait" ? (
+                      <>
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold-50 text-gold-600"><Clock className="h-4 w-4" /></div>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Step {i + 1} · Wait</div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              value={step.duration_hours ?? 24}
+                              onChange={(e) => updateStep(i, { duration_hours: Number(e.target.value) || 1 })}
+                              className={cx(inputCls, "!bg-white !py-2 max-w-[7rem]")}
+                            />
+                            <span className="text-sm font-semibold text-slate-500">hours</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-500"><Mail className="h-4 w-4" /></div>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Step {i + 1} · Send email</div>
+                          <input
+                            value={step.params?.subject || ""}
+                            onChange={(e) => updateStepParams(i, { subject: e.target.value })}
+                            placeholder="Subject"
+                            className={cx(inputCls, "!bg-white !py-2")}
+                          />
+                          <textarea
+                            value={step.params?.body || ""}
+                            onChange={(e) => updateStepParams(i, { body: e.target.value })}
+                            placeholder={"Body — use {{name}} for the learner's name"}
+                            rows={3}
+                            className={cx(textareaCls, "!bg-white !py-2")}
+                          />
+                        </div>
+                      </>
+                    )}
                     <button type="button" onClick={() => removeStep(i)} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-cardinal-500 ring-1 ring-slate-200 hover:bg-cardinal-50"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setSteps((s) => [...s, newEmailStep()])}
-              className="mt-3 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-brand-600 ring-1 ring-brand-100 hover:bg-brand-50"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add email step
-            </button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSteps((s) => [...s, newEmailStep()])}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-brand-600 ring-1 ring-brand-100 hover:bg-brand-50"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add email step
+              </button>
+              <button
+                type="button"
+                onClick={() => setSteps((s) => [...s, newWaitStep()])}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-gold-700 ring-1 ring-gold-200 hover:bg-gold-50"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add wait step
+              </button>
+            </div>
           </section>
 
           {/* Test run */}
@@ -312,7 +345,7 @@ export default function AutomationEditor() {
                   <tr className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
                     <th className="pb-2 pr-4">User</th>
                     <th className="pb-2 pr-4">Status</th>
-                    <th className="pb-2 pr-4">Step</th>
+                    <th className="pb-2 pr-4">Waiting at</th>
                     <th className="pb-2 pr-4">Enrolled</th>
                   </tr>
                 </thead>
@@ -321,7 +354,7 @@ export default function AutomationEditor() {
                     <tr key={e.id}>
                       <td className="py-2 pr-4 font-semibold text-slate-700">{e.user_name || e.email}</td>
                       <td className="py-2 pr-4">{e.status}</td>
-                      <td className="py-2 pr-4 tabular-nums">{e.current_step_index}</td>
+                      <td className="py-2 pr-4 tabular-nums">{e.waiting_step_path || "—"}</td>
                       <td className="py-2 pr-4 text-slate-400">{new Date(e.enrolled_at).toLocaleString()}</td>
                     </tr>
                   ))}

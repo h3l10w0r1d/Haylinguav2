@@ -4,11 +4,16 @@
 # CMS endpoints) and the cron advancement endpoint, with one implementation of
 # "what does a campaign do" rather than two.
 #
-# M1 scope: `action` steps only (send_email). `wait`/`condition` node types are
-# parsed but not yet executed — advance_enrollment treats them as a no-op that
-# still consumes the step, so a campaign author who adds one before M2 ships
-# doesn't get a hard error, just no delay/branch effect yet. M2 fills in wait,
-# M3 fills in condition + the remaining action kinds.
+# Scope so far (M1+M2): wait, condition (if/else-if/else), and the
+# send_email action all actually execute — see advance_enrollment/_walk. A
+# wait step really suspends the enrollment (status='waiting') and the cron
+# entrypoint (routes_automations.py's /cron/advance-automations) resumes it
+# later, re-walking the step tree from a recorded path rather than a flat
+# index, since a wait nested inside a condition branch needs its full
+# position to resume correctly. send_push/send_brevo/grant_bonus are
+# implemented below but not yet exposed in the CMS step editor (M3) — the
+# streak-break event that the flagship example needs also isn't
+# instrumented yet.
 from __future__ import annotations
 
 import json
@@ -201,11 +206,96 @@ def check_and_enroll(db: Connection, user_id: int, event_type: str, properties: 
             text("""
                 INSERT INTO automation_enrollments (campaign_id, user_id, status, current_step_index, context)
                 VALUES (:c, :u, 'active', 0, :ctx)
-                RETURNING id, campaign_id, user_id, status, current_step_index, resume_at, context
+                RETURNING id, campaign_id, user_id, status, current_step_index, resume_at, context, waiting_step_path
             """),
             {"c": camp["id"], "u": user_id, "ctx": json.dumps(properties)},
         ).mappings().first()
         advance_enrollment(db, dict(enrollment))
+
+
+def _step_path_str(path: list[int]) -> str:
+    return ".".join(str(p) for p in path)
+
+
+def _pick_branch(db: Connection, user_id: int, context: dict, condition_step: dict):
+    """Evaluated fresh every time this condition is reached — including on
+    resume after a wait, per the plan's "still inactive after 1 day gets
+    re-checked" requirement. Returns the matched branch's steps list, or
+    None if nothing matched (no else branch)."""
+    for b in condition_step.get("branches", []):
+        if b.get("else"):
+            return b.get("steps") or []
+        try:
+            if evaluate_when(db, user_id, context, b.get("when") or []):
+                return b.get("steps") or []
+        except ValueError:
+            continue
+    return None
+
+
+def _walk(db, steps, path_prefix, enrollment_id, user_id, context, budget, state):
+    """Depth-first walk over a (possibly nested) step list.
+
+    `state` is a shared mutable dict `{"skipping": bool, "target": str|None}`
+    used to resume exactly where a previous run suspended on a wait step,
+    without needing a single flat index — a wait nested inside a condition
+    branch needs its *full* path (e.g. "0.1") to resume correctly, since a
+    plain top-level index can't distinguish "step 1 at the top" from "step 1
+    inside the branch chosen by step 0".
+
+    While `state["skipping"]` is true, this retraces the same route taken
+    before (still evaluating conditions fresh, since which branch matches
+    can change step-to-step position but not skip actions) until it reaches
+    the exact step previously waited on, then switches to live execution for
+    everything after it. If the retraced route never reaches that path
+    (e.g. the campaign was edited while an enrollment was waiting on it),
+    the walk simply reaches the end and the enrollment is marked completed
+    — a safe, if unremarkable, fallback rather than an error.
+
+    Returns None if this (sub)list finished normally (caller continues to
+    its own next sibling), or {"type": "wait"|"budget", ...} to propagate a
+    suspend/abort up to the top-level caller unchanged.
+    """
+    for idx, step in enumerate(steps):
+        if budget[0] <= 0:
+            return {"type": "budget"}
+        budget[0] -= 1
+
+        path = path_prefix + [idx]
+        path_str = _step_path_str(path)
+        t = step.get("type")
+
+        if state["skipping"]:
+            if path_str == state["target"]:
+                state["skipping"] = False  # this wait step is the resume point — consumed, continue live from the next step
+                continue
+            if t == "condition":
+                branch_steps = _pick_branch(db, user_id, context, step)
+                if branch_steps is not None:
+                    result = _walk(db, branch_steps, path, enrollment_id, user_id, context, budget, state)
+                    if result is not None:
+                        return result
+            continue  # wait/action steps already passed through before — skip silently
+
+        # Live execution.
+        if t == "wait":
+            import datetime as _dt
+            hours = step.get("duration_hours", 0)
+            resume_at = _dt.datetime.utcnow() + _dt.timedelta(hours=float(hours))
+            return {"type": "wait", "resume_at": resume_at, "path": path_str}
+        if t == "condition":
+            branch_steps = _pick_branch(db, user_id, context, step)
+            if branch_steps is not None:
+                result = _walk(db, branch_steps, path, enrollment_id, user_id, context, budget, state)
+                if result is not None:
+                    return result
+            continue
+        if t == "action":
+            execute_action(db, enrollment_id, user_id, path_str, step)
+            continue
+        # unknown step type (shouldn't happen post-validation) — skip rather than crash
+
+    return None
 
 
 def advance_enrollment(db: Connection, enrollment: dict) -> None:
@@ -220,74 +310,30 @@ def advance_enrollment(db: Connection, enrollment: dict) -> None:
     context = enrollment["context"] if isinstance(enrollment["context"], dict) else json.loads(enrollment["context"] or "{}")
     user_id = enrollment["user_id"]
     enrollment_id = enrollment["id"]
+    resume_target = enrollment.get("waiting_step_path")
 
-    i = _run_steps(db, steps, enrollment_id, user_id, context, start_index=enrollment["current_step_index"])
+    budget = [MAX_STEPS_PER_ADVANCE]
+    state = {"skipping": resume_target is not None, "target": resume_target}
+    result = _walk(db, steps, [], enrollment_id, user_id, context, budget, state)
 
-    if i is None:
-        return  # suspended on a wait step; _run_steps already persisted resume_at
-    db.execute(
-        text("UPDATE automation_enrollments SET status = 'completed', completed_at = NOW() WHERE id = :id"),
-        {"id": enrollment_id},
-    )
-
-
-def _run_steps(db, steps, enrollment_id, user_id, context, start_index, budget=None):
-    """Walks a flat step list from start_index, descending into a matched
-    condition branch's nested steps. Returns None if suspended on a wait
-    (caller stops), or an integer once the whole (possibly nested) list is
-    exhausted — only meaningful for the top-level caller's "mark completed"
-    decision, nested calls just bubble it up."""
-    if budget is None:
-        budget = [MAX_STEPS_PER_ADVANCE]
-
-    i = start_index
-    while i < len(steps):
-        if budget[0] <= 0:
-            return None  # runaway-loop guard; leaves the enrollment 'active' for a later look
-        budget[0] -= 1
-
-        step = steps[i]
-        t = step.get("type")
-
-        if t == "wait":
-            # M1: no-op — consumes the step but doesn't actually suspend yet.
-            # M2 will suspend here (status='waiting', resume_at, persist, return None).
-            i += 1
-            continue
-
-        if t == "condition":
-            branch_steps = None
-            for b in step.get("branches", []):
-                if b.get("else"):
-                    branch_steps = b.get("steps") or []
-                    break
-                try:
-                    if evaluate_when(db, user_id, context, b.get("when") or []):
-                        branch_steps = b.get("steps") or []
-                        break
-                except ValueError:
-                    continue
-            if branch_steps:
-                result = _run_steps(db, branch_steps, enrollment_id, user_id, context, 0, budget)
-                if result is None and budget[0] <= 0:
-                    return None
-            i += 1
-            continue
-
-        if t == "action":
-            execute_action(db, enrollment_id, user_id, i, step)
-            i += 1
-            continue
-
-        i += 1  # unknown step type (shouldn't happen post-validation) — skip rather than crash
-
-    return i
+    if result is None:
+        db.execute(
+            text("UPDATE automation_enrollments SET status = 'completed', completed_at = NOW(), waiting_step_path = NULL WHERE id = :id"),
+            {"id": enrollment_id},
+        )
+    elif result["type"] == "wait":
+        db.execute(
+            text("UPDATE automation_enrollments SET status = 'waiting', resume_at = :r, waiting_step_path = :p WHERE id = :id"),
+            {"r": result["resume_at"], "p": result["path"], "id": enrollment_id},
+        )
+    # else "budget": leave the enrollment exactly as it was (still 'active' or mid-resume as
+    # 'waiting' with its prior resume_at/path untouched) for a later cron pass to retry.
 
 
-def execute_action(db: Connection, enrollment_id: int, user_id: int, step_index: int, step: dict) -> None:
+def execute_action(db: Connection, enrollment_id: int, user_id: int, step_path: str, step: dict) -> None:
     already = db.execute(
         text("SELECT 1 FROM automation_sends WHERE enrollment_id = :e AND step_index = :i"),
-        {"e": enrollment_id, "i": step_index},
+        {"e": enrollment_id, "i": step_path},
     ).first()
     if already:
         return  # dedupe against a cron/event double-fire re-running this exact step
@@ -317,7 +363,7 @@ def execute_action(db: Connection, enrollment_id: int, user_id: int, step_index:
             INSERT INTO automation_sends (campaign_id, enrollment_id, user_id, step_index, action_type, status, detail)
             SELECT campaign_id, :e, :u, :i, :at, :s, :d FROM automation_enrollments WHERE id = :e
         """),
-        {"e": enrollment_id, "u": user_id, "i": step_index, "at": action, "s": status, "d": json.dumps(detail)},
+        {"e": enrollment_id, "u": user_id, "i": step_path, "at": action, "s": status, "d": json.dumps(detail)},
     )
 
 

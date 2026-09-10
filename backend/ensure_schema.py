@@ -1748,11 +1748,20 @@ def ensure_schema() -> None:
                 status             TEXT NOT NULL DEFAULT 'active',
                 current_step_index INTEGER NOT NULL DEFAULT 0,
                 resume_at          TIMESTAMPTZ,
+                waiting_step_path  TEXT,
                 enrolled_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 completed_at       TIMESTAMPTZ,
                 context            JSONB
             )
         """)
+        # waiting_step_path: the dotted path (e.g. "0.1") of the exact wait
+        # step an enrollment is paused on — a flat current_step_index can't
+        # express "inside the branch condition[0] matched" for a wait nested
+        # under a condition, so advance_enrollment resumes from this instead
+        # (current_step_index is left in place but no longer load-bearing).
+        # add_col_if_missing so this backfills onto the table even if it was
+        # already created (without this column) by an earlier deploy.
+        add_col_if_missing("automation_enrollments", "waiting_step_path TEXT")
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_automation_enrollments_due ON automation_enrollments (status, resume_at) WHERE status = 'waiting'"
         ))
@@ -1773,13 +1782,25 @@ def ensure_schema() -> None:
                 campaign_id   INTEGER NOT NULL REFERENCES automation_campaigns(id) ON DELETE CASCADE,
                 enrollment_id BIGINT NOT NULL REFERENCES automation_enrollments(id) ON DELETE CASCADE,
                 user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                step_index    INTEGER NOT NULL,
+                step_index    TEXT NOT NULL,
                 action_type   TEXT NOT NULL,
                 status        TEXT NOT NULL,
                 detail        JSONB,
                 created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
         """)
+        # step_index holds a dotted path string ("0", "0.1", …), not a plain
+        # int — a nested action needs its full position, same reasoning as
+        # waiting_step_path above. If this table was already created by an
+        # earlier deploy with the old INTEGER column, widen it in place
+        # rather than dropping/recreating (keeps the existing audit history).
+        if table_exists("automation_sends") and col_exists("automation_sends", "step_index"):
+            col_type = conn.execute(text(
+                "SELECT data_type FROM information_schema.columns WHERE table_name='automation_sends' AND column_name='step_index'"
+            )).scalar()
+            if col_type != "text":
+                conn.execute(text("ALTER TABLE automation_sends ALTER COLUMN step_index TYPE TEXT USING step_index::text"))
+                print("[ensure_schema] widened automation_sends.step_index to TEXT")
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_automation_sends_campaign ON automation_sends (campaign_id, created_at DESC)"
         ))

@@ -132,7 +132,7 @@ def list_enrollments(campaign_id: int, page: int = Query(default=1, ge=1), page_
     offset = (page - 1) * page_size
     rows = db.execute(
         text("""
-            SELECT e.id, e.user_id, e.status, e.current_step_index, e.resume_at, e.enrolled_at, e.completed_at,
+            SELECT e.id, e.user_id, e.status, e.waiting_step_path, e.resume_at, e.enrolled_at, e.completed_at,
                    COALESCE(u.first_name, u.display_name, u.name) AS user_name, u.email
             FROM automation_enrollments e
             JOIN users u ON u.id = e.user_id
@@ -187,7 +187,7 @@ def test_run_automation(campaign_id: int, payload: TestRunIn, cms_user: dict = D
             text("""
                 INSERT INTO automation_enrollments (campaign_id, user_id, status, current_step_index, context)
                 VALUES (:c, :u, 'active', 0, '{}')
-                RETURNING id, campaign_id, user_id, status, current_step_index, resume_at, context
+                RETURNING id, campaign_id, user_id, status, current_step_index, resume_at, context, waiting_step_path
             """),
             {"c": campaign_id, "u": payload.user_id},
         ).mappings().first()
@@ -281,7 +281,7 @@ def cron_advance_automations(x_cron_secret: Optional[str] = Header(default=None)
         raise HTTPException(status_code=403, detail="Invalid cron secret")
 
     rows = db.execute(text("""
-        SELECT e.id, e.campaign_id, e.user_id, e.status, e.current_step_index, e.resume_at, e.context
+        SELECT e.id, e.campaign_id, e.user_id, e.status, e.current_step_index, e.resume_at, e.context, e.waiting_step_path
         FROM automation_enrollments e
         JOIN automation_campaigns c ON c.id = e.campaign_id
         WHERE e.status = 'waiting' AND e.resume_at <= NOW() AND c.status = 'active'
