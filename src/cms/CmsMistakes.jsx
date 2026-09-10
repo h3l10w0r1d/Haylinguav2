@@ -14,7 +14,7 @@ import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import CmsLayout from "./CmsLayout";
 import {
   Badge, Button, EmptyState, ListState, ListToolbar, Note, Pagination, SearchInput,
-  Toaster, notify, useClientList, useListQuery,
+  notify, useClientList, useListQuery,
 } from "./ui";
 
 const SEARCH_KEYS = ["prompt", "kind", "lesson_title", "chapter_title"];
@@ -67,7 +67,6 @@ export default function CmsMistakes() {
 
   return (
     <CmsLayout active="mistakes" title="Repetitive mistakes" breadcrumb={[{ label: "Repetitive mistakes" }]}>
-      <Toaster position="bottom-center" richColors closeButton />
       <div className="mx-auto max-w-4xl">
         <Note tone="warning" icon={AlertTriangle} className="mb-5">
           These exercises were <strong>automatically hidden</strong> because at least half of

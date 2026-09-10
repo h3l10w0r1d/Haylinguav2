@@ -9,7 +9,7 @@ import { createCmsApi, getCmsToken } from "./api";
 import CmsLayout from "./CmsLayout";
 import {
   Badge, Button, DataTable, EmptyState, Input, ListToolbar, Note, SearchInput, SectionCard,
-  Toaster, notify, useClientList, useListQuery,
+  notify, useClientList, useListQuery,
 } from "./ui";
 
 function StatusPill({ label, ok, value }) {
@@ -128,8 +128,6 @@ export default function CmsTeam() {
 
   return (
     <CmsLayout active="team" title="Team" breadcrumb={[{ label: "Team" }]}>
-      <Toaster position="bottom-center" richColors closeButton />
-
       <div className="space-y-5">
         <SectionCard title="Email delivery" description="Invites and password resets go out through Brevo. Send yourself a test to confirm it works.">
           {mailStatus ? (
