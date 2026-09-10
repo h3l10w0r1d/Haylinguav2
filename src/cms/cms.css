@@ -1,0 +1,48 @@
+/* src/cms/cms.css — shadcn/ui design tokens for the admin CMS.
+
+   Imported ONLY by CMS entry components (CmsLayout.jsx, CmsLogin.jsx), never
+   by the public app. The variables live on :root rather than a .cms-root
+   wrapper because Radix (Dialog, DropdownMenu, Select, Tooltip, Sheet) and
+   Sonner render into portals on <body>, outside any wrapper — and defining
+   them on :root is harmless to the public app, which references none of the
+   semantic color names (bg-primary, border-border, …).
+
+   Deliberately absent, versus shadcn's stock init:
+   - no `@layer base { * { @apply border-border } body { @apply bg-background
+     text-foreground } }` — that would restyle every public page;
+   - no `.dark { … }` block — the CMS is light-only by decision, and must stay
+     light even while the app has toggled `dark` on <html>.
+
+   Values are HSL triplets (Tailwind's `hsl(var(--x) / <alpha>)` form), mapped
+   onto the brand palette in tailwind.config.cjs:
+     --primary/--ring   brand-500  #FF7A1A
+     --accent           brand-50   #FFF5EC  (foreground brand-700 #B84B00)
+     --destructive      cardinal-500 #FF4B4B
+     neutrals           slate      (matches the CMS's existing slate look) */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 25 100% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 28 100% 96%;
+  --accent-foreground: 24 100% 36%;
+  --destructive: 0 100% 65%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 25 100% 55%;
+}
+
+/* Native controls, scrollbars and form widgets inside the CMS stay light
+   regardless of the app's theme toggle. */
+.cms-root {
+  color-scheme: light;
+}

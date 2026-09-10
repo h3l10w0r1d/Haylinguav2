@@ -69,6 +69,46 @@ module.exports = {
           500: "#FFC800",
           600: "#E0A800",
         },
+        // shadcn/ui semantic tokens, used by the admin CMS only. They read
+        // CSS variables defined in src/cms/cms.css (light values mapped onto
+        // the brand palette above). Purely additive: none of these names
+        // collide with the palette keys, and nothing in the public app uses
+        // them — so this block cannot restyle existing pages. No shadcn
+        // `borderRadius` override on purpose: the public app relies on the
+        // stock rounded-md/lg scale in ~30 files.
+        border: "hsl(var(--border) / <alpha-value>)",
+        input: "hsl(var(--input) / <alpha-value>)",
+        ring: "hsl(var(--ring) / <alpha-value>)",
+        background: "hsl(var(--background) / <alpha-value>)",
+        foreground: "hsl(var(--foreground) / <alpha-value>)",
+        primary: {
+          DEFAULT: "hsl(var(--primary) / <alpha-value>)",
+          foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary) / <alpha-value>)",
+          foreground: "hsl(var(--secondary-foreground) / <alpha-value>)",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
+          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted) / <alpha-value>)",
+          foreground: "hsl(var(--muted-foreground) / <alpha-value>)",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent) / <alpha-value>)",
+          foreground: "hsl(var(--accent-foreground) / <alpha-value>)",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover) / <alpha-value>)",
+          foreground: "hsl(var(--popover-foreground) / <alpha-value>)",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card) / <alpha-value>)",
+          foreground: "hsl(var(--card-foreground) / <alpha-value>)",
+        },
       },
       fontFamily: {
         // "Noto Sans" covers Cyrillic (Russian); "Noto Sans Arabic" covers
@@ -133,5 +173,8 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  // tailwindcss-animate was already a dependency but never registered; shadcn
+  // components rely on its animate-in/out + fade/slide/zoom utilities. None of
+  // those names collide with the custom keyframes/animations above.
+  plugins: [require("tailwindcss-animate")],
 };

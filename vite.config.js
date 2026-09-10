@@ -1,8 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // "@/…" → src/… — the import convention shadcn/ui components are
+    // generated with (see components.json + jsconfig.json). Only the CMS
+    // uses it today; app code keeps its relative imports.
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
   build: {
     chunkSizeWarningLimit: 900,
     // Source maps for prod JS — lets Sentry (and DevTools) resolve minified
@@ -88,6 +95,14 @@ export default defineConfig({
             "es-toolkit", "eventemitter3", "gsap", "immer", "internmap",
             "markdown-to-jsx", "react-redux", "recharts", "redux", "redux-thunk",
             "reselect", "tiny-invariant", "use-sync-external-store", "victory-vendor",
+            // shadcn/ui runtime (admin CMS only — every consumer is a lazily
+            // loaded /cms/* route): Radix primitives + their transitive deps,
+            // cva, tailwind-merge, cmdk, sonner. "@radix-ui" and "@floating-ui"
+            // match every package under those scopes via the
+            // `node_modules/<pkg>/` prefix check below.
+            "@radix-ui", "@floating-ui", "class-variance-authority", "tailwind-merge",
+            "cmdk", "sonner", "aria-hidden", "react-remove-scroll", "react-remove-scroll-bar",
+            "react-style-singleton", "use-callback-ref", "use-sidecar", "get-nonce", "tslib",
           ];
           if (LAZY_ONLY_PACKAGES.some((pkg) => id.includes(`node_modules/${pkg}/`))) return;
           return "vendor";
