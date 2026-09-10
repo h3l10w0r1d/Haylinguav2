@@ -291,8 +291,10 @@ export function createCmsApi(accessToken) {
   const createAutomation = (payload) => req("/cms/automations", { method: "POST", body: JSON.stringify(payload) });
   const updateAutomation = (id, payload) => req(`/cms/automations/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   const deleteAutomation = (id) => req(`/cms/automations/${id}`, { method: "DELETE" });
-  const listAutomationEnrollments = (id, page = 1) => req(`/cms/automations/${id}/enrollments?page=${page}`);
-  const listAutomationSends = (id, page = 1) => req(`/cms/automations/${id}/sends?page=${page}`);
+  const listAutomationEnrollments = (id, { page = 1, pageSize = 50, status } = {}) =>
+    req(`/cms/automations/${id}/enrollments?page=${page}&page_size=${pageSize}${status ? `&status=${encodeURIComponent(status)}` : ""}`);
+  const listAutomationSends = (id, { page = 1, pageSize = 50, status } = {}) =>
+    req(`/cms/automations/${id}/sends?page=${page}&page_size=${pageSize}${status ? `&status=${encodeURIComponent(status)}` : ""}`);
   const testRunAutomation = (id, userId, force = false) =>
     req(`/cms/automations/${id}/test-run`, { method: "POST", body: JSON.stringify({ user_id: userId, force }) });
   const listSegments = () => req("/cms/segments");

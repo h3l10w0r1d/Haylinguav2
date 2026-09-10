@@ -7438,6 +7438,15 @@ def me_premium_checkout(
         currency=plan_currency,
     )
 
+    try:
+        automations.record_event(db, int(user_id), "purchase", {
+            "plan_id": plan_id,
+            "value": float(plan_price) if plan_price is not None else None,
+            "currency": plan_currency,
+        })
+    except Exception as e:
+        print(f" ⚠️  automations.record_event(purchase) failed: {e}")
+
     st = _hearts_state(db, user_id)
     return {"ok": True, **st}
 

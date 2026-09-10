@@ -38,8 +38,15 @@ export default function AutomationEditor() {
   const [reenrollPolicy, setReenrollPolicy] = useState("skip");
   const [steps, setSteps] = useState([]);
 
+  const PAGE_SIZE = 25;
   const [enrollments, setEnrollments] = useState(null);
+  const [enrollTotal, setEnrollTotal] = useState(0);
+  const [enrollPage, setEnrollPage] = useState(1);
+  const [enrollStatusFilter, setEnrollStatusFilter] = useState("");
   const [sends, setSends] = useState(null);
+  const [sendTotal, setSendTotal] = useState(0);
+  const [sendPage, setSendPage] = useState(1);
+  const [sendStatusFilter, setSendStatusFilter] = useState("");
   const [testUserId, setTestUserId] = useState("");
 
   function showToast(msg, kind = "ok") {
@@ -93,8 +100,7 @@ export default function AutomationEditor() {
     setTab("enrollments");
     if (enrollments) return;
     try {
-      const d = await api.listAutomationEnrollments(id);
-      setEnrollments(Array.isArray(d?.enrollments) ? d.enrollments : []);
+      await refreshEnrollments(1, enrollStatusFilter);
     } catch (err) {
       showToast(err.message || "Failed to load enrollments", "err");
     }
@@ -103,11 +109,31 @@ export default function AutomationEditor() {
     setTab("sends");
     if (sends) return;
     try {
-      const d = await api.listAutomationSends(id);
-      setSends(Array.isArray(d?.sends) ? d.sends : []);
+      await refreshSends(1, sendStatusFilter);
     } catch (err) {
       showToast(err.message || "Failed to load send log", "err");
     }
+  }
+
+  async function refreshEnrollments(page, statusFilter) {
+    const d = await api.listAutomationEnrollments(id, { page, pageSize: PAGE_SIZE, status: statusFilter || undefined });
+    setEnrollments(Array.isArray(d?.enrollments) ? d.enrollments : []);
+    setEnrollTotal(d?.total || 0);
+    setEnrollPage(page);
+  }
+  async function refreshSends(page, statusFilter) {
+    const d = await api.listAutomationSends(id, { page, pageSize: PAGE_SIZE, status: statusFilter || undefined });
+    setSends(Array.isArray(d?.sends) ? d.sends : []);
+    setSendTotal(d?.total || 0);
+    setSendPage(page);
+  }
+  function onEnrollStatusFilterChange(v) {
+    setEnrollStatusFilter(v);
+    refreshEnrollments(1, v).catch((err) => showToast(err.message || "Failed to filter", "err"));
+  }
+  function onSendStatusFilterChange(v) {
+    setSendStatusFilter(v);
+    refreshSends(1, v).catch((err) => showToast(err.message || "Failed to filter", "err"));
   }
 
   async function testRun() {
@@ -120,7 +146,8 @@ export default function AutomationEditor() {
     try {
       await api.testRunAutomation(id, uid, true);
       showToast(`Test run enrolled user #${uid}`);
-      setSends(null); // force a refetch next time the Sends tab is opened
+      setSends(null); // force a refetch next time the Sends/Enrollments tab is opened
+      setEnrollments(null);
     } catch (err) {
       showToast(err.message || "Test run failed", "err");
     } finally {
@@ -241,73 +268,93 @@ export default function AutomationEditor() {
 
       {tab === "enrollments" && (
         <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <select value={enrollStatusFilter} onChange={(e) => onEnrollStatusFilterChange(e.target.value)} className={cx(inputCls, "!py-2 max-w-[10rem]")}>
+              <option value="">All statuses</option>
+              {["active", "waiting", "completed", "exited", "failed"].map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <span className="text-xs font-semibold text-slate-400">{enrollTotal} total</span>
+          </div>
           {!enrollments ? (
             <div className="text-sm text-slate-500">Loading…</div>
           ) : enrollments.length === 0 ? (
-            <div className="text-sm font-semibold text-slate-500">No enrollments yet.</div>
+            <div className="text-sm font-semibold text-slate-500">No enrollments match.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
-                    <th className="pb-2 pr-4">User</th>
-                    <th className="pb-2 pr-4">Status</th>
-                    <th className="pb-2 pr-4">Waiting at</th>
-                    <th className="pb-2 pr-4">Enrolled</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {enrollments.map((e) => (
-                    <tr key={e.id}>
-                      <td className="py-2 pr-4 font-semibold text-slate-700">{e.user_name || e.email}</td>
-                      <td className="py-2 pr-4">{e.status}</td>
-                      <td className="py-2 pr-4 tabular-nums">{e.waiting_step_path || "—"}</td>
-                      <td className="py-2 pr-4 text-slate-400">{new Date(e.enrolled_at).toLocaleString()}</td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
+                      <th className="pb-2 pr-4">User</th>
+                      <th className="pb-2 pr-4">Status</th>
+                      <th className="pb-2 pr-4">Waiting at</th>
+                      <th className="pb-2 pr-4">Enrolled</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {enrollments.map((e) => (
+                      <tr key={e.id}>
+                        <td className="py-2 pr-4 font-semibold text-slate-700">{e.user_name || e.email}</td>
+                        <td className="py-2 pr-4">{e.status}</td>
+                        <td className="py-2 pr-4 tabular-nums">{e.waiting_step_path || "—"}</td>
+                        <td className="py-2 pr-4 text-slate-400">{new Date(e.enrolled_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PageControls page={enrollPage} total={enrollTotal} pageSize={PAGE_SIZE} onPage={(p) => refreshEnrollments(p, enrollStatusFilter)} />
+            </>
           )}
         </section>
       )}
 
       {tab === "sends" && (
         <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <select value={sendStatusFilter} onChange={(e) => onSendStatusFilterChange(e.target.value)} className={cx(inputCls, "!py-2 max-w-[10rem]")}>
+              <option value="">All statuses</option>
+              {["sent", "skipped", "failed"].map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <span className="text-xs font-semibold text-slate-400">{sendTotal} total</span>
+          </div>
           {!sends ? (
             <div className="text-sm text-slate-500">Loading…</div>
           ) : sends.length === 0 ? (
-            <div className="text-sm font-semibold text-slate-500">Nothing sent yet.</div>
+            <div className="text-sm font-semibold text-slate-500">Nothing matches.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
-                    <th className="pb-2 pr-4">User</th>
-                    <th className="pb-2 pr-4">Action</th>
-                    <th className="pb-2 pr-4">Status</th>
-                    <th className="pb-2 pr-4">When</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sends.map((s) => (
-                    <tr key={s.id}>
-                      <td className="py-2 pr-4 font-semibold text-slate-700">{s.user_name || s.email}</td>
-                      <td className="py-2 pr-4">{s.action_type}</td>
-                      <td className="py-2 pr-4">
-                        <span className={cx(
-                          "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ring-1",
-                          s.status === "sent" ? "bg-grass-50 text-grass-700 ring-grass-200"
-                            : s.status === "failed" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200"
-                            : "bg-slate-100 text-slate-500 ring-slate-200"
-                        )}>{s.status}</span>
-                      </td>
-                      <td className="py-2 pr-4 text-slate-400">{new Date(s.created_at).toLocaleString()}</td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
+                      <th className="pb-2 pr-4">User</th>
+                      <th className="pb-2 pr-4">Action</th>
+                      <th className="pb-2 pr-4">Status</th>
+                      <th className="pb-2 pr-4">When</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sends.map((s) => (
+                      <tr key={s.id}>
+                        <td className="py-2 pr-4 font-semibold text-slate-700">{s.user_name || s.email}</td>
+                        <td className="py-2 pr-4">{s.action_type}</td>
+                        <td className="py-2 pr-4">
+                          <span className={cx(
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ring-1",
+                            s.status === "sent" ? "bg-grass-50 text-grass-700 ring-grass-200"
+                              : s.status === "failed" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200"
+                              : "bg-slate-100 text-slate-500 ring-slate-200"
+                          )}>{s.status}</span>
+                        </td>
+                        <td className="py-2 pr-4 text-slate-400">{new Date(s.created_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PageControls page={sendPage} total={sendTotal} pageSize={PAGE_SIZE} onPage={(p) => refreshSends(p, sendStatusFilter)} />
+            </>
           )}
         </section>
       )}
@@ -320,5 +367,17 @@ export default function AutomationEditor() {
         </div>
       )}
     </CmsLayout>
+  );
+}
+
+function PageControls({ page, total, pageSize, onPage }) {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  if (pageCount <= 1) return null;
+  return (
+    <div className="mt-3 flex items-center justify-center gap-3">
+      <button type="button" onClick={() => onPage(page - 1)} disabled={page <= 1} className="rounded-lg px-2 py-1 text-xs font-extrabold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40">Prev</button>
+      <span className="text-xs font-semibold text-slate-400">Page {page} of {pageCount}</span>
+      <button type="button" onClick={() => onPage(page + 1)} disabled={page >= pageCount} className="rounded-lg px-2 py-1 text-xs font-extrabold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40">Next</button>
+    </div>
   );
 }

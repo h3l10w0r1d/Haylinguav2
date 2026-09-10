@@ -23,6 +23,7 @@ export const EVENT_TYPES = [
   { value: "signup", label: "User signs up" },
   { value: "lesson_completed", label: "Lesson completed" },
   { value: "streak_broke", label: "Streak breaks" },
+  { value: "purchase", label: "Premium purchase" },
 ];
 
 const STATUS_TONE = {

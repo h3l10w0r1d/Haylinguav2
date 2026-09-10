@@ -126,42 +126,62 @@ def delete_automation(campaign_id: int, cms_user: dict = Depends(require_cms_adm
     return {"ok": True, "archived": False}
 
 
+_ENROLLMENT_STATUSES = {"active", "waiting", "completed", "exited", "failed"}
+_SEND_STATUSES = {"sent", "skipped", "failed"}
+
+
 @router.get("/cms/automations/{campaign_id}/enrollments")
 def list_enrollments(campaign_id: int, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200),
+                      status: Optional[str] = Query(default=None),
                       cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+    if status is not None and status not in _ENROLLMENT_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Unknown status: {status}")
     offset = (page - 1) * page_size
+    params = {"c": campaign_id, "limit": page_size, "offset": offset, "status": status}
+    status_clause = "AND e.status = :status" if status else ""
     rows = db.execute(
-        text("""
+        text(f"""
             SELECT e.id, e.user_id, e.status, e.waiting_step_path, e.resume_at, e.enrolled_at, e.completed_at,
                    COALESCE(u.first_name, u.display_name, u.name) AS user_name, u.email
             FROM automation_enrollments e
             JOIN users u ON u.id = e.user_id
-            WHERE e.campaign_id = :c
+            WHERE e.campaign_id = :c {status_clause}
             ORDER BY e.enrolled_at DESC
             LIMIT :limit OFFSET :offset
         """),
-        {"c": campaign_id, "limit": page_size, "offset": offset},
+        params,
     ).mappings().all()
-    return {"enrollments": [dict(r) for r in rows]}
+    total = db.execute(
+        text(f"SELECT COUNT(*) FROM automation_enrollments e WHERE e.campaign_id = :c {status_clause}"), params
+    ).scalar()
+    return {"enrollments": [dict(r) for r in rows], "total": int(total or 0), "page": page, "page_size": page_size}
 
 
 @router.get("/cms/automations/{campaign_id}/sends")
 def list_sends(campaign_id: int, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200),
+               status: Optional[str] = Query(default=None),
                cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+    if status is not None and status not in _SEND_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Unknown status: {status}")
     offset = (page - 1) * page_size
+    params = {"c": campaign_id, "limit": page_size, "offset": offset, "status": status}
+    status_clause = "AND s.status = :status" if status else ""
     rows = db.execute(
-        text("""
+        text(f"""
             SELECT s.id, s.user_id, s.step_index, s.action_type, s.status, s.detail, s.created_at,
                    COALESCE(u.first_name, u.display_name, u.name) AS user_name, u.email
             FROM automation_sends s
             JOIN users u ON u.id = s.user_id
-            WHERE s.campaign_id = :c
+            WHERE s.campaign_id = :c {status_clause}
             ORDER BY s.created_at DESC
             LIMIT :limit OFFSET :offset
         """),
-        {"c": campaign_id, "limit": page_size, "offset": offset},
+        params,
     ).mappings().all()
-    return {"sends": [dict(r) for r in rows]}
+    total = db.execute(
+        text(f"SELECT COUNT(*) FROM automation_sends s WHERE s.campaign_id = :c {status_clause}"), params
+    ).scalar()
+    return {"sends": [dict(r) for r in rows], "total": int(total or 0), "page": page, "page_size": page_size}
 
 
 class TestRunIn(BaseModel):
