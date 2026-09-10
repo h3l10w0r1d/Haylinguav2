@@ -67,7 +67,11 @@ const NotFoundPage = lazy(() => import('./NotFoundPage'));
 const ForumCategoryPage = lazy(() => import('./ForumCategoryPage'));
 const ForumThreadPage = lazy(() => import('./ForumThreadPage'));
 const Onboarding = lazy(() => import('./Onboarding'));
-const CmsGate = lazy(() => import('./cms/CmsGate'));
+// One auth gate (layout route) for every /cms/* page. It replaced the old
+// CmsGate, which guarded only the /cms index while each other page
+// self-checked for a token after its hooks had already run.
+const CmsRequireAuth = lazy(() => import('./cms/CmsRequireAuth'));
+const CmsShell = lazy(() => import('./cms/CmsShell'));
 const CmsLogin = lazy(() => import('./cms/CmsLogin'));
 const CmsSupport = lazy(() => import('./cms/CmsSupport'));
 const CmsInvite = lazy(() => import('./cms/CmsInvite'));
@@ -830,33 +834,44 @@ function AppShell() {
       />
 
       {/* CMS (invite-only) */}
+      {/* CMS. Login / invite / 2FA-setup are the only unauthenticated
+          entry points; every other /cms/* route sits behind CmsRequireAuth,
+          which redirects to /cms/login when there's no token and registers
+          api.js's 401 handler so an expired session bounces to login instead
+          of leaving each page showing "Request failed (401)". Pages keep
+          their own token checks for now; those get removed as each one is
+          migrated. */}
       <Route path="/cms/login" element={<CmsLogin />} />
       <Route path="/cms/invite" element={<CmsInvite />} />
       <Route path="/cms/2fa-setup" element={<Cms2FASetup />} />
-      <Route path="/cms/team" element={<CmsTeam />} />
-      <Route path="/cms/support" element={<CmsSupport />} />
-      <Route path="/cms/chapters" element={<CmsChapters />} />
-      <Route path="/cms/adventures" element={<CmsAdventures />} />
-      <Route path="/cms/achievements" element={<CmsAchievements />} />
-      <Route path="/cms/shop" element={<CmsShop />} />
-      <Route path="/cms/items" element={<CmsItems />} />
-      <Route path="/cms/blog" element={<CmsBlog />} />
-      <Route path="/cms/premium" element={<CmsPremium />} />
-      <Route path="/cms/automations" element={<CmsAutomations />} />
-      <Route path="/cms/automations/:id" element={<AutomationEditor />} />
-      <Route path="/cms/segments" element={<CmsSegments />} />
-      <Route path="/cms/careers" element={<CmsCareers />} />
-      <Route path="/cms/affiliates" element={<CmsAffiliates />} />
-      <Route path="/cms/forum" element={<CmsForum />} />
-      <Route path="/cms/analytics" element={<CmsAnalytics />} />
-      <Route path="/cms/mistakes" element={<CmsMistakes />} />
-      <Route path="/cms/exercise-lab" element={<CmsExerciseLab />} />
-      <Route path="/cms/voice-lab" element={<CmsVoiceLab />} />
-      <Route path="/cms/stt-lab" element={<CmsSttLab />} />
-      <Route path="/cms/letter-audio" element={<CmsLetterAudio />} />
-      <Route path="/cms/account" element={<CmsAccount />} />
-      <Route path="/cms" element={<CmsGate />} />
-      <Route path="/cms/*" element={<CmsGate />} />
+      <Route element={<CmsRequireAuth />}>
+        <Route path="/cms" element={<CmsShell />} />
+        <Route path="/cms/team" element={<CmsTeam />} />
+        <Route path="/cms/support" element={<CmsSupport />} />
+        <Route path="/cms/chapters" element={<CmsChapters />} />
+        <Route path="/cms/adventures" element={<CmsAdventures />} />
+        <Route path="/cms/achievements" element={<CmsAchievements />} />
+        <Route path="/cms/shop" element={<CmsShop />} />
+        <Route path="/cms/items" element={<CmsItems />} />
+        <Route path="/cms/blog" element={<CmsBlog />} />
+        <Route path="/cms/premium" element={<CmsPremium />} />
+        <Route path="/cms/automations" element={<CmsAutomations />} />
+        <Route path="/cms/automations/:id" element={<AutomationEditor />} />
+        <Route path="/cms/segments" element={<CmsSegments />} />
+        <Route path="/cms/careers" element={<CmsCareers />} />
+        <Route path="/cms/affiliates" element={<CmsAffiliates />} />
+        <Route path="/cms/forum" element={<CmsForum />} />
+        <Route path="/cms/analytics" element={<CmsAnalytics />} />
+        <Route path="/cms/mistakes" element={<CmsMistakes />} />
+        <Route path="/cms/exercise-lab" element={<CmsExerciseLab />} />
+        <Route path="/cms/voice-lab" element={<CmsVoiceLab />} />
+        <Route path="/cms/stt-lab" element={<CmsSttLab />} />
+        <Route path="/cms/letter-audio" element={<CmsLetterAudio />} />
+        <Route path="/cms/account" element={<CmsAccount />} />
+        {/* Unknown /cms/… path — back to the dashboard (the behavior the
+            old /cms/* gate route had). */}
+        <Route path="/cms/*" element={<Navigate to="/cms" replace />} />
+      </Route>
 
       {/* <Route path="/review"      element={<ReviewMode />} /> */}
       <Route path="/vocabulary"  element={<VocabularyPage />} />
