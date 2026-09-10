@@ -25,6 +25,7 @@ from database import engine
 
 from database import get_db
 import tts_limits
+import automations
 from auth import (
     hash_password,
     verify_password,
@@ -2184,6 +2185,11 @@ def signup(user: UserCreate, request: Request, db: Connection = Depends(get_db))
 
     user_id = row["id"]
 
+    try:
+        automations.record_event(db, user_id, "signup", {})
+    except Exception as e:
+        print(f" ⚠️  automations.record_event(signup) failed: {e}")
+
     # Affiliate attribution — first-touch, one referral per user (enforced by
     # the UNIQUE constraint on affiliate_referrals.user_id).
     ref_code = (user.ref_code or "").strip()
@@ -3636,6 +3642,11 @@ def complete_lesson(
             "completed_at": datetime.utcnow(),
         },
     )
+
+    try:
+        automations.record_event(db, int(user_id), "lesson_completed", {"lesson_id": lesson_id, "xp_earned": xp_value})
+    except Exception as e:
+        print(f" ⚠️  automations.record_event(lesson_completed) failed: {e}")
 
     # 4) Recompute stats
     stats_row = db.execute(

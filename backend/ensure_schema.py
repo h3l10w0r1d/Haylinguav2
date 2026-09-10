@@ -1686,4 +1686,106 @@ def ensure_schema() -> None:
         ))
         print("[ensure_schema] ensured tts_usage table")
 
+        # ---------- Marketing automation (see automations.py) ----------
+        # General behavior event stream — user_exercise_logs/lesson_progress
+        # are narrowly lesson-scoped and not a substitute for this.
+        ensure_table("automation_events", """
+            CREATE TABLE automation_events (
+                id         BIGSERIAL PRIMARY KEY,
+                user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                event_type TEXT NOT NULL,
+                properties JSONB,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_automation_events_user_type ON automation_events (user_id, event_type, created_at DESC)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_automation_events_type_created ON automation_events (event_type, created_at DESC)"
+        ))
+
+        # Reusable audience definitions — referenced by campaign triggers and
+        # condition nodes via the "in_segment" operator (see automations.py).
+        ensure_table("automation_segments", """
+            CREATE TABLE automation_segments (
+                id          SERIAL PRIMARY KEY,
+                name        TEXT NOT NULL,
+                description TEXT,
+                filters     JSONB NOT NULL DEFAULT '[]',
+                created_by  TEXT,
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
+        # Trigger + step-graph campaign definitions.
+        ensure_table("automation_campaigns", """
+            CREATE TABLE automation_campaigns (
+                id                  SERIAL PRIMARY KEY,
+                name                TEXT NOT NULL,
+                status              TEXT NOT NULL DEFAULT 'draft',
+                trigger_type        TEXT NOT NULL DEFAULT 'event',
+                trigger_config      JSONB NOT NULL,
+                steps               JSONB NOT NULL DEFAULT '[]',
+                reenrollment_policy TEXT NOT NULL DEFAULT 'skip',
+                created_by          TEXT,
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_automation_campaigns_status ON automation_campaigns (status)"
+        ))
+
+        # Per-user execution state — needed to resume a campaign after a wait
+        # step (see advance_enrollment in automations.py).
+        ensure_table("automation_enrollments", """
+            CREATE TABLE automation_enrollments (
+                id                 BIGSERIAL PRIMARY KEY,
+                campaign_id        INTEGER NOT NULL REFERENCES automation_campaigns(id) ON DELETE CASCADE,
+                user_id            INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status             TEXT NOT NULL DEFAULT 'active',
+                current_step_index INTEGER NOT NULL DEFAULT 0,
+                resume_at          TIMESTAMPTZ,
+                enrolled_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                completed_at       TIMESTAMPTZ,
+                context            JSONB
+            )
+        """)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_automation_enrollments_due ON automation_enrollments (status, resume_at) WHERE status = 'waiting'"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_automation_enrollments_campaign_user ON automation_enrollments (campaign_id, user_id)"
+        ))
+        # Deliberately no unique index on (campaign_id, user_id, status) here —
+        # a 'skip'-policy campaign's one-enrollment-at-a-time rule is enforced
+        # in application code (check_and_enroll checks-before-inserting)
+        # rather than a DB constraint, because an 'allow'-policy campaign
+        # legitimately needs multiple concurrent active/waiting enrollments
+        # for the same user, and a blanket constraint would block that.
+
+        # Audit trail + dedupe log — one row per action attempt.
+        ensure_table("automation_sends", """
+            CREATE TABLE automation_sends (
+                id            BIGSERIAL PRIMARY KEY,
+                campaign_id   INTEGER NOT NULL REFERENCES automation_campaigns(id) ON DELETE CASCADE,
+                enrollment_id BIGINT NOT NULL REFERENCES automation_enrollments(id) ON DELETE CASCADE,
+                user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                step_index    INTEGER NOT NULL,
+                action_type   TEXT NOT NULL,
+                status        TEXT NOT NULL,
+                detail        JSONB,
+                created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_automation_sends_campaign ON automation_sends (campaign_id, created_at DESC)"
+        ))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_automation_sends_enrollment_step ON automation_sends (enrollment_id, step_index)"
+        ))
+        print("[ensure_schema] ensured marketing automation tables")
+
     print("[ensure_schema] done")

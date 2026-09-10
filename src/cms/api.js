@@ -285,6 +285,23 @@ export function createCmsApi(accessToken) {
   const restoreExercise = (exerciseId) =>
     req(`/cms/exercises/${exerciseId}/restore`, { method: "POST" });
 
+  // Marketing automation: triggered campaigns + segments
+  const listAutomations = () => req("/cms/automations");
+  const getAutomation = (id) => req(`/cms/automations/${id}`);
+  const createAutomation = (payload) => req("/cms/automations", { method: "POST", body: JSON.stringify(payload) });
+  const updateAutomation = (id, payload) => req(`/cms/automations/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteAutomation = (id) => req(`/cms/automations/${id}`, { method: "DELETE" });
+  const listAutomationEnrollments = (id, page = 1) => req(`/cms/automations/${id}/enrollments?page=${page}`);
+  const listAutomationSends = (id, page = 1) => req(`/cms/automations/${id}/sends?page=${page}`);
+  const testRunAutomation = (id, userId, force = false) =>
+    req(`/cms/automations/${id}/test-run`, { method: "POST", body: JSON.stringify({ user_id: userId, force }) });
+  const listSegments = () => req("/cms/segments");
+  const getSegment = (id) => req(`/cms/segments/${id}`);
+  const createSegment = (payload) => req("/cms/segments", { method: "POST", body: JSON.stringify(payload) });
+  const updateSegment = (id, payload) => req(`/cms/segments/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteSegment = (id) => req(`/cms/segments/${id}`, { method: "DELETE" });
+  const previewSegmentCount = (id) => req(`/cms/segments/${id}/preview-count`);
+
   return {
     getAccount,
     updateAccount,
@@ -389,6 +406,20 @@ export function createCmsApi(accessToken) {
     listTeam,
     inviteTeam,
     listVoices,
+    listAutomations,
+    getAutomation,
+    createAutomation,
+    updateAutomation,
+    deleteAutomation,
+    listAutomationEnrollments,
+    listAutomationSends,
+    testRunAutomation,
+    listSegments,
+    getSegment,
+    createSegment,
+    updateSegment,
+    deleteSegment,
+    previewSegmentCount,
   };
 }
 

@@ -78,6 +78,9 @@ const CmsShop = lazy(() => import('./cms/CmsShop'));
 const CmsItems = lazy(() => import('./cms/CmsItems'));
 const CmsBlog = lazy(() => import('./cms/CmsBlog'));
 const CmsPremium = lazy(() => import('./cms/CmsPremium'));
+const CmsAutomations = lazy(() => import('./cms/CmsAutomations'));
+const AutomationEditor = lazy(() => import('./cms/AutomationEditor'));
+const CmsSegments = lazy(() => import('./cms/CmsSegments'));
 const CmsCareers = lazy(() => import('./cms/CmsCareers'));
 const CmsAdventures = lazy(() => import('./cms/CmsAdventures'));
 const CmsAffiliates = lazy(() => import('./cms/CmsAffiliates'));
@@ -837,6 +840,9 @@ function AppShell() {
       <Route path="/cms/items" element={<CmsItems />} />
       <Route path="/cms/blog" element={<CmsBlog />} />
       <Route path="/cms/premium" element={<CmsPremium />} />
+      <Route path="/cms/automations" element={<CmsAutomations />} />
+      <Route path="/cms/automations/:id" element={<AutomationEditor />} />
+      <Route path="/cms/segments" element={<CmsSegments />} />
       <Route path="/cms/careers" element={<CmsCareers />} />
       <Route path="/cms/affiliates" element={<CmsAffiliates />} />
       <Route path="/cms/forum" element={<CmsForum />} />

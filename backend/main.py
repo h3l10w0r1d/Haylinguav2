@@ -44,6 +44,7 @@ from lesson_analytics import router as lesson_analytics_router
 from routes_seo import router as seo_router
 from routes_typing import router as typing_router
 from routes_autofix import router as autofix_router
+from routes_automations import router as automations_router  # CRM: triggered campaigns, segments
 from database import Base, engine
 from sqlalchemy import text
 import models  # noqa: F401 — registers users/lessons/exercises/exercise_options on Base.metadata
@@ -256,6 +257,9 @@ app.include_router(conversation_router)
 app.include_router(conversation_router, prefix="/api")
 
 app.include_router(autofix_router)
+
+app.include_router(automations_router)
+app.include_router(automations_router, prefix="/api")
 
 
 # 🔒 Global rate limiting (in-memory). Applies to all endpoints; tighter rules for auth/security paths.

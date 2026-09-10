@@ -1,7 +1,7 @@
 // src/cms/CmsLayout.jsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { BookOpen, Layers, LifeBuoy, Users, LogOut, ChevronRight, Trophy, Store, BarChart2, Settings, Shield, Mic2, Mic, Crown, Briefcase, MessagesSquare, Percent, Type, AlertTriangle, FlaskConical, Map as MapIcon, Sparkles, Newspaper } from "lucide-react";
+import { BookOpen, Layers, LifeBuoy, Users, LogOut, ChevronRight, Trophy, Store, BarChart2, Settings, Shield, Mic2, Mic, Crown, Briefcase, MessagesSquare, Percent, Type, AlertTriangle, FlaskConical, Map as MapIcon, Sparkles, Newspaper, Zap, UsersRound } from "lucide-react";
 import { getCmsToken } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -18,6 +18,8 @@ const NAV = [
   { key: "affiliates", label: "Affiliates", icon: Percent, to: "/cms/affiliates" },
   { key: "forum", label: "Community", icon: MessagesSquare, to: "/cms/forum" },
   { key: "blog", label: "Blog", icon: Newspaper, to: "/cms/blog" },
+  { key: "automations", label: "Automations", icon: Zap, to: "/cms/automations" },
+  { key: "segments", label: "Segments", icon: UsersRound, to: "/cms/segments" },
   { key: "analytics", label: "Analytics", icon: BarChart2, to: "/cms/analytics" },
   { key: "mistakes", label: "Repetitive mistakes", icon: AlertTriangle, to: "/cms/mistakes" },
   { key: "exercise-lab", label: "Exercise Lab", icon: FlaskConical, to: "/cms/exercise-lab" },

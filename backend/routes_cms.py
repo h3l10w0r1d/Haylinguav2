@@ -612,26 +612,30 @@ class GrantBonusIn(BaseModel):
     message: Optional[str] = None
 
 
-@router.post("/cms/support/users/{uid}/grant-bonus")
-def support_grant_bonus(
+def grant_bonus_core(
+    db: Connection,
     uid: int,
-    payload: GrantBonusIn,
-    _: dict = Depends(require_cms_admin),
-    db: Connection = Depends(get_db),
-):
-    """One admin action for every bonus type (gems/XP/chests/streak freezes),
-    with an optional email + in-app notification so the learner actually
-    finds out — replaces the old gems-only grant-gems endpoint."""
-    if payload.amount <= 0:
+    kind: str,
+    amount: int,
+    notify_email: bool = False,
+    notify_inapp: bool = False,
+    message: Optional[str] = None,
+) -> dict:
+    """One place for every bonus type (gems/XP/chests/streak freezes), with an
+    optional email + in-app notification so the learner actually finds out.
+    Shared by the CMS support endpoint below and the automation engine's
+    grant_bonus action (backend/automations.py) — single source of truth for
+    the column map and side effects, not duplicated per caller."""
+    if amount <= 0:
         raise HTTPException(status_code=400, detail="amount must be a positive integer")
 
-    column, label = _BONUS_COLUMNS[payload.kind]
+    column, label = _BONUS_COLUMNS[kind]
     db.execute(
         text(f"UPDATE users SET {column} = COALESCE({column}, 0) + :a WHERE id = :u"),
-        {"a": payload.amount, "u": uid},
+        {"a": amount, "u": uid},
     )
-    if payload.kind == "xp":
-        _award_weekly_xp(db, uid, payload.amount)
+    if kind == "xp":
+        _award_weekly_xp(db, uid, amount)
 
     user_row = db.execute(
         text(
@@ -643,36 +647,52 @@ def support_grant_bonus(
     if not user_row:
         raise HTTPException(status_code=404, detail="User not found")
 
-    message = (payload.message or "").strip() or None
+    message = (message or "").strip() or None
     name = user_row["name"] or "there"
 
-    if payload.notify_inapp:
+    if notify_inapp:
         title = "You received a bonus! 🎁"
-        body = f"+{payload.amount} {label}" + (f' — "{message}"' if message else "")
+        body = f"+{amount} {label}" + (f' — "{message}"' if message else "")
         db.execute(
             text("INSERT INTO user_notifications (user_id, title, body) VALUES (:u, :t, :b)"),
             {"u": uid, "t": title, "b": body},
         )
 
     email_sent = False
-    if payload.notify_email and user_row["email"]:
+    if notify_email and user_row["email"]:
         app_url = (os.getenv("APP_URL") or os.getenv("FRONTEND_URL") or "https://haylingua.am").rstrip("/")
         email_sent = _send_email(
             to_email=user_row["email"],
             subject="🎁 You got a bonus on Haylingua!",
             body=(
-                f"Hi {name}, you just received +{payload.amount} {label} on Haylingua!"
+                f"Hi {name}, you just received +{amount} {label} on Haylingua!"
                 + (f'\n\n"{message}"' if message else "")
             ),
-            html_body=_render_bonus_email_html(name, label, payload.amount, message, app_url),
+            html_body=_render_bonus_email_html(name, label, amount, message, app_url),
         )
 
     return {
         "ok": True,
-        "kind": payload.kind,
+        "kind": kind,
         "new_value": int(user_row["new_value"]),
         "email_sent": email_sent,
     }
+
+
+@router.post("/cms/support/users/{uid}/grant-bonus")
+def support_grant_bonus(
+    uid: int,
+    payload: GrantBonusIn,
+    _: dict = Depends(require_cms_admin),
+    db: Connection = Depends(get_db),
+):
+    """Thin wrapper — see grant_bonus_core for the actual logic."""
+    return grant_bonus_core(
+        db, uid, payload.kind, payload.amount,
+        notify_email=payload.notify_email,
+        notify_inapp=payload.notify_inapp,
+        message=payload.message,
+    )
 
 
 @router.get("/cms/support/reports")
