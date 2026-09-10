@@ -1204,6 +1204,23 @@ def ensure_schema() -> None:
             )
         """)
 
+        # Browser Push API subscriptions — the web counterpart to
+        # device_push_tokens above (see backend/webpush.py). A subscription
+        # is a whole object (endpoint URL + two keys), not a bare token, so
+        # it gets its own table rather than reusing device_push_tokens.
+        ensure_table("web_push_subscriptions", """
+            CREATE TABLE web_push_subscriptions (
+                id            SERIAL PRIMARY KEY,
+                user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                endpoint      TEXT NOT NULL,
+                p256dh        TEXT NOT NULL,
+                auth          TEXT NOT NULL,
+                created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (endpoint)
+            )
+        """)
+
         # ---------- Marketplace: instance-owned cosmetic inventory ----------
         # Replaces owned_frames/owned_themes/active_frame (JSONB array + a bare
         # id string — no per-instance identity, so "own this exact item" can't

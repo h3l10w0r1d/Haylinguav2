@@ -24,7 +24,7 @@ from sqlalchemy.engine import Connection
 
 MAX_STEPS_PER_ADVANCE = 200  # guards a malformed campaign that never reaches wait/end
 
-KNOWN_ACTIONS = {"send_email", "send_push", "send_brevo", "grant_bonus"}
+KNOWN_ACTIONS = {"send_email", "send_push", "send_web_push", "send_brevo", "grant_bonus"}
 KNOWN_OPERATORS = {"eq", "neq", "gt", "gte", "lt", "lte", "older_than_days", "in_segment"}
 
 # field -> lambda(db, user_id, context) -> value. Whitelisted, never dynamic
@@ -399,6 +399,8 @@ def execute_action(db: Connection, enrollment_id: int, user_id: int, step_path: 
             _action_send_email(db, user_id, params)
         elif action == "send_push":
             _action_send_push(db, user_id, params)
+        elif action == "send_web_push":
+            _action_send_web_push(db, user_id, params)
         elif action == "send_brevo":
             _action_send_brevo(db, user_id, params)
         elif action == "grant_bonus":
@@ -440,6 +442,28 @@ def _action_send_push(db: Connection, user_id: int, params: dict) -> None:
     body = params.get("body") or ""
     for t in tokens:
         send_push(t["token"], title, body)
+
+
+def _action_send_web_push(db: Connection, user_id: int, params: dict) -> None:
+    from webpush import send_web_push
+
+    subs = db.execute(
+        text("SELECT id, endpoint, p256dh, auth FROM web_push_subscriptions WHERE user_id = :u"),
+        {"u": user_id},
+    ).mappings().all()
+    if not subs:
+        raise ValueError("user has no web push subscription")
+    title = params.get("title") or "Haylingua"
+    body = params.get("body") or ""
+    url = params.get("url") or None
+    for s in subs:
+        subscription = {"endpoint": s["endpoint"], "keys": {"p256dh": s["p256dh"], "auth": s["auth"]}}
+        result = send_web_push(subscription, title, body, url)
+        if result == "gone":
+            # The push service says this subscription no longer exists
+            # (expired, unsubscribed, browser data cleared) — clean it up so
+            # it stops being tried on every future send_web_push step.
+            db.execute(text("DELETE FROM web_push_subscriptions WHERE id = :id"), {"id": s["id"]})
 
 
 def _action_send_brevo(db: Connection, user_id: int, params: dict) -> None:

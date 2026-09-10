@@ -9028,6 +9028,78 @@ def me_push_token(
     return {"ok": True}
 
 
+class WebPushSubscriptionIn(BaseModel):
+    endpoint: str
+    keys: dict  # {"p256dh": ..., "auth": ...} — the browser Push API's own shape
+
+
+@router.get("/webpush/vapid-public-key")
+def webpush_vapid_public_key():
+    """Public — no auth, no secret. The frontend fetches this once right
+    before calling pushManager.subscribe(applicationServerKey=...), so the
+    key lives in one place (env var) instead of also needing a VITE_-
+    prefixed frontend build-time copy that would go stale on rotation."""
+    key = (os.getenv("VAPID_PUBLIC_KEY") or "").strip()
+    if not key:
+        raise HTTPException(status_code=503, detail="Web push is not configured")
+    return {"key": key}
+
+
+@router.post("/me/web-push-subscription")
+def me_web_push_subscription(
+    payload: WebPushSubscriptionIn,
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Register (or refresh) this browser's Push API subscription — the web
+    counterpart to /me/push-token above. Upserts on the endpoint URL itself
+    (unique per browser+origin+subscription), same reasoning as the mobile
+    token upsert: a re-subscribe or a second browser just adds/updates its
+    own row."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    endpoint = (payload.endpoint or "").strip()
+    p256dh = (payload.keys or {}).get("p256dh", "").strip()
+    auth_key = (payload.keys or {}).get("auth", "").strip()
+    if not endpoint or not p256dh or not auth_key:
+        raise HTTPException(status_code=400, detail="Missing subscription fields")
+
+    db.execute(
+        text("""
+            INSERT INTO web_push_subscriptions (user_id, endpoint, p256dh, auth, last_seen_at)
+            VALUES (:u, :e, :p, :a, NOW())
+            ON CONFLICT (endpoint) DO UPDATE
+              SET user_id = EXCLUDED.user_id,
+                  p256dh = EXCLUDED.p256dh,
+                  auth = EXCLUDED.auth,
+                  last_seen_at = NOW()
+        """),
+        {"u": int(user_id), "e": endpoint, "p": p256dh, "a": auth_key},
+    )
+    return {"ok": True}
+
+
+@router.delete("/me/web-push-subscription")
+def me_web_push_unsubscribe(
+    endpoint: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    db: Connection = Depends(get_db),
+):
+    """Called when the browser reports the subscription was revoked
+    (pushManager.subscription null / permission withdrawn) so a stale row
+    doesn't sit around targeting a dead endpoint."""
+    user_id = _get_user_id_from_bearer(authorization, db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    db.execute(
+        text("DELETE FROM web_push_subscriptions WHERE endpoint = :e AND user_id = :u"),
+        {"e": endpoint, "u": int(user_id)},
+    )
+    return {"ok": True}
+
+
 @router.get("/me/onboarding", response_model=OnboardingOut)
 def me_onboarding_get(
     authorization: Optional[str] = Header(default=None),

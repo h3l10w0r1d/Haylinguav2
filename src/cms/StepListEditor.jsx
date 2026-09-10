@@ -8,7 +8,7 @@
 // past that) even though the schema/engine supports deeper nesting — a
 // form-based editor strains past a couple of levels, per the plan's
 // explicit steer away from a canvas/graph UI.
-import { Plus, Trash2, ChevronUp, ChevronDown, Mail, Clock, Bell, Send, Gift, GitBranch } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, Mail, Clock, Bell, Globe, Send, Gift, GitBranch } from "lucide-react";
 import FilterRuleBuilder from "./FilterRuleBuilder";
 
 function cx(...a) {
@@ -20,7 +20,8 @@ const textareaCls = inputCls + " resize-y";
 
 const ACTION_META = {
   send_email: { label: "Send email", icon: Mail, tone: "bg-brand-50 text-brand-500" },
-  send_push: { label: "Send push", icon: Bell, tone: "bg-feather-50 text-feather-600" },
+  send_push: { label: "Send push (mobile app)", icon: Bell, tone: "bg-feather-50 text-feather-600" },
+  send_web_push: { label: "Send push (web browser)", icon: Globe, tone: "bg-feather-50 text-feather-600" },
   send_brevo: { label: "Send to Brevo", icon: Send, tone: "bg-purple-50 text-purple-600" },
   grant_bonus: { label: "Grant bonus", icon: Gift, tone: "bg-gold-50 text-gold-600" },
 };
@@ -36,6 +37,7 @@ function defaultParams(action) {
   switch (action) {
     case "send_email": return { subject: "", body: "" };
     case "send_push": return { title: "", body: "" };
+    case "send_web_push": return { title: "", body: "", url: "" };
     case "send_brevo": return { event_name: "" };
     case "grant_bonus": return { kind: "gems", amount: 50, notify_email: false, notify_inapp: true, message: "" };
     default: return {};
@@ -71,6 +73,16 @@ function ActionFields({ step, onUpdateParams }) {
       <>
         <input value={p.title || ""} onChange={(e) => onUpdateParams({ title: e.target.value })} placeholder="Title" className={inputCls} />
         <textarea value={p.body || ""} onChange={(e) => onUpdateParams({ body: e.target.value })} placeholder="Body" rows={2} className={textareaCls} />
+      </>
+    );
+  }
+  if (step.action === "send_web_push") {
+    return (
+      <>
+        <input value={p.title || ""} onChange={(e) => onUpdateParams({ title: e.target.value })} placeholder="Title" className={inputCls} />
+        <textarea value={p.body || ""} onChange={(e) => onUpdateParams({ body: e.target.value })} placeholder="Body" rows={2} className={textareaCls} />
+        <input value={p.url || ""} onChange={(e) => onUpdateParams({ url: e.target.value })} placeholder="Link when clicked (optional, e.g. /dashboard)" className={inputCls} />
+        <p className="text-xs font-semibold text-slate-400">Only reaches learners on desktop/mobile web who've enabled browser notifications — not the mobile app.</p>
       </>
     );
   }
@@ -211,7 +223,8 @@ export default function StepListEditor({ steps, onChange, segments, depth = 0 })
       ))}
       <div className="flex flex-wrap gap-2">
         <AddButton label="Email" icon={Mail} onClick={() => add("send_email")} />
-        <AddButton label="Push" icon={Bell} onClick={() => add("send_push")} />
+        <AddButton label="Push (app)" icon={Bell} onClick={() => add("send_push")} />
+        <AddButton label="Push (web)" icon={Globe} onClick={() => add("send_web_push")} />
         <AddButton label="Brevo" icon={Send} onClick={() => add("send_brevo")} />
         <AddButton label="Bonus" icon={Gift} onClick={() => add("grant_bonus")} />
         <AddButton label="Wait" icon={Clock} onClick={() => add("wait")} />
