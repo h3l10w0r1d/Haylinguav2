@@ -161,6 +161,22 @@ def sitemap(db: Connection = Depends(get_db)):
     except Exception:
         blog_rows = []
 
+    # The blog INDEX itself, but only once there is something on it. It was
+    # missing from STATIC_PAGES entirely, so /blog has never been submitted —
+    # yet listing it while blog_rows is empty would just be submitting a thin
+    # page, which is worse than omitting it. Gating on the post count fixes
+    # the omission and self-heals the moment the blog is seeded. Alternates
+    # follow the same shape as the STATIC_PAGES block above.
+    if blog_rows:
+        blog_alternates = [
+            (loc if loc != "en" else "en", f"{site}{_localized_path('/blog', loc)}")
+            for loc in ALL_LOCALES
+        ]
+        blog_alternates.append(("x-default", f"{site}/blog"))
+        for loc in ALL_LOCALES:
+            add_url(f"{site}{_localized_path('/blog', loc)}", "daily", "0.7",
+                    alternates=blog_alternates)
+
     # Group by translation_group so sibling-language posts can point their
     # hreflang alternates at each other; a post with no translation_group
     # (not part of any translated set) just gets no alternates.
