@@ -838,5 +838,104 @@
       "subtext": "Haylingua enseña el alfabeto armenio desde cero, con audio en cada letra y palabra.",
       "button": "Empezar gratis"
     }
+  },
+  "armenianHandwriting": {
+    "meta": {
+      "title": "Fichas de caligrafía armenia para imprimir — las 39 letras",
+      "description": "Genera e imprime fichas de trazado del alfabeto armenio gratis. Elige letras, mayúsculas o minúsculas y pauta. Para padres y maestros de escuelas armenias."
+    },
+    "breadcrumb": {
+      "home": "Inicio",
+      "current": "Fichas de caligrafía armenia"
+    },
+    "hero": {
+      "heading": "Fichas de caligrafía armenia",
+      "subtext": "Arma una ficha de trazado para cualquier parte del alfabeto y imprímela. Gratis, sin registro, nada que instalar."
+    },
+    "controls": {
+      "letters": "Letras",
+      "case": "Mayúsculas/minúsculas",
+      "rows": "Renglones por letra",
+      "guides": "Pauta",
+      "print": "Imprimir ficha",
+      "sheetCount_one": "{{count}} letra seleccionada",
+      "sheetCount_other": "{{count}} letras seleccionadas",
+      "pdfHint": "Para guardar como PDF en vez de imprimir, elige «Guardar como PDF» como destino en el cuadro de impresión."
+    },
+    "sets": {
+      "all": "Las 39",
+      "vowels": "Vocales",
+      "consonants": "Consonantes",
+      "first10": "1–10",
+      "second10": "11–20",
+      "third10": "21–30",
+      "last9": "31–39"
+    },
+    "case": {
+      "both": "Ambas",
+      "upper": "Mayúsculas",
+      "lower": "Minúsculas"
+    },
+    "guides": {
+      "on": "Con pauta",
+      "off": "Sin pauta"
+    },
+    "sheet": {
+      "title": "Práctica de caligrafía armenia",
+      "subtitle": "Repasa las letras grises y luego sigue por tu cuenta.",
+      "nameLine": "Nombre: ______________   Fecha: __________"
+    },
+    "about": {
+      "heading": "Por qué la escritura a mano sigue importando en el alfabeto armenio",
+      "p1": "El armenio tiene 39 letras, y bastantes son primas cercanas sobre el papel: ո y օ, ղ y դ, ճ y ձ. Distinguirlas al leer es una destreza; producirlas de memoria es otra distinta, y es la que construye la escritura a mano. Los niños que solo tocan letras en una pantalla suelen reconocer el alfabeto mucho antes de saber escribirlo.",
+      "p2": "Estas fichas siguen el patrón habitual: cada renglón empieza con tres letras tenues para repasar y luego queda en blanco para que el niño forme la letra solo. La opción con pauta añade una línea base y una media discontinua, que es lo que usan la mayoría de las escuelas armenias para enseñar una altura constante. Quita la pauta para alumnos mayores que ya no la necesitan.",
+      "p3": "Las letras, su orden y su romanización salen de los mismos datos del curso con los que enseña Haylingua, así que un niño que practica aquí practica exactamente lo que usan las lecciones. Están las 39 letras, en el orden moderno estándar: con ՈՒ en la posición 34 y և en la 37."
+    },
+    "faqHeading": "Preguntas sobre las fichas",
+    "faq": [
+      {
+        "q": "¿Las fichas de caligrafía armenia son gratis?",
+        "a": "Sí, completamente. Sin registro, sin marca de agua y sin límite de cuántas generas o imprimes. Los maestros pueden imprimir juegos para toda la clase."
+      },
+      {
+        "q": "¿Cómo las guardo como PDF?",
+        "a": "Pulsa Imprimir y, en el cuadro de impresión, cambia el destino a «Guardar como PDF» (Chrome, Edge) o usa el botón PDF (Safari, Firefox). Obtienes el mismo archivo."
+      },
+      {
+        "q": "¿Puedo imprimir solo unas pocas letras?",
+        "a": "Sí. Elige un rango — 1–10, 11–20, 21–30, 31–39 — o solo las vocales o las consonantes. Un conjunto por hoja resulta más manejable para los más pequeños."
+      },
+      {
+        "q": "¿Qué alfabeto armenio es este?",
+        "a": "El armenio oriental moderno, las 39 letras en orden estándar, tal como se enseña en Armenia. El armenio occidental usa las mismas letras, así que las fichas sirven para ambos: solo cambia la pronunciación de algunas."
+      },
+      {
+        "q": "¿Para qué sirven las líneas?",
+        "a": "La línea base continua y la media discontinua ayudan al niño a mantener una altura constante y a no salirse del renglón, lo más difícil al principio. Cambia a «Sin pauta» cuando eso deje de ser un problema."
+      },
+      {
+        "q": "¿Puedo usarlas en mi escuela o clase armenia?",
+        "a": "Por supuesto. Son libres de imprimir y repartir para cualquier uso educativo, en casa o en el aula. Un enlace a la página se agradece, pero no hace falta."
+      }
+    ],
+    "keepGoing": {
+      "alphabet": {
+        "title": "Alfabeto armenio",
+        "text": "Las 39 letras, cada una con audio."
+      },
+      "reader": {
+        "title": "Texto a voz en armenio",
+        "text": "Escucha cualquier texto en armenio."
+      },
+      "typing": {
+        "title": "Escribir en armenio",
+        "text": "Aprende el teclado armenio, gratis."
+      }
+    },
+    "cta": {
+      "heading": "Del trazo a la conversación",
+      "subtext": "Convierte la práctica de letras en armenio real con lecciones estructuradas.",
+      "button": "Empezar gratis"
+    }
   }
 }

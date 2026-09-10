@@ -838,5 +838,104 @@
       "subtext": "Haylingua enseigne l'alphabet arménien à partir de zéro, avec l'audio sur chaque lettre et chaque mot.",
       "button": "Commencer gratuitement"
     }
+  },
+  "armenianHandwriting": {
+    "meta": {
+      "title": "Fiches d'écriture arménienne à imprimer — les 39 lettres",
+      "description": "Générez et imprimez gratuitement des fiches de tracé de l'alphabet arménien. Choisissez les lettres, la casse et les lignes. Pour parents et enseignants."
+    },
+    "breadcrumb": {
+      "home": "Accueil",
+      "current": "Fiches d'écriture arménienne"
+    },
+    "hero": {
+      "heading": "Fiches d'écriture arménienne",
+      "subtext": "Composez une fiche de tracé pour n'importe quelle partie de l'alphabet, puis imprimez-la. Gratuit, sans inscription, rien à installer."
+    },
+    "controls": {
+      "letters": "Lettres",
+      "case": "Casse",
+      "rows": "Lignes par lettre",
+      "guides": "Lignage",
+      "print": "Imprimer la fiche",
+      "sheetCount_one": "{{count}} lettre sélectionnée",
+      "sheetCount_other": "{{count}} lettres sélectionnées",
+      "pdfHint": "Pour enregistrer en PDF plutôt qu'imprimer, choisissez « Enregistrer au format PDF » comme destination dans la boîte de dialogue."
+    },
+    "sets": {
+      "all": "Les 39",
+      "vowels": "Voyelles",
+      "consonants": "Consonnes",
+      "first10": "1–10",
+      "second10": "11–20",
+      "third10": "21–30",
+      "last9": "31–39"
+    },
+    "case": {
+      "both": "Les deux",
+      "upper": "Majuscules",
+      "lower": "Minuscules"
+    },
+    "guides": {
+      "on": "Lignée",
+      "off": "Unie"
+    },
+    "sheet": {
+      "title": "Entraînement à l'écriture arménienne",
+      "subtitle": "Repassez sur les lettres grises, puis continuez seul.",
+      "nameLine": "Nom : ______________   Date : __________"
+    },
+    "about": {
+      "heading": "Pourquoi l'écriture manuscrite compte encore pour l'alphabet arménien",
+      "p1": "L'arménien compte 39 lettres, et bon nombre d'entre elles sont de proches cousines sur la page : ո et օ, ղ et դ, ճ et ձ. Les distinguer en lecture est une compétence ; les produire de mémoire en est une autre, et c'est celle que construit l'écriture à la main. Les enfants qui ne font que taper des lettres sur un écran reconnaissent l'alphabet bien avant de savoir l'écrire.",
+      "p2": "Ces fiches suivent le schéma habituel : chaque ligne commence par trois lettres pâles à repasser, puis reste vide pour que l'enfant forme la lettre sans aide. L'option lignée ajoute une ligne de base et une ligne médiane en pointillés, ce qu'utilisent la plupart des écoles arméniennes pour enseigner une hauteur régulière. Désactivez le lignage pour les plus grands qui n'en ont plus besoin.",
+      "p3": "Les lettres, leur ordre et leur romanisation proviennent des mêmes données de cours que celles enseignées par Haylingua : un enfant qui s'entraîne ici s'entraîne exactement sur ce que donnent les leçons. Les 39 lettres sont incluses, dans l'ordre moderne standard — avec ՈՒ en position 34 et և en 37."
+    },
+    "faqHeading": "Questions sur les fiches",
+    "faq": [
+      {
+        "q": "Les fiches d'écriture arménienne sont-elles gratuites ?",
+        "a": "Oui, entièrement. Pas d'inscription, pas de filigrane, aucune limite au nombre de fiches générées ou imprimées. Les enseignants peuvent imprimer des jeux pour toute la classe."
+      },
+      {
+        "q": "Comment les enregistrer en PDF ?",
+        "a": "Cliquez sur Imprimer, puis dans la boîte de dialogue changez la destination en « Enregistrer au format PDF » (Chrome, Edge) ou utilisez le bouton PDF (Safari, Firefox). Vous obtenez le même fichier."
+      },
+      {
+        "q": "Puis-je n'imprimer que quelques lettres ?",
+        "a": "Oui. Choisissez une plage — 1–10, 11–20, 21–30, 31–39 — ou seulement les voyelles ou les consonnes. Un jeu par feuille reste gérable pour les jeunes enfants."
+      },
+      {
+        "q": "De quel alphabet arménien s'agit-il ?",
+        "a": "L'arménien oriental moderne, les 39 lettres dans l'ordre standard, tel qu'enseigné en Arménie. L'arménien occidental utilise les mêmes lettres : les fiches conviennent aux deux, seule la prononciation de certaines lettres diffère."
+      },
+      {
+        "q": "À quoi servent les lignes ?",
+        "a": "La ligne de base pleine et la médiane en pointillés aident l'enfant à garder une hauteur régulière et à rester sur la ligne, ce qui est le plus difficile au début. Passez à « Unie » quand ce n'est plus un problème."
+      },
+      {
+        "q": "Puis-je les utiliser dans mon école ou ma classe arménienne ?",
+        "a": "Je vous en prie. Elles sont libres d'impression et de distribution pour tout usage éducatif, à la maison comme en classe. Un lien vers la page est apprécié mais pas obligatoire."
+      }
+    ],
+    "keepGoing": {
+      "alphabet": {
+        "title": "Alphabet arménien",
+        "text": "Les 39 lettres, chacune avec son audio."
+      },
+      "reader": {
+        "title": "Synthèse vocale arménienne",
+        "text": "Écoutez n'importe quel texte arménien."
+      },
+      "typing": {
+        "title": "Taper en arménien",
+        "text": "Apprenez le clavier arménien, gratuitement."
+      }
+    },
+    "cta": {
+      "heading": "Du tracé à la parole",
+      "subtext": "Transformez l'entraînement aux lettres en arménien réel avec des leçons structurées.",
+      "button": "Commencer gratuitement"
+    }
   }
 }
