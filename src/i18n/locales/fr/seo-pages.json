@@ -937,5 +937,173 @@
       "subtext": "Transformez l'entraînement aux lettres en arménien réel avec des leçons structurées.",
       "button": "Commencer gratuitement"
     }
+  },
+  "armenianKeyboard": {
+    "meta": {
+      "title": "Clavier arménien : taper en arménien sur n'importe quel appareil",
+      "description": "Ajoutez un clavier arménien sur iPhone, Android, Mac, Windows, ChromeOS ou Linux en quelques touches — et choisissez la bonne disposition. Guide gratuit, aucun téléchargement."
+    },
+    "breadcrumb": {
+      "home": "Accueil",
+      "current": "Clavier arménien"
+    },
+    "hero": {
+      "heading": "Comment taper en arménien sur n'importe quel appareil",
+      "subtext": "Tous vos appareils savent déjà écrire l'arménien. Il n'y a rien à télécharger — le clavier est intégré, il suffit de l'activer.",
+      "note": "Le plus délicat est de choisir la bonne disposition : cette section suit les étapes."
+    },
+    "switchLabel": "Pour basculer",
+    "platforms": {
+      "ios": {
+        "name": "iPhone et iPad",
+        "title": "Ajouter le clavier arménien sur iPhone ou iPad",
+        "steps": [
+          "Ouvrez Réglages.",
+          "Touchez Général, puis Clavier.",
+          "Touchez Claviers, puis Ajouter un clavier…",
+          "Sous Autres claviers iPhone, faites défiler jusqu'à Arménien et touchez-le.",
+          "C'est tout — l'arménien figure maintenant dans votre liste de claviers."
+        ],
+        "switch": "Maintenez la touche globe en bas du clavier, puis choisissez Arménien. Une pression brève fait défiler vos claviers.",
+        "caveat": "iOS propose une seule disposition arménienne, sans variante à choisir : impossible de se tromper ici."
+      },
+      "android": {
+        "name": "Android",
+        "title": "Ajouter le clavier arménien sur Android",
+        "steps": [
+          "Ouvrez Paramètres et trouvez les réglages du clavier — sur la plupart des téléphones : Système, puis Langues et saisie, puis Clavier virtuel.",
+          "Touchez Gboard (ou l'application de clavier que vous utilisez).",
+          "Touchez Langues, puis Ajouter un clavier.",
+          "Cherchez Arménien, sélectionnez-le et choisissez une disposition si on vous le demande.",
+          "Touchez Terminé pour enregistrer."
+        ],
+        "switch": "Touchez la touche globe pour passer d'une langue à l'autre, ou maintenez-la pour en choisir une dans une liste.",
+        "caveat": "Les menus Android varient beaucoup selon le fabricant — Samsung, Xiaomi et d'autres renomment ces écrans. Si le chemin ne correspond pas, cherchez « clavier » ou « langues » dans vos Paramètres."
+      },
+      "macos": {
+        "name": "Mac",
+        "title": "Ajouter le clavier arménien sur un Mac",
+        "steps": [
+          "Ouvrez Réglages Système (Préférences Système sur macOS 12 et antérieur).",
+          "Allez dans Clavier.",
+          "À côté de Saisie de texte, cliquez sur Modifier… (sur les versions antérieures, ouvrez l'onglet Sources de saisie).",
+          "Cliquez sur le bouton + en bas à gauche, sélectionnez Arménien, puis choisissez une disposition — voir la section ci-dessous.",
+          "Cliquez sur Ajouter, et cochez « Afficher le menu de saisie dans la barre des menus » si vous voulez l'icône drapeau."
+        ],
+        "switch": "Appuyez sur Contrôle + Espace pour passer à la source suivante, ou cliquez sur le drapeau dans la barre des menus et choisissez Arménien.",
+        "caveat": "macOS ne propose que deux dispositions arméniennes — « Armenian — HM QWERTY » et « Armenian — Western QWERTY ». Aucune ne s'appelle « phonétique », ce qui déroute ; HM QWERTY est celle qu'il vous faut pour l'arménien oriental."
+      },
+      "windows": {
+        "name": "Windows",
+        "title": "Ajouter le clavier arménien sur Windows",
+        "steps": [
+          "Ouvrez Paramètres, puis Heure et langue.",
+          "Allez dans Langue et région (sous Windows 10 : Langue).",
+          "Cliquez sur Ajouter une langue, cherchez Arménien et installez-le.",
+          "Cliquez sur les trois points à côté d'Arménien, choisissez Options linguistiques, puis Ajouter un clavier.",
+          "Choisissez Armenian Phonetic ou Armenian Typewriter — voir la section ci-dessous."
+        ],
+        "switch": "Appuyez sur Touche Windows + Espace pour changer de clavier, ou cliquez sur le code de langue (ENG / ARM) dans la barre des tâches.",
+        "caveat": "Windows liste plusieurs variantes, dont l'orientale et l'occidentale. « Armenian Phonetic » est celle basée sur QWERTY que veulent la plupart des apprenants."
+      },
+      "chromeos": {
+        "name": "ChromeOS",
+        "title": "Ajouter le clavier arménien sur un Chromebook",
+        "steps": [
+          "Ouvrez Paramètres, puis Avancés, puis Langues et saisie.",
+          "Cliquez sur Modes de saisie, puis Ajouter des modes de saisie.",
+          "Cherchez Arménien et cochez Armenian Phonetic.",
+          "Cliquez sur Ajouter pour enregistrer."
+        ],
+        "switch": "Appuyez sur Ctrl + Maj + Espace pour changer de mode de saisie, ou cliquez sur l'indicateur de saisie dans la zone d'état.",
+        "caveat": "ChromeOS nomme sa disposition « Armenian Phonetic » : c'est la correspondance basée sur QWERTY montrée plus bas sur cette page."
+      },
+      "linux": {
+        "name": "Linux",
+        "title": "Ajouter le clavier arménien sur Linux",
+        "steps": [
+          "Ouvrez Paramètres, puis Clavier (GNOME) ou Région et langue sur les versions plus anciennes.",
+          "Sous Sources de saisie, cliquez sur le bouton +.",
+          "Cherchez Arménien et choisissez une variante — Phonetic est celle basée sur QWERTY.",
+          "Cliquez sur Ajouter."
+        ],
+        "switch": "Appuyez sur Super + Espace sous GNOME, ou utilisez l'indicateur de saisie dans la barre supérieure. Les autres environnements diffèrent.",
+        "caveat": "Les chemins varient selon l'environnement de bureau. Sous KDE, l'équivalent se trouve dans Configuration du système, puis Périphériques de saisie, puis Clavier, puis Dispositions."
+      }
+    },
+    "layouts": {
+      "heading": "Quelle disposition arménienne choisir ?",
+      "intro": "C'est l'étape que l'on rate le plus souvent, et elle compte davantage que l'installation : les dispositions ne partagent presque aucune touche, donc en changer plus tard revient à réapprendre à taper. Les systèmes ne s'accordent pas non plus sur les noms.",
+      "items": [
+        {
+          "name": "Phonétique",
+          "aka": "macOS : HM QWERTY · Windows/ChromeOS : Armenian Phonetic",
+          "text": "Chaque lettre arménienne se trouve sur la touche latine qui lui ressemble : A donne ա, S donne ս, D donne դ. Si vous tapez déjà en aveugle en anglais, votre mémoire musculaire se transpose presque entièrement. C'est la disposition de la plupart des apprenants et de la diaspora."
+        },
+        {
+          "name": "Machine à écrire",
+          "aka": "Windows : Armenian Typewriter · dite aussi standard",
+          "text": "La disposition traditionnelle héritée des machines à écrire arméniennes, pensée pour la vitesse en arménien et non pour ressembler au QWERTY. Courante chez les dactylographes professionnels en Arménie. Rien ne se trouve là où un typiste anglophone l'attend."
+        },
+        {
+          "name": "Occidentale",
+          "aka": "macOS : Armenian — Western QWERTY",
+          "text": "Une disposition de type phonétique ajustée à la prononciation de l'arménien occidental, où plusieurs lettres correspondent à d'autres sons. À choisir si vous apprenez ou écrivez l'arménien occidental ; sinon elle vous gênera."
+        }
+      ],
+      "recommendation": "En cas de doute : choisissez Phonétique — HM QWERTY sur Mac, Armenian Phonetic sur Windows, ChromeOS et Linux. C'est la disposition qu'enseigne notre entraîneur de frappe gratuit, et celle qu'utilisent la plupart des arménophones hors d'Arménie."
+    },
+    "map": {
+      "heading": "La disposition phonétique arménienne, touche par touche",
+      "text": "Voici ce que la disposition phonétique place sous chaque touche. La petite lettre latine est la touche que vous pressez ; la grande lettre arménienne est ce qui s'affiche. Beaucoup sont quasi homophones de la touche anglaise — d'où sa prise en main rapide.",
+      "caption": "Un point signifie que la touche ne fait pas encore partie des lettres enseignées par nos leçons.",
+      "cta": "S'entraîner gratuitement"
+    },
+    "faqHeading": "Questions sur le clavier arménien",
+    "faq": [
+      {
+        "q": "Dois-je télécharger un clavier arménien ?",
+        "a": "Non. Tous les grands systèmes incluent déjà l'arménien — iPhone, Android, Mac, Windows, ChromeOS et Linux. Vous activez quelque chose que vous avez déjà, vous n'installez rien : méfiez-vous des sites proposant un « téléchargement de clavier arménien »."
+      },
+      {
+        "q": "Vaut-il mieux installer une application de clavier ?",
+        "a": "Presque certainement pas. Les claviers intégrés gèrent très bien l'arménien et ne réclament pas les autorisations étendues des applications tierces — une application de clavier voit tout ce que vous tapez, mots de passe compris. Mauvais échange pour une fonction que votre appareil possède déjà."
+      },
+      {
+        "q": "Quelle différence entre phonétique et machine à écrire ?",
+        "a": "La phonétique place les lettres arméniennes sur les touches latines qui leur ressemblent : un typiste anglophone démarre immédiatement. La machine à écrire reprend l'agencement arménien traditionnel, plus rapide une fois maîtrisé mais sans rapport avec le QWERTY. La plupart des apprenants devraient choisir la phonétique."
+      },
+      {
+        "q": "Comment taper le point d'interrogation arménien et les autres signes ?",
+        "a": "L'arménien a sa propre ponctuation : « ։ » termine une phrase, « ՞ » marque une question et « ՛ » l'emphase, et ils se placent au-dessus de la voyelle, non en fin de phrase. Tous sont sur le clavier arménien une fois activé ; les touches exactes dépendent de la disposition."
+      },
+      {
+        "q": "Puis-je taper l'arménien sans ajouter de clavier ?",
+        "a": "Pour un mot ou deux, oui : copiez les caractères depuis notre page de l'alphabet. Pour plus long, les deux minutes d'activation du vrai clavier en valent la peine — copier caractère par caractère lasse vite."
+      },
+      {
+        "q": "Pourquoi mon texte arménien s'affiche-t-il mal ?",
+        "a": "C'est un problème de police, pas de clavier. Le texte est correct ; l'application qui l'affiche n'a pas de police couvrant l'arménien et dessine des carrés. Les téléphones et navigateurs récents en ont une, donc cela n'arrive guère que dans des logiciels anciens ou inhabituels."
+      }
+    ],
+    "keepGoing": {
+      "typing": {
+        "title": "Taper en arménien",
+        "text": "Apprenez le clavier arménien, gratuitement."
+      },
+      "reader": {
+        "title": "Synthèse vocale arménienne",
+        "text": "Écoutez n'importe quel texte arménien."
+      },
+      "alphabet": {
+        "title": "Alphabet arménien",
+        "text": "Les 39 lettres, chacune avec son audio."
+      }
+    },
+    "cta": {
+      "heading": "Servez-vous de ce clavier",
+      "subtext": "Apprenez à lire, écrire et parler l'arménien avec des leçons structurées.",
+      "button": "Commencer gratuitement"
+    }
   }
 }

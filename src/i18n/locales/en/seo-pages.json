@@ -916,5 +916,173 @@
       "subtext": "Turn letter practice into real Armenian with structured lessons.",
       "button": "Start learning free"
     }
+  },
+  "armenianKeyboard": {
+    "meta": {
+      "title": "Armenian Keyboard: How to Type in Armenian on Any Device",
+      "description": "Add an Armenian keyboard to iPhone, Android, Mac, Windows, ChromeOS or Linux in a few taps — and pick the right layout. Free step-by-step guide, no download needed."
+    },
+    "breadcrumb": {
+      "home": "Home",
+      "current": "Armenian keyboard"
+    },
+    "hero": {
+      "heading": "How to type in Armenian on any device",
+      "subtext": "Every device you already own can type Armenian. There is nothing to download — the keyboard is built in, you just have to switch it on.",
+      "note": "The harder part is choosing the right layout, so that section is below the steps."
+    },
+    "switchLabel": "Switching to it",
+    "platforms": {
+      "ios": {
+        "name": "iPhone & iPad",
+        "title": "Add the Armenian keyboard on iPhone or iPad",
+        "steps": [
+          "Open Settings.",
+          "Tap General, then Keyboard.",
+          "Tap Keyboards, then Add New Keyboard…",
+          "Under Other iPhone Keyboards, scroll to Armenian and tap it.",
+          "That's it — Armenian is now in your keyboard list."
+        ],
+        "switch": "Tap and hold the globe key at the bottom of the keyboard, then choose Armenian. A quick tap cycles through your keyboards.",
+        "caveat": "iOS gives you a single Armenian layout with no variant to choose, so there is no wrong choice to make here."
+      },
+      "android": {
+        "name": "Android",
+        "title": "Add the Armenian keyboard on Android",
+        "steps": [
+          "Open Settings and find your keyboard settings — on most phones this is System, then Languages & input, then On-screen keyboard.",
+          "Tap Gboard (or whichever keyboard app you use).",
+          "Tap Languages, then Add keyboard.",
+          "Search for Armenian, select it, and choose a layout when prompted.",
+          "Tap Done to save it."
+        ],
+        "switch": "Tap the globe key on the keyboard to cycle between languages, or hold it to pick one from a list.",
+        "caveat": "Android menus vary quite a bit by manufacturer — Samsung, Xiaomi and others rename these screens. If the path above doesn't match, search your Settings for \"keyboard\" or \"languages\"."
+      },
+      "macos": {
+        "name": "Mac",
+        "title": "Add the Armenian keyboard on a Mac",
+        "steps": [
+          "Open System Settings (System Preferences on macOS 12 and earlier).",
+          "Go to Keyboard.",
+          "Next to Text Input, click Edit… (on older versions, open the Input Sources tab).",
+          "Click the + button at the bottom left, select Armenian in the list, then pick a layout — see the layout section below.",
+          "Click Add, and tick \"Show Input menu in menu bar\" if you want the flag icon."
+        ],
+        "switch": "Press Control + Space to move to the next input source, or click the flag in the menu bar and choose Armenian.",
+        "caveat": "macOS offers exactly two Armenian layouts — \"Armenian — HM QWERTY\" and \"Armenian — Western QWERTY\". Neither is called \"phonetic\", which trips people up; HM QWERTY is the one you want for Eastern Armenian."
+      },
+      "windows": {
+        "name": "Windows",
+        "title": "Add the Armenian keyboard on Windows",
+        "steps": [
+          "Open Settings, then Time & language.",
+          "Go to Language & region (on Windows 10: Language).",
+          "Click Add a language, search for Armenian, and install it.",
+          "Click the three dots next to Armenian, choose Language options, then Add a keyboard.",
+          "Pick Armenian Phonetic or Armenian Typewriter — see the layout section below."
+        ],
+        "switch": "Press Windows key + Space to cycle through keyboards, or click the language code (ENG / ARM) in the taskbar.",
+        "caveat": "Windows lists several variants, including Eastern and Western. \"Armenian Phonetic\" is the QWERTY-based one most learners want."
+      },
+      "chromeos": {
+        "name": "ChromeOS",
+        "title": "Add the Armenian keyboard on a Chromebook",
+        "steps": [
+          "Open Settings, then Advanced, then Languages and inputs.",
+          "Click Inputs, then Add input methods.",
+          "Search for Armenian and tick Armenian Phonetic.",
+          "Click Add to save it."
+        ],
+        "switch": "Press Ctrl + Shift + Space to switch input methods, or click the input indicator in the status area.",
+        "caveat": "ChromeOS labels its layout \"Armenian Phonetic\", which is the QWERTY-based mapping shown further down this page."
+      },
+      "linux": {
+        "name": "Linux",
+        "title": "Add the Armenian keyboard on Linux",
+        "steps": [
+          "Open Settings, then Keyboard (GNOME) or Region & Language on older releases.",
+          "Under Input Sources, click the + button.",
+          "Search for Armenian and choose a variant — Phonetic is the QWERTY-based one.",
+          "Click Add."
+        ],
+        "switch": "Press Super + Space on GNOME, or use the input indicator in the top bar. Other desktops differ.",
+        "caveat": "Paths differ by desktop environment. On KDE the equivalent lives in System Settings, then Input Devices, then Keyboard, then Layouts."
+      }
+    },
+    "layouts": {
+      "heading": "Which Armenian layout should you choose?",
+      "intro": "This is the step people get wrong, and it matters more than the setup itself: the layouts share almost no keys, so switching later means learning to type again from scratch. The operating systems also don't agree on what to call them, which makes the choice harder than it should be.",
+      "items": [
+        {
+          "name": "Phonetic",
+          "aka": "macOS: HM QWERTY · Windows/ChromeOS: Armenian Phonetic",
+          "text": "Each Armenian letter sits on the Latin key that sounds like it — A gives ա, S gives ս, D gives դ. If you already touch-type in English, most of your muscle memory carries straight over. This is the layout most learners and most of the diaspora use."
+        },
+        {
+          "name": "Typewriter",
+          "aka": "Windows: Armenian Typewriter · also called Standard",
+          "text": "The traditional layout inherited from Armenian typewriters, arranged for typing speed in Armenian rather than for similarity to QWERTY. It's common among professional typists in Armenia. Nothing is where an English typist expects it, so it's a much steeper start."
+        },
+        {
+          "name": "Western",
+          "aka": "macOS: Armenian — Western QWERTY",
+          "text": "A phonetic-style layout adjusted for Western Armenian pronunciation, where several letters correspond to different sounds. Choose it if you are learning or writing Western Armenian; otherwise it will fight you."
+        }
+      ],
+      "recommendation": "If you are unsure: choose Phonetic — HM QWERTY on a Mac, Armenian Phonetic on Windows, ChromeOS and Linux. It's the layout our free typing trainer teaches, and the one most Armenian speakers outside Armenia actually use."
+    },
+    "map": {
+      "heading": "The Armenian phonetic layout, key by key",
+      "text": "Here is what the phonetic layout puts under each key. The small Latin letter is the key you press; the large Armenian letter is what appears. Notice how many are near-homophones of the English key — which is exactly why this layout is quick to pick up.",
+      "caption": "A dot means the key isn't part of the letter set our typing lessons teach yet.",
+      "cta": "Practise this layout free"
+    },
+    "faqHeading": "Armenian keyboard questions",
+    "faq": [
+      {
+        "q": "Do I need to download an Armenian keyboard?",
+        "a": "No. Every major operating system already includes Armenian — iPhone, Android, Mac, Windows, ChromeOS and Linux all ship it. You are switching on something you already have, not installing anything, so be wary of sites offering an \"Armenian keyboard download\"."
+      },
+      {
+        "q": "Is there an Armenian keyboard app I should install instead?",
+        "a": "You almost certainly don't need one. The built-in keyboards handle Armenian properly and don't ask for the sweeping permissions that third-party keyboard apps do — a keyboard app can see everything you type, including passwords, so it's a poor trade for something your device does already."
+      },
+      {
+        "q": "What's the difference between phonetic and typewriter layouts?",
+        "a": "Phonetic maps Armenian letters onto the Latin keys that sound like them, so an English typist can start immediately. Typewriter uses the traditional Armenian arrangement, which is faster once mastered but shares nothing with QWERTY. Most learners should choose phonetic."
+      },
+      {
+        "q": "How do I type the Armenian question mark and other marks?",
+        "a": "Armenian uses its own punctuation — «։» ends a sentence, «՞» marks a question and «՛» marks emphasis, and they sit above the vowel rather than at the end of the sentence. All of them are on the Armenian keyboard once it's enabled; the exact keys vary by layout."
+      },
+      {
+        "q": "Can I type Armenian without adding a keyboard at all?",
+        "a": "For a word or two, yes — you can copy characters from our alphabet page. For anything longer it's worth the two minutes to switch the real keyboard on, since copying character by character gets old fast."
+      },
+      {
+        "q": "Why doesn't my Armenian text show up correctly?",
+        "a": "That's a font problem rather than a keyboard one. The text is fine; the app you're viewing it in has no Armenian-capable font and is drawing boxes instead. Modern phones and browsers include one, so it usually only shows up in older software or unusual apps."
+      }
+    ],
+    "keepGoing": {
+      "typing": {
+        "title": "Armenian typing trainer",
+        "text": "Learn the layout properly, with ten-finger lessons."
+      },
+      "reader": {
+        "title": "Armenian text to speech",
+        "text": "Hear any Armenian text read aloud."
+      },
+      "alphabet": {
+        "title": "Armenian alphabet",
+        "text": "All 39 letters with audio for each."
+      }
+    },
+    "cta": {
+      "heading": "Now put the keyboard to use",
+      "subtext": "Learn to read, write and speak Armenian with structured lessons.",
+      "button": "Start learning free"
+    }
   }
 }

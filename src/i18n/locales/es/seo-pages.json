@@ -937,5 +937,173 @@
       "subtext": "Convierte la práctica de letras en armenio real con lecciones estructuradas.",
       "button": "Empezar gratis"
     }
+  },
+  "armenianKeyboard": {
+    "meta": {
+      "title": "Teclado armenio: cómo escribir en armenio en cualquier dispositivo",
+      "description": "Añade un teclado armenio en iPhone, Android, Mac, Windows, ChromeOS o Linux en unos toques, y elige la distribución correcta. Guía gratuita, sin descargas."
+    },
+    "breadcrumb": {
+      "home": "Inicio",
+      "current": "Teclado armenio"
+    },
+    "hero": {
+      "heading": "Cómo escribir en armenio en cualquier dispositivo",
+      "subtext": "Todos tus dispositivos ya pueden escribir en armenio. No hay nada que descargar: el teclado viene incluido, solo hay que activarlo.",
+      "note": "Lo difícil es elegir la distribución adecuada, así que esa sección va justo después de los pasos."
+    },
+    "switchLabel": "Para cambiar",
+    "platforms": {
+      "ios": {
+        "name": "iPhone y iPad",
+        "title": "Añadir el teclado armenio en iPhone o iPad",
+        "steps": [
+          "Abre Ajustes.",
+          "Toca General y luego Teclado.",
+          "Toca Teclados y luego Añadir nuevo teclado…",
+          "En Otros teclados de iPhone, baja hasta Armenio y tócalo.",
+          "Listo: el armenio ya está en tu lista de teclados."
+        ],
+        "switch": "Mantén pulsada la tecla del globo terráqueo en la parte inferior del teclado y elige Armenio. Un toque rápido va alternando entre tus teclados.",
+        "caveat": "iOS ofrece una única distribución armenia, sin variantes que elegir, así que aquí no hay forma de equivocarse."
+      },
+      "android": {
+        "name": "Android",
+        "title": "Añadir el teclado armenio en Android",
+        "steps": [
+          "Abre Ajustes y busca la configuración del teclado: en la mayoría de móviles es Sistema, luego Idiomas e introducción de texto, luego Teclado en pantalla.",
+          "Toca Gboard (o la aplicación de teclado que uses).",
+          "Toca Idiomas y luego Añadir teclado.",
+          "Busca Armenio, selecciónalo y elige una distribución si te lo pide.",
+          "Toca Listo para guardar."
+        ],
+        "switch": "Toca la tecla del globo para alternar entre idiomas, o mantenla pulsada para elegir uno de una lista.",
+        "caveat": "Los menús de Android varían bastante según el fabricante: Samsung, Xiaomi y otros renombran estas pantallas. Si la ruta no coincide, busca «teclado» o «idiomas» en tus Ajustes."
+      },
+      "macos": {
+        "name": "Mac",
+        "title": "Añadir el teclado armenio en un Mac",
+        "steps": [
+          "Abre Ajustes del Sistema (Preferencias del Sistema en macOS 12 y anteriores).",
+          "Ve a Teclado.",
+          "Junto a Entrada de texto, haz clic en Editar… (en versiones antiguas, abre la pestaña Fuentes de entrada).",
+          "Haz clic en el botón + de abajo a la izquierda, selecciona Armenio y elige una distribución: mira la sección de abajo.",
+          "Haz clic en Añadir y marca «Mostrar menú de entrada en la barra de menús» si quieres el icono de la bandera."
+        ],
+        "switch": "Pulsa Control + Espacio para pasar a la siguiente fuente de entrada, o haz clic en la bandera de la barra de menús y elige Armenio.",
+        "caveat": "macOS ofrece exactamente dos distribuciones armenias: «Armenian — HM QWERTY» y «Armenian — Western QWERTY». Ninguna se llama «fonética», y eso despista; HM QWERTY es la que quieres para armenio oriental."
+      },
+      "windows": {
+        "name": "Windows",
+        "title": "Añadir el teclado armenio en Windows",
+        "steps": [
+          "Abre Configuración y luego Hora e idioma.",
+          "Ve a Idioma y región (en Windows 10: Idioma).",
+          "Haz clic en Agregar un idioma, busca Armenio e instálalo.",
+          "Haz clic en los tres puntos junto a Armenio, elige Opciones de idioma y luego Agregar un teclado.",
+          "Elige Armenian Phonetic o Armenian Typewriter: mira la sección de abajo."
+        ],
+        "switch": "Pulsa tecla Windows + Espacio para alternar entre teclados, o haz clic en el código de idioma (ENG / ARM) en la barra de tareas.",
+        "caveat": "Windows lista varias variantes, incluidas la oriental y la occidental. «Armenian Phonetic» es la basada en QWERTY que quiere la mayoría de estudiantes."
+      },
+      "chromeos": {
+        "name": "ChromeOS",
+        "title": "Añadir el teclado armenio en un Chromebook",
+        "steps": [
+          "Abre Configuración, luego Avanzada, luego Idiomas y entradas.",
+          "Haz clic en Entradas y luego en Añadir métodos de entrada.",
+          "Busca Armenio y marca Armenian Phonetic.",
+          "Haz clic en Añadir para guardarlo."
+        ],
+        "switch": "Pulsa Ctrl + Mayús + Espacio para cambiar de método de entrada, o haz clic en el indicador de entrada en el área de estado.",
+        "caveat": "ChromeOS llama a su distribución «Armenian Phonetic», que es la correspondencia basada en QWERTY que se muestra más abajo en esta página."
+      },
+      "linux": {
+        "name": "Linux",
+        "title": "Añadir el teclado armenio en Linux",
+        "steps": [
+          "Abre Configuración y luego Teclado (GNOME) o Región e idioma en versiones antiguas.",
+          "En Fuentes de entrada, haz clic en el botón +.",
+          "Busca Armenio y elige una variante: Phonetic es la basada en QWERTY.",
+          "Haz clic en Añadir."
+        ],
+        "switch": "Pulsa Super + Espacio en GNOME, o usa el indicador de entrada de la barra superior. Otros escritorios difieren.",
+        "caveat": "Las rutas varían según el entorno de escritorio. En KDE el equivalente está en Preferencias del sistema, luego Dispositivos de entrada, luego Teclado, luego Disposiciones."
+      }
+    },
+    "layouts": {
+      "heading": "¿Qué distribución armenia deberías elegir?",
+      "intro": "Este es el paso que más se falla, y pesa más que la propia configuración: las distribuciones apenas comparten teclas, así que cambiar después significa volver a aprender a escribir. Además, los sistemas no coinciden en cómo llamarlas.",
+      "items": [
+        {
+          "name": "Fonética",
+          "aka": "macOS: HM QWERTY · Windows/ChromeOS: Armenian Phonetic",
+          "text": "Cada letra armenia está en la tecla latina que suena parecido: A da ա, S da ս, D da դ. Si ya escribes al tacto en inglés, tu memoria muscular se traslada casi entera. Es la distribución de la mayoría de estudiantes y de la diáspora."
+        },
+        {
+          "name": "Máquina de escribir",
+          "aka": "Windows: Armenian Typewriter · también llamada estándar",
+          "text": "La distribución tradicional heredada de las máquinas de escribir armenias, pensada para la velocidad en armenio y no para parecerse al QWERTY. Habitual entre mecanógrafos profesionales en Armenia. Nada está donde un mecanógrafo anglófono espera."
+        },
+        {
+          "name": "Occidental",
+          "aka": "macOS: Armenian — Western QWERTY",
+          "text": "Una distribución de tipo fonético ajustada a la pronunciación del armenio occidental, donde varias letras corresponden a otros sonidos. Elígela si aprendes o escribes armenio occidental; si no, te estorbará."
+        }
+      ],
+      "recommendation": "Si dudas: elige Fonética — HM QWERTY en Mac, Armenian Phonetic en Windows, ChromeOS y Linux. Es la distribución que enseña nuestro entrenador de mecanografía gratuito y la que usa la mayoría de armenoparlantes fuera de Armenia."
+    },
+    "map": {
+      "heading": "La distribución fonética armenia, tecla a tecla",
+      "text": "Esto es lo que la distribución fonética pone bajo cada tecla. La letra latina pequeña es la tecla que pulsas; la letra armenia grande es lo que aparece. Fíjate en cuántas son casi homófonas de la tecla inglesa: por eso se aprende rápido.",
+      "caption": "Un punto indica que la tecla aún no forma parte del conjunto de letras que enseñan nuestras lecciones.",
+      "cta": "Practicar gratis esta distribución"
+    },
+    "faqHeading": "Preguntas sobre el teclado armenio",
+    "faq": [
+      {
+        "q": "¿Necesito descargar un teclado armenio?",
+        "a": "No. Todos los sistemas operativos principales ya incluyen armenio: iPhone, Android, Mac, Windows, ChromeOS y Linux. Estás activando algo que ya tienes, no instalando nada, así que desconfía de los sitios que ofrecen «descargar teclado armenio»."
+      },
+      {
+        "q": "¿Debería instalar mejor una app de teclado?",
+        "a": "Casi seguro que no. Los teclados integrados manejan bien el armenio y no piden los permisos amplios que sí piden las apps de teclado de terceros: una app así ve todo lo que escribes, contraseñas incluidas. Mal negocio para algo que tu dispositivo ya hace."
+      },
+      {
+        "q": "¿Qué diferencia hay entre fonética y máquina de escribir?",
+        "a": "La fonética coloca las letras armenias en las teclas latinas que suenan parecido, así que quien escribe en inglés empieza de inmediato. La de máquina de escribir usa la disposición armenia tradicional: más rápida una vez dominada, pero sin nada en común con QWERTY. La mayoría de estudiantes debería elegir la fonética."
+      },
+      {
+        "q": "¿Cómo escribo el signo de interrogación armenio y otros signos?",
+        "a": "El armenio tiene su propia puntuación: «։» cierra una oración, «՞» marca pregunta y «՛» marca énfasis, y se colocan sobre la vocal, no al final de la frase. Todos están en el teclado armenio una vez activado; las teclas exactas dependen de la distribución."
+      },
+      {
+        "q": "¿Puedo escribir en armenio sin añadir un teclado?",
+        "a": "Para una palabra o dos, sí: copia los caracteres desde nuestra página del alfabeto. Para algo más largo compensa dedicar dos minutos a activar el teclado real, porque copiar carácter a carácter cansa enseguida."
+      },
+      {
+        "q": "¿Por qué mi texto armenio no se ve bien?",
+        "a": "Es un problema de fuente, no de teclado. El texto está bien; la aplicación en la que lo ves no tiene una fuente con armenio y dibuja cuadros. Los móviles y navegadores modernos sí la incluyen, así que suele pasar solo en software antiguo o poco común."
+      }
+    ],
+    "keepGoing": {
+      "typing": {
+        "title": "Escribir en armenio",
+        "text": "Aprende el teclado armenio, gratis."
+      },
+      "reader": {
+        "title": "Texto a voz en armenio",
+        "text": "Escucha cualquier texto en armenio."
+      },
+      "alphabet": {
+        "title": "Alfabeto armenio",
+        "text": "Las 39 letras, cada una con audio."
+      }
+    },
+    "cta": {
+      "heading": "Ahora usa el teclado",
+      "subtext": "Aprende a leer, escribir y hablar armenio con lecciones estructuradas.",
+      "button": "Empezar gratis"
+    }
   }
 }

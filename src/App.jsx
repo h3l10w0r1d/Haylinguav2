@@ -47,6 +47,7 @@ const ArmenianTypingPage = lazy(() => import('./ArmenianTypingPage'));
 const ArmenianReaderPage = lazy(() => import('./ArmenianReaderPage'));
 const ArmenianNameTranslatorPage = lazy(() => import('./ArmenianNameTranslatorPage'));
 const ArmenianHandwritingPage = lazy(() => import('./ArmenianHandwritingPage'));
+const ArmenianKeyboardPage = lazy(() => import('./ArmenianKeyboardPage'));
 const DiasporaCityPage = lazy(() => import('./DiasporaCityPage'));
 const BlogPage = lazy(() => import('./BlogPage'));
 const BlogPostPage = lazy(() => import('./BlogPostPage'));
@@ -141,6 +142,7 @@ const PUBLIC_ROUTE_DEFS = [
   // Printable handwriting worksheets. Carries its own print stylesheet that
   // hides the site chrome, so the page places SiteNav/SiteFooter itself.
   { path: 'armenian-handwriting-worksheets', element: <ArmenianHandwritingPage /> },
+  { path: 'armenian-keyboard', element: <ArmenianKeyboardPage /> },
   { path: 'blog', element: <BlogPage /> },
   { path: 'blog/:slug', element: <BlogPostPage /> },
   { path: 'contact', element: <ContactPage /> },
