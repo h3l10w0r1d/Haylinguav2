@@ -16,12 +16,13 @@ function cx(...a) {
 const inputCls =
   "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 
-// Only events actually instrumented server-side so far (routes.py's
-// automations.record_event call sites) — keep this list in sync as M4 adds
-// purchase/streak-break/etc.
+// Only events actually instrumented server-side so far — keep this list in
+// sync as M4 adds purchase/etc. "streak_broke" is detected by a cron scan
+// (automations.detect_streak_breaks), not raised inline like the other two.
 export const EVENT_TYPES = [
   { value: "signup", label: "User signs up" },
   { value: "lesson_completed", label: "Lesson completed" },
+  { value: "streak_broke", label: "Streak breaks" },
 ];
 
 const STATUS_TONE = {

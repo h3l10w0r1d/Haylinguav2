@@ -1,15 +1,15 @@
 // src/cms/AutomationEditor.jsx — single-campaign editor: trigger config +
-// step list. M1 scope: only "action: send_email" steps are exposed in this
-// UI (wait/condition/other-action UI ships in M2/M3 once the engine
-// executes them for real — see backend/automations.py's module docstring).
-// Also renders the enrollment/send-log tabs so QA has somewhere to look
-// once a campaign is live.
+// step list (delegated to the recursive StepListEditor, which handles
+// wait/action/condition nodes and their nested branches). Also renders the
+// enrollment/send-log tabs so QA has somewhere to look once a campaign is
+// live.
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { ArrowLeft, Save, Plus, Trash2, ChevronUp, ChevronDown, Mail, PlayCircle, Clock } from "lucide-react";
+import { ArrowLeft, Save, PlayCircle } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import FilterRuleBuilder from "./FilterRuleBuilder";
+import StepListEditor from "./StepListEditor";
 import { EVENT_TYPES } from "./CmsAutomations";
 
 function cx(...a) {
@@ -17,14 +17,6 @@ function cx(...a) {
 }
 const inputCls =
   "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
-const textareaCls = inputCls + " resize-y";
-
-function newEmailStep() {
-  return { type: "action", action: "send_email", params: { subject: "", body: "" } };
-}
-function newWaitStep() {
-  return { type: "wait", duration_hours: 24 };
-}
 
 export default function AutomationEditor() {
   const token = getCmsToken();
@@ -95,26 +87,6 @@ export default function AutomationEditor() {
     } finally {
       setBusy(false);
     }
-  }
-
-  function updateStep(i, patch) {
-    setSteps((s) => s.map((step, j) => (j === i ? { ...step, ...patch } : step)));
-  }
-  function updateStepParams(i, patch) {
-    setSteps((s) => s.map((step, j) => (j === i ? { ...step, params: { ...step.params, ...patch } } : step)));
-  }
-  function removeStep(i) {
-    setSteps((s) => s.filter((_, j) => j !== i));
-  }
-  function moveStep(i, dir) {
-    setSteps((s) => {
-      const next = s.slice();
-      const j = i + dir;
-      if (j < 0 || j >= next.length) return s;
-      const [m] = next.splice(i, 1);
-      next.splice(j, 0, m);
-      return next;
-    });
   }
 
   async function loadEnrollments() {
@@ -245,75 +217,10 @@ export default function AutomationEditor() {
           <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
             <div className="mb-1 font-display text-base font-bold text-slate-900">Steps</div>
             <p className="mb-3 text-xs font-semibold text-slate-400">
-              Email + wait steps run in order. Branching (condition steps) is coming in a later pass.
+              Run in order. A condition branches into its own nested steps; a wait suspends until
+              the scheduled cron resumes it, re-checking any condition that follows fresh.
             </p>
-            <div className="space-y-3">
-              {steps.map((step, i) => (
-                <div key={i} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col gap-1 pt-1">
-                      <button type="button" onClick={() => moveStep(i, -1)} disabled={i === 0} className="grid h-7 w-7 place-items-center rounded-xl text-slate-500 ring-1 ring-slate-200 hover:bg-white disabled:opacity-40"><ChevronUp className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => moveStep(i, 1)} disabled={i === steps.length - 1} className="grid h-7 w-7 place-items-center rounded-xl text-slate-500 ring-1 ring-slate-200 hover:bg-white disabled:opacity-40"><ChevronDown className="h-4 w-4" /></button>
-                    </div>
-                    {step.type === "wait" ? (
-                      <>
-                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gold-50 text-gold-600"><Clock className="h-4 w-4" /></div>
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Step {i + 1} · Wait</div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min={1}
-                              value={step.duration_hours ?? 24}
-                              onChange={(e) => updateStep(i, { duration_hours: Number(e.target.value) || 1 })}
-                              className={cx(inputCls, "!bg-white !py-2 max-w-[7rem]")}
-                            />
-                            <span className="text-sm font-semibold text-slate-500">hours</span>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-500"><Mail className="h-4 w-4" /></div>
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Step {i + 1} · Send email</div>
-                          <input
-                            value={step.params?.subject || ""}
-                            onChange={(e) => updateStepParams(i, { subject: e.target.value })}
-                            placeholder="Subject"
-                            className={cx(inputCls, "!bg-white !py-2")}
-                          />
-                          <textarea
-                            value={step.params?.body || ""}
-                            onChange={(e) => updateStepParams(i, { body: e.target.value })}
-                            placeholder={"Body — use {{name}} for the learner's name"}
-                            rows={3}
-                            className={cx(textareaCls, "!bg-white !py-2")}
-                          />
-                        </div>
-                      </>
-                    )}
-                    <button type="button" onClick={() => removeStep(i)} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-cardinal-500 ring-1 ring-slate-200 hover:bg-cardinal-50"><Trash2 className="h-4 w-4" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setSteps((s) => [...s, newEmailStep()])}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-brand-600 ring-1 ring-brand-100 hover:bg-brand-50"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add email step
-              </button>
-              <button
-                type="button"
-                onClick={() => setSteps((s) => [...s, newWaitStep()])}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-gold-700 ring-1 ring-gold-200 hover:bg-gold-50"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add wait step
-              </button>
-            </div>
+            <StepListEditor steps={steps} onChange={setSteps} segments={segments} />
           </section>
 
           {/* Test run */}

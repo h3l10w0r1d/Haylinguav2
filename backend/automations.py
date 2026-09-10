@@ -170,6 +170,57 @@ def record_event(db: Connection, user_id: int, event_type: str, properties: Opti
     check_and_enroll(db, user_id, event_type, properties or {})
 
 
+def detect_streak_breaks(db: Connection) -> int:
+    """Fires a 'streak_broke' event once per actual break — the flagship
+    trigger from the original spec, and the one behavior in this file that
+    can't be raised inline at the moment it happens (unlike signup or lesson
+    completion, nobody calls an endpoint when a streak lapses; it's a
+    passive/temporal condition only a scan can notice). Called from the
+    cron advancement endpoint rather than its own separate job, so there's
+    only one thing to schedule externally.
+
+    This is a simplified heuristic, not a full replay of _compute_streak's
+    freeze-bridging logic (routes.py) — it treats "more than a day past the
+    grace period with no freeze use" as broken, matching the same
+    approximation the existing streak-reminder cron jobs already make
+    (`current_streak > 0` + "hasn't practiced yet"), just one step further
+    on the same axis (multi-day gap instead of same-day).
+
+    Dedup'd per (user, streak_last_activity_date) via automation_events so
+    a user who stays lapsed for a week doesn't refire the trigger daily —
+    only a *new* break (a later last-activity date, meaning they resumed
+    and lapsed again) fires again.
+    """
+    rows = db.execute(text("""
+        SELECT id, current_streak, streak_last_activity_date
+        FROM users
+        WHERE current_streak > 0
+          AND streak_last_activity_date IS NOT NULL
+          AND streak_last_activity_date < CURRENT_DATE - INTERVAL '2 days'
+    """)).mappings().all()
+
+    fired = 0
+    for u in rows:
+        activity_date = str(u["streak_last_activity_date"])
+        already = db.execute(
+            text("""
+                SELECT 1 FROM automation_events
+                WHERE user_id = :u AND event_type = 'streak_broke'
+                  AND properties ->> 'streak_last_activity_date' = :d
+                LIMIT 1
+            """),
+            {"u": u["id"], "d": activity_date},
+        ).first()
+        if already:
+            continue
+        record_event(db, u["id"], "streak_broke", {
+            "streak_length": int(u["current_streak"] or 0),
+            "streak_last_activity_date": activity_date,
+        })
+        fired += 1
+    return fired
+
+
 def check_and_enroll(db: Connection, user_id: int, event_type: str, properties: dict) -> None:
     campaigns = db.execute(
         text("""
