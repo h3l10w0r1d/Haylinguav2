@@ -45,6 +45,7 @@ const WesternVsEasternArmenianPage = lazy(() => import('./WesternVsEasternArmeni
 const ChoosingAnArmenianAppPage = lazy(() => import('./ChoosingAnArmenianAppPage'));
 const ArmenianTypingPage = lazy(() => import('./ArmenianTypingPage'));
 const ArmenianReaderPage = lazy(() => import('./ArmenianReaderPage'));
+const ArmenianNameTranslatorPage = lazy(() => import('./ArmenianNameTranslatorPage'));
 const DiasporaCityPage = lazy(() => import('./DiasporaCityPage'));
 const BlogPage = lazy(() => import('./BlogPage'));
 const BlogPostPage = lazy(() => import('./BlogPostPage'));
@@ -131,6 +132,8 @@ const PUBLIC_ROUTE_DEFS = [
   // Free Armenian text-to-speech reader. Metered per character server-side
   // (see backend/tts_limits.py) — the page itself is public like the rest.
   { path: 'armenian-text-to-speech', element: <ArmenianReaderPage /> },
+  // Free name transliterator ("how do you write my name in Armenian").
+  { path: 'armenian-name-translator', element: <ArmenianNameTranslatorPage /> },
   { path: 'blog', element: <BlogPage /> },
   { path: 'blog/:slug', element: <BlogPostPage /> },
   { path: 'contact', element: <ContactPage /> },

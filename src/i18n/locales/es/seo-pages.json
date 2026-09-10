@@ -785,5 +785,58 @@
       "subtext": "Aprende a leer, hablar y entender armenio con lecciones estructuradas.",
       "button": "Empezar gratis"
     }
+  },
+
+  "armenianNameTranslator": {
+    "meta": {
+      "title": "Traductor de nombres al armenio: escribe tu nombre en armenio",
+      "description": "Escribe cualquier nombre y velo transcrito al instante al alfabeto armenio, con pronunciación en audio. Transliterador de nombres armenio gratis, sin registro."
+    },
+    "breadcrumb": { "home": "Inicio", "current": "Traductor de nombres al armenio" },
+    "hero": {
+      "title": "¿Cómo se escribe tu nombre en armenio?",
+      "subtitle": "Escribe un nombre abajo para verlo transliterado al alfabeto armenio, con audio para escuchar cómo suena."
+    },
+    "tool": {
+      "placeholder": "Escribe un nombre…",
+      "resultLabel": "En armenio",
+      "listenLabel": "Escuchar",
+      "copyLabel": "Copiar",
+      "copied": "¡Copiado!",
+      "emptyHint": "Empieza a escribir para ver aquí la ortografía armenia.",
+      "popularHeading": "O prueba un nombre popular"
+    },
+    "disclaimer": "Esto es una aproximación fonética, no un estándar oficial — el armenio no tiene una única forma fija de escribir nombres extranjeros, igual que un nombre puede escribirse de varias maneras al pasar de un idioma a otro. Sigue las convenciones fonéticas que los hablantes de armenio usan habitualmente para nombres occidentales.",
+    "faq": [
+      {
+        "q": "¿Es esta la ortografía armenia oficial de mi nombre?",
+        "a": "No — no existe un único estándar oficial para escribir nombres extranjeros en armenio. Esta herramienta sigue las convenciones fonéticas habituales entre hablantes de armenio para nombres occidentales, pero un mismo nombre puede escribirse razonablemente de más de una forma."
+      },
+      {
+        "q": "¿Por qué la ortografía se ve distinta de cómo pronuncio mi nombre?",
+        "a": "El armenio y el inglés no comparten todos los sonidos, y la propia ortografía inglesa no siempre coincide con la pronunciación. La herramienta se basa en patrones de pronunciación habituales, así que nombres con ortografías poco comunes o diminutivos pueden salir distintos de lo esperado."
+      },
+      {
+        "q": "¿Puedo usar esto para un tatuaje o un grabado?",
+        "a": "Puedes, pero te recomendamos confirmarlo antes con un hablante nativo de armenio — una aproximación fonética es un buen punto de partida, pero no una garantía, sobre todo para algo permanente."
+      },
+      {
+        "q": "¿El armenio tiene mayúsculas y minúsculas como el inglés?",
+        "a": "Sí — el alfabeto armenio tiene 39 letras, cada una con su forma en mayúscula y en minúscula. Esta herramienta pone en mayúscula la primera letra de cada nombre, como es habitual con los nombres propios en armenio."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Sigue avanzando",
+      "cards": [
+        { "title": "Alfabeto armenio", "text": "Aprende a leer lo que acabas de escribir." },
+        { "title": "Pronunciación armenia", "text": "Los sonidos detrás de las letras." },
+        { "title": "Aprende armenio en línea", "text": "Empieza por tu primera palabra." }
+      ]
+    },
+    "cta": {
+      "heading": "¿Listo para aprender a leer tu nombre?",
+      "subtext": "Haylingua enseña el alfabeto armenio desde cero, con audio en cada letra y palabra.",
+      "button": "Empezar gratis"
+    }
   }
 }

@@ -785,5 +785,58 @@
       "subtext": "Apprenez à lire, parler et comprendre l'arménien avec des leçons structurées.",
       "button": "Commencer gratuitement"
     }
+  },
+
+  "armenianNameTranslator": {
+    "meta": {
+      "title": "Traducteur de prénoms arménien : écrivez votre prénom en arménien",
+      "description": "Tapez n'importe quel prénom et voyez-le instantanément écrit en alphabet arménien, avec la prononciation audio. Translittérateur de prénoms arménien gratuit, sans inscription."
+    },
+    "breadcrumb": { "home": "Accueil", "current": "Traducteur de prénoms arménien" },
+    "hero": {
+      "title": "Comment votre prénom s'écrit-il en arménien ?",
+      "subtitle": "Tapez un prénom ci-dessous pour le voir translittéré en alphabet arménien, avec l'audio pour entendre sa prononciation."
+    },
+    "tool": {
+      "placeholder": "Tapez un prénom…",
+      "resultLabel": "En arménien",
+      "listenLabel": "Écouter",
+      "copyLabel": "Copier",
+      "copied": "Copié !",
+      "emptyHint": "Commencez à taper pour voir apparaître l'orthographe arménienne ici.",
+      "popularHeading": "Ou essayez un prénom populaire"
+    },
+    "disclaimer": "Il s'agit d'une approximation phonétique, pas d'une norme officielle — l'arménien n'a pas de règle unique pour écrire les prénoms étrangers, tout comme un même prénom peut s'écrire de plusieurs façons en passant d'une langue à une autre. L'outil suit les conventions phonétiques que les arménophones utilisent couramment pour les prénoms occidentaux.",
+    "faq": [
+      {
+        "q": "Est-ce l'orthographe arménienne officielle de mon prénom ?",
+        "a": "Non — il n'existe pas de norme officielle unique pour écrire les prénoms étrangers en arménien. Cet outil suit les conventions phonétiques courantes chez les arménophones pour les prénoms occidentaux, mais un même prénom peut raisonnablement s'écrire de plusieurs façons."
+      },
+      {
+        "q": "Pourquoi l'orthographe semble-t-elle différente de la façon dont je prononce mon prénom ?",
+        "a": "L'arménien et l'anglais ne partagent pas tous les mêmes sons, et l'orthographe anglaise elle-même ne correspond pas toujours à la prononciation. L'outil se base sur des schémas de prononciation courants : une orthographe inhabituelle ou un diminutif peut donc donner un résultat différent de ce que vous attendez."
+      },
+      {
+        "q": "Puis-je l'utiliser pour un tatouage ou une gravure ?",
+        "a": "Oui, mais nous vous conseillons de vérifier d'abord auprès d'un locuteur natif arménien — une estimation phonétique est un excellent point de départ, mais pas une garantie, surtout pour quelque chose de permanent."
+      },
+      {
+        "q": "L'arménien a-t-il des majuscules et des minuscules comme l'anglais ?",
+        "a": "Oui — l'alphabet arménien compte 39 lettres, chacune avec sa forme majuscule et minuscule. Cet outil met une majuscule à la première lettre de chaque prénom, comme il est d'usage pour les noms propres en arménien."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Continuez",
+      "cards": [
+        { "title": "Alphabet arménien", "text": "Apprenez à lire ce que vous venez de taper." },
+        { "title": "Prononciation arménienne", "text": "Les sons derrière les lettres." },
+        { "title": "Apprendre l'arménien en ligne", "text": "Commencez par votre tout premier mot." }
+      ]
+    },
+    "cta": {
+      "heading": "Prêt à apprendre à lire votre prénom ?",
+      "subtext": "Haylingua enseigne l'alphabet arménien à partir de zéro, avec l'audio sur chaque lettre et chaque mot.",
+      "button": "Commencer gratuitement"
+    }
   }
 }
