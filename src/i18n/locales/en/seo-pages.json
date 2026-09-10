@@ -764,5 +764,157 @@
       "subtext": "Learn to read, speak and understand Armenian with structured lessons.",
       "button": "Start learning free"
     }
+  },
+
+  "armenianNameTranslator": {
+    "meta": {
+      "title": "Armenian Name Translator: Write Your Name in Armenian",
+      "description": "Type any name and see it written in the Armenian alphabet instantly, with audio pronunciation. Free Armenian name transliterator — no signup needed."
+    },
+    "breadcrumb": { "home": "Home", "current": "Armenian Name Translator" },
+    "hero": {
+      "title": "How is your name written in Armenian?",
+      "subtitle": "Type a name below to see it transliterated into the Armenian alphabet, with audio so you can hear how it sounds."
+    },
+    "tool": {
+      "placeholder": "Type a name…",
+      "resultLabel": "In Armenian",
+      "listenLabel": "Listen",
+      "copyLabel": "Copy",
+      "copied": "Copied!",
+      "emptyHint": "Start typing to see the Armenian spelling appear here.",
+      "popularHeading": "Or try a popular name"
+    },
+    "disclaimer": "This is a phonetic approximation, not an official standard — Armenian has no single fixed way to spell foreign names, the same way a name can be spelled several ways when it moves between any two languages. It follows the sound-based conventions Armenian speakers commonly use for Western names.",
+    "faq": [
+      {
+        "q": "Is this the official Armenian spelling of my name?",
+        "a": "No — there's no single official standard for writing foreign names in Armenian. This tool follows the sound-based conventions Armenian speakers commonly use for Western names, but the same name can reasonably be spelled more than one way."
+      },
+      {
+        "q": "Why does the spelling look different from how I say my name?",
+        "a": "Armenian and English don't share every sound, and English spelling itself doesn't always match pronunciation. The tool works from typical pronunciation patterns, so unusual spellings or nicknames may come out differently than you'd expect."
+      },
+      {
+        "q": "Can I use this for a tattoo or engraving?",
+        "a": "You can, but we'd recommend double-checking with a native Armenian speaker first — a phonetic guess is a great starting point, not a guarantee, especially for something permanent."
+      },
+      {
+        "q": "Does Armenian have capital and lowercase letters like English?",
+        "a": "Yes — Armenian has 39 letters, each with its own uppercase and lowercase form. This tool capitalizes the first letter of each name, matching how proper nouns are written in Armenian."
+      }
+    ],
+    "keepGoing": {
+      "heading": "Keep going",
+      "cards": [
+        { "title": "Armenian Alphabet", "text": "Learn to read what you just typed." },
+        { "title": "Armenian Pronunciation", "text": "The sounds behind the letters." },
+        { "title": "Learn Armenian Online", "text": "Start from your very first word." }
+      ]
+    },
+    "cta": {
+      "heading": "Ready to learn to read your name?",
+      "subtext": "Haylingua teaches the Armenian alphabet from scratch, with audio on every letter and word.",
+      "button": "Start learning — free"
+    }
+  },
+  "armenianHandwriting": {
+    "meta": {
+      "title": "Free Printable Armenian Handwriting Worksheets (All 39 Letters)",
+      "description": "Generate and print Armenian alphabet tracing worksheets free. Choose letters, upper or lowercase, and guide lines. Made for parents and Armenian school teachers."
+    },
+    "breadcrumb": {
+      "home": "Home",
+      "current": "Armenian handwriting worksheets"
+    },
+    "hero": {
+      "heading": "Armenian handwriting worksheets",
+      "subtext": "Build a tracing worksheet for any part of the alphabet, then print it. Free, no signup, nothing to install."
+    },
+    "controls": {
+      "letters": "Letters",
+      "case": "Letter case",
+      "rows": "Lines per letter",
+      "guides": "Guide lines",
+      "print": "Print worksheet",
+      "sheetCount_one": "{{count}} letter selected",
+      "sheetCount_other": "{{count}} letters selected",
+      "pdfHint": "To save as a PDF instead of printing, choose \"Save as PDF\" as the destination in the print dialog."
+    },
+    "sets": {
+      "all": "All 39",
+      "vowels": "Vowels",
+      "consonants": "Consonants",
+      "first10": "1–10",
+      "second10": "11–20",
+      "third10": "21–30",
+      "last9": "31–39"
+    },
+    "case": {
+      "both": "Both",
+      "upper": "Uppercase",
+      "lower": "Lowercase"
+    },
+    "guides": {
+      "on": "Ruled",
+      "off": "Plain"
+    },
+    "sheet": {
+      "title": "Armenian handwriting practice",
+      "subtitle": "Trace the grey letters, then keep going on your own.",
+      "nameLine": "Name: ______________   Date: __________"
+    },
+    "about": {
+      "heading": "Why handwriting still matters for the Armenian alphabet",
+      "p1": "Armenian has 39 letters, and a good number of them are close cousins on the page — ո and օ, ղ and դ, ճ and ձ, ը and ը's neighbours. Reading them apart is one skill; producing them from memory is a different one, and the second is what handwriting builds. Children who only ever tap letters on a screen tend to recognise the alphabet long before they can write it.",
+      "p2": "These worksheets follow the usual tracing pattern: each line starts with three faded letters to trace, then leaves the rest of the line blank so the child forms the letter unaided. The ruled option adds a baseline and a dashed midline, which is what most Armenian schools use to teach consistent letter height. Turn the rules off for older learners who no longer need them.",
+      "p3": "The letters, their order and their romanization come from the same course data Haylingua teaches from, so a child practising here is practising exactly what the lessons use. All 39 letters are included, in the standard modern order — with ՈՒ in position 34 and և at 37."
+    },
+    "faqHeading": "Questions about the worksheets",
+    "faq": [
+      {
+        "q": "Are the Armenian handwriting worksheets free?",
+        "a": "Yes, completely. There is no signup, no watermark, and no limit on how many you generate or print. Teachers are welcome to print class sets."
+      },
+      {
+        "q": "How do I save them as a PDF?",
+        "a": "Press Print, then in the print dialog change the destination to \"Save as PDF\" (Chrome, Edge) or use the PDF button (Safari, Firefox). You get the same file a PDF download would give you."
+      },
+      {
+        "q": "Can I print just a few letters?",
+        "a": "Yes. Pick a range — 1–10, 11–20, 21–30, 31–39 — or just the vowels or consonants. One letter set per sheet keeps it manageable for young children."
+      },
+      {
+        "q": "Which Armenian alphabet is this?",
+        "a": "The modern Eastern Armenian alphabet, all 39 letters in standard order, matching what is taught in Armenia. Western Armenian uses the same letters, so the worksheets work for both — only the pronunciation of some letters differs."
+      },
+      {
+        "q": "What are the guide lines for?",
+        "a": "The solid baseline and dashed midline help a child keep letters at a consistent height and sitting on the line, which is the hardest part of early handwriting. Switch to Plain once that is no longer a problem."
+      },
+      {
+        "q": "Can I use these in my Armenian school or class?",
+        "a": "Please do. They are free to print and hand out for any educational use, at home or in a classroom. A link back to the page is appreciated but not required."
+      }
+    ],
+    "keepGoing": {
+      "alphabet": {
+        "title": "Armenian alphabet",
+        "text": "All 39 letters with audio for each."
+      },
+      "reader": {
+        "title": "Armenian text to speech",
+        "text": "Hear any Armenian text read aloud."
+      },
+      "typing": {
+        "title": "Armenian typing",
+        "text": "Learn the Armenian keyboard, free."
+      }
+    },
+    "cta": {
+      "heading": "From tracing to talking",
+      "subtext": "Turn letter practice into real Armenian with structured lessons.",
+      "button": "Start learning free"
+    }
   }
 }
