@@ -228,6 +228,32 @@ export function createCmsApi(accessToken) {
     URL.revokeObjectURL(url);
   };
 
+  // Learner support panel. These replace the private fetch helper
+  // CmsSupport.jsx used to carry — which sent Content-Type on GETs (the
+  // CORS-preflight footgun documented in req() above) and couldn't take
+  // part in the shared 401 handling.
+  // searchSupportUsers/listSupportReports return {users|reports, total, page, page_size}.
+  const searchSupportUsers = ({ q, page, pageSize } = {}) =>
+    req(`/cms/support/users${qs({ q, page, page_size: pageSize })}`);
+  const getSupportUser = (userId) => req(`/cms/support/users/${userId}`);
+  const listSupportReports = ({ status = "open", page, pageSize } = {}) =>
+    req(`/cms/support/reports${qs({ status, page, page_size: pageSize })}`);
+  const resolveSupportReport = (reportId) =>
+    req(`/cms/support/reports/${reportId}/resolve`, { method: "POST" });
+  // One of the fixed support actions below, POSTed for a single learner:
+  // premium | hearts-refill | restore-last-streak | restore-max-streak |
+  // verify-email | grant-bonus.
+  const listUserNotes = (userId) => req(`/cms/support/users/${userId}/notes`);
+  const addUserNote = (userId, body) =>
+    req(`/cms/support/users/${userId}/notes`, { method: "POST", body: JSON.stringify({ body }) });
+  const deleteUserNote = (userId, noteId) =>
+    req(`/cms/support/users/${userId}/notes/${noteId}`, { method: "DELETE" });
+  const supportUserAction = (userId, action, payload) =>
+    req(`/cms/support/users/${userId}/${action}`, {
+      method: "POST",
+      ...(payload !== undefined ? { body: JSON.stringify(payload) } : {}),
+    });
+
   // Community forum
   const listForumCategories = () => req("/cms/forum/categories");
   const createForumCategory = (payload) => req("/cms/forum/categories", { method: "POST", body: JSON.stringify(payload) });
@@ -411,6 +437,14 @@ export function createCmsApi(accessToken) {
     getApplication,
     updateApplicationStatus,
     downloadApplicationFile,
+    searchSupportUsers,
+    getSupportUser,
+    listSupportReports,
+    resolveSupportReport,
+    supportUserAction,
+    listUserNotes,
+    addUserNote,
+    deleteUserNote,
     listForumCategories,
     createForumCategory,
     updateForumCategory,

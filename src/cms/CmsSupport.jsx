@@ -1,14 +1,16 @@
 // src/cms/CmsSupport.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Search, Crown, Heart, MailCheck, Loader2, User, ArrowLeft,
   Flame, Zap, BookOpen, Target, Users, Gem, Shield, Globe, Calendar,
   TrendingUp, Award, Star, Activity, Eye, EyeOff, Check, AlertTriangle,
 } from "lucide-react";
-import { getCmsToken } from "./api";
+import { createCmsApi, getCmsToken } from "./api";
 import CmsLayout from "./CmsLayout";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
+import {
+  Button, DataTable, EmptyState, ListState, ListToolbar, Pagination, SearchInput,
+  Tabs, TabsList, TabsTrigger, notify, useListQuery,
+} from "./ui";
 const ACH_ICON = { target: Target, crown: Crown, zap: Zap, flame: Flame, star: Star };
 const TIER_LABEL = ["Bronze", "Silver", "Gold", "Platinum", "Diamond"];
 
@@ -22,128 +24,207 @@ function fmtShort(s) { return fmtDate(s, { year: undefined }); }
 
 export default function CmsSupport() {
   const token = getCmsToken();
-  const [q, setQ] = useState("");
+  const api = useMemo(() => createCmsApi(token), [token]);
+
   const [results, setResults] = useState([]);
+  const [total, setTotal] = useState(0);
   const [searching, setSearching] = useState(false);
   const [detail, setDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState("users");
   const [reports, setReports] = useState(null);
+  const [reportsTotal, setReportsTotal] = useState(0);
   const [loadingReports, setLoadingReports] = useState(false);
 
-  async function api(path, opts = {}) {
-    const res = await fetch(`${API_BASE}${path}`, {
-      method: opts.method || "GET",
-      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: opts.body,
-    });
-    if (!res.ok) {
-      const d = await res.json().catch(() => null);
-      throw new Error((typeof d?.detail === "string" && d.detail) || `Request failed (${res.status})`);
-    }
-    return res.json().catch(() => null);
+  // Tab, search, page and the opened learner all live in the URL, so a
+  // support conversation can be handed over as a link.
+  const list = useListQuery();
+  const reportsList = useListQuery({ prefix: "r_" });
+  const tab = list.get("tab") === "reports" ? "reports" : "users";
+  const openUserId = list.get("user");
+
+  async function search() {
+    setErr(""); setSearching(true);
+    try {
+      const res = await api.searchSupportUsers({ q: list.q, page: list.page, pageSize: list.pageSize });
+      setResults(res?.users || []);
+      setTotal(Number(res?.total ?? (res?.users || []).length));
+    } catch (e) { setErr(e.message); } finally { setSearching(false); }
   }
 
-  async function search(e) {
-    e?.preventDefault?.();
-    setErr(""); setSearching(true); setDetail(null);
-    try { setResults((await api(`/cms/support/users?q=${encodeURIComponent(q.trim())}`))?.users || []); }
-    catch (e) { setErr(e.message); } finally { setSearching(false); }
-  }
-  useEffect(() => { search(); }, []); // eslint-disable-line
+  // Re-run whenever the query or page changes (the search box is debounced).
+  useEffect(() => {
+    if (tab === "users") search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, list.q, list.page, list.pageSize]);
 
-  async function openUser(id) {
-    setErr(""); setLoadingDetail(true);
-    try { setDetail(await api(`/cms/support/users/${id}`)); }
-    catch (e) { setErr(e.message); } finally { setLoadingDetail(false); }
+  // The opened learner comes from ?user=<id>, so the detail view is linkable
+  // and the browser's back button leaves it.
+  useEffect(() => {
+    if (!openUserId) { setDetail(null); return; }
+    let cancelled = false;
+    (async () => {
+      setErr(""); setLoadingDetail(true);
+      try {
+        const d = await api.getSupportUser(openUserId);
+        if (!cancelled) setDetail(d);
+      } catch (e) {
+        if (!cancelled) setErr(e.message);
+      } finally {
+        if (!cancelled) setLoadingDetail(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openUserId]);
+
+  function openUser(id) { list.set({ user: id }); }
+  function closeUser() { list.set({ user: "" }); }
+
+  async function refreshDetail() {
+    if (!openUserId) return;
+    try { setDetail(await api.getSupportUser(openUserId)); } catch (e) { setErr(e.message); }
   }
 
+  // `path` is the legacy full URL the buttons below still pass; only the
+  // trailing action segment matters to the API client.
   async function act(key, path, opts) {
     setBusy(key); setErr("");
-    try { await api(path, { method: "POST", ...opts }); if (detail) await openUser(detail.id); }
-    catch (e) { setErr(e.message); } finally { setBusy(""); }
+    try {
+      const action = String(path).split("/").pop();
+      const payload = opts?.body ? JSON.parse(opts.body) : undefined;
+      await api.supportUserAction(detail.id, action, payload);
+      await refreshDetail();
+      notify("Done");
+    } catch (e) { setErr(e.message); notify(e.message || "Action failed", "err"); }
+    finally { setBusy(""); }
   }
 
   async function loadReports() {
     setLoadingReports(true); setErr("");
-    try { setReports((await api("/cms/support/reports?status=open"))?.reports || []); }
-    catch (e) { setErr(e.message); } finally { setLoadingReports(false); }
+    try {
+      const res = await api.listSupportReports({ status: "open", page: reportsList.page, pageSize: reportsList.pageSize });
+      setReports(res?.reports || []);
+      setReportsTotal(Number(res?.total ?? (res?.reports || []).length));
+    } catch (e) { setErr(e.message); } finally { setLoadingReports(false); }
   }
 
+  useEffect(() => {
+    if (tab === "reports") loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, reportsList.page, reportsList.pageSize]);
+
   function switchTab(t) {
-    setTab(t); setErr("");
-    if (t === "reports" && reports === null) loadReports();
+    setErr("");
+    list.set({ tab: t === "users" ? "" : t, user: "" });
   }
 
   async function resolveReport(id) {
     setBusy("report-" + id);
-    try { await api(`/cms/support/reports/${id}/resolve`, { method: "POST" }); setReports((r) => (r || []).filter((x) => x.id !== id)); }
-    catch (e) { setErr(e.message); } finally { setBusy(""); }
+    try {
+      await api.resolveSupportReport(id);
+      setReports((r) => (r || []).filter((x) => x.id !== id));
+      setReportsTotal((n) => Math.max(0, n - 1));
+      notify("Report resolved");
+    } catch (e) { setErr(e.message); notify(e.message || "Could not resolve", "err"); }
+    finally { setBusy(""); }
   }
 
-  if (!token) return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-        <p className="font-semibold text-slate-600">Log in to the CMS to use Support.</p>
-        <a href="/cms/login" className="btn3d btn3d-brand mt-4 inline-block px-5 py-2.5 font-semibold">CMS login</a>
-      </div>
-    </div>
-  );
+  const USER_COLUMNS = [
+    {
+      key: "display_name",
+      header: "Learner",
+      cell: (u) => (
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500"><User className="h-4 w-4" /></div>
+          <div className="min-w-0">
+            <div className="truncate font-bold text-slate-800">{u.display_name || u.username || "—"}</div>
+            <div className="truncate text-xs text-slate-500">{u.email} · #{u.id}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "is_premium",
+      header: "Plan",
+      hideBelow: "sm",
+      cell: (u) => (u.is_premium ? <Badge color="amber">Premium</Badge> : <span className="text-xs font-semibold text-slate-400">Free</span>),
+    },
+    {
+      key: "email_verified",
+      header: "Email",
+      hideBelow: "sm",
+      cell: (u) => <Badge color={u.email_verified ? "grass" : "slate"}>{u.email_verified ? "Verified" : "Unverified"}</Badge>,
+    },
+  ];
 
   return (
     <CmsLayout active="learners" title="Learners">
-      <div className="mb-5 flex gap-2">
-        <button onClick={() => { switchTab("users"); setDetail(null); }} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "users" ? "bg-brand-500 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>Users</button>
-        <button onClick={() => switchTab("reports")} className={"rounded-2xl px-4 py-2 text-sm font-bold transition " + (tab === "reports" ? "bg-brand-500 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50")}>
-          Reports{Array.isArray(reports) && reports.length ? ` (${reports.length})` : ""}
-        </button>
-      </div>
+      <Tabs value={tab} onValueChange={switchTab} className="mb-5">
+        <TabsList>
+          <TabsTrigger value="users">Learners</TabsTrigger>
+          <TabsTrigger value="reports">
+            Reports{reportsTotal ? ` (${reportsTotal})` : ""}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      {err ? <div className="mb-4 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600 ring-1 ring-cardinal-100">{err}</div> : null}
+      {err ? <div className="mb-4 rounded-xl bg-cardinal-50 px-4 py-2.5 text-sm font-semibold text-cardinal-600 ring-1 ring-cardinal-100" role="alert">{err}</div> : null}
 
       {tab === "reports" ? (
-        <ReportsList reports={reports} loading={loadingReports} busy={busy} onResolve={resolveReport} />
-      ) : detail ? (
+        <>
+          <ReportsList reports={reports} loading={loadingReports} busy={busy} onResolve={resolveReport} />
+          <Pagination
+            className="mt-4"
+            page={reportsList.page}
+            pageSize={reportsList.pageSize}
+            total={reportsTotal}
+            onPageChange={(p) => reportsList.set({ page: p })}
+            onPageSizeChange={(n) => reportsList.set({ pageSize: n })}
+          />
+        </>
+      ) : detail || loadingDetail ? (
         loadingDetail ? (
           <div className="flex items-center gap-2 py-10 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Loading…</div>
         ) : (
-          <UserDetail detail={detail} busy={busy} act={act} onBack={() => setDetail(null)} />
+          <UserDetail detail={detail} busy={busy} act={act} onBack={closeUser} />
         )
       ) : (
         <>
-          <form onSubmit={search} className="relative mb-5">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by email, username, or user ID…"
-              className="w-full rounded-2xl bg-white py-3.5 pl-12 pr-28 font-semibold text-slate-800 ring-2 ring-slate-200 focus:outline-none focus:ring-brand-400" />
-            <button type="submit" disabled={searching} className="btn3d btn3d-brand absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 text-sm font-bold">
-              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
-            </button>
-          </form>
-          <div className="space-y-2">
-            {results.map((u) => (
-              <button key={u.id} onClick={() => openUser(u.id)}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white p-4 text-left ring-1 ring-slate-200 transition hover:ring-brand-300">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-500"><User className="h-5 w-5" /></div>
-                  <div>
-                    <div className="font-bold text-slate-800">{u.display_name || u.username || "—"}</div>
-                    <div className="text-sm text-slate-500">{u.email} · #{u.id}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {u.is_premium && <Badge color="amber">Premium</Badge>}
-                  <Badge color={u.email_verified ? "grass" : "slate"}>{u.email_verified ? "Verified" : "Unverified"}</Badge>
-                </div>
-              </button>
-            ))}
-            {searching && !results.length ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-sm font-semibold text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
-            ) : !results.length ? (
-              <div className="py-10 text-center text-sm font-semibold text-slate-400">{q.trim() ? "No learners match your search." : "No learners yet."}</div>
-            ) : null}
-          </div>
+          <ListToolbar
+            search={
+              <SearchInput
+                value={list.q}
+                onChange={(q) => list.set({ q })}
+                placeholder="Search by email, username, or user ID…"
+              />
+            }
+            count={total}
+            countLabel="learner"
+          />
+          <DataTable
+            columns={USER_COLUMNS}
+            rows={results}
+            loading={searching && results.length === 0}
+            onRowClick={(u) => openUser(u.id)}
+            emptyState={
+              <EmptyState
+                icon={Users}
+                title={list.q ? "No learners match your search" : "No learners yet"}
+                description={list.q ? "Try an email, username, or the numeric user ID." : undefined}
+                action={list.q ? <Button variant="outline" size="sm" onClick={() => list.set({ q: "" })}>Clear search</Button> : null}
+              />
+            }
+          />
+          <Pagination
+            className="mt-4"
+            page={list.page}
+            pageSize={list.pageSize}
+            total={total}
+            onPageChange={(p) => list.set({ page: p })}
+            onPageSizeChange={(n) => list.set({ pageSize: n })}
+          />
         </>
       )}
     </CmsLayout>
@@ -222,7 +303,7 @@ function UserDetail({ detail: d, busy, act, onBack }) {
 
         {/* Key numbers */}
         <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 space-y-3">
-          <PanelStat icon={<Zap className="h-4 w-4 text-brand-500" />} label="Total XP" value={d.total_xp.toLocaleString()} />
+          <PanelStat icon={<Zap className="h-4 w-4 text-brand-500" />} label="Total XP" value={(d.total_xp || 0).toLocaleString()} />
           <PanelStat icon={<Flame className="h-4 w-4 text-orange-500" />} label="Streak" value={`${d.current_streak} days`} />
           <PanelStat icon={<BookOpen className="h-4 w-4 text-sky-500" />} label="Lessons done" value={d.lessons_completed} />
           <PanelStat icon={<Target className="h-4 w-4 text-grass-600" />} label="Accuracy" value={`${d.accuracy_pct}%`} />
@@ -546,6 +627,10 @@ function TimelineTab({ d }) {
 
 // ── Notes tab ─────────────────────────────────────────────────────────────────
 function NotesTab({ d, token }) {
+  // Builds its own client from the token prop it already receives, so the
+  // component's contract is unchanged while the raw fetches (and the
+  // removed module-level API_BASE) go away.
+  const api = useMemo(() => createCmsApi(token), [token]);
   const [notes, setNotes] = useState(d.notes || []);
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
@@ -556,13 +641,7 @@ function NotesTab({ d, token }) {
     if (!body.trim()) return;
     setSaving(true); setErr("");
     try {
-      const res = await fetch(`${API_BASE}/cms/support/users/${d.id}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ body: body.trim() }),
-      });
-      if (!res.ok) throw new Error("Failed to save note");
-      const note = await res.json();
+      const note = await api.addUserNote(d.id, body.trim());
       setNotes([note, ...notes]);
       setBody("");
     } catch (e) { setErr(e.message); } finally { setSaving(false); }
@@ -571,10 +650,7 @@ function NotesTab({ d, token }) {
   async function deleteNote(id) {
     setDeleting(id); setErr("");
     try {
-      await fetch(`${API_BASE}/cms/support/users/${d.id}/notes/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.deleteUserNote(d.id, id);
       setNotes(notes.filter((n) => n.id !== id));
     } catch (e) { setErr(e.message); } finally { setDeleting(null); }
   }

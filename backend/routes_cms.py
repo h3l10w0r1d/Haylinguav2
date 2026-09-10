@@ -137,43 +137,46 @@ def _like(q):
 
 # ==================== Support tools (CMS) ====================
 
+_SUPPORT_USER_COLS = """
+    id, email, username, display_name, email_verified,
+    (COALESCE(is_premium, FALSE) AND (premium_until IS NULL OR premium_until > NOW())) AS is_premium
+"""
+
+
 @router.get("/cms/support/users")
 def support_search_users(
     q: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=PAGE_SIZE_MAX),
     _: dict = Depends(require_cms_admin),
     db: Connection = Depends(get_db),
 ):
+    """Learner search for the support panel.
+
+    Previously capped at the first 100 (browse) / 50 (search) rows with no
+    way to reach the rest — the user table is the fastest-growing one in the
+    product. Now paginated; the response keeps its "users" key.
+    """
     query = (q or "").strip()
-    # No query → show the most recent learners so the panel isn't empty.
-    if not query:
-        rows = db.execute(
-            text(
-                """
-                SELECT id, email, username, display_name, email_verified,
-                       (COALESCE(is_premium, FALSE) AND (premium_until IS NULL OR premium_until > NOW())) AS is_premium
-                FROM users
-                ORDER BY id DESC
-                LIMIT 100
-                """
-            )
-        ).mappings().all()
-        return {"users": [dict(r) for r in rows]}
-    rows = db.execute(
-        text(
-            """
-            SELECT id, email, username, display_name, email_verified,
-                   (COALESCE(is_premium, FALSE) AND (premium_until IS NULL OR premium_until > NOW())) AS is_premium
-            FROM users
+    where, params = "", {}
+    if query:
+        where = """
             WHERE CAST(id AS TEXT) = :exact
                OR lower(email) LIKE :like
                OR lower(username) LIKE :like
-            ORDER BY id
-            LIMIT 50
-            """
-        ),
-        {"exact": query, "like": f"%{query.lower()}%"},
+        """
+        params = {"exact": query, "like": f"%{query.lower()}%"}
+    # Browsing shows the newest sign-ups first; a search reads better in id
+    # order (both match the pre-pagination behavior).
+    order_by = "id" if query else "id DESC"
+
+    total = db.execute(text(f"SELECT COUNT(*) FROM users {where}"), params).scalar()
+    limit, offset = _page_slice(page, page_size)
+    rows = db.execute(
+        text(f"SELECT {_SUPPORT_USER_COLS} FROM users {where} ORDER BY {order_by} LIMIT :limit OFFSET :offset"),
+        {**params, "limit": limit, "offset": offset},
     ).mappings().all()
-    return {"users": [dict(r) for r in rows]}
+    return _paged("users", rows, total, page, page_size)
 
 @router.get("/cms/support/users/{uid}")
 def support_user_detail(
@@ -731,12 +734,21 @@ def support_grant_bonus(
 @router.get("/cms/support/reports")
 def support_list_reports(
     status: Optional[str] = Query("open"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=PAGE_SIZE_MAX),
     _: dict = Depends(require_cms_admin),
     db: Connection = Depends(get_db),
 ):
+    """Learner-submitted exercise reports. Was capped at 200 rows."""
+    params = {"status": (status or "open")}
+    where = "WHERE (:status = 'all' OR r.status = :status)"
+    total = db.execute(
+        text(f"SELECT COUNT(*) FROM exercise_reports r {where}"), params
+    ).scalar()
+    limit, offset = _page_slice(page, page_size)
     rows = db.execute(
         text(
-            """
+            f"""
             SELECT r.id, r.exercise_id, r.lesson_id, r.reason, r.detail, r.answer_text,
                    r.status, r.created_at,
                    e.prompt AS exercise_prompt, e.kind AS exercise_kind,
@@ -744,14 +756,14 @@ def support_list_reports(
             FROM exercise_reports r
             LEFT JOIN exercises e ON e.id = r.exercise_id
             LEFT JOIN lessons l ON l.id = r.lesson_id
-            WHERE (:status = 'all' OR r.status = :status)
+            {where}
             ORDER BY r.created_at DESC
-            LIMIT 200
+            LIMIT :limit OFFSET :offset
             """
         ),
-        {"status": (status or "open")},
+        {**params, "limit": limit, "offset": offset},
     ).mappings().all()
-    return {"reports": [dict(r) for r in rows]}
+    return _paged("reports", rows, total, page, page_size)
 
 @router.post("/cms/support/reports/{rid}/resolve")
 def support_resolve_report(
