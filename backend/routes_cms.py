@@ -1640,7 +1640,7 @@ def cms_login_2fa(request: Request, payload: Dict[str, Any] = Body(...), db=Depe
     cms_user_id = int(p.get("sub"))
 
     user = db.execute(
-        text("SELECT id, totp_secret, totp_enabled, status, totp_last_used_step FROM cms_users WHERE id=:id"),
+        text("SELECT id, totp_secret, totp_enabled, status, totp_last_used_step, crm_role FROM cms_users WHERE id=:id"),
         {"id": cms_user_id},
     ).mappings().first()
     if not user or user["status"] != "active":
@@ -1657,7 +1657,13 @@ def cms_login_2fa(request: Request, payload: Dict[str, Any] = Body(...), db=Depe
         text("UPDATE cms_users SET last_login_at=NOW(), totp_last_used_step=:s WHERE id=:id"),
         {"id": cms_user_id, "s": matched_step},
     )
-    access = _cms_jwt_encode({"sub": str(cms_user_id), "scope": "cms", "typ": "cms", "role": "admin"}, minutes=60*24*30)
+    # crm_role is non-secret (just gates a couple of UI buttons client-side —
+    # the real enforcement is server-side in routes_automations.require_crm_editor)
+    # so it's safe to carry in the token and save the frontend an extra round trip.
+    access = _cms_jwt_encode(
+        {"sub": str(cms_user_id), "scope": "cms", "typ": "cms", "role": "admin", "crm_role": user["crm_role"] or "editor"},
+        minutes=60*24*30,
+    )
     return {"access_token": access}
 
 @router.post("/cms/2fa/setup")
@@ -1698,15 +1704,36 @@ def cms_2fa_confirm(payload: Dict[str, Any] = Body(...), u: dict = Depends(requi
         text("UPDATE cms_users SET totp_enabled=TRUE, updated_at=NOW() WHERE id=:id"),
         {"id": cms_user_id},
     )
-    access = _cms_jwt_encode({"sub": str(cms_user_id), "scope": "cms", "typ": "cms", "role": "admin"}, minutes=60*24*30)
+    crm_role = db.execute(text("SELECT crm_role FROM cms_users WHERE id=:id"), {"id": cms_user_id}).scalar() or "editor"
+    access = _cms_jwt_encode(
+        {"sub": str(cms_user_id), "scope": "cms", "typ": "cms", "role": "admin", "crm_role": crm_role},
+        minutes=60*24*30,
+    )
     return {"access_token": access}
 
 @router.get("/cms/team")
 def cms_team_list(_: dict = Depends(require_cms_admin), db=Depends(get_db)):
     rows = db.execute(
-        text("SELECT id, email, status, totp_enabled, created_at, last_login_at FROM cms_users ORDER BY id ASC")
+        text("SELECT id, email, status, totp_enabled, created_at, last_login_at, crm_role FROM cms_users ORDER BY id ASC")
     ).mappings().all()
     return [dict(r) for r in rows]
+
+@router.put("/cms/team/{cms_user_id}/crm-role")
+def cms_team_set_crm_role(cms_user_id: int, payload: Dict[str, Any] = Body(...), _: dict = Depends(require_cms_admin), db=Depends(get_db)):
+    """Assigns a team member's CRM-only access tier (editor|viewer) — see
+    backend/routes_automations.py's require_crm_editor for enforcement.
+    Gated by the plain require_cms_admin (any CMS admin can manage this),
+    not require_crm_editor itself — team management isn't a CRM endpoint."""
+    crm_role = (payload.get("crm_role") or "").strip()
+    if crm_role not in ("editor", "viewer"):
+        raise HTTPException(status_code=400, detail="crm_role must be 'editor' or 'viewer'")
+    result = db.execute(
+        text("UPDATE cms_users SET crm_role = :r WHERE id = :id"),
+        {"r": crm_role, "id": cms_user_id},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    return {"ok": True}
 
 @router.post("/cms/team/invite")
 def cms_team_invite(payload: Dict[str, Any] = Body(...), me: dict = Depends(require_cms_admin), db=Depends(get_db)):

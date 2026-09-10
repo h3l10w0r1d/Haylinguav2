@@ -94,25 +94,46 @@ def _compare(operator: str, actual: Any, expected: Any) -> bool:
     return False
 
 
-def evaluate_when(db: Connection, user_id: int, context: dict, when: list[dict]) -> bool:
-    """AND's a list of {field, operator, value} conditions against the user's
-    current state / the trigger-time event context. `in_segment` defers to
-    user_in_segment so segment membership uses the same evaluator, not a
-    second implementation."""
-    for cond in when or []:
+def evaluate_when(db: Connection, user_id: int, context: dict, when) -> bool:
+    """Evaluates a filter group against the user's current state / the
+    trigger-time event context. `in_segment` defers to user_in_segment so
+    segment membership uses the same evaluator, not a second implementation.
+
+    `when` accepts two shapes:
+      - a bare list of {field, operator, value} conditions (the original
+        shape, always AND'd) — kept for backward compatibility with every
+        campaign/segment saved before AND/OR grouping was added; treated as
+        {"op": "and", "rules": when}.
+      - {"op": "and"|"or", "rules": [...]} — one level of grouping, matching
+        a Customer.io-style segment. Deliberately not recursive/nested groups
+        (a rule is always a leaf condition, never another group) — same
+        "cap the complexity" call made for the step editor's branch nesting.
+    """
+    if isinstance(when, list):
+        op, rules = "and", when
+    else:
+        when = when or {}
+        op = when.get("op") or "and"
+        rules = when.get("rules") or []
+    if op not in ("and", "or"):
+        raise ValueError(f"Unknown filter group operator: {op}")
+
+    results = []
+    for cond in rules:
         field = cond.get("field")
         operator = cond.get("operator")
         value = cond.get("value")
         if operator not in KNOWN_OPERATORS:
             raise ValueError(f"Unknown condition operator: {operator}")
         if operator == "in_segment":
-            if not user_in_segment(db, user_id, value):
-                return False
+            results.append(user_in_segment(db, user_id, value))
             continue
         actual = _resolve_field(db, user_id, context, field)
-        if not _compare(operator, actual, value):
-            return False
-    return True
+        results.append(_compare(operator, actual, value))
+
+    if not results:
+        return True  # an empty group matches everything, same as the old empty-list behavior
+    return all(results) if op == "and" else any(results)
 
 
 def user_in_segment(db: Connection, user_id: int, segment_id: int) -> bool:
@@ -121,6 +142,27 @@ def user_in_segment(db: Connection, user_id: int, segment_id: int) -> bool:
         return False
     filters = row["filters"] if isinstance(row["filters"], list) else json.loads(row["filters"] or "[]")
     return evaluate_when(db, user_id, {}, filters)
+
+
+def _rules_of(when) -> list[dict]:
+    """Same bare-list-or-{op,rules}-group shape evaluate_when accepts —
+    pulls out just the leaf rules for validation, regardless of which
+    shape was saved."""
+    if isinstance(when, list):
+        return when
+    return (when or {}).get("rules") or []
+
+
+def validate_filter_group(when) -> None:
+    if not isinstance(when, list):
+        when = when or {}
+        if not isinstance(when, dict):
+            raise ValueError("Filter group must be a list or {op, rules} object")
+        if when.get("op", "and") not in ("and", "or"):
+            raise ValueError(f"Unknown filter group operator: {when.get('op')}")
+    for cond in _rules_of(when):
+        if cond.get("operator") not in KNOWN_OPERATORS:
+            raise ValueError(f"Unknown operator: {cond.get('operator')}")
 
 
 def _validate_steps(steps: list[dict], depth: int = 0) -> None:
@@ -139,9 +181,7 @@ def _validate_steps(steps: list[dict], depth: int = 0) -> None:
                 raise ValueError("condition step needs a non-empty branches list")
             for b in branches:
                 if not b.get("else"):
-                    for cond in b.get("when") or []:
-                        if cond.get("operator") not in KNOWN_OPERATORS:
-                            raise ValueError(f"Unknown operator: {cond.get('operator')}")
+                    validate_filter_group(b.get("when"))
                 _validate_steps(b.get("steps") or [], depth + 1)
         elif t == "action":
             if step.get("action") not in KNOWN_ACTIONS:
@@ -153,9 +193,7 @@ def _validate_steps(steps: list[dict], depth: int = 0) -> None:
 def validate_campaign(trigger: dict, steps: list[dict]) -> None:
     if not isinstance(trigger, dict) or not trigger.get("event_type"):
         raise ValueError("trigger.event_type is required")
-    for cond in trigger.get("filters") or []:
-        if cond.get("operator") not in KNOWN_OPERATORS:
-            raise ValueError(f"Unknown trigger filter operator: {cond.get('operator')}")
+    validate_filter_group(trigger.get("filters"))
     _validate_steps(steps)
 
 

@@ -7,6 +7,25 @@ export function getCmsToken() {
   return localStorage.getItem("hay_cms_token") || "";
 }
 
+// Reads a non-secret claim out of the CMS access token without a JWT
+// library — we only ever read a claim already set by the server, never
+// verify the signature client-side (the backend does that on every
+// request). Used to gate CRM UI (Save/Delete/etc.) by crm_role without an
+// extra round trip; the real enforcement is server-side
+// (routes_automations.require_crm_editor) regardless of what this reads.
+export function getCmsClaim(name, fallback = null) {
+  const token = getCmsToken();
+  if (!token) return fallback;
+  try {
+    const payloadB64 = token.split(".")[1];
+    const json = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(json);
+    return payload[name] ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // Optional hook fired by req() on a 401 before it throws — the CMS auth gate
 // (src/cms/CmsRequireAuth.jsx) registers a handler that clears the stale
 // token and bounces to /cms/login, so an expired session redirects instead
@@ -331,6 +350,8 @@ export function createCmsApi(accessToken) {
   const listTeam = () => req("/cms/team");
   const inviteTeam = (email) =>
     req("/cms/team/invite", { method: "POST", body: JSON.stringify({ email }) });
+  const setTeamCrmRole = (id, crmRole) =>
+    req(`/cms/team/${id}/crm-role`, { method: "PUT", body: JSON.stringify({ crm_role: crmRole }) });
 
   // Account management
   const getAccount = () => req("/cms/account");
@@ -349,7 +370,8 @@ export function createCmsApi(accessToken) {
     req(`/cms/exercises/${exerciseId}/restore`, { method: "POST" });
 
   // Marketing automation: triggered campaigns + segments
-  const listAutomations = () => req("/cms/automations");
+  const listAutomations = ({ page, pageSize, q, status } = {}) =>
+    req(`/cms/automations${qs({ page, page_size: pageSize, q, status })}`);
   const getAutomation = (id) => req(`/cms/automations/${id}`);
   const createAutomation = (payload) => req("/cms/automations", { method: "POST", body: JSON.stringify(payload) });
   const updateAutomation = (id, payload) => req(`/cms/automations/${id}`, { method: "PUT", body: JSON.stringify(payload) });
@@ -478,6 +500,7 @@ export function createCmsApi(accessToken) {
     deleteOption,
     listTeam,
     inviteTeam,
+    setTeamCrmRole,
     listVoices,
     listAutomations,
     getAutomation,

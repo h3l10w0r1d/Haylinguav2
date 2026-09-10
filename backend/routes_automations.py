@@ -21,6 +21,22 @@ import automations
 router = APIRouter(tags=["automations"])
 
 
+def require_crm_editor(cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)) -> dict:
+    """Composes on top of require_cms_admin (doesn't replace or modify it —
+    every other /cms/* route keeps today's flat admin-only behavior) to add
+    one more check scoped to this file only: a CMS user whose cms_users.
+    crm_role is 'viewer' can still pass require_cms_admin (they're a real
+    CMS admin) but gets 403'd here on any Automations/Segments *mutation*.
+    GET endpoints in this file intentionally keep the plain require_cms_admin
+    dependency — viewers can look, just not change anything."""
+    role = db.execute(
+        text("SELECT crm_role FROM cms_users WHERE id = :id"), {"id": int(cms_user.get("sub"))}
+    ).scalar()
+    if (role or "editor") == "viewer":
+        raise HTTPException(status_code=403, detail="View-only CRM access — ask an editor to make changes")
+    return cms_user
+
+
 class CampaignIn(BaseModel):
     name: str
     status: str = "draft"
@@ -33,7 +49,9 @@ class CampaignIn(BaseModel):
 class SegmentIn(BaseModel):
     name: str
     description: Optional[str] = None
-    filters: list = []
+    # Bare list (legacy, always-AND) or {"op": "and"|"or", "rules": [...]} —
+    # see automations.evaluate_when's docstring for why both shapes exist.
+    filters: Any = []
 
 
 def _validate_campaign_payload(payload: CampaignIn) -> None:
@@ -50,19 +68,35 @@ def _validate_campaign_payload(payload: CampaignIn) -> None:
 # ---------- Campaigns ----------
 
 @router.get("/cms/automations")
-def list_automations(cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
-    rows = db.execute(text("""
-        SELECT c.id, c.name, c.status, c.trigger_type, c.trigger_config, c.reenrollment_policy,
-               c.created_at, c.updated_at,
-               (SELECT COUNT(*) FROM automation_enrollments e WHERE e.campaign_id = c.id AND e.status IN ('active', 'waiting')) AS active_enrollments
-        FROM automation_campaigns c
-        ORDER BY c.updated_at DESC
-    """)).mappings().all()
-    return {"campaigns": [dict(r) for r in rows]}
+def list_automations(page: int = Query(default=1, ge=1), page_size: int = Query(default=25, ge=1, le=200),
+                      q: Optional[str] = Query(default=None), status: Optional[str] = Query(default=None),
+                      cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+    offset = (page - 1) * page_size
+    params = {"limit": page_size, "offset": offset, "q": f"%{q}%" if q else None, "status": status}
+    where = []
+    if q:
+        where.append("lower(c.name) LIKE lower(:q)")
+    if status:
+        where.append("c.status = :status")
+    where_clause = f"WHERE {' AND '.join(where)}" if where else ""
+    rows = db.execute(
+        text(f"""
+            SELECT c.id, c.name, c.status, c.trigger_type, c.trigger_config, c.reenrollment_policy,
+                   c.created_at, c.updated_at,
+                   (SELECT COUNT(*) FROM automation_enrollments e WHERE e.campaign_id = c.id AND e.status IN ('active', 'waiting')) AS active_enrollments
+            FROM automation_campaigns c
+            {where_clause}
+            ORDER BY c.updated_at DESC
+            LIMIT :limit OFFSET :offset
+        """),
+        params,
+    ).mappings().all()
+    total = db.execute(text(f"SELECT COUNT(*) FROM automation_campaigns c {where_clause}"), params).scalar()
+    return {"campaigns": [dict(r) for r in rows], "total": int(total or 0), "page": page, "page_size": page_size}
 
 
 @router.post("/cms/automations")
-def create_automation(payload: CampaignIn, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+def create_automation(payload: CampaignIn, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
     _validate_campaign_payload(payload)
     row = db.execute(
         text("""
@@ -88,7 +122,7 @@ def get_automation(campaign_id: int, cms_user: dict = Depends(require_cms_admin)
 
 
 @router.put("/cms/automations/{campaign_id}")
-def update_automation(campaign_id: int, payload: CampaignIn, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+def update_automation(campaign_id: int, payload: CampaignIn, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
     _validate_campaign_payload(payload)
     existing = db.execute(text("SELECT id FROM automation_campaigns WHERE id = :id"), {"id": campaign_id}).first()
     if not existing:
@@ -110,7 +144,7 @@ def update_automation(campaign_id: int, payload: CampaignIn, cms_user: dict = De
 
 
 @router.delete("/cms/automations/{campaign_id}")
-def delete_automation(campaign_id: int, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+def delete_automation(campaign_id: int, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
     """Soft-delete only — a hard delete would cascade-wipe automation_sends/
     automation_enrollments history via the FK, which we want to keep as an
     audit trail even for a retired campaign."""
@@ -190,7 +224,7 @@ class TestRunIn(BaseModel):
 
 
 @router.post("/cms/automations/{campaign_id}/test-run")
-def test_run_automation(campaign_id: int, payload: TestRunIn, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+def test_run_automation(campaign_id: int, payload: TestRunIn, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
     campaign = db.execute(text("SELECT id, trigger_config FROM automation_campaigns WHERE id = :id"), {"id": campaign_id}).mappings().first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -221,15 +255,22 @@ def test_run_automation(campaign_id: int, payload: TestRunIn, cms_user: dict = D
 
 @router.get("/cms/segments")
 def list_segments(cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+    # Deliberately NOT server-paginated: this list doubles as the full
+    # picker source for the "in segment" filter operator (FilterRuleBuilder
+    # needs every segment name to resolve an id to a label), and segments
+    # are a small, slow-growing list — same reasoning the rest of the CMS
+    # kit uses to leave lessons/chapters/team/achievements client-paginated
+    # rather than server-paginated. CmsSegments.jsx paginates this client-side.
     rows = db.execute(text("SELECT * FROM automation_segments ORDER BY updated_at DESC")).mappings().all()
     return {"segments": [dict(r) for r in rows]}
 
 
 @router.post("/cms/segments")
-def create_segment(payload: SegmentIn, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
-    for cond in payload.filters:
-        if cond.get("operator") not in automations.KNOWN_OPERATORS:
-            raise HTTPException(status_code=400, detail=f"Unknown operator: {cond.get('operator')}")
+def create_segment(payload: SegmentIn, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
+    try:
+        automations.validate_filter_group(payload.filters)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     row = db.execute(
         text("""
             INSERT INTO automation_segments (name, description, filters, created_by)
@@ -250,10 +291,11 @@ def get_segment(segment_id: int, cms_user: dict = Depends(require_cms_admin), db
 
 
 @router.put("/cms/segments/{segment_id}")
-def update_segment(segment_id: int, payload: SegmentIn, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
-    for cond in payload.filters:
-        if cond.get("operator") not in automations.KNOWN_OPERATORS:
-            raise HTTPException(status_code=400, detail=f"Unknown operator: {cond.get('operator')}")
+def update_segment(segment_id: int, payload: SegmentIn, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
+    try:
+        automations.validate_filter_group(payload.filters)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     result = db.execute(
         text("""
             UPDATE automation_segments SET name = :name, description = :description, filters = :filters, updated_at = NOW()
@@ -267,7 +309,7 @@ def update_segment(segment_id: int, payload: SegmentIn, cms_user: dict = Depends
 
 
 @router.delete("/cms/segments/{segment_id}")
-def delete_segment(segment_id: int, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+def delete_segment(segment_id: int, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
     result = db.execute(text("DELETE FROM automation_segments WHERE id = :id"), {"id": segment_id})
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Segment not found")

@@ -1,48 +1,47 @@
 // src/cms/CmsSegments.jsx — reusable audience definitions, referenced from
 // automation campaign triggers/conditions via the "in_segment" operator
-// (see FilterRuleBuilder.jsx + backend/automations.py). Structurally mirrors
-// CmsPremium.jsx: a "new segment" form + a list of existing ones, each
-// inline-editable, with a live match-count preview.
+// (see FilterRuleBuilder.jsx + backend/automations.py). A "new segment"
+// form + a list of existing ones, each inline-editable, with a live
+// match-count preview. Client-paginated (not server) — this list also
+// doubles as the full picker source for the "in segment" operator, so the
+// frontend always needs every segment, same reasoning the rest of the CMS
+// kit uses for small/slow-growing lists like team/achievements.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
-import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
+import { createCmsApi, getCmsClaim, getCmsToken } from "./api";
 import { Plus, Save, Trash2, UsersRound } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import FilterRuleBuilder from "./FilterRuleBuilder";
+import {
+  Button, EmptyState, Field, FieldRow, Input, ListToolbar, Note, Pagination, SearchInput, SectionCard,
+  notify, useClientList, useConfirm, useListQuery,
+} from "./ui";
 
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
-
-const NEW_SEGMENT_DEFAULT = { name: "", description: "", filters: [] };
+const NEW_SEGMENT_DEFAULT = { name: "", description: "", filters: { op: "and", rules: [] } };
 
 export default function CmsSegments() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
-  useEffect(() => { setCmsApiClient(api); }, [api]);
+  const confirm = useConfirm();
+  const canEdit = getCmsClaim("crm_role", "editor") !== "viewer";
 
   const [segments, setSegments] = useState([]);
   const [edits, setEdits] = useState({});
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState(NEW_SEGMENT_DEFAULT);
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  const list = useListQuery();
+  const { pageRows, total } = useClientList(segments, { q: list.q, searchKeys: ["name", "description"], page: list.page, pageSize: list.pageSize });
 
   async function refresh() {
     const d = await api.listSegments();
-    const list = Array.isArray(d?.segments) ? d.segments : [];
-    setSegments(list);
+    const rows = Array.isArray(d?.segments) ? d.segments : [];
+    setSegments(rows);
     const e = {};
-    list.forEach((s) => {
-      e[s.id] = { name: s.name || "", description: s.description || "", filters: Array.isArray(s.filters) ? s.filters : [] };
+    rows.forEach((s) => {
+      e[s.id] = { name: s.name || "", description: s.description || "", filters: s.filters };
     });
     setEdits(e);
   }
@@ -51,17 +50,16 @@ export default function CmsSegments() {
     (async () => {
       try {
         setLoading(true);
+        setLoadError(null);
         await refresh();
       } catch (err) {
-        showToast(err.message || "Failed to load segments", "err");
+        setLoadError(err?.message || err);
       } finally {
         setLoading(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
-
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   function patch(id, p) {
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
@@ -74,9 +72,9 @@ export default function CmsSegments() {
       await api.createSegment({ name: draft.name.trim(), description: draft.description.trim() || null, filters: draft.filters });
       setDraft(NEW_SEGMENT_DEFAULT);
       await refresh();
-      showToast("Segment created");
+      notify("Segment created");
     } catch (err) {
-      showToast(err.message || "Create failed", "err");
+      notify(err.message || "Create failed", "err");
     } finally {
       setBusy(false);
     }
@@ -86,25 +84,31 @@ export default function CmsSegments() {
     const e = edits[s.id] || {};
     setBusy(true);
     try {
-      await api.updateSegment(s.id, { name: (e.name || "").trim(), description: (e.description || "").trim() || null, filters: e.filters || [] });
+      await api.updateSegment(s.id, { name: (e.name || "").trim(), description: (e.description || "").trim() || null, filters: e.filters });
       await refresh();
-      showToast("Saved");
+      notify("Saved");
     } catch (err) {
-      showToast(err.message || "Save failed", "err");
+      notify(err.message || "Save failed", "err");
     } finally {
       setBusy(false);
     }
   }
 
   async function removeSegment(s) {
-    if (!confirm(`Delete segment "${s.name}"? Campaigns referencing it will stop matching on it.`)) return;
+    const ok = await confirm({
+      title: `Delete "${s.name}"?`,
+      description: "Campaigns referencing it via \"in segment\" will stop matching on it.",
+      confirmText: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await api.deleteSegment(s.id);
       await refresh();
-      showToast("Deleted");
+      notify("Deleted");
     } catch (err) {
-      showToast(err.message || "Delete failed", "err");
+      notify(err.message || "Delete failed", "err");
     } finally {
       setBusy(false);
     }
@@ -115,80 +119,100 @@ export default function CmsSegments() {
       const d = await api.previewSegmentCount(id);
       setCounts((prev) => ({ ...prev, [id]: d }));
     } catch (err) {
-      showToast(err.message || "Preview failed", "err");
+      notify(err.message || "Preview failed", "err");
     }
   }
 
   return (
-    <CmsLayout active="segments" title="Segments">
+    <CmsLayout active="segments" title="Segments" description="Reusable audiences for Automations campaigns.">
       <div className="space-y-6">
-        <div className="rounded-2xl bg-brand-50 p-4 text-sm font-semibold text-brand-800 ring-1 ring-brand-200">
-          Reusable audiences — reference these from an automation's trigger filters or condition
-          steps via "in segment" instead of retyping the same filter rules on every campaign.
-        </div>
+        <Note tone="brand">
+          Reference these from an automation's trigger filters or condition steps via "in segment"
+          instead of retyping the same filter rules on every campaign.
+        </Note>
 
-        {/* New segment */}
-        <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-          <div className="mb-3 font-display text-base font-bold text-slate-900">New segment</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Name — e.g. Premium users" className={inputCls} />
-            <input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description (optional)" className={inputCls} />
-          </div>
-          <div className="mt-3">
-            <div className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">Filters</div>
-            <FilterRuleBuilder filters={draft.filters} onChange={(filters) => setDraft({ ...draft, filters })} segments={segments} />
-          </div>
-          <div className="mt-4 flex justify-end">
-            <button type="button" onClick={createSegment} disabled={busy || !draft.name.trim()} className="btn3d btn3d-brand text-sm inline-flex items-center gap-2 disabled:opacity-60">
-              <Plus className="h-4 w-4" /> Add segment
-            </button>
-          </div>
-        </section>
+        {!canEdit && (
+          <Note tone="warning">You have view-only CRM access — ask an editor to create or change segments.</Note>
+        )}
 
-        {/* Existing segments */}
-        {loading ? (
-          <div className="p-6 text-sm text-slate-500">Loading…</div>
-        ) : segments.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm">No segments yet.</div>
-        ) : (
-          <div className="space-y-3">
-            {segments.map((s) => {
-              const e = edits[s.id] || {};
-              const count = counts[s.id];
-              return (
-                <div key={s.id} className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-feather-50 text-feather-600"><UsersRound className="h-5 w-5" /></div>
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <input value={e.name || ""} onChange={(ev) => patch(s.id, { name: ev.target.value })} placeholder="Name" className={cx(inputCls, "!py-2 font-bold")} />
-                        <input value={e.description || ""} onChange={(ev) => patch(s.id, { description: ev.target.value })} placeholder="Description" className={cx(inputCls, "!py-2 text-xs")} />
+        {canEdit && (
+          <SectionCard title="New segment">
+            <FieldRow>
+              <Field label="Name">
+                <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Premium users" />
+              </Field>
+              <Field label="Description" hint="Optional">
+                <Input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+              </Field>
+            </FieldRow>
+            <div className="mt-3">
+              <div className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">Filters</div>
+              <FilterRuleBuilder group={draft.filters} onChange={(filters) => setDraft({ ...draft, filters })} segments={segments} />
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={createSegment} disabled={busy || !draft.name.trim()}>
+                <Plus className="h-4 w-4" /> Add segment
+              </Button>
+            </div>
+          </SectionCard>
+        )}
+
+        <SectionCard title="Existing segments">
+          <ListToolbar
+            search={<SearchInput value={list.q} onChange={(q) => list.set({ q })} placeholder="Search segments…" />}
+            count={total}
+            countLabel="segment"
+          />
+          {loading ? (
+            <div className="p-6 text-sm text-slate-500">Loading…</div>
+          ) : loadError ? (
+            <div className="p-6 text-sm font-semibold text-cardinal-600">{loadError}</div>
+          ) : pageRows.length === 0 ? (
+            <EmptyState
+              icon={UsersRound}
+              title={list.q ? "No segments match" : "No segments yet"}
+              description={list.q ? "Try a different search." : "Create one above to get started."}
+              action={list.q ? <Button variant="outline" size="sm" onClick={() => list.set({ q: "" })}>Clear search</Button> : null}
+            />
+          ) : (
+            <div className="space-y-3">
+              {pageRows.map((s) => {
+                const e = edits[s.id] || {};
+                const count = counts[s.id];
+                return (
+                  <div key={s.id} className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-feather-50 text-feather-600"><UsersRound className="h-5 w-5" /></div>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <FieldRow>
+                          <Input value={e.name || ""} onChange={(ev) => patch(s.id, { name: ev.target.value })} placeholder="Name" disabled={!canEdit} className="font-bold" />
+                          <Input value={e.description || ""} onChange={(ev) => patch(s.id, { description: ev.target.value })} placeholder="Description" disabled={!canEdit} className="text-xs" />
+                        </FieldRow>
+                        <FilterRuleBuilder group={e.filters} onChange={(filters) => patch(s.id, { filters })} segments={segments} />
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => previewCount(s.id)} className="h-auto p-0 text-xs font-bold text-brand-600 hover:underline">
+                            Preview match count
+                          </Button>
+                          {count && <span className="text-xs font-semibold text-slate-400">{count.count} of {count.total_users} users match</span>}
+                        </div>
                       </div>
-                      <FilterRuleBuilder filters={e.filters || []} onChange={(filters) => patch(s.id, { filters })} segments={segments} />
-                      <div className="flex items-center gap-2 pt-0.5">
-                        <button type="button" onClick={() => previewCount(s.id)} className="text-xs font-bold text-brand-600 hover:underline">Preview match count</button>
-                        {count && <span className="text-xs font-semibold text-slate-400">{count.count} of {count.total_users} users match</span>}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <button type="button" onClick={() => saveSegment(s)} disabled={busy} className="btn3d btn3d-brand text-xs inline-flex items-center gap-1.5"><Save className="h-3.5 w-3.5" /> Save</button>
-                      <button type="button" onClick={() => removeSegment(s)} disabled={busy} className="btn3d btn3d-cardinal text-xs inline-flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                      {canEdit && (
+                        <div className="flex flex-col gap-2">
+                          <Button size="sm" onClick={() => saveSegment(s)} disabled={busy}><Save className="h-3.5 w-3.5" /> Save</Button>
+                          <Button size="sm" variant="outline" className="text-cardinal-600 hover:text-cardinal-700" onClick={() => removeSegment(s)} disabled={busy}>
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+          <Pagination page={list.page} pageSize={list.pageSize} total={total} onPageChange={(p) => list.set({ page: p })} onPageSizeChange={(pageSize) => list.set({ pageSize })} className="mt-4" />
+        </SectionCard>
       </div>
-
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
-        </div>
-      )}
     </CmsLayout>
   );
 }

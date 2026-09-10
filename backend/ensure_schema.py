@@ -695,6 +695,13 @@ def ensure_schema() -> None:
         add_col_if_missing("cms_users", "timezone TEXT")
         # TOTP replay guard — see users.totp_last_used_step for why.
         add_col_if_missing("cms_users", "totp_last_used_step BIGINT")
+        # CRM-scoped access tier ('editor' | 'viewer') — separate from the
+        # general CMS role (still hardcoded 'admin' everywhere at login;
+        # untouched by this). Only backend/routes_automations.py's
+        # require_crm_editor reads this. Defaults every existing CMS user to
+        # 'editor', matching today's de facto behavior (any CMS admin could
+        # already do anything to a campaign) — nothing regresses on deploy.
+        add_col_if_missing("cms_users", "crm_role TEXT NOT NULL DEFAULT 'editor'")
 
         # ---------- Admin notes on learners ----------
         ensure_table(

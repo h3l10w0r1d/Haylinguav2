@@ -8,6 +8,7 @@ import { createCmsApi, getCmsToken } from "./api";
 import CmsLayout from "./CmsLayout";
 import {
   Badge, Button, DataTable, EmptyState, Input, ListToolbar, Note, SearchInput, SectionCard,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   notify, useClientList, useListQuery,
 } from "./ui";
 
@@ -29,28 +30,30 @@ function formatDate(value) {
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 }
 
-const COLUMNS = [
-  { key: "email", header: "Member", cell: (u) => <span className="font-extrabold text-slate-900">{u.email}</span> },
-  {
-    key: "status",
-    header: "Status",
-    cell: (u) => (
-      <Badge variant={u.status === "active" ? "secondary" : "outline"} className="capitalize">{u.status || "—"}</Badge>
-    ),
-  },
-  {
-    key: "totp_enabled",
-    header: "2FA",
-    hideBelow: "sm",
-    cell: (u) =>
-      u.totp_enabled ? (
-        <span className="inline-flex items-center gap-1 text-xs font-extrabold text-grass-600"><ShieldCheck className="h-3.5 w-3.5" /> On</span>
-      ) : (
-        <span className="inline-flex items-center gap-1 text-xs font-extrabold text-slate-400"><ShieldOff className="h-3.5 w-3.5" /> Off</span>
+function baseColumns() {
+  return [
+    { key: "email", header: "Member", cell: (u) => <span className="font-extrabold text-slate-900">{u.email}</span> },
+    {
+      key: "status",
+      header: "Status",
+      cell: (u) => (
+        <Badge variant={u.status === "active" ? "secondary" : "outline"} className="capitalize">{u.status || "—"}</Badge>
       ),
-  },
-  { key: "last_login_at", header: "Last login", hideBelow: "md", cell: (u) => <span className="text-xs text-slate-500">{formatDate(u.last_login_at)}</span> },
-];
+    },
+    {
+      key: "totp_enabled",
+      header: "2FA",
+      hideBelow: "sm",
+      cell: (u) =>
+        u.totp_enabled ? (
+          <span className="inline-flex items-center gap-1 text-xs font-extrabold text-grass-600"><ShieldCheck className="h-3.5 w-3.5" /> On</span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-extrabold text-slate-400"><ShieldOff className="h-3.5 w-3.5" /> Off</span>
+        ),
+    },
+    { key: "last_login_at", header: "Last login", hideBelow: "md", cell: (u) => <span className="text-xs text-slate-500">{formatDate(u.last_login_at)}</span> },
+  ];
+}
 
 export default function CmsTeam() {
   const token = getCmsToken();
@@ -65,6 +68,40 @@ export default function CmsTeam() {
   const [testTo, setTestTo] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [savingRoleId, setSavingRoleId] = useState(null);
+
+  async function setCrmRole(userId, crmRole) {
+    setSavingRoleId(userId);
+    try {
+      await api.setTeamCrmRole(userId, crmRole);
+      setItems((prev) => prev.map((u) => (u.id === userId ? { ...u, crm_role: crmRole } : u)));
+      notify("CRM access updated");
+    } catch (e) {
+      notify(e.message || "Failed to update CRM access", "err");
+    } finally {
+      setSavingRoleId(null);
+    }
+  }
+
+  const columns = useMemo(() => [
+    ...baseColumns(),
+    {
+      key: "crm_role",
+      header: "CRM access",
+      hideBelow: "sm",
+      cell: (u) => (
+        <Select value={u.crm_role || "editor"} disabled={savingRoleId === u.id} onValueChange={(v) => setCrmRole(u.id, v)}>
+          <SelectTrigger className="h-8 w-[7.5rem] rounded-xl text-xs font-bold" onClick={(e) => e.stopPropagation()}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="editor">Editor</SelectItem>
+            <SelectItem value="viewer">Viewer</SelectItem>
+          </SelectContent>
+        </Select>
+      ),
+    },
+  ], [savingRoleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const list = useListQuery();
   const { pageRows, total } = useClientList(items, { q: list.q, searchKeys: ["email", "status"], pageSize: Infinity });
@@ -198,7 +235,7 @@ export default function CmsTeam() {
             countLabel="member"
           />
           <DataTable
-            columns={COLUMNS}
+            columns={columns}
             rows={pageRows}
             loading={loading}
             error={loadError}

@@ -140,7 +140,7 @@ function ConditionEditor({ step, onUpdate, segments, depth }) {
           </div>
           {!b.else && (
             <div className="mb-2">
-              <FilterRuleBuilder filters={b.when || []} onChange={(when) => updateBranch(i, { when })} segments={segments} />
+              <FilterRuleBuilder group={b.when} onChange={(when) => updateBranch(i, { when })} segments={segments} />
             </div>
           )}
           <div className="rounded-lg bg-slate-50 p-2">
@@ -188,7 +188,7 @@ function StepRow({ step, onUpdate, onUpdateParams, onRemove, onMoveUp, onMoveDow
   );
 }
 
-export default function StepListEditor({ steps, onChange, segments, depth = 0 }) {
+export default function StepListEditor({ steps, onChange, segments, depth = 0, readOnly = false }) {
   const list = Array.isArray(steps) ? steps : [];
 
   function update(i, patch) { onChange(list.map((s, j) => (j === i ? { ...s, ...patch } : s))); }
@@ -204,7 +204,7 @@ export default function StepListEditor({ steps, onChange, segments, depth = 0 })
   }
   function add(kind) { onChange([...list, newStep(kind)]); }
 
-  return (
+  const body = (
     <div className="space-y-3">
       {list.map((step, i) => (
         <StepRow
@@ -232,4 +232,15 @@ export default function StepListEditor({ steps, onChange, segments, depth = 0 })
       </div>
     </div>
   );
+
+  // A plain HTML <fieldset disabled> natively disables every descendant
+  // form control (inputs/selects/buttons), including ones several
+  // component-levels down inside nested condition branches — cheaper and
+  // more robust than threading a `disabled` prop through every field. Only
+  // wraps once, at the outermost call; a nested StepListEditor (inside a
+  // condition branch) is already covered by the outer fieldset.
+  if (readOnly && depth === 0) {
+    return <fieldset disabled className="m-0 min-w-0 border-0 p-0">{body}</fieldset>;
+  }
+  return body;
 }
