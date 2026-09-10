@@ -1,9 +1,9 @@
 // src/cms/CmsAchievements.jsx — build & manage achievement badges.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Target, Zap, Crown, Star, Flame, Info } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { cn as cx, inputCls, notify, useConfirm } from "./ui";
 
 const ICONS = { star: Star, crown: Crown, flame: Flame, zap: Zap, target: Target };
 const ICON_OPTS = ["star", "crown", "flame", "zap", "target"];
@@ -23,9 +23,6 @@ const METRIC_UNIT = Object.fromEntries(METRICS.map((m) => [m.value, m.unit]));
 const COLORS = ["#F59E0B", "#FF7A1A", "#E11D48", "#22B07D", "#0EA5E9", "#8B5CF6", "#0D9488", "#EC4899", "#475569", "#FACC15"];
 const DEFAULT_COLOR = "#F59E0B";
 
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
 
 function ColorPicker({ value, onChange }) {
   return (
@@ -58,8 +55,6 @@ function BadgeTile({ icon, color, size = "md" }) {
   );
 }
 
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 
 function Field({ label, hint, children }) {
   return (
@@ -106,6 +101,7 @@ function ruleText(d) {
 export default function CmsAchievements() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
+  const confirm = useConfirm();
   useEffect(() => {
     setCmsApiClient(api);
   }, [api]);
@@ -114,13 +110,9 @@ export default function CmsAchievements() {
   const [edits, setEdits] = useState({}); // id -> draft
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState({ title: "", description: "", metric: "lessons_completed", threshold: 1, reward_xp: 20, icon: "star", color: DEFAULT_COLOR });
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  const showToast = notify;
 
   async function refresh() {
     const data = await api.listAchievements();
@@ -155,7 +147,6 @@ export default function CmsAchievements() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   async function create() {
     const title = draft.title.trim();
@@ -216,7 +207,7 @@ export default function CmsAchievements() {
   }
 
   async function remove(a) {
-    if (!confirm(`Delete "${a.title}"? Learners who already claimed it keep their XP.`)) return;
+    if (!(await confirm({ title: `Delete "${a.title}"? Learners who already claimed it keep their XP.` }))) return;
     setBusy(true);
     try {
       await api.deleteAchievement(a.id);
@@ -422,13 +413,6 @@ export default function CmsAchievements() {
         )}
       </div>
 
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
-        </div>
-      )}
     </CmsLayout>
   );
 }

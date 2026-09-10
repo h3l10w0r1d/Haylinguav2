@@ -3,17 +3,12 @@
 // name tags, avatar-builder trait unlocks). Unlike CmsShop.jsx's shop_items
 // table, rows created/edited here are what players actually see.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { cn as cx, inputCls, notify, useConfirm } from "./ui";
 
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
 
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 
 // render_key hints per category — the DiceBear avataaars option values (or
 // CSS class names for name_tag_effect) each category actually recognizes.
@@ -42,6 +37,7 @@ const emptyDraft = () => ({
 export default function CmsItems() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
+  const confirm = useConfirm();
   useEffect(() => {
     setCmsApiClient(api);
   }, [api]);
@@ -53,13 +49,9 @@ export default function CmsItems() {
   const [edits, setEdits] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState(emptyDraft());
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  const showToast = notify;
 
   async function refresh(category) {
     const res = await api.listItemDefinitions(category || undefined);
@@ -93,7 +85,6 @@ export default function CmsItems() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, activeCategory]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   async function createItem() {
     if (!draft.category.trim() || !draft.slug.trim() || !draft.title.trim() || !draft.render_key.trim()) return;
@@ -146,7 +137,7 @@ export default function CmsItems() {
   }
 
   async function removeItem(it) {
-    if (!confirm(`Delete "${it.title}"? This can't be undone.`)) return;
+    if (!(await confirm({ title: `Delete "${it.title}"? This can't be undone.` }))) return;
     setBusy(true);
     try {
       await api.deleteItemDefinition(it.id);
@@ -326,13 +317,6 @@ export default function CmsItems() {
         )}
       </div>
 
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
-        </div>
-      )}
     </CmsLayout>
   );
 }

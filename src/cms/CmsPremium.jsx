@@ -1,9 +1,9 @@
 // src/cms/CmsPremium.jsx — edit Premium pricing plans shown on /premium.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Crown, X } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { cn as cx, inputCls, notify, useConfirm } from "./ui";
 
 const INTERVAL_OPTS = [
   { value: "month", label: "Monthly" },
@@ -11,11 +11,6 @@ const INTERVAL_OPTS = [
   { value: "lifetime", label: "Lifetime (one-time)" },
 ];
 
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 
 function PerksEditor({ perks, onChange }) {
   const list = Array.isArray(perks) ? perks : [];
@@ -54,19 +49,16 @@ const NEW_PLAN_DEFAULT = { title: "", subtitle: "", price: 1490, currency: "AMD"
 export default function CmsPremium() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
+  const confirm = useConfirm();
   useEffect(() => { setCmsApiClient(api); }, [api]);
 
   const [plans, setPlans] = useState([]);
   const [edits, setEdits] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState(NEW_PLAN_DEFAULT);
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  const showToast = notify;
 
   async function refresh() {
     const d = await api.listPremiumPlans();
@@ -97,7 +89,6 @@ export default function CmsPremium() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   async function createPlan() {
     if (!draft.title.trim()) return;
@@ -157,7 +148,7 @@ export default function CmsPremium() {
   }
 
   async function removePlan(p) {
-    if (!confirm(`Delete "${p.title}" plan?`)) return;
+    if (!(await confirm({ title: `Delete "${p.title}" plan?` }))) return;
     setBusy(true);
     try {
       await api.deletePremiumPlan(p.id);
@@ -280,13 +271,6 @@ export default function CmsPremium() {
         )}
       </div>
 
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
-        </div>
-      )}
     </CmsLayout>
   );
 }

@@ -1,9 +1,9 @@
 // src/cms/CmsShop.jsx — edit marketplace items + chest reward odds.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Gem, Snowflake, Heart, Zap, Gift, Shield, ShieldCheck, TrendingUp, Award, Image } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { cn as cx, inputCls, notify, useConfirm } from "./ui";
 import AvatarFrame from "../lib/avatarFrame";
 
 const ICONS = { snowflake: Snowflake, heart: Heart, zap: Zap, gem: Gem, shield: Shield, "shield-check": ShieldCheck, "trending-up": TrendingUp, award: Award, image: Image };
@@ -20,9 +20,6 @@ const EFFECTS = [
   { value: "profile_theme",  label: "Unlock profile banner theme (cosmetic)" },
 ];
 
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
 
 function FrameStylePicker({ value, onChange }) {
   return (
@@ -47,8 +44,6 @@ function FrameStylePicker({ value, onChange }) {
     </div>
   );
 }
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 
 function EffectPicker({ value, onChange, compact = false }) {
   const [open, setOpen] = useState(false);
@@ -125,6 +120,7 @@ function EffectPicker({ value, onChange, compact = false }) {
 export default function CmsShop() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
+  const confirm = useConfirm();
   useEffect(() => {
     setCmsApiClient(api);
   }, [api]);
@@ -135,13 +131,9 @@ export default function CmsShop() {
   const [rarities, setRarities] = useState([]); // [{rarity, weight, xp_boost_chance}]
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState({ title: "", effect: "streak_freeze", price: 30, effect_amount: 0, icon: "gem", frame_style: "" });
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  const showToast = notify;
 
   async function refresh() {
     const [si, cc] = await Promise.all([api.listShopItems(), api.getChestConfig()]);
@@ -174,7 +166,6 @@ export default function CmsShop() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   async function createItem() {
     if (!draft.title.trim()) return;
@@ -226,7 +217,7 @@ export default function CmsShop() {
   }
 
   async function removeItem(it) {
-    if (!confirm(`Delete "${it.title}" from the shop?`)) return;
+    if (!(await confirm({ title: `Delete "${it.title}" from the shop?` }))) return;
     setBusy(true);
     try {
       await api.deleteShopItem(it.id);
@@ -449,13 +440,6 @@ export default function CmsShop() {
         </section>
       </div>
 
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
-        </div>
-      )}
     </CmsLayout>
   );
 }

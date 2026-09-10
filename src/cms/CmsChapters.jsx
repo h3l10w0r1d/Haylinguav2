@@ -1,15 +1,12 @@
 // src/cms/CmsChapters.jsx — manage chapters (lesson groups on the learner roadmap).
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff, Sparkles, Ear, ImagePlus } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { cn as cx, notify, useConfirm } from "./ui";
 import IconPicker from "./IconPicker";
 import { LucideGlyph } from "../lib/lucideIcons";
 
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
 
 function ChapterIconGlyph({ name, className, fallback = null }) {
   if (!name) return fallback;
@@ -41,6 +38,7 @@ const TONE_CHIP = {
 export default function CmsChapters() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
+  const confirm = useConfirm();
   useEffect(() => {
     setCmsApiClient(api);
   }, [api]);
@@ -48,15 +46,11 @@ export default function CmsChapters() {
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState({ title: "", description: "", icon: "", icon_color: "brand" });
   const [edits, setEdits] = useState({}); // id -> {title, description, icon, icon_color}
   const [pickerFor, setPickerFor] = useState(null); // "new" | chapter id | null
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  const showToast = notify;
 
   async function refresh() {
     const data = await api.listChapters();
@@ -81,7 +75,6 @@ export default function CmsChapters() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   async function create() {
     const title = draft.title.trim();
@@ -131,7 +124,7 @@ export default function CmsChapters() {
   }
 
   async function remove(c) {
-    if (!confirm(`Delete "${c.title}"? Its ${c.lesson_count} lesson(s) will be unassigned, not deleted.`)) return;
+    if (!(await confirm({ title: `Delete "${c.title}"?`, description: `Its ${c.lesson_count} lesson(s) will be unassigned, not deleted.` }))) return;
     setBusy(true);
     try {
       await api.deleteChapter(c.id);
@@ -164,7 +157,7 @@ export default function CmsChapters() {
   }
 
   async function seed() {
-    if (!confirm("Add the built-in 10-chapter starter curriculum (Armenian basics)? This won't touch your existing chapters.")) return;
+    if (!(await confirm({ title: "Add the starter curriculum?", description: "Adds the built-in 10-chapter Armenian basics. This won't touch your existing chapters.", confirmText: "Add", destructive: false }))) return;
     setBusy(true);
     try {
       const res = await api.seedCurriculum();
@@ -178,11 +171,15 @@ export default function CmsChapters() {
   }
 
   async function seedSounds() {
-    if (!confirm(
-      "Add Phase 0 (Sounds) — 4 chapters of pure listening/speaking practice that come before the " +
-      "alphabet. This will also hide (not delete) the older duplicate alphabet/greetings chapters " +
-      "that collide in position with the starter curriculum, and shift existing chapters to make room."
-    )) return;
+    if (!(await confirm({
+      title: "Add Phase 0 (Sounds)?",
+      description:
+        "4 chapters of pure listening/speaking practice that come before the alphabet. This also " +
+        "hides (not deletes) the older duplicate alphabet/greetings chapters that collide in " +
+        "position with the starter curriculum, and shifts existing chapters to make room.",
+      confirmText: "Add",
+      destructive: false,
+    }))) return;
     setBusy(true);
     try {
       const res = await api.seedSounds();
@@ -412,20 +409,6 @@ export default function CmsChapters() {
         )}
       </div>
 
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50">
-          <div
-            className={cx(
-              "px-4 py-3 rounded-2xl shadow-lg ring-1 text-sm font-semibold",
-              toast.kind === "err"
-                ? "bg-cardinal-50 ring-cardinal-200 text-cardinal-700"
-                : "bg-grass-50 ring-grass-200 text-grass-700"
-            )}
-          >
-            {toast.msg}
-          </div>
-        </div>
-      )}
 
       <IconPicker
         open={pickerFor !== null}

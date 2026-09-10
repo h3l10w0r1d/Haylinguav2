@@ -6,16 +6,14 @@
 // deep-merges it over the code defaults (structure + which option is correct
 // always come from code). "Reset" drops the override back to the built-in text.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Save, RotateCcw, MessageCircle, Volume2, ListChecks, Check, Map as MapIcon, Pencil, ChevronDown, Plus } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { inputCls, notify, useConfirm } from "./ui";
 import { ADVENTURES, mergeAdventure } from "../adventures/adventures";
 import AdventureMapEditor from "./AdventureMapEditor";
 import AdventureBuilder, { blankAdventure } from "./AdventureBuilder";
 
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 const labelCls = "text-xs font-bold uppercase tracking-wide text-slate-400";
 
 // Seed an editable draft from the code base + any saved override → effective text.
@@ -95,6 +93,7 @@ function draftToOverride(draft) {
 export default function CmsAdventures() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
+  const confirm = useConfirm();
   useEffect(() => { setCmsApiClient(api); }, [api]);
 
   const [drafts, setDrafts] = useState({});         // { [advId]: text draft }
@@ -106,12 +105,8 @@ export default function CmsAdventures() {
   const [isNewEdit, setIsNewEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");       // adventure id currently saving
-  const [toast, setToast] = useState(null);
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  const showToast = notify;
 
   async function refresh() {
     let overrides = {};
@@ -158,7 +153,7 @@ export default function CmsAdventures() {
     }
   }
   async function deleteCustom(id) {
-    if (!window.confirm("Delete this custom adventure permanently?")) return;
+    if (!(await confirm({ title: "Delete this custom adventure?", description: "This can't be undone." }))) return;
     setBusy(id);
     try {
       await api.deleteCustomAdventure(id);
@@ -177,7 +172,6 @@ export default function CmsAdventures() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   // Immutable draft updater: mutate a shallow clone of one adventure's draft.
   function edit(advId, fn) {
@@ -220,7 +214,7 @@ export default function CmsAdventures() {
   }
 
   async function reset(advId) {
-    if (!window.confirm("Reset this adventure's text back to the built-in defaults? Your CMS edits will be discarded.")) return;
+    if (!(await confirm({ title: "Reset to the built-in text?", description: "Your CMS edits to this adventure will be discarded.", confirmText: "Reset" }))) return;
     setBusy(advId);
     try {
       await api.resetAdventureOverride(advId);
@@ -244,11 +238,6 @@ export default function CmsAdventures() {
           onDelete={deleteCustom}
           onClose={() => setEditing(null)}
         />
-        {toast && (
-          <div className={"fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl px-4 py-2.5 text-sm font-bold text-white shadow-lg " + (toast.kind === "err" ? "bg-cardinal-500" : "bg-grass-600")}>
-            {toast.msg}
-          </div>
-        )}
       </CmsLayout>
     );
   }
@@ -422,11 +411,6 @@ export default function CmsAdventures() {
         )}
       </div>
 
-      {toast && (
-        <div className={"fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl px-4 py-2.5 text-sm font-bold text-white shadow-lg " + (toast.kind === "err" ? "bg-cardinal-500" : "bg-grass-600")}>
-          {toast.msg}
-        </div>
-      )}
     </CmsLayout>
   );
 }
