@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { cmsApi } from "./api";
 import AudioTargetsManager from "./AudioTargetsManager";
+import { useConfirm } from "./ui";
 
 /**
  * Teacher-friendly Exercise Editor
@@ -342,6 +343,7 @@ function defaultConfigForKind(kind) {
 }
 
 export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted, onCancel }) {
+  const confirm = useConfirm();
   const isNew = !exercise?.id;
 
   const [kind, setKind] = useState(exercise?.kind || "char_intro");
@@ -459,7 +461,7 @@ export default function ExerciseEditor({ lessonId, exercise, onSaved, onDeleted,
       alert("CMS API is not initialized. Open the CMS through the token route so X-CMS-Token is attached.");
       return;
     }
-    if (!confirm("Delete this exercise? This cannot be undone.")) return;
+    if (!(await confirm({ title: "Delete this exercise?", description: "This cannot be undone." }))) return;
 
     setSaving(true);
     try {

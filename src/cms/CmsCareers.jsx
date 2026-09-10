@@ -313,7 +313,7 @@ export default function CmsCareers() {
   }
 
   async function removeItem(it) {
-    if (!confirm(`Delete "${it.title}"?`)) return;
+    if (!(await confirm({ title: `Delete "${it.title}"?`, description: "The vacancy and its applications are removed." }))) return;
     setBusy(true);
     try {
       await api.deleteVacancy(it.id);

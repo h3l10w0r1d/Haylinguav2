@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Mic, Square, Upload, Play, Pause, Trash2, Loader, Check, AlertCircle, X } from "lucide-react";
 import { newTrackedAudio } from "../lib/audioRegistry";
 import { getCmsToken } from "./api";
+import { useConfirm } from "./ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
 
@@ -29,6 +30,7 @@ const STYLE = {
 };
 
 export default function AudioManager({ exerciseId, exerciseText, targetKey = null, onClose }) {
+  const confirm = useConfirm();
   const [audio, setAudio] = useState({ male: null, female: null });
   const [loading, setLoading] = useState(true);
 
@@ -318,7 +320,7 @@ export default function AudioManager({ exerciseId, exerciseText, targetKey = nul
   }
 
   async function deleteAudio(audioId) {
-    if (!confirm("Delete this audio?")) return;
+    if (!(await confirm({ title: "Delete this audio clip?", description: "The recording is removed from this exercise." }))) return;
 
     setError("");
     setSuccess("");

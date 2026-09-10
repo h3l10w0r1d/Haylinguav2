@@ -183,7 +183,7 @@ export default function CmsForum() {
   }
 
   async function removePost(p) {
-    if (!confirm("Delete this reply?")) return;
+    if (!(await confirm({ title: "Delete this reply?", description: "The post is removed from the thread." }))) return;
     setBusy(true);
     try {
       await api.deleteForumPost(p.id);

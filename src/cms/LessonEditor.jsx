@@ -4,6 +4,7 @@ import { cmsApi } from "./api";
 import { Save, Trash2, Plus, GripVertical, X, Search, Eye, EyeOff, ExternalLink } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { KIND_OPTIONS, KIND_CATEGORY } from "./ExerciseEditor";
+import { useConfirm } from "./ui";
 
 const KIND_LABEL = Object.fromEntries(KIND_OPTIONS.map((k) => [k.value, k.label]));
 
@@ -52,6 +53,7 @@ function Textarea(props) {
  *  - onDeleted(msg?)
  */
 export default function LessonEditor({ lesson, onSaved, onDeleted }) {
+  const confirm = useConfirm();
   const isEdit = !!lesson?.id;
 
   const [availableExercises, setAvailableExercises] = useState([]);
@@ -365,7 +367,7 @@ export default function LessonEditor({ lesson, onSaved, onDeleted }) {
     }
     if (!isEdit) return;
 
-    if (!confirm("Delete this lesson?")) return;
+    if (!(await confirm({ title: "Delete this lesson?", description: "Its exercises are deleted with it. This can't be undone." }))) return;
 
     setSaving(true);
     setErr("");
