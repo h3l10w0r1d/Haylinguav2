@@ -1919,9 +1919,9 @@ export default function LandingPage({ onLogin, onSignup }) {
 
       <main id="main-content">
       {/* Hero */}
+      {/* One flat ground for the whole page — no blurred color blobs behind
+          the hero, no tinted bands behind sections. */}
       <header className="relative overflow-hidden">
-        <div className="pointer-events-none absolute -end-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-100/50 blur-3xl dark:bg-brand-500/10" />
-        <div className="pointer-events-none absolute -start-24 top-40 h-72 w-72 rounded-full bg-feather-100/40 blur-3xl dark:bg-feather-500/10" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-12 lg:grid-cols-2 lg:py-20">
           <div>
             <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-800 dark:text-white sm:text-6xl">
@@ -1968,7 +1968,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           bracket it said the same things a second and third time — feedback,
           audio, hearts, streaks — so their strongest points are folded into
           the bullets here, next to the only real visual (the path preview). */}
-      <section className="bg-gradient-to-b from-brand-50/60 to-white dark:from-[#0d0d0f] dark:to-[#0d0d0f]">
+      <section>
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 lg:grid-cols-2">
           <Reveal>
             <div>
@@ -2030,7 +2030,7 @@ export default function LandingPage({ onLogin, onSignup }) {
           only with real, consented quotes. */}
 
       {/* Mobile app teaser */}
-      <section className="bg-slate-50 dark:bg-white/[0.04]">
+      <section className="border-t border-slate-100 dark:border-white/[0.06]">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-2 md:gap-8">
           <Reveal className="order-2 md:order-1">
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
