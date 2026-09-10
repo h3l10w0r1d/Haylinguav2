@@ -5,19 +5,15 @@
 // inline — both built on the same PostEditor (Markdown toolbar, drag-and-
 // drop image upload, alt text, live SEO checklist).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, Eye, EyeOff, ExternalLink, ImagePlus, Loader2, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Plus, Save, Trash2, Eye, EyeOff, ExternalLink, ImagePlus, Loader2, CheckCircle2, AlertTriangle, XCircle, Newspaper } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import { TOOLBAR_ACTIONS, insertAtCursor, analyzeBlogSeo } from "./markdownEditor";
-
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
-
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
-const textareaCls = inputCls + " resize-y";
+import {
+  Button, EmptyState, ListState, ListToolbar, Note, Pagination, SearchInput, SectionCard,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  cn as cx, inputCls, notify, textareaCls, useConfirm, useListQuery,
+} from "./ui";
 
 const LOCALES = [
   { value: "en", label: "English" },
@@ -55,18 +51,18 @@ function slugify(s) {
 
 const STATUS_ICON = { good: CheckCircle2, warn: AlertTriangle, bad: XCircle };
 const STATUS_CLS = {
-  good: "text-grass-600 dark:text-grass-400",
-  warn: "text-gold-600 dark:text-gold-400",
-  bad: "text-cardinal-600 dark:text-cardinal-400",
+  good: "text-grass-600",
+  warn: "text-gold-600",
+  bad: "text-cardinal-600",
 };
 
 function SeoChecklist({ fields }) {
   const { checks, score, total } = useMemo(() => analyzeBlogSeo(fields), [fields]);
   return (
-    <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]">
+    <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-xs font-extrabold uppercase tracking-wide text-slate-500 dark:text-stone-400">SEO checklist</div>
-        <div className="text-xs font-bold text-slate-400 dark:text-stone-500">{score}/{total}</div>
+        <div className="text-xs font-extrabold uppercase tracking-wide text-slate-500">SEO checklist</div>
+        <div className="text-xs font-bold text-slate-400">{score}/{total}</div>
       </div>
       <ul className="space-y-1.5">
         {checks.map((c) => {
@@ -75,8 +71,8 @@ function SeoChecklist({ fields }) {
             <li key={c.id} className="flex items-start gap-2 text-xs">
               <Icon className={cx("mt-0.5 h-3.5 w-3.5 shrink-0", STATUS_CLS[c.status])} />
               <span>
-                <span className="font-bold text-slate-700 dark:text-stone-200">{c.label}:</span>{" "}
-                <span className="text-slate-500 dark:text-stone-400">{c.detail}</span>
+                <span className="font-bold text-slate-700">{c.label}:</span>{" "}
+                <span className="text-slate-500">{c.detail}</span>
               </span>
             </li>
           );
@@ -88,14 +84,14 @@ function SeoChecklist({ fields }) {
 
 function MarkdownToolbar({ onAction }) {
   return (
-    <div className="flex flex-wrap gap-1 rounded-t-2xl border-b border-slate-200 bg-slate-50 p-1.5 dark:border-white/[0.08] dark:bg-white/[0.04]">
+    <div className="flex flex-wrap gap-1 rounded-t-2xl border-b border-slate-200 bg-slate-50 p-1.5">
       {TOOLBAR_ACTIONS.map((a) => (
         <button
           key={a.key}
           type="button"
           title={a.title}
           onClick={() => onAction(a)}
-          className="grid h-7 w-8 place-items-center rounded-lg text-xs font-extrabold text-slate-600 hover:bg-white hover:shadow-sm dark:text-stone-300 dark:hover:bg-white/[0.08]"
+          className="grid h-7 w-8 place-items-center rounded-lg text-xs font-extrabold text-slate-600 hover:bg-white hover:shadow-sm"
         >
           {a.label}
         </button>
@@ -203,19 +199,19 @@ function PostEditor({ fields, onChange, api, onUploadError }) {
             const f = e.dataTransfer.files?.[0];
             if (f) uploadCoverFile(f);
           }}
-          className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-2 ring-dashed ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]"
+          className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-2 ring-dashed ring-slate-200"
         >
           {fields.cover_image_url ? (
             <img src={fields.cover_image_url} alt="" className="h-14 w-20 shrink-0 rounded-lg object-cover" />
           ) : (
-            <div className="grid h-14 w-20 shrink-0 place-items-center rounded-lg bg-slate-200 text-slate-400 dark:bg-white/[0.08]">
+            <div className="grid h-14 w-20 shrink-0 place-items-center rounded-lg bg-slate-200 text-slate-400">
               <ImagePlus className="h-5 w-5" />
             </div>
           )}
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex items-center gap-2">
               <input value={fields.cover_image_url} onChange={(e) => patch({ cover_image_url: e.target.value })} placeholder="Cover image URL, or drop/choose a file" className={cx(inputCls, "!py-1.5 text-xs")} />
-              <label className="shrink-0 cursor-pointer rounded-xl bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-[#18181b] dark:text-stone-300 dark:ring-white/[0.08]">
+              <label className="shrink-0 cursor-pointer rounded-xl bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50">
                 {uploadingCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Choose"}
                 <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => uploadCoverFile(e.target.files?.[0])} />
               </label>
@@ -229,8 +225,8 @@ function PostEditor({ fields, onChange, api, onUploadError }) {
           <input value={fields.tagsText} onChange={(e) => patch({ tagsText: e.target.value })} placeholder="Tags, comma-separated" className={inputCls} />
         </div>
 
-        <label className="block text-xs font-bold text-slate-500 dark:text-stone-400">
-          Publish date <span className="font-semibold text-slate-400 dark:text-stone-500">— leave blank to publish immediately when checked below</span>
+        <label className="block text-xs font-bold text-slate-500">
+          Publish date <span className="font-semibold text-slate-400">— leave blank to publish immediately when checked below</span>
           <input
             type="datetime-local"
             value={fields.scheduledAt}
@@ -262,7 +258,7 @@ function PostEditor({ fields, onChange, api, onUploadError }) {
               className={cx(textareaCls, "rounded-t-none font-mono text-xs", dragOverBody && "ring-brand-400")}
             />
             {(dragOverBody || uploadingBody) && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-b-2xl bg-brand-500/10 text-sm font-extrabold text-brand-700 dark:text-brand-400">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-b-2xl bg-brand-500/10 text-sm font-extrabold text-brand-700">
                 {uploadingBody ? <Loader2 className="h-5 w-5 animate-spin" /> : "Drop image to upload"}
               </div>
             )}
@@ -285,23 +281,36 @@ export default function CmsBlog() {
   const [posts, setPosts] = useState([]);
   const [edits, setEdits] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
   const [seeding, setSeeding] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState(emptyFields());
-  const [localeFilter, setLocaleFilter] = useState("");
+  const confirm = useConfirm();
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2800);
-  }
+  // Paging/search/filters live in the URL, and the list is fetched from the
+  // server per page — an English post has a row per locale, so this table
+  // grows ~7x faster than the post count.
+  const list = useListQuery();
+  const localeFilter = list.get("locale") || "";
+  const statusFilter = list.get("status") || "all";
+
+  const showToast = notify;
 
   async function refresh() {
-    const res = await api.listBlogPosts(localeFilter);
-    const list = Array.isArray(res?.posts) ? res.posts : [];
-    setPosts(list);
+    const res = await api.listBlogPosts(localeFilter, {
+      page: list.page,
+      pageSize: list.pageSize,
+      q: list.q,
+      status: statusFilter === "all" ? undefined : statusFilter,
+    });
+    // NB: not named `list` — that's the useListQuery handle this function
+    // reads above, and shadowing it here would be a TDZ ReferenceError.
+    const rows = Array.isArray(res?.posts) ? res.posts : [];
+    setTotal(Number(res?.total ?? rows.length));
+    setPosts(rows);
     const e = {};
-    list.forEach((p) => {
+    rows.forEach((p) => {
       e[p.id] = {
         slug: p.slug || "", title: p.title || "", meta_description: p.meta_description || "",
         excerpt: p.excerpt || "", cover_image_url: p.cover_image_url || "", cover_image_alt: p.cover_image_alt || "",
@@ -320,17 +329,16 @@ export default function CmsBlog() {
     (async () => {
       try {
         setLoading(true);
+        setLoadError(null);
         await refresh();
       } catch (err) {
-        showToast(err.message || "Failed to load posts", "err");
+        setLoadError(err.message || "Failed to load posts");
       } finally {
         setLoading(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, localeFilter]);
-
-  if (!token) return <Navigate to="/cms/login" replace />;
+  }, [token, localeFilter, statusFilter, list.page, list.pageSize, list.q]);
 
   async function importPlannedPosts() {
     setSeeding(true);
@@ -412,7 +420,7 @@ export default function CmsBlog() {
   }
 
   async function removePost(p) {
-    if (!confirm(`Delete "${p.title}"? This can't be undone.`)) return;
+    if (!(await confirm({ title: `Delete "${p.title}"?`, description: "This can't be undone." }))) return;
     setBusy(true);
     try {
       await api.deleteBlogPost(p.id);
@@ -428,42 +436,32 @@ export default function CmsBlog() {
   return (
     <CmsLayout active="blog" title="Blog">
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-50 p-4 text-sm font-semibold text-brand-800 ring-1 ring-brand-200">
-          <div>
-            This is Haylingua's first-party blog at /blog — separate from the external
-            blog.haylingua.am (Ghost). Body is Markdown. Publishing sets the article's
-            publish date once and never resets it on later edits.
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <select
-              value={localeFilter}
-              onChange={(e) => setLocaleFilter(e.target.value)}
-              className="rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-brand-700 ring-1 ring-brand-300 dark:bg-[#18181b]"
-              title="Filter posts by language"
-            >
-              <option value="">All languages</option>
-              {LOCALES.map((l) => (
-                <option key={l.value} value={l.value}>{l.label}</option>
-              ))}
-            </select>
-            <button
+        <Note tone="brand" className="justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              This is Haylingua's first-party blog at /blog — separate from the external
+              blog.haylingua.am (Ghost). Body is Markdown. Publishing sets the article's
+              publish date once and never resets it on later edits.
+            </div>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={importPlannedPosts}
               disabled={seeding}
               title="Publishes the planned SEO content batch (greetings, alphabet, dialects, numbers, travel phrases, FAQs) — safe to click more than once, already-imported posts are skipped."
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-brand-700 ring-1 ring-brand-300 hover:bg-brand-100 disabled:opacity-60 dark:bg-[#18181b]"
+              className="shrink-0"
             >
-              {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              {seeding ? <Loader2 className="animate-spin" /> : <Plus />}
               Import planned posts
-            </button>
+            </Button>
           </div>
-        </div>
+        </Note>
 
-        <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08]">
-          <div className="mb-3 font-display text-base font-bold text-slate-900 dark:text-white">New post</div>
+        <SectionCard title="New post">
           <PostEditor fields={draft} onChange={setDraft} api={api} onUploadError={(m) => showToast(m, "err")} />
           <div className="mt-3 flex items-center justify-between">
-            <label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 ring-2 ring-slate-200 dark:bg-white/[0.04] dark:text-stone-200 dark:ring-white/[0.08]">
+            <label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 ring-2 ring-slate-200">
               <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} />
               {draft.scheduledAt ? "Publish (using date above)" : "Publish immediately"}
             </label>
@@ -476,27 +474,73 @@ export default function CmsBlog() {
               <Plus className="h-4 w-4" /> Create
             </button>
           </div>
-        </section>
+        </SectionCard>
 
-        {loading ? (
-          <div className="p-6 text-sm text-slate-500">Loading…</div>
-        ) : posts.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm dark:bg-[#18181b] dark:ring-white/[0.08] dark:text-stone-400">No posts yet.</div>
-        ) : (
+        <ListToolbar
+          search={<SearchInput value={list.q} onChange={(q) => list.set({ q })} placeholder="Search title or slug…" />}
+          filters={
+            <>
+              <Select value={localeFilter || "all"} onValueChange={(v) => list.set({ locale: v === "all" ? "" : v, page: 1 })}>
+                <SelectTrigger className="h-9 w-[9.5rem] rounded-xl text-xs font-bold" aria-label="Filter by language">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All languages</SelectItem>
+                  {LOCALES.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={(v) => list.set({ status: v === "all" ? "" : v, page: 1 })}>
+                <SelectTrigger className="h-9 w-[8.5rem] rounded-xl text-xs font-bold" aria-label="Filter by status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="draft">Drafts</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          }
+          count={total}
+          countLabel="post"
+        />
+
+        <ListState
+          loading={loading}
+          error={loadError}
+          onRetry={() => { setLoading(true); refresh().catch((e) => setLoadError(e.message)).finally(() => setLoading(false)); }}
+          empty={posts.length === 0}
+          rows={4}
+          emptyState={
+            <EmptyState
+              icon={Newspaper}
+              title={list.q || localeFilter || statusFilter !== "all" ? "No posts match these filters" : "No posts yet"}
+              description={list.q || localeFilter || statusFilter !== "all" ? "Try a different search or filter." : "Create your first post above."}
+              action={
+                list.q || localeFilter || statusFilter !== "all" ? (
+                  <Button variant="outline" size="sm" onClick={() => list.set({ q: "", locale: "", status: "", page: 1 })}>Clear filters</Button>
+                ) : null
+              }
+            />
+          }
+        >
           <div className="space-y-4">
             {posts.map((p) => {
               const e = edits[p.id] || emptyFields();
               const isScheduled = p.is_published && p.published_at && new Date(p.published_at) > new Date();
               const isLive = p.is_published && !isScheduled;
               return (
-                <div key={p.id} className={cx("rounded-3xl bg-white p-4 ring-1 shadow-sm dark:bg-[#18181b]", p.is_published ? "ring-slate-200 dark:ring-white/[0.08]" : "ring-slate-200 opacity-80 dark:ring-white/[0.08]")}>
+                <div key={p.id} className={cx("rounded-3xl bg-white p-4 ring-1 shadow-sm", p.is_published ? "ring-slate-200" : "ring-slate-200 opacity-80")}>
                   <PostEditor
                     fields={e}
                     onChange={(next) => setEdits((prev) => ({ ...prev, [p.id]: next }))}
                     api={api}
                     onUploadError={(m) => showToast(m, "err")}
                   />
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-white/[0.06]">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
@@ -514,7 +558,7 @@ export default function CmsBlog() {
                         {isLive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                         {isLive ? "Published" : isScheduled ? `Scheduled · ${new Date(p.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Draft"}
                       </button>
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold uppercase text-slate-500 ring-1 ring-slate-200 dark:bg-white/[0.06] dark:text-stone-400 dark:ring-white/[0.08]">
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold uppercase text-slate-500 ring-1 ring-slate-200">
                         {p.locale || "en"}
                       </span>
                       {isLive && (
@@ -532,16 +576,16 @@ export default function CmsBlog() {
               );
             })}
           </div>
-        )}
+          <Pagination
+            className="mt-4"
+            page={list.page}
+            pageSize={list.pageSize}
+            total={total}
+            onPageChange={(p) => list.set({ page: p })}
+            onPageSizeChange={(n) => list.set({ pageSize: n })}
+          />
+        </ListState>
       </div>
-
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
-        </div>
-      )}
     </CmsLayout>
   );
 }

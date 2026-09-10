@@ -101,6 +101,39 @@ import routes as _routes_mod
 
 router = APIRouter()
 
+# ---------------------------------------------------------------------------
+# Pagination for CMS list endpoints.
+#
+# Same convention the already-paginated routers use (backend/routes_blog.py,
+# backend/routes_automations.py), so the whole API has one shape:
+#   request   ?page=1&page_size=25      page >= 1, page_size capped below
+#   response  {"<resource>": [...], "total": N, "page": P, "page_size": S}
+# The resource key is unchanged from before pagination, so adding these
+# params stays additive for every existing caller.
+# ---------------------------------------------------------------------------
+PAGE_SIZE_MAX = 200
+
+
+def _page_slice(page: int, page_size: int):
+    """(limit, offset) for a 1-based page."""
+    return page_size, (page - 1) * page_size
+
+
+def _paged(key: str, rows, total, page: int, page_size: int) -> dict:
+    return {
+        key: [dict(r) for r in rows],
+        "total": int(total or 0),
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+def _like(q):
+    """Bound pattern for a case-insensitive contains match, or None."""
+    q = (q or "").strip()
+    return f"%{q.lower()}%" if q else None
+
+
 
 # ==================== Support tools (CMS) ====================
 
@@ -4737,18 +4770,51 @@ def cms_upload_blog_image(request: Request, file: UploadFile = File(...), db=Dep
     return {"url": f"/static/blog/{filename}"}
 
 @router.get("/cms/blog")
-def cms_list_blog_posts(request: Request, locale: str | None = None, db=Depends(get_db)):
+def cms_list_blog_posts(
+    request: Request,
+    locale: str | None = None,
+    q: Optional[str] = Query(None),
+    status: str = Query("all"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=PAGE_SIZE_MAX),
+    db=Depends(get_db),
+):
+    """Blog posts for the CMS list, newest-edited first.
+
+    Paginated because every English post also has a row per translated
+    locale (7 in total), so an unfiltered list grows several times faster
+    than the post count suggests. `status` mirrors what the public
+    /blog route considers live: a post is published only once
+    published_at has actually passed.
+    """
     require_cms(request, db)
+
+    where, params = [], {}
     if locale:
-        rows = db.execute(
-            text(f"SELECT {_BLOG_LIST_COLS} FROM blog_posts WHERE locale = :locale ORDER BY updated_at DESC"),
-            {"locale": locale},
-        ).mappings().all()
-    else:
-        rows = db.execute(text(f"""
-            SELECT {_BLOG_LIST_COLS} FROM blog_posts ORDER BY updated_at DESC
-        """)).mappings().all()
-    return {"posts": [dict(r) for r in rows]}
+        where.append("locale = :locale")
+        params["locale"] = locale
+    like = _like(q)
+    if like:
+        where.append("(lower(title) LIKE :like OR lower(slug) LIKE :like)")
+        params["like"] = like
+    if status == "published":
+        where.append("is_published AND published_at IS NOT NULL AND published_at <= NOW()")
+    elif status == "scheduled":
+        where.append("is_published AND published_at IS NOT NULL AND published_at > NOW()")
+    elif status == "draft":
+        where.append("(NOT is_published OR published_at IS NULL)")
+    clause = ("WHERE " + " AND ".join(where)) if where else ""
+
+    total = db.execute(text(f"SELECT COUNT(*) FROM blog_posts {clause}"), params).scalar()
+    limit, offset = _page_slice(page, page_size)
+    rows = db.execute(
+        text(
+            f"SELECT {_BLOG_LIST_COLS} FROM blog_posts {clause} "
+            "ORDER BY updated_at DESC LIMIT :limit OFFSET :offset"
+        ),
+        {**params, "limit": limit, "offset": offset},
+    ).mappings().all()
+    return _paged("posts", rows, total, page, page_size)
 
 @router.get("/cms/blog/{post_id}")
 def cms_get_blog_post(post_id: int, request: Request, db=Depends(get_db)):

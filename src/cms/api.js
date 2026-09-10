@@ -73,6 +73,19 @@ export function createCmsApi(accessToken) {
     return data;
   }
 
+  // Builds "?a=1&b=x" from an object, dropping empty/undefined values — so
+  // callers can pass a sparse options object and old zero-arg call sites keep
+  // producing the same bare URL they always did.
+  const qs = (o) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(o)) {
+      if (v === undefined || v === null || v === "") continue;
+      p.set(k, String(v));
+    }
+    const s = p.toString();
+    return s ? `?${s}` : "";
+  };
+
   // Chapters
   const listChapters = () => req("/cms/chapters");
   const createChapter = (payload) =>
@@ -143,7 +156,11 @@ export function createCmsApi(accessToken) {
     return data;
   };
   const seedBlogPosts = () => req("/cms/seed/blog-posts", { method: "POST" });
-  const listBlogPosts = (locale) => req(locale ? `/cms/blog?locale=${encodeURIComponent(locale)}` : "/cms/blog");
+  // listBlogPosts(locale) still works; the options object adds server-side
+  // paging/search/status filtering (see GET /cms/blog in routes_cms.py).
+  // Response: { posts, total, page, page_size }.
+  const listBlogPosts = (locale, { page, pageSize, q, status } = {}) =>
+    req(`/cms/blog${qs({ locale, q, status, page, page_size: pageSize })}`);
   const getBlogPost = (id) => req(`/cms/blog/${id}`);
   const createBlogPost = (payload) => req("/cms/blog", { method: "POST", body: JSON.stringify(payload) });
   const updateBlogPost = (id, payload) => req(`/cms/blog/${id}`, { method: "PUT", body: JSON.stringify(payload) });
