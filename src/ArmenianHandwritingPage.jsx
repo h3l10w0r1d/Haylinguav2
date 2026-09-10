@@ -48,33 +48,48 @@ const PRINT_CSS = `
 .hw-sheet__name { font-size: 11px; color: #555; white-space: nowrap; }
 .hw-sheet__foot { margin-top: 14px; text-align: center; font-size: 9px; color: #888; }
 
-.hw-block { break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px; }
+/* Sized so four letter blocks clear a single A4 page. A block is the
+   header plus its practice lines; at the previous 48px/6px/12px it came to
+   ~257px against ~1000px of usable page, so break-inside:avoid pushed the
+   fourth block over and left a third of every sheet blank. */
+.hw-block { break-inside: avoid; page-break-inside: avoid; margin-bottom: 10px; }
 .hw-block__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px; }
 .hw-block__n { font-size: 10px; color: #999; min-width: 16px; font-variant-numeric: tabular-nums; }
 .hw-block__glyphs { font-size: 19px; font-weight: 700; }
 .hw-block__translit { font-size: 11px; color: #666; font-style: italic; }
 
-/* One practice line, built like real handwriting paper rather than a row of
-   boxes. Three horizontal references, top to bottom:
-     - ascender line (faint, solid)    where tall letters reach
-     - midline       (grey, dashed)    the x-height most letters stop at
-     - baseline      (dark, solid)     what letters sit ON
-   Below the baseline is descender room, which Armenian genuinely needs —
-   ղ, ջ, փ, ք and ց all drop below the line, and a layout that puts the
-   baseline flush at the bottom of the row clips every one of them.
-   Geometry is absolute rather than a background gradient because the
-   earlier gradient version put the baseline at the row's bottom edge and
-   the letters straddled it. */
-.hw-line { position: relative; height: 52px; margin-bottom: 6px; display: flex; align-items: flex-start; }
+/* One practice line, built like real handwriting paper. Every number below
+   was MEASURED against Noto Sans Armenian at 30px (canvas TextMetrics +
+   a baseline probe in the DOM), not taken from Latin worksheet convention:
+
+     baseline   35px   where the glyphs actually sit
+     midline    20px   ~15px above baseline: 24 of the 40 lowercase forms
+                       (ա լ յ չ պ ս ւ բ գ դ զ ը թ ղ շ ո ջ ռ տ ր ց ք օ …)
+                       top out here — Armenian's equivalent of x-height
+     ascender   12px   ~23px above baseline: the tall group
+                       (ե է ժ ի խ կ ձ ն վ փ և ֆ ծ հ ճ մ)
+     descender  13px of room below the baseline; the deepest descenders
+                       (բ գ դ զ է ը թ ի լ խ կ ղ յ շ չ պ ջ վ ր ց փ ք ֆ)
+                       reach 7.4px, so they clear comfortably
+
+   The letter heights are genuinely bimodal — there is no single x-height
+   like Latin has — which is why the midline sits at the SHORT group's top
+   rather than at half the cap height. A midline copied from Latin paper
+   would tell a child to stop letters in a place no Armenian letter stops.
+
+   Earlier versions of this used a background gradient with the baseline at
+   the row's bottom edge; the glyphs floated 3px above it and descenders had
+   nowhere to go. Absolute rules against a measured baseline fixed both. */
+.hw-line { position: relative; height: 46px; margin-bottom: 4px; display: flex; align-items: flex-start; }
 .hw-line--ruled::before,
 .hw-line--ruled::after,
 .hw-line--ruled > .hw-rule { content: ""; position: absolute; left: 0; right: 0; }
-.hw-line--ruled::before { top: 8px;  border-top: 1px solid #e6e6e6; }   /* ascender */
-.hw-line--ruled::after  { top: 38px; border-top: 1.5px solid #333; }    /* baseline */
-.hw-line--ruled > .hw-rule { top: 23px; border-top: 1px dashed #cfcfcf; } /* midline */
+.hw-line--ruled::before { top: 12px; border-top: 1px solid #e6e6e6; }   /* ascender */
+.hw-line--ruled > .hw-rule { top: 20px; border-top: 1px dashed #cfcfcf; } /* midline */
+.hw-line--ruled::after  { top: 35px; border-top: 1.5px solid #333; }    /* baseline */
 
-/* line-height pins the glyph's own baseline to the 38px rule above, so the
-   letters rest on the line and their descenders fall into the 14px below. */
+/* font-size/line-height are load-bearing: they put the glyph baseline at
+   exactly 35px. Change either and the rules above need re-measuring. */
 .hw-slot { flex: 1; text-align: center; font-size: 30px; line-height: 47px; color: transparent; }
 /* Tracing copies: mid grey, always printable. Deliberately a solid fill and
    not -webkit-text-stroke — outline text is prettier on screen but drops out
@@ -83,7 +98,9 @@ const PRINT_CSS = `
 
 @media print {
   @page { size: A4 portrait; margin: 12mm 12mm 10mm; }
-  .hw-screen, header, footer, nav { display: none !important; }
+  /* Scope this to the wrappers, NOT bare header/footer/nav tags — those
+     match elements inside the worksheet itself. */
+  .hw-screen { display: none !important; }
   html, body { background: #fff !important; }
   .hw-sheet {
     max-width: none !important; margin: 0 !important; padding: 0 !important;
@@ -131,11 +148,13 @@ function LetterBlock({ letter, showCase, rows, rule }) {
     : showCase === "upper" ? [letter.upper] : [letter.lower];
   return (
     <section className="hw-block">
-      <header className="hw-block__head">
+      {/* A <div>, not a <header>: the print rule below hides site chrome by
+          tag name, and a <header> here silently vanished from every sheet. */}
+      <div className="hw-block__head">
         <span className="hw-block__n">{letter.n}</span>
         <span className="hw-block__glyphs">{letter.upper}&nbsp;&nbsp;{letter.lower}</span>
         <span className="hw-block__translit">{letter.translit}</span>
-      </header>
+      </div>
       {glyphs.map((g) => (
         Array.from({ length: rows }).map((_, r) => (
           <PracticeLine key={`${g}-${r}`} glyph={g} rule={rule} />

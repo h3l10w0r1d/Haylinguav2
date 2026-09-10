@@ -36,7 +36,7 @@ export default function NotifyPrompt() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-20 inset-x-4 z-50 md:bottom-6 md:right-6 md:left-auto md:max-w-sm animate-in slide-in-from-bottom-4 duration-300">
+    <div data-print-hide className="fixed bottom-20 inset-x-4 z-50 md:bottom-6 md:right-6 md:left-auto md:max-w-sm animate-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200">
         <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-600">
           <Bell size={18} />
