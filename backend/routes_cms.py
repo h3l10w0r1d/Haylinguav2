@@ -3301,17 +3301,38 @@ async def cms_reorder_vacancy_fields(vacancy_id: int, request: Request, db=Depen
 # ==================== Careers: applications ====================
 
 @router.get("/cms/vacancies/{vacancy_id}/applications")
-def cms_list_applications(vacancy_id: int, request: Request, db=Depends(get_db)):
+def cms_list_applications(
+    vacancy_id: int,
+    request: Request,
+    q: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=PAGE_SIZE_MAX),
+    db=Depends(get_db),
+):
+    """Applications for one vacancy — a popular role can collect hundreds."""
     require_cms(request, db)
+    conds, params = ["vacancy_id = :id"], {"id": vacancy_id}
+    like = _like(q)
+    if like:
+        conds.append("(lower(applicant_name) LIKE :like OR lower(applicant_email) LIKE :like)")
+        params["like"] = like
+    if status:
+        conds.append("status = :status")
+        params["status"] = status
+    where = "WHERE " + " AND ".join(conds)
+
+    total = db.execute(text(f"SELECT COUNT(*) FROM job_applications {where}"), params).scalar()
+    limit, offset = _page_slice(page, page_size)
     rows = db.execute(
-        text("""
+        text(f"""
             SELECT id, applicant_name, applicant_email, linkedin_url, status, created_at,
                    cv_filename IS NOT NULL AS has_cv, cover_letter_filename IS NOT NULL AS has_cover_letter
-            FROM job_applications WHERE vacancy_id = :id ORDER BY created_at DESC
+            FROM job_applications {where} ORDER BY created_at DESC LIMIT :limit OFFSET :offset
         """),
-        {"id": vacancy_id},
+        {**params, "limit": limit, "offset": offset},
     ).mappings().all()
-    return {"applications": [dict(r) for r in rows]}
+    return _paged("applications", rows, total, page, page_size)
 
 @router.get("/cms/applications/{application_id}")
 def cms_get_application(application_id: int, request: Request, db=Depends(get_db)):
@@ -3386,9 +3407,32 @@ def _generate_referral_code(db, base_name: str) -> str:
     return candidate
 
 @router.get("/cms/affiliates")
-def cms_list_affiliates(request: Request, db=Depends(get_db)):
+def cms_list_affiliates(
+    request: Request,
+    q: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=PAGE_SIZE_MAX),
+    db=Depends(get_db),
+):
+    """Affiliate applications/accounts, pending first (unchanged ordering)."""
     require_cms(request, db)
-    rows = db.execute(text("""
+    conds, params = [], {}
+    like = _like(q)
+    if like:
+        conds.append(
+            "(lower(a.applied_name) LIKE :like OR lower(a.applied_email) LIKE :like "
+            "OR lower(a.referral_code) LIKE :like)"
+        )
+        params["like"] = like
+    if status:
+        conds.append("a.status = :status")
+        params["status"] = status
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+
+    total = db.execute(text(f"SELECT COUNT(*) FROM affiliates a {where}"), params).scalar()
+    limit, offset = _page_slice(page, page_size)
+    rows = db.execute(text(f"""
         SELECT a.id, a.user_id, a.referral_code, a.commission_rate, a.status,
                a.payout_email, a.payout_requested_at,
                a.applied_name, a.applied_email, a.applied_platform, a.applied_audience, a.applied_message,
@@ -3398,9 +3442,11 @@ def cms_list_affiliates(request: Request, db=Depends(get_db)):
                COALESCE((SELECT COUNT(*) FROM affiliate_referrals r WHERE r.affiliate_id = a.id AND r.converted_at IS NOT NULL), 0) AS converted_count,
                COALESCE((SELECT SUM(commission_amount) FROM affiliate_referrals r WHERE r.affiliate_id = a.id AND r.payout_status = 'unpaid'), 0) AS pending_commission
         FROM affiliates a
+        {where}
         ORDER BY (a.status = 'pending') DESC, a.payout_requested_at DESC NULLS LAST, a.created_at DESC
-    """)).mappings().all()
-    return {"affiliates": [dict(r) for r in rows]}
+        LIMIT :limit OFFSET :offset
+    """), {**params, "limit": limit, "offset": offset}).mappings().all()
+    return _paged("affiliates", rows, total, page, page_size)
 
 @router.get("/cms/affiliates/analytics")
 def cms_affiliates_analytics(request: Request, db=Depends(get_db)):
@@ -3497,16 +3543,29 @@ async def cms_update_affiliate(affiliate_id: int, request: Request, db=Depends(g
     return {"ok": True}
 
 @router.get("/cms/affiliates/{affiliate_id}/referrals")
-def cms_list_affiliate_referrals(affiliate_id: int, request: Request, db=Depends(get_db)):
+def cms_list_affiliate_referrals(
+    affiliate_id: int,
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=PAGE_SIZE_MAX),
+    db=Depends(get_db),
+):
+    """One affiliate's referred learners — unbounded for a successful affiliate."""
     require_cms(request, db)
+    params = {"id": affiliate_id}
+    total = db.execute(
+        text("SELECT COUNT(*) FROM affiliate_referrals r WHERE r.affiliate_id = :id"), params
+    ).scalar()
+    limit, offset = _page_slice(page, page_size)
     rows = db.execute(text("""
         SELECT r.id, r.referred_at, r.converted_at, r.commission_amount, r.payout_status,
                u.username, u.email
         FROM affiliate_referrals r JOIN users u ON u.id = r.user_id
         WHERE r.affiliate_id = :id
         ORDER BY r.referred_at DESC
-    """), {"id": affiliate_id}).mappings().all()
-    return {"referrals": [dict(r) for r in rows]}
+        LIMIT :limit OFFSET :offset
+    """), {**params, "limit": limit, "offset": offset}).mappings().all()
+    return _paged("referrals", rows, total, page, page_size)
 
 @router.post("/cms/affiliate-referrals/{referral_id}/mark-paid")
 def cms_mark_referral_paid(referral_id: int, request: Request, db=Depends(get_db)):
@@ -3626,9 +3685,30 @@ async def cms_reorder_forum_categories(request: Request, db=Depends(get_db)):
     return {"ok": True}
 
 @router.get("/cms/forum/threads")
-def cms_list_forum_threads(request: Request, category_id: Optional[int] = None, db=Depends(get_db)):
+def cms_list_forum_threads(
+    request: Request,
+    category_id: Optional[int] = None,
+    q: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=PAGE_SIZE_MAX),
+    db=Depends(get_db),
+):
+    """Forum threads for moderation. Was capped at the newest 100."""
     require_cms(request, db)
-    where = "WHERE t.category_id = :cid" if category_id else ""
+    conds, params = [], {}
+    if category_id:
+        conds.append("t.category_id = :cid")
+        params["cid"] = category_id
+    like = _like(q)
+    if like:
+        conds.append("lower(t.title) LIKE :like")
+        params["like"] = like
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+
+    total = db.execute(
+        text(f"SELECT COUNT(*) FROM forum_threads t {where}"), params
+    ).scalar()
+    limit, offset = _page_slice(page, page_size)
     rows = db.execute(
         text(f"""
             SELECT t.id, t.title, t.is_pinned, t.is_locked, t.reply_count, t.last_reply_at, t.created_at,
@@ -3639,11 +3719,11 @@ def cms_list_forum_threads(request: Request, category_id: Optional[int] = None, 
             JOIN users u ON u.id = t.user_id
             {where}
             ORDER BY t.last_reply_at DESC
-            LIMIT 100
+            LIMIT :limit OFFSET :offset
         """),
-        {"cid": category_id} if category_id else {},
+        {**params, "limit": limit, "offset": offset},
     ).mappings().all()
-    return {"threads": [dict(r) for r in rows]}
+    return _paged("threads", rows, total, page, page_size)
 
 @router.put("/cms/forum/threads/{thread_id}")
 async def cms_update_forum_thread(thread_id: int, request: Request, db=Depends(get_db)):

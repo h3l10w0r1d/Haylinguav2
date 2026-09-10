@@ -1,7 +1,6 @@
 // src/cms/CmsAffiliates.jsx — approve affiliate applications, adjust
 // commission rates, and track referrals/payouts.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import {
@@ -9,12 +8,11 @@ import {
   Copy, Ban, RotateCcw, Wallet, Mail,
 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import {
+  Button, EmptyState, ListState, ListToolbar, Pagination, SearchInput,
+  Tabs, TabsList, TabsTrigger, cn as cx, inputCls, notify, useListQuery,
+} from "./ui";
 
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 const STATUS_TONE = {
   pending: "bg-brand-50 text-brand-700 ring-brand-200",
   approved: "bg-grass-50 text-grass-700 ring-grass-200",
@@ -73,8 +71,8 @@ function AnalyticsSummary({ api, showToast }) {
         <SummaryCard icon={MousePointerClick} label="Total clicks" value={data.total_clicks} />
         <SummaryCard icon={Users} label="Total referred" value={data.total_referred} />
         <SummaryCard icon={Check} label="Converted" value={data.total_converted} />
-        <SummaryCard icon={Wallet} label="Owed" value={`֏${data.total_pending_commission.toLocaleString()}`} />
-        <SummaryCard icon={DollarSign} label="Paid out" value={`֏${data.total_paid_commission.toLocaleString()}`} />
+        <SummaryCard icon={Wallet} label="Owed" value={`֏${(data.total_pending_commission || 0).toLocaleString()}`} />
+        <SummaryCard icon={DollarSign} label="Paid out" value={`֏${(data.total_paid_commission || 0).toLocaleString()}`} />
       </div>
       <div className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
         <div className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Clicks & signups — last 30 days</div>
@@ -108,17 +106,23 @@ function AnalyticsSummary({ api, showToast }) {
 
 function ReferralsPanel({ affiliate, api, showToast }) {
   const [referrals, setReferrals] = useState(null);
+  const [total, setTotal] = useState(0);
+  // Local page state, not the URL: this panel is nested per-affiliate, so a
+  // shared ?page= would be ambiguous between rows.
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
   const [busy, setBusy] = useState(false);
 
   async function refresh() {
-    const res = await api.listAffiliateReferrals(affiliate.id);
+    const res = await api.listAffiliateReferrals(affiliate.id, { page, pageSize: PAGE_SIZE });
     setReferrals(Array.isArray(res?.referrals) ? res.referrals : []);
+    setTotal(Number(res?.total ?? (res?.referrals || []).length));
   }
 
   useEffect(() => {
     refresh().catch((err) => showToast(err.message || "Failed to load referrals", "err"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [affiliate.id]);
+  }, [affiliate.id, page]);
 
   async function markPaid(id) {
     setBusy(true);
@@ -161,6 +165,14 @@ function ReferralsPanel({ affiliate, api, showToast }) {
               )}
             </div>
           ))}
+          <Pagination
+            className="mt-3"
+            compact
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
         </div>
       )}
     </div>
@@ -173,23 +185,28 @@ export default function CmsAffiliates() {
   useEffect(() => { setCmsApiClient(api); }, [api]);
 
   const [affiliates, setAffiliates] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [rateEdits, setRateEdits] = useState({});
   const [expandedId, setExpandedId] = useState(null);
+  const showToast = notify;
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2800);
-  }
+  const list = useListQuery();
+  const statusFilter = list.get("status") || "all";
 
   async function refresh() {
-    const res = await api.listAffiliates();
-    const list = Array.isArray(res?.affiliates) ? res.affiliates : [];
-    setAffiliates(list);
+    const res = await api.listAffiliates({
+      page: list.page,
+      pageSize: list.pageSize,
+      q: list.q,
+      status: statusFilter === "all" ? undefined : statusFilter,
+    });
+    const rows = Array.isArray(res?.affiliates) ? res.affiliates : [];
+    setAffiliates(rows);
+    setTotal(Number(res?.total ?? rows.length));
     const r = {};
-    list.forEach((a) => { r[a.id] = a.commission_rate; });
+    rows.forEach((a) => { r[a.id] = a.commission_rate; });
     setRateEdits(r);
   }
 
@@ -205,9 +222,7 @@ export default function CmsAffiliates() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  if (!token) return <Navigate to="/cms/login" replace />;
+  }, [token, statusFilter, list.page, list.pageSize, list.q]);
 
   async function approve(a) {
     setBusy(true);
@@ -258,11 +273,31 @@ export default function CmsAffiliates() {
       <div className="space-y-6">
         <AnalyticsSummary api={api} showToast={showToast} />
       <div className="space-y-3">
-        {loading ? (
-          <div className="p-6 text-sm text-slate-500">Loading…</div>
-        ) : affiliates.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm">No applications yet.</div>
-        ) : (
+        <Tabs value={statusFilter} onValueChange={(v) => list.set({ status: v === "all" ? "" : v, page: 1 })}>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="approved">Approved</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <ListToolbar
+          search={<SearchInput value={list.q} onChange={(q) => list.set({ q })} placeholder="Search name, email, or code…" />}
+          count={total}
+          countLabel="affiliate"
+        />
+        <ListState
+          loading={loading}
+          empty={affiliates.length === 0}
+          emptyState={
+            <EmptyState
+              title={list.q || statusFilter !== "all" ? "No affiliates match" : "No applications yet"}
+              description={list.q || statusFilter !== "all" ? "Try a different search or status." : undefined}
+              action={list.q || statusFilter !== "all" ? <Button variant="outline" size="sm" onClick={() => list.set({ q: "", status: "", page: 1 })}>Clear filters</Button> : null}
+            />
+          }
+        >
+        <div className="space-y-3">
+        {(
           affiliates.map((a) => (
             <div key={a.id} className="rounded-3xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
               <div className="flex flex-wrap items-start gap-3">
@@ -326,16 +361,18 @@ export default function CmsAffiliates() {
             </div>
           ))
         )}
-      </div>
-      </div>
-
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
         </div>
-      )}
+        <Pagination
+          className="mt-4"
+          page={list.page}
+          pageSize={list.pageSize}
+          total={total}
+          onPageChange={(p) => list.set({ page: p })}
+          onPageSizeChange={(n) => list.set({ pageSize: n })}
+        />
+        </ListState>
+      </div>
+      </div>
     </CmsLayout>
   );
 }

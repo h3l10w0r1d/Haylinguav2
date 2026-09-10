@@ -1,12 +1,12 @@
 // src/cms/CmsCareers.jsx — manage job vacancies shown on the public Careers page.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import {
   Plus, Save, Trash2, ChevronUp, ChevronDown, ChevronRight, Eye, EyeOff, Briefcase,
   ListPlus, FileText, Download, Linkedin, Mail,
 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { Button, Pagination, cn as cx, inputCls, notify, useConfirm } from "./ui";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
 const FIELD_TYPES = ["text", "textarea", "url", "file"];
@@ -19,16 +19,17 @@ const STATUS_TONE = {
   hired: "bg-grass-50 text-grass-700 ring-grass-200",
 };
 
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 
 // Fields + applications for one vacancy — fetched lazily when its card expands.
 function VacancyPanel({ vacancy, api, showToast }) {
+  const confirm = useConfirm();
   const [fields, setFields] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [appsTotal, setAppsTotal] = useState(0);
+  // Local, not URL state: several vacancy panels can be open at once, so a
+  // shared ?page= would be ambiguous between them.
+  const [appsPage, setAppsPage] = useState(1);
+  const APPS_PAGE_SIZE = 25;
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [fieldDraft, setFieldDraft] = useState({ label: "", field_type: "text", is_required: false });
@@ -36,9 +37,14 @@ function VacancyPanel({ vacancy, api, showToast }) {
   const [appDetail, setAppDetail] = useState(null);
 
   async function refresh() {
-    const [f, a] = await Promise.all([api.listVacancyFields(vacancy.id), api.listApplications(vacancy.id)]);
+    const [f, a] = await Promise.all([
+      api.listVacancyFields(vacancy.id),
+      api.listApplications(vacancy.id, { page: appsPage, pageSize: APPS_PAGE_SIZE }),
+    ]);
     setFields(Array.isArray(f?.fields) ? f.fields : []);
-    setApplications(Array.isArray(a?.applications) ? a.applications : []);
+    const appRows = Array.isArray(a?.applications) ? a.applications : [];
+    setApplications(appRows);
+    setAppsTotal(Number(a?.total ?? appRows.length));
   }
 
   useEffect(() => {
@@ -53,7 +59,7 @@ function VacancyPanel({ vacancy, api, showToast }) {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vacancy.id]);
+  }, [vacancy.id, appsPage]);
 
   async function addField() {
     if (!fieldDraft.label.trim()) return;
@@ -70,7 +76,7 @@ function VacancyPanel({ vacancy, api, showToast }) {
   }
 
   async function removeField(f) {
-    if (!confirm(`Delete the "${f.label}" question? Existing answers to it will also be removed.`)) return;
+    if (!(await confirm({ title: `Delete the "${f.label}" question?`, description: "Existing answers to it will also be removed." }))) return;
     setBusy(true);
     try {
       await api.deleteVacancyField(f.id);
@@ -151,7 +157,7 @@ function VacancyPanel({ vacancy, api, showToast }) {
 
       {/* Applications */}
       <div>
-        <div className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Applications ({applications.length})</div>
+        <div className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Applications ({appsTotal})</div>
         {applications.length === 0 ? (
           <div className="rounded-xl bg-slate-50 p-4 text-center text-xs font-semibold text-slate-400">No applications yet.</div>
         ) : (
@@ -204,6 +210,14 @@ function VacancyPanel({ vacancy, api, showToast }) {
                 )}
               </div>
             ))}
+            <Pagination
+              className="mt-3"
+              compact
+              page={appsPage}
+              pageSize={APPS_PAGE_SIZE}
+              total={appsTotal}
+              onPageChange={setAppsPage}
+            />
           </div>
         )}
       </div>
@@ -220,14 +234,10 @@ export default function CmsCareers() {
   const [edits, setEdits] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState({ title: "", location: "Remote", employment_type: "full-time" });
   const [expandedId, setExpandedId] = useState(null);
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  const showToast = notify;
 
   async function refresh() {
     const res = await api.listVacancies();
@@ -257,7 +267,6 @@ export default function CmsCareers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   async function createItem() {
     if (!draft.title.trim()) return;
@@ -413,14 +422,6 @@ export default function CmsCareers() {
           </div>
         )}
       </div>
-
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
-        </div>
-      )}
     </CmsLayout>
   );
 }

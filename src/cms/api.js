@@ -176,11 +176,16 @@ export function createCmsApi(accessToken) {
   const setChestConfig = (rewards, rarities) => req("/cms/shop/chest", { method: "PUT", body: JSON.stringify({ rewards, rarities }) });
 
   // Affiliate program
-  const listAffiliates = () => req("/cms/affiliates");
+  // All four take an optional trailing options object for server-side
+  // paging/filtering; the old positional call forms still work.
+  // Responses: {affiliates|referrals|applications|threads, total, page, page_size}.
+  const listAffiliates = ({ page, pageSize, q, status } = {}) =>
+    req(`/cms/affiliates${qs({ q, status, page, page_size: pageSize })}`);
   const getAffiliatesAnalytics = () => req("/cms/affiliates/analytics");
   const approveAffiliate = (id) => req(`/cms/affiliates/${id}/approve`, { method: "POST" });
   const updateAffiliate = (id, payload) => req(`/cms/affiliates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
-  const listAffiliateReferrals = (id) => req(`/cms/affiliates/${id}/referrals`);
+  const listAffiliateReferrals = (id, { page, pageSize } = {}) =>
+    req(`/cms/affiliates/${id}/referrals${qs({ page, page_size: pageSize })}`);
   const markReferralPaid = (referralId) => req(`/cms/affiliate-referrals/${referralId}/mark-paid`, { method: "POST" });
 
   // Careers: job vacancies
@@ -207,7 +212,8 @@ export function createCmsApi(accessToken) {
   const reorderVacancyFields = (vacancyId, order) => req(`/cms/vacancies/${vacancyId}/fields/reorder`, { method: "POST", body: JSON.stringify({ order }) });
 
   // Careers: applications
-  const listApplications = (vacancyId) => req(`/cms/vacancies/${vacancyId}/applications`);
+  const listApplications = (vacancyId, { page, pageSize, q, status } = {}) =>
+    req(`/cms/vacancies/${vacancyId}/applications${qs({ q, status, page, page_size: pageSize })}`);
   const getApplication = (id) => req(`/cms/applications/${id}`);
   const updateApplicationStatus = (id, status) => req(`/cms/applications/${id}`, { method: "PUT", body: JSON.stringify({ status }) });
   // Downloads need the Bearer token, which a plain <a href> can't send — fetch
@@ -260,7 +266,8 @@ export function createCmsApi(accessToken) {
   const updateForumCategory = (id, payload) => req(`/cms/forum/categories/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   const deleteForumCategory = (id) => req(`/cms/forum/categories/${id}`, { method: "DELETE" });
   const reorderForumCategories = (order) => req("/cms/forum/categories/reorder", { method: "POST", body: JSON.stringify({ order }) });
-  const listForumThreadsAdmin = (categoryId) => req(`/cms/forum/threads${categoryId ? `?category_id=${categoryId}` : ""}`);
+  const listForumThreadsAdmin = (categoryId, { page, pageSize, q } = {}) =>
+    req(`/cms/forum/threads${qs({ category_id: categoryId, q, page, page_size: pageSize })}`);
   const updateForumThread = (id, payload) => req(`/cms/forum/threads/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   const deleteForumThread = (id) => req(`/cms/forum/threads/${id}`, { method: "DELETE" });
   const listForumThreadPosts = (threadId) => req(`/cms/forum/threads/${threadId}/posts`);

@@ -1,15 +1,13 @@
 // src/cms/CmsForum.jsx — manage forum categories and moderate threads/posts.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Pin, Lock, Unlock, MessagesSquare, ChevronRight } from "lucide-react";
 import CmsLayout from "./CmsLayout";
-
-function cx(...a) {
-  return a.filter(Boolean).join(" ");
-}
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
+import {
+  Button, EmptyState, ListState, ListToolbar, Pagination, SearchInput,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  cn as cx, inputCls, notify, useConfirm, useListQuery,
+} from "./ui";
 
 function slugify(s) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -26,23 +24,32 @@ export default function CmsForum() {
   const [expandedThread, setExpandedThread] = useState(null);
   const [threadPosts, setThreadPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [threadsTotal, setThreadsTotal] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState(null);
   const [draft, setDraft] = useState({ name: "", description: "" });
+  const confirm = useConfirm();
+  const showToast = notify;
 
-  function showToast(msg, kind = "ok") {
-    setToast({ msg, kind });
-    setTimeout(() => setToast(null), 2400);
-  }
+  // Threads page on the server (they were capped at the newest 100);
+  // categories stay whole — they're a handful and drag-reorderable.
+  const list = useListQuery();
+  const categoryFilter = list.get("category") || "";
 
   async function refresh() {
-    const [cats, th] = await Promise.all([api.listForumCategories(), api.listForumThreadsAdmin()]);
-    const list = Array.isArray(cats?.categories) ? cats.categories : [];
-    setCategories(list);
+    const [cats, th] = await Promise.all([
+      api.listForumCategories(),
+      api.listForumThreadsAdmin(categoryFilter || undefined, {
+        page: list.page, pageSize: list.pageSize, q: list.q,
+      }),
+    ]);
+    const catList = Array.isArray(cats?.categories) ? cats.categories : [];
+    setCategories(catList);
     const e = {};
-    list.forEach((c) => { e[c.id] = { name: c.name || "", slug: c.slug || "", description: c.description || "" }; });
+    catList.forEach((c) => { e[c.id] = { name: c.name || "", slug: c.slug || "", description: c.description || "" }; });
     setEdits(e);
-    setThreads(Array.isArray(th?.threads) ? th.threads : []);
+    const rows = Array.isArray(th?.threads) ? th.threads : [];
+    setThreads(rows);
+    setThreadsTotal(Number(th?.total ?? rows.length));
   }
 
   useEffect(() => {
@@ -57,9 +64,7 @@ export default function CmsForum() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  if (!token) return <Navigate to="/cms/login" replace />;
+  }, [token, categoryFilter, list.page, list.pageSize, list.q]);
 
   async function createCategory() {
     if (!draft.name.trim()) return;
@@ -103,7 +108,7 @@ export default function CmsForum() {
   }
 
   async function removeCategory(c) {
-    if (!confirm(`Delete "${c.name}"? All its threads and posts will be deleted too.`)) return;
+    if (!(await confirm({ title: `Delete "${c.name}"?`, description: "All its threads and posts will be deleted too." }))) return;
     setBusy(true);
     try {
       await api.deleteForumCategory(c.id);
@@ -152,7 +157,7 @@ export default function CmsForum() {
   }
 
   async function removeThread(t) {
-    if (!confirm(`Delete the thread "${t.title}" and all its replies?`)) return;
+    if (!(await confirm({ title: `Delete "${t.title}"?`, description: "The thread and all its replies will be removed." }))) return;
     setBusy(true);
     try {
       await api.deleteForumThread(t.id);
@@ -253,12 +258,40 @@ export default function CmsForum() {
 
         {/* ----- Thread moderation ----- */}
         <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-          <div className="mb-1 font-display text-base font-bold text-slate-900">Recent threads</div>
+          <div className="mb-1 font-display text-base font-bold text-slate-900">Threads</div>
           <p className="mb-4 text-sm font-semibold text-slate-500">Pin, lock, or remove threads and individual replies.</p>
 
-          {threads.length === 0 ? (
-            <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">No threads yet.</div>
-          ) : (
+          <ListToolbar
+            search={<SearchInput value={list.q} onChange={(q) => list.set({ q })} placeholder="Search thread titles…" />}
+            filters={
+              <Select value={categoryFilter || "all"} onValueChange={(v) => list.set({ category: v === "all" ? "" : v, page: 1 })}>
+                <SelectTrigger className="h-9 w-[11rem] rounded-xl text-xs font-bold" aria-label="Filter by category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
+            count={threadsTotal}
+            countLabel="thread"
+          />
+
+          <ListState
+            loading={loading}
+            empty={threads.length === 0}
+            emptyState={
+              <EmptyState
+                icon={MessagesSquare}
+                title={list.q || categoryFilter ? "No threads match" : "No threads yet"}
+                description={list.q || categoryFilter ? "Try a different search or category." : undefined}
+                action={list.q || categoryFilter ? <Button variant="outline" size="sm" onClick={() => list.set({ q: "", category: "", page: 1 })}>Clear filters</Button> : null}
+              />
+            }
+          >
             <div className="space-y-2">
               {threads.map((t) => (
                 <div key={t.id} className="rounded-2xl ring-1 ring-slate-100">
@@ -306,17 +339,17 @@ export default function CmsForum() {
                 </div>
               ))}
             </div>
-          )}
+            <Pagination
+              className="mt-4"
+              page={list.page}
+              pageSize={list.pageSize}
+              total={threadsTotal}
+              onPageChange={(p) => list.set({ page: p })}
+              onPageSizeChange={(n) => list.set({ pageSize: n })}
+            />
+          </ListState>
         </section>
       </div>
-
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-          <div className={cx("rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1", toast.kind === "err" ? "bg-cardinal-50 text-cardinal-700 ring-cardinal-200" : "bg-grass-50 text-grass-700 ring-grass-200")}>
-            {toast.msg}
-          </div>
-        </div>
-      )}
     </CmsLayout>
   );
 }
