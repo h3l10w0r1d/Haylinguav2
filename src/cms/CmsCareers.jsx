@@ -6,7 +6,7 @@ import {
   ListPlus, FileText, Download, Linkedin, Mail,
 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
-import { Button, Pagination, cn as cx, inputCls, notify, useConfirm } from "./ui";
+import { Pagination, cn as cx, inputCls, notify, useConfirm } from "./ui";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
 const FIELD_TYPES = ["text", "textarea", "url", "file"];

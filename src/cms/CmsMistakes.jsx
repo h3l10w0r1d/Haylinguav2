@@ -8,7 +8,6 @@
 // (useListQuery + useClientList + Pagination), ListState/EmptyState for the
 // non-happy states, and `notify` toasts.
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import CmsLayout from "./CmsLayout";
@@ -62,8 +61,6 @@ export default function CmsMistakes() {
     }
   }
 
-  // Per-page guard until the /cms/* auth gate lands with the shell redesign.
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   return (
     <CmsLayout active="mistakes" title="Repetitive mistakes" breadcrumb={[{ label: "Repetitive mistakes" }]}>

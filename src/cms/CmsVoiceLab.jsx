@@ -1,9 +1,9 @@
 // src/cms/CmsVoiceLab.jsx — A/B compare ElevenLabs voices + settings for Armenian.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Play, Loader2, Star, Volume2 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { inputCls } from "./ui";
 import { newTrackedAudio } from "../lib/audioRegistry";
 
 const TEST_PHRASES = [
@@ -13,8 +13,6 @@ const TEST_PHRASES = [
   "Շնորհակալություն օգնության համար, դուք իսկապես բարի եք:",
 ];
 
-const inputCls =
-  "w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none";
 
 function Slider({ label, value, onChange, hint }) {
   return (
@@ -79,7 +77,6 @@ export default function CmsVoiceLab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   async function play() {
     if (!voiceId || !text.trim() || playing) return;

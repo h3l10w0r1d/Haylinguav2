@@ -11,7 +11,6 @@
 // live TTS — so recording a letter here fixes its pronunciation in the app
 // immediately, with no other code changes.
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { Check, Loader2, Mic } from "lucide-react";
 import { getCmsToken } from "./api";
 import CmsLayout from "./CmsLayout";
@@ -50,7 +49,6 @@ export default function CmsLetterAudio() {
     }
   }
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   const doneCount = letters.filter((l) => l.has_male && l.has_female).length;
 

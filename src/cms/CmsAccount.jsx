@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Eye, EyeOff, User, Mail, Lock, Shield, Globe, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import CmsLayout from "./CmsLayout";
+import { cn as cx } from "./ui";
 import { getCmsToken } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://haylinguav2.onrender.com";
@@ -35,7 +36,6 @@ const TIMEZONES = [
   "America/Argentina/Buenos_Aires",
 ];
 
-function cx(...a) { return a.filter(Boolean).join(" "); }
 
 function Section({ title, icon: Icon, children }) {
   return (

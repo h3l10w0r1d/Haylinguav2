@@ -5,7 +5,6 @@
 // the real renderers (ExerciseRenderer / Phase2Exercise) with no persistence
 // (no attempts posted, no hearts spent), so it's safe to click around.
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { getCmsToken } from "./api";
 import CmsLayout from "./CmsLayout";
 import { RotateCcw, Play, CheckCircle2, XCircle } from "lucide-react";
@@ -121,7 +120,6 @@ export default function CmsExerciseLab() {
 
   const onGraded = (payload) => setResult(payload || {});
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   const groups = [...new Set(SAMPLES.map((s) => s.group))];
 

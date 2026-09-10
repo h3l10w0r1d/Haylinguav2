@@ -4,7 +4,6 @@
 // based on an A/B session here: Azure for 1-2 word answers, hispeech.ai for
 // full sentences, ElevenLabs Scribe as the last-resort fallback for both.
 import { useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { Mic, Square, Loader2 } from "lucide-react";
 import { getCmsToken } from "./api";
 import CmsLayout from "./CmsLayout";
@@ -30,7 +29,6 @@ export default function CmsSttLab() {
   const mrRef = useRef(null);
   const chunksRef = useRef([]);
 
-  if (!token) return <Navigate to="/cms/login" replace />;
 
   async function startRecording() {
     setError("");

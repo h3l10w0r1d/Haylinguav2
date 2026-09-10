@@ -10,7 +10,7 @@ import {
 import CmsLayout from "./CmsLayout";
 import {
   Button, EmptyState, ListState, ListToolbar, Pagination, SearchInput,
-  Tabs, TabsList, TabsTrigger, cn as cx, inputCls, notify, useListQuery,
+  Tabs, TabsList, TabsTrigger, cn as cx, notify, useListQuery,
 } from "./ui";
 
 const STATUS_TONE = {

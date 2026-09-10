@@ -3,7 +3,6 @@
 // panels, Input/Button/Field for the forms, DataTable + SearchInput for the
 // members list, and `notify` toasts instead of the old inline ok/err boxes.
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Mail, Send, ShieldCheck, ShieldOff, Users } from "lucide-react";
 import { createCmsApi, getCmsToken } from "./api";
 import CmsLayout from "./CmsLayout";
@@ -54,7 +53,6 @@ const COLUMNS = [
 ];
 
 export default function CmsTeam() {
-  const nav = useNavigate();
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
 
@@ -85,8 +83,6 @@ export default function CmsTeam() {
   }
 
   useEffect(() => {
-    // Per-page guard until the /cms/* auth gate lands with the shell redesign.
-    if (!token) { nav("/cms/login", { replace: true }); return; }
     loadMembers();
     api.emailStatus().then(setMailStatus).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
