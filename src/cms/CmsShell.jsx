@@ -5,6 +5,9 @@ import { BookOpen, Plus, Search, RefreshCw, Settings2, ListChecks, ArrowLeft, Fi
 import CmsLayout from "./CmsLayout";
 import LessonEditor from "./LessonEditor";
 import ExerciseEditor from "./ExerciseEditor";
+import {
+  Button, EmptyState, Pagination, SearchInput, notify, useClientList, useListQuery,
+} from "./ui";
 
 function cx(...a) {
   return a.filter(Boolean).join(" ");
@@ -587,7 +590,6 @@ export default function CmsShell() {
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [tab, setTab] = useState("settings"); // "settings" | "exercises"
   const [exEditing, setExEditing] = useState(null); // null (list) | "new" | exerciseId
-  const [query, setQuery] = useState("");
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -657,13 +659,16 @@ export default function CmsShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLessonId]);
 
-  const filteredLessons = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return lessons;
-    return lessons.filter((l) =>
-      [l.title, l.slug, l.description].some((x) => String(x || "").toLowerCase().includes(q))
-    );
-  }, [lessons, query]);
+  // Lessons are a small list fetched whole, so search + paging happen in the
+  // browser — but still through the URL, so a filtered page is linkable.
+  const list = useListQuery({ defaults: { pageSize: 25 } });
+  const query = list.q;
+  const { pageRows: pagedLessons, total: filteredCount, page: lessonPage } = useClientList(lessons, {
+    q: list.q,
+    searchKeys: ["title", "slug", "description"],
+    page: list.page,
+    pageSize: list.pageSize,
+  });
 
   const selectedLesson = useMemo(
     () => lessons.find((l) => l.id === selectedLessonId) || null,
@@ -772,29 +777,30 @@ export default function CmsShell() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_1fr]">
         {/* ---------- LEFT: lessons list ---------- */}
         <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search lessons…"
-              className="w-full rounded-2xl bg-white py-2.5 pl-10 pr-4 font-semibold ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-400"
-            />
-          </div>
+          <SearchInput value={list.q} onChange={(q) => list.set({ q })} placeholder="Search lessons…" />
 
           <div className="space-y-2 rounded-3xl bg-white p-2 ring-1 ring-slate-200 shadow-sm">
             {loading ? (
               <div className="p-4 text-sm text-slate-500">Loading…</div>
-            ) : filteredLessons.length === 0 ? (
-              <div className="p-4 text-sm text-slate-500">No lessons found.</div>
+            ) : pagedLessons.length === 0 ? (
+              <div className="p-4 text-sm text-slate-500">
+                {query ? "No lessons match that search." : "No lessons yet."}
+              </div>
             ) : (
-              filteredLessons.map((l) => (
+              pagedLessons.map((l) => (
                 <LessonRow key={l.id} lesson={l} active={l.id === selectedLessonId} onClick={() => selectLesson(l.id)} />
               ))
             )}
           </div>
+          <Pagination
+            compact
+            page={lessonPage}
+            pageSize={list.pageSize}
+            total={filteredCount}
+            onPageChange={(p) => list.set({ page: p })}
+          />
           <div className="px-1 text-xs font-semibold text-slate-400">
-            {filteredLessons.length} lesson{filteredLessons.length === 1 ? "" : "s"}
+            {filteredCount} lesson{filteredCount === 1 ? "" : "s"}
           </div>
         </div>
 
