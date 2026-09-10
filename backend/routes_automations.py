@@ -28,9 +28,15 @@ def require_crm_editor(cms_user: dict = Depends(require_cms_admin), db: Connecti
     crm_role is 'viewer' can still pass require_cms_admin (they're a real
     CMS admin) but gets 403'd here on any Automations/Segments *mutation*.
     GET endpoints in this file intentionally keep the plain require_cms_admin
-    dependency — viewers can look, just not change anything."""
+    dependency — viewers can look, just not change anything.
+
+    require_cms_admin returns dict(row) from `SELECT id, email, status,
+    totp_enabled FROM cms_users` (routes.py) — keyed by "id", not "sub" (that
+    key only exists on the raw, not-yet-looked-up JWT payload one level
+    below it). Mismatching this crashed every mutating CRM request in prod
+    with a 500 (int(None)) until this fix."""
     role = db.execute(
-        text("SELECT crm_role FROM cms_users WHERE id = :id"), {"id": int(cms_user.get("sub"))}
+        text("SELECT crm_role FROM cms_users WHERE id = :id"), {"id": int(cms_user["id"])}
     ).scalar()
     if (role or "editor") == "viewer":
         raise HTTPException(status_code=403, detail="View-only CRM access — ask an editor to make changes")
