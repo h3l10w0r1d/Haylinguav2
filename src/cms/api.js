@@ -7,6 +7,16 @@ export function getCmsToken() {
   return localStorage.getItem("hay_cms_token") || "";
 }
 
+// Optional hook fired by req() on a 401 before it throws — the CMS auth gate
+// (src/cms/CmsRequireAuth.jsx) registers a handler that clears the stale
+// token and bounces to /cms/login, so an expired session redirects instead
+// of every page showing "Request failed (401)". Null by default, so callers
+// that never register one (e.g. the CRM pages) keep today's behavior.
+export let onCmsUnauthorized = null;
+export function setCmsUnauthorizedHandler(fn) {
+  onCmsUnauthorized = typeof fn === "function" ? fn : null;
+}
+
 /**
  * Create a CMS API client bound to a CMS access token.
  * Backend expects: Authorization: Bearer <token>
@@ -51,6 +61,9 @@ export function createCmsApi(accessToken) {
     }
 
     if (!res.ok) {
+      if (res.status === 401 && onCmsUnauthorized) {
+        try { onCmsUnauthorized(); } catch {}
+      }
       const msg =
         (data && data.detail) ||
         (typeof data === "string" ? data : `Request failed (${res.status})`);
