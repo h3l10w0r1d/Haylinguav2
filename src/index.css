@@ -730,3 +730,17 @@
   .quests-collapse { animation: none !important; }
   .quest-tick-path { stroke-dashoffset: 0; }
 }
+
+/* Floating chrome must never reach paper. The consent banner, the chat
+   bubble and the skip link are all position:fixed, so without this they
+   print on top of every page — caught while rendering the handwriting
+   worksheets, where a first-time visitor (the exact person printing) got
+   the cookie banner stamped across all 8 sheets. Site-wide rather than
+   per-page: no printed page of this site ever wants them. */
+@media print {
+  .brevo-conversations,
+  .skip-to-content,
+  [data-print-hide] {
+    display: none !important;
+  }
+}

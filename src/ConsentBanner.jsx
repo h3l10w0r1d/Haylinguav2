@@ -85,7 +85,7 @@ export default function ConsentBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-16 z-50 animate-in slide-in-from-bottom-4 duration-300 lg:bottom-4 lg:left-4 lg:right-auto lg:max-w-md">
+    <div data-print-hide className="fixed inset-x-0 bottom-16 z-50 animate-in slide-in-from-bottom-4 duration-300 lg:bottom-4 lg:left-4 lg:right-auto lg:max-w-md">
       <div className="flex items-start gap-3 border-t border-slate-200 bg-white p-4 shadow-xl dark:border-white/[0.08] dark:bg-[#18181b] lg:rounded-2xl lg:border">
         <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
           <Cookie size={18} />
