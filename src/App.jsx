@@ -46,6 +46,7 @@ const ChoosingAnArmenianAppPage = lazy(() => import('./ChoosingAnArmenianAppPage
 const ArmenianTypingPage = lazy(() => import('./ArmenianTypingPage'));
 const ArmenianReaderPage = lazy(() => import('./ArmenianReaderPage'));
 const ArmenianNameTranslatorPage = lazy(() => import('./ArmenianNameTranslatorPage'));
+const ArmenianHandwritingPage = lazy(() => import('./ArmenianHandwritingPage'));
 const DiasporaCityPage = lazy(() => import('./DiasporaCityPage'));
 const BlogPage = lazy(() => import('./BlogPage'));
 const BlogPostPage = lazy(() => import('./BlogPostPage'));
@@ -134,6 +135,9 @@ const PUBLIC_ROUTE_DEFS = [
   { path: 'armenian-text-to-speech', element: <ArmenianReaderPage /> },
   // Free name transliterator ("how do you write my name in Armenian").
   { path: 'armenian-name-translator', element: <ArmenianNameTranslatorPage /> },
+  // Printable handwriting worksheets. Carries its own print stylesheet that
+  // hides the site chrome, so the page places SiteNav/SiteFooter itself.
+  { path: 'armenian-handwriting-worksheets', element: <ArmenianHandwritingPage /> },
   { path: 'blog', element: <BlogPage /> },
   { path: 'blog/:slug', element: <BlogPostPage /> },
   { path: 'contact', element: <ContactPage /> },
