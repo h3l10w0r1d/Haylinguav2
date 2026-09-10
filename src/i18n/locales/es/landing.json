@@ -8,11 +8,13 @@
     "title1": "Aprende armenio.",
     "title2": "Y de verdad no lo dejes a medias.",
     "subtitle": "Lecciones cortas, retroalimentación instantánea, audio en cada palabra y rachas que te dan ganas de volver mañana.",
+    "audience": "Hecho para la diáspora: reconecta con la lengua de tus abuelos, empezando desde cero.",
     "ctaStart": "Empieza a aprender — gratis",
     "ctaLogin": "Ya tengo una cuenta",
     "freeToStart": "Gratis para empezar",
     "noCard": "No necesitas tarjeta",
-    "premiumDays": "14 días de Premium gratis"
+    "premiumDays": "14 días de Premium gratis",
+    "pricingLine": "Gratis para siempre, sin tarjeta. Premium solo quita los corazones."
   },
   "features": [
     { "title": "El alfabeto desde cero", "text": "Domina las 39 letras armenias con ejercicios cortos de introducción, reconocimiento y escritura." },
@@ -123,11 +125,24 @@
     "title": "Un camino que sí querrás terminar",
     "subtitle": "Sigue un camino sinuoso de lecciones — toca letras, escucha y repite, forma palabras y mira crecer tu racha. Como las apps que ya conoces y amas, pero para armenio.",
     "bullets": [
-      "Retroalimentación instantánea de acierto o error",
-      "Audio que puedes repetir cuando quieras",
-      "Los corazones hacen que los errores no pesen tanto",
-      "XP, rachas y una clasificación con tus amigos"
+      "Un curso completo de A0 a B1, no una simple app de vocabulario",
+      "Las 39 letras desde cero: presentación, reconocimiento y ejercicios de escritura",
+      "Audio real en cada ejercicio, que puedes repetir cuando quieras",
+      "Repaso de errores: vuelve a dominar justo lo que te hizo tropezar",
+      "Corazones, rachas, XP y una clasificación con tus amigos"
     ]
+  },
+  "tools": {
+    "eyebrow": "Gratis, sin cuenta",
+    "title": "Empieza con una herramienta o guía gratis",
+    "items": {
+      "alphabet": "El alfabeto armenio",
+      "pronunciation": "Guía de pronunciación",
+      "numbers": "Números en armenio",
+      "phrases": "Frases esenciales",
+      "typing": "Entrenador de mecanografía",
+      "reader": "Lector de texto a voz"
+    }
   },
   "featuresSection": {
     "eyebrow": "Funciones",

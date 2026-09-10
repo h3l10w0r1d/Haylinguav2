@@ -8,11 +8,13 @@
     "title1": "Apprends l'arménien.",
     "title2": "Et tiens le coup, pour de vrai.",
     "subtitle": "Des leçons courtes, un retour instantané, l'audio sur chaque mot, et des séries qui donnent envie de revenir demain.",
+    "audience": "Conçu pour la diaspora — renoue avec la langue de tes grands-parents, en partant de zéro.",
     "ctaStart": "Commencer — gratuit",
     "ctaLogin": "J'ai déjà un compte",
     "freeToStart": "Gratuit pour commencer",
     "noCard": "Aucune carte requise",
-    "premiumDays": "14 jours de Premium offerts"
+    "premiumDays": "14 jours de Premium offerts",
+    "pricingLine": "Gratuit pour toujours, sans carte bancaire. Premium retire simplement les cœurs."
   },
   "features": [
     { "title": "L'alphabet depuis le début", "text": "Maîtrise les 39 lettres arméniennes avec des exercices courts d'introduction, de reconnaissance et de frappe." },
@@ -123,11 +125,24 @@
     "title": "Un parcours que tu auras vraiment envie de terminer",
     "subtitle": "Suis un parcours sinueux de leçons — touche les lettres, écoute et répète, construis des mots, et regarde ta série grandir. Comme les applis que tu adores déjà, mais pour l'arménien.",
     "bullets": [
-      "Retour instantané juste/faux",
-      "Un audio que tu peux réécouter à tout moment",
-      "Les cœurs rendent les erreurs sans conséquence",
-      "XP, séries, et un classement entre amis"
+      "Un cours complet de A0 à B1 — pas une simple appli de vocabulaire",
+      "Les 39 lettres depuis zéro — découverte, reconnaissance et exercices de frappe",
+      "Un vrai audio à chaque consigne, réécoutable à tout moment",
+      "Révision des erreurs — remaîtrise exactement ce qui t'a fait trébucher",
+      "Cœurs, séries, XP et un classement entre amis"
     ]
+  },
+  "tools": {
+    "eyebrow": "Gratuit, sans compte",
+    "title": "Commence par un outil ou un guide gratuit",
+    "items": {
+      "alphabet": "L'alphabet arménien",
+      "pronunciation": "Guide de prononciation",
+      "numbers": "Les nombres en arménien",
+      "phrases": "Phrases essentielles",
+      "typing": "Entraîneur de frappe",
+      "reader": "Lecteur texte-parole"
+    }
   },
   "featuresSection": {
     "eyebrow": "Fonctionnalités",
