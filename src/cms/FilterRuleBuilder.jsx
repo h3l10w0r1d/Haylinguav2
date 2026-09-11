@@ -11,12 +11,29 @@ import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, Select
 
 export const FIELDS = [
   { value: "users.current_streak", label: "Current streak (days)" },
+  { value: "users.best_streak", label: "Best streak (days)" },
   { value: "users.streak_last_activity_date", label: "Last streak activity (date)" },
   { value: "users.gems", label: "Gems" },
+  { value: "users.chests", label: "Chests" },
   { value: "users.bonus_xp", label: "Bonus XP" },
+  { value: "users.weekly_xp", label: "Weekly XP" },
+  { value: "users.lesson_xp", label: "Lesson XP (lifetime)" },
+  { value: "users.hearts_current", label: "Hearts" },
+  { value: "users.league_tier", label: "League tier" },
   { value: "users.is_premium", label: "Is Premium" },
+  { value: "users.premium_since", label: "Premium since (date)" },
+  { value: "users.premium_until", label: "Premium renews/expires (date)" },
+  { value: "users.joined_at", label: "Signed up (date)" },
   { value: "users.last_active_at", label: "Last active at" },
+  { value: "users.email_verified", label: "Email verified" },
+  { value: "users.country", label: "Country" },
 ];
+
+// Rendered as a True/False Select instead of a free-text Input — a typed
+// "true" was never actually matching server-side before automations.py's
+// _compare gained boolean coercion (Python `True == "true"` is False), and
+// picking from two options is just better UX than typing it anyway.
+const BOOLEAN_FIELDS = new Set(["users.is_premium", "users.email_verified"]);
 
 export const OPERATORS = [
   { value: "eq", label: "=" },
@@ -91,6 +108,14 @@ export default function FilterRuleBuilder({ group, onChange, segments = [] }) {
             <Select value={r.value ? String(r.value) : ""} onValueChange={(v) => update(i, { value: Number(v) || "" })}>
               <SelectTrigger className="h-9 w-auto min-w-[10rem] max-w-[13rem] rounded-xl text-xs font-bold"><SelectValue placeholder="Choose a segment…" /></SelectTrigger>
               <SelectContent>{segments.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
+            </Select>
+          ) : BOOLEAN_FIELDS.has(r.field) ? (
+            <Select value={r.value === true || r.value === "true" ? "true" : "false"} onValueChange={(v) => update(i, { value: v })}>
+              <SelectTrigger className="h-9 w-auto min-w-[6rem] rounded-xl text-xs font-bold"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">True</SelectItem>
+                <SelectItem value="false">False</SelectItem>
+              </SelectContent>
             </Select>
           ) : (
             <Input

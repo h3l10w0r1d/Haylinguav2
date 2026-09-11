@@ -49,6 +49,21 @@ _FIELD_RESOLVERS = {
     "users.bonus_xp": _field_users_col("bonus_xp"),
     "users.is_premium": _field_users_col("is_premium"),
     "users.last_active_at": _field_users_col("last_active_at"),
+    # Added for richer CRM segmentation — same generic column-select
+    # resolver as above, just more of the `users` table exposed. Each of
+    # these is a plain existing column (see ensure_schema.py), never
+    # user-supplied SQL — the whitelist key is what makes this safe.
+    "users.joined_at": _field_users_col("joined_at"),
+    "users.email_verified": _field_users_col("email_verified"),
+    "users.country": _field_users_col("country"),
+    "users.best_streak": _field_users_col("best_streak"),
+    "users.weekly_xp": _field_users_col("weekly_xp"),
+    "users.lesson_xp": _field_users_col("lesson_xp"),
+    "users.chests": _field_users_col("chests"),
+    "users.hearts_current": _field_users_col("hearts_current"),
+    "users.league_tier": _field_users_col("league_tier"),
+    "users.premium_since": _field_users_col("premium_since"),
+    "users.premium_until": _field_users_col("premium_until"),
 }
 
 
@@ -62,7 +77,24 @@ def _resolve_field(db: Connection, user_id: int, context: dict, field: str):
     return resolver(db, user_id, context)
 
 
+def _coerce_bool(value: Any) -> Any:
+    """The filter builder's value input is always a string (HTML form
+    fields), but boolean columns (is_premium, email_verified) come back
+    from the DB as real Python bools — "true" == True is False in Python,
+    so eq/neq against a boolean field silently never matched before this.
+    Only touches the comparison when `actual` is actually a bool."""
+    if isinstance(value, str):
+        low = value.strip().lower()
+        if low in ("true", "1", "yes"):
+            return True
+        if low in ("false", "0", "no", ""):
+            return False
+    return value
+
+
 def _compare(operator: str, actual: Any, expected: Any) -> bool:
+    if isinstance(actual, bool):
+        expected = _coerce_bool(expected)
     if operator == "eq":
         return actual == expected
     if operator == "neq":
