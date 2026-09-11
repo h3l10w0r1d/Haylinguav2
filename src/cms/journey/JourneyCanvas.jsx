@@ -117,6 +117,17 @@ export default function JourneyCanvas({ steps, onChange, segments, readOnly = fa
               nodesDraggable={false}
               nodesConnectable={false}
               elementsSelectable={false}
+              // React Flow only sets `pointer-events: auto` on a node's
+              // wrapper div when it thinks the node is interactive —
+              // isSelectable || isDraggable || onClick || onMouseEnter/
+              // Move/Leave (see its NodeWrapper source). We turned off
+              // selectable/draggable above and never passed onNodeClick,
+              // so every node wrapper was rendering `pointer-events: none`
+              // inline, silently blocking clicks on everything inside —
+              // including our own onClick handlers several levels down.
+              // This no-op is enough to flip that switch; our nodes route
+              // their own clicks through JourneyContext, not this prop.
+              onNodeClick={() => {}}
               panOnScroll
               zoomOnScroll
               fitView
