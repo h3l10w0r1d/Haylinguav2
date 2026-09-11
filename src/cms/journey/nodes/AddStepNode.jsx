@@ -19,7 +19,9 @@ export default function AddStepNode({ data }) {
   });
 
   return (
-    <div className="relative">
+    // nodrag/nopan — see NodeShell.jsx for why: without it, React Flow's
+    // pane swallows the real click before onClick/useDroppable ever see it.
+    <div className="nodrag nopan relative">
       <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 1, height: 1 }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 1, height: 1 }} />
       <button

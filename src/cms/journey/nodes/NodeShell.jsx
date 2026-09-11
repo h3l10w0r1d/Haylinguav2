@@ -15,6 +15,16 @@ import { useJourney } from "../JourneyContext";
 // node type with visually meaningful (per-branch) handles.
 const HANDLE_STYLE = { opacity: 0, width: 1, height: 1 };
 
+// React Flow's pane binds its own pan-on-drag gesture (d3-drag) to every
+// pointerdown that isn't on an element marked "nodrag"/"nopan" — without
+// this, a real (trusted) click on a node button gets swallowed as the
+// start of a canvas pan and never fires, even though .click()-dispatched
+// synthetic clicks in tests go through fine (no real pointerdown/up pair
+// for d3 to intercept). Blanket-applied to the whole card since node
+// dragging is already off (nodesDraggable={false}) and dnd-kit's own
+// drag (via the grip handle) is a separate, unrelated system.
+const NO_PANE_GESTURE = "nodrag nopan";
+
 export default function NodeShell({ path, icon: Icon, tone, label, summary, onClick, onRemove, width = 220 }) {
   const { readOnly } = useJourney();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -27,7 +37,7 @@ export default function NodeShell({ path, icon: Icon, tone, label, summary, onCl
     <div
       ref={setNodeRef}
       style={{ width, opacity: isDragging ? 0.4 : 1 }}
-      className="group relative rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-brand-300"
+      className={cn("group relative rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-brand-300", NO_PANE_GESTURE)}
     >
       <Handle type="target" position={Position.Top} style={HANDLE_STYLE} />
       <Handle type="source" position={Position.Bottom} style={HANDLE_STYLE} />

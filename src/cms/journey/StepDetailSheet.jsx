@@ -3,6 +3,7 @@
 // themselves can stay compact. Switches on step type; embeds
 // FilterRuleBuilder unchanged for condition branches.
 import FilterRuleBuilder from "../FilterRuleBuilder";
+import EmailFields from "./EmailFields";
 import { BONUS_KINDS } from "./graph";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -20,18 +21,7 @@ const ACTION_TITLES = {
 function ActionFields({ step, readOnly, onUpdateParams }) {
   const p = step.params || {};
   if (step.action === "send_email") {
-    return (
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label>Subject</Label>
-          <Input value={p.subject || ""} onChange={(e) => onUpdateParams({ subject: e.target.value })} disabled={readOnly} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Body</Label>
-          <Textarea value={p.body || ""} onChange={(e) => onUpdateParams({ body: e.target.value })} rows={5} placeholder="Use {{name}} for the learner's name" disabled={readOnly} />
-        </div>
-      </div>
-    );
+    return <EmailFields params={p} readOnly={readOnly} onUpdateParams={onUpdateParams} />;
   }
   if (step.action === "send_push" || step.action === "send_web_push") {
     return (

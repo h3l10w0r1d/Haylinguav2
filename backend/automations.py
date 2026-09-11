@@ -458,15 +458,36 @@ def execute_action(db: Connection, enrollment_id: int, user_id: int, step_path: 
     )
 
 
+def _render_template(value: Optional[str], variables: dict) -> Optional[str]:
+    """Substitutes {{var}} tokens — same minimal scheme the CMS step editor's
+    variable picker inserts, no expression language, just literal replace."""
+    if not value:
+        return value
+    out = value
+    for key, val in variables.items():
+        out = out.replace("{{" + key + "}}", val)
+    return out
+
+
 def _action_send_email(db: Connection, user_id: int, params: dict) -> None:
     from routes import _send_email  # lazy import — mirrors the existing brevo lazy-import style in routes.py, avoids a circular import since routes.py imports this module
 
-    row = db.execute(text("SELECT email, COALESCE(first_name, display_name, name) AS name FROM users WHERE id = :u"), {"u": user_id}).mappings().first()
+    row = db.execute(
+        text("SELECT email, username, first_name, display_name, name FROM users WHERE id = :u"),
+        {"u": user_id},
+    ).mappings().first()
     if not row or not row["email"]:
         raise ValueError("user has no email on file")
-    subject = params.get("subject") or "Haylingua"
-    body = (params.get("body") or "").replace("{{name}}", row["name"] or "there")
-    html_body = params.get("html_body")
+    display_name = row["first_name"] or row["display_name"] or row["name"] or "there"
+    variables = {
+        "name": display_name,
+        "first_name": row["first_name"] or display_name,
+        "username": row["username"] or display_name,
+        "email": row["email"],
+    }
+    subject = _render_template(params.get("subject") or "Haylingua", variables)
+    body = _render_template(params.get("body") or "", variables)
+    html_body = _render_template(params.get("html_body"), variables)
     _send_email(to_email=row["email"], subject=subject, body=body, html_body=html_body)
 
 

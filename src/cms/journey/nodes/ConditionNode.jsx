@@ -24,7 +24,10 @@ export default function ConditionNode({ data }) {
     <div
       ref={setNodeRef}
       style={{ width: 240, opacity: isDragging ? 0.4 : 1 }}
-      className="group relative rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-brand-300"
+      // nodrag/nopan: without these, React Flow's pane treats a real
+      // pointerdown on this card as the start of a canvas-pan gesture and
+      // swallows the click before it ever reaches our buttons.
+      className="nodrag nopan group relative rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-brand-300"
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 1, height: 1 }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 1, height: 1 }} />

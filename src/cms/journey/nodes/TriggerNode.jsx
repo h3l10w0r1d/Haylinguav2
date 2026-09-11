@@ -12,7 +12,7 @@ export default function TriggerNode() {
     <button
       type="button"
       onClick={onOpenTrigger}
-      className="relative flex w-[220px] items-center gap-2.5 rounded-2xl bg-brand-500 p-3 text-left text-white shadow-sm ring-1 ring-brand-600/40 transition hover:bg-brand-600"
+      className="nodrag nopan relative flex w-[220px] items-center gap-2.5 rounded-2xl bg-brand-500 p-3 text-left text-white shadow-sm ring-1 ring-brand-600/40 transition hover:bg-brand-600"
     >
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 1, height: 1 }} />
       <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/15">
