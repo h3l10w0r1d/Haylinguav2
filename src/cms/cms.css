@@ -46,3 +46,44 @@
 .cms-root {
   color-scheme: light;
 }
+
+/* ---- Calmer admin look ----------------------------------------------------
+   The CMS shares Tailwind classes with the learner app (btn3d, rounded-3xl,
+   font-display, font-extrabold). That chunky, rounded, extra-bold look is
+   right for learners but loud for a data-entry tool, so these rules re-tune
+   those classes only while a CMS page is mounted, instead of forking a few
+   hundred class names across every CMS file.
+
+   Scoped with `body:has(.cms-root)`, not `.cms-root …`, so Radix portals
+   (sheets, dialogs, menus, toasts), which render straight into <body>,
+   match too. The learner app never renders .cms-root and is unaffected. */
+body:has(.cms-root) {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Armenian", "Noto Sans", sans-serif;
+}
+body:has(.cms-root) :is(h1, h2, h3, .font-display) {
+  font-family: inherit;
+  letter-spacing: -0.01em;
+}
+body:has(.cms-root) .font-extrabold { font-weight: 600; }
+body:has(.cms-root) .font-bold { font-weight: 600; }
+body:has(.cms-root) .font-semibold { font-weight: 500; }
+body:has(.cms-root) .rounded-3xl { border-radius: 0.75rem; }
+body:has(.cms-root) .rounded-2xl { border-radius: 0.625rem; }
+
+/* Flat buttons: no 3D drop edge, no press-down jump. Colors are unchanged,
+   so btn3d-brand stays the primary orange. */
+body:has(.cms-root) .btn3d {
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: normal;
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  box-shadow: none !important;
+  transform: none !important;
+}
+body:has(.cms-root) .btn3d-neutral {
+  box-shadow: inset 0 0 0 1px rgb(226 232 240) !important;
+}
+body:has(.cms-root) .btn3d:disabled {
+  opacity: 0.55;
+}

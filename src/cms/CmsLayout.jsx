@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  AlertTriangle, BarChart2, BookOpen, Briefcase, ChevronDown, Crown, FlaskConical, Layers,
+  AlertTriangle, BarChart2, BookOpen, Briefcase, ChevronDown, Crown, FlaskConical, Home, Layers,
   LifeBuoy, LogOut, Map as MapIcon, Menu, MessagesSquare, Mic, Mic2, Newspaper, Percent,
   Search, Settings, Sparkles, Store, Trophy, Type, Users, UsersRound, Zap,
 } from "lucide-react";
@@ -38,10 +38,15 @@ import { cn } from "@/lib/utils";
 // is new. `active` props across the codebase keep working as-is.
 export const NAV_GROUPS = [
   {
+    key: "overview",
+    label: "Overview",
+    items: [{ key: "home", label: "Home", icon: Home, to: "/cms" }],
+  },
+  {
     key: "content",
     label: "Content",
     items: [
-      { key: "lessons", label: "Lessons", icon: BookOpen, to: "/cms" },
+      { key: "lessons", label: "Lessons", icon: BookOpen, to: "/cms/lessons" },
       { key: "chapters", label: "Chapters", icon: Layers, to: "/cms/chapters" },
       { key: "adventures", label: "Adventures", icon: MapIcon, to: "/cms/adventures" },
       { key: "letter-audio", label: "Letter Audio", icon: Type, to: "/cms/letter-audio" },
@@ -137,8 +142,8 @@ function NavItem({ item, active, onNavigate }) {
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-bold transition",
-        active ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+        "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition",
+        active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
       )}
     >
       <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-brand-500" : "text-slate-400")} />
@@ -403,7 +408,7 @@ export default function CmsLayout({
                 <div className={cn("mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-4 lg:px-8", wide ? "max-w-7xl" : "max-w-6xl")}>
                   <div className="min-w-0">
                     <Crumbs breadcrumb={breadcrumb} />
-                    <h1 className="truncate font-display text-xl font-extrabold text-slate-900">{title}</h1>
+                    <h1 className="truncate text-xl font-semibold text-slate-900">{title}</h1>
                     {description && <p className="mt-0.5 text-sm font-semibold text-slate-500">{description}</p>}
                   </div>
                   {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

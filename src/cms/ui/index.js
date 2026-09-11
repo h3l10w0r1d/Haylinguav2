@@ -19,7 +19,7 @@ export {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-export { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+export { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 export { Toaster } from "@/components/ui/sonner";
 
 export { notify, toast } from "./toast";
@@ -31,6 +31,7 @@ export { SearchInput } from "./SearchInput";
 export { EmptyState } from "./EmptyState";
 export { ListState, ListSkeleton, ErrorCard } from "./ListState";
 export { DataTable } from "./DataTable";
+export { EditorSheet, isDirty } from "./EditorSheet";
 export { ListToolbar } from "./ListToolbar";
 export { SectionCard, Note } from "./SectionCard";
 export { Field, FieldRow } from "./FormField";

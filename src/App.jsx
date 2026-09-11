@@ -72,6 +72,7 @@ const Onboarding = lazy(() => import('./Onboarding'));
 // self-checked for a token after its hooks had already run.
 const CmsRequireAuth = lazy(() => import('./cms/CmsRequireAuth'));
 const CmsShell = lazy(() => import('./cms/CmsShell'));
+const CmsHome = lazy(() => import('./cms/CmsHome'));
 const CmsLogin = lazy(() => import('./cms/CmsLogin'));
 const CmsSupport = lazy(() => import('./cms/CmsSupport'));
 const CmsInvite = lazy(() => import('./cms/CmsInvite'));
@@ -845,7 +846,8 @@ function AppShell() {
       <Route path="/cms/invite" element={<CmsInvite />} />
       <Route path="/cms/2fa-setup" element={<Cms2FASetup />} />
       <Route element={<CmsRequireAuth />}>
-        <Route path="/cms" element={<CmsShell />} />
+        <Route path="/cms" element={<CmsHome />} />
+        <Route path="/cms/lessons" element={<CmsShell />} />
         <Route path="/cms/team" element={<CmsTeam />} />
         <Route path="/cms/support" element={<CmsSupport />} />
         <Route path="/cms/chapters" element={<CmsChapters />} />
