@@ -1,18 +1,19 @@
 // src/cms/CmsBlog.jsx — authoring UI for the first-party blog (blog_posts
 // table). Separate from blog.haylingua.am (external, Ghost-hosted, not
-// managed here). Structurally mirrors CmsItems.jsx: token/api-client setup,
-// a "new post" creation form, and a list of existing posts each editable
-// inline — both built on the same PostEditor (Markdown toolbar, drag-and-
-// drop image upload, alt text, live SEO checklist).
+// managed here). Posts are a server-paged table; clicking one (or "New post")
+// opens the PostEditor (Markdown toolbar, drag-and-drop image upload, alt
+// text, live SEO checklist) in a side sheet that guards unsaved edits.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, Eye, EyeOff, ExternalLink, ImagePlus, Loader2, CheckCircle2, AlertTriangle, XCircle, Newspaper } from "lucide-react";
+import {
+  AlertTriangle, CheckCircle2, ExternalLink, Eye, EyeOff, ImagePlus, Loader2, Newspaper, Pencil, Plus, Trash2, XCircle,
+} from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import { TOOLBAR_ACTIONS, insertAtCursor, analyzeBlogSeo } from "./markdownEditor";
 import {
-  Button, EmptyState, ListState, ListToolbar, Note, Pagination, SearchInput, SectionCard,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  cn as cx, inputCls, notify, textareaCls, useConfirm, useListQuery,
+  Badge, Button, DataTable, EditorSheet, EmptyState, ListToolbar, Pagination, SearchInput,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, StatusPill, Switch,
+  cn as cx, inputCls, isDirty, notify, textareaCls, useConfirm, useListQuery,
 } from "./ui";
 
 const LOCALES = [
@@ -100,8 +101,8 @@ function MarkdownToolbar({ onAction }) {
   );
 }
 
-// One editor, used both for the "New post" form and each existing row's
-// inline edit — toolbar + drag-and-drop body image upload + cover image
+// The one post editor, shown in the side sheet for both new and existing
+// posts — toolbar + drag-and-drop body image upload + cover image
 // upload with alt text + live SEO checklist, all driven off the same
 // `fields` shape.
 function PostEditor({ fields, onChange, api, onUploadError }) {
@@ -164,7 +165,7 @@ function PostEditor({ fields, onChange, api, onUploadError }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
+    <div className="space-y-5">
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <input value={fields.title} onChange={(e) => patch({ title: e.target.value })} placeholder="Title" className={cx(inputCls, "font-bold")} />
@@ -279,13 +280,13 @@ export default function CmsBlog() {
   }, [api]);
 
   const [posts, setPosts] = useState([]);
-  const [edits, setEdits] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [total, setTotal] = useState(0);
-  const [busy, setBusy] = useState(false);
   const [seeding, setSeeding] = useState(false);
-  const [draft, setDraft] = useState(emptyFields());
+  // { id: null | number, initial, fields } while the editor sheet is open.
+  const [editor, setEditor] = useState(null);
+  const [saving, setSaving] = useState(false);
   const confirm = useConfirm();
 
   // Paging/search/filters live in the URL, and the list is fetched from the
@@ -294,8 +295,7 @@ export default function CmsBlog() {
   const list = useListQuery();
   const localeFilter = list.get("locale") || "";
   const statusFilter = list.get("status") || "all";
-
-  const showToast = notify;
+  const filtered = !!(list.q || localeFilter || statusFilter !== "all");
 
   async function refresh() {
     const res = await api.listBlogPosts(localeFilter, {
@@ -304,41 +304,37 @@ export default function CmsBlog() {
       q: list.q,
       status: statusFilter === "all" ? undefined : statusFilter,
     });
-    // NB: not named `list` — that's the useListQuery handle this function
-    // reads above, and shadowing it here would be a TDZ ReferenceError.
     const rows = Array.isArray(res?.posts) ? res.posts : [];
     setTotal(Number(res?.total ?? rows.length));
     setPosts(rows);
-    const e = {};
-    rows.forEach((p) => {
-      e[p.id] = {
-        slug: p.slug || "", title: p.title || "", meta_description: p.meta_description || "",
-        excerpt: p.excerpt || "", cover_image_url: p.cover_image_url || "", cover_image_alt: p.cover_image_alt || "",
-        author_name: p.author_name || "Haylingua",
-        tagsText: Array.isArray(p.tags) ? p.tags.join(", ") : "",
-        is_published: !!p.is_published,
-        body_markdown: p.body_markdown || "",
-        scheduledAt: isoToLocalInput(p.published_at),
-        locale: p.locale || "en", translation_group: p.translation_group || "",
-      };
-    });
-    setEdits(e);
+  }
+
+  async function load() {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      await refresh();
+    } catch (err) {
+      setLoadError(err.message || "Failed to load posts");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        setLoadError(null);
-        await refresh();
-      } catch (err) {
-        setLoadError(err.message || "Failed to load posts");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, localeFilter, statusFilter, list.page, list.pageSize, list.q]);
+
+  function openNew() {
+    const fields = emptyFields();
+    setEditor({ id: null, initial: fields, fields });
+  }
+
+  function openEdit(p) {
+    const fields = postToFields(p);
+    setEditor({ id: p.id, title: p.title, initial: fields, fields });
+  }
 
   async function importPlannedPosts() {
     setSeeding(true);
@@ -346,246 +342,287 @@ export default function CmsBlog() {
       const res = await api.seedBlogPosts();
       await refresh();
       const n = res?.posts_inserted ?? 0;
-      showToast(n > 0 ? `Imported ${n} new post${n === 1 ? "" : "s"}` : "Already imported — nothing new to add");
+      notify(n > 0 ? `Imported ${n} new post${n === 1 ? "" : "s"}` : "Already imported — nothing new to add");
     } catch (err) {
-      showToast(err.message || "Import failed", "err");
+      notify(err.message || "Import failed", "err");
     } finally {
       setSeeding(false);
     }
   }
 
-  async function createPost() {
-    const slug = draft.slug.trim() || slugify(draft.title);
-    if (!slug || !draft.title.trim()) return;
-    setBusy(true);
-    try {
-      await api.createBlogPost({
-        slug, title: draft.title.trim(),
-        meta_description: draft.meta_description.trim() || null,
-        excerpt: draft.excerpt.trim() || null,
-        body_markdown: draft.body_markdown,
-        cover_image_url: draft.cover_image_url.trim() || null,
-        cover_image_alt: draft.cover_image_alt.trim() || null,
-        author_name: draft.author_name.trim() || "Haylingua",
-        tags: draft.tagsText.split(",").map((t) => t.trim()).filter(Boolean),
-        is_published: draft.is_published,
-        published_at: localInputToIso(draft.scheduledAt),
-        locale: draft.locale || "en",
-        translation_group: draft.translation_group.trim() || null,
-      });
-      setDraft(emptyFields());
-      await refresh();
-      showToast("Post created");
-    } catch (err) {
-      showToast(err.message || "Create failed", "err");
-    } finally {
-      setBusy(false);
+  async function save() {
+    if (!editor) return;
+    const f = editor.fields;
+    const slug = f.slug.trim() || slugify(f.title);
+    if (!f.title.trim() || !slug) {
+      notify("A post needs a title", "err");
+      return;
     }
-  }
-
-  async function savePost(p) {
-    const e = edits[p.id] || {};
-    setBusy(true);
+    const payload = {
+      slug,
+      title: f.title.trim(),
+      meta_description: f.meta_description.trim() || null,
+      excerpt: f.excerpt.trim() || null,
+      body_markdown: f.body_markdown,
+      cover_image_url: f.cover_image_url.trim() || null,
+      cover_image_alt: f.cover_image_alt.trim() || null,
+      author_name: f.author_name.trim() || "Haylingua",
+      tags: f.tagsText.split(",").map((t) => t.trim()).filter(Boolean),
+      is_published: !!f.is_published,
+      published_at: localInputToIso(f.scheduledAt),
+      locale: f.locale || "en",
+      translation_group: (f.translation_group || "").trim() || null,
+    };
+    setSaving(true);
     try {
-      await api.updateBlogPost(p.id, {
-        slug: e.slug, title: e.title, meta_description: e.meta_description || null,
-        excerpt: e.excerpt || null, body_markdown: e.body_markdown,
-        cover_image_url: e.cover_image_url || null, cover_image_alt: e.cover_image_alt || null,
-        author_name: e.author_name || "Haylingua",
-        tags: (e.tagsText || "").split(",").map((t) => t.trim()).filter(Boolean),
-        is_published: !!e.is_published,
-        published_at: localInputToIso(e.scheduledAt),
-        locale: e.locale || "en",
-        translation_group: (e.translation_group || "").trim() || null,
-      });
+      if (editor.id == null) await api.createBlogPost(payload);
+      else await api.updateBlogPost(editor.id, payload);
+      setEditor(null);
+      notify(editor.id == null ? "Post created" : "Post saved");
       await refresh();
-      showToast("Saved");
     } catch (err) {
-      showToast(err.message || "Save failed", "err");
+      notify(err.message || "Save failed", "err");
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
 
   async function togglePost(p) {
-    setBusy(true);
     try {
       await api.updateBlogPost(p.id, { is_published: !p.is_published });
+      notify(p.is_published ? "Unpublished" : "Published");
       await refresh();
     } catch (err) {
-      showToast(err.message || "Update failed", "err");
-    } finally {
-      setBusy(false);
+      notify(err.message || "Update failed", "err");
     }
   }
 
   async function removePost(p) {
-    if (!(await confirm({ title: `Delete "${p.title}"?`, description: "This can't be undone." }))) return;
-    setBusy(true);
+    if (!(await confirm({ title: `Delete "${p.title}"?`, description: "This can't be undone." }))) return false;
     try {
       await api.deleteBlogPost(p.id);
+      notify("Post deleted");
       await refresh();
-      showToast("Deleted");
+      return true;
     } catch (err) {
-      showToast(err.message || "Delete failed", "err");
-    } finally {
-      setBusy(false);
+      notify(err.message || "Delete failed", "err");
+      return false;
     }
   }
 
-  return (
-    <CmsLayout active="blog" title="Blog">
-      <div className="space-y-6">
-        <Note tone="brand" className="justify-between">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              This is Haylingua's first-party blog at /blog — separate from the external
-              blog.haylingua.am (Ghost). Body is Markdown. Publishing sets the article's
-              publish date once and never resets it on later edits.
+  const columns = [
+    {
+      key: "title",
+      header: "Post",
+      cell: (p) => (
+        <div className="flex min-w-0 items-center gap-3">
+          {p.cover_image_url ? (
+            <img src={p.cover_image_url} alt="" className="hidden h-9 w-14 shrink-0 rounded-md object-cover sm:block" />
+          ) : (
+            <div className="hidden h-9 w-14 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-300 sm:grid">
+              <Newspaper className="h-4 w-4" />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={importPlannedPosts}
-              disabled={seeding}
-              title="Publishes the planned SEO content batch (greetings, alphabet, dialects, numbers, travel phrases, FAQs) — safe to click more than once, already-imported posts are skipped."
-              className="shrink-0"
-            >
-              {seeding ? <Loader2 className="animate-spin" /> : <Plus />}
-              Import planned posts
-            </Button>
+          )}
+          <div className="min-w-0">
+            <div className="truncate font-medium text-slate-900">{p.title || "Untitled"}</div>
+            <div className="truncate text-xs text-slate-500">/blog/{p.slug}</div>
           </div>
-        </Note>
+        </div>
+      ),
+    },
+    {
+      key: "locale",
+      header: "Language",
+      hideBelow: "sm",
+      cell: (p) => <Badge variant="outline" className="uppercase">{p.locale || "en"}</Badge>,
+    },
+    { key: "status", header: "Status", cell: (p) => <StatusBadge post={p} /> },
+    {
+      key: "published_at",
+      header: "Date",
+      hideBelow: "md",
+      cell: (p) => <span className="text-xs tabular-nums text-slate-500">{formatDate(p.published_at || p.created_at)}</span>,
+    },
+  ];
 
-        <SectionCard title="New post">
-          <PostEditor fields={draft} onChange={setDraft} api={api} onUploadError={(m) => showToast(m, "err")} />
-          <div className="mt-3 flex items-center justify-between">
-            <label className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 ring-2 ring-slate-200">
-              <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} />
-              {draft.scheduledAt ? "Publish (using date above)" : "Publish immediately"}
-            </label>
-            <button
-              type="button"
-              onClick={createPost}
-              disabled={busy || !draft.title.trim()}
-              className="btn3d btn3d-brand text-sm inline-flex items-center gap-2 disabled:opacity-60"
-            >
-              <Plus className="h-4 w-4" /> Create
-            </button>
-          </div>
-        </SectionCard>
+  const rowActions = (p) => {
+    const live = postStatus(p) === "published";
+    return [
+      { label: "Edit", icon: Pencil, onSelect: openEdit },
+      { label: p.is_published ? "Unpublish" : "Publish now", icon: p.is_published ? EyeOff : Eye, onSelect: togglePost },
+      ...(live ? [{ label: "View live", icon: ExternalLink, onSelect: () => window.open(`/blog/${p.slug}`, "_blank", "noopener") }] : []),
+      { label: "Delete", icon: Trash2, destructive: true, onSelect: removePost },
+    ];
+  };
 
-        <ListToolbar
-          search={<SearchInput value={list.q} onChange={(q) => list.set({ q })} placeholder="Search title or slug…" />}
-          filters={
-            <>
-              <Select value={localeFilter || "all"} onValueChange={(v) => list.set({ locale: v === "all" ? "" : v, page: 1 })}>
-                <SelectTrigger className="h-9 w-[9.5rem] rounded-xl text-xs font-bold" aria-label="Filter by language">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All languages</SelectItem>
-                  {LOCALES.map((l) => (
-                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={(v) => list.set({ status: v === "all" ? "" : v, page: 1 })}>
-                <SelectTrigger className="h-9 w-[8.5rem] rounded-xl text-xs font-bold" aria-label="Filter by status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="draft">Drafts</SelectItem>
-                </SelectContent>
-              </Select>
-            </>
-          }
-          count={total}
-          countLabel="post"
-        />
+  const f = editor?.fields;
+  const editingPost = editor?.id != null ? posts.find((p) => p.id === editor.id) : null;
 
-        <ListState
-          loading={loading}
-          error={loadError}
-          onRetry={() => { setLoading(true); refresh().catch((e) => setLoadError(e.message)).finally(() => setLoading(false)); }}
-          empty={posts.length === 0}
-          rows={4}
-          emptyState={
-            <EmptyState
-              icon={Newspaper}
-              title={list.q || localeFilter || statusFilter !== "all" ? "No posts match these filters" : "No posts yet"}
-              description={list.q || localeFilter || statusFilter !== "all" ? "Try a different search or filter." : "Create your first post above."}
-              action={
-                list.q || localeFilter || statusFilter !== "all" ? (
-                  <Button variant="outline" size="sm" onClick={() => list.set({ q: "", locale: "", status: "", page: 1 })}>Clear filters</Button>
-                ) : null
-              }
-            />
-          }
-        >
-          <div className="space-y-4">
-            {posts.map((p) => {
-              const e = edits[p.id] || emptyFields();
-              const isScheduled = p.is_published && p.published_at && new Date(p.published_at) > new Date();
-              const isLive = p.is_published && !isScheduled;
-              return (
-                <div key={p.id} className={cx("rounded-3xl bg-white p-4 ring-1 shadow-sm", p.is_published ? "ring-slate-200" : "ring-slate-200 opacity-80")}>
-                  <PostEditor
-                    fields={e}
-                    onChange={(next) => setEdits((prev) => ({ ...prev, [p.id]: next }))}
-                    api={api}
-                    onUploadError={(m) => showToast(m, "err")}
-                  />
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => togglePost(p)}
-                        disabled={busy}
-                        className={cx(
-                          "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 transition",
-                          isLive
-                            ? "bg-grass-50 text-grass-700 ring-grass-200 hover:bg-grass-100"
-                            : isScheduled
-                            ? "bg-gold-50 text-gold-700 ring-gold-200 hover:bg-gold-100"
-                            : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200"
-                        )}
-                      >
-                        {isLive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                        {isLive ? "Published" : isScheduled ? `Scheduled · ${new Date(p.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Draft"}
-                      </button>
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold uppercase text-slate-500 ring-1 ring-slate-200">
-                        {p.locale || "en"}
-                      </span>
-                      {isLive && (
-                        <a href={`/blog/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:underline">
-                          <ExternalLink className="h-3.5 w-3.5" /> View live
-                        </a>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => savePost(p)} disabled={busy} className="btn3d btn3d-brand text-xs inline-flex items-center gap-1.5"><Save className="h-3.5 w-3.5" /> Save</button>
-                      <button type="button" onClick={() => removePost(p)} disabled={busy} className="btn3d btn3d-cardinal text-xs inline-flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <Pagination
-            className="mt-4"
-            page={list.page}
-            pageSize={list.pageSize}
-            total={total}
-            onPageChange={(p) => list.set({ page: p })}
-            onPageSizeChange={(n) => list.set({ pageSize: n })}
+  return (
+    <CmsLayout
+      active="blog"
+      title="Blog"
+      description="Haylingua's own blog at /blog (not blog.haylingua.am). Posts are written in Markdown."
+      actions={
+        <>
+          <Button
+            variant="outline"
+            onClick={importPlannedPosts}
+            disabled={seeding}
+            title="Adds the planned SEO content batch (greetings, alphabet, dialects, numbers, travel phrases, FAQs). Safe to run again: posts already imported are skipped."
+          >
+            {seeding ? <Loader2 className="animate-spin" /> : null}
+            Import planned posts
+          </Button>
+          <Button onClick={openNew}>
+            <Plus /> New post
+          </Button>
+        </>
+      }
+    >
+      <ListToolbar
+        search={<SearchInput value={list.q} onChange={(q) => list.set({ q })} placeholder="Search title or slug…" />}
+        filters={
+          <>
+            <Select value={localeFilter || "all"} onValueChange={(v) => list.set({ locale: v === "all" ? "" : v, page: 1 })}>
+              <SelectTrigger className="h-9 w-[9.5rem] text-sm" aria-label="Filter by language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All languages</SelectItem>
+                {LOCALES.map((l) => (
+                  <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(v) => list.set({ status: v === "all" ? "" : v, page: 1 })}>
+              <SelectTrigger className="h-9 w-[8.5rem] text-sm" aria-label="Filter by status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="draft">Drafts</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        }
+        count={total}
+        countLabel="post"
+      />
+
+      <DataTable
+        columns={columns}
+        rows={posts}
+        loading={loading}
+        error={loadError}
+        onRetry={load}
+        onRowClick={openEdit}
+        rowActions={rowActions}
+        emptyState={
+          <EmptyState
+            icon={Newspaper}
+            title={filtered ? "No posts match these filters" : "No posts yet"}
+            description={filtered ? "Try a different search or filter." : "Write the first one, or import the planned SEO batch."}
+            action={
+              filtered ? (
+                <Button variant="outline" size="sm" onClick={() => list.set({ q: "", locale: "", status: "", page: 1 })}>Clear filters</Button>
+              ) : (
+                <Button size="sm" onClick={openNew}><Plus /> New post</Button>
+              )
+            }
           />
-        </ListState>
-      </div>
+        }
+      />
+      {!loading && !loadError && posts.length > 0 && (
+        <Pagination
+          className="mt-4"
+          page={list.page}
+          pageSize={list.pageSize}
+          total={total}
+          onPageChange={(p) => list.set({ page: p })}
+          onPageSizeChange={(n) => list.set({ pageSize: n })}
+        />
+      )}
+
+      <EditorSheet
+        open={!!editor}
+        onOpenChange={(open) => { if (!open) setEditor(null); }}
+        size="xl"
+        title={editor?.id == null ? "New post" : editor?.title || "Edit post"}
+        description={
+          editingPost && postStatus(editingPost) === "published" ? (
+            <a href={`/blog/${editingPost.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+              /blog/{editingPost.slug} <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : editor?.id == null ? "Publishing sets the post's date once; later edits never reset it." : null
+        }
+        dirty={!!editor && isDirty(editor.initial, editor.fields)}
+        saving={saving}
+        onSave={save}
+        saveLabel={editor?.id == null ? "Create post" : "Save changes"}
+        saveDisabled={!f?.title?.trim()}
+        onDelete={
+          editingPost
+            ? async () => { if (await removePost(editingPost)) setEditor(null); }
+            : undefined
+        }
+        footerStart={
+          f && (
+            <label className="ml-1 flex items-center gap-2 text-sm text-slate-700">
+              <Switch checked={!!f.is_published} onCheckedChange={(v) => setEditor((e) => ({ ...e, fields: { ...e.fields, is_published: v } }))} />
+              {f.is_published ? (f.scheduledAt ? "Publish on date" : "Published") : "Draft"}
+            </label>
+          )
+        }
+      >
+        {f && (
+          <PostEditor
+            fields={f}
+            onChange={(next) => setEditor((e) => ({ ...e, fields: next }))}
+            api={api}
+            onUploadError={(m) => notify(m, "err")}
+          />
+        )}
+      </EditorSheet>
     </CmsLayout>
   );
+}
+
+function postToFields(p) {
+  return {
+    slug: p.slug || "", title: p.title || "", meta_description: p.meta_description || "",
+    excerpt: p.excerpt || "", body_markdown: p.body_markdown || "",
+    cover_image_url: p.cover_image_url || "", cover_image_alt: p.cover_image_alt || "",
+    author_name: p.author_name || "Haylingua",
+    tagsText: Array.isArray(p.tags) ? p.tags.join(", ") : "",
+    is_published: !!p.is_published,
+    scheduledAt: isoToLocalInput(p.published_at),
+    locale: p.locale || "en", translation_group: p.translation_group || "",
+  };
+}
+
+function postStatus(p) {
+  if (!p.is_published) return "draft";
+  return p.published_at && new Date(p.published_at) > new Date() ? "scheduled" : "published";
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function StatusBadge({ post }) {
+  const status = postStatus(post);
+  if (status === "published") return <StatusPill tone="success">Published</StatusPill>;
+  if (status === "scheduled") {
+    return (
+      <StatusPill tone="warning">
+        Scheduled · {new Date(post.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+      </StatusPill>
+    );
+  }
+  return <StatusPill>Draft</StatusPill>;
 }

@@ -32,6 +32,8 @@ export { EmptyState } from "./EmptyState";
 export { ListState, ListSkeleton, ErrorCard } from "./ListState";
 export { DataTable } from "./DataTable";
 export { EditorSheet, isDirty } from "./EditorSheet";
+export { ReorderButtons } from "./ReorderButtons";
+export { StatusPill } from "./StatusPill";
 export { ListToolbar } from "./ListToolbar";
 export { SectionCard, Note } from "./SectionCard";
 export { Field, FieldRow } from "./FormField";

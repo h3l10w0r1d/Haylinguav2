@@ -11,6 +11,7 @@
 import { useEffect } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getCmsToken, setCmsUnauthorizedHandler } from "./api";
+import { ConfirmProvider } from "./ui/ConfirmDialog";
 
 export default function CmsRequireAuth() {
   const location = useLocation();
@@ -28,5 +29,12 @@ export default function CmsRequireAuth() {
   if (!token) {
     return <Navigate to="/cms/login" replace state={{ from: location.pathname + location.search }} />;
   }
-  return <Outlet />;
+  // Pages call useConfirm() in their own body, above the <CmsLayout> they
+  // render, so the provider has to sit here too; CmsLayout's inner one
+  // still serves components rendered inside the layout.
+  return (
+    <ConfirmProvider>
+      <Outlet />
+    </ConfirmProvider>
+  );
 }

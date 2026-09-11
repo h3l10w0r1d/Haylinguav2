@@ -142,7 +142,7 @@ export default function CmsHome() {
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-slate-900">{r.exercise_prompt || `Exercise #${r.exercise_id}`}</div>
                       <div className="mt-0.5 truncate text-xs text-slate-500">
-                        {[r.reason, r.lesson_title].filter(Boolean).join(" · ")}
+                        {[r.reason && r.reason.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()), r.lesson_title].filter(Boolean).join(" · ")}
                       </div>
                     </div>
                     {r.created_at && (

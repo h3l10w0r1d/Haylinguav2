@@ -408,7 +408,7 @@ export default function CmsLayout({
                 <div className={cn("mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-4 lg:px-8", wide ? "max-w-7xl" : "max-w-6xl")}>
                   <div className="min-w-0">
                     <Crumbs breadcrumb={breadcrumb} />
-                    <h1 className="truncate text-xl font-semibold text-slate-900">{title}</h1>
+                    <h1 className="truncate text-xl font-bold text-slate-900">{title}</h1>
                     {description && <p className="mt-0.5 text-sm font-semibold text-slate-500">{description}</p>}
                   </div>
                   {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

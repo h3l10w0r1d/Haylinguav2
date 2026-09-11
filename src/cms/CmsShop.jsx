@@ -1,36 +1,64 @@
-// src/cms/CmsShop.jsx — edit marketplace items + chest reward odds.
-import { useEffect, useMemo, useRef, useState } from "react";
+// src/cms/CmsShop.jsx — shop items (power-ups bought with gems) + chest
+// reward odds. Items are a manually ordered table; clicking one (or "New
+// item") opens its editor in a side sheet. Chest odds stay an inline
+// settings form with its own Save, loaded separately so saving an item never
+// resets unsaved odds.
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Gem, Snowflake, Heart, Zap, Gift, Shield, ShieldCheck, TrendingUp, Award, Image } from "lucide-react";
+import {
+  Award, Eye, EyeOff, Gem, Gift, Heart, Image, Pencil, Plus, Shield, ShieldCheck, Snowflake, Trash2, TrendingUp, Zap,
+} from "lucide-react";
 import CmsLayout from "./CmsLayout";
-import { cn as cx, inputCls, notify, useConfirm } from "./ui";
 import AvatarFrame from "../lib/avatarFrame";
+import {
+  Button, DataTable, EditorSheet, EmptyState, Field, FieldRow, Input, Note, ReorderButtons, SectionCard,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, StatusPill,
+  cn as cx, inputCls, isDirty, notify, useConfirm,
+} from "./ui";
 
 const ICONS = { snowflake: Snowflake, heart: Heart, zap: Zap, gem: Gem, shield: Shield, "shield-check": ShieldCheck, "trending-up": TrendingUp, award: Award, image: Image };
 const ICON_OPTS = ["snowflake", "heart", "zap", "gem", "shield", "shield-check", "trending-up", "award", "image"];
 const FRAME_STYLE_OPTIONS = ["gold", "silver", "bronze", "ruby", "sapphire", "emerald", "rainbow"];
 const EFFECTS = [
-  { value: "streak_freeze",  label: "Grant streak freeze(s) — use amount for qty" },
-  { value: "hearts_refill",  label: "Refill hearts" },
-  { value: "xp_boost",       label: "Add XP instantly (uses amount)" },
-  { value: "streak_repair",  label: "Repair a recently broken streak" },
-  { value: "heart_shield",   label: "Shield next lesson from heart loss" },
-  { value: "xp_multiplier",  label: "Double XP on next lesson" },
-  { value: "avatar_frame",   label: "Unlock avatar frame (cosmetic)" },
-  { value: "profile_theme",  label: "Unlock profile banner theme (cosmetic)" },
+  { value: "streak_freeze", label: "Streak freeze", hint: "Grants streak freezes. Amount is how many." },
+  { value: "hearts_refill", label: "Hearts refill", hint: "Refills the learner's hearts." },
+  { value: "xp_boost", label: "Add XP", hint: "Adds XP instantly. Amount is how much." },
+  { value: "streak_repair", label: "Streak repair", hint: "Repairs a recently broken streak." },
+  { value: "heart_shield", label: "Heart shield", hint: "The next lesson can't cost hearts." },
+  { value: "xp_multiplier", label: "Double XP", hint: "Doubles XP on the next lesson." },
+  { value: "avatar_frame", label: "Avatar frame", hint: "Legacy cosmetic. Use Marketplace Items instead." },
+  { value: "profile_theme", label: "Profile theme", hint: "Legacy cosmetic. Use Marketplace Items instead." },
 ];
+const EFFECT_BY_VALUE = Object.fromEntries(EFFECTS.map((e) => [e.value, e]));
+const TIERS = ["wooden", "silver", "golden", "legendary"];
+const TIER_DOT = { wooden: "#B07A45", silver: "#93A7BC", golden: "#FFC800", legendary: "#9B3FE8" };
 
+const EMPTY_ITEM = { title: "", description: "", icon: "gem", price: "30", effect: "streak_freeze", effect_amount: "0", frame_style: "" };
+
+function itemToFields(it) {
+  return {
+    title: it.title || "",
+    description: it.description || "",
+    icon: it.icon || "gem",
+    price: String(it.price ?? 0),
+    effect: it.effect || "streak_freeze",
+    effect_amount: String(it.effect_amount ?? 0),
+    frame_style: it.frame_style || "",
+  };
+}
 
 function FrameStylePicker({ value, onChange }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-50 p-2 ring-2 ring-slate-200">
-      <span className="pl-1 pr-0.5 text-xs font-extrabold uppercase tracking-wide text-slate-400">Frame style</span>
+    <div className="flex flex-wrap items-center gap-2">
       {FRAME_STYLE_OPTIONS.map((style) => (
         <button
           key={style}
           type="button"
           title={style}
-          onClick={() => onChange(value === style ? null : style)}
+          aria-label={`Frame style ${style}`}
+          aria-pressed={value === style}
+          onClick={() => onChange(value === style ? "" : style)}
           className={cx(
             "grid place-items-center rounded-full transition",
             value === style ? "ring-2 ring-brand-500 ring-offset-2" : "ring-1 ring-slate-200 hover:ring-slate-300"
@@ -45,74 +73,29 @@ function FrameStylePicker({ value, onChange }) {
   );
 }
 
-function EffectPicker({ value, onChange, compact = false }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onMouseDown(e) {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [open]);
-
-  const selected = EFFECTS.find((f) => f.value === value) || EFFECTS[0];
-  const q = query.trim().toLowerCase();
-  const filtered = q
-    ? EFFECTS.filter((f) => f.label.toLowerCase().includes(q) || f.value.includes(q))
-    : EFFECTS;
-
+function IconChoice({ value, onChange }) {
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => { setOpen((o) => !o); setQuery(""); }}
-        className={cx(inputCls, compact ? "!py-2" : "", "flex items-center justify-between gap-2 text-left cursor-pointer")}
-      >
-        <span className="truncate">{selected.label}</span>
-        <ChevronDown className={cx("h-4 w-4 shrink-0 text-slate-400 transition-transform duration-150", open && "rotate-180")} />
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[20rem] rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
-          <div className="p-2 border-b border-slate-100">
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search effects…"
-              className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
-            />
-          </div>
-          <ul className="max-h-64 overflow-y-auto py-1.5">
-            {filtered.length === 0 && (
-              <li className="px-4 py-3 text-sm font-semibold text-slate-400">No effects match</li>
+    <div className="flex flex-wrap gap-1.5">
+      {ICON_OPTS.map((ic) => {
+        const I = ICONS[ic];
+        const on = value === ic;
+        return (
+          <button
+            key={ic}
+            type="button"
+            title={ic}
+            aria-label={`Icon ${ic}`}
+            aria-pressed={on}
+            onClick={() => onChange(ic)}
+            className={cx(
+              "grid h-9 w-9 place-items-center rounded-lg ring-1 transition",
+              on ? "bg-brand-50 text-brand-600 ring-brand-300" : "bg-white text-slate-400 ring-slate-200 hover:text-slate-600"
             )}
-            {filtered.map((f) => (
-              <li key={f.value} className="px-1.5">
-                <button
-                  type="button"
-                  onClick={() => { onChange(f.value); setOpen(false); setQuery(""); }}
-                  className={cx(
-                    "flex w-full flex-col gap-0.5 rounded-xl px-3 py-2 text-left transition",
-                    f.value === value
-                      ? "bg-brand-50 text-brand-700"
-                      : "hover:bg-slate-50 text-slate-700"
-                  )}
-                >
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">{f.value}</span>
-                  <span className="text-sm font-semibold leading-tight">{f.label}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+          >
+            <I className="h-4 w-4" />
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -126,266 +109,285 @@ export default function CmsShop() {
   }, [api]);
 
   const [items, setItems] = useState([]);
-  const [edits, setEdits] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [reordering, setReordering] = useState(false);
+  const [editor, setEditor] = useState(null); // { id, title, initial, fields }
+  const [saving, setSaving] = useState(false);
+
   const [chest, setChest] = useState([]); // [{gems, weight, rarity}]
   const [rarities, setRarities] = useState([]); // [{rarity, weight, xp_boost_chance}]
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState({ title: "", effect: "streak_freeze", price: 30, effect_amount: 0, icon: "gem", frame_style: "" });
+  const [chestSaved, setChestSaved] = useState(null);
+  const [savingChest, setSavingChest] = useState(false);
 
-  const showToast = notify;
-
-  async function refresh() {
-    const [si, cc] = await Promise.all([api.listShopItems(), api.getChestConfig()]);
-    const list = Array.isArray(si?.items) ? si.items : [];
-    setItems(list);
-    const e = {};
-    list.forEach((it) => {
-      e[it.id] = {
-        title: it.title || "", description: it.description || "", icon: it.icon || "gem",
-        price: it.price ?? 0, effect: it.effect || "streak_freeze", effect_amount: it.effect_amount ?? 0,
-        frame_style: it.frame_style || "",
-      };
-    });
-    setEdits(e);
-    setChest((cc?.rewards || []).map((r) => ({ gems: r.gems, weight: r.weight, rarity: r.rarity || "wooden" })));
-    setRarities((cc?.rarities || []).map((r) => ({ rarity: r.rarity, weight: r.weight, xp_boost_chance: r.xp_boost_chance })));
+  async function refreshItems() {
+    const si = await api.listShopItems();
+    setItems(Array.isArray(si?.items) ? si.items : []);
   }
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        await refresh();
-      } catch (err) {
-        showToast(err.message || "Failed to load shop", "err");
-      } finally {
-        setLoading(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-
-  async function createItem() {
-    if (!draft.title.trim()) return;
-    setBusy(true);
+  async function loadItems() {
+    setLoading(true);
+    setLoadError(null);
     try {
-      await api.createShopItem({
-        title: draft.title.trim(), effect: draft.effect, price: Number(draft.price) || 0,
-        effect_amount: Number(draft.effect_amount) || 0, icon: draft.icon,
-        frame_style: draft.effect === "avatar_frame" ? draft.frame_style || null : null,
-      });
-      setDraft({ title: "", effect: "streak_freeze", price: 30, effect_amount: 0, icon: "gem", frame_style: "" });
-      await refresh();
-      showToast("Item created");
+      await refreshItems();
     } catch (err) {
-      showToast(err.message || "Create failed", "err");
+      setLoadError(err.message || "Failed to load shop items");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
-  async function saveItem(it) {
-    const e = edits[it.id] || {};
-    setBusy(true);
+  async function loadChest() {
     try {
-      await api.updateShopItem(it.id, {
-        title: (e.title || "").trim(), description: (e.description || "").trim(), icon: e.icon,
-        price: Number(e.price) || 0, effect: e.effect, effect_amount: Number(e.effect_amount) || 0,
-        frame_style: e.effect === "avatar_frame" ? e.frame_style || null : null,
-      });
-      await refresh();
-      showToast("Saved");
+      const cc = await api.getChestConfig();
+      const c = (cc?.rewards || []).map((r) => ({ gems: String(r.gems), weight: String(r.weight), rarity: r.rarity || "wooden" }));
+      const r = (cc?.rarities || []).map((x) => ({ rarity: x.rarity, weight: String(x.weight), xp_boost_chance: String(x.xp_boost_chance) }));
+      setChest(c);
+      setRarities(r);
+      setChestSaved(JSON.stringify({ chest: c, rarities: r }));
     } catch (err) {
-      showToast(err.message || "Save failed", "err");
+      notify(err.message || "Failed to load chest odds", "err");
+    }
+  }
+
+  useEffect(() => {
+    loadItems();
+    loadChest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const chestDirty = chestSaved !== null && JSON.stringify({ chest, rarities }) !== chestSaved;
+  useEffect(() => {
+    if (!chestDirty) return undefined;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [chestDirty]);
+
+  function openNew() {
+    setEditor({ id: null, initial: EMPTY_ITEM, fields: EMPTY_ITEM });
+  }
+
+  function openEdit(it) {
+    const fields = itemToFields(it);
+    setEditor({ id: it.id, title: it.title, initial: fields, fields });
+  }
+
+  function setField(patch) {
+    setEditor((e) => ({ ...e, fields: { ...e.fields, ...patch } }));
+  }
+
+  async function save() {
+    const f = editor.fields;
+    if (!f.title.trim()) {
+      notify("An item needs a title", "err");
+      return;
+    }
+    const payload = {
+      title: f.title.trim(),
+      description: f.description.trim(),
+      icon: f.icon,
+      price: Number(f.price) || 0,
+      effect: f.effect,
+      effect_amount: Number(f.effect_amount) || 0,
+      frame_style: f.effect === "avatar_frame" ? f.frame_style || null : null,
+    };
+    setSaving(true);
+    try {
+      if (editor.id == null) await api.createShopItem(payload);
+      else await api.updateShopItem(editor.id, payload);
+      // New items are created hidden (server default), like lessons/chapters.
+      notify(editor.id == null ? "Item created. It stays hidden until you show it." : "Item saved");
+      setEditor(null);
+      await refreshItems();
+    } catch (err) {
+      notify(err.message || "Save failed", "err");
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
 
   async function toggleItem(it) {
-    setBusy(true);
     try {
       await api.updateShopItem(it.id, { is_active: !it.is_active });
-      await refresh();
+      notify(it.is_active ? "Hidden from the shop" : "Now live in the shop");
+      await refreshItems();
     } catch (err) {
-      showToast(err.message || "Update failed", "err");
-    } finally {
-      setBusy(false);
+      notify(err.message || "Update failed", "err");
     }
   }
 
   async function removeItem(it) {
-    if (!(await confirm({ title: `Delete "${it.title}" from the shop?` }))) return;
-    setBusy(true);
+    if (!(await confirm({ title: `Delete "${it.title}" from the shop?`, description: "This can't be undone." }))) return false;
     try {
       await api.deleteShopItem(it.id);
-      await refresh();
-      showToast("Deleted");
+      notify("Item deleted");
+      await refreshItems();
+      return true;
     } catch (err) {
-      showToast(err.message || "Delete failed", "err");
-    } finally {
-      setBusy(false);
+      notify(err.message || "Delete failed", "err");
+      return false;
     }
   }
 
   async function moveItem(idx, dir) {
-    const next = items.slice();
     const j = idx + dir;
-    if (j < 0 || j >= next.length) return;
+    if (j < 0 || j >= items.length) return;
+    const next = items.slice();
     const [m] = next.splice(idx, 1);
     next.splice(j, 0, m);
     setItems(next);
-    setBusy(true);
+    setReordering(true);
     try {
       await api.reorderShopItems(next.map((x) => x.id));
-      await refresh();
     } catch (err) {
-      showToast(err.message || "Reorder failed", "err");
-      await refresh();
+      notify(err.message || "Reorder failed", "err");
+      await refreshItems().catch(() => {});
     } finally {
-      setBusy(false);
+      setReordering(false);
     }
   }
 
-  function patch(id, p) {
-    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
-  }
-
   async function saveChest() {
-    setBusy(true);
+    setSavingChest(true);
     try {
       await api.setChestConfig(
         chest.map((r) => ({ gems: Number(r.gems) || 0, weight: Number(r.weight) || 0, rarity: r.rarity || "wooden" })),
         rarities.map((r) => ({ rarity: r.rarity, weight: Number(r.weight) || 0, xp_boost_chance: Number(r.xp_boost_chance) || 0 })),
       );
-      await refresh();
-      showToast("Chest odds saved");
+      await loadChest();
+      notify("Chest odds saved");
     } catch (err) {
-      showToast(err.message || "Save failed", "err");
+      notify(err.message || "Save failed", "err");
     } finally {
-      setBusy(false);
+      setSavingChest(false);
     }
   }
 
-  return (
-    <CmsLayout active="shop" title="Shop & Economy">
-      <div className="space-y-8">
-        {/* ----- Shop items ----- */}
-        <section className="space-y-4">
-          <div className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
-            Avatar frames and profile themes now live in the new item_definitions
-            catalog (rarity tiers, instance-owned inventory, tradeable) — a dedicated
-            admin view for that is coming with the name-tag-effects rollout. Any
-            avatar_frame/profile_theme rows below are historical only: editing them
-            here no longer affects what players see in the shop.
-          </div>
-          <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-            <div className="mb-3 font-display text-base font-bold text-slate-900">New shop item</div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1.2fr_0.7fr_0.7fr_auto]">
-              <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Title — e.g. Streak Freeze" className={inputCls} />
-              <EffectPicker value={draft.effect} onChange={(v) => setDraft({ ...draft, effect: v })} />
-              <input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} title="Price (gems)" placeholder="Price" className={inputCls} />
-              <input type="number" value={draft.effect_amount} onChange={(e) => setDraft({ ...draft, effect_amount: e.target.value })} title="Amount (for XP)" placeholder="Amt" className={inputCls} />
-              <button type="button" onClick={createItem} disabled={busy || !draft.title.trim()} className="btn3d btn3d-brand text-sm inline-flex items-center justify-center gap-2 disabled:opacity-60">
-                <Plus className="h-4 w-4" /> Add
-              </button>
+  const columns = [
+    {
+      key: "order",
+      header: <span className="sr-only">Order</span>,
+      headerClassName: "w-[4.5rem]",
+      className: "py-1",
+      cell: (it) => (
+        <ReorderButtons index={items.indexOf(it)} count={items.length} onMove={moveItem} disabled={reordering} label="item" />
+      ),
+    },
+    {
+      key: "title",
+      header: "Item",
+      cell: (it) => {
+        const Icon = ICONS[it.icon] || Gem;
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-feather-50 text-feather-500">
+              <Icon className="h-4 w-4" />
             </div>
-            {draft.effect === "avatar_frame" && (
-              <div className="mt-3">
-                <FrameStylePicker value={draft.frame_style} onChange={(v) => setDraft({ ...draft, frame_style: v })} />
-              </div>
-            )}
-            <div className="mt-2 text-xs font-semibold text-slate-500">Amount only applies to “Add XP”. Prices are in gems.</div>
+            <div className="min-w-0">
+              <div className="truncate font-medium text-slate-900">{it.title}</div>
+              {it.description && <div className="truncate text-xs text-slate-500">{it.description}</div>}
+            </div>
           </div>
+        );
+      },
+    },
+    {
+      key: "effect",
+      header: "Effect",
+      hideBelow: "md",
+      cell: (it) => (
+        <span className="text-slate-600">
+          {EFFECT_BY_VALUE[it.effect]?.label || it.effect}
+          {Number(it.effect_amount) > 0 ? <span className="text-slate-400"> · {it.effect_amount}</span> : null}
+        </span>
+      ),
+    },
+    {
+      key: "price",
+      header: "Price",
+      align: "right",
+      cell: (it) => (
+        <span className="inline-flex items-center gap-1 tabular-nums text-slate-700">
+          <Gem className="h-3.5 w-3.5 text-feather-500" /> {it.price}
+        </span>
+      ),
+    },
+    {
+      key: "is_active",
+      header: "Status",
+      cell: (it) => <StatusPill tone={it.is_active ? "success" : "neutral"}>{it.is_active ? "Live" : "Hidden"}</StatusPill>,
+    },
+  ];
 
-          {loading ? (
-            <div className="p-6 text-sm text-slate-500">Loading…</div>
-          ) : items.length === 0 ? (
-            <div className="rounded-3xl bg-white p-8 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm">No shop items yet.</div>
-          ) : (
-            <div className="space-y-3">
-              {items.map((it, idx) => {
-                const e = edits[it.id] || {};
-                const Icon = ICONS[e.icon] || Gem;
-                return (
-                  <div key={it.id} className={cx("rounded-3xl bg-white p-4 ring-1 shadow-sm", it.is_active ? "ring-slate-200" : "ring-slate-200 opacity-70")}>
-                    <div className="flex items-start gap-3">
-                      <div className="flex flex-col gap-1 pt-1">
-                        <button type="button" onClick={() => moveItem(idx, -1)} disabled={busy || idx === 0} className="grid h-7 w-7 place-items-center rounded-xl text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40"><ChevronUp className="h-4 w-4" /></button>
-                        <button type="button" onClick={() => moveItem(idx, 1)} disabled={busy || idx === items.length - 1} className="grid h-7 w-7 place-items-center rounded-xl text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40"><ChevronDown className="h-4 w-4" /></button>
-                      </div>
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-feather-50 text-feather-500"><Icon className="h-5 w-5" /></div>
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <input value={e.title || ""} onChange={(ev) => patch(it.id, { title: ev.target.value })} placeholder="Title" className={cx(inputCls, "!py-2 font-bold")} />
-                          <input value={e.description || ""} onChange={(ev) => patch(it.id, { description: ev.target.value })} placeholder="Description" className={cx(inputCls, "!py-2 text-xs")} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          <select value={e.icon || "gem"} onChange={(ev) => patch(it.id, { icon: ev.target.value })} className={cx(inputCls, "!py-2")} title="Icon">
-                            {ICON_OPTS.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
-                          </select>
-                          <EffectPicker value={e.effect || "streak_freeze"} onChange={(v) => patch(it.id, { effect: v })} compact />
-                          <input type="number" value={e.price ?? 0} onChange={(ev) => patch(it.id, { price: ev.target.value })} className={cx(inputCls, "!py-2")} title="Price (gems)" placeholder="Price" />
-                          <input type="number" value={e.effect_amount ?? 0} onChange={(ev) => patch(it.id, { effect_amount: ev.target.value })} className={cx(inputCls, "!py-2")} title="Amount (XP)" placeholder="Amt" />
-                        </div>
-                        {e.effect === "avatar_frame" && (
-                          <FrameStylePicker value={e.frame_style} onChange={(v) => patch(it.id, { frame_style: v })} />
-                        )}
-                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-feather-50 px-2.5 py-0.5 text-xs font-bold text-feather-600"><Gem className="h-3.5 w-3.5" /> {e.price} gems</span>
-                          <button type="button" onClick={() => toggleItem(it)} disabled={busy}
-                            className={cx("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 transition",
-                              it.is_active ? "bg-grass-50 text-grass-700 ring-grass-200 hover:bg-grass-100" : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200")}>
-                            {it.is_active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                            {it.is_active ? "Live" : "Hidden"}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <button type="button" onClick={() => saveItem(it)} disabled={busy} className="btn3d btn3d-brand text-xs inline-flex items-center gap-1.5"><Save className="h-3.5 w-3.5" /> Save</button>
-                        <button type="button" onClick={() => removeItem(it)} disabled={busy} className="btn3d btn3d-cardinal text-xs inline-flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+  const rowActions = (it) => [
+    { label: "Edit", icon: Pencil, onSelect: openEdit },
+    { label: it.is_active ? "Hide from shop" : "Show in shop", icon: it.is_active ? EyeOff : Eye, onSelect: toggleItem },
+    { label: "Delete", icon: Trash2, destructive: true, onSelect: removeItem },
+  ];
+
+  const f = editor?.fields;
+  const editingItem = editor?.id != null ? items.find((x) => x.id === editor.id) : null;
+  const rarityTotal = rarities.reduce((s, x) => s + (Number(x.weight) || 0), 0) || 1;
+
+  return (
+    <CmsLayout
+      active="shop"
+      title="Shop & Economy"
+      description="Power-ups learners buy with gems, and the odds inside reward chests."
+      actions={<Button onClick={openNew}><Plus /> New item</Button>}
+    >
+      <div className="space-y-8">
+        <section>
+          <Note tone="warning" className="mb-4">
+            Avatar frames and profile themes now live in{" "}
+            <Link to="/cms/items" className="underline underline-offset-2">Marketplace Items</Link>. Any avatar_frame or
+            profile_theme rows below are historical: editing them no longer changes what players see.
+          </Note>
+          <DataTable
+            columns={columns}
+            rows={items}
+            loading={loading}
+            error={loadError}
+            onRetry={loadItems}
+            onRowClick={openEdit}
+            rowActions={rowActions}
+            emptyState={
+              <EmptyState
+                icon={Gem}
+                title="No shop items yet"
+                description="Add a power-up learners can buy with gems."
+                action={<Button size="sm" onClick={openNew}><Plus /> New item</Button>}
+              />
+            }
+          />
         </section>
 
-        {/* ----- Chest odds ----- */}
-        <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-          <div className="mb-1 flex items-center gap-2">
-            <Gift className="h-5 w-5 text-gold-500" />
-            <div className="font-display text-base font-bold text-slate-900">Chest reward odds</div>
-          </div>
-          <p className="mb-4 text-sm font-semibold text-slate-500">
-            Opening a chest first rolls a rarity, then a gem reward from that rarity's table. Legendary always pays gems + an XP boost.
-          </p>
-
-          {/* Rarity odds — fixed 4-tier set */}
+        <SectionCard
+          title={<span className="inline-flex items-center gap-2"><Gift className="h-5 w-5 text-gold-500" /> Chest reward odds</span>}
+          description="Opening a chest first rolls a rarity, then a gem reward from that rarity's table. Legendary always pays gems plus an XP boost."
+        >
           {rarities.length > 0 && (
-            <div className="mb-5 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
-              <div className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Rarity odds</div>
+            <div className="mb-6">
+              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Rarity odds</div>
               <div className="space-y-2">
-                <div className="grid grid-cols-[110px_1fr_1fr_70px] gap-2 px-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">
-                  <span>Tier</span><span>Weight</span><span>Boost %</span><span>Chance</span>
+                <div className="grid grid-cols-[110px_1fr_1fr_70px] gap-2 px-1 text-xs text-slate-500">
+                  <span>Tier</span><span>Weight</span><span>XP boost %</span><span>Chance</span>
                 </div>
                 {rarities.map((r, i) => {
-                  const totalR = rarities.reduce((s, x) => s + (Number(x.weight) || 0), 0) || 1;
-                  const pct = Math.round(((Number(r.weight) || 0) / totalR) * 100);
-                  const dot = { wooden: "#B07A45", silver: "#93A7BC", golden: "#FFC800", legendary: "#9B3FE8" }[r.rarity] || "#94a3b8";
+                  const pct = Math.round(((Number(r.weight) || 0) / rarityTotal) * 100);
                   return (
                     <div key={r.rarity} className="grid grid-cols-[110px_1fr_1fr_70px] items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-sm font-extrabold capitalize text-slate-700">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium capitalize text-slate-700">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: TIER_DOT[r.rarity] || "#94a3b8" }} />
                         {r.rarity}
                       </span>
-                      <input type="number" value={r.weight} onChange={(ev) => setRarities((c) => c.map((x, j) => (j === i ? { ...x, weight: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
-                      <input type="number" min="0" max="100" value={r.xp_boost_chance} onChange={(ev) => setRarities((c) => c.map((x, j) => (j === i ? { ...x, xp_boost_chance: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
-                      <span className="text-sm font-extrabold text-slate-600 tabular-nums">{pct}%</span>
+                      <input type="number" aria-label={`${r.rarity} weight`} value={r.weight} onChange={(ev) => setRarities((c) => c.map((x, j) => (j === i ? { ...x, weight: ev.target.value } : x)))} className={inputCls} />
+                      <input type="number" min="0" max="100" aria-label={`${r.rarity} XP boost chance`} value={r.xp_boost_chance} onChange={(ev) => setRarities((c) => c.map((x, j) => (j === i ? { ...x, xp_boost_chance: ev.target.value } : x)))} className={inputCls} />
+                      <span className="text-sm tabular-nums text-slate-600">{pct}%</span>
                     </div>
                   );
                 })}
@@ -393,53 +395,109 @@ export default function CmsShop() {
             </div>
           )}
 
-          {/* Gem rewards, grouped per rarity */}
-          {["wooden", "silver", "golden", "legendary"].map((tier) => {
-            const rows = chest.map((r, i) => ({ ...r, _i: i })).filter((r) => (r.rarity || "wooden") === tier);
-            const tierWeight = rows.reduce((s, r) => s + (Number(r.weight) || 0), 0) || 1;
-            return (
-              <div key={tier} className="mb-4">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500 capitalize">{tier} rewards</span>
-                  <button
-                    type="button"
-                    onClick={() => setChest((c) => [...c, { gems: 10, weight: 5, rarity: tier }])}
-                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-brand-600 ring-1 ring-brand-100 hover:bg-brand-50"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Add
-                  </button>
-                </div>
-                {rows.length === 0 ? (
-                  <p className="px-1 text-xs font-semibold text-slate-400">No rewards — the built-in fallback table applies.</p>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-[1fr_1fr_70px_auto] gap-2 px-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">
-                      <span>Gems</span><span>Weight</span><span>Chance</span><span />
-                    </div>
-                    {rows.map((r) => {
-                      const pct = Math.round(((Number(r.weight) || 0) / tierWeight) * 100);
-                      const i = r._i;
-                      return (
-                        <div key={i} className="grid grid-cols-[1fr_1fr_70px_auto] items-center gap-2">
-                          <input type="number" value={r.gems} onChange={(ev) => setChest((c) => c.map((x, j) => (j === i ? { ...x, gems: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
-                          <input type="number" value={r.weight} onChange={(ev) => setChest((c) => c.map((x, j) => (j === i ? { ...x, weight: ev.target.value } : x)))} className={cx(inputCls, "!py-2")} />
-                          <span className="text-sm font-extrabold text-slate-600 tabular-nums">{pct}%</span>
-                          <button type="button" onClick={() => setChest((c) => c.filter((_, j) => j !== i))} className="grid h-9 w-9 place-items-center rounded-xl text-cardinal-500 ring-1 ring-slate-200 hover:bg-cardinal-50"><Trash2 className="h-4 w-4" /></button>
-                        </div>
-                      );
-                    })}
+          <div className="grid gap-6 md:grid-cols-2">
+            {TIERS.map((tier) => {
+              const rows = chest.map((r, i) => ({ ...r, _i: i })).filter((r) => (r.rarity || "wooden") === tier);
+              const tierWeight = rows.reduce((s, r) => s + (Number(r.weight) || 0), 0) || 1;
+              return (
+                <div key={tier}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <span className="h-2 w-2 rounded-full" style={{ background: TIER_DOT[tier] }} />
+                      {tier} rewards
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setChest((c) => [...c, { gems: "10", weight: "5", rarity: tier }])}>
+                      <Plus /> Add
+                    </Button>
                   </div>
-                )}
-              </div>
-            );
-          })}
-
-          <div className="mt-3 flex items-center justify-end">
-            <button type="button" onClick={saveChest} disabled={busy || chest.length === 0} className="btn3d btn3d-brand text-sm inline-flex items-center gap-2 disabled:opacity-60"><Save className="h-4 w-4" /> Save odds</button>
+                  {rows.length === 0 ? (
+                    <p className="px-1 text-xs text-slate-400">No rewards. The built-in fallback table applies.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-[1fr_1fr_56px_36px] gap-2 px-1 text-xs text-slate-500">
+                        <span>Gems</span><span>Weight</span><span>Chance</span><span />
+                      </div>
+                      {rows.map((r) => {
+                        const pct = Math.round(((Number(r.weight) || 0) / tierWeight) * 100);
+                        const i = r._i;
+                        return (
+                          <div key={i} className="grid grid-cols-[1fr_1fr_56px_36px] items-center gap-2">
+                            <input type="number" aria-label="Gems" value={r.gems} onChange={(ev) => setChest((c) => c.map((x, j) => (j === i ? { ...x, gems: ev.target.value } : x)))} className={inputCls} />
+                            <input type="number" aria-label="Weight" value={r.weight} onChange={(ev) => setChest((c) => c.map((x, j) => (j === i ? { ...x, weight: ev.target.value } : x)))} className={inputCls} />
+                            <span className="text-sm tabular-nums text-slate-600">{pct}%</span>
+                            <Button type="button" variant="ghost" size="icon" aria-label="Remove reward" className="text-slate-400 hover:text-cardinal-600" onClick={() => setChest((c) => c.filter((_, j) => j !== i))}>
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </section>
+
+          <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+            {chestDirty && <span className="text-xs text-slate-500">Unsaved changes</span>}
+            {chestDirty && (
+              <Button type="button" variant="outline" onClick={loadChest} disabled={savingChest}>Discard</Button>
+            )}
+            <Button type="button" onClick={saveChest} disabled={savingChest || !chestDirty || chest.length === 0}>
+              Save odds
+            </Button>
+          </div>
+        </SectionCard>
       </div>
 
+      <EditorSheet
+        open={!!editor}
+        onOpenChange={(open) => { if (!open) setEditor(null); }}
+        size="md"
+        title={editor?.id == null ? "New shop item" : editor?.title || "Edit item"}
+        description={editor?.id == null ? "New items start hidden. Show them from the table when they're ready." : null}
+        dirty={!!editor && isDirty(editor.initial, editor.fields)}
+        saving={saving}
+        onSave={save}
+        saveLabel={editor?.id == null ? "Create item" : "Save changes"}
+        saveDisabled={!f?.title?.trim()}
+        onDelete={editingItem ? async () => { if (await removeItem(editingItem)) setEditor(null); } : undefined}
+      >
+        {f && (
+          <div className="space-y-4">
+            <Field label="Title" required>
+              <Input value={f.title} onChange={(e) => setField({ title: e.target.value })} placeholder="e.g. Streak Freeze" />
+            </Field>
+            <Field label="Description" hint="Shown under the title in the shop">
+              <Input value={f.description} onChange={(e) => setField({ description: e.target.value })} />
+            </Field>
+            <Field label="Icon">
+              <IconChoice value={f.icon} onChange={(icon) => setField({ icon })} />
+            </Field>
+            <Field label="Effect" hint={EFFECT_BY_VALUE[f.effect]?.hint}>
+              <Select value={f.effect} onValueChange={(effect) => setField({ effect })}>
+                <SelectTrigger aria-label="Effect"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EFFECTS.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+            {f.effect === "avatar_frame" && (
+              <Field label="Frame style">
+                <FrameStylePicker value={f.frame_style} onChange={(frame_style) => setField({ frame_style })} />
+              </Field>
+            )}
+            <FieldRow>
+              <Field label="Price" hint="In gems">
+                <Input type="number" min="0" value={f.price} onChange={(e) => setField({ price: e.target.value })} />
+              </Field>
+              <Field label="Amount" hint="Streak freezes: how many. Add XP: how much.">
+                <Input type="number" min="0" value={f.effect_amount} onChange={(e) => setField({ effect_amount: e.target.value })} />
+              </Field>
+            </FieldRow>
+          </div>
+        )}
+      </EditorSheet>
     </CmsLayout>
   );
 }

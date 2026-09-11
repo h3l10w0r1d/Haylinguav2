@@ -1,50 +1,66 @@
-// src/cms/CmsPremium.jsx — edit Premium pricing plans shown on /premium.
+// src/cms/CmsPremium.jsx — Premium pricing plans shown on /premium. A
+// manually ordered table; each plan opens in a side-sheet editor.
 import { useEffect, useMemo, useState } from "react";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Crown, X } from "lucide-react";
+import { Crown, Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import CmsLayout from "./CmsLayout";
-import { cn as cx, inputCls, notify, useConfirm } from "./ui";
+import {
+  Badge, Button, DataTable, EditorSheet, EmptyState, Field, FieldRow, Input, Note, ReorderButtons,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, StatusPill,
+  isDirty, notify, useConfirm,
+} from "./ui";
 
 const INTERVAL_OPTS = [
-  { value: "month", label: "Monthly" },
-  { value: "year", label: "Yearly" },
-  { value: "lifetime", label: "Lifetime (one-time)" },
+  { value: "month", label: "Monthly", suffix: "/ month" },
+  { value: "year", label: "Yearly", suffix: "/ year" },
+  { value: "lifetime", label: "Lifetime (one-time)", suffix: "once" },
 ];
+const INTERVAL_BY_VALUE = Object.fromEntries(INTERVAL_OPTS.map((o) => [o.value, o]));
 
+const EMPTY_PLAN = { title: "", subtitle: "", price: "1490", currency: "AMD", interval: "month", badge_label: "", perks: [] };
+
+function planToFields(p) {
+  return {
+    title: p.title || "",
+    subtitle: p.subtitle || "",
+    price: String(p.price ?? 0),
+    currency: p.currency || "AMD",
+    interval: p.interval || "month",
+    badge_label: p.badge_label || "",
+    perks: Array.isArray(p.perks) ? p.perks : [],
+  };
+}
 
 function PerksEditor({ perks, onChange }) {
   const list = Array.isArray(perks) ? perks : [];
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {list.map((p, i) => (
-        <div key={i} className="flex items-center gap-1.5">
-          <input
+        <div key={i} className="flex items-center gap-2">
+          <Input
             value={p}
             onChange={(e) => onChange(list.map((x, j) => (j === i ? e.target.value : x)))}
-            placeholder="Perk text"
-            className={cx(inputCls, "!py-2")}
+            placeholder="e.g. Unlimited hearts"
+            aria-label={`Perk ${i + 1}`}
           />
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Remove perk"
+            className="shrink-0 text-slate-400 hover:text-cardinal-600"
             onClick={() => onChange(list.filter((_, j) => j !== i))}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-cardinal-500 ring-1 ring-slate-200 hover:bg-cardinal-50"
           >
-            <X className="h-4 w-4" />
-          </button>
+            <X />
+          </Button>
         </div>
       ))}
-      <button
-        type="button"
-        onClick={() => onChange([...list, ""])}
-        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-brand-600 ring-1 ring-brand-100 hover:bg-brand-50"
-      >
-        <Plus className="h-3.5 w-3.5" /> Add perk
-      </button>
+      <Button type="button" variant="outline" size="sm" onClick={() => onChange([...list, ""])}>
+        <Plus /> Add perk
+      </Button>
     </div>
   );
 }
-
-const NEW_PLAN_DEFAULT = { title: "", subtitle: "", price: 1490, currency: "AMD", interval: "month", badge_label: "", perks: [] };
 
 export default function CmsPremium() {
   const token = getCmsToken();
@@ -53,224 +69,256 @@ export default function CmsPremium() {
   useEffect(() => { setCmsApiClient(api); }, [api]);
 
   const [plans, setPlans] = useState([]);
-  const [edits, setEdits] = useState({});
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState(NEW_PLAN_DEFAULT);
-
-  const showToast = notify;
+  const [loadError, setLoadError] = useState(null);
+  const [reordering, setReordering] = useState(false);
+  const [editor, setEditor] = useState(null); // { id, title, initial, fields }
+  const [saving, setSaving] = useState(false);
 
   async function refresh() {
     const d = await api.listPremiumPlans();
-    const list = Array.isArray(d?.plans) ? d.plans : [];
-    setPlans(list);
-    const e = {};
-    list.forEach((p) => {
-      e[p.id] = {
-        title: p.title || "", subtitle: p.subtitle || "", price: p.price ?? 0,
-        currency: p.currency || "AMD", interval: p.interval || "month",
-        badge_label: p.badge_label || "", perks: Array.isArray(p.perks) ? p.perks : [],
-      };
-    });
-    setEdits(e);
+    setPlans(Array.isArray(d?.plans) ? d.plans : []);
   }
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        await refresh();
-      } catch (err) {
-        showToast(err.message || "Failed to load plans", "err");
-      } finally {
-        setLoading(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-
-  async function createPlan() {
-    if (!draft.title.trim()) return;
-    setBusy(true);
+  async function load() {
+    setLoading(true);
+    setLoadError(null);
     try {
-      await api.createPremiumPlan({
-        title: draft.title.trim(),
-        subtitle: draft.subtitle.trim(),
-        price: Number(draft.price) || 0,
-        currency: draft.currency.trim() || "AMD",
-        interval: draft.interval,
-        badge_label: draft.badge_label.trim() || null,
-        perks: draft.perks.filter((p) => p.trim()),
-      });
-      setDraft(NEW_PLAN_DEFAULT);
       await refresh();
-      showToast("Plan created");
     } catch (err) {
-      showToast(err.message || "Create failed", "err");
+      setLoadError(err.message || "Failed to load plans");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
-  async function savePlan(p) {
-    const e = edits[p.id] || {};
-    setBusy(true);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  function openNew() {
+    setEditor({ id: null, initial: EMPTY_PLAN, fields: EMPTY_PLAN });
+  }
+
+  function openEdit(p) {
+    const fields = planToFields(p);
+    setEditor({ id: p.id, title: p.title, initial: fields, fields });
+  }
+
+  function setField(patch) {
+    setEditor((e) => ({ ...e, fields: { ...e.fields, ...patch } }));
+  }
+
+  async function save() {
+    const f = editor.fields;
+    if (!f.title.trim()) {
+      notify("A plan needs a title", "err");
+      return;
+    }
+    const payload = {
+      title: f.title.trim(),
+      subtitle: f.subtitle.trim(),
+      price: Number(f.price) || 0,
+      currency: f.currency.trim() || "AMD",
+      interval: f.interval,
+      badge_label: f.badge_label.trim() || null,
+      perks: f.perks.map((x) => x.trim()).filter(Boolean),
+    };
+    setSaving(true);
     try {
-      await api.updatePremiumPlan(p.id, {
-        title: (e.title || "").trim(),
-        subtitle: (e.subtitle || "").trim(),
-        price: Number(e.price) || 0,
-        currency: (e.currency || "AMD").trim() || "AMD",
-        interval: e.interval,
-        badge_label: (e.badge_label || "").trim() || null,
-        perks: (e.perks || []).filter((x) => x.trim()),
-      });
+      if (editor.id == null) await api.createPremiumPlan(payload);
+      else await api.updatePremiumPlan(editor.id, payload);
+      notify(editor.id == null ? "Plan created" : "Plan saved");
+      setEditor(null);
       await refresh();
-      showToast("Saved");
     } catch (err) {
-      showToast(err.message || "Save failed", "err");
+      notify(err.message || "Save failed", "err");
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
 
   async function togglePlan(p) {
-    setBusy(true);
     try {
       await api.updatePremiumPlan(p.id, { is_active: !p.is_active });
+      notify(p.is_active ? "Plan hidden from /premium" : "Plan is live on /premium");
       await refresh();
     } catch (err) {
-      showToast(err.message || "Update failed", "err");
-    } finally {
-      setBusy(false);
+      notify(err.message || "Update failed", "err");
     }
   }
 
   async function removePlan(p) {
-    if (!(await confirm({ title: `Delete "${p.title}" plan?` }))) return;
-    setBusy(true);
+    if (!(await confirm({ title: `Delete the "${p.title}" plan?`, description: "This can't be undone." }))) return false;
     try {
       await api.deletePremiumPlan(p.id);
+      notify("Plan deleted");
       await refresh();
-      showToast("Deleted");
+      return true;
     } catch (err) {
-      showToast(err.message || "Delete failed", "err");
-    } finally {
-      setBusy(false);
+      notify(err.message || "Delete failed", "err");
+      return false;
     }
   }
 
   async function movePlan(idx, dir) {
-    const next = plans.slice();
     const j = idx + dir;
-    if (j < 0 || j >= next.length) return;
+    if (j < 0 || j >= plans.length) return;
+    const next = plans.slice();
     const [m] = next.splice(idx, 1);
     next.splice(j, 0, m);
     setPlans(next);
-    setBusy(true);
+    setReordering(true);
     try {
       await api.reorderPremiumPlans(next.map((x) => x.id));
-      await refresh();
     } catch (err) {
-      showToast(err.message || "Reorder failed", "err");
-      await refresh();
+      notify(err.message || "Reorder failed", "err");
+      await refresh().catch(() => {});
     } finally {
-      setBusy(false);
+      setReordering(false);
     }
   }
 
-  function patch(id, p) {
-    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
-  }
+  const columns = [
+    {
+      key: "order",
+      header: <span className="sr-only">Order</span>,
+      headerClassName: "w-[4.5rem]",
+      className: "py-1",
+      cell: (p) => <ReorderButtons index={plans.indexOf(p)} count={plans.length} onMove={movePlan} disabled={reordering} label="plan" />,
+    },
+    {
+      key: "title",
+      header: "Plan",
+      cell: (p) => (
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold-50 text-gold-600">
+            <Crown className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="truncate font-medium text-slate-900">{p.title}</span>
+              {p.badge_label && <Badge variant="outline" className="hidden shrink-0 md:inline-flex">{p.badge_label}</Badge>}
+            </div>
+            {p.subtitle && <div className="truncate text-xs text-slate-500">{p.subtitle}</div>}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "price",
+      header: "Price",
+      align: "right",
+      cell: (p) => (
+        <span className="whitespace-nowrap tabular-nums text-slate-700">
+          {Number(p.price || 0).toLocaleString()} {p.currency || "AMD"}{" "}
+          <span className="text-slate-400">{INTERVAL_BY_VALUE[p.interval]?.suffix || ""}</span>
+        </span>
+      ),
+    },
+    {
+      key: "perks",
+      header: "Perks",
+      hideBelow: "lg",
+      align: "right",
+      cell: (p) => <span className="tabular-nums text-slate-500">{Array.isArray(p.perks) ? p.perks.length : 0}</span>,
+    },
+    {
+      key: "is_active",
+      header: "Status",
+      cell: (p) => <StatusPill tone={p.is_active ? "success" : "neutral"}>{p.is_active ? "Live" : "Hidden"}</StatusPill>,
+    },
+  ];
+
+  const rowActions = (p) => [
+    { label: "Edit", icon: Pencil, onSelect: openEdit },
+    { label: p.is_active ? "Hide from /premium" : "Show on /premium", icon: p.is_active ? EyeOff : Eye, onSelect: togglePlan },
+    { label: "Delete", icon: Trash2, destructive: true, onSelect: removePlan },
+  ];
+
+  const f = editor?.fields;
+  const editingPlan = editor?.id != null ? plans.find((x) => x.id === editor.id) : null;
 
   return (
-    <CmsLayout active="premium" title="Premium Plans">
-      <div className="space-y-6">
-        <div className="rounded-2xl bg-brand-50 p-4 text-sm font-semibold text-brand-800 ring-1 ring-brand-200">
-          These plans render live on /premium. Checkout is still simulated (no real card is charged) — this only
-          controls what's shown and which plan_id gets recorded when a user "subscribes".
-        </div>
+    <CmsLayout
+      active="premium"
+      title="Premium Plans"
+      description="The plans shown on /premium, in this order."
+      actions={<Button onClick={openNew}><Plus /> New plan</Button>}
+    >
+      <Note tone="brand" className="mb-4">
+        Checkout is still simulated: no card is charged. These plans only control what /premium shows and which
+        plan_id is recorded when a learner subscribes.
+      </Note>
 
-        {/* New plan */}
-        <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-          <div className="mb-3 font-display text-base font-bold text-slate-900">New plan</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Title — e.g. Monthly" className={inputCls} />
-            <input value={draft.subtitle} onChange={(e) => setDraft({ ...draft, subtitle: e.target.value })} placeholder="Subtitle — e.g. Billed every month" className={inputCls} />
-            <select value={draft.interval} onChange={(e) => setDraft({ ...draft, interval: e.target.value })} className={inputCls}>
-              {INTERVAL_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="Price" className={inputCls} />
-            <input value={draft.currency} onChange={(e) => setDraft({ ...draft, currency: e.target.value })} placeholder="Currency — AMD" className={inputCls} />
-            <input value={draft.badge_label} onChange={(e) => setDraft({ ...draft, badge_label: e.target.value })} placeholder="Badge (optional) — e.g. Best value" className={inputCls} />
-          </div>
-          <div className="mt-3">
-            <div className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">Perks</div>
-            <PerksEditor perks={draft.perks} onChange={(perks) => setDraft({ ...draft, perks })} />
-          </div>
-          <div className="mt-4 flex justify-end">
-            <button type="button" onClick={createPlan} disabled={busy || !draft.title.trim()} className="btn3d btn3d-brand text-sm inline-flex items-center gap-2 disabled:opacity-60">
-              <Plus className="h-4 w-4" /> Add plan
-            </button>
-          </div>
-        </section>
+      <DataTable
+        columns={columns}
+        rows={plans}
+        loading={loading}
+        error={loadError}
+        onRetry={load}
+        onRowClick={openEdit}
+        rowActions={rowActions}
+        emptyState={
+          <EmptyState
+            icon={Crown}
+            title="No plans yet"
+            description="Create the first plan learners can choose on /premium."
+            action={<Button size="sm" onClick={openNew}><Plus /> New plan</Button>}
+          />
+        }
+      />
 
-        {/* Existing plans */}
-        {loading ? (
-          <div className="p-6 text-sm text-slate-500">Loading…</div>
-        ) : plans.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 text-center text-sm font-semibold text-slate-500 ring-1 ring-slate-200 shadow-sm">No plans yet.</div>
-        ) : (
-          <div className="space-y-3">
-            {plans.map((p, idx) => {
-              const e = edits[p.id] || {};
-              return (
-                <div key={p.id} className={cx("rounded-3xl bg-white p-4 ring-1 shadow-sm", p.is_active ? "ring-slate-200" : "ring-slate-200 opacity-70")}>
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col gap-1 pt-1">
-                      <button type="button" onClick={() => movePlan(idx, -1)} disabled={busy || idx === 0} className="grid h-7 w-7 place-items-center rounded-xl text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40"><ChevronUp className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => movePlan(idx, 1)} disabled={busy || idx === plans.length - 1} className="grid h-7 w-7 place-items-center rounded-xl text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-40"><ChevronDown className="h-4 w-4" /></button>
-                    </div>
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-50 text-gold-600"><Crown className="h-5 w-5" /></div>
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <input value={e.title || ""} onChange={(ev) => patch(p.id, { title: ev.target.value })} placeholder="Title" className={cx(inputCls, "!py-2 font-bold")} />
-                        <input value={e.subtitle || ""} onChange={(ev) => patch(p.id, { subtitle: ev.target.value })} placeholder="Subtitle" className={cx(inputCls, "!py-2 text-xs")} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <select value={e.interval || "month"} onChange={(ev) => patch(p.id, { interval: ev.target.value })} className={cx(inputCls, "!py-2")}>
-                          {INTERVAL_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                        <input type="number" value={e.price ?? 0} onChange={(ev) => patch(p.id, { price: ev.target.value })} className={cx(inputCls, "!py-2")} placeholder="Price" />
-                        <input value={e.currency || "AMD"} onChange={(ev) => patch(p.id, { currency: ev.target.value })} className={cx(inputCls, "!py-2")} placeholder="Currency" />
-                        <input value={e.badge_label || ""} onChange={(ev) => patch(p.id, { badge_label: ev.target.value })} className={cx(inputCls, "!py-2")} placeholder="Badge (optional)" />
-                      </div>
-                      <div>
-                        <div className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Perks</div>
-                        <PerksEditor perks={e.perks || []} onChange={(perks) => patch(p.id, { perks })} />
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                        <button type="button" onClick={() => togglePlan(p)} disabled={busy}
-                          className={cx("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 transition",
-                            p.is_active ? "bg-grass-50 text-grass-700 ring-grass-200 hover:bg-grass-100" : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200")}>
-                          {p.is_active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                          {p.is_active ? "Live" : "Hidden"}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <button type="button" onClick={() => savePlan(p)} disabled={busy} className="btn3d btn3d-brand text-xs inline-flex items-center gap-1.5"><Save className="h-3.5 w-3.5" /> Save</button>
-                      <button type="button" onClick={() => removePlan(p)} disabled={busy} className="btn3d btn3d-cardinal text-xs inline-flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+      <EditorSheet
+        open={!!editor}
+        onOpenChange={(open) => { if (!open) setEditor(null); }}
+        size="md"
+        title={editor?.id == null ? "New plan" : editor?.title || "Edit plan"}
+        dirty={!!editor && isDirty(editor.initial, editor.fields)}
+        saving={saving}
+        onSave={save}
+        saveLabel={editor?.id == null ? "Create plan" : "Save changes"}
+        saveDisabled={!f?.title?.trim()}
+        onDelete={editingPlan ? async () => { if (await removePlan(editingPlan)) setEditor(null); } : undefined}
+      >
+        {f && (
+          <div className="space-y-4">
+            <FieldRow>
+              <Field label="Title" required>
+                <Input value={f.title} onChange={(e) => setField({ title: e.target.value })} placeholder="e.g. Monthly" />
+              </Field>
+              <Field label="Subtitle">
+                <Input value={f.subtitle} onChange={(e) => setField({ subtitle: e.target.value })} placeholder="e.g. Billed every month" />
+              </Field>
+            </FieldRow>
+            <FieldRow>
+              <Field label="Price">
+                <Input type="number" min="0" value={f.price} onChange={(e) => setField({ price: e.target.value })} />
+              </Field>
+              <Field label="Currency">
+                <Input value={f.currency} onChange={(e) => setField({ currency: e.target.value })} placeholder="AMD" />
+              </Field>
+            </FieldRow>
+            <FieldRow>
+              <Field label="Billing">
+                <Select value={f.interval} onValueChange={(interval) => setField({ interval })}>
+                  <SelectTrigger aria-label="Billing interval"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {INTERVAL_OPTS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Badge" hint="Optional, e.g. Best value">
+                <Input value={f.badge_label} onChange={(e) => setField({ badge_label: e.target.value })} />
+              </Field>
+            </FieldRow>
+            <Field label="Perks" hint="Empty lines are dropped on save">
+              <PerksEditor perks={f.perks} onChange={(perks) => setField({ perks })} />
+            </Field>
           </div>
         )}
-      </div>
-
+      </EditorSheet>
     </CmsLayout>
   );
 }
