@@ -6,7 +6,11 @@ import {
   ListPlus, FileText, Download, Linkedin, Mail,
 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
-import { Pagination, cn as cx, inputCls, notify, useConfirm } from "./ui";
+import {
+  Button, Field, FieldRow, FormDialog, Input, Pagination,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  cn as cx, inputCls, notify, useConfirm,
+} from "./ui";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
 const FIELD_TYPES = ["text", "textarea", "url", "file"];
@@ -228,6 +232,7 @@ function VacancyPanel({ vacancy, api, showToast }) {
 export default function CmsCareers() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
+  const confirm = useConfirm();
   useEffect(() => { setCmsApiClient(api); }, [api]);
 
   const [items, setItems] = useState([]);
@@ -235,6 +240,8 @@ export default function CmsCareers() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ title: "", location: "Remote", employment_type: "full-time" });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
 
   const showToast = notify;
@@ -270,16 +277,17 @@ export default function CmsCareers() {
 
   async function createItem() {
     if (!draft.title.trim()) return;
-    setBusy(true);
+    setCreating(true);
     try {
       await api.createVacancy({ title: draft.title.trim(), location: draft.location.trim(), employment_type: draft.employment_type });
       setDraft({ title: "", location: "Remote", employment_type: "full-time" });
+      setCreateOpen(false);
       await refresh();
-      showToast("Vacancy created — it's hidden until you publish it");
+      showToast("Vacancy created. It stays hidden until you publish it.");
     } catch (err) {
       showToast(err.message || "Create failed", "err");
     } finally {
-      setBusy(false);
+      setCreating(false);
     }
   }
 
@@ -350,22 +358,13 @@ export default function CmsCareers() {
   }
 
   return (
-    <CmsLayout active="careers" title="Careers">
+    <CmsLayout
+      active="careers"
+      title="Careers"
+      description="Vacancies on the public Careers page. With nothing published, it says you're not hiring."
+      actions={<Button onClick={() => setCreateOpen(true)}><Plus /> New vacancy</Button>}
+    >
       <div className="space-y-4">
-        <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-          <div className="mb-3 font-display text-base font-bold text-slate-900">New vacancy</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_0.8fr_auto]">
-            <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Title — e.g. Frontend Engineer" className={inputCls} />
-            <input value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} placeholder="Location" className={inputCls} />
-            <select value={draft.employment_type} onChange={(e) => setDraft({ ...draft, employment_type: e.target.value })} className={inputCls}>
-              {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <button type="button" onClick={createItem} disabled={busy || !draft.title.trim()} className="btn3d btn3d-brand text-sm inline-flex items-center justify-center gap-2 disabled:opacity-60">
-              <Plus className="h-4 w-4" /> Add
-            </button>
-          </div>
-          <div className="mt-2 text-xs font-semibold text-slate-500">New vacancies start hidden — publish them once details are filled in. The public Careers page shows an honest "not hiring" message when nothing's published.</div>
-        </div>
 
         {loading ? (
           <div className="p-6 text-sm text-slate-500">Loading…</div>
@@ -422,6 +421,33 @@ export default function CmsCareers() {
           </div>
         )}
       </div>
+      <FormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="New vacancy"
+        description="It starts hidden. Add the summary and description, then publish it."
+        submitLabel="Create vacancy"
+        submitting={creating}
+        submitDisabled={!draft.title.trim()}
+        onSubmit={createItem}
+      >
+        <Field label="Title" required>
+          <Input autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="e.g. Frontend Engineer" />
+        </Field>
+        <FieldRow>
+          <Field label="Location">
+            <Input value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
+          </Field>
+          <Field label="Type">
+            <Select value={draft.employment_type} onValueChange={(v) => setDraft({ ...draft, employment_type: v })}>
+              <SelectTrigger aria-label="Employment type" className="capitalize"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {EMPLOYMENT_TYPES.map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+        </FieldRow>
+      </FormDialog>
     </CmsLayout>
   );
 }

@@ -1,12 +1,17 @@
-// src/cms/CmsChapters.jsx — manage chapters (lesson groups on the learner roadmap).
+// src/cms/CmsChapters.jsx — manage chapters (lesson groups on the learner
+// roadmap). A manually ordered table; each chapter opens in a side-sheet
+// editor (icon, tint, title, description).
 import { useEffect, useMemo, useState } from "react";
 import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
-import { Plus, Save, Trash2, ChevronUp, ChevronDown, BookOpen, Eye, EyeOff, Sparkles, Ear, ImagePlus } from "lucide-react";
+import { BookOpen, ChevronDown, Ear, Eye, EyeOff, ImagePlus, Layers, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import CmsLayout from "./CmsLayout";
-import { cn as cx, notify, useConfirm } from "./ui";
+import {
+  Button, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  EditorSheet, EmptyState, Field, Input, ReorderButtons, StatusPill,
+  cn as cx, isDirty, notify, useConfirm,
+} from "./ui";
 import IconPicker from "./IconPicker";
 import { LucideGlyph } from "../lib/lucideIcons";
-
 
 function ChapterIconGlyph({ name, className, fallback = null }) {
   if (!name) return fallback;
@@ -35,6 +40,12 @@ const TONE_CHIP = {
   gold: "bg-gold-100 text-gold-700",
 };
 
+const EMPTY_CHAPTER = { title: "", description: "", icon: "", icon_color: "brand" };
+
+function chapterToFields(c) {
+  return { title: c.title || "", description: c.description || "", icon: c.icon || "", icon_color: c.icon_color || "brand" };
+}
+
 export default function CmsChapters() {
   const token = getCmsToken();
   const api = useMemo(() => createCmsApi(token), [token]);
@@ -45,128 +56,127 @@ export default function CmsChapters() {
 
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState({ title: "", description: "", icon: "", icon_color: "brand" });
-  const [edits, setEdits] = useState({}); // id -> {title, description, icon, icon_color}
-  const [pickerFor, setPickerFor] = useState(null); // "new" | chapter id | null
-
-  const showToast = notify;
+  const [loadError, setLoadError] = useState(null);
+  const [reordering, setReordering] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [editor, setEditor] = useState(null); // { id, title, lessonCount, initial, fields }
+  const [saving, setSaving] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   async function refresh() {
     const data = await api.listChapters();
-    const list = Array.isArray(data) ? data : [];
-    setChapters(list);
-    const e = {};
-    list.forEach((c) => (e[c.id] = { title: c.title || "", description: c.description || "", icon: c.icon || "", icon_color: c.icon_color || "brand" }));
-    setEdits(e);
+    setChapters(Array.isArray(data) ? data : []);
   }
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        await refresh();
-      } catch (err) {
-        showToast(err.message || "Failed to load chapters", "err");
-      } finally {
-        setLoading(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-
-  async function create() {
-    const title = draft.title.trim();
-    if (!title) return;
-    setBusy(true);
+  async function load() {
+    setLoading(true);
+    setLoadError(null);
     try {
-      await api.createChapter({ title, description: draft.description.trim(), icon: draft.icon || null, icon_color: draft.icon_color || "brand" });
-      setDraft({ title: "", description: "", icon: "", icon_color: "brand" });
       await refresh();
-      showToast("Chapter created");
     } catch (err) {
-      showToast(err.message || "Create failed", "err");
+      setLoadError(err.message || "Failed to load chapters");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
-  async function saveOne(c) {
-    const e = edits[c.id] || {};
-    setBusy(true);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  function openNew() {
+    setEditor({ id: null, initial: EMPTY_CHAPTER, fields: EMPTY_CHAPTER });
+  }
+
+  function openEdit(c) {
+    const fields = chapterToFields(c);
+    setEditor({ id: c.id, title: c.title, initial: fields, fields });
+  }
+
+  function setField(patch) {
+    setEditor((e) => ({ ...e, fields: { ...e.fields, ...patch } }));
+  }
+
+  async function save() {
+    const f = editor.fields;
+    if (!f.title.trim()) {
+      notify("A chapter needs a title", "err");
+      return;
+    }
+    const payload = {
+      title: f.title.trim(),
+      description: f.description.trim(),
+      icon: f.icon || null,
+      icon_color: f.icon_color || "brand",
+    };
+    setSaving(true);
     try {
-      await api.updateChapter(c.id, {
-        title: (e.title || "").trim(),
-        description: (e.description || "").trim(),
-        icon: e.icon || null,
-        icon_color: e.icon_color || "brand",
-      });
+      if (editor.id == null) await api.createChapter(payload);
+      else await api.updateChapter(editor.id, payload);
+      notify(editor.id == null ? "Chapter created" : "Chapter saved");
+      setEditor(null);
       await refresh();
-      showToast("Saved");
     } catch (err) {
-      showToast(err.message || "Save failed", "err");
+      notify(err.message || "Save failed", "err");
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
 
   async function togglePublished(c) {
-    setBusy(true);
     try {
       await api.updateChapter(c.id, { is_published: !c.is_published });
+      notify(c.is_published ? "Chapter hidden" : "Chapter published");
       await refresh();
     } catch (err) {
-      showToast(err.message || "Update failed", "err");
-    } finally {
-      setBusy(false);
+      notify(err.message || "Update failed", "err");
     }
   }
 
   async function remove(c) {
-    if (!(await confirm({ title: `Delete "${c.title}"?`, description: `Its ${c.lesson_count} lesson(s) will be unassigned, not deleted.` }))) return;
-    setBusy(true);
+    const n = c.lesson_count || 0;
+    if (!(await confirm({ title: `Delete "${c.title}"?`, description: `Its ${n} lesson${n === 1 ? "" : "s"} will be unassigned, not deleted.` }))) return false;
     try {
       await api.deleteChapter(c.id);
+      notify("Chapter deleted");
       await refresh();
-      showToast("Chapter deleted");
+      return true;
     } catch (err) {
-      showToast(err.message || "Delete failed", "err");
-    } finally {
-      setBusy(false);
+      notify(err.message || "Delete failed", "err");
+      return false;
     }
   }
 
   async function move(idx, dir) {
-    const next = chapters.slice();
     const j = idx + dir;
-    if (j < 0 || j >= next.length) return;
+    if (j < 0 || j >= chapters.length) return;
+    const next = chapters.slice();
     const [it] = next.splice(idx, 1);
     next.splice(j, 0, it);
     setChapters(next); // optimistic
-    setBusy(true);
+    setReordering(true);
     try {
       await api.reorderChapters(next.map((c) => c.id));
-      await refresh();
     } catch (err) {
-      showToast(err.message || "Reorder failed", "err");
-      await refresh();
+      notify(err.message || "Reorder failed", "err");
+      await refresh().catch(() => {});
     } finally {
-      setBusy(false);
+      setReordering(false);
     }
   }
 
   async function seed() {
     if (!(await confirm({ title: "Add the starter curriculum?", description: "Adds the built-in 10-chapter Armenian basics. This won't touch your existing chapters.", confirmText: "Add", destructive: false }))) return;
-    setBusy(true);
+    setSeeding(true);
     try {
       const res = await api.seedCurriculum();
       await refresh();
-      showToast(res?.created ? `Added ${res.chapters} chapters · ${res.exercises} exercises` : "Starter curriculum already present");
+      notify(res?.created ? `Added ${res.chapters} chapters · ${res.exercises} exercises` : "Starter curriculum already present");
     } catch (err) {
-      showToast(err.message || "Seeding failed", "err");
+      notify(err.message || "Seeding failed", "err");
     } finally {
-      setBusy(false);
+      setSeeding(false);
     }
   }
 
@@ -180,248 +190,193 @@ export default function CmsChapters() {
       confirmText: "Add",
       destructive: false,
     }))) return;
-    setBusy(true);
+    setSeeding(true);
     try {
       const res = await api.seedSounds();
       await refresh();
-      showToast(
+      notify(
         res?.created
           ? `Added ${res.chapters} chapters · ${res.exercises} exercises${res.hidden_chapters ? ` · hid ${res.hidden_chapters} duplicate chapter(s)` : ""}`
           : "Sounds phase already present"
       );
     } catch (err) {
-      showToast(err.message || "Seeding failed", "err");
+      notify(err.message || "Seeding failed", "err");
     } finally {
-      setBusy(false);
+      setSeeding(false);
     }
   }
+
+  const columns = [
+    {
+      key: "order",
+      header: <span className="sr-only">Order</span>,
+      headerClassName: "w-[4.5rem]",
+      className: "py-1",
+      cell: (c) => <ReorderButtons index={chapters.indexOf(c)} count={chapters.length} onMove={move} disabled={reordering} label="chapter" />,
+    },
+    {
+      key: "title",
+      header: "Chapter",
+      cell: (c) => {
+        const idx = chapters.indexOf(c);
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={cx("grid h-9 w-9 shrink-0 place-items-center rounded-lg", TONE_CHIP[c.icon_color] || TONE_CHIP.brand)}>
+              <ChapterIconGlyph name={c.icon} className="h-4 w-4" fallback={<span className="text-sm font-semibold">{idx + 1}</span>} />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate font-medium text-slate-900">{c.title}</div>
+              {c.description && <div className="truncate text-xs text-slate-500">{c.description}</div>}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "lesson_count",
+      header: "Lessons",
+      align: "right",
+      hideBelow: "sm",
+      cell: (c) => (
+        <span className="inline-flex items-center gap-1 tabular-nums text-slate-600">
+          <BookOpen className="h-3.5 w-3.5 text-slate-400" /> {c.lesson_count ?? 0}
+        </span>
+      ),
+    },
+    {
+      key: "is_published",
+      header: "Status",
+      cell: (c) => <StatusPill tone={c.is_published ? "success" : "neutral"}>{c.is_published ? "Published" : "Hidden"}</StatusPill>,
+    },
+  ];
+
+  const rowActions = (c) => [
+    { label: "Edit", icon: Pencil, onSelect: openEdit },
+    { label: c.is_published ? "Hide" : "Publish", icon: c.is_published ? EyeOff : Eye, onSelect: togglePublished },
+    { label: "Delete", icon: Trash2, destructive: true, onSelect: remove },
+  ];
+
+  const f = editor?.fields;
+  const editingChapter = editor?.id != null ? chapters.find((x) => x.id === editor.id) : null;
 
   return (
     <CmsLayout
       active="chapters"
       title="Chapters"
+      description="Lesson groups on the learner roadmap, in the order learners meet them."
       actions={
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={seedSounds}
-            disabled={busy}
-            className="btn3d btn3d-neutral text-sm !py-2 inline-flex items-center gap-2 disabled:opacity-60"
-          >
-            <Ear className="h-4 w-4 text-brand-500" /> Add sounds-first curriculum
-          </button>
-          <button
-            type="button"
-            onClick={seed}
-            disabled={busy}
-            className="btn3d btn3d-neutral text-sm !py-2 inline-flex items-center gap-2 disabled:opacity-60"
-          >
-            <Sparkles className="h-4 w-4 text-brand-500" /> Add starter curriculum
-          </button>
-        </div>
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={seeding}>
+                Add curriculum <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={seedSounds}>
+                <Ear className="mr-2 h-4 w-4 text-slate-400" /> Sounds-first phase
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={seed}>
+                <Sparkles className="mr-2 h-4 w-4 text-slate-400" /> Starter curriculum
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button onClick={openNew}><Plus /> New chapter</Button>
+        </>
       }
     >
-      <div className="space-y-5">
-        {/* Create */}
-        <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-5">
-          <div className="font-display text-base font-bold text-slate-900 mb-3">New chapter</div>
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setPickerFor("new")}
-              className={cx(
-                "grid h-11 w-11 shrink-0 place-items-center rounded-2xl ring-1 ring-slate-200 transition hover:ring-slate-300",
-                TONE_CHIP[draft.icon_color] || TONE_CHIP.brand
-              )}
-              title="Choose icon"
-            >
-              <ChapterIconGlyph name={draft.icon} className="h-5 w-5" fallback={<ImagePlus className="h-5 w-5 text-slate-400" />} />
-            </button>
-            <div className="flex items-center gap-1.5">
-              {ICON_TONES.map((t) => (
+      <DataTable
+        columns={columns}
+        rows={chapters}
+        loading={loading}
+        error={loadError}
+        onRetry={load}
+        onRowClick={openEdit}
+        rowActions={rowActions}
+        emptyState={
+          <EmptyState
+            icon={Layers}
+            title="No chapters yet"
+            description="Create one, or add the starter curriculum from the header."
+            action={<Button size="sm" onClick={openNew}><Plus /> New chapter</Button>}
+          />
+        }
+      />
+
+      <EditorSheet
+        open={!!editor}
+        onOpenChange={(open) => { if (!open) { setPickerOpen(false); setEditor(null); } }}
+        size="md"
+        title={editor?.id == null ? "New chapter" : editor?.title || "Edit chapter"}
+        description={
+          editingChapter
+            ? `${editingChapter.lesson_count ?? 0} lesson${editingChapter.lesson_count === 1 ? "" : "s"} in this chapter`
+            : "New chapters start hidden until you publish them."
+        }
+        dirty={!!editor && isDirty(editor.initial, editor.fields)}
+        saving={saving}
+        onSave={save}
+        saveLabel={editor?.id == null ? "Create chapter" : "Save changes"}
+        saveDisabled={!f?.title?.trim()}
+        onDelete={editingChapter ? async () => { if (await remove(editingChapter)) setEditor(null); } : undefined}
+      >
+        {f && (
+          <div className="space-y-4">
+            <Field label="Icon" hint="Pick an icon and the tint it renders in on the roadmap">
+              <div className="flex flex-wrap items-center gap-3">
                 <button
-                  key={t.key}
                   type="button"
-                  onClick={() => setDraft({ ...draft, icon_color: t.key })}
+                  onClick={() => setPickerOpen(true)}
                   className={cx(
-                    "h-5 w-5 rounded-full ring-2 ring-offset-1 transition",
-                    t.swatch,
-                    draft.icon_color === t.key ? "ring-slate-400" : "ring-transparent"
+                    "grid h-12 w-12 shrink-0 place-items-center rounded-lg ring-1 ring-slate-200 transition hover:ring-slate-300",
+                    TONE_CHIP[f.icon_color] || TONE_CHIP.brand
                   )}
-                  title={t.key}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_auto] gap-3 items-start">
-            <input
-              value={draft.title}
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              placeholder="Title — e.g. The Alphabet"
-              className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
-            />
-            <input
-              value={draft.description}
-              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-              placeholder="Short description (optional)"
-              className="w-full rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={create}
-              disabled={busy || !draft.title.trim()}
-              className="btn3d btn3d-brand text-sm inline-flex items-center gap-2 disabled:opacity-60"
-            >
-              <Plus className="w-4 h-4" />
-              Add
-            </button>
-          </div>
-        </div>
-
-        {/* List */}
-        {loading ? (
-          <div className="p-6 text-sm text-slate-500">Loading…</div>
-        ) : chapters.length === 0 ? (
-          <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-8 text-center text-sm font-semibold text-slate-500">
-            No chapters yet. Create your first one above.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {chapters.map((c, idx) => {
-              const e = edits[c.id] || { title: "", description: "", icon: "", icon_color: "brand" };
-              return (
-                <div key={c.id} className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm p-4">
-                  <div className="flex items-start gap-3">
-                    {/* reorder */}
-                    <div className="flex flex-col gap-1 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => move(idx, -1)}
-                        disabled={busy || idx === 0}
-                        className="grid h-7 w-7 place-items-center rounded-xl ring-1 ring-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40"
-                        title="Move up"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => move(idx, 1)}
-                        disabled={busy || idx === chapters.length - 1}
-                        className="grid h-7 w-7 place-items-center rounded-xl ring-1 ring-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40"
-                        title="Move down"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <div className="shrink-0 space-y-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setPickerFor(c.id)}
-                        className={cx(
-                          "relative grid h-11 w-11 place-items-center rounded-2xl ring-1 ring-slate-200 transition hover:ring-slate-300",
-                          TONE_CHIP[e.icon_color] || TONE_CHIP.brand
-                        )}
-                        title="Choose icon"
-                      >
-                        <ChapterIconGlyph
-                          name={e.icon}
-                          className="h-5 w-5"
-                          fallback={<span className="font-display text-sm font-extrabold">{idx + 1}</span>}
-                        />
-                      </button>
-                      <div className="flex items-center justify-center gap-1">
-                        {ICON_TONES.map((t) => (
-                          <button
-                            key={t.key}
-                            type="button"
-                            onClick={() => setEdits({ ...edits, [c.id]: { ...e, icon_color: t.key } })}
-                            className={cx(
-                              "h-3 w-3 rounded-full ring-1 ring-offset-1 transition",
-                              t.swatch,
-                              e.icon_color === t.key ? "ring-slate-400" : "ring-transparent"
-                            )}
-                            title={t.key}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <input
-                        value={e.title}
-                        onChange={(ev) => setEdits({ ...edits, [c.id]: { ...e, title: ev.target.value } })}
-                        className="w-full rounded-2xl bg-slate-50 px-4 py-2 text-sm font-bold text-slate-900 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
-                      />
-                      <input
-                        value={e.description}
-                        onChange={(ev) => setEdits({ ...edits, [c.id]: { ...e, description: ev.target.value } })}
-                        placeholder="Description (optional)"
-                        className="w-full rounded-2xl bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600 ring-2 ring-slate-200 focus:bg-white focus:ring-brand-400 focus:outline-none"
-                      />
-                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
-                          <BookOpen className="w-3.5 h-3.5" />
-                          {c.lesson_count} lesson{c.lesson_count === 1 ? "" : "s"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => togglePublished(c)}
-                          disabled={busy}
-                          className={cx(
-                            "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 transition",
-                            c.is_published
-                              ? "bg-grass-50 text-grass-700 ring-grass-200 hover:bg-grass-100"
-                              : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200"
-                          )}
-                        >
-                          {c.is_published ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                          {c.is_published ? "Published" : "Hidden"}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() => saveOne(c)}
-                        disabled={busy}
-                        className="btn3d btn3d-brand text-xs inline-flex items-center gap-1.5"
-                      >
-                        <Save className="w-3.5 h-3.5" />
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => remove(c)}
-                        disabled={busy}
-                        className="btn3d btn3d-cardinal text-xs inline-flex items-center gap-1.5"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+                  title="Choose icon"
+                  aria-label="Choose icon"
+                >
+                  <ChapterIconGlyph name={f.icon} className="h-5 w-5" fallback={<ImagePlus className="h-5 w-5 text-slate-400" />} />
+                </button>
+                <div className="flex items-center gap-1.5">
+                  {ICON_TONES.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setField({ icon_color: t.key })}
+                      aria-label={`Tint ${t.key}`}
+                      aria-pressed={f.icon_color === t.key}
+                      className={cx(
+                        "h-5 w-5 rounded-full ring-2 ring-offset-1 transition",
+                        t.swatch,
+                        f.icon_color === t.key ? "ring-slate-500" : "ring-transparent"
+                      )}
+                      title={t.key}
+                    />
+                  ))}
                 </div>
-              );
-            })}
+                {f.icon && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setField({ icon: "" })}>Remove icon</Button>
+                )}
+              </div>
+            </Field>
+            <Field label="Title" required>
+              <Input value={f.title} onChange={(e) => setField({ title: e.target.value })} placeholder="e.g. The Alphabet" />
+            </Field>
+            <Field label="Description" hint="Optional">
+              <Input value={f.description} onChange={(e) => setField({ description: e.target.value })} />
+            </Field>
+
+            {/* Rendered inside the sheet on purpose: the picker is a plain
+                fixed overlay, and outside the modal sheet it would sit behind
+                it and count as an outside click. */}
+            <IconPicker
+              open={pickerOpen}
+              onClose={() => setPickerOpen(false)}
+              currentIcon={f.icon}
+              onSelect={(name) => setField({ icon: name })}
+            />
           </div>
         )}
-      </div>
-
-
-      <IconPicker
-        open={pickerFor !== null}
-        onClose={() => setPickerFor(null)}
-        currentIcon={pickerFor === "new" ? draft.icon : edits[pickerFor]?.icon}
-        onSelect={(name) => {
-          if (pickerFor === "new") {
-            setDraft((d) => ({ ...d, icon: name }));
-          } else if (pickerFor !== null) {
-            setEdits((prev) => ({ ...prev, [pickerFor]: { ...(prev[pickerFor] || {}), icon: name } }));
-          }
-        }}
-      />
+      </EditorSheet>
     </CmsLayout>
   );
 }

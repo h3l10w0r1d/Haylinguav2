@@ -34,6 +34,7 @@ export { DataTable } from "./DataTable";
 export { EditorSheet, isDirty } from "./EditorSheet";
 export { ReorderButtons } from "./ReorderButtons";
 export { StatusPill } from "./StatusPill";
+export { FormDialog } from "./FormDialog";
 export { ListToolbar } from "./ListToolbar";
 export { SectionCard, Note } from "./SectionCard";
 export { Field, FieldRow } from "./FormField";

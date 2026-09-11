@@ -4,7 +4,7 @@ import { createCmsApi, getCmsToken, setCmsApiClient } from "./api";
 import { Plus, Save, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Pin, Lock, Unlock, MessagesSquare, ChevronRight } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import {
-  Button, EmptyState, ListState, ListToolbar, Pagination, SearchInput,
+  Button, EmptyState, Field, FormDialog, Input, ListState, ListToolbar, Pagination, SearchInput,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   cn as cx, inputCls, notify, useConfirm, useListQuery,
 } from "./ui";
@@ -27,6 +27,8 @@ export default function CmsForum() {
   const [threadsTotal, setThreadsTotal] = useState(0);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ name: "", description: "" });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const confirm = useConfirm();
   const showToast = notify;
 
@@ -68,16 +70,17 @@ export default function CmsForum() {
 
   async function createCategory() {
     if (!draft.name.trim()) return;
-    setBusy(true);
+    setCreating(true);
     try {
       await api.createForumCategory({ name: draft.name.trim(), slug: slugify(draft.name), description: draft.description.trim() });
       setDraft({ name: "", description: "" });
+      setCreateOpen(false);
       await refresh();
       showToast("Category created");
     } catch (err) {
       showToast(err.message || "Create failed", "err");
     } finally {
-      setBusy(false);
+      setCreating(false);
     }
   }
 
@@ -203,15 +206,12 @@ export default function CmsForum() {
       <div className="space-y-8">
         {/* ----- Categories ----- */}
         <section className="space-y-4">
-          <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
-            <div className="mb-3 font-display text-base font-bold text-slate-900">New category</div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1.6fr_auto]">
-              <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Name — e.g. Grammar questions" className={inputCls} />
-              <input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" className={inputCls} />
-              <button type="button" onClick={createCategory} disabled={busy || !draft.name.trim()} className="btn3d btn3d-brand text-sm inline-flex items-center justify-center gap-2 disabled:opacity-60">
-                <Plus className="h-4 w-4" /> Add
-              </button>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Categories</h2>
+              <p className="text-sm text-slate-500">Shown on /community in this order.</p>
             </div>
+            <Button size="sm" onClick={() => setCreateOpen(true)}><Plus /> New category</Button>
           </div>
 
           {loading ? (
@@ -350,6 +350,22 @@ export default function CmsForum() {
           </ListState>
         </section>
       </div>
+      <FormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="New category"
+        submitLabel="Create category"
+        submitting={creating}
+        submitDisabled={!draft.name.trim()}
+        onSubmit={createCategory}
+      >
+        <Field label="Name" required hint={draft.name.trim() ? `/community/${slugify(draft.name)}` : "The URL slug is generated from the name"}>
+          <Input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Grammar questions" />
+        </Field>
+        <Field label="Description">
+          <Input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+        </Field>
+      </FormDialog>
     </CmsLayout>
   );
 }
