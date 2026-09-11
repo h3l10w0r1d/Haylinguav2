@@ -222,10 +222,23 @@ def _validate_steps(steps: list[dict], depth: int = 0) -> None:
             raise ValueError(f"Unknown step type: {t}")
 
 
-def validate_campaign(trigger: dict, steps: list[dict]) -> None:
-    if not isinstance(trigger, dict) or not trigger.get("event_type"):
-        raise ValueError("trigger.event_type is required")
-    validate_filter_group(trigger.get("filters"))
+TRIGGER_TYPES = {"event", "segment"}
+
+
+def validate_campaign(trigger_type: str, trigger: dict, steps: list[dict]) -> None:
+    if trigger_type not in TRIGGER_TYPES:
+        raise ValueError(f"Unknown trigger_type: {trigger_type}")
+    if not isinstance(trigger, dict):
+        raise ValueError("trigger_config must be an object")
+    if trigger_type == "event":
+        if not trigger.get("event_type"):
+            raise ValueError("trigger.event_type is required")
+        validate_filter_group(trigger.get("filters"))
+    else:  # segment — a user's presence in the segment IS the condition,
+        # there's no separate "only if" filter layered on top (the segment's
+        # own filters already are that layer).
+        if not trigger.get("segment_id"):
+            raise ValueError("trigger.segment_id is required")
     _validate_steps(steps)
 
 
@@ -332,6 +345,92 @@ def check_and_enroll(db: Connection, user_id: int, event_type: str, properties: 
             {"c": camp["id"], "u": user_id, "ctx": json.dumps(properties)},
         ).mappings().first()
         advance_enrollment(db, dict(enrollment))
+
+
+def check_segment_triggers(db: Connection) -> int:
+    """Segment-entry trigger (trigger_type='segment'). Unlike an event
+    trigger — a discrete occurrence that calls check_and_enroll inline the
+    moment it happens — segment membership is a continuous state with no
+    single moment of change to hook into, so this is cron-scanned (same
+    "passive condition, only a scan can notice" shape as
+    detect_streak_breaks, called from the same cron endpoint).
+
+    Re-evaluating "is user X in segment Y" on every tick isn't enough by
+    itself: a still-matching user would get enrolled again on every single
+    tick. automation_segment_membership remembers what this function last
+    saw, so only the false->true transition ("entry") enrolls — a user who
+    stays in the segment across ticks, or who was already a member before
+    the campaign went active, doesn't loop-enroll or trigger on the first
+    scan.
+
+    reenrollment_policy still governs concurrent runs (skip = don't enroll
+    while already active/waiting) exactly like check_and_enroll — it does
+    NOT change how "entry" is detected, so a segment campaign always fires
+    once per genuine leave-then-rejoin, regardless of policy.
+    """
+    campaigns = db.execute(text("""
+        SELECT id, trigger_config, reenrollment_policy
+        FROM automation_campaigns
+        WHERE status = 'active' AND trigger_type = 'segment'
+    """)).mappings().all()
+    if not campaigns:
+        return 0
+
+    user_ids = [r[0] for r in db.execute(text("SELECT id FROM users")).all()]
+    enrolled = 0
+    for camp in campaigns:
+        trigger_config = camp["trigger_config"] if isinstance(camp["trigger_config"], dict) else json.loads(camp["trigger_config"] or "{}")
+        segment_id = trigger_config.get("segment_id")
+        if not segment_id:
+            continue
+        for user_id in user_ids:
+            try:
+                matches = user_in_segment(db, user_id, segment_id)
+            except ValueError:
+                continue  # malformed segment filter — skip rather than blow up the whole scan
+
+            prev = db.execute(
+                text("SELECT is_member FROM automation_segment_membership WHERE campaign_id = :c AND user_id = :u"),
+                {"c": camp["id"], "u": user_id},
+            ).mappings().first()
+            was_member = bool(prev and prev["is_member"])
+            if matches == was_member:
+                continue
+
+            db.execute(
+                text("""
+                    INSERT INTO automation_segment_membership (campaign_id, user_id, is_member, updated_at)
+                    VALUES (:c, :u, :m, NOW())
+                    ON CONFLICT (campaign_id, user_id) DO UPDATE SET is_member = :m, updated_at = NOW()
+                """),
+                {"c": camp["id"], "u": user_id, "m": matches},
+            )
+            if not matches:
+                continue  # transitioned OUT — nothing to enroll
+
+            if camp["reenrollment_policy"] == "skip":
+                existing = db.execute(
+                    text("""
+                        SELECT 1 FROM automation_enrollments
+                        WHERE campaign_id = :c AND user_id = :u AND status IN ('active', 'waiting')
+                        LIMIT 1
+                    """),
+                    {"c": camp["id"], "u": user_id},
+                ).first()
+                if existing:
+                    continue
+
+            enrollment = db.execute(
+                text("""
+                    INSERT INTO automation_enrollments (campaign_id, user_id, status, current_step_index, context)
+                    VALUES (:c, :u, 'active', 0, '{}'::jsonb)
+                    RETURNING id, campaign_id, user_id, status, current_step_index, resume_at, context, waiting_step_path
+                """),
+                {"c": camp["id"], "u": user_id},
+            ).mappings().first()
+            advance_enrollment(db, dict(enrollment))
+            enrolled += 1
+    return enrolled
 
 
 def _step_path_str(path: list[int]) -> str:

@@ -240,8 +240,12 @@ function walkContainer(list, containerPath, entry, nodes, edges, readOnly) {
   }
 }
 
-export function stepsToGraph(steps, { triggerEventType, readOnly = false } = {}) {
-  const nodes = [{ id: "trigger", type: "trigger", position: { x: 0, y: 0 }, data: { eventType: triggerEventType } }];
+export function stepsToGraph(steps, { readOnly = false } = {}) {
+  // TriggerNode reads its label from JourneyContext (AutomationEditor.jsx
+  // already knows whether this is an event or segment trigger and formats
+  // accordingly), not from this node's own data — this graph module has
+  // no business knowing about event types or segment names.
+  const nodes = [{ id: "trigger", type: "trigger", position: { x: 0, y: 0 }, data: {} }];
   const edges = [];
   walkContainer(steps, "", { id: "trigger", handle: undefined }, nodes, edges, readOnly);
   return layoutWithDagre(nodes, edges);

@@ -66,7 +66,7 @@ def _validate_campaign_payload(payload: CampaignIn) -> None:
     if payload.reenrollment_policy not in ("skip", "allow"):
         raise HTTPException(status_code=400, detail="Invalid reenrollment_policy")
     try:
-        automations.validate_campaign(payload.trigger_config, payload.steps)
+        automations.validate_campaign(payload.trigger_type, payload.trigger_config, payload.steps)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -341,16 +341,19 @@ def preview_segment_count(segment_id: int, cms_user: dict = Depends(require_cms_
 
 @router.post("/cron/advance-automations")
 def cron_advance_automations(x_cron_secret: Optional[str] = Header(default=None), db: Connection = Depends(get_db)):
-    """Resumes enrollments suspended on a wait step, and scans for newly
-    broken streaks first (folded in here rather than its own cron job — see
-    automations.detect_streak_breaks — so there's only one job to schedule
-    externally). Authenticated with the shared CRON_SECRET, same shape as
-    /cron/send-push-reminders in routes_cms.py. Schedule every 15-30 min."""
+    """Resumes enrollments suspended on a wait step, scans for newly broken
+    streaks, and scans segment-entry triggers (all folded in here rather
+    than their own cron jobs — see automations.detect_streak_breaks and
+    automations.check_segment_triggers — so there's only one job to
+    schedule externally). Authenticated with the shared CRON_SECRET, same
+    shape as /cron/send-push-reminders in routes_cms.py. Schedule every
+    15-30 min."""
     secret = (os.getenv("CRON_SECRET") or "").strip()
     if not secret or not x_cron_secret or not hmac.compare_digest(x_cron_secret.strip(), secret):
         raise HTTPException(status_code=403, detail="Invalid cron secret")
 
     streak_breaks_fired = automations.detect_streak_breaks(db)
+    segment_entries_enrolled = automations.check_segment_triggers(db)
 
     rows = db.execute(text("""
         SELECT e.id, e.campaign_id, e.user_id, e.status, e.current_step_index, e.resume_at, e.context, e.waiting_step_path
@@ -363,4 +366,9 @@ def cron_advance_automations(x_cron_secret: Optional[str] = Header(default=None)
     for row in rows:
         automations.advance_enrollment(db, dict(row))
 
-    return {"ok": True, "streak_breaks_fired": streak_breaks_fired, "advanced": len(rows)}
+    return {
+        "ok": True,
+        "streak_breaks_fired": streak_breaks_fired,
+        "segment_entries_enrolled": segment_entries_enrolled,
+        "advanced": len(rows),
+    }

@@ -4,8 +4,11 @@
 // dnd-kit DndContext driving drag-to-insert/drag-to-reorder, the palette
 // sidebar, and the detail Sheet. Props mirror the old StepListEditor's
 // contract (`steps`, `onChange`, `segments`, `readOnly`) plus
-// `triggerEventType` for the read-only TriggerNode summary — AutomationEditor
-// keeps `onChange={setSteps}` replacing the whole array exactly as before.
+// `triggerLabel` (a plain, already-formatted string — "User signs up" or
+// "Segment: Premium users") for the read-only TriggerNode summary, since
+// this canvas has no business knowing about EVENT_TYPES or segment names.
+// AutomationEditor keeps `onChange={setSteps}` replacing the whole array
+// exactly as before.
 import { useMemo, useState, useCallback } from "react";
 import { ReactFlow, Background, Controls, MiniMap } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -24,22 +27,19 @@ import ConditionNode from "./nodes/ConditionNode";
 import ActionNode from "./nodes/ActionNode";
 import AddStepNode from "./nodes/AddStepNode";
 import { notify } from "../ui";
-import { EVENT_TYPES } from "../CmsAutomations";
 
 const NODE_TYPES = { trigger: TriggerNode, wait: WaitNode, condition: ConditionNode, action: ActionNode, add: AddStepNode };
 
-export default function JourneyCanvas({ steps, onChange, segments, readOnly = false, triggerEventType }) {
+export default function JourneyCanvas({ steps, onChange, segments, readOnly = false, triggerLabel }) {
   const [selectedPath, setSelectedPath] = useState(null);
   const [activeDrag, setActiveDrag] = useState(null); // { kind } | { stepPath }
 
   const list = Array.isArray(steps) ? steps : [];
   const { nodes, edges } = useMemo(
-    () => stepsToGraph(list, { triggerEventType, readOnly }),
+    () => stepsToGraph(list, { readOnly }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [steps, triggerEventType, readOnly]
+    [steps, readOnly]
   );
-
-  const eventLabel = EVENT_TYPES.find((e) => e.value === triggerEventType)?.label || triggerEventType || "—";
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -83,14 +83,14 @@ export default function JourneyCanvas({ steps, onChange, segments, readOnly = fa
 
   const contextValue = useMemo(() => ({
     readOnly,
-    eventLabel,
+    triggerLabel: triggerLabel || "—",
     onOpenStep,
     onOpenTrigger,
     onRemoveStep,
     onAddBranch,
     onRemoveBranch: onRemoveBranchCb,
     onInsertStep,
-  }), [readOnly, eventLabel, onOpenStep, onOpenTrigger, onRemoveStep, onAddBranch, onRemoveBranchCb, onInsertStep]);
+  }), [readOnly, triggerLabel, onOpenStep, onOpenTrigger, onRemoveStep, onAddBranch, onRemoveBranchCb, onInsertStep]);
 
   const dragOverlayLabel = activeDrag?.kind
     ? (paletteMetaFor(activeDrag.kind)?.label || ACTION_META[activeDrag.kind]?.label || activeDrag.kind)

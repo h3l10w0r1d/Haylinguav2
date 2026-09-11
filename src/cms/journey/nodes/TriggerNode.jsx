@@ -7,7 +7,7 @@ import { Zap, ArrowUp } from "lucide-react";
 import { useJourney } from "../JourneyContext";
 
 export default function TriggerNode() {
-  const { eventLabel, onOpenTrigger } = useJourney();
+  const { triggerLabel, onOpenTrigger } = useJourney();
   return (
     <button
       type="button"
@@ -20,7 +20,7 @@ export default function TriggerNode() {
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[10px] font-extrabold uppercase tracking-wide text-white/70">Trigger</div>
-        <div className="truncate text-xs font-bold">{eventLabel}</div>
+        <div className="truncate text-xs font-bold">{triggerLabel}</div>
       </div>
       <ArrowUp className="h-3.5 w-3.5 shrink-0 text-white/60" />
     </button>

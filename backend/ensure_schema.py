@@ -1831,6 +1831,23 @@ def ensure_schema() -> None:
         conn.execute(text(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_automation_sends_enrollment_step ON automation_sends (enrollment_id, step_index)"
         ))
+
+        # Segment-entry triggers (trigger_type='segment') have no discrete
+        # "it just happened" moment the way an event does — membership is a
+        # continuous state, only checked by the cron scan
+        # (automations.check_segment_triggers). This table is that scan's
+        # memory of who it last saw as a member, so it can enroll on the
+        # false->true transition ("entry") exactly once instead of
+        # re-enrolling a still-matching user on every single cron tick.
+        ensure_table("automation_segment_membership", """
+            CREATE TABLE automation_segment_membership (
+                campaign_id INTEGER NOT NULL REFERENCES automation_campaigns(id) ON DELETE CASCADE,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                is_member   BOOLEAN NOT NULL DEFAULT FALSE,
+                updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (campaign_id, user_id)
+            )
+        """)
         print("[ensure_schema] ensured marketing automation tables")
 
     print("[ensure_schema] done")

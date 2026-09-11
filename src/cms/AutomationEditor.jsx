@@ -36,8 +36,10 @@ export default function AutomationEditor() {
 
   const [name, setName] = useState("");
   const [status, setStatus] = useState("draft");
+  const [triggerType, setTriggerType] = useState("event"); // "event" | "segment"
   const [eventType, setEventType] = useState(EVENT_TYPES[0].value);
   const [filters, setFilters] = useState({ op: "and", rules: [] });
+  const [segmentId, setSegmentId] = useState("");
   const [reenrollPolicy, setReenrollPolicy] = useState("skip");
   const [steps, setSteps] = useState([]);
   const [loadedSteps, setLoadedSteps] = useState([]);
@@ -61,8 +63,10 @@ export default function AutomationEditor() {
         const [c, segRes] = await Promise.all([api.getAutomation(id), api.listSegments()]);
         setName(c.name || "");
         setStatus(c.status || "draft");
+        setTriggerType(c.trigger_type === "segment" ? "segment" : "event");
         setEventType(c.trigger_config?.event_type || EVENT_TYPES[0].value);
         setFilters(c.trigger_config?.filters || { op: "and", rules: [] });
+        setSegmentId(c.trigger_config?.segment_id ? String(c.trigger_config.segment_id) : "");
         setReenrollPolicy(c.reenrollment_policy || "skip");
         const loaded = Array.isArray(c.steps) ? c.steps : [];
         setSteps(loaded);
@@ -92,13 +96,17 @@ export default function AutomationEditor() {
       });
       if (!ok) return;
     }
+    if (triggerType === "segment" && !segmentId) {
+      notify("Choose a segment for this trigger", "err");
+      return;
+    }
     setBusy(true);
     try {
       await api.updateAutomation(id, {
         name: name.trim() || "Untitled campaign",
         status,
-        trigger_type: "event",
-        trigger_config: { event_type: eventType, filters },
+        trigger_type: triggerType,
+        trigger_config: triggerType === "segment" ? { segment_id: Number(segmentId) } : { event_type: eventType, filters },
         steps,
         reenrollment_policy: reenrollPolicy,
       });
@@ -164,6 +172,10 @@ export default function AutomationEditor() {
     }
   }
 
+  const triggerLabel = triggerType === "segment"
+    ? `Segment: ${segments.find((s) => String(s.id) === segmentId)?.name || "choose one"}`
+    : EVENT_TYPES.find((e) => e.value === eventType)?.label || eventType;
+
   if (loading) {
     return (
       <CmsLayout active="automations" title="Loading…">
@@ -222,17 +234,44 @@ export default function AutomationEditor() {
           </SectionCard>
 
           <SectionCard title="Trigger" id="automation-trigger-section">
-            <Field label="When this happens">
-              <Select value={eventType} onValueChange={setEventType} disabled={!canEdit}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{EVENT_TYPES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
+            <Tabs value={triggerType} onValueChange={setTriggerType}>
+              <TabsList>
+                <TabsTrigger value="event" disabled={!canEdit}>When something happens</TabsTrigger>
+                <TabsTrigger value="segment" disabled={!canEdit}>When someone enters a segment</TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-            <div className="mt-4">
-              <div className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">Only if (optional audience filters)</div>
-              <FilterRuleBuilder group={filters} onChange={setFilters} segments={segments} />
-            </div>
+            {triggerType === "event" ? (
+              <>
+                <Field label="When this happens" className="mt-4">
+                  <Select value={eventType} onValueChange={setEventType} disabled={!canEdit}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{EVENT_TYPES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </Field>
+
+                <div className="mt-4">
+                  <div className="mb-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">Only if (optional audience filters)</div>
+                  <FilterRuleBuilder group={filters} onChange={setFilters} segments={segments} />
+                </div>
+              </>
+            ) : (
+              <div className="mt-4">
+                <Field label="Segment">
+                  <Select value={segmentId} onValueChange={setSegmentId} disabled={!canEdit}>
+                    <SelectTrigger><SelectValue placeholder="Choose a segment…" /></SelectTrigger>
+                    <SelectContent>
+                      {segments.length === 0
+                        ? <div className="px-3 py-2 text-xs font-semibold text-slate-400">No segments yet — create one under Segments first.</div>
+                        : segments.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <p className="mt-2 text-xs font-semibold text-slate-400">
+                  Runs for anyone who newly matches this segment's own filters — checked periodically (every 15-30 min), not instantly. No separate audience filter here; the segment's filters already are the condition.
+                </p>
+              </div>
+            )}
 
             <div className="mt-4">
               <Field label="If a user triggers this again while already enrolled">
@@ -252,7 +291,7 @@ export default function AutomationEditor() {
             description="Drag from the palette to add a step, drag a step onto a + to move it. A condition branches into its own nested steps; a wait suspends until the scheduled cron resumes it, re-checking any condition that follows fresh."
             bodyClassName="h-[70vh] min-h-[520px] overflow-hidden rounded-2xl ring-1 ring-slate-200"
           >
-            <JourneyCanvas steps={steps} onChange={setSteps} segments={segments} readOnly={!canEdit} triggerEventType={eventType} />
+            <JourneyCanvas steps={steps} onChange={setSteps} segments={segments} readOnly={!canEdit} triggerLabel={triggerLabel} />
           </SectionCard>
 
           {canEdit && (
