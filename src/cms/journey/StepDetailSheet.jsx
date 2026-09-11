@@ -97,7 +97,7 @@ export default function StepDetailSheet({ open, onOpenChange, step, path, segmen
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className={wide ? "w-full overflow-y-auto sm:max-w-xl" : "w-full overflow-y-auto sm:max-w-md"}>
+      <SheetContent className={wide ? "w-full overflow-y-auto sm:max-w-2xl" : "w-full overflow-y-auto sm:max-w-md"}>
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>

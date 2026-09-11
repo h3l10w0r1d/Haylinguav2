@@ -1,17 +1,20 @@
 // src/cms/journey/EmailFields.jsx — the "send_email" action's detail form:
-// subject/body (+ optional raw-HTML body, sent as the rich version while
-// body stays the plain-text fallback — both go through backend/automations.py's
-// _render_template), a variable-insert menu, and a Preview tab that renders
-// the email with sample data so an editor can see the actual result without
-// leaving the panel. Recipient is a fixed reminder, not a field — the
-// engine always sends to the enrolled learner (_action_send_email's
-// `SELECT email ... FROM users WHERE id = :u`), there's nothing to pick.
+// a drag-and-drop block builder (banners/headings/text/buttons/dividers/
+// spacers, each with its own background color, compiled to real HTML),
+// plain subject/body, a raw-HTML escape hatch, and a Preview tab — all
+// going through backend/automations.py's _render_template ({{variable}}
+// substitution happens server-side at send time, so the compiler in
+// emailBuilder/blocks.js must never touch {{...}} tokens). Recipient is a
+// fixed reminder, not a field — the engine always sends to the enrolled
+// learner (_action_send_email's `SELECT email ... FROM users WHERE id = :u`).
 import { useRef, useState } from "react";
 import { ChevronDown, Mail } from "lucide-react";
 import {
   Input, Textarea, Label, Button, Tabs, TabsList, TabsTrigger, Note,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from "../ui";
+import EmailBuilder from "./emailBuilder/EmailBuilder";
+import { compileBlocksToHtml } from "./emailBuilder/blocks";
 
 const VARIABLES = [
   { token: "first_name", label: "First name", sample: "Alex" },
@@ -29,28 +32,50 @@ function withSampleData(text) {
 
 export default function EmailFields({ params, readOnly, onUpdateParams }) {
   const p = params || {};
-  const [bodyMode, setBodyMode] = useState(p.html_body ? "html" : "plain");
+  const blocks = Array.isArray(p.blocks) ? p.blocks : [];
+  const [bodyMode, setBodyMode] = useState(blocks.length ? "builder" : p.html_body ? "html" : p.body ? "plain" : "builder");
   const subjectRef = useRef(null);
   const bodyRef = useRef(null);
   const htmlRef = useRef(null);
-  const lastFocused = useRef("body"); // "subject" | "body" | "html"
+  // Identifiers only, re-resolved against live `p` at insert-time — never
+  // stale values, since typing after a field is focused doesn't re-fire
+  // onFocus (the ref would otherwise capture a value snapshot that goes
+  // stale on the very next keystroke).
+  const lastFocused = useRef({ kind: "body" });
+
+  function updateBlocks(nextBlocks) {
+    onUpdateParams({ blocks: nextBlocks, html_body: compileBlocksToHtml(nextBlocks) });
+  }
 
   function insertVariable(token) {
-    const field = lastFocused.current;
-    const ref = field === "subject" ? subjectRef : field === "html" ? htmlRef : bodyRef;
-    const key = field === "subject" ? "subject" : field === "html" ? "html_body" : "body";
-    const el = ref.current;
-    const current = p[key] || "";
-    const start = el?.selectionStart ?? current.length;
-    const end = el?.selectionEnd ?? current.length;
+    const active = lastFocused.current;
     const insert = `{{${token}}}`;
-    const next = current.slice(0, start) + insert + current.slice(end);
+    const el = active.el;
+    const start = el?.selectionStart;
+    const end = el?.selectionEnd;
+
+    if (active.kind === "block") {
+      const block = blocks.find((b) => b.id === active.blockId);
+      if (!block) return;
+      const current = block[active.field] || "";
+      const s = start ?? current.length;
+      const e = end ?? current.length;
+      const next = current.slice(0, s) + insert + current.slice(e);
+      updateBlocks(blocks.map((b) => (b.id === active.blockId ? { ...b, [active.field]: next } : b)));
+      requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(s + insert.length, s + insert.length); });
+      return;
+    }
+
+    const key = active.kind === "subject" ? "subject" : active.kind === "html" ? "html_body" : "body";
+    const current = p[key] || "";
+    const s = start ?? current.length;
+    const e = end ?? current.length;
+    const next = current.slice(0, s) + insert + current.slice(e);
     onUpdateParams({ [key]: next });
     requestAnimationFrame(() => {
       if (!el) return;
       el.focus();
-      const caret = start + insert.length;
-      el.setSelectionRange(caret, caret);
+      el.setSelectionRange(s + insert.length, s + insert.length);
     });
   }
 
@@ -93,7 +118,7 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
               ref={subjectRef}
               value={p.subject || ""}
               onChange={(e) => onUpdateParams({ subject: e.target.value })}
-              onFocus={() => { lastFocused.current = "subject"; }}
+              onFocus={(e) => { lastFocused.current = { kind: "subject", el: e.target }; }}
               placeholder="Welcome to Haylingua, {{first_name}}!"
               disabled={readOnly}
             />
@@ -104,6 +129,7 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
               <div className="flex items-center justify-between">
                 <Label>Body</Label>
                 <TabsList className="h-7">
+                  <TabsTrigger value="builder" className="h-6 px-2 text-[11px]">Builder</TabsTrigger>
                   <TabsTrigger value="plain" className="h-6 px-2 text-[11px]">Plain text</TabsTrigger>
                   <TabsTrigger value="html" className="h-6 px-2 text-[11px]">HTML</TabsTrigger>
                   <TabsTrigger value="preview" className="h-6 px-2 text-[11px]">Preview</TabsTrigger>
@@ -111,12 +137,21 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
               </div>
             </Tabs>
 
+            {bodyMode === "builder" && (
+              <EmailBuilder
+                blocks={blocks}
+                readOnly={readOnly}
+                onChange={updateBlocks}
+                onFocusField={(blockId, field, el) => { lastFocused.current = { kind: "block", blockId, field, el }; }}
+              />
+            )}
+
             {bodyMode === "plain" && (
               <Textarea
                 ref={bodyRef}
                 value={p.body || ""}
                 onChange={(e) => onUpdateParams({ body: e.target.value })}
-                onFocus={() => { lastFocused.current = "body"; }}
+                onFocus={(e) => { lastFocused.current = { kind: "body", el: e.target }; }}
                 rows={8}
                 placeholder="Hi {{first_name}}, ..."
                 disabled={readOnly}
@@ -129,7 +164,7 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
                   ref={htmlRef}
                   value={p.html_body || ""}
                   onChange={(e) => onUpdateParams({ html_body: e.target.value })}
-                  onFocus={() => { lastFocused.current = "html"; }}
+                  onFocus={(e) => { lastFocused.current = { kind: "html", el: e.target }; }}
                   rows={12}
                   placeholder="<p>Hi {{first_name}}, ...</p>"
                   className="font-mono text-xs"
@@ -137,7 +172,7 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
                 />
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-slate-400">
-                    Sent as the rich version; "Plain text" stays the fallback for clients that can't render HTML.
+                    {blocks.length ? "Hand-editing here won't update the Builder tab's blocks." : "Sent as the rich version; \"Plain text\" stays the fallback for clients that can't render HTML."}
                   </p>
                   {!readOnly && p.html_body && (
                     <Button type="button" variant="ghost" size="sm" onClick={() => onUpdateParams({ html_body: "" })} className="h-auto shrink-0 p-0 text-xs font-bold text-cardinal-500 hover:underline">
@@ -172,7 +207,7 @@ function EmailPreview({ subject, body, htmlBody }) {
           title="Email HTML preview"
           sandbox=""
           srcDoc={withSampleData(htmlBody)}
-          className="h-64 w-full bg-white"
+          className="h-72 w-full bg-white"
         />
       ) : (
         <div className="h-64 overflow-y-auto whitespace-pre-wrap bg-white p-4 text-sm text-slate-700">
