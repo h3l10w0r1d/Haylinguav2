@@ -1,6 +1,6 @@
 // src/cms/AutomationEditor.jsx — single-campaign editor: trigger config +
-// step list (delegated to the recursive StepListEditor, which handles
-// wait/action/condition nodes and their nested branches), plus server-
+// step canvas (delegated to journey/JourneyCanvas, a drag-and-drop
+// flowchart over the same wait/action/condition step tree), plus server-
 // paginated enrollment/send-log tabs so QA has somewhere to look once a
 // campaign is live.
 import { useEffect, useMemo, useState } from "react";
@@ -9,12 +9,12 @@ import { createCmsApi, getCmsClaim, getCmsToken } from "./api";
 import { ArrowLeft, PlayCircle, Save } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import FilterRuleBuilder from "./FilterRuleBuilder";
-import StepListEditor from "./StepListEditor";
+import JourneyCanvas from "./journey/JourneyCanvas";
 import { EVENT_TYPES } from "./CmsAutomations";
 import {
   Badge, Button, DataTable, Field, FieldRow, Input, Note, Pagination, SectionCard,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tabs, TabsList, TabsTrigger,
-  notify, useListQuery,
+  useConfirm, notify, useListQuery,
 } from "./ui";
 
 const ENROLLMENT_STATUSES = ["active", "waiting", "completed", "exited", "failed"];
@@ -27,6 +27,7 @@ export default function AutomationEditor() {
   const navigate = useNavigate();
   const { id } = useParams();
   const canEdit = getCmsClaim("crm_role", "editor") !== "viewer";
+  const confirm = useConfirm();
 
   const [tab, setTab] = useState("edit"); // edit | enrollments | sends
   const [loading, setLoading] = useState(true);
@@ -39,6 +40,7 @@ export default function AutomationEditor() {
   const [filters, setFilters] = useState({ op: "and", rules: [] });
   const [reenrollPolicy, setReenrollPolicy] = useState("skip");
   const [steps, setSteps] = useState([]);
+  const [loadedSteps, setLoadedSteps] = useState([]);
 
   const enrollList = useListQuery({ prefix: "enroll_" });
   const [enrollments, setEnrollments] = useState([]);
@@ -62,7 +64,9 @@ export default function AutomationEditor() {
         setEventType(c.trigger_config?.event_type || EVENT_TYPES[0].value);
         setFilters(c.trigger_config?.filters || { op: "and", rules: [] });
         setReenrollPolicy(c.reenrollment_policy || "skip");
-        setSteps(Array.isArray(c.steps) ? c.steps : []);
+        const loaded = Array.isArray(c.steps) ? c.steps : [];
+        setSteps(loaded);
+        setLoadedSteps(loaded);
         setSegments(Array.isArray(segRes?.segments) ? segRes.segments : []);
       } catch (err) {
         notify(err.message || "Failed to load campaign", "err");
@@ -74,6 +78,20 @@ export default function AutomationEditor() {
   }, [id, token]);
 
   async function save() {
+    // Reordering/inserting ahead of an in-flight enrollment's
+    // waiting_step_path can desync its resume point or double/skip a send
+    // (see backend/automations.py) — true with the old button-reorder UI
+    // too, not new here, but previously invisible. Surface it once at the
+    // moment it matters instead of silently letting it happen.
+    if (status === "active" && JSON.stringify(steps) !== JSON.stringify(loadedSteps)) {
+      const ok = await confirm({
+        title: "Active campaign has structural changes",
+        description: "Learners currently paused mid-journey may resume at an unexpected step. Continue?",
+        confirmText: "Save anyway",
+        destructive: true,
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       await api.updateAutomation(id, {
@@ -84,6 +102,7 @@ export default function AutomationEditor() {
         steps,
         reenrollment_policy: reenrollPolicy,
       });
+      setLoadedSteps(steps);
       notify("Saved");
     } catch (err) {
       notify(err.message || "Save failed", "err");
@@ -202,7 +221,7 @@ export default function AutomationEditor() {
             </FieldRow>
           </SectionCard>
 
-          <SectionCard title="Trigger">
+          <SectionCard title="Trigger" id="automation-trigger-section">
             <Field label="When this happens">
               <Select value={eventType} onValueChange={setEventType} disabled={!canEdit}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -230,9 +249,10 @@ export default function AutomationEditor() {
 
           <SectionCard
             title="Steps"
-            description="Run in order. A condition branches into its own nested steps; a wait suspends until the scheduled cron resumes it, re-checking any condition that follows fresh."
+            description="Drag from the palette to add a step, drag a step onto a + to move it. A condition branches into its own nested steps; a wait suspends until the scheduled cron resumes it, re-checking any condition that follows fresh."
+            bodyClassName="h-[70vh] min-h-[520px] overflow-hidden rounded-2xl ring-1 ring-slate-200"
           >
-            <StepListEditor steps={steps} onChange={setSteps} segments={segments} readOnly={!canEdit} />
+            <JourneyCanvas steps={steps} onChange={setSteps} segments={segments} readOnly={!canEdit} triggerEventType={eventType} />
           </SectionCard>
 
           {canEdit && (

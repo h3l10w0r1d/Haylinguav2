@@ -1,7 +1,7 @@
 // src/cms/FilterRuleBuilder.jsx — shared filter-group editor (one AND/OR
 // toggle + a list of {field, operator, value} rows), used by CmsSegments
-// (segment membership) and StepListEditor (trigger filters + condition
-// branches). One implementation of this UI, not two — mirrors
+// (segment membership) and journey/StepDetailSheet (trigger filters +
+// condition branches). One implementation of this UI, not two — mirrors
 // backend/automations.py's evaluate_when exactly: KNOWN_OPERATORS/
 // _FIELD_RESOLVERS whitelist, and the same {op: "and"|"or", rules: [...]}
 // shape (one level of grouping, not nested groups — same "cap the

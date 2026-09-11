@@ -75,7 +75,16 @@ export default defineConfig({
           // immer doesn't silently stay stuck in vendor. Regenerate this
           // list (see the walk script noted in the PR/commit that added it)
           // if any of the seven root packages' own dependencies change.
+          // @xyflow/react + dagre power only the Automations journey canvas
+          // (src/cms/journey/), reached exclusively via AutomationEditor.jsx,
+          // itself only mounted behind /cms/automations/:id — added to this
+          // list along with their own transitive deps (@xyflow/system,
+          // classcat, zustand, d3-drag/d3-selection/d3-zoom for xyflow;
+          // graphlib/lodash for dagre) the same way recharts/@dnd-kit were.
           const LAZY_ONLY_PACKAGES = [
+            "@xyflow/react", "@xyflow/system", "classcat", "zustand",
+            "d3-drag", "d3-selection", "d3-zoom",
+            "dagre", "graphlib", "lodash",
             "@dicebear/adventurer", "@dicebear/adventurer-neutral", "@dicebear/avataaars",
             "@dicebear/avataaars-neutral", "@dicebear/big-ears", "@dicebear/big-ears-neutral",
             "@dicebear/big-smile", "@dicebear/bottts", "@dicebear/bottts-neutral",

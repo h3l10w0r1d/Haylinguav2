@@ -3,9 +3,9 @@
 // with an optional title row.
 import { cn } from "@/lib/utils";
 
-export function SectionCard({ title, description, actions, children, className, bodyClassName }) {
+export function SectionCard({ title, description, actions, children, className, bodyClassName, ...rest }) {
   return (
-    <section className={cn("rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm sm:p-6", className)}>
+    <section className={cn("rounded-3xl bg-white p-5 ring-1 ring-slate-200 shadow-sm sm:p-6", className)} {...rest}>
       {(title || actions) && (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
