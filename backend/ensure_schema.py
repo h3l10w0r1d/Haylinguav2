@@ -1743,6 +1743,23 @@ def ensure_schema() -> None:
             )
         """)
 
+        # Reusable saved email block-sets — same CRUD-table + full-list-fetch
+        # + Select-picker shape as automation_segments above, just for
+        # src/cms/journey/emailBuilder/blocks.js's `blocks` array instead of
+        # a filter group. Never validated server-side (same reasoning as
+        # a send_email step's own params.blocks — see automations.py's
+        # _validate_steps, only step.type/action are ever checked).
+        ensure_table("automation_email_templates", """
+            CREATE TABLE automation_email_templates (
+                id         SERIAL PRIMARY KEY,
+                name       TEXT NOT NULL,
+                blocks     JSONB NOT NULL DEFAULT '[]',
+                created_by TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
         # Trigger + step-graph campaign definitions.
         ensure_table("automation_campaigns", """
             CREATE TABLE automation_campaigns (

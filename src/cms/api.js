@@ -392,6 +392,10 @@ export function createCmsApi(accessToken) {
   const createSegment = (payload) => req("/cms/segments", { method: "POST", body: JSON.stringify(payload) });
   const updateSegment = (id, payload) => req(`/cms/segments/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   const deleteSegment = (id) => req(`/cms/segments/${id}`, { method: "DELETE" });
+  const listEmailTemplates = () => req("/cms/email-templates");
+  const createEmailTemplate = (payload) => req("/cms/email-templates", { method: "POST", body: JSON.stringify(payload) });
+  const updateEmailTemplate = (id, payload) => req(`/cms/email-templates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  const deleteEmailTemplate = (id) => req(`/cms/email-templates/${id}`, { method: "DELETE" });
   const previewSegmentCount = (id) => req(`/cms/segments/${id}/preview-count`);
 
   return {
@@ -525,6 +529,10 @@ export function createCmsApi(accessToken) {
     createSegment,
     updateSegment,
     deleteSegment,
+    listEmailTemplates,
+    createEmailTemplate,
+    updateEmailTemplate,
+    deleteEmailTemplate,
     previewSegmentCount,
   };
 }

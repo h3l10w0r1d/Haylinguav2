@@ -64,6 +64,11 @@ class SegmentIn(BaseModel):
     filters: Any = []
 
 
+class EmailTemplateIn(BaseModel):
+    name: str
+    blocks: list = []
+
+
 def _validate_campaign_payload(payload: CampaignIn) -> None:
     if payload.status not in ("draft", "active", "paused", "archived"):
         raise HTTPException(status_code=400, detail="Invalid status")
@@ -486,7 +491,12 @@ def preview_segment_count(segment_id: int, cms_user: dict = Depends(require_cms_
     row = db.execute(text("SELECT filters FROM automation_segments WHERE id = :id"), {"id": segment_id}).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Segment not found")
-    filters = row["filters"] if isinstance(row["filters"], list) else json.loads(row["filters"] or "[]")
+    # Same fix as automations.py's user_in_segment: JSONB already comes
+    # back parsed as a Python list OR dict (the canonical {op,rules} shape),
+    # never a string — checking only `isinstance(..., list)` crashed this
+    # endpoint with a TypeError for every segment saved with an AND/OR
+    # group instead of the legacy bare-list shape.
+    filters = row["filters"] if isinstance(row["filters"], (list, dict)) else json.loads(row["filters"] or "[]")
     # Evaluated in Python per user rather than compiled to SQL — the field
     # whitelist is small and this endpoint is admin-only/low-traffic, so the
     # simplicity of reusing evaluate_when (one evaluator, not two) outweighs
@@ -494,6 +504,51 @@ def preview_segment_count(segment_id: int, cms_user: dict = Depends(require_cms_
     user_ids = [r["id"] for r in db.execute(text("SELECT id FROM users")).mappings().all()]
     count = sum(1 for uid in user_ids if automations.evaluate_when(db, uid, {}, filters))
     return {"count": count, "total_users": len(user_ids)}
+
+
+# ---------- Email templates ----------
+# Same CRUD-table + full-list-fetch + Select-picker shape as Segments
+# above — a reusable saved email block-set instead of a filter group. No
+# shape validation on `blocks`: it's purely frontend-owned JSON (see
+# src/cms/journey/emailBuilder/blocks.js), same as a send_email step's own
+# params.blocks, which the engine already never inspects.
+
+@router.get("/cms/email-templates")
+def list_email_templates(cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+    rows = db.execute(text("SELECT * FROM automation_email_templates ORDER BY updated_at DESC")).mappings().all()
+    return {"templates": [dict(r) for r in rows]}
+
+
+@router.post("/cms/email-templates")
+def create_email_template(payload: EmailTemplateIn, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
+    row = db.execute(
+        text("""
+            INSERT INTO automation_email_templates (name, blocks, created_by)
+            VALUES (:name, :blocks, :created_by)
+            RETURNING id
+        """),
+        {"name": payload.name, "blocks": json.dumps(payload.blocks), "created_by": cms_user.get("email")},
+    ).mappings().first()
+    return {"ok": True, "id": row["id"]}
+
+
+@router.put("/cms/email-templates/{template_id}")
+def update_email_template(template_id: int, payload: EmailTemplateIn, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
+    result = db.execute(
+        text("UPDATE automation_email_templates SET name = :name, blocks = :blocks, updated_at = NOW() WHERE id = :id"),
+        {"id": template_id, "name": payload.name, "blocks": json.dumps(payload.blocks)},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"ok": True}
+
+
+@router.delete("/cms/email-templates/{template_id}")
+def delete_email_template(template_id: int, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
+    result = db.execute(text("DELETE FROM automation_email_templates WHERE id = :id"), {"id": template_id})
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"ok": True}
 
 
 # ---------- Open/click tracking ----------

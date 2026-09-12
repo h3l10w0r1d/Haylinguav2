@@ -7,12 +7,14 @@
 // emailBuilder/blocks.js must never touch {{...}} tokens). Recipient is a
 // fixed reminder, not a field — the engine always sends to the enrolled
 // learner (_action_send_email's `SELECT email ... FROM users WHERE id = :u`).
-import { useRef, useState } from "react";
-import { ChevronDown, Mail } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Mail, LayoutTemplate } from "lucide-react";
 import {
   Input, Textarea, Label, Button, Tabs, TabsList, TabsTrigger, Note,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+  notify,
 } from "../ui";
+import { createCmsApi, getCmsToken } from "../api";
 import EmailBuilder from "./emailBuilder/EmailBuilder";
 import { compileBlocksToHtml } from "./emailBuilder/blocks";
 
@@ -37,6 +39,40 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
   const subjectRef = useRef(null);
   const bodyRef = useRef(null);
   const htmlRef = useRef(null);
+
+  // This is a leaf component fed only params/onUpdateParams from
+  // StepDetailSheet, several levels below AutomationEditor's own api
+  // client — builds its own here (same pattern CmsSupport.jsx's
+  // NotesTab/AutomationsTab already use) rather than threading a client
+  // prop down through JourneyCanvas/StepDetailSheet for one feature.
+  const api = useMemo(() => createCmsApi(getCmsToken()), []);
+  const [templates, setTemplates] = useState([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+
+  useEffect(() => {
+    api.listEmailTemplates().then((res) => setTemplates(res?.templates || [])).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function saveAsTemplate() {
+    if (!templateName.trim()) return;
+    try {
+      await api.createEmailTemplate({ name: templateName.trim(), blocks });
+      notify("Template saved");
+      setTemplateName("");
+      setSavingTemplate(false);
+      const res = await api.listEmailTemplates();
+      setTemplates(res?.templates || []);
+    } catch (err) {
+      notify(err.message || "Failed to save template", "err");
+    }
+  }
+
+  function loadTemplate(template) {
+    updateBlocks(template.blocks || []);
+    setBodyMode("builder");
+  }
   // Identifiers only, re-resolved against live `p` at insert-time — never
   // stale values, since typing after a field is focused doesn't re-fire
   // onFocus (the ref would otherwise capture a value snapshot that goes
@@ -99,6 +135,36 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
     </DropdownMenu>
   );
 
+  const TemplatePicker = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" disabled={readOnly} className="h-7 gap-1 rounded-full px-2.5 text-xs">
+          <LayoutTemplate className="h-3 w-3" /> Templates <ChevronDown className="h-3 w-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-slate-400">Load a saved template</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {templates.length === 0 && (
+          <div className="px-2 py-1.5 text-xs font-semibold text-slate-400">No saved templates yet.</div>
+        )}
+        {templates.map((t) => (
+          <DropdownMenuItem key={t.id} onSelect={() => loadTemplate(t)}>
+            {t.name}
+          </DropdownMenuItem>
+        ))}
+        {blocks.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setSavingTemplate(true)}>
+              Save current as template…
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <div className="space-y-4">
       <Note tone="info" icon={Mail} className="text-xs">
@@ -108,8 +174,26 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
       <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
           <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Compose</span>
-          {VariablePicker}
+          <div className="flex items-center gap-1.5">
+            {TemplatePicker}
+            {VariablePicker}
+          </div>
         </div>
+
+        {savingTemplate && (
+          <div className="flex items-center gap-2 border-b border-slate-200 bg-brand-50/50 px-4 py-2.5">
+            <Input
+              autoFocus
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="Template name"
+              className="h-8 flex-1 text-xs"
+              onKeyDown={(e) => { if (e.key === "Enter") saveAsTemplate(); if (e.key === "Escape") setSavingTemplate(false); }}
+            />
+            <Button type="button" size="sm" className="h-8" disabled={!templateName.trim()} onClick={saveAsTemplate}>Save</Button>
+            <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => { setSavingTemplate(false); setTemplateName(""); }}>Cancel</Button>
+          </div>
+        )}
 
         <div className="space-y-4 bg-white p-4">
           <div className="space-y-1.5">
