@@ -20,6 +20,7 @@ import {
 // (automations.detect_streak_breaks), not raised inline like the others.
 export const EVENT_TYPES = [
   { value: "signup", label: "User signs up" },
+  { value: "email_verified", label: "Email verified" },
   { value: "lesson_completed", label: "Lesson completed" },
   { value: "streak_broke", label: "Streak breaks" },
   { value: "purchase", label: "Premium purchase" },

@@ -3062,6 +3062,11 @@ def verify_email(
     # Sync verification to Brevo (so you can trigger onboarding sequences).
     _brevo_sync_user(db, int(user_id), event="email_verified")
 
+    try:
+        automations.record_event(db, int(user_id), "email_verified", {})
+    except Exception as e:
+        print(f" ⚠️  automations.record_event(email_verified) failed: {e}")
+
     return {"ok": True}
 
 
