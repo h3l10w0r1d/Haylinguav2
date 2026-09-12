@@ -173,6 +173,18 @@ export function createCmsApi(accessToken) {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error((data && data.detail) || "Upload failed");
+    // The backend returns a path relative to its own origin ("/static/
+    // blog/xxx.png") — fine for anything rendered inside this app (the
+    // browser resolves it against the CMS's own domain), but meaningless
+    // once dropped into compiled email HTML: an email client has no
+    // "current page" to resolve a relative src against, so the image
+    // silently never loads for the actual recipient even though it
+    // previews correctly in the CMS's own iframe. Resolve it into an
+    // absolute URL here, at the one place every caller (blog covers, the
+    // email builder's banner block, ...) already goes through.
+    if (data?.url && data.url.startsWith("/")) {
+      return { ...data, url: `${API_BASE}${data.url}` };
+    }
     return data;
   };
   const seedBlogPosts = () => req("/cms/seed/blog-posts", { method: "POST" });
