@@ -229,6 +229,47 @@ def list_sends(campaign_id: int, page: int = Query(default=1, ge=1), page_size: 
     return {"sends": [dict(r) for r in rows], "total": int(total or 0), "page": page, "page_size": page_size}
 
 
+@router.get("/cms/automations/enrollments/by-user/{user_id}")
+def list_user_enrollments(user_id: int, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+    """Backs the CMS Support page's "Automations" tab — every automation a
+    given learner has ever been enrolled in, across all campaigns, so an
+    admin can see their history without filtering the per-campaign
+    Enrollments table by user id."""
+    rows = db.execute(
+        text("""
+            SELECT e.id AS enrollment_id, e.campaign_id, c.name AS campaign_name, e.status,
+                   e.enrolled_at, e.completed_at, e.waiting_step_path,
+                   e.context->>'exit_reason' AS exit_reason,
+                   (SELECT COUNT(*) FROM automation_sends s WHERE s.enrollment_id = e.id) AS send_count
+            FROM automation_enrollments e
+            JOIN automation_campaigns c ON c.id = e.campaign_id
+            WHERE e.user_id = :u
+            ORDER BY e.enrolled_at DESC
+        """),
+        {"u": user_id},
+    ).mappings().all()
+    return {"enrollments": [dict(r) for r in rows]}
+
+
+@router.post("/cms/automations/enrollments/{enrollment_id}/exit")
+def exit_enrollment(enrollment_id: int, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
+    """Manually pull one enrollment out of its campaign — same context-merge
+    idiom automations.py's goal-exit path already uses, so both show up
+    identically in the UI, just with a different exit_reason."""
+    result = db.execute(
+        text("""
+            UPDATE automation_enrollments
+            SET status = 'exited', completed_at = NOW(), waiting_step_path = NULL,
+                context = COALESCE(context, '{}'::jsonb) || '{"exit_reason":"manual_removed"}'::jsonb
+            WHERE id = :id AND status IN ('active', 'waiting')
+        """),
+        {"id": enrollment_id},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Enrollment not found or not active")
+    return {"ok": True}
+
+
 class TestRunIn(BaseModel):
     user_id: int
     force: bool = False

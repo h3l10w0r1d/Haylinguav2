@@ -239,6 +239,7 @@ const DETAIL_TABS = [
   { id: "timeline", label: "Timeline" },
   { id: "notes", label: "Notes" },
   { id: "bonuses", label: "Bonuses" },
+  { id: "automations", label: "Automations" },
   { id: "profile", label: "Profile" },
 ];
 
@@ -452,6 +453,7 @@ function UserDetail({ detail: d, busy, act, onBack }) {
         {activeTab === "timeline" && <TimelineTab d={d} />}
         {activeTab === "notes" && <NotesTab d={d} token={token} />}
         {activeTab === "bonuses" && <BonusesTab d={d} />}
+        {activeTab === "automations" && <AutomationsTab d={d} token={token} />}
         {activeTab === "profile" && <ProfileTab d={d} />}
       </div>
     </div>
@@ -731,6 +733,120 @@ function BonusesTab({ d }) {
   );
 }
 
+// ── Automations tab — this learner's CRM history: every campaign they've
+// been enrolled in, plus a way to manually enroll/remove without leaving
+// the Support page. Builds its own client from `token` and keeps its own
+// local list state, same shape as NotesTab (mutation-capable tabs here
+// don't call back up to UserDetail for a refresh). ──
+const ENROLLMENT_STATUS_COLOR = { active: "amber", waiting: "amber", completed: "grass", exited: "slate", failed: "cardinal" };
+
+function AutomationsTab({ d, token }) {
+  const api = useMemo(() => createCmsApi(token), [token]);
+  const [enrollments, setEnrollments] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignId, setCampaignId] = useState("");
+  const [enrolling, setEnrolling] = useState(false);
+  const [removing, setRemoving] = useState(null);
+
+  async function refresh() {
+    setLoading(true); setErr("");
+    try {
+      const res = await api.listUserEnrollments(d.id);
+      setEnrollments(res?.enrollments || []);
+    } catch (e) { setErr(e.message); } finally { setLoading(false); }
+  }
+
+  useEffect(() => {
+    refresh();
+    api.listAutomations({ status: "active", pageSize: 200 }).then((res) => setCampaigns(res?.campaigns || [])).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d.id]);
+
+  async function enrollNow() {
+    if (!campaignId) return;
+    setEnrolling(true); setErr("");
+    try {
+      await api.testRunAutomation(Number(campaignId), d.id, true);
+      await refresh();
+    } catch (e) { setErr(e.message); } finally { setEnrolling(false); }
+  }
+
+  async function removeFrom(enrollmentId) {
+    setRemoving(enrollmentId); setErr("");
+    try {
+      await api.exitEnrollment(enrollmentId);
+      await refresh();
+    } catch (e) { setErr(e.message); } finally { setRemoving(null); }
+  }
+
+  return (
+    <div className="space-y-4">
+      {err && <div className="rounded-xl bg-cardinal-50 px-4 py-2 text-sm font-semibold text-cardinal-600">{err}</div>}
+
+      <div className="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
+        <div className="mb-3 text-sm font-extrabold text-slate-700">Enroll in a campaign</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={campaignId}
+            onChange={(e) => setCampaignId(e.target.value)}
+            className="min-w-[14rem] rounded-2xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 focus:outline-none focus:ring-brand-400"
+          >
+            <option value="">Choose a campaign…</option>
+            {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <button
+            disabled={enrolling || !campaignId}
+            onClick={enrollNow}
+            className="btn3d btn3d-brand px-5 py-2 text-sm font-bold disabled:opacity-50"
+          >
+            {enrolling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enroll now"}
+          </button>
+        </div>
+        <p className="mt-2 text-xs font-semibold text-slate-400">Bypasses trigger filters and reenrollment policy — runs the campaign for this learner right now.</p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 py-10 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Loading history…</div>
+      ) : !enrollments?.length ? (
+        <div className="rounded-3xl bg-white p-8 text-center ring-1 ring-slate-200 text-sm font-semibold text-slate-400">Never enrolled in any campaign.</div>
+      ) : (
+        <div className="space-y-3">
+          {enrollments.map((e) => (
+            <div key={e.enrollment_id} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-slate-800">{e.campaign_name}</span>
+                    <Badge color={ENROLLMENT_STATUS_COLOR[e.status]}>{e.status}</Badge>
+                    {e.exit_reason && <Badge color="slate">{e.exit_reason === "goal_met" ? "goal met" : "manually removed"}</Badge>}
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-slate-400">
+                    Enrolled {fmtDate(e.enrolled_at)}
+                    {e.completed_at ? ` · Finished ${fmtDate(e.completed_at)}` : ""}
+                    {e.waiting_step_path ? ` · Waiting at step ${e.waiting_step_path}` : ""}
+                    {` · ${e.send_count} send${e.send_count === 1 ? "" : "s"}`}
+                  </div>
+                </div>
+                {(e.status === "active" || e.status === "waiting") && (
+                  <button
+                    disabled={removing === e.enrollment_id}
+                    onClick={() => removeFrom(e.enrollment_id)}
+                    className="shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold text-cardinal-600 ring-1 ring-cardinal-100 transition hover:bg-cardinal-50 disabled:opacity-40"
+                  >
+                    {removing === e.enrollment_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Remove"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Lessons tab ───────────────────────────────────────────────────────────────
 function LessonsTab({ d }) {
   const lessons = d.lesson_history || [];
@@ -853,7 +969,7 @@ function Detail({ label, value }) {
 }
 
 function Badge({ color, children }) {
-  const cls = { amber: "bg-amber-50 text-amber-700", grass: "bg-grass-50 text-grass-700", slate: "bg-slate-100 text-slate-600" };
+  const cls = { amber: "bg-amber-50 text-amber-700", grass: "bg-grass-50 text-grass-700", slate: "bg-slate-100 text-slate-600", cardinal: "bg-cardinal-50 text-cardinal-600" };
   return <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold " + (cls[color] || cls.slate)}>{children}</span>;
 }
 

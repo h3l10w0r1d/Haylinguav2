@@ -384,6 +384,9 @@ export function createCmsApi(accessToken) {
     req(`/cms/automations/${id}/test-run`, { method: "POST", body: JSON.stringify({ user_id: userId, force }) });
   const getAutomationStepStats = (id) => req(`/cms/automations/${id}/step-stats`);
   const getAutomationAnalytics = (id) => req(`/cms/automations/${id}/analytics`);
+  const listUserEnrollments = (userId) => req(`/cms/automations/enrollments/by-user/${userId}`);
+  const exitEnrollment = (enrollmentId) => req(`/cms/automations/enrollments/${enrollmentId}/exit`, { method: "POST" });
+  const sendNowAutomation = (id) => req(`/cms/automations/${id}/send-now`, { method: "POST" });
   const listSegments = () => req("/cms/segments");
   const getSegment = (id) => req(`/cms/segments/${id}`);
   const createSegment = (payload) => req("/cms/segments", { method: "POST", body: JSON.stringify(payload) });
@@ -514,6 +517,9 @@ export function createCmsApi(accessToken) {
     testRunAutomation,
     getAutomationStepStats,
     getAutomationAnalytics,
+    listUserEnrollments,
+    exitEnrollment,
+    sendNowAutomation,
     listSegments,
     getSegment,
     createSegment,
