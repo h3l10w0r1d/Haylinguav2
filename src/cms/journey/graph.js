@@ -48,11 +48,13 @@ export function defaultParams(action) {
 export function newStep(kind) {
   if (kind === "wait") return { type: "wait", duration_hours: 24 };
   if (kind === "condition") return { type: "condition", branches: [{ when: [], steps: [] }, { else: true, steps: [] }] };
+  if (kind === "split") return { type: "split", branches: [{ weight: 50, steps: [] }, { weight: 50, steps: [] }] };
   return { type: "action", action: kind, params: defaultParams(kind) };
 }
 
 export function nodeKindOf(step) {
   if (step.type === "condition") return "condition";
+  if (step.type === "split") return "split";
   if (step.type === "wait") return "wait";
   return "action";
 }
@@ -148,6 +150,62 @@ export function removeBranch(steps, conditionPath, branchIndex) {
   });
 }
 
+// Split branches are shaped differently from condition branches ({weight,
+// steps} vs {when, steps} with an else-index special case) — a separate
+// pair of helpers rather than overloading addBranch/removeBranch, so a
+// SplitNode can never accidentally insert a condition-shaped branch (or
+// vice versa).
+// Both add/remove normalize weights back to summing 100 in the SAME
+// pure-function call (not a separate onChange dispatch after) — a
+// caller that fired addSplitBranch then normalizeSplitWeights as two
+// back-to-back onChange calls in one event handler would have the second
+// call's closure read the pre-add `steps`, silently undoing the add
+// (classic same-render stale-closure double-dispatch).
+export function addSplitBranch(steps, splitPath) {
+  return replaceStepAtPath(steps, splitPath, (step) => {
+    const branches = Array.isArray(step.branches) ? step.branches : [];
+    const next = [...branches, { weight: 0, steps: [] }];
+    const even = Math.round((100 / next.length) * 10) / 10;
+    return { ...step, branches: next.map((b) => ({ ...b, weight: even })) };
+  });
+}
+
+export function removeSplitBranch(steps, splitPath, branchIndex) {
+  return replaceStepAtPath(steps, splitPath, (step) => {
+    const branches = Array.isArray(step.branches) ? step.branches : [];
+    const next = branches.filter((_, i) => i !== branchIndex);
+    const total = next.reduce((sum, b) => sum + (Number(b.weight) || 0), 0);
+    if (total <= 0) return { ...step, branches: next };
+    return { ...step, branches: next.map((b) => ({ ...b, weight: Math.round(((Number(b.weight) || 0) / total) * 1000) / 10 })) };
+  });
+}
+
+export function updateSplitBranchWeight(steps, splitPath, branchIndex, weight) {
+  return replaceStepAtPath(steps, splitPath, (step) => {
+    const branches = Array.isArray(step.branches) ? step.branches : [];
+    return { ...step, branches: branches.map((b, i) => (i === branchIndex ? { ...b, weight } : b)) };
+  });
+}
+
+// Rescales every branch's weight so they sum to 100 — called on blur after
+// a weight edit rather than on every keystroke, so typing "5" toward "50"
+// doesn't fight the user mid-edit. Falls back to an even split if every
+// weight is currently 0/blank (e.g. right after adding a branch).
+export function normalizeSplitWeights(steps, splitPath) {
+  return replaceStepAtPath(steps, splitPath, (step) => {
+    const branches = Array.isArray(step.branches) ? step.branches : [];
+    const total = branches.reduce((sum, b) => sum + (Number(b.weight) || 0), 0);
+    if (total <= 0) {
+      const even = Math.round((100 / (branches.length || 1)) * 10) / 10;
+      return { ...step, branches: branches.map((b) => ({ ...b, weight: even })) };
+    }
+    return {
+      ...step,
+      branches: branches.map((b) => ({ ...b, weight: Math.round(((Number(b.weight) || 0) / total) * 1000) / 10 })),
+    };
+  });
+}
+
 // A move would corrupt the tree if the drop target lives inside the
 // subtree of the step being moved (e.g. dragging a condition into one of
 // its own branches) — every container path nested under a step's subtree
@@ -189,12 +247,13 @@ const NODE_SIZE = {
   wait: { width: 200, height: 60 },
   action: { width: 220, height: 68 },
   condition: { width: 240, height: 68 },
+  split: { width: 240, height: 68 },
   add: { width: 32, height: 32 },
 };
 
 function sizeFor(type, step) {
   const base = NODE_SIZE[type] || NODE_SIZE.action;
-  if (type === "condition") {
+  if (type === "condition" || type === "split") {
     const branchCount = Array.isArray(step?.branches) ? step.branches.length : 2;
     return { ...base, height: base.height + Math.max(0, branchCount - 2) * 22 };
   }
@@ -230,7 +289,7 @@ function walkContainer(list, containerPath, entry, nodes, edges, readOnly) {
       nodes.push({ id: stepPath, type, position: { x: 0, y: 0 }, data: { step, path: stepPath, readOnly } });
       edges.push(makeEdge(prev.id, prev.handle, stepPath));
       prev = { id: stepPath, handle: undefined };
-      if (type === "condition") {
+      if (type === "condition" || type === "split") {
         const branches = Array.isArray(step.branches) ? step.branches : [];
         branches.forEach((b, bi) => {
           walkContainer(b.steps, `${stepPath}.b${bi}`, { id: stepPath, handle: `branch-${bi}` }, nodes, edges, readOnly);

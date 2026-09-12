@@ -16,6 +16,7 @@
 # instrumented yet.
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any, Optional
 
@@ -214,6 +215,15 @@ def _validate_steps(steps: list[dict], depth: int = 0) -> None:
             for b in branches:
                 if not b.get("else"):
                     validate_filter_group(b.get("when"))
+                _validate_steps(b.get("steps") or [], depth + 1)
+        elif t == "split":
+            branches = step.get("branches")
+            if not isinstance(branches, list) or not branches:
+                raise ValueError("split step needs a non-empty branches list")
+            for b in branches:
+                w = b.get("weight")
+                if not isinstance(w, (int, float)) or w <= 0:
+                    raise ValueError("split branch needs a positive numeric weight")
                 _validate_steps(b.get("steps") or [], depth + 1)
         elif t == "action":
             if step.get("action") not in KNOWN_ACTIONS:
@@ -453,6 +463,30 @@ def _pick_branch(db: Connection, user_id: int, context: dict, condition_step: di
     return None
 
 
+def _pick_split_branch(branches: list[dict], enrollment_id: int, path_str: str) -> Optional[list[dict]]:
+    """A/B split — unlike a condition (re-evaluated fresh every time this
+    step is reached, including on resume), the branch a given enrollment
+    lands in must be the SAME every time, or a user could flip between
+    variant A and B on every cron resume. Derived deterministically from
+    (enrollment_id, path_str) via sha256 — not Python's builtin hash(),
+    which is salted per-process (PYTHONHASHSEED) and would reshuffle every
+    waiting enrollment's branch on the next deploy."""
+    if not branches:
+        return None
+    weights = [max(0.0, float(b.get("weight") or 0)) for b in branches]
+    total = sum(weights)
+    if total <= 0:
+        return branches[0].get("steps") or []
+    digest = hashlib.sha256(f"{enrollment_id}:{path_str}".encode()).hexdigest()
+    bucket = (int(digest, 16) % 10_000_000) / 10_000_000 * total
+    cumulative = 0.0
+    for b, w in zip(branches, weights):
+        cumulative += w
+        if bucket < cumulative:
+            return b.get("steps") or []
+    return branches[-1].get("steps") or []
+
+
 def _walk(db, steps, path_prefix, enrollment_id, user_id, context, budget, state):
     """Depth-first walk over a (possibly nested) step list.
 
@@ -495,6 +529,12 @@ def _walk(db, steps, path_prefix, enrollment_id, user_id, context, budget, state
                     result = _walk(db, branch_steps, path, enrollment_id, user_id, context, budget, state)
                     if result is not None:
                         return result
+            elif t == "split":
+                branch_steps = _pick_split_branch(step.get("branches", []), enrollment_id, path_str)
+                if branch_steps is not None:
+                    result = _walk(db, branch_steps, path, enrollment_id, user_id, context, budget, state)
+                    if result is not None:
+                        return result
             continue  # wait/action steps already passed through before — skip silently
 
         # Live execution.
@@ -505,6 +545,13 @@ def _walk(db, steps, path_prefix, enrollment_id, user_id, context, budget, state
             return {"type": "wait", "resume_at": resume_at, "path": path_str}
         if t == "condition":
             branch_steps = _pick_branch(db, user_id, context, step)
+            if branch_steps is not None:
+                result = _walk(db, branch_steps, path, enrollment_id, user_id, context, budget, state)
+                if result is not None:
+                    return result
+            continue
+        if t == "split":
+            branch_steps = _pick_split_branch(step.get("branches", []), enrollment_id, path_str)
             if branch_steps is not None:
                 result = _walk(db, branch_steps, path, enrollment_id, user_id, context, budget, state)
                 if result is not None:

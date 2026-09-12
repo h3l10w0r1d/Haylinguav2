@@ -15,7 +15,8 @@ import "@xyflow/react/dist/style.css";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import {
   stepsToGraph, getStepAtPath, insertStepAtPath, removeStepAtPath, updateStepAtPath,
-  addBranch, removeBranch, moveStep, ACTION_META,
+  addBranch, removeBranch, addSplitBranch, removeSplitBranch, updateSplitBranchWeight, normalizeSplitWeights,
+  moveStep, ACTION_META,
 } from "./graph";
 import { paletteMetaFor } from "./palette";
 import { JourneyProvider } from "./JourneyContext";
@@ -24,11 +25,12 @@ import StepDetailSheet from "./StepDetailSheet";
 import TriggerNode from "./nodes/TriggerNode";
 import WaitNode from "./nodes/WaitNode";
 import ConditionNode from "./nodes/ConditionNode";
+import SplitNode from "./nodes/SplitNode";
 import ActionNode from "./nodes/ActionNode";
 import AddStepNode from "./nodes/AddStepNode";
 import { notify } from "../ui";
 
-const NODE_TYPES = { trigger: TriggerNode, wait: WaitNode, condition: ConditionNode, action: ActionNode, add: AddStepNode };
+const NODE_TYPES = { trigger: TriggerNode, wait: WaitNode, condition: ConditionNode, split: SplitNode, action: ActionNode, add: AddStepNode };
 
 export default function JourneyCanvas({ steps, onChange, segments, readOnly = false, triggerLabel }) {
   const [selectedPath, setSelectedPath] = useState(null);
@@ -50,6 +52,10 @@ export default function JourneyCanvas({ steps, onChange, segments, readOnly = fa
   }, [list, onChange]);
   const onAddBranch = useCallback((conditionPath) => onChange(addBranch(list, conditionPath)), [list, onChange]);
   const onRemoveBranchCb = useCallback((conditionPath, branchIndex) => onChange(removeBranch(list, conditionPath, branchIndex)), [list, onChange]);
+  const onAddSplitBranch = useCallback((splitPath) => onChange(addSplitBranch(list, splitPath)), [list, onChange]);
+  const onRemoveSplitBranch = useCallback((splitPath, branchIndex) => onChange(removeSplitBranch(list, splitPath, branchIndex)), [list, onChange]);
+  const onUpdateSplitBranchWeight = useCallback((splitPath, branchIndex, weight) => onChange(updateSplitBranchWeight(list, splitPath, branchIndex, weight)), [list, onChange]);
+  const onNormalizeSplitWeights = useCallback((splitPath) => onChange(normalizeSplitWeights(list, splitPath)), [list, onChange]);
   const onOpenStep = useCallback((path) => setSelectedPath(path), []);
   const onOpenTrigger = useCallback(() => {
     document.getElementById("automation-trigger-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -89,8 +95,15 @@ export default function JourneyCanvas({ steps, onChange, segments, readOnly = fa
     onRemoveStep,
     onAddBranch,
     onRemoveBranch: onRemoveBranchCb,
+    onAddSplitBranch,
+    onRemoveSplitBranch,
+    onUpdateSplitBranchWeight,
+    onNormalizeSplitWeights,
     onInsertStep,
-  }), [readOnly, triggerLabel, onOpenStep, onOpenTrigger, onRemoveStep, onAddBranch, onRemoveBranchCb, onInsertStep]);
+  }), [
+    readOnly, triggerLabel, onOpenStep, onOpenTrigger, onRemoveStep, onAddBranch, onRemoveBranchCb,
+    onAddSplitBranch, onRemoveSplitBranch, onUpdateSplitBranchWeight, onNormalizeSplitWeights, onInsertStep,
+  ]);
 
   const dragOverlayLabel = activeDrag?.kind
     ? (paletteMetaFor(activeDrag.kind)?.label || ACTION_META[activeDrag.kind]?.label || activeDrag.kind)
@@ -100,6 +113,7 @@ export default function JourneyCanvas({ steps, onChange, segments, readOnly = fa
           if (!s) return "Step";
           if (s.type === "wait") return "Wait";
           if (s.type === "condition") return "Condition";
+          if (s.type === "split") return "A/B split";
           return ACTION_META[s.action]?.label || "Action";
         })()
       : null;

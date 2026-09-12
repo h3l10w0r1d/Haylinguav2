@@ -9,6 +9,10 @@ const JourneyContext = createContext({
   onOpenStep: () => {},
   onAddBranch: () => {},
   onRemoveBranch: () => {},
+  onAddSplitBranch: () => {},
+  onRemoveSplitBranch: () => {},
+  onUpdateSplitBranchWeight: () => {},
+  onNormalizeSplitWeights: () => {},
   onOpenTrigger: () => {},
 });
 
