@@ -14,7 +14,7 @@ import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Body, Header, Query, UploadFile, File
 from fastapi.concurrency import run_in_threadpool
 import asyncio
-from fastapi.responses import Response, JSONResponse, StreamingResponse
+from fastapi.responses import Response, JSONResponse, StreamingResponse, HTMLResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import text
@@ -609,12 +609,31 @@ def _render_bonus_email_html(name: str, kind_label: str, amount: int, message: O
     return _email_shell(preheader, cards)
 
 
-def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None, reply_to_email: Optional[str] = None, reply_to_name: Optional[str] = None) -> bool:
+def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None, reply_to_email: Optional[str] = None, reply_to_name: Optional[str] = None, unsubscribe_user_id: Optional[int] = None) -> bool:
     """Send email via SMTP if configured; otherwise log to server console.
+
+    `unsubscribe_user_id`: pass the recipient's user id for every
+    marketing/bulk send (streak reminders, CRM automation campaigns) —
+    NOT for transactional email (signup, password reset, invites).
+    When given, appends a visible unsubscribe footer to body/html_body
+    and attaches List-Unsubscribe headers (RFC 8058 one-click), both via
+    email_compliance.py. One injection point so every send path (Brevo
+    and SMTP) gets it consistently instead of repeating this at each
+    caller — mirrors automations.py's _inject_tracking precedent of
+    transparently appending something to the outgoing email right
+    before it's sent.
 
     Returns:
         bool: True if email was sent via SMTP, False if only logged to console
     """
+    list_unsub_headers = None
+    if unsubscribe_user_id is not None:
+        import email_compliance
+        body = (body or "") + email_compliance.unsubscribe_footer_text(unsubscribe_user_id)
+        if html_body:
+            html_body = html_body + email_compliance.unsubscribe_footer_html(unsubscribe_user_id)
+        list_unsub_headers = email_compliance.list_unsubscribe_header(unsubscribe_user_id)
+
     # 1) Preferred: Brevo transactional HTTP API. Works even when the host blocks
     #    outbound SMTP ports (Render does), and reuses the existing BREVO_API_KEY.
     try:
@@ -623,7 +642,7 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
         _brevo_send = None
     if _brevo_send is not None:
         try:
-            if _brevo_send(to_email=to_email, subject=subject, text=body, html=html_body, reply_to_email=reply_to_email, reply_to_name=reply_to_name):
+            if _brevo_send(to_email=to_email, subject=subject, text=body, html=html_body, reply_to_email=reply_to_email, reply_to_name=reply_to_name, headers=list_unsub_headers):
                 return True
         except Exception as e:
             print(f" ⚠️  Brevo email error, trying SMTP: {e}")
@@ -649,6 +668,8 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
         msg["From"] = email_from
         msg["To"] = to_email
         msg["Subject"] = subject
+        for k, v in (list_unsub_headers or {}).items():
+            msg[k] = v
         msg.set_content(body)
         if html_body:
             msg.add_alternative(html_body, subtype="html")
@@ -4266,6 +4287,7 @@ class MeOut(BaseModel):
     profile_theme: dict = {}
     friends_public: bool = True
     is_hidden: bool = False
+    email_reminders_enabled: bool = True
 
     # Account
     email_verified: bool = False
@@ -5595,7 +5617,8 @@ def cron_daily_reminder(
 </div>"""
         try:
             ok = _send_email(u["email"], subject,
-                             f"Hi {name}, your {streak}-day streak is at risk!", html)
+                             f"Hi {name}, your {streak}-day streak is at risk!", html,
+                             unsubscribe_user_id=u["id"])
             if ok:
                 db.execute(
                     text("UPDATE users SET last_streak_email_at = NOW() WHERE id = :u"),
@@ -5914,7 +5937,7 @@ def me_profile_get(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
 
     row = db.execute(
-        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, facebook_id, COALESCE(best_streak, 0) AS best_streak, COALESCE(is_premium, FALSE) AS is_premium FROM users WHERE id = :id"),
+        text("SELECT id, email, username, display_name, first_name, last_name, bio, avatar_url, banner_url, profile_theme, friends_public, is_hidden, email_verified, telegram_id, google_id, facebook_id, COALESCE(best_streak, 0) AS best_streak, COALESCE(is_premium, FALSE) AS is_premium, COALESCE(email_reminders_enabled, TRUE) AS email_reminders_enabled FROM users WHERE id = :id"),
         {"id": user_id},
     ).mappings().first()
 
@@ -6374,6 +6397,34 @@ def me_set_email_reminders(
         {"e": bool(body.enabled), "u": user_id},
     )
     return {"ok": True, "email_reminders_enabled": bool(body.enabled)}
+
+
+@router.get("/email/unsubscribe")
+def email_unsubscribe(u: int = Query(...), t: str = Query(...), db: Connection = Depends(get_db)):
+    """Public, unauthenticated — the link every marketing/bulk email's
+    footer and List-Unsubscribe header points to (see
+    backend/email_compliance.py). Same "token in the URL, no login"
+    shape as the existing /t/o and /t/c tracking endpoints in
+    routes_automations.py. Renders HTML, not JSON — a human clicks this
+    from their inbox."""
+    import email_compliance
+
+    frontend_url = (os.getenv("FRONTEND_URL") or "https://haylingua.am").rstrip("/")
+    if not email_compliance.verify_unsubscribe_token(u, t):
+        return HTMLResponse(
+            "<html><body style='font-family:sans-serif;max-width:480px;margin:60px auto;text-align:center'>"
+            "<h2>Link expired or invalid</h2><p>This unsubscribe link couldn't be verified.</p>"
+            f"<p><a href='{frontend_url}'>Return to Haylingua</a></p></body></html>",
+            status_code=400,
+        )
+    db.execute(text("UPDATE users SET email_reminders_enabled = FALSE WHERE id = :u"), {"u": u})
+    return HTMLResponse(
+        "<html><body style='font-family:sans-serif;max-width:480px;margin:60px auto;text-align:center'>"
+        "<h2>You're unsubscribed</h2>"
+        "<p>You won't receive marketing or reminder emails from Haylingua anymore.</p>"
+        f"<p><a href='{frontend_url}/profile'>Manage all email preferences</a></p>"
+        "</body></html>"
+    )
 
 
 @router.put("/me/active-frame")

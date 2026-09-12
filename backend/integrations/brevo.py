@@ -102,10 +102,14 @@ def send_transactional_email_result(
     sender_name: Optional[str] = None,
     reply_to_email: Optional[str] = None,
     reply_to_name: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
     timeout_s: float = 8.0,
 ) -> Dict[str, Any]:
     """Like send_transactional_email but returns a diagnostic dict:
-    {ok, reason, status?, error?, sender?} — used by the CMS email tester."""
+    {ok, reason, status?, error?, sender?} — used by the CMS email tester.
+
+    `headers`: custom SMTP headers (e.g. List-Unsubscribe) — see
+    backend/email_compliance.py, the only current caller."""
     api_key = _api_key()
     if not api_key:
         return {"ok": False, "reason": "no_api_key"}
@@ -129,6 +133,8 @@ def send_transactional_email_result(
         payload["textContent"] = text
     if not html and not text:
         payload["textContent"] = subject
+    if headers:
+        payload["headers"] = headers
 
     url = f"{BREVO_API_BASE}/smtp/email"
     try:
@@ -159,6 +165,7 @@ def send_transactional_email(
     sender_name: Optional[str] = None,
     reply_to_email: Optional[str] = None,
     reply_to_name: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
     timeout_s: float = 8.0,
 ) -> bool:
     """Send a transactional email via Brevo's HTTP API (POST /v3/smtp/email).
@@ -171,7 +178,7 @@ def send_transactional_email(
     res = send_transactional_email_result(
         to_email=to_email, subject=subject, text=text, html=html,
         sender_email=sender_email, sender_name=sender_name,
-        reply_to_email=reply_to_email, reply_to_name=reply_to_name, timeout_s=timeout_s,
+        reply_to_email=reply_to_email, reply_to_name=reply_to_name, headers=headers, timeout_s=timeout_s,
     )
     return bool(res.get("ok"))
 

@@ -153,6 +153,32 @@ export default function ProfilePage() {
   const [isHidden, setIsHidden] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
 
+  // Marketing/reminder email opt-out — saved immediately via its own
+  // dedicated endpoint on toggle, not folded into the debounced /me/profile
+  // autosave below, since an opt-out-of-comms action should persist
+  // independently and verifiably rather than riding along with unrelated
+  // profile-field saves.
+  const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
+  const [savingEmailReminders, setSavingEmailReminders] = useState(false);
+
+  async function toggleEmailReminders() {
+    const next = !emailRemindersEnabled;
+    setEmailRemindersEnabled(next); // optimistic
+    setSavingEmailReminders(true);
+    try {
+      const res = await apiFetch("/me/email-reminders", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ enabled: next }),
+      });
+      if (!res.ok) setEmailRemindersEnabled(!next); // revert on failure
+    } catch {
+      setEmailRemindersEnabled(!next);
+    } finally {
+      setSavingEmailReminders(false);
+    }
+  }
+
   const [bannerUrl, setBannerUrl] = useState("");
   const [showBannerPicker, setShowBannerPicker] = useState(false);
   const [showBannerBuilder, setShowBannerBuilder] = useState(false);
@@ -307,6 +333,9 @@ export default function ProfilePage() {
             typeof data.friends_public === "boolean" ? data.friends_public : true
           );
           setIsHidden(typeof data.is_hidden === "boolean" ? data.is_hidden : false);
+          setEmailRemindersEnabled(
+            typeof data.email_reminders_enabled === "boolean" ? data.email_reminders_enabled : true
+          );
           setIsPremium(!!data.is_premium);
 
           const b = data.banner_url || "";
@@ -1259,6 +1288,25 @@ export default function ProfilePage() {
                 </div>
                 <div className={"relative shrink-0 h-6 w-11 rounded-full transition-colors duration-200 " + (friendsPublic ? "bg-grass-500" : "bg-slate-300 dark:bg-white/10")}>
                   <span className={"absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 " + (friendsPublic ? "translate-x-5" : "translate-x-0")} />
+                </div>
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={toggleEmailReminders}
+                disabled={savingEmailReminders}
+                className={"w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3 ring-1 transition disabled:opacity-60 " + (emailRemindersEnabled ? "bg-grass-50 ring-grass-200 dark:bg-grass-500/15 dark:ring-grass-500/30" : "bg-slate-50 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/[0.08]")}
+              >
+                <div className="text-left">
+                  <p className="text-sm font-extrabold text-slate-700 dark:text-stone-200">Reminder & campaign emails</p>
+                  <p className="text-xs font-semibold text-slate-400 mt-0.5 dark:text-stone-500">
+                    {emailRemindersEnabled ? "You'll get streak reminders and news from Haylingua" : "You won't receive marketing or reminder emails"}
+                  </p>
+                </div>
+                <div className={"relative shrink-0 h-6 w-11 rounded-full transition-colors duration-200 " + (emailRemindersEnabled ? "bg-grass-500" : "bg-slate-300 dark:bg-white/10")}>
+                  <span className={"absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 " + (emailRemindersEnabled ? "translate-x-5" : "translate-x-0")} />
                 </div>
               </button>
             </div>

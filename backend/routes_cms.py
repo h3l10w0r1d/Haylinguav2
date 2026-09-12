@@ -1068,6 +1068,7 @@ def cron_send_streak_emails(
                     f"Do a quick lesson to keep your {streak}-day streak alive: {app_url}/dashboard"
                 ),
                 html_body=_render_streak_reminder_html(name, streak, app_url),
+                unsubscribe_user_id=int(row["id"]),
             )
             if ok:
                 sent += 1

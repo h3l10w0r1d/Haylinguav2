@@ -642,6 +642,14 @@ def advance_enrollment(db: Connection, enrollment: dict) -> None:
     # 'waiting' with its prior resume_at/path untouched) for a later cron pass to retry.
 
 
+class Unsubscribed(Exception):
+    """Raised by _action_send_email when the recipient has opted out of
+    marketing/reminder email (users.email_reminders_enabled = FALSE).
+    Caught separately in execute_action so this shows up as a deliberate
+    "skipped" send, not a "failed" one — respecting a preference isn't a
+    delivery error."""
+
+
 def execute_action(db: Connection, enrollment_id: int, user_id: int, step_path: str, step: dict) -> None:
     already = db.execute(
         text("SELECT 1 FROM automation_sends WHERE enrollment_id = :e AND step_index = :i"),
@@ -672,6 +680,9 @@ def execute_action(db: Connection, enrollment_id: int, user_id: int, step_path: 
             _action_grant_bonus(db, user_id, params)
         else:
             status = "skipped"
+    except Unsubscribed:
+        status = "skipped"
+        detail = {**detail, "reason": "unsubscribed"}
     except Exception as e:
         status = "failed"
         detail = {**detail, "error": str(e)}
@@ -754,6 +765,13 @@ def _template_variables(db: Connection, user_id: int) -> dict:
 def _action_send_email(db: Connection, user_id: int, params: dict, tracking_token: Optional[str] = None) -> None:
     from routes import _send_email  # lazy import — mirrors the existing brevo lazy-import style in routes.py, avoids a circular import since routes.py imports this module
 
+    # Kept as its own query rather than folded into _template_variables,
+    # which push/web-push/brevo actions also call — this check must only
+    # ever gate the email path.
+    row = db.execute(text("SELECT email_reminders_enabled FROM users WHERE id = :u"), {"u": user_id}).mappings().first()
+    if row and row["email_reminders_enabled"] is False:
+        raise Unsubscribed()
+
     variables = _template_variables(db, user_id)
     if not variables["email"]:
         raise ValueError("user has no email on file")
@@ -762,7 +780,7 @@ def _action_send_email(db: Connection, user_id: int, params: dict, tracking_toke
     html_body = _render_template(params.get("html_body"), variables)
     if html_body and tracking_token:
         html_body = _inject_tracking(html_body, tracking_token)
-    _send_email(to_email=variables["email"], subject=subject, body=body, html_body=html_body)
+    _send_email(to_email=variables["email"], subject=subject, body=body, html_body=html_body, unsubscribe_user_id=user_id)
 
 
 def _action_send_push(db: Connection, user_id: int, params: dict) -> None:
