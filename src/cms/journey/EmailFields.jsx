@@ -17,20 +17,7 @@ import {
 import { createCmsApi, getCmsToken } from "../api";
 import EmailBuilder from "./emailBuilder/EmailBuilder";
 import { compileBlocksToHtml } from "./emailBuilder/blocks";
-
-const VARIABLES = [
-  { token: "first_name", label: "First name", sample: "Alex" },
-  { token: "username", label: "Username", sample: "alex99" },
-  { token: "name", label: "Name", sample: "Alex" },
-  { token: "email", label: "Email", sample: "alex@example.com" },
-];
-
-function withSampleData(text) {
-  if (!text) return text;
-  let out = text;
-  for (const v of VARIABLES) out = out.split(`{{${v.token}}}`).join(v.sample);
-  return out;
-}
+import { VARIABLES, withSampleData } from "./templateVariables";
 
 export default function EmailFields({ params, readOnly, onUpdateParams }) {
   const p = params || {};

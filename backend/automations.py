@@ -717,28 +717,52 @@ def _inject_tracking(html_body: str, tracking_token: str) -> str:
     return rewritten + pixel
 
 
-def _action_send_email(db: Connection, user_id: int, params: dict, tracking_token: Optional[str] = None) -> None:
-    from routes import _send_email  # lazy import — mirrors the existing brevo lazy-import style in routes.py, avoids a circular import since routes.py imports this module
+def _template_variables(db: Connection, user_id: int) -> dict:
+    """The {{var}} substitution context shared by every channel a step can
+    send through (email/push/web push) — one query, one dict, so adding a
+    new personalization field (streak, gems, ...) only ever needs to
+    happen here. All values are pre-stringified since _render_template does
+    a plain string .replace()."""
+    from routes import LEAGUE_TIERS  # lazy import, same reason as the _send_email import below
 
     row = db.execute(
-        text("SELECT email, username, first_name, display_name, name FROM users WHERE id = :u"),
+        text("""
+            SELECT email, username, first_name, display_name, name,
+                   gems, current_streak, best_streak, weekly_xp, league_tier
+            FROM users WHERE id = :u
+        """),
         {"u": user_id},
     ).mappings().first()
-    if not row or not row["email"]:
-        raise ValueError("user has no email on file")
+    if not row:
+        raise ValueError("user not found")
     display_name = row["first_name"] or row["display_name"] or row["name"] or "there"
-    variables = {
+    tier = row["league_tier"] or 0
+    league_name = LEAGUE_TIERS[min(tier, len(LEAGUE_TIERS) - 1)]
+    return {
         "name": display_name,
         "first_name": row["first_name"] or display_name,
         "username": row["username"] or display_name,
-        "email": row["email"],
+        "email": row["email"] or "",
+        "streak": str(row["current_streak"] or 0),
+        "best_streak": str(row["best_streak"] or 0),
+        "gems": str(row["gems"] or 0),
+        "weekly_xp": str(row["weekly_xp"] or 0),
+        "league": league_name,
     }
+
+
+def _action_send_email(db: Connection, user_id: int, params: dict, tracking_token: Optional[str] = None) -> None:
+    from routes import _send_email  # lazy import — mirrors the existing brevo lazy-import style in routes.py, avoids a circular import since routes.py imports this module
+
+    variables = _template_variables(db, user_id)
+    if not variables["email"]:
+        raise ValueError("user has no email on file")
     subject = _render_template(params.get("subject") or "Haylingua", variables)
     body = _render_template(params.get("body") or "", variables)
     html_body = _render_template(params.get("html_body"), variables)
     if html_body and tracking_token:
         html_body = _inject_tracking(html_body, tracking_token)
-    _send_email(to_email=row["email"], subject=subject, body=body, html_body=html_body)
+    _send_email(to_email=variables["email"], subject=subject, body=body, html_body=html_body)
 
 
 def _action_send_push(db: Connection, user_id: int, params: dict) -> None:
@@ -747,8 +771,9 @@ def _action_send_push(db: Connection, user_id: int, params: dict) -> None:
     tokens = db.execute(text("SELECT token FROM device_push_tokens WHERE user_id = :u"), {"u": user_id}).mappings().all()
     if not tokens:
         raise ValueError("user has no registered device tokens")
-    title = params.get("title") or "Haylingua"
-    body = params.get("body") or ""
+    variables = _template_variables(db, user_id)
+    title = _render_template(params.get("title") or "Haylingua", variables)
+    body = _render_template(params.get("body") or "", variables)
     for t in tokens:
         send_push(t["token"], title, body)
 
@@ -762,8 +787,9 @@ def _action_send_web_push(db: Connection, user_id: int, params: dict) -> None:
     ).mappings().all()
     if not subs:
         raise ValueError("user has no web push subscription")
-    title = params.get("title") or "Haylingua"
-    body = params.get("body") or ""
+    variables = _template_variables(db, user_id)
+    title = _render_template(params.get("title") or "Haylingua", variables)
+    body = _render_template(params.get("body") or "", variables)
     url = params.get("url") or None
     for s in subs:
         subscription = {"endpoint": s["endpoint"], "keys": {"p256dh": s["p256dh"], "auth": s["auth"]}}

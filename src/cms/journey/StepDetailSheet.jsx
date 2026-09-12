@@ -4,6 +4,7 @@
 // FilterRuleBuilder unchanged for condition branches.
 import FilterRuleBuilder from "../FilterRuleBuilder";
 import EmailFields from "./EmailFields";
+import PushFields from "./PushFields";
 import { BONUS_KINDS } from "./graph";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -24,25 +25,7 @@ function ActionFields({ step, readOnly, onUpdateParams }) {
     return <EmailFields params={p} readOnly={readOnly} onUpdateParams={onUpdateParams} />;
   }
   if (step.action === "send_push" || step.action === "send_web_push") {
-    return (
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label>Title</Label>
-          <Input value={p.title || ""} onChange={(e) => onUpdateParams({ title: e.target.value })} disabled={readOnly} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Body</Label>
-          <Textarea value={p.body || ""} onChange={(e) => onUpdateParams({ body: e.target.value })} rows={4} disabled={readOnly} />
-        </div>
-        {step.action === "send_web_push" && (
-          <div className="space-y-1.5">
-            <Label>Link when clicked (optional)</Label>
-            <Input value={p.url || ""} onChange={(e) => onUpdateParams({ url: e.target.value })} placeholder="/dashboard" disabled={readOnly} />
-            <p className="text-xs font-semibold text-slate-400">Only reaches learners on desktop/mobile web who've enabled browser notifications — not the mobile app.</p>
-          </div>
-        )}
-      </div>
-    );
+    return <PushFields params={p} action={step.action} readOnly={readOnly} onUpdateParams={onUpdateParams} />;
   }
   if (step.action === "send_brevo") {
     return (
