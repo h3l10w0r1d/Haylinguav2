@@ -222,12 +222,18 @@ export default function EmailFields({ params, readOnly, onUpdateParams }) {
             </Tabs>
 
             {bodyMode === "builder" && (
-              <EmailBuilder
-                blocks={blocks}
-                readOnly={readOnly}
-                onChange={updateBlocks}
-                onFocusField={(blockId, field, el) => { lastFocused.current = { kind: "block", blockId, field, el }; }}
-              />
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <EmailBuilder
+                  blocks={blocks}
+                  readOnly={readOnly}
+                  onChange={updateBlocks}
+                  onFocusField={(blockId, field, el) => { lastFocused.current = { kind: "block", blockId, field, el }; }}
+                />
+                <div className="lg:sticky lg:top-4 lg:self-start">
+                  <div className="mb-1.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Live preview</div>
+                  <EmailPreview subject={p.subject} body={p.body} htmlBody={p.html_body} />
+                </div>
+              </div>
             )}
 
             {bodyMode === "plain" && (

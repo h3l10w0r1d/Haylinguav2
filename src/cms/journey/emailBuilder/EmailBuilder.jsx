@@ -4,16 +4,73 @@
 // not the graph-canvas machinery in ../JourneyCanvas.jsx (blocks don't
 // branch). Each block is a compact rounded card with its fields shown
 // inline (no accordion — a handful of blocks per email doesn't need one).
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter, DragOverlay,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2, Plus } from "lucide-react";
+import { GripVertical, Trash2, Plus, ImagePlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Input, Textarea, Button } from "../../ui";
+import { Input, Textarea, notify } from "../../ui";
+import { createCmsApi, getCmsToken } from "../../api";
 import { BLOCK_TYPES, COLOR_PRESETS, newBlock } from "./blocks";
+
+function BannerDropzone({ block, patch, field, readOnly, onUploadImage }) {
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  async function upload(file) {
+    if (!file || readOnly) return;
+    setUploading(true);
+    try {
+      const url = await onUploadImage(file);
+      patch({ imageUrl: url });
+    } catch (err) {
+      notify(err.message || "Image upload failed", "err");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); if (!readOnly) setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        upload(e.dataTransfer.files?.[0]);
+      }}
+      className={cn(
+        "flex items-center gap-2.5 rounded-2xl bg-slate-50 p-2.5 ring-2 ring-dashed transition",
+        dragOver ? "ring-brand-400 bg-brand-50/50" : "ring-slate-200"
+      )}
+    >
+      {block.imageUrl ? (
+        <img src={block.imageUrl} alt="" className="h-12 w-16 shrink-0 rounded-lg border border-slate-100 object-cover" />
+      ) : (
+        <div className="grid h-12 w-16 shrink-0 place-items-center rounded-lg bg-slate-200 text-slate-400">
+          <ImagePlus className="h-4 w-4" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <Input
+          placeholder="Image URL, or drop/choose a file"
+          value={block.imageUrl || ""}
+          onChange={(e) => patch({ imageUrl: e.target.value })}
+          onFocus={(e) => field("imageUrl", e.target)}
+          disabled={readOnly}
+          className="h-8 text-xs"
+        />
+      </div>
+      <label className={cn("shrink-0 rounded-xl bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200", readOnly ? "opacity-50" : "cursor-pointer hover:bg-slate-50")}>
+        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Choose"}
+        <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={readOnly} onChange={(e) => upload(e.target.files?.[0])} />
+      </label>
+    </div>
+  );
+}
 
 function ColorSwatchRow({ value, onChange, disabled }) {
   return (
@@ -66,7 +123,7 @@ function AlignButtons({ value, onChange, disabled }) {
   );
 }
 
-function BlockCard({ block, readOnly, onUpdate, onRemove, onFocusField }) {
+function BlockCard({ block, readOnly, onUpdate, onRemove, onFocusField, onUploadImage }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id, disabled: readOnly });
   const style = { transform: CSS.Transform.toString(transform), transition };
   const meta = BLOCK_TYPES.find((t) => t.type === block.type);
@@ -102,10 +159,9 @@ function BlockCard({ block, readOnly, onUpdate, onRemove, onFocusField }) {
       <div className="space-y-2.5">
         {block.type === "banner" && (
           <>
-            <Input placeholder="Image URL" value={block.imageUrl || ""} onChange={(e) => patch({ imageUrl: e.target.value })} onFocus={(e) => field("imageUrl", e.target)} disabled={readOnly} className="h-9 text-xs" />
+            <BannerDropzone block={block} patch={patch} field={field} readOnly={readOnly} onUploadImage={onUploadImage} />
             <Input placeholder="Link when clicked (optional)" value={block.linkUrl || ""} onChange={(e) => patch({ linkUrl: e.target.value })} onFocus={(e) => field("linkUrl", e.target)} disabled={readOnly} className="h-9 text-xs" />
             <Input placeholder="Alt text" value={block.alt || ""} onChange={(e) => patch({ alt: e.target.value })} onFocus={(e) => field("alt", e.target)} disabled={readOnly} className="h-9 text-xs" />
-            {block.imageUrl && <img src={block.imageUrl} alt="" className="max-h-28 w-full rounded-2xl border border-slate-100 object-cover" />}
             <ColorSwatchRow value={block.bg} onChange={(bg) => patch({ bg })} disabled={readOnly} />
           </>
         )}
@@ -165,6 +221,14 @@ export default function EmailBuilder({ blocks, readOnly, onChange, onFocusField 
   const list = Array.isArray(blocks) ? blocks : [];
   const [activeId, setActiveId] = useState(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // Same "leaf component builds its own client" pattern as EmailFields.jsx
+  // (which is this component's own parent) — avoids threading an api prop
+  // down through StepDetailSheet/JourneyCanvas for one upload button.
+  const api = useMemo(() => createCmsApi(getCmsToken()), []);
+  async function onUploadImage(file) {
+    const { url } = await api.uploadBlogImage(file);
+    return url;
+  }
 
   function addBlock(type) { onChange([...list, newBlock(type)]); }
   function updateBlock(id, next) { onChange(list.map((b) => (b.id === id ? next : b))); }
@@ -221,6 +285,7 @@ export default function EmailBuilder({ blocks, readOnly, onChange, onFocusField 
                   onUpdate={(next) => updateBlock(b.id, next)}
                   onRemove={() => removeBlock(b.id)}
                   onFocusField={onFocusField}
+                  onUploadImage={onUploadImage}
                 />
               ))}
             </div>

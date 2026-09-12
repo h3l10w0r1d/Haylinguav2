@@ -91,13 +91,14 @@ export default function StepDetailSheet({ open, onOpenChange, step, path, segmen
 
   const title = step.type === "wait" ? "Wait" : step.type === "condition" ? "Condition" : ACTION_TITLES[step.action] || "Step";
   const branches = step.type === "condition" ? (Array.isArray(step.branches) ? step.branches : []) : [];
-  // The email composer needs real room (subject/body/HTML/preview) — every
-  // other step's form is short fields, the default width suits those fine.
+  // The email composer needs real room (builder + live preview side by
+  // side) — every other step's form is short fields, the default width
+  // suits those fine.
   const wide = step.type === "action" && step.action === "send_email";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className={wide ? "w-full overflow-y-auto sm:max-w-2xl" : "w-full overflow-y-auto sm:max-w-md"}>
+      <SheetContent className={wide ? "w-full overflow-y-auto sm:max-w-4xl" : "w-full overflow-y-auto sm:max-w-md"}>
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>
