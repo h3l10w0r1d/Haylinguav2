@@ -111,12 +111,14 @@ def test_open_and_click_tracking_endpoints(client, db_conn, make_user):
 
 def test_step_stats_and_analytics_endpoints(client, db_conn, make_user, monkeypatch):
     # The test env has no Brevo/SMTP configured, so _send_email would
-    # normally return False (console-log-only fallback) — automations.py
-    # now correctly raises in that case instead of mis-recording "sent"
-    # (see _action_send_email), so simulate a real successful provider
-    # send here to exercise the actual "sent" path this test is checking.
+    # normally return {"ok": False, ...} (console-log-only fallback) —
+    # automations.py now correctly raises in that case instead of
+    # mis-recording "sent" (see _action_send_email), so simulate a real
+    # successful provider send here to exercise the actual "sent" path
+    # this test is checking. _action_send_email always calls with
+    # return_diagnostic=True, so the mock must return the dict shape.
     import routes as routes_mod
-    monkeypatch.setattr(routes_mod, "_send_email", lambda **kw: True)
+    monkeypatch.setattr(routes_mod, "_send_email", lambda **kw: {"ok": True, "channel": "brevo", "message_id": "<pytest-fake>"})
 
     event_type = "pytest_tracking_stats"
     campaign_id = _make_email_campaign(db_conn, event_type)

@@ -2868,6 +2868,24 @@ async def cms_email_test(request: Request, db=Depends(get_db)):
     )
     return res
 
+
+@router.get("/cms/email/brevo-events")
+def cms_email_brevo_events(
+    request: Request, db=Depends(get_db),
+    email: Optional[str] = None, message_id: Optional[str] = None,
+    event: Optional[str] = None, days: int = 30,
+):
+    """Brevo's own delivery log for a transactional send — ground truth
+    from the provider's side (delivered/opened/clicks/bounces/blocked/
+    spam/deferred/invalid), independent of what our own automation_sends
+    row claims. Use `email` to see everything sent to one address, or
+    `message_id` (from automation_sends.detail.provider.message_id, once
+    a send has gone through the updated _action_send_email) to look up
+    one specific send. See backend/integrations/brevo.py:get_email_events."""
+    require_cms(request, db)
+    from integrations.brevo import get_email_events
+    return get_email_events(email=email, message_id=message_id, event=event, days=days)
+
 # ==================== Shop items ====================
 
 @router.get("/cms/shop/items")

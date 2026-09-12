@@ -609,7 +609,7 @@ def _render_bonus_email_html(name: str, kind_label: str, amount: int, message: O
     return _email_shell(preheader, cards)
 
 
-def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None, reply_to_email: Optional[str] = None, reply_to_name: Optional[str] = None, unsubscribe_user_id: Optional[int] = None) -> bool:
+def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str] = None, reply_to_email: Optional[str] = None, reply_to_name: Optional[str] = None, unsubscribe_user_id: Optional[int] = None, return_diagnostic: bool = False):
     """Send email via SMTP if configured; otherwise log to server console.
 
     `unsubscribe_user_id`: pass the recipient's user id for every
@@ -623,9 +623,22 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
     transparently appending something to the outgoing email right
     before it's sent.
 
+    `return_diagnostic`: when True, returns {"ok": bool, "channel": "brevo"
+    | "smtp" | "none", ...provider-specific fields (message_id on Brevo
+    success, reason/error/status on any failure)} instead of a bare bool
+    — lets a caller (automations.py's _action_send_email) record the
+    REAL reason a send failed rather than a generic message, so the CMS
+    Send log's `detail` column becomes an actual debugging trail instead
+    of a guess. Default False preserves the plain bool every other
+    caller already expects.
+
     Returns:
-        bool: True if email was sent via SMTP, False if only logged to console
+        bool (default): True if actually sent via Brevo/SMTP, False if
+        only logged to console. dict when return_diagnostic=True.
     """
+    def _finish(diag: dict):
+        return diag if return_diagnostic else bool(diag.get("ok"))
+
     list_unsub_headers = None
     if unsubscribe_user_id is not None:
         import email_compliance
@@ -637,14 +650,19 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
     # 1) Preferred: Brevo transactional HTTP API. Works even when the host blocks
     #    outbound SMTP ports (Render does), and reuses the existing BREVO_API_KEY.
     try:
-        from integrations.brevo import send_transactional_email as _brevo_send
+        from integrations.brevo import send_transactional_email_result as _brevo_send_result
     except Exception:
-        _brevo_send = None
-    if _brevo_send is not None:
+        _brevo_send_result = None
+    brevo_diag = None
+    if _brevo_send_result is not None:
         try:
-            if _brevo_send(to_email=to_email, subject=subject, text=body, html=html_body, reply_to_email=reply_to_email, reply_to_name=reply_to_name, headers=list_unsub_headers):
-                return True
+            res = _brevo_send_result(to_email=to_email, subject=subject, text=body, html=html_body, reply_to_email=reply_to_email, reply_to_name=reply_to_name, headers=list_unsub_headers)
+            if res.get("ok"):
+                return _finish({"channel": "brevo", **res})
+            brevo_diag = {"channel": "brevo", **res}
+            print(f" ⚠️  Brevo email not sent, trying SMTP: {res}")
         except Exception as e:
+            brevo_diag = {"channel": "brevo", "ok": False, "reason": "exception", "error": repr(e)}
             print(f" ⚠️  Brevo email error, trying SMTP: {e}")
 
     # 2) Fallback: classic SMTP (if configured).
@@ -661,7 +679,7 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
         print("Subject:", subject)
         print(body)
         print("--- END EMAIL ---\n")
-        return False
+        return _finish(brevo_diag or {"channel": "none", "ok": False, "reason": "no_provider_configured"})
 
     try:
         msg = EmailMessage()
@@ -688,7 +706,7 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
                 s.send_message(msg)
 
         print(f" ✅ Email sent via SMTP to {to_email}")
-        return True
+        return _finish({"channel": "smtp", "ok": True})
     except Exception as e:
         print(f" ❌ SMTP email failed: {e}")
         print("\n--- EMAIL (fallback after error) ---")
@@ -696,7 +714,7 @@ def _send_email(to_email: str, subject: str, body: str, html_body: Optional[str]
         print("Subject:", subject)
         print(body)
         print("--- END EMAIL ---\n")
-        return False
+        return _finish({"channel": "smtp", "ok": False, "reason": "exception", "error": repr(e), "brevo": brevo_diag})
 
 def _require_verified(db: Connection, user_id: int):
     row = db.execute(

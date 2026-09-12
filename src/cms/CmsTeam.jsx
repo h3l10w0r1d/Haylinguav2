@@ -70,6 +70,30 @@ export default function CmsTeam() {
   const [testResult, setTestResult] = useState(null);
   const [savingRoleId, setSavingRoleId] = useState(null);
 
+  // Brevo's own delivery log for one recipient — ground truth from the
+  // provider (delivered/opened/bounced/blocked/spam/...), independent of
+  // whatever our own automation_sends row claims happened.
+  const [eventsEmail, setEventsEmail] = useState("");
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsResult, setEventsResult] = useState(null);
+
+  async function lookupBrevoEvents(e) {
+    e.preventDefault();
+    if (!eventsEmail.trim()) return;
+    setEventsLoading(true);
+    setEventsResult(null);
+    try {
+      const r = await api.brevoEvents(eventsEmail.trim(), 30);
+      setEventsResult(r);
+      if (!r?.ok) notify(r?.reason === "no_api_key" ? "Brevo isn't configured" : "Lookup failed", "err");
+    } catch (e2) {
+      setEventsResult({ ok: false, reason: "request_failed", error: String(e2.message || e2) });
+      notify(e2.message || "Request failed", "err");
+    } finally {
+      setEventsLoading(false);
+    }
+  }
+
   async function setCrmRole(userId, crmRole) {
     setSavingRoleId(userId);
     try {
@@ -209,6 +233,50 @@ export default function CmsTeam() {
                 </>
               )}
             </Note>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Brevo delivery log" description="What actually happened to an email after we handed it to Brevo — delivered, opened, bounced, blocked, marked as spam. Ground truth from the provider, separate from what our own send log claims.">
+          <form onSubmit={lookupBrevoEvents} className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              type="email"
+              placeholder="Look up events for…"
+              value={eventsEmail}
+              onChange={(e) => setEventsEmail(e.target.value)}
+              className="flex-1"
+              aria-label="Email address to look up"
+            />
+            <Button type="submit" variant="neutral3d" disabled={eventsLoading || !eventsEmail.trim()}>
+              <Send /> {eventsLoading ? "Looking up…" : "Look up (30 days)"}
+            </Button>
+          </form>
+
+          {eventsResult && !eventsResult.ok && (
+            <Note tone="danger" className="mt-3">
+              Lookup failed — <b>{eventsResult.reason || "error"}</b>
+              {eventsResult.status ? ` (HTTP ${eventsResult.status})` : ""}.
+              {eventsResult.error && <div className="mt-1 break-words font-mono text-xs">{eventsResult.error}</div>}
+            </Note>
+          )}
+
+          {eventsResult?.ok && (
+            eventsResult.events.length === 0 ? (
+              <Note tone="brand" className="mt-3">
+                No events from Brevo for this address in the last 30 days — meaning we never actually handed Brevo anything to send, not that it was sent and failed.
+              </Note>
+            ) : (
+              <div className="mt-3 space-y-1.5">
+                {eventsResult.events.map((ev, i) => (
+                  <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-xs ring-1 ring-slate-200">
+                    <span className="font-extrabold uppercase tracking-wide text-slate-700">{ev.event}</span>
+                    <span className="font-semibold text-slate-400">{formatDate(ev.date)}</span>
+                    {ev.subject && <span className="font-semibold text-slate-500">{ev.subject}</span>}
+                    {ev.reason && <span className="font-semibold text-cardinal-500">{ev.reason}</span>}
+                    {ev.messageId && <span className="font-mono text-[10px] text-slate-300">{ev.messageId}</span>}
+                  </div>
+                ))}
+              </div>
+            )
           )}
         </SectionCard>
 

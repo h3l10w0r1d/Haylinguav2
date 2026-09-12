@@ -669,7 +669,9 @@ def execute_action(db: Connection, enrollment_id: int, user_id: int, step_path: 
 
     try:
         if action == "send_email":
-            _action_send_email(db, user_id, params, tracking_token=tracking_token)
+            result = _action_send_email(db, user_id, params, tracking_token=tracking_token)
+            if result:
+                detail = {**detail, **result}
         elif action == "send_push":
             _action_send_push(db, user_id, params)
         elif action == "send_web_push":
@@ -762,7 +764,7 @@ def _template_variables(db: Connection, user_id: int) -> dict:
     }
 
 
-def _action_send_email(db: Connection, user_id: int, params: dict, tracking_token: Optional[str] = None) -> None:
+def _action_send_email(db: Connection, user_id: int, params: dict, tracking_token: Optional[str] = None) -> Optional[dict]:
     from routes import _send_email  # lazy import — mirrors the existing brevo lazy-import style in routes.py, avoids a circular import since routes.py imports this module
 
     # Kept as its own query rather than folded into _template_variables,
@@ -780,16 +782,19 @@ def _action_send_email(db: Connection, user_id: int, params: dict, tracking_toke
     html_body = _render_template(params.get("html_body"), variables)
     if html_body and tracking_token:
         html_body = _inject_tracking(html_body, tracking_token)
-    # _send_email returns False when nothing is actually configured to send
-    # through (no Brevo key, no SMTP) — it just logs to the server console
-    # in that case. That return value was previously discarded here, so
-    # execute_action's default status="sent" stood even when nothing was
-    # ever delivered — a real, misleading gap: the send log said "sent"
-    # for an email that only ever reached a Render console log. Raise so
-    # it's correctly recorded as a failure instead.
-    ok = _send_email(to_email=variables["email"], subject=subject, body=body, html_body=html_body, unsubscribe_user_id=user_id)
-    if not ok:
-        raise RuntimeError("email not actually sent — no Brevo/SMTP configured or provider call failed (check /cms/team's email delivery panel)")
+    # return_diagnostic=True captures the REAL provider response — which
+    # channel (brevo/smtp/none), Brevo's message_id on success, or the
+    # exact reason/error on failure (no_api_key, no_sender, an http_error
+    # with Brevo's own response body, or an SMTP exception). Previously
+    # only a bare bool was checked (and even that was discarded entirely
+    # at one point), so the CMS Send log's `detail` column said "sent"
+    # for emails that silently never left the server. execute_action
+    # merges this dict into `detail` either way (success or failure) —
+    # visible in the Send log / automation_sends table.
+    diag = _send_email(to_email=variables["email"], subject=subject, body=body, html_body=html_body, unsubscribe_user_id=user_id, return_diagnostic=True)
+    if not diag.get("ok"):
+        raise RuntimeError(f"email not actually sent — {diag}")
+    return {"provider": diag}
 
 
 def _action_send_push(db: Connection, user_id: int, params: dict) -> None:

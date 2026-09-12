@@ -141,8 +141,13 @@ def send_transactional_email_result(
         with httpx.Client(timeout=timeout_s) as client:
             r = client.post(url, headers=_headers(), json=payload)
         if 200 <= r.status_code < 300:
-            print(f"[brevo] email sent to {to_email} ({r.status_code})")
-            return {"ok": True, "status": r.status_code, "sender": sender_email}
+            message_id = None
+            try:
+                message_id = (r.json() or {}).get("messageId")
+            except Exception:
+                pass
+            print(f"[brevo] email sent to {to_email} ({r.status_code}) messageId={message_id}")
+            return {"ok": True, "status": r.status_code, "sender": sender_email, "message_id": message_id}
         err = ""
         try:
             err = r.text[:800]
@@ -218,3 +223,47 @@ def track_event(
             print("[brevo] track_event exception", repr(e))
         except Exception:
             pass
+
+
+def get_email_events(
+    *,
+    email: Optional[str] = None,
+    message_id: Optional[str] = None,
+    event: Optional[str] = None,
+    days: int = 30,
+    limit: int = 50,
+    timeout_s: float = 8.0,
+) -> Dict[str, Any]:
+    """GET /v3/smtp/statistics/events — Brevo's own delivery log for a
+    transactional send: delivered / opened / clicks / bounces / blocked /
+    spam / deferred / invalid, per their docs. This is ground truth from
+    the provider's side, independent of whatever our own automation_sends
+    row says — the only way to tell "we handed it to Brevo and it
+    bounced/got blocked" apart from "we handed it to Brevo and it's sitting
+    in someone's spam folder" apart from "we never actually called Brevo
+    at all". `event` must be one of Brevo's known event types if given
+    (e.g. "delivered", "blocked", "bounces", "spam"); left unfiltered by
+    default. Returns {"ok": True, "events": [...]} or {"ok": False, ...}.
+    """
+    api_key = _api_key()
+    if not api_key:
+        return {"ok": False, "reason": "no_api_key"}
+
+    params: Dict[str, Any] = {"limit": limit, "offset": 0, "days": min(max(int(days), 1), 90), "sort": "desc"}
+    if email:
+        params["email"] = email
+    if message_id:
+        params["messageId"] = message_id
+    if event:
+        params["event"] = event
+
+    url = f"{BREVO_API_BASE}/smtp/statistics/events"
+    try:
+        with httpx.Client(timeout=timeout_s) as client:
+            r = client.get(url, headers=_headers(), params=params)
+        if 200 <= r.status_code < 300:
+            data = r.json() or {}
+            return {"ok": True, "events": data.get("events") or []}
+        return {"ok": False, "reason": "http_error", "status": r.status_code, "error": r.text[:800]}
+    except Exception as e:
+        return {"ok": False, "reason": "exception", "error": repr(e)}

@@ -142,6 +142,7 @@ export function createCmsApi(accessToken) {
   // Email diagnostics
   const emailStatus = () => req("/cms/email/status");
   const sendTestEmail = (to) => req("/cms/email/test", { method: "POST", body: JSON.stringify({ to }) });
+  const brevoEvents = (email, days = 30) => req(`/cms/email/brevo-events?email=${encodeURIComponent(email)}&days=${days}`);
 
   // Shop & economy
   const listShopItems = () => req("/cms/shop/items");
@@ -425,6 +426,7 @@ export function createCmsApi(accessToken) {
     reorderAchievements,
     emailStatus,
     sendTestEmail,
+    brevoEvents,
     listShopItems,
     createShopItem,
     updateShopItem,
