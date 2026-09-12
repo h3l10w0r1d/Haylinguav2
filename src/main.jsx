@@ -3,6 +3,24 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
 
+// A tab left open across a deploy still holds the OLD index.html, pointing at
+// JS chunk filenames by content hash — once a newer deploy ships different
+// hashes, a lazy-loaded chunk 404s. Vite fires this event (instead of an
+// uncaught error) for exactly that case, so reload once to pick up the
+// current bundle rather than leaving the user on a dead page. Shares the
+// sessionStorage guard with lib/ErrorBoundary.jsx's fallback handling of the
+// same failure, so a genuinely persistent failure (e.g. actually offline)
+// doesn't reload-loop forever.
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  const key = 'hay_stale_chunk_reload_at';
+  const last = Number(sessionStorage.getItem(key) || 0);
+  if (Date.now() - last > 10000) {
+    sessionStorage.setItem(key, String(Date.now()));
+    window.location.reload();
+  }
+});
+
 // Error tracking — loaded ONLY when VITE_SENTRY_DSN is set, as a separate chunk,
 // so the SDK never bloats the main bundle for users. Deferred to idle time
 // (short timeout so early errors are still caught quickly) so its ~160KB
