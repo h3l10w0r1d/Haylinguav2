@@ -1,0 +1,66 @@
+name: Streak Reminders
+
+# Three channels for the same "your streak is at risk" nudge, each its own
+# endpoint in backend/routes_cms.py: Telegram (/cron/send-reminders), mobile
+# push (/cron/send-push-reminders), and email (/cron/send-streak-emails).
+# None of these had a scheduler wired up anywhere in the repo before this
+# workflow — same gap league-rollover.yml fixed for league promotions.
+# (backend/routes.py also has an older /internal/cron/daily-reminder that
+# overlaps with send-streak-emails — same query shape, same
+# last_streak_email_at idempotency guard — left unscheduled here as the
+# legacy duplicate; wire it up instead of send-streak-emails if it's the
+# one actually meant to stay.)
+on:
+  schedule:
+    # 19:00 UTC — Telegram + push reminders, per their own docstrings.
+    - cron: "0 19 * * *"
+    # 20:00 UTC — streak-risk emails, an hour later per its own docstring.
+    - cron: "0 20 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  telegram-and-push:
+    if: github.event.schedule == '0 19 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram streak reminders
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+            "https://haylinguav2.onrender.com/cron/send-reminders" \
+            -H "X-Cron-Secret: $CRON_SECRET")
+          echo "HTTP $status"; cat /tmp/resp.json
+          if [ "$status" -ge 300 ]; then echo "::error::send-reminders failed with HTTP $status"; exit 1; fi
+
+      - name: Send mobile push streak reminders
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          status=$(curl -sS -o /tmp/resp2.json -w "%{http_code}" -X POST \
+            "https://haylinguav2.onrender.com/cron/send-push-reminders" \
+            -H "X-Cron-Secret: $CRON_SECRET")
+          echo "HTTP $status"; cat /tmp/resp2.json
+          if [ "$status" -ge 300 ]; then echo "::error::send-push-reminders failed with HTTP $status"; exit 1; fi
+
+  email:
+    if: github.event.schedule == '0 20 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send streak-risk emails
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+            "https://haylinguav2.onrender.com/cron/send-streak-emails" \
+            -H "X-Cron-Secret: $CRON_SECRET")
+          echo "HTTP $status"; cat /tmp/resp.json
+          if [ "$status" -ge 300 ]; then echo "::error::send-streak-emails failed with HTTP $status"; exit 1; fi

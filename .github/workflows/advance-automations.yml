@@ -1,0 +1,36 @@
+name: Advance Automations
+
+# Resumes CRM automation enrollments suspended on a Wait step, scans for
+# newly broken streaks, and scans segment-entry triggers — all folded into
+# one endpoint (backend/routes_automations.py's POST /cron/advance-automations,
+# see its own docstring). Without something calling this on a timer, every
+# "Wait N days" step in every campaign stays stuck forever. Modeled on
+# league-rollover.yml: a GitHub Actions schedule instead of a hand-configured
+# Render Cron Job, so there's nothing to forget to set up in a dashboard.
+on:
+  schedule:
+    # Every 15 minutes, per the endpoint's own "schedule every 15-30 min" note.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  advance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger automation advancement
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set (Settings > Secrets and variables > Actions). It must match the CRON_SECRET env var on the Render backend service."
+            exit 1
+          fi
+          status=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+            "https://haylinguav2.onrender.com/cron/advance-automations" \
+            -H "X-Cron-Secret: $CRON_SECRET")
+          echo "HTTP $status"
+          cat /tmp/resp.json
+          if [ "$status" -ge 300 ]; then
+            echo "::error::advance-automations request failed with HTTP $status"
+            exit 1
+          fi
