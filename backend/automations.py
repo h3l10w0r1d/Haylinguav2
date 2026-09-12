@@ -235,7 +235,7 @@ def _validate_steps(steps: list[dict], depth: int = 0) -> None:
 TRIGGER_TYPES = {"event", "segment"}
 
 
-def validate_campaign(trigger_type: str, trigger: dict, steps: list[dict]) -> None:
+def validate_campaign(trigger_type: str, trigger: dict, steps: list[dict], goal: Any = None) -> None:
     if trigger_type not in TRIGGER_TYPES:
         raise ValueError(f"Unknown trigger_type: {trigger_type}")
     if not isinstance(trigger, dict):
@@ -249,6 +249,8 @@ def validate_campaign(trigger_type: str, trigger: dict, steps: list[dict]) -> No
         # own filters already are that layer).
         if not trigger.get("segment_id"):
             raise ValueError("trigger.segment_id is required")
+    if goal is not None:
+        validate_filter_group(goal)
     _validate_steps(steps)
 
 
@@ -567,16 +569,41 @@ def _walk(db, steps, path_prefix, enrollment_id, user_id, context, budget, state
 
 def advance_enrollment(db: Connection, enrollment: dict) -> None:
     campaign = db.execute(
-        text("SELECT id, status, steps FROM automation_campaigns WHERE id = :id"),
+        text("SELECT id, status, steps, goal FROM automation_campaigns WHERE id = :id"),
         {"id": enrollment["campaign_id"]},
     ).mappings().first()
     if not campaign or campaign["status"] != "active":
         return  # paused/archived mid-flight — simply stop advancing, per the plan
 
-    steps = campaign["steps"] if isinstance(campaign["steps"], list) else json.loads(campaign["steps"])
     context = enrollment["context"] if isinstance(enrollment["context"], dict) else json.loads(enrollment["context"] or "{}")
     user_id = enrollment["user_id"]
     enrollment_id = enrollment["id"]
+
+    # Goal / exit condition — checked before every walk (both the initial
+    # enroll-moment call and every cron-resume call converge here), so a
+    # user who's already satisfied the goal is pulled out immediately
+    # instead of continuing to receive the rest of the journey. An empty/
+    # absent goal must never match — unlike a `when` filter's normal
+    # "empty group matches everything" behavior (evaluate_when), which
+    # here would instantly exit every single enrollment.
+    goal = campaign["goal"] if isinstance(campaign["goal"], (dict, list)) else (json.loads(campaign["goal"]) if campaign["goal"] else None)
+    if goal and _rules_of(goal):
+        try:
+            if evaluate_when(db, user_id, context, goal):
+                db.execute(
+                    text("""
+                        UPDATE automation_enrollments
+                        SET status = 'exited', completed_at = NOW(), waiting_step_path = NULL,
+                            context = COALESCE(context, '{}'::jsonb) || '{"exit_reason":"goal_met"}'::jsonb
+                        WHERE id = :id
+                    """),
+                    {"id": enrollment_id},
+                )
+                return
+        except ValueError:
+            pass  # malformed goal on an already-saved campaign — fall through to a normal walk rather than block advancement
+
+    steps = campaign["steps"] if isinstance(campaign["steps"], list) else json.loads(campaign["steps"])
     resume_target = enrollment.get("waiting_step_path")
 
     budget = [MAX_STEPS_PER_ADVANCE]

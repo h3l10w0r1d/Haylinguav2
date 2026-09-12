@@ -12,7 +12,7 @@ import FilterRuleBuilder from "./FilterRuleBuilder";
 import JourneyCanvas from "./journey/JourneyCanvas";
 import { EVENT_TYPES } from "./CmsAutomations";
 import {
-  Badge, Button, DataTable, Field, FieldRow, Input, Note, Pagination, SectionCard,
+  Badge, Button, Checkbox, DataTable, Field, FieldRow, Input, Note, Pagination, SectionCard,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tabs, TabsList, TabsTrigger,
   useConfirm, notify, useListQuery,
 } from "./ui";
@@ -41,6 +41,8 @@ export default function AutomationEditor() {
   const [filters, setFilters] = useState({ op: "and", rules: [] });
   const [segmentId, setSegmentId] = useState("");
   const [reenrollPolicy, setReenrollPolicy] = useState("skip");
+  const [goalEnabled, setGoalEnabled] = useState(false);
+  const [goal, setGoal] = useState({ op: "and", rules: [] });
   const [steps, setSteps] = useState([]);
   const [loadedSteps, setLoadedSteps] = useState([]);
 
@@ -68,6 +70,10 @@ export default function AutomationEditor() {
         setFilters(c.trigger_config?.filters || { op: "and", rules: [] });
         setSegmentId(c.trigger_config?.segment_id ? String(c.trigger_config.segment_id) : "");
         setReenrollPolicy(c.reenrollment_policy || "skip");
+        const loadedGoal = c.goal && (Array.isArray(c.goal) ? c.goal : c.goal.rules) ? c.goal : { op: "and", rules: [] };
+        const hasGoalRules = Array.isArray(loadedGoal) ? loadedGoal.length > 0 : (loadedGoal.rules || []).length > 0;
+        setGoalEnabled(hasGoalRules);
+        setGoal(Array.isArray(loadedGoal) ? { op: "and", rules: loadedGoal } : loadedGoal);
         const loaded = Array.isArray(c.steps) ? c.steps : [];
         setSteps(loaded);
         setLoadedSteps(loaded);
@@ -109,6 +115,7 @@ export default function AutomationEditor() {
         trigger_config: triggerType === "segment" ? { segment_id: Number(segmentId) } : { event_type: eventType, filters },
         steps,
         reenrollment_policy: reenrollPolicy,
+        goal: goalEnabled && goal.rules?.length > 0 ? goal : null,
       });
       setLoadedSteps(steps);
       notify("Saved");
@@ -283,6 +290,21 @@ export default function AutomationEditor() {
                   </SelectContent>
                 </Select>
               </Field>
+            </div>
+
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <label className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">
+                <Checkbox checked={goalEnabled} onCheckedChange={(v) => setGoalEnabled(!!v)} disabled={!canEdit} />
+                Exit early when a goal is met
+              </label>
+              {goalEnabled && (
+                <div className="mt-2">
+                  <p className="mb-1.5 text-xs font-semibold text-slate-400">
+                    Once any enrolled learner matches these, they're pulled out of the rest of this journey immediately — no more waits or sends.
+                  </p>
+                  <FilterRuleBuilder group={goal} onChange={setGoal} segments={segments} />
+                </div>
+              )}
             </div>
           </SectionCard>
 

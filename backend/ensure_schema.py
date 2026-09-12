@@ -1761,6 +1761,10 @@ def ensure_schema() -> None:
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_automation_campaigns_status ON automation_campaigns (status)"
         ))
+        # Goal / exit condition — a filter-group (same shape as trigger
+        # filters), checked against a user's current state on every
+        # advance_enrollment call; nullable, absent means no early exit.
+        add_col_if_missing("automation_campaigns", "goal JSONB")
 
         # Per-user execution state — needed to resume a campaign after a wait
         # step (see advance_enrollment in automations.py).

@@ -50,6 +50,7 @@ class CampaignIn(BaseModel):
     trigger_config: dict
     steps: list = []
     reenrollment_policy: str = "skip"
+    goal: Any = None
 
 
 class SegmentIn(BaseModel):
@@ -66,7 +67,7 @@ def _validate_campaign_payload(payload: CampaignIn) -> None:
     if payload.reenrollment_policy not in ("skip", "allow"):
         raise HTTPException(status_code=400, detail="Invalid reenrollment_policy")
     try:
-        automations.validate_campaign(payload.trigger_type, payload.trigger_config, payload.steps)
+        automations.validate_campaign(payload.trigger_type, payload.trigger_config, payload.steps, payload.goal)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -106,14 +107,15 @@ def create_automation(payload: CampaignIn, cms_user: dict = Depends(require_crm_
     _validate_campaign_payload(payload)
     row = db.execute(
         text("""
-            INSERT INTO automation_campaigns (name, status, trigger_type, trigger_config, steps, reenrollment_policy, created_by)
-            VALUES (:name, :status, :trigger_type, :trigger_config, :steps, :policy, :created_by)
+            INSERT INTO automation_campaigns (name, status, trigger_type, trigger_config, steps, reenrollment_policy, goal, created_by)
+            VALUES (:name, :status, :trigger_type, :trigger_config, :steps, :policy, :goal, :created_by)
             RETURNING id
         """),
         {
             "name": payload.name, "status": payload.status, "trigger_type": payload.trigger_type,
             "trigger_config": json.dumps(payload.trigger_config), "steps": json.dumps(payload.steps),
-            "policy": payload.reenrollment_policy, "created_by": cms_user.get("email"),
+            "policy": payload.reenrollment_policy, "goal": json.dumps(payload.goal) if payload.goal else None,
+            "created_by": cms_user.get("email"),
         },
     ).mappings().first()
     return {"ok": True, "id": row["id"]}
@@ -137,13 +139,13 @@ def update_automation(campaign_id: int, payload: CampaignIn, cms_user: dict = De
         text("""
             UPDATE automation_campaigns
             SET name = :name, status = :status, trigger_type = :trigger_type, trigger_config = :trigger_config,
-                steps = :steps, reenrollment_policy = :policy, updated_at = NOW()
+                steps = :steps, reenrollment_policy = :policy, goal = :goal, updated_at = NOW()
             WHERE id = :id
         """),
         {
             "id": campaign_id, "name": payload.name, "status": payload.status, "trigger_type": payload.trigger_type,
             "trigger_config": json.dumps(payload.trigger_config), "steps": json.dumps(payload.steps),
-            "policy": payload.reenrollment_policy,
+            "policy": payload.reenrollment_policy, "goal": json.dumps(payload.goal) if payload.goal else None,
         },
     )
     return {"ok": True}
