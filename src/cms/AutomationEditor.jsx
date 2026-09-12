@@ -110,7 +110,7 @@ export default function AutomationEditor() {
       });
       if (!ok) return;
     }
-    if (triggerType === "segment" && !segmentId) {
+    if ((triggerType === "segment" || triggerType === "manual") && !segmentId) {
       notify("Choose a segment for this trigger", "err");
       return;
     }
@@ -120,9 +120,9 @@ export default function AutomationEditor() {
         name: name.trim() || "Untitled campaign",
         status,
         trigger_type: triggerType,
-        trigger_config: triggerType === "segment" ? { segment_id: Number(segmentId) } : { event_type: eventType, filters },
+        trigger_config: triggerType === "event" ? { event_type: eventType, filters } : { segment_id: Number(segmentId) },
         steps,
-        reenrollment_policy: reenrollPolicy,
+        reenrollment_policy: triggerType === "manual" ? "skip" : reenrollPolicy,
         goal: goalEnabled && goal.rules?.length > 0 ? goal : null,
       });
       setLoadedSteps(steps);
@@ -203,9 +203,39 @@ export default function AutomationEditor() {
     }
   }
 
-  const triggerLabel = triggerType === "segment"
-    ? `Segment: ${segments.find((s) => String(s.id) === segmentId)?.name || "choose one"}`
-    : EVENT_TYPES.find((e) => e.value === eventType)?.label || eventType;
+  async function sendNow() {
+    const segName = segments.find((s) => String(s.id) === segmentId)?.name || "this segment";
+    let count = null;
+    try {
+      const preview = await api.previewSegmentCount(Number(segmentId));
+      count = preview?.count;
+    } catch {
+      // preview is best-effort — still let the confirm dialog show without a count
+    }
+    const ok = await confirm({
+      title: `Send "${name || "this campaign"}" now?`,
+      description: count != null
+        ? `This emails ${count} learner${count === 1 ? "" : "s"} currently matching "${segName}", right now. This can't be undone, and the campaign archives afterward.`
+        : `This sends to everyone currently matching "${segName}", right now. This can't be undone, and the campaign archives afterward.`,
+      confirmText: "Send now",
+      destructive: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const res = await api.sendNowAutomation(id);
+      notify(`Sent to ${res?.sent ?? 0} learner${res?.sent === 1 ? "" : "s"}`);
+      setStatus("archived");
+    } catch (err) {
+      notify(err.message || "Send failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const triggerLabel = triggerType === "event"
+    ? EVENT_TYPES.find((e) => e.value === eventType)?.label || eventType
+    : `Segment: ${segments.find((s) => String(s.id) === segmentId)?.name || "choose one"}`;
 
   if (loading) {
     return (
@@ -270,10 +300,11 @@ export default function AutomationEditor() {
               <TabsList>
                 <TabsTrigger value="event" disabled={!canEdit}>When something happens</TabsTrigger>
                 <TabsTrigger value="segment" disabled={!canEdit}>When someone enters a segment</TabsTrigger>
+                <TabsTrigger value="manual" disabled={!canEdit}>Send once, right now</TabsTrigger>
               </TabsList>
             </Tabs>
 
-            {triggerType === "event" ? (
+            {triggerType === "event" && (
               <>
                 <Field label="When this happens" className="mt-4">
                   <Select value={eventType} onValueChange={setEventType} disabled={!canEdit}>
@@ -287,7 +318,9 @@ export default function AutomationEditor() {
                   <FilterRuleBuilder group={filters} onChange={setFilters} segments={segments} />
                 </div>
               </>
-            ) : (
+            )}
+
+            {(triggerType === "segment" || triggerType === "manual") && (
               <div className="mt-4">
                 <Field label="Segment">
                   <Select value={segmentId} onValueChange={setSegmentId} disabled={!canEdit}>
@@ -300,22 +333,26 @@ export default function AutomationEditor() {
                   </Select>
                 </Field>
                 <p className="mt-2 text-xs font-semibold text-slate-400">
-                  Runs for anyone who newly matches this segment's own filters — checked periodically (every 15-30 min), not instantly. No separate audience filter here; the segment's filters already are the condition.
+                  {triggerType === "segment"
+                    ? "Runs for anyone who newly matches this segment's own filters — checked periodically (every 15-30 min), not instantly. No separate audience filter here; the segment's filters already are the condition."
+                    : "Sends once, to everyone currently matching this segment, when you click \"Send now\" below — not automatic, and not repeated. The campaign archives itself right after."}
                 </p>
               </div>
             )}
 
-            <div className="mt-4">
-              <Field label="If a user triggers this again while already enrolled">
-                <Select value={reenrollPolicy} onValueChange={setReenrollPolicy} disabled={!canEdit}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="skip">Skip — wait for the current run to finish</SelectItem>
-                    <SelectItem value="allow">Allow — start a new run alongside it</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+            {triggerType !== "manual" && (
+              <div className="mt-4">
+                <Field label="If a user triggers this again while already enrolled">
+                  <Select value={reenrollPolicy} onValueChange={setReenrollPolicy} disabled={!canEdit}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="skip">Skip — wait for the current run to finish</SelectItem>
+                      <SelectItem value="allow">Allow — start a new run alongside it</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            )}
 
             <div className="mt-4 border-t border-slate-100 pt-4">
               <label className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">
@@ -340,6 +377,17 @@ export default function AutomationEditor() {
           >
             <JourneyCanvas steps={steps} onChange={setSteps} segments={segments} readOnly={!canEdit} triggerLabel={triggerLabel} stepStats={stepStats} />
           </SectionCard>
+
+          {canEdit && triggerType === "manual" && (
+            <SectionCard
+              title="Send now"
+              description={status === "archived" ? "This one-time send already went out — it can't be sent again." : "Emails everyone currently matching the segment above, right now. Can't be undone."}
+            >
+              <Button onClick={sendNow} disabled={busy || status !== "active" || !segmentId} className="bg-cardinal-500 hover:bg-cardinal-600">
+                <PlayCircle className="h-4 w-4" /> Send now
+              </Button>
+            </SectionCard>
+          )}
 
           {canEdit && (
             <SectionCard title="Test run" description="Runs this campaign's steps against a real user right now, bypassing trigger filters and re-enrollment — for QA only.">

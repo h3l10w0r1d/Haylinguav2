@@ -177,7 +177,14 @@ def user_in_segment(db: Connection, user_id: int, segment_id: int) -> bool:
     row = db.execute(text("SELECT filters FROM automation_segments WHERE id = :id"), {"id": segment_id}).mappings().first()
     if not row:
         return False
-    filters = row["filters"] if isinstance(row["filters"], list) else json.loads(row["filters"] or "[]")
+    # A segment's filters are either the legacy bare-list shape or the
+    # canonical {op, rules} dict (see evaluate_when's docstring) — both
+    # come back from JSONB already parsed as a Python list/dict, never a
+    # string, so json.loads should only run on the (shouldn't-happen)
+    # string fallback. Previously only checked `isinstance(..., list)`,
+    # so any segment saved with the canonical dict shape crashed here with
+    # a TypeError the moment anything tried to evaluate it.
+    filters = row["filters"] if isinstance(row["filters"], (list, dict)) else json.loads(row["filters"] or "[]")
     return evaluate_when(db, user_id, {}, filters)
 
 
@@ -236,7 +243,7 @@ def _validate_steps(steps: list[dict], depth: int = 0) -> None:
             raise ValueError(f"Unknown step type: {t}")
 
 
-TRIGGER_TYPES = {"event", "segment"}
+TRIGGER_TYPES = {"event", "segment", "manual"}
 
 
 def validate_campaign(trigger_type: str, trigger: dict, steps: list[dict], goal: Any = None) -> None:
@@ -248,9 +255,16 @@ def validate_campaign(trigger_type: str, trigger: dict, steps: list[dict], goal:
         if not trigger.get("event_type"):
             raise ValueError("trigger.event_type is required")
         validate_filter_group(trigger.get("filters"))
-    else:  # segment — a user's presence in the segment IS the condition,
-        # there's no separate "only if" filter layered on top (the segment's
-        # own filters already are that layer).
+    elif trigger_type in ("segment", "manual"):
+        # Both target a segment — "segment" auto-enrolls continuously on
+        # membership entry (check_segment_triggers), "manual" is a one-off
+        # "Send now" blast (routes_automations.py's send_now endpoint) —
+        # same audience-targeting shape, no separate "only if" filter
+        # layered on top (the segment's own filters already are that
+        # layer). check_and_enroll/check_segment_triggers each filter by
+        # an exact trigger_type string, so a 'manual' campaign is inert to
+        # both — send_now is the only path that can ever enroll anyone
+        # into one.
         if not trigger.get("segment_id"):
             raise ValueError("trigger.segment_id is required")
     if goal is not None:

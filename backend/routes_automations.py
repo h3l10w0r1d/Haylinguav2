@@ -303,6 +303,59 @@ def test_run_automation(campaign_id: int, payload: TestRunIn, cms_user: dict = D
     return {"ok": True}
 
 
+@router.post("/cms/automations/{campaign_id}/send-now")
+def send_now(campaign_id: int, cms_user: dict = Depends(require_crm_editor), db: Connection = Depends(get_db)):
+    """One-off broadcast — enrolls everyone CURRENTLY matching the
+    campaign's segment, once, right now. Unlike a 'segment' trigger (cron-
+    detected entry, stays live forever), this fires exactly once on click
+    and then archives the campaign so a second click can't double-send.
+    "Ever had an enrollment row" (not reenrollment_policy, which only
+    blocks *concurrent* active/waiting runs) is the dedupe key — a blast
+    has no concept of re-triggering."""
+    campaign = db.execute(
+        text("SELECT id, trigger_type, trigger_config, status FROM automation_campaigns WHERE id = :id"),
+        {"id": campaign_id},
+    ).mappings().first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign["trigger_type"] != "manual":
+        raise HTTPException(status_code=400, detail="Only one-time-send campaigns can be sent now")
+    if campaign["status"] != "active":
+        raise HTTPException(status_code=400, detail="Campaign must be active to send")
+    trigger_config = campaign["trigger_config"] if isinstance(campaign["trigger_config"], dict) else json.loads(campaign["trigger_config"])
+    segment_id = trigger_config.get("segment_id")
+    if not segment_id:
+        raise HTTPException(status_code=400, detail="Campaign has no segment configured")
+
+    user_ids = [r[0] for r in db.execute(text("SELECT id FROM users")).all()]
+    sent = 0
+    for uid in user_ids:
+        already = db.execute(
+            text("SELECT 1 FROM automation_enrollments WHERE campaign_id = :c AND user_id = :u LIMIT 1"),
+            {"c": campaign_id, "u": uid},
+        ).first()
+        if already:
+            continue
+        try:
+            if not automations.user_in_segment(db, uid, segment_id):
+                continue
+        except ValueError:
+            continue
+        enrollment = db.execute(
+            text("""
+                INSERT INTO automation_enrollments (campaign_id, user_id, status, current_step_index, context)
+                VALUES (:c, :u, 'active', 0, '{}'::jsonb)
+                RETURNING id, campaign_id, user_id, status, current_step_index, resume_at, context, waiting_step_path
+            """),
+            {"c": campaign_id, "u": uid},
+        ).mappings().first()
+        automations.advance_enrollment(db, dict(enrollment))
+        sent += 1
+
+    db.execute(text("UPDATE automation_campaigns SET status = 'archived', updated_at = NOW() WHERE id = :id"), {"id": campaign_id})
+    return {"ok": True, "sent": sent}
+
+
 @router.get("/cms/automations/{campaign_id}/step-stats")
 def automation_step_stats(campaign_id: int, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
     """Per-node canvas counts. Keyed by the ENGINE's own dotted-path scheme

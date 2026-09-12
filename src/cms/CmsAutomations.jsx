@@ -134,7 +134,7 @@ export default function CmsAutomations() {
             <Badge variant={STATUS_VARIANT[c.status]} className="capitalize">{c.status}</Badge>
           </div>
           <div className="mt-0.5 text-xs font-semibold text-slate-400">
-            Trigger: {c.trigger_type === "segment" ? "Segment entry" : EVENT_TYPES.find((e) => e.value === c.trigger_config?.event_type)?.label || c.trigger_config?.event_type || "—"}
+            Trigger: {c.trigger_type === "segment" ? "Segment entry" : c.trigger_type === "manual" ? "One-time send" : EVENT_TYPES.find((e) => e.value === c.trigger_config?.event_type)?.label || c.trigger_config?.event_type || "—"}
           </div>
         </div>
       ),
