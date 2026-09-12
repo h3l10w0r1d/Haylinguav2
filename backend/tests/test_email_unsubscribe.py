@@ -130,3 +130,22 @@ def test_brevo_payload_includes_headers(monkeypatch):
     assert res["ok"] is True
     assert captured["payload"]["headers"] == {"List-Unsubscribe": "<https://example.test/unsub>"}
     print("OK — send_transactional_email_result forwards headers into the Brevo payload")
+
+
+def test_action_send_email_records_failed_when_nothing_actually_sends(db_conn, make_user, monkeypatch):
+    """_send_email returns False when no Brevo/SMTP is configured — it just
+    logs to the server console. That return value used to be discarded, so
+    automations.execute_action's default status="sent" stood even though
+    nothing was ever delivered (the real bug behind "the log says sent but
+    I never got the email"). Confirms it's now correctly raised/recorded
+    as failed instead."""
+    import routes
+    monkeypatch.setattr(routes, "_send_email", lambda **kw: False)
+
+    user_id, _ = make_user()
+    try:
+        automations._action_send_email(db_conn, user_id, {"subject": "hi", "body": "test"})
+        assert False, "expected a RuntimeError when _send_email returns False"
+    except RuntimeError as e:
+        assert "not actually sent" in str(e)
+    print("OK — _action_send_email raises when _send_email reports it didn't actually send")

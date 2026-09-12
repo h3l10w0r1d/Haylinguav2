@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { createCmsApi, getCmsClaim, getCmsToken } from "./api";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, RotateCcw, Save } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import CampaignWizard from "./journey/CampaignWizard";
 import CampaignAnalytics from "./journey/CampaignAnalytics";
@@ -213,6 +213,27 @@ export default function AutomationEditor() {
     }
   }
 
+  async function resendUser(userId, userLabel) {
+    const ok = await confirm({
+      title: `Restart this campaign for ${userLabel || `user #${userId}`}?`,
+      description: "Re-enrolls them from the very first step, right now — bypassing trigger filters and re-enrollment rules, same as Test run. Any real emails/pushes in the step graph will actually send again.",
+      confirmText: "Resend",
+      destructive: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await api.testRunAutomation(id, userId, true);
+      notify(`Restarted for ${userLabel || `user #${userId}`}`);
+      if (tab === "enrollments") refreshEnrollments();
+      if (tab === "sends") refreshSends();
+    } catch (err) {
+      notify(err.message || "Resend failed", "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function sendNow() {
     const segName = segments.find((s) => String(s.id) === segmentId)?.name || "this segment";
     let count = null;
@@ -332,6 +353,9 @@ export default function AutomationEditor() {
             loading={enrollLoading}
             onRetry={refreshEnrollments}
             emptyState={<div className="p-6 text-center text-sm font-semibold text-slate-500">No enrollments match.</div>}
+            rowActions={canEdit ? (e) => [
+              { label: "Resend", icon: RotateCcw, onSelect: () => resendUser(e.user_id, e.user_name || e.email) },
+            ] : undefined}
           />
           <Pagination page={enrollList.page} pageSize={enrollList.pageSize} total={enrollTotal} onPageChange={(p) => enrollList.set({ page: p })} onPageSizeChange={(pageSize) => enrollList.set({ pageSize })} className="mt-4" />
         </SectionCard>
@@ -360,6 +384,9 @@ export default function AutomationEditor() {
             loading={sendLoading}
             onRetry={refreshSends}
             emptyState={<div className="p-6 text-center text-sm font-semibold text-slate-500">Nothing matches.</div>}
+            rowActions={canEdit ? (s) => [
+              { label: "Resend", icon: RotateCcw, onSelect: () => resendUser(s.user_id, s.user_name || s.email) },
+            ] : undefined}
           />
           <Pagination page={sendList.page} pageSize={sendList.pageSize} total={sendTotal} onPageChange={(p) => sendList.set({ page: p })} onPageSizeChange={(pageSize) => sendList.set({ pageSize })} className="mt-4" />
         </SectionCard>

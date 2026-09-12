@@ -780,7 +780,16 @@ def _action_send_email(db: Connection, user_id: int, params: dict, tracking_toke
     html_body = _render_template(params.get("html_body"), variables)
     if html_body and tracking_token:
         html_body = _inject_tracking(html_body, tracking_token)
-    _send_email(to_email=variables["email"], subject=subject, body=body, html_body=html_body, unsubscribe_user_id=user_id)
+    # _send_email returns False when nothing is actually configured to send
+    # through (no Brevo key, no SMTP) — it just logs to the server console
+    # in that case. That return value was previously discarded here, so
+    # execute_action's default status="sent" stood even when nothing was
+    # ever delivered — a real, misleading gap: the send log said "sent"
+    # for an email that only ever reached a Render console log. Raise so
+    # it's correctly recorded as a failure instead.
+    ok = _send_email(to_email=variables["email"], subject=subject, body=body, html_body=html_body, unsubscribe_user_id=user_id)
+    if not ok:
+        raise RuntimeError("email not actually sent — no Brevo/SMTP configured or provider call failed (check /cms/team's email delivery panel)")
 
 
 def _action_send_push(db: Connection, user_id: int, params: dict) -> None:
