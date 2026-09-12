@@ -53,6 +53,7 @@ from routes import (
     _client_ip,
     _check_rate_limit,
     _totp_verify_no_replay,
+    _qr_png_data_url,
     CMS_INVITE_TTL_HOURS,
     CMS_INVITE_BASE_URL,
     CMS_BOOTSTRAP_EMAIL,
@@ -1683,7 +1684,13 @@ def cms_2fa_setup(_: dict = Depends(require_cms_temp), db=Depends(get_db), autho
     email = db.execute(text("SELECT email FROM cms_users WHERE id=:id"), {"id": cms_user_id}).scalar()
     issuer = "Haylingua CMS"
     otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
-    return {"otpauth_url": otp_uri, "secret": secret, "issuer": issuer, "account": email}
+    return {
+        "otpauth_url": otp_uri,
+        "secret": secret,
+        "qr_data_url": _qr_png_data_url(otp_uri),
+        "issuer": issuer,
+        "account": email,
+    }
 
 @router.post("/cms/2fa/confirm")
 def cms_2fa_confirm(payload: Dict[str, Any] = Body(...), u: dict = Depends(require_cms_temp), db=Depends(get_db), authorization: Optional[str] = Header(None)):
