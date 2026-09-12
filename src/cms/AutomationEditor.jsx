@@ -102,6 +102,27 @@ export default function AutomationEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token]);
 
+  // Autosave — draft campaigns only. Without this, anything built in the
+  // wizard (steps dragged onto the canvas, trigger config, filters) only
+  // ever reached the backend on an explicit Save click or a wizard
+  // "Continue" (which silently saves). A refresh in between lost
+  // everything, because it was never persisted — not actually deleted,
+  // just never saved in the first place. Scoped to draft campaigns only:
+  // an active campaign's step graph is deliberately NOT autosaved, since
+  // save()'s own confirm-dialog guard below exists precisely to warn
+  // before silently changing steps under learners mid-journey — autosave
+  // would bypass that protection every time.
+  useEffect(() => {
+    if (loading || !canEdit || status !== "draft") return;
+    // Nothing meaningful to persist yet for a segment/manual trigger —
+    // skip rather than let save() fire its "choose a segment" error
+    // toast on every keystroke while the campaign is still being set up.
+    if ((triggerType === "segment" || triggerType === "manual") && !segmentId) return;
+    const t = setTimeout(() => { save({ silent: true }); }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, canEdit, status, name, triggerType, eventType, filters, segmentId, reenrollPolicy, goalEnabled, goal, steps]);
+
   async function save({ silent = false } = {}) {
     // Reordering/inserting ahead of an in-flight enrollment's
     // waiting_step_path can desync its resume point or double/skip a send
