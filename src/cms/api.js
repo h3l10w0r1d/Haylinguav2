@@ -382,6 +382,8 @@ export function createCmsApi(accessToken) {
     req(`/cms/automations/${id}/sends?page=${page}&page_size=${pageSize}${status ? `&status=${encodeURIComponent(status)}` : ""}`);
   const testRunAutomation = (id, userId, force = false) =>
     req(`/cms/automations/${id}/test-run`, { method: "POST", body: JSON.stringify({ user_id: userId, force }) });
+  const getAutomationStepStats = (id) => req(`/cms/automations/${id}/step-stats`);
+  const getAutomationAnalytics = (id) => req(`/cms/automations/${id}/analytics`);
   const listSegments = () => req("/cms/segments");
   const getSegment = (id) => req(`/cms/segments/${id}`);
   const createSegment = (payload) => req("/cms/segments", { method: "POST", body: JSON.stringify(payload) });
@@ -510,6 +512,8 @@ export function createCmsApi(accessToken) {
     listAutomationEnrollments,
     listAutomationSends,
     testRunAutomation,
+    getAutomationStepStats,
+    getAutomationAnalytics,
     listSegments,
     getSegment,
     createSegment,

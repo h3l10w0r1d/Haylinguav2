@@ -18,7 +18,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import re
+import secrets
 from typing import Any, Optional
+from urllib.parse import quote
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -636,10 +640,14 @@ def execute_action(db: Connection, enrollment_id: int, user_id: int, step_path: 
     params = step.get("params") or {}
     status = "sent"
     detail = dict(params)
+    # Generated regardless of whether the email actually ends up trackable
+    # (needs an html_body) — cheap, and keeps the token-vs-no-token branch
+    # entirely inside _action_send_email rather than duplicated here.
+    tracking_token = secrets.token_urlsafe(16) if action == "send_email" else None
 
     try:
         if action == "send_email":
-            _action_send_email(db, user_id, params)
+            _action_send_email(db, user_id, params, tracking_token=tracking_token)
         elif action == "send_push":
             _action_send_push(db, user_id, params)
         elif action == "send_web_push":
@@ -656,10 +664,10 @@ def execute_action(db: Connection, enrollment_id: int, user_id: int, step_path: 
 
     db.execute(
         text("""
-            INSERT INTO automation_sends (campaign_id, enrollment_id, user_id, step_index, action_type, status, detail)
-            SELECT campaign_id, :e, :u, :i, :at, :s, :d FROM automation_enrollments WHERE id = :e
+            INSERT INTO automation_sends (campaign_id, enrollment_id, user_id, step_index, action_type, status, detail, tracking_token)
+            SELECT campaign_id, :e, :u, :i, :at, :s, :d, :tk FROM automation_enrollments WHERE id = :e
         """),
-        {"e": enrollment_id, "u": user_id, "i": step_path, "at": action, "s": status, "d": json.dumps(detail)},
+        {"e": enrollment_id, "u": user_id, "i": step_path, "at": action, "s": status, "d": json.dumps(detail), "tk": tracking_token},
     )
 
 
@@ -674,7 +682,28 @@ def _render_template(value: Optional[str], variables: dict) -> Optional[str]:
     return out
 
 
-def _action_send_email(db: Connection, user_id: int, params: dict) -> None:
+def _tracking_base_url() -> str:
+    return (os.getenv("PUBLIC_API_BASE_URL") or "https://haylinguav2.onrender.com/api").rstrip("/")
+
+
+def _inject_tracking(html_body: str, tracking_token: str) -> str:
+    """Rewrites every http(s) link to route through our own click-tracking
+    redirect, and appends an invisible open-tracking pixel. Only ever
+    called with the LOCAL variable that's about to be emailed — the
+    campaign's saved params["html_body"] is never touched, so re-editing
+    the step later still shows the original authored HTML."""
+    base = _tracking_base_url()
+
+    def _rewrite(m: "re.Match") -> str:
+        url = m.group(1)
+        return f'href="{base}/t/c/{tracking_token}?u={quote(url, safe="")}"'
+
+    rewritten = re.sub(r'href="(https?://[^"]+)"', _rewrite, html_body)
+    pixel = f'<img src="{base}/t/o/{tracking_token}.png" width="1" height="1" style="display:none" alt="" />'
+    return rewritten + pixel
+
+
+def _action_send_email(db: Connection, user_id: int, params: dict, tracking_token: Optional[str] = None) -> None:
     from routes import _send_email  # lazy import — mirrors the existing brevo lazy-import style in routes.py, avoids a circular import since routes.py imports this module
 
     row = db.execute(
@@ -693,6 +722,8 @@ def _action_send_email(db: Connection, user_id: int, params: dict) -> None:
     subject = _render_template(params.get("subject") or "Haylingua", variables)
     body = _render_template(params.get("body") or "", variables)
     html_body = _render_template(params.get("html_body"), variables)
+    if html_body and tracking_token:
+        html_body = _inject_tracking(html_body, tracking_token)
     _send_email(to_email=row["email"], subject=subject, body=body, html_body=html_body)
 
 

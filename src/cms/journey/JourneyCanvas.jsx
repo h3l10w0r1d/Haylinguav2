@@ -32,7 +32,7 @@ import { notify } from "../ui";
 
 const NODE_TYPES = { trigger: TriggerNode, wait: WaitNode, condition: ConditionNode, split: SplitNode, action: ActionNode, add: AddStepNode };
 
-export default function JourneyCanvas({ steps, onChange, segments, readOnly = false, triggerLabel }) {
+export default function JourneyCanvas({ steps, onChange, segments, readOnly = false, triggerLabel, stepStats = null }) {
   const [selectedPath, setSelectedPath] = useState(null);
   const [activeDrag, setActiveDrag] = useState(null); // { kind } | { stepPath }
 
@@ -90,6 +90,7 @@ export default function JourneyCanvas({ steps, onChange, segments, readOnly = fa
   const contextValue = useMemo(() => ({
     readOnly,
     triggerLabel: triggerLabel || "—",
+    stepStats,
     onOpenStep,
     onOpenTrigger,
     onRemoveStep,
@@ -101,7 +102,7 @@ export default function JourneyCanvas({ steps, onChange, segments, readOnly = fa
     onNormalizeSplitWeights,
     onInsertStep,
   }), [
-    readOnly, triggerLabel, onOpenStep, onOpenTrigger, onRemoveStep, onAddBranch, onRemoveBranchCb,
+    readOnly, triggerLabel, stepStats, onOpenStep, onOpenTrigger, onRemoveStep, onAddBranch, onRemoveBranchCb,
     onAddSplitBranch, onRemoveSplitBranch, onUpdateSplitBranchWeight, onNormalizeSplitWeights, onInsertStep,
   ]);
 

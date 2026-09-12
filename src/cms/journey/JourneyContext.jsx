@@ -6,6 +6,7 @@ import { createContext, useContext } from "react";
 
 const JourneyContext = createContext({
   readOnly: false,
+  stepStats: null,
   onOpenStep: () => {},
   onAddBranch: () => {},
   onRemoveBranch: () => {},

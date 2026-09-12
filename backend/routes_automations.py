@@ -4,12 +4,15 @@
 # automations.py, this file is just the HTTP surface + request validation.
 from __future__ import annotations
 
+import base64
 import hmac
 import json
 import os
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -259,6 +262,66 @@ def test_run_automation(campaign_id: int, payload: TestRunIn, cms_user: dict = D
     return {"ok": True}
 
 
+@router.get("/cms/automations/{campaign_id}/step-stats")
+def automation_step_stats(campaign_id: int, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+    """Per-node canvas counts. Keyed by the ENGINE's own dotted-path scheme
+    (plain "."-joined indices, no branch-hop token) — the frontend's
+    graph.js node ids additionally encode branch hops (".bN") and must
+    translate via its toBackendPath() before looking a path up here.
+    Condition/split nodes get no entry — reach can't be attributed to them
+    without deeper engine instrumentation, a known v1 limitation, not a bug."""
+    reached = db.execute(
+        text("""
+            SELECT step_index,
+                   COUNT(*) AS reached,
+                   COUNT(*) FILTER (WHERE opened_at IS NOT NULL) AS opened,
+                   COUNT(*) FILTER (WHERE clicked_at IS NOT NULL) AS clicked
+            FROM automation_sends WHERE campaign_id = :c GROUP BY step_index
+        """),
+        {"c": campaign_id},
+    ).mappings().all()
+    waiting = db.execute(
+        text("""
+            SELECT waiting_step_path, COUNT(*) AS waiting_now
+            FROM automation_enrollments
+            WHERE campaign_id = :c AND status = 'waiting' AND waiting_step_path IS NOT NULL
+            GROUP BY waiting_step_path
+        """),
+        {"c": campaign_id},
+    ).mappings().all()
+    out: dict = {r["step_index"]: {"reached": r["reached"], "opened": r["opened"], "clicked": r["clicked"]} for r in reached}
+    for r in waiting:
+        out[r["waiting_step_path"]] = {"waiting_now": r["waiting_now"]}
+    return out
+
+
+@router.get("/cms/automations/{campaign_id}/analytics")
+def automation_analytics(campaign_id: int, cms_user: dict = Depends(require_cms_admin), db: Connection = Depends(get_db)):
+    enroll_stats = db.execute(
+        text("""
+            SELECT COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE status = 'active') AS active,
+                   COUNT(*) FILTER (WHERE status = 'waiting') AS waiting,
+                   COUNT(*) FILTER (WHERE status = 'completed') AS completed,
+                   COUNT(*) FILTER (WHERE status = 'exited' AND context->>'exit_reason' = 'goal_met') AS exited_goal_met,
+                   COUNT(*) FILTER (WHERE status = 'exited' AND (context->>'exit_reason' IS DISTINCT FROM 'goal_met')) AS exited_other,
+                   COUNT(*) FILTER (WHERE status = 'failed') AS failed
+            FROM automation_enrollments WHERE campaign_id = :c
+        """),
+        {"c": campaign_id},
+    ).mappings().first()
+    email_stats = db.execute(
+        text("""
+            SELECT COUNT(*) AS sent,
+                   COUNT(*) FILTER (WHERE opened_at IS NOT NULL) AS opened,
+                   COUNT(*) FILTER (WHERE clicked_at IS NOT NULL) AS clicked
+            FROM automation_sends WHERE campaign_id = :c AND action_type = 'send_email' AND status = 'sent'
+        """),
+        {"c": campaign_id},
+    ).mappings().first()
+    return {"enrollments": dict(enroll_stats), "email": dict(email_stats)}
+
+
 # ---------- Segments ----------
 
 @router.get("/cms/segments")
@@ -337,6 +400,45 @@ def preview_segment_count(segment_id: int, cms_user: dict = Depends(require_cms_
     user_ids = [r["id"] for r in db.execute(text("SELECT id FROM users")).mappings().all()]
     count = sum(1 for uid in user_ids if automations.evaluate_when(db, uid, {}, filters))
     return {"count": count, "total_users": len(user_ids)}
+
+
+# ---------- Open/click tracking ----------
+#
+# Public, unauthenticated by design — same shape as the only other
+# unauthenticated tracking endpoint in this codebase
+# (POST /affiliates/track-click, routes.py) — an email client fetching the
+# pixel or a learner clicking a link never has a CMS session to send.
+
+_TRACKING_PIXEL_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
+
+
+@router.get("/t/o/{token}.png")
+def track_automation_open(token: str, db: Connection = Depends(get_db)):
+    db.execute(
+        text("""
+            UPDATE automation_sends SET opened_at = COALESCE(opened_at, NOW()), open_count = open_count + 1
+            WHERE tracking_token = :t
+        """),
+        {"t": token},
+    )
+    return Response(content=_TRACKING_PIXEL_PNG, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+@router.get("/t/c/{token}")
+def track_automation_click(token: str, u: str = Query(...), db: Connection = Depends(get_db)):
+    parsed = urlparse(u)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Invalid redirect URL")
+    db.execute(
+        text("""
+            UPDATE automation_sends SET clicked_at = COALESCE(clicked_at, NOW()), click_count = click_count + 1
+            WHERE tracking_token = :t
+        """),
+        {"t": token},
+    )
+    return RedirectResponse(url=u, status_code=302)
 
 
 # ---------- Cron ----------

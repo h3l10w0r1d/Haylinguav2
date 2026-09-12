@@ -59,6 +59,15 @@ export function nodeKindOf(step) {
   return "action";
 }
 
+// backend/automations.py's own dotted paths (waiting_step_path,
+// automation_sends.step_index) are plain "."-joined integer indices —
+// they never encode branch hops. This canvas's node ids do (the ".bN"
+// token), so any lookup against backend-reported data (e.g. per-step
+// analytics) must strip those tokens first.
+export function toBackendPath(frontendPath) {
+  return String(frontendPath).split(".").filter((tok) => !tok.startsWith("b")).join(".");
+}
+
 function parsePathTokens(path) {
   if (path === "" || path == null) return [];
   return String(path).split(".");

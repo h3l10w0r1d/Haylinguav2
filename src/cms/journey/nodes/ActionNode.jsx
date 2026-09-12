@@ -1,7 +1,7 @@
 import { Mail, Bell, Globe, Send, Gift } from "lucide-react";
 import NodeShell from "./NodeShell";
 import { useJourney } from "../JourneyContext";
-import { ACTION_META, BONUS_KINDS } from "../graph";
+import { ACTION_META, BONUS_KINDS, toBackendPath } from "../graph";
 
 const ICONS = { send_email: Mail, send_push: Bell, send_web_push: Globe, send_brevo: Send, grant_bonus: Gift };
 const TONES = {
@@ -27,9 +27,22 @@ function summaryFor(step) {
   }
 }
 
+function statFor(step, stats) {
+  if (!stats) return null;
+  const { reached, opened, clicked } = stats;
+  if (!reached) return null;
+  if (step.action === "send_email") {
+    const openPct = Math.round(((opened || 0) / reached) * 100);
+    const clickPct = Math.round(((clicked || 0) / reached) * 100);
+    return `${reached} sent · ${openPct}% opened · ${clickPct}% clicked`;
+  }
+  return `${reached} sent`;
+}
+
 export default function ActionNode({ data }) {
-  const { onOpenStep, onRemoveStep } = useJourney();
+  const { onOpenStep, onRemoveStep, stepStats } = useJourney();
   const meta = ACTION_META[data.step.action];
+  const stats = stepStats?.[toBackendPath(data.path)];
   return (
     <NodeShell
       path={data.path}
@@ -37,6 +50,7 @@ export default function ActionNode({ data }) {
       tone={TONES[data.step.action] || "bg-slate-100 text-slate-500"}
       label={meta?.label || "Action"}
       summary={summaryFor(data.step)}
+      stat={statFor(data.step, stats)}
       onClick={() => onOpenStep(data.path)}
       onRemove={() => onRemoveStep(data.path)}
     />

@@ -1836,6 +1836,22 @@ def ensure_schema() -> None:
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_automation_sends_enrollment_step ON automation_sends (enrollment_id, step_index)"
         ))
 
+        # Open/click tracking — tracking_token is only ever populated for
+        # send_email actions (execute_action generates it via
+        # secrets.token_urlsafe, not the raw sequential id, so counts can't
+        # be trivially inflated by enumerating ids), and only when the
+        # email actually has an html_body to inject a pixel/rewrite links
+        # into. Partial index since most rows (every non-email action)
+        # never get a token.
+        add_col_if_missing("automation_sends", "tracking_token TEXT")
+        add_col_if_missing("automation_sends", "opened_at TIMESTAMPTZ")
+        add_col_if_missing("automation_sends", "open_count INTEGER NOT NULL DEFAULT 0")
+        add_col_if_missing("automation_sends", "clicked_at TIMESTAMPTZ")
+        add_col_if_missing("automation_sends", "click_count INTEGER NOT NULL DEFAULT 0")
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_automation_sends_tracking_token ON automation_sends (tracking_token) WHERE tracking_token IS NOT NULL"
+        ))
+
         # Segment-entry triggers (trigger_type='segment') have no discrete
         # "it just happened" moment the way an event does — membership is a
         # continuous state, only checked by the cron scan

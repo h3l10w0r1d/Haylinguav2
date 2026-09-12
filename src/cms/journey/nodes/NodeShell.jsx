@@ -25,7 +25,7 @@ const HANDLE_STYLE = { opacity: 0, width: 1, height: 1 };
 // drag (via the grip handle) is a separate, unrelated system.
 const NO_PANE_GESTURE = "nodrag nopan";
 
-export default function NodeShell({ path, icon: Icon, tone, label, summary, onClick, onRemove, width = 220 }) {
+export default function NodeShell({ path, icon: Icon, tone, label, summary, stat, onClick, onRemove, width = 220 }) {
   const { readOnly } = useJourney();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `step:${path}`,
@@ -48,6 +48,7 @@ export default function NodeShell({ path, icon: Icon, tone, label, summary, onCl
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">{label}</div>
           <div className="truncate text-xs font-bold text-slate-700">{summary}</div>
+          {stat && <div className="mt-0.5 truncate text-[10px] font-semibold text-brand-600">{stat}</div>}
         </div>
       </button>
       {!readOnly && (

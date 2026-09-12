@@ -10,6 +10,7 @@ import { ArrowLeft, PlayCircle, Save } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import FilterRuleBuilder from "./FilterRuleBuilder";
 import JourneyCanvas from "./journey/JourneyCanvas";
+import CampaignAnalytics from "./journey/CampaignAnalytics";
 import { EVENT_TYPES } from "./CmsAutomations";
 import {
   Badge, Button, Checkbox, DataTable, Field, FieldRow, Input, Note, Pagination, SectionCard,
@@ -58,11 +59,18 @@ export default function AutomationEditor() {
 
   const [testUserId, setTestUserId] = useState("");
 
+  const [stepStats, setStepStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        const [c, segRes] = await Promise.all([api.getAutomation(id), api.listSegments()]);
+        const [c, segRes, stepStatsRes] = await Promise.all([
+          api.getAutomation(id), api.listSegments(), api.getAutomationStepStats(id).catch(() => null),
+        ]);
+        setStepStats(stepStatsRes);
         setName(c.name || "");
         setStatus(c.status || "draft");
         setTriggerType(c.trigger_type === "segment" ? "segment" : "event");
@@ -151,6 +159,18 @@ export default function AutomationEditor() {
     }
   }
 
+  async function refreshAnalytics() {
+    setAnalyticsLoading(true);
+    try {
+      const d = await api.getAutomationAnalytics(id);
+      setAnalytics(d);
+    } catch (err) {
+      notify(err.message || "Failed to load analytics", "err");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (tab === "enrollments") refreshEnrollments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -159,6 +179,10 @@ export default function AutomationEditor() {
     if (tab === "sends") refreshSends();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, sendList.page, sendList.pageSize, sendList.get("status")]);
+  useEffect(() => {
+    if (tab === "analytics") refreshAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   async function testRun() {
     const uid = Number(testUserId);
@@ -219,6 +243,7 @@ export default function AutomationEditor() {
           <TabsTrigger value="edit">Edit</TabsTrigger>
           <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
           <TabsTrigger value="sends">Send log</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -313,7 +338,7 @@ export default function AutomationEditor() {
             description="Drag from the palette to add a step, drag a step onto a + to move it. A condition branches into its own nested steps; a wait suspends until the scheduled cron resumes it, re-checking any condition that follows fresh."
             bodyClassName="h-[70vh] min-h-[520px] overflow-hidden rounded-2xl ring-1 ring-slate-200"
           >
-            <JourneyCanvas steps={steps} onChange={setSteps} segments={segments} readOnly={!canEdit} triggerLabel={triggerLabel} />
+            <JourneyCanvas steps={steps} onChange={setSteps} segments={segments} readOnly={!canEdit} triggerLabel={triggerLabel} stepStats={stepStats} />
           </SectionCard>
 
           {canEdit && (
@@ -382,6 +407,12 @@ export default function AutomationEditor() {
             emptyState={<div className="p-6 text-center text-sm font-semibold text-slate-500">Nothing matches.</div>}
           />
           <Pagination page={sendList.page} pageSize={sendList.pageSize} total={sendTotal} onPageChange={(p) => sendList.set({ page: p })} onPageSizeChange={(pageSize) => sendList.set({ pageSize })} className="mt-4" />
+        </SectionCard>
+      )}
+
+      {tab === "analytics" && (
+        <SectionCard title="Analytics" description="Per-step counts also show up right on the canvas nodes in the Edit tab.">
+          <CampaignAnalytics analytics={analytics} loading={analyticsLoading} />
         </SectionCard>
       )}
     </CmsLayout>
