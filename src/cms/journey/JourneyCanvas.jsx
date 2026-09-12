@@ -32,7 +32,7 @@ import { notify } from "../ui";
 
 const NODE_TYPES = { trigger: TriggerNode, wait: WaitNode, condition: ConditionNode, split: SplitNode, action: ActionNode, add: AddStepNode };
 
-export default function JourneyCanvas({ steps, onChange, segments, readOnly = false, triggerLabel, stepStats = null }) {
+export default function JourneyCanvas({ steps, onChange, segments, readOnly = false, triggerLabel, stepStats = null, onOpenTrigger: onOpenTriggerProp }) {
   const [selectedPath, setSelectedPath] = useState(null);
   const [activeDrag, setActiveDrag] = useState(null); // { kind } | { stepPath }
 
@@ -58,8 +58,9 @@ export default function JourneyCanvas({ steps, onChange, segments, readOnly = fa
   const onNormalizeSplitWeights = useCallback((splitPath) => onChange(normalizeSplitWeights(list, splitPath)), [list, onChange]);
   const onOpenStep = useCallback((path) => setSelectedPath(path), []);
   const onOpenTrigger = useCallback(() => {
+    if (onOpenTriggerProp) { onOpenTriggerProp(); return; }
     document.getElementById("automation-trigger-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+  }, [onOpenTriggerProp]);
 
   function handleDragStart(event) {
     const data = event.active?.data?.current;

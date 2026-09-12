@@ -45,6 +45,23 @@ export function defaultParams(action) {
   }
 }
 
+// A plain-English, top-level-only list for the wizard's Review step —
+// "Email → Wait 2 days → Push", nested condition/split branches noted as
+// "+ branches" rather than walked (a full tree-to-prose summary isn't
+// worth the complexity for a one-line recap).
+export function summarizeSteps(steps) {
+  const list = Array.isArray(steps) ? steps : [];
+  return list.map((step) => {
+    if (step.type === "wait") {
+      const hours = step.duration_hours ?? 24;
+      return hours % 24 === 0 ? `Wait ${hours / 24} day${hours === 24 ? "" : "s"}` : `Wait ${hours}h`;
+    }
+    if (step.type === "condition") return "Condition (+ branches)";
+    if (step.type === "split") return "A/B split (+ branches)";
+    return ACTION_META[step.action]?.label || step.action || "Step";
+  });
+}
+
 export function newStep(kind) {
   if (kind === "wait") return { type: "wait", duration_hours: 24 };
   if (kind === "condition") return { type: "condition", branches: [{ when: [], steps: [] }, { else: true, steps: [] }] };

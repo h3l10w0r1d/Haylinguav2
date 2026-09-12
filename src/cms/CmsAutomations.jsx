@@ -11,7 +11,7 @@ import { createCmsApi, getCmsClaim, getCmsToken } from "./api";
 import { Archive, Pause, Play, Plus, Zap } from "lucide-react";
 import CmsLayout from "./CmsLayout";
 import {
-  Badge, Button, DataTable, Field, FieldRow, Input, ListToolbar, Note, Pagination, Select, SelectContent,
+  Badge, Button, DataTable, ListToolbar, Note, Pagination, Select, SelectContent,
   SelectItem, SelectTrigger, SelectValue, SearchInput, SectionCard, notify, useConfirm, useListQuery,
 } from "./ui";
 
@@ -40,8 +40,6 @@ export default function CmsAutomations() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newEvent, setNewEvent] = useState(EVENT_TYPES[0].value);
 
   const list = useListQuery();
 
@@ -65,19 +63,20 @@ export default function CmsAutomations() {
   }, [token, list.page, list.pageSize, list.q, list.get("status")]);
 
   async function createCampaign() {
-    if (!newName.trim()) return;
+    // Deliberately minimal — name and trigger are the guided wizard's own
+    // step 1 now (CampaignWizard.jsx), not asked twice across two
+    // different-looking screens. A brand-new draft with zero steps is
+    // exactly the signal AutomationEditor.jsx uses to land in guided mode.
     setBusy(true);
     try {
       const res = await api.createAutomation({
-        name: newName.trim(),
+        name: "Untitled campaign",
         status: "draft",
         trigger_type: "event",
-        trigger_config: { event_type: newEvent, filters: { op: "and", rules: [] } },
+        trigger_config: { event_type: EVENT_TYPES[0].value, filters: { op: "and", rules: [] } },
         steps: [],
         reenrollment_policy: "skip",
       });
-      setNewName("");
-      notify("Campaign created");
       navigate(`/cms/automations/${res.id}`);
     } catch (err) {
       notify(err.message || "Create failed", "err");
@@ -165,24 +164,11 @@ export default function CmsAutomations() {
         )}
 
         {canEdit && (
-          <SectionCard title="New campaign">
-            <FieldRow>
-              <Field label="Name">
-                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Welcome email" />
-              </Field>
-              <Field label="Trigger">
-                <Select value={newEvent} onValueChange={setNewEvent}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{EVENT_TYPES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </Field>
-            </FieldRow>
-            <div className="mt-4 flex justify-end">
-              <Button onClick={createCampaign} disabled={busy || !newName.trim()}>
-                <Plus className="h-4 w-4" /> Create &amp; edit steps
-              </Button>
-            </div>
-          </SectionCard>
+          <div className="flex justify-end">
+            <Button onClick={createCampaign} disabled={busy}>
+              <Plus className="h-4 w-4" /> New campaign
+            </Button>
+          </div>
         )}
 
         <SectionCard title="Campaigns">
